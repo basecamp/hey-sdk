@@ -59,25 +59,24 @@ behavior-model-check:
 .PHONY: drift-check drift-check-mvp drift-check-full drift-regen
 
 # Forward-only: every modeled operation has a matching route
-# Skips if route-snapshot.json is empty (not yet populated via make drift-regen)
 drift-check-forward:
 	@echo "==> Drift check (forward)..."
 	@if jq -e 'length == 0' spec/route-snapshot.json > /dev/null 2>&1; then \
-		echo "  SKIP: route-snapshot.json is empty. Run 'make drift-regen' to populate."; \
-	else \
-		./scripts/drift-check-forward || exit 1; \
+		echo "ERROR: route-snapshot.json is empty. Run 'make drift-regen HAYSTACK_DIR=~/Work/basecamp/haystack' to populate."; \
+		exit 1; \
 	fi
+	@./scripts/drift-check-forward
 
 # Shape fingerprint unchanged
 drift-check-shape:
 	@echo "==> Drift check (shape fingerprints)..."
-	@test -f spec/shape-fingerprint.json || \
-		{ echo "ERROR: spec/shape-fingerprint.json not found."; exit 1; }
+	@./scripts/generate-shape-fingerprint --check
 
-# Reverse: every JSON-capable route is either modeled or excluded
+# Reverse: every JSON-capable route is either modeled or excluded (Phase 3)
 drift-check-reverse:
 	@echo "==> Drift check (reverse)..."
-	@echo "Reverse drift check: ensuring full API surface coverage"
+	@echo "TODO: Phase 3 — verify every JSON-capable route is modeled or excluded"
+	@echo "SKIP: reverse drift check not yet implemented"
 
 # MVP: forward + shape only
 drift-check-mvp: drift-check-forward drift-check-shape
@@ -151,19 +150,19 @@ endif
 .PHONY: go-check go-check-drift go-test go-lint go-generate
 
 go-generate:
-	@test -f go/Makefile && $(MAKE) -C go generate || echo "SKIP: Go SDK not yet implemented"
+	$(MAKE) -C go generate
 
 go-test:
-	@test -f go/Makefile && $(MAKE) -C go test || echo "SKIP: Go SDK not yet implemented"
+	$(MAKE) -C go test
 
 go-lint:
-	@test -f go/Makefile && $(MAKE) -C go lint || echo "SKIP: Go SDK not yet implemented"
+	$(MAKE) -C go lint
 
 go-check:
-	@test -f go/Makefile && $(MAKE) -C go check || echo "SKIP: Go SDK not yet implemented"
+	$(MAKE) -C go check
 
 go-check-drift:
-	@test -f scripts/check-service-drift.sh && ./scripts/check-service-drift.sh || echo "SKIP: Go drift check not yet implemented"
+	./scripts/check-service-drift.sh
 
 #------------------------------------------------------------------------------
 # TypeScript SDK
@@ -254,7 +253,7 @@ kt-check-drift:
 .PHONY: conformance conformance-mvp conformance-full conformance-go conformance-ts conformance-rb conformance-swift conformance-kt
 
 conformance-go:
-	@test -f conformance/runner/go/go.mod && cd conformance/runner/go && go test -v ./... || echo "SKIP: Go conformance runner not yet implemented"
+	cd conformance/runner/go && go run .
 
 conformance-ts:
 	cd conformance/runner/typescript && npm test
