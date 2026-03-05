@@ -1,1 +1,6638 @@
-[]
+[
+  {
+    "method": "GET",
+    "path": "/"
+  },
+  {
+    "method": "GET",
+    "path": "/(*any)"
+  },
+  {
+    "method": "GET",
+    "path": "/.well-known/change-password"
+  },
+  {
+    "method": "GET",
+    "path": "/2fa"
+  },
+  {
+    "method": "GET",
+    "path": "/account/deletion/completion"
+  },
+  {
+    "method": "POST",
+    "path": "/account/domains/users/setup/backup_email_address"
+  },
+  {
+    "method": "GET",
+    "path": "/account/domains/users/setup/backup_email_address/new"
+  },
+  {
+    "method": "GET",
+    "path": "/account/domains/users/setup/lobby"
+  },
+  {
+    "method": "POST",
+    "path": "/account/domains/users/setup/password"
+  },
+  {
+    "method": "GET",
+    "path": "/account/domains/users/setup/password/new"
+  },
+  {
+    "method": "DELETE",
+    "path": "/account/domains/users/setup/session"
+  },
+  {
+    "method": "POST",
+    "path": "/account/domains/users/setup/session"
+  },
+  {
+    "method": "GET",
+    "path": "/account/domains/users/setup/session/{user_setup_id}/new"
+  },
+  {
+    "method": "POST",
+    "path": "/account/domains/users/setup/two_factor_authentication"
+  },
+  {
+    "method": "GET",
+    "path": "/account/domains/users/setup/two_factor_authentication/new"
+  },
+  {
+    "method": "GET",
+    "path": "/account/reactivations/callouts"
+  },
+  {
+    "method": "GET",
+    "path": "/account/trial/callouts"
+  },
+  {
+    "method": "GET",
+    "path": "/accounts"
+  },
+  {
+    "method": "GET",
+    "path": "/accounts/{account_id}/billing"
+  },
+  {
+    "method": "POST",
+    "path": "/accounts/{account_id}/cancellation"
+  },
+  {
+    "method": "GET",
+    "path": "/accounts/{account_id}/cancellation/new"
+  },
+  {
+    "method": "GET",
+    "path": "/accounts/{account_id}/catchall"
+  },
+  {
+    "method": "PATCH",
+    "path": "/accounts/{account_id}/catchall"
+  },
+  {
+    "method": "PUT",
+    "path": "/accounts/{account_id}/catchall"
+  },
+  {
+    "method": "GET",
+    "path": "/accounts/{account_id}/closed"
+  },
+  {
+    "method": "PATCH",
+    "path": "/accounts/{account_id}/credit_card"
+  },
+  {
+    "method": "PUT",
+    "path": "/accounts/{account_id}/credit_card"
+  },
+  {
+    "method": "GET",
+    "path": "/accounts/{account_id}/credit_card/edit"
+  },
+  {
+    "method": "POST",
+    "path": "/accounts/{account_id}/deletion"
+  },
+  {
+    "method": "GET",
+    "path": "/accounts/{account_id}/deletion/new"
+  },
+  {
+    "method": "GET",
+    "path": "/accounts/{account_id}/domains/domain_settings"
+  },
+  {
+    "method": "GET",
+    "path": "/accounts/{account_id}/domains/exports"
+  },
+  {
+    "method": "POST",
+    "path": "/accounts/{account_id}/domains/exports"
+  },
+  {
+    "method": "GET",
+    "path": "/accounts/{account_id}/domains/exports/new"
+  },
+  {
+    "method": "GET",
+    "path": "/accounts/{account_id}/domains/extenzions"
+  },
+  {
+    "method": "POST",
+    "path": "/accounts/{account_id}/domains/extenzions"
+  },
+  {
+    "method": "GET",
+    "path": "/accounts/{account_id}/domains/extenzions/new"
+  },
+  {
+    "method": "PATCH",
+    "path": "/accounts/{account_id}/domains/extenzions/{extenzion_id}/involvements"
+  },
+  {
+    "method": "PUT",
+    "path": "/accounts/{account_id}/domains/extenzions/{extenzion_id}/involvements"
+  },
+  {
+    "method": "GET",
+    "path": "/accounts/{account_id}/domains/extenzions/{extenzion_id}/involvements/edit"
+  },
+  {
+    "method": "DELETE",
+    "path": "/accounts/{account_id}/domains/extenzions/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/accounts/{account_id}/domains/extenzions/{id}"
+  },
+  {
+    "method": "PATCH",
+    "path": "/accounts/{account_id}/domains/extenzions/{id}"
+  },
+  {
+    "method": "PUT",
+    "path": "/accounts/{account_id}/domains/extenzions/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/accounts/{account_id}/domains/extenzions/{id}/edit"
+  },
+  {
+    "method": "GET",
+    "path": "/accounts/{account_id}/domains/owners"
+  },
+  {
+    "method": "POST",
+    "path": "/accounts/{account_id}/domains/owners"
+  },
+  {
+    "method": "DELETE",
+    "path": "/accounts/{account_id}/domains/owners/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/accounts/{account_id}/domains/setup"
+  },
+  {
+    "method": "GET",
+    "path": "/accounts/{account_id}/domains/setup/credit_card"
+  },
+  {
+    "method": "POST",
+    "path": "/accounts/{account_id}/domains/setup/credit_card"
+  },
+  {
+    "method": "GET",
+    "path": "/accounts/{account_id}/domains/setup/credit_card/new"
+  },
+  {
+    "method": "GET",
+    "path": "/accounts/{account_id}/domains/setup/domain_configurations/cname_configuration"
+  },
+  {
+    "method": "POST",
+    "path": "/accounts/{account_id}/domains/setup/domain_configurations/cname_configuration"
+  },
+  {
+    "method": "GET",
+    "path": "/accounts/{account_id}/domains/setup/domain_configurations/cname_configuration/new"
+  },
+  {
+    "method": "GET",
+    "path": "/accounts/{account_id}/domains/setup/domain_configurations/mx_configuration"
+  },
+  {
+    "method": "POST",
+    "path": "/accounts/{account_id}/domains/setup/domain_configurations/mx_configuration"
+  },
+  {
+    "method": "GET",
+    "path": "/accounts/{account_id}/domains/setup/domain_configurations/mx_configuration/new"
+  },
+  {
+    "method": "GET",
+    "path": "/accounts/{account_id}/domains/setup/domain_configurations/new"
+  },
+  {
+    "method": "GET",
+    "path": "/accounts/{account_id}/domains/setup/domain_configurations/txt_configuration"
+  },
+  {
+    "method": "POST",
+    "path": "/accounts/{account_id}/domains/setup/domain_configurations/txt_configuration"
+  },
+  {
+    "method": "GET",
+    "path": "/accounts/{account_id}/domains/setup/domain_configurations/txt_configuration/new"
+  },
+  {
+    "method": "GET",
+    "path": "/accounts/{account_id}/domains/setup/domain_verification"
+  },
+  {
+    "method": "POST",
+    "path": "/accounts/{account_id}/domains/setup/domain_verification"
+  },
+  {
+    "method": "GET",
+    "path": "/accounts/{account_id}/domains/setup/domain_verification/new"
+  },
+  {
+    "method": "POST",
+    "path": "/accounts/{account_id}/domains/setup/extenzion/complete"
+  },
+  {
+    "method": "GET",
+    "path": "/accounts/{account_id}/domains/setup/extenzion/new"
+  },
+  {
+    "method": "GET",
+    "path": "/accounts/{account_id}/domains/setup/support"
+  },
+  {
+    "method": "POST",
+    "path": "/accounts/{account_id}/domains/setup/support"
+  },
+  {
+    "method": "GET",
+    "path": "/accounts/{account_id}/domains/setup/support/new"
+  },
+  {
+    "method": "POST",
+    "path": "/accounts/{account_id}/domains/setup/users/complete"
+  },
+  {
+    "method": "GET",
+    "path": "/accounts/{account_id}/domains/setup/users/new"
+  },
+  {
+    "method": "GET",
+    "path": "/accounts/{account_id}/domains/two_factor_authentication"
+  },
+  {
+    "method": "GET",
+    "path": "/accounts/{account_id}/domains/users"
+  },
+  {
+    "method": "GET",
+    "path": "/accounts/{account_id}/domains/users/setups"
+  },
+  {
+    "method": "POST",
+    "path": "/accounts/{account_id}/domains/users/setups"
+  },
+  {
+    "method": "GET",
+    "path": "/accounts/{account_id}/domains/users/setups/new"
+  },
+  {
+    "method": "GET",
+    "path": "/accounts/{account_id}/domains/users/setups/preview"
+  },
+  {
+    "method": "DELETE",
+    "path": "/accounts/{account_id}/domains/users/setups/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/accounts/{account_id}/domains/users/setups/{id}"
+  },
+  {
+    "method": "PATCH",
+    "path": "/accounts/{account_id}/domains/users/setups/{id}"
+  },
+  {
+    "method": "PUT",
+    "path": "/accounts/{account_id}/domains/users/setups/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/accounts/{account_id}/domains/users/setups/{id}/edit"
+  },
+  {
+    "method": "POST",
+    "path": "/accounts/{account_id}/domains/users/setups/{setup_id}/redeliver"
+  },
+  {
+    "method": "DELETE",
+    "path": "/accounts/{account_id}/domains/users/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/accounts/{account_id}/domains/users/{id}/edit"
+  },
+  {
+    "method": "GET",
+    "path": "/accounts/{account_id}/exports"
+  },
+  {
+    "method": "POST",
+    "path": "/accounts/{account_id}/exports"
+  },
+  {
+    "method": "GET",
+    "path": "/accounts/{account_id}/exports/new"
+  },
+  {
+    "method": "GET",
+    "path": "/accounts/{account_id}/exports/{export_id}/download"
+  },
+  {
+    "method": "DELETE",
+    "path": "/accounts/{account_id}/exports/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/accounts/{account_id}/exports/{id}"
+  },
+  {
+    "method": "PATCH",
+    "path": "/accounts/{account_id}/exports/{id}"
+  },
+  {
+    "method": "PUT",
+    "path": "/accounts/{account_id}/exports/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/accounts/{account_id}/exports/{id}/edit"
+  },
+  {
+    "method": "GET",
+    "path": "/accounts/{account_id}/extenzions"
+  },
+  {
+    "method": "POST",
+    "path": "/accounts/{account_id}/extenzions"
+  },
+  {
+    "method": "GET",
+    "path": "/accounts/{account_id}/extenzions/new"
+  },
+  {
+    "method": "DELETE",
+    "path": "/accounts/{account_id}/extenzions/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/accounts/{account_id}/extenzions/{id}"
+  },
+  {
+    "method": "PATCH",
+    "path": "/accounts/{account_id}/extenzions/{id}"
+  },
+  {
+    "method": "PUT",
+    "path": "/accounts/{account_id}/extenzions/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/accounts/{account_id}/extenzions/{id}/edit"
+  },
+  {
+    "method": "GET",
+    "path": "/accounts/{account_id}/families"
+  },
+  {
+    "method": "POST",
+    "path": "/accounts/{account_id}/families"
+  },
+  {
+    "method": "GET",
+    "path": "/accounts/{account_id}/families/new"
+  },
+  {
+    "method": "DELETE",
+    "path": "/accounts/{account_id}/family_invitation_acceptances"
+  },
+  {
+    "method": "POST",
+    "path": "/accounts/{account_id}/family_invitation_acceptances"
+  },
+  {
+    "method": "GET",
+    "path": "/accounts/{account_id}/family_invitation_acceptances/new"
+  },
+  {
+    "method": "POST",
+    "path": "/accounts/{account_id}/family_invitations"
+  },
+  {
+    "method": "DELETE",
+    "path": "/accounts/{account_id}/family_invitations/{id}"
+  },
+  {
+    "method": "PATCH",
+    "path": "/accounts/{account_id}/family_invitations/{id}"
+  },
+  {
+    "method": "PUT",
+    "path": "/accounts/{account_id}/family_invitations/{id}"
+  },
+  {
+    "method": "DELETE",
+    "path": "/accounts/{account_id}/family_memberships/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/accounts/{account_id}/family_memberships/{id}/edit"
+  },
+  {
+    "method": "GET",
+    "path": "/accounts/{account_id}/family_reactivations/new"
+  },
+  {
+    "method": "GET",
+    "path": "/accounts/{account_id}/incineration_without_preservation"
+  },
+  {
+    "method": "POST",
+    "path": "/accounts/{account_id}/incineration_without_preservation"
+  },
+  {
+    "method": "GET",
+    "path": "/accounts/{account_id}/invoices/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/accounts/{account_id}/pricing/estimate"
+  },
+  {
+    "method": "POST",
+    "path": "/accounts/{account_id}/primary_ownership_transfers"
+  },
+  {
+    "method": "GET",
+    "path": "/accounts/{account_id}/primary_ownership_transfers/new"
+  },
+  {
+    "method": "GET",
+    "path": "/accounts/{account_id}/primary_ownership_transfers/preview"
+  },
+  {
+    "method": "GET",
+    "path": "/accounts/{account_id}/reactivation/new"
+  },
+  {
+    "method": "DELETE",
+    "path": "/accounts/{account_id}/renewal"
+  },
+  {
+    "method": "POST",
+    "path": "/accounts/{account_id}/renewal"
+  },
+  {
+    "method": "GET",
+    "path": "/accounts/{account_id}/renewal/edit"
+  },
+  {
+    "method": "GET",
+    "path": "/accounts/{account_id}/renewal/new"
+  },
+  {
+    "method": "POST",
+    "path": "/accounts/{account_id}/reopening"
+  },
+  {
+    "method": "GET",
+    "path": "/accounts/{account_id}/reopening/new"
+  },
+  {
+    "method": "GET",
+    "path": "/accounts/{account_id}/reset"
+  },
+  {
+    "method": "POST",
+    "path": "/accounts/{account_id}/reset"
+  },
+  {
+    "method": "POST",
+    "path": "/accounts/{account_id}/spam_cancellation"
+  },
+  {
+    "method": "DELETE",
+    "path": "/accounts/{account_id}/spam_shadow_ban"
+  },
+  {
+    "method": "POST",
+    "path": "/accounts/{account_id}/spam_shadow_ban"
+  },
+  {
+    "method": "GET",
+    "path": "/accounts/{account_id}/suspension"
+  },
+  {
+    "method": "POST",
+    "path": "/accounts/{account_id}/trial/upgrade"
+  },
+  {
+    "method": "GET",
+    "path": "/accounts/{account_id}/trial/upgrade/new"
+  },
+  {
+    "method": "GET",
+    "path": "/accounts/{account_id}/work/*rest"
+  },
+  {
+    "method": "GET",
+    "path": "/accounts/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/advanced_search"
+  },
+  {
+    "method": "GET",
+    "path": "/advanced_search_filters"
+  },
+  {
+    "method": "DELETE",
+    "path": "/alert"
+  },
+  {
+    "method": "GET",
+    "path": "/alert"
+  },
+  {
+    "method": "PATCH",
+    "path": "/alert"
+  },
+  {
+    "method": "POST",
+    "path": "/alert"
+  },
+  {
+    "method": "PUT",
+    "path": "/alert"
+  },
+  {
+    "method": "GET",
+    "path": "/alert/edit"
+  },
+  {
+    "method": "GET",
+    "path": "/alert/new"
+  },
+  {
+    "method": "GET",
+    "path": "/announcements"
+  },
+  {
+    "method": "POST",
+    "path": "/announcements"
+  },
+  {
+    "method": "GET",
+    "path": "/announcements/new"
+  },
+  {
+    "method": "POST",
+    "path": "/announcements/{announcement_id}/delivery"
+  },
+  {
+    "method": "GET",
+    "path": "/announcements/{announcement_id}/delivery/new"
+  },
+  {
+    "method": "POST",
+    "path": "/announcements/{announcement_id}/preview"
+  },
+  {
+    "method": "DELETE",
+    "path": "/announcements/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/announcements/{id}"
+  },
+  {
+    "method": "PATCH",
+    "path": "/announcements/{id}"
+  },
+  {
+    "method": "PUT",
+    "path": "/announcements/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/announcements/{id}/edit"
+  },
+  {
+    "method": "POST",
+    "path": "/applications/{application_id}/jobs/bulk_discards"
+  },
+  {
+    "method": "POST",
+    "path": "/applications/{application_id}/jobs/bulk_retries"
+  },
+  {
+    "method": "GET",
+    "path": "/applications/{application_id}/jobs/{id}"
+  },
+  {
+    "method": "POST",
+    "path": "/applications/{application_id}/jobs/{job_id}/discard"
+  },
+  {
+    "method": "POST",
+    "path": "/applications/{application_id}/jobs/{job_id}/dispatch"
+  },
+  {
+    "method": "POST",
+    "path": "/applications/{application_id}/jobs/{job_id}/retry"
+  },
+  {
+    "method": "GET",
+    "path": "/applications/{application_id}/queues"
+  },
+  {
+    "method": "GET",
+    "path": "/applications/{application_id}/queues/{id}"
+  },
+  {
+    "method": "DELETE",
+    "path": "/applications/{application_id}/queues/{queue_id}/pause"
+  },
+  {
+    "method": "POST",
+    "path": "/applications/{application_id}/queues/{queue_id}/pause"
+  },
+  {
+    "method": "GET",
+    "path": "/applications/{application_id}/recurring_tasks"
+  },
+  {
+    "method": "GET",
+    "path": "/applications/{application_id}/recurring_tasks/{id}"
+  },
+  {
+    "method": "PATCH",
+    "path": "/applications/{application_id}/recurring_tasks/{id}"
+  },
+  {
+    "method": "PUT",
+    "path": "/applications/{application_id}/recurring_tasks/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/applications/{application_id}/workers"
+  },
+  {
+    "method": "GET",
+    "path": "/applications/{application_id}/workers/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/applications/{application_id}/{status}/jobs"
+  },
+  {
+    "method": "GET",
+    "path": "/attachments"
+  },
+  {
+    "method": "GET",
+    "path": "/attachments/senders"
+  },
+  {
+    "method": "DELETE",
+    "path": "/auditor_token"
+  },
+  {
+    "method": "GET",
+    "path": "/auditor_token"
+  },
+  {
+    "method": "POST",
+    "path": "/auditor_token"
+  },
+  {
+    "method": "GET",
+    "path": "/autocompletable/accounts/{account_id}/contacts/users"
+  },
+  {
+    "method": "GET",
+    "path": "/autocompletable/accounts/{account_id}/workflows"
+  },
+  {
+    "method": "GET",
+    "path": "/autocompletable/contacts"
+  },
+  {
+    "method": "GET",
+    "path": "/autocompletable/contacts/addressable"
+  },
+  {
+    "method": "GET",
+    "path": "/autofileables/{autofileable_id}/autofilings"
+  },
+  {
+    "method": "POST",
+    "path": "/autofileables/{autofileable_id}/autofilings"
+  },
+  {
+    "method": "DELETE",
+    "path": "/autofileables/{autofileable_id}/autofilings/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/avatars/{avatarable_sid}"
+  },
+  {
+    "method": "GET",
+    "path": "/boxes"
+  },
+  {
+    "method": "POST",
+    "path": "/boxes"
+  },
+  {
+    "method": "GET",
+    "path": "/boxes/new"
+  },
+  {
+    "method": "DELETE",
+    "path": "/boxes/{box_id}/cover"
+  },
+  {
+    "method": "GET",
+    "path": "/boxes/{box_id}/cover"
+  },
+  {
+    "method": "PATCH",
+    "path": "/boxes/{box_id}/cover"
+  },
+  {
+    "method": "POST",
+    "path": "/boxes/{box_id}/cover"
+  },
+  {
+    "method": "PUT",
+    "path": "/boxes/{box_id}/cover"
+  },
+  {
+    "method": "GET",
+    "path": "/boxes/{box_id}/cover/edit"
+  },
+  {
+    "method": "GET",
+    "path": "/boxes/{box_id}/cover/new"
+  },
+  {
+    "method": "POST",
+    "path": "/boxes/{box_id}/designations"
+  },
+  {
+    "method": "DELETE",
+    "path": "/boxes/{box_id}/designations/{id}"
+  },
+  {
+    "method": "DELETE",
+    "path": "/boxes/{box_id}/glance"
+  },
+  {
+    "method": "GET",
+    "path": "/boxes/{box_id}/glance"
+  },
+  {
+    "method": "PATCH",
+    "path": "/boxes/{box_id}/glance"
+  },
+  {
+    "method": "POST",
+    "path": "/boxes/{box_id}/glance"
+  },
+  {
+    "method": "PUT",
+    "path": "/boxes/{box_id}/glance"
+  },
+  {
+    "method": "GET",
+    "path": "/boxes/{box_id}/glance/edit"
+  },
+  {
+    "method": "GET",
+    "path": "/boxes/{box_id}/glance/new"
+  },
+  {
+    "method": "GET",
+    "path": "/boxes/{box_id}/groups"
+  },
+  {
+    "method": "POST",
+    "path": "/boxes/{box_id}/groups"
+  },
+  {
+    "method": "GET",
+    "path": "/boxes/{box_id}/groups/new"
+  },
+  {
+    "method": "DELETE",
+    "path": "/boxes/{box_id}/groups/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/boxes/{box_id}/groups/{id}"
+  },
+  {
+    "method": "PATCH",
+    "path": "/boxes/{box_id}/groups/{id}"
+  },
+  {
+    "method": "PUT",
+    "path": "/boxes/{box_id}/groups/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/boxes/{box_id}/groups/{id}/edit"
+  },
+  {
+    "method": "GET",
+    "path": "/boxes/{box_id}/missing_postings"
+  },
+  {
+    "method": "POST",
+    "path": "/boxes/{box_id}/missing_postings"
+  },
+  {
+    "method": "DELETE",
+    "path": "/boxes/{box_id}/observation"
+  },
+  {
+    "method": "GET",
+    "path": "/boxes/{box_id}/observation"
+  },
+  {
+    "method": "PATCH",
+    "path": "/boxes/{box_id}/observation"
+  },
+  {
+    "method": "POST",
+    "path": "/boxes/{box_id}/observation"
+  },
+  {
+    "method": "PUT",
+    "path": "/boxes/{box_id}/observation"
+  },
+  {
+    "method": "GET",
+    "path": "/boxes/{box_id}/observation/edit"
+  },
+  {
+    "method": "GET",
+    "path": "/boxes/{box_id}/observation/new"
+  },
+  {
+    "method": "DELETE",
+    "path": "/boxes/{box_id}/onboardings"
+  },
+  {
+    "method": "GET",
+    "path": "/boxes/{box_id}/onboardings"
+  },
+  {
+    "method": "PATCH",
+    "path": "/boxes/{box_id}/onboardings"
+  },
+  {
+    "method": "POST",
+    "path": "/boxes/{box_id}/onboardings"
+  },
+  {
+    "method": "PUT",
+    "path": "/boxes/{box_id}/onboardings"
+  },
+  {
+    "method": "GET",
+    "path": "/boxes/{box_id}/onboardings/edit"
+  },
+  {
+    "method": "GET",
+    "path": "/boxes/{box_id}/onboardings/new"
+  },
+  {
+    "method": "GET",
+    "path": "/boxes/{box_id}/postings/changes"
+  },
+  {
+    "method": "DELETE",
+    "path": "/boxes/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/boxes/{id}"
+  },
+  {
+    "method": "PATCH",
+    "path": "/boxes/{id}"
+  },
+  {
+    "method": "PUT",
+    "path": "/boxes/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/boxes/{id}/edit"
+  },
+  {
+    "method": "GET",
+    "path": "/bubble_up"
+  },
+  {
+    "method": "POST",
+    "path": "/bulk_replies"
+  },
+  {
+    "method": "GET",
+    "path": "/bulk_replies/new"
+  },
+  {
+    "method": "POST",
+    "path": "/bulk_replies/{bulk_reply_id}/undo_send"
+  },
+  {
+    "method": "GET",
+    "path": "/bulk_replies/{id}"
+  },
+  {
+    "method": "PATCH",
+    "path": "/bulk_replies/{id}"
+  },
+  {
+    "method": "PUT",
+    "path": "/bulk_replies/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/autocompletable/attendable_contacts"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/autocompletable/categories"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/changes"
+  },
+  {
+    "method": "DELETE",
+    "path": "/calendar/cover"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/cover"
+  },
+  {
+    "method": "PATCH",
+    "path": "/calendar/cover"
+  },
+  {
+    "method": "POST",
+    "path": "/calendar/cover"
+  },
+  {
+    "method": "PUT",
+    "path": "/calendar/cover"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/cover/edit"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/cover/new"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/days"
+  },
+  {
+    "method": "POST",
+    "path": "/calendar/days"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/days/new"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/days/now"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/days/{day_id}/all_day_events"
+  },
+  {
+    "method": "POST",
+    "path": "/calendar/days/{day_id}/all_day_events"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/days/{day_id}/all_day_events/new"
+  },
+  {
+    "method": "DELETE",
+    "path": "/calendar/days/{day_id}/all_day_events/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/days/{day_id}/all_day_events/{id}"
+  },
+  {
+    "method": "PATCH",
+    "path": "/calendar/days/{day_id}/all_day_events/{id}"
+  },
+  {
+    "method": "PUT",
+    "path": "/calendar/days/{day_id}/all_day_events/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/days/{day_id}/all_day_events/{id}/edit"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/days/{day_id}/countdowns"
+  },
+  {
+    "method": "POST",
+    "path": "/calendar/days/{day_id}/countdowns"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/days/{day_id}/countdowns/new"
+  },
+  {
+    "method": "DELETE",
+    "path": "/calendar/days/{day_id}/countdowns/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/days/{day_id}/countdowns/{id}"
+  },
+  {
+    "method": "PATCH",
+    "path": "/calendar/days/{day_id}/countdowns/{id}"
+  },
+  {
+    "method": "PUT",
+    "path": "/calendar/days/{day_id}/countdowns/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/days/{day_id}/countdowns/{id}/edit"
+  },
+  {
+    "method": "DELETE",
+    "path": "/calendar/days/{day_id}/day_title"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/days/{day_id}/day_title"
+  },
+  {
+    "method": "PATCH",
+    "path": "/calendar/days/{day_id}/day_title"
+  },
+  {
+    "method": "POST",
+    "path": "/calendar/days/{day_id}/day_title"
+  },
+  {
+    "method": "PUT",
+    "path": "/calendar/days/{day_id}/day_title"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/days/{day_id}/day_title/edit"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/days/{day_id}/day_title/new"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/days/{day_id}/habits"
+  },
+  {
+    "method": "POST",
+    "path": "/calendar/days/{day_id}/habits"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/days/{day_id}/habits/new"
+  },
+  {
+    "method": "DELETE",
+    "path": "/calendar/days/{day_id}/habits/{habit_id}/completions"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/days/{day_id}/habits/{habit_id}/completions"
+  },
+  {
+    "method": "PATCH",
+    "path": "/calendar/days/{day_id}/habits/{habit_id}/completions"
+  },
+  {
+    "method": "POST",
+    "path": "/calendar/days/{day_id}/habits/{habit_id}/completions"
+  },
+  {
+    "method": "PUT",
+    "path": "/calendar/days/{day_id}/habits/{habit_id}/completions"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/days/{day_id}/habits/{habit_id}/completions/edit"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/days/{day_id}/habits/{habit_id}/completions/new"
+  },
+  {
+    "method": "DELETE",
+    "path": "/calendar/days/{day_id}/habits/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/days/{day_id}/habits/{id}"
+  },
+  {
+    "method": "PATCH",
+    "path": "/calendar/days/{day_id}/habits/{id}"
+  },
+  {
+    "method": "PUT",
+    "path": "/calendar/days/{day_id}/habits/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/days/{day_id}/habits/{id}/edit"
+  },
+  {
+    "method": "DELETE",
+    "path": "/calendar/days/{day_id}/journal_entry"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/days/{day_id}/journal_entry"
+  },
+  {
+    "method": "PATCH",
+    "path": "/calendar/days/{day_id}/journal_entry"
+  },
+  {
+    "method": "POST",
+    "path": "/calendar/days/{day_id}/journal_entry"
+  },
+  {
+    "method": "PUT",
+    "path": "/calendar/days/{day_id}/journal_entry"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/days/{day_id}/journal_entry/edit"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/days/{day_id}/journal_entry/new"
+  },
+  {
+    "method": "DELETE",
+    "path": "/calendar/days/{day_id}/nighttimes"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/days/{day_id}/nighttimes"
+  },
+  {
+    "method": "PATCH",
+    "path": "/calendar/days/{day_id}/nighttimes"
+  },
+  {
+    "method": "POST",
+    "path": "/calendar/days/{day_id}/nighttimes"
+  },
+  {
+    "method": "PUT",
+    "path": "/calendar/days/{day_id}/nighttimes"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/days/{day_id}/nighttimes/edit"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/days/{day_id}/nighttimes/new"
+  },
+  {
+    "method": "DELETE",
+    "path": "/calendar/days/{day_id}/today_link"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/days/{day_id}/today_link"
+  },
+  {
+    "method": "PATCH",
+    "path": "/calendar/days/{day_id}/today_link"
+  },
+  {
+    "method": "POST",
+    "path": "/calendar/days/{day_id}/today_link"
+  },
+  {
+    "method": "PUT",
+    "path": "/calendar/days/{day_id}/today_link"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/days/{day_id}/today_link/edit"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/days/{day_id}/today_link/new"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/days/{day_id}/todos"
+  },
+  {
+    "method": "POST",
+    "path": "/calendar/days/{day_id}/todos"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/days/{day_id}/todos/new"
+  },
+  {
+    "method": "DELETE",
+    "path": "/calendar/days/{day_id}/todos/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/days/{day_id}/todos/{id}"
+  },
+  {
+    "method": "PATCH",
+    "path": "/calendar/days/{day_id}/todos/{id}"
+  },
+  {
+    "method": "PUT",
+    "path": "/calendar/days/{day_id}/todos/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/days/{day_id}/todos/{id}/edit"
+  },
+  {
+    "method": "DELETE",
+    "path": "/calendar/days/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/days/{id}"
+  },
+  {
+    "method": "PATCH",
+    "path": "/calendar/days/{id}"
+  },
+  {
+    "method": "PUT",
+    "path": "/calendar/days/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/days/{id}/edit"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/duration_descriptions"
+  },
+  {
+    "method": "POST",
+    "path": "/calendar/duration_descriptions"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/duration_descriptions/new"
+  },
+  {
+    "method": "DELETE",
+    "path": "/calendar/duration_descriptions/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/duration_descriptions/{id}"
+  },
+  {
+    "method": "PATCH",
+    "path": "/calendar/duration_descriptions/{id}"
+  },
+  {
+    "method": "PUT",
+    "path": "/calendar/duration_descriptions/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/duration_descriptions/{id}/edit"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/event_from_todos"
+  },
+  {
+    "method": "POST",
+    "path": "/calendar/event_from_todos"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/event_from_todos/new"
+  },
+  {
+    "method": "DELETE",
+    "path": "/calendar/event_from_todos/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/event_from_todos/{id}"
+  },
+  {
+    "method": "PATCH",
+    "path": "/calendar/event_from_todos/{id}"
+  },
+  {
+    "method": "PUT",
+    "path": "/calendar/event_from_todos/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/event_from_todos/{id}/edit"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/events"
+  },
+  {
+    "method": "POST",
+    "path": "/calendar/events"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/events/new"
+  },
+  {
+    "method": "DELETE",
+    "path": "/calendar/events/timeline_refresh"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/events/timeline_refresh"
+  },
+  {
+    "method": "PATCH",
+    "path": "/calendar/events/timeline_refresh"
+  },
+  {
+    "method": "POST",
+    "path": "/calendar/events/timeline_refresh"
+  },
+  {
+    "method": "PUT",
+    "path": "/calendar/events/timeline_refresh"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/events/timeline_refresh/edit"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/events/timeline_refresh/new"
+  },
+  {
+    "method": "POST",
+    "path": "/calendar/events/{event_id}/move"
+  },
+  {
+    "method": "POST",
+    "path": "/calendar/events/{event_id}/occurrences/{occurrence_id}/move"
+  },
+  {
+    "method": "DELETE",
+    "path": "/calendar/events/{event_id}/occurrences/{occurrence}"
+  },
+  {
+    "method": "PATCH",
+    "path": "/calendar/events/{event_id}/occurrences/{occurrence}"
+  },
+  {
+    "method": "PUT",
+    "path": "/calendar/events/{event_id}/occurrences/{occurrence}"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/events/{event_id}/occurrences/{occurrence}/edit"
+  },
+  {
+    "method": "POST",
+    "path": "/calendar/events/{event_id}/outbound_replies"
+  },
+  {
+    "method": "DELETE",
+    "path": "/calendar/events/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/events/{id}"
+  },
+  {
+    "method": "PATCH",
+    "path": "/calendar/events/{id}"
+  },
+  {
+    "method": "PUT",
+    "path": "/calendar/events/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/events/{id}/edit"
+  },
+  {
+    "method": "POST",
+    "path": "/calendar/external_user/invitations/{invitation_id}/acceptance"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/external_user/invitations/{invitation_id}/acceptance/new"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/habits"
+  },
+  {
+    "method": "POST",
+    "path": "/calendar/habits"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/habits/new"
+  },
+  {
+    "method": "DELETE",
+    "path": "/calendar/habits/{habit_id}/stop"
+  },
+  {
+    "method": "POST",
+    "path": "/calendar/habits/{habit_id}/stop"
+  },
+  {
+    "method": "DELETE",
+    "path": "/calendar/habits/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/habits/{id}"
+  },
+  {
+    "method": "PATCH",
+    "path": "/calendar/habits/{id}"
+  },
+  {
+    "method": "PUT",
+    "path": "/calendar/habits/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/habits/{id}/edit"
+  },
+  {
+    "method": "POST",
+    "path": "/calendar/ical/file_uploads"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/ical/file_uploads/new"
+  },
+  {
+    "method": "POST",
+    "path": "/calendar/ical/source_uploads"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/ical/source_uploads/new"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/ical/uploads"
+  },
+  {
+    "method": "POST",
+    "path": "/calendar/ical/uploads"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/ical/uploads/new"
+  },
+  {
+    "method": "DELETE",
+    "path": "/calendar/ical/uploads/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/ical/uploads/{id}"
+  },
+  {
+    "method": "PATCH",
+    "path": "/calendar/ical/uploads/{id}"
+  },
+  {
+    "method": "PUT",
+    "path": "/calendar/ical/uploads/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/ical/uploads/{id}/edit"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/ical/uploads/{upload_id}/events"
+  },
+  {
+    "method": "POST",
+    "path": "/calendar/ical/uploads/{upload_id}/events/{event_id}/sync"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/ical_events/new"
+  },
+  {
+    "method": "DELETE",
+    "path": "/calendar/identity"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/identity"
+  },
+  {
+    "method": "PATCH",
+    "path": "/calendar/identity"
+  },
+  {
+    "method": "POST",
+    "path": "/calendar/identity"
+  },
+  {
+    "method": "PUT",
+    "path": "/calendar/identity"
+  },
+  {
+    "method": "PATCH",
+    "path": "/calendar/identity/auto_time_zone"
+  },
+  {
+    "method": "PUT",
+    "path": "/calendar/identity/auto_time_zone"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/identity/edit"
+  },
+  {
+    "method": "PATCH",
+    "path": "/calendar/identity/first_week_day"
+  },
+  {
+    "method": "PUT",
+    "path": "/calendar/identity/first_week_day"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/identity/first_week_day/edit"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/identity/new"
+  },
+  {
+    "method": "PATCH",
+    "path": "/calendar/identity/time_format"
+  },
+  {
+    "method": "PUT",
+    "path": "/calendar/identity/time_format"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/identity/time_format/edit"
+  },
+  {
+    "method": "PATCH",
+    "path": "/calendar/identity/time_zone"
+  },
+  {
+    "method": "PUT",
+    "path": "/calendar/identity/time_zone"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/identity/time_zone/edit"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/journal_entries"
+  },
+  {
+    "method": "POST",
+    "path": "/calendar/journal_entries"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/journal_entries/new"
+  },
+  {
+    "method": "DELETE",
+    "path": "/calendar/journal_entries/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/journal_entries/{id}"
+  },
+  {
+    "method": "PATCH",
+    "path": "/calendar/journal_entries/{id}"
+  },
+  {
+    "method": "PUT",
+    "path": "/calendar/journal_entries/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/journal_entries/{id}/edit"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/locations/suggestions"
+  },
+  {
+    "method": "POST",
+    "path": "/calendar/locations/suggestions"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/locations/suggestions/new"
+  },
+  {
+    "method": "DELETE",
+    "path": "/calendar/locations/suggestions/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/locations/suggestions/{id}"
+  },
+  {
+    "method": "PATCH",
+    "path": "/calendar/locations/suggestions/{id}"
+  },
+  {
+    "method": "PUT",
+    "path": "/calendar/locations/suggestions/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/locations/suggestions/{id}/edit"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/me"
+  },
+  {
+    "method": "DELETE",
+    "path": "/calendar/ongoing_time_track"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/ongoing_time_track"
+  },
+  {
+    "method": "PATCH",
+    "path": "/calendar/ongoing_time_track"
+  },
+  {
+    "method": "POST",
+    "path": "/calendar/ongoing_time_track"
+  },
+  {
+    "method": "PUT",
+    "path": "/calendar/ongoing_time_track"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/ongoing_time_track/edit"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/ongoing_time_track/new"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/parsed_dates"
+  },
+  {
+    "method": "POST",
+    "path": "/calendar/parsed_dates"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/parsed_dates/new"
+  },
+  {
+    "method": "DELETE",
+    "path": "/calendar/parsed_dates/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/parsed_dates/{id}"
+  },
+  {
+    "method": "PATCH",
+    "path": "/calendar/parsed_dates/{id}"
+  },
+  {
+    "method": "PUT",
+    "path": "/calendar/parsed_dates/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/parsed_dates/{id}/edit"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/parsed_events"
+  },
+  {
+    "method": "POST",
+    "path": "/calendar/parsed_events"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/parsed_events/new"
+  },
+  {
+    "method": "DELETE",
+    "path": "/calendar/parsed_events/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/parsed_events/{id}"
+  },
+  {
+    "method": "PATCH",
+    "path": "/calendar/parsed_events/{id}"
+  },
+  {
+    "method": "PUT",
+    "path": "/calendar/parsed_events/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/parsed_events/{id}/edit"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/recordings"
+  },
+  {
+    "method": "POST",
+    "path": "/calendar/recordings"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/recordings/new"
+  },
+  {
+    "method": "DELETE",
+    "path": "/calendar/recordings/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/recordings/{id}"
+  },
+  {
+    "method": "PATCH",
+    "path": "/calendar/recordings/{id}"
+  },
+  {
+    "method": "PUT",
+    "path": "/calendar/recordings/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/recordings/{id}/edit"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/recordings/{recording_id}/occurrences"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/reminders"
+  },
+  {
+    "method": "POST",
+    "path": "/calendar/reminders"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/reminders/new"
+  },
+  {
+    "method": "DELETE",
+    "path": "/calendar/reminders/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/reminders/{id}"
+  },
+  {
+    "method": "PATCH",
+    "path": "/calendar/reminders/{id}"
+  },
+  {
+    "method": "PUT",
+    "path": "/calendar/reminders/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/reminders/{id}/edit"
+  },
+  {
+    "method": "DELETE",
+    "path": "/calendar/search"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/search"
+  },
+  {
+    "method": "PATCH",
+    "path": "/calendar/search"
+  },
+  {
+    "method": "POST",
+    "path": "/calendar/search"
+  },
+  {
+    "method": "PUT",
+    "path": "/calendar/search"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/search/edit"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/search/new"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/search/results"
+  },
+  {
+    "method": "POST",
+    "path": "/calendar/search/results"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/search/results/new"
+  },
+  {
+    "method": "DELETE",
+    "path": "/calendar/search/results/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/search/results/{id}"
+  },
+  {
+    "method": "PATCH",
+    "path": "/calendar/search/results/{id}"
+  },
+  {
+    "method": "PUT",
+    "path": "/calendar/search/results/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/search/results/{id}/edit"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/time_tracks"
+  },
+  {
+    "method": "POST",
+    "path": "/calendar/time_tracks"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/time_tracks/categories"
+  },
+  {
+    "method": "POST",
+    "path": "/calendar/time_tracks/categories"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/time_tracks/categories/new"
+  },
+  {
+    "method": "DELETE",
+    "path": "/calendar/time_tracks/categories/{category_id}/total_duration"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/time_tracks/categories/{category_id}/total_duration"
+  },
+  {
+    "method": "PATCH",
+    "path": "/calendar/time_tracks/categories/{category_id}/total_duration"
+  },
+  {
+    "method": "POST",
+    "path": "/calendar/time_tracks/categories/{category_id}/total_duration"
+  },
+  {
+    "method": "PUT",
+    "path": "/calendar/time_tracks/categories/{category_id}/total_duration"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/time_tracks/categories/{category_id}/total_duration/edit"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/time_tracks/categories/{category_id}/total_duration/new"
+  },
+  {
+    "method": "DELETE",
+    "path": "/calendar/time_tracks/categories/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/time_tracks/categories/{id}"
+  },
+  {
+    "method": "PATCH",
+    "path": "/calendar/time_tracks/categories/{id}"
+  },
+  {
+    "method": "PUT",
+    "path": "/calendar/time_tracks/categories/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/time_tracks/categories/{id}/edit"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/time_tracks/exports"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/time_tracks/new"
+  },
+  {
+    "method": "DELETE",
+    "path": "/calendar/time_tracks/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/time_tracks/{id}"
+  },
+  {
+    "method": "PATCH",
+    "path": "/calendar/time_tracks/{id}"
+  },
+  {
+    "method": "PUT",
+    "path": "/calendar/time_tracks/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/time_tracks/{id}/edit"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/todos"
+  },
+  {
+    "method": "POST",
+    "path": "/calendar/todos"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/todos/new"
+  },
+  {
+    "method": "DELETE",
+    "path": "/calendar/todos/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/todos/{id}"
+  },
+  {
+    "method": "PATCH",
+    "path": "/calendar/todos/{id}"
+  },
+  {
+    "method": "PUT",
+    "path": "/calendar/todos/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/todos/{id}/edit"
+  },
+  {
+    "method": "DELETE",
+    "path": "/calendar/todos/{todo_id}/completions"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/todos/{todo_id}/completions"
+  },
+  {
+    "method": "PATCH",
+    "path": "/calendar/todos/{todo_id}/completions"
+  },
+  {
+    "method": "POST",
+    "path": "/calendar/todos/{todo_id}/completions"
+  },
+  {
+    "method": "PUT",
+    "path": "/calendar/todos/{todo_id}/completions"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/todos/{todo_id}/completions/edit"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/todos/{todo_id}/completions/new"
+  },
+  {
+    "method": "POST",
+    "path": "/calendar/todos/{todo_id}/moves"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/weeks"
+  },
+  {
+    "method": "POST",
+    "path": "/calendar/weeks"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/weeks/days"
+  },
+  {
+    "method": "POST",
+    "path": "/calendar/weeks/days"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/weeks/days/new"
+  },
+  {
+    "method": "DELETE",
+    "path": "/calendar/weeks/days/{day_id}/background"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/weeks/days/{day_id}/background"
+  },
+  {
+    "method": "PATCH",
+    "path": "/calendar/weeks/days/{day_id}/background"
+  },
+  {
+    "method": "POST",
+    "path": "/calendar/weeks/days/{day_id}/background"
+  },
+  {
+    "method": "PUT",
+    "path": "/calendar/weeks/days/{day_id}/background"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/weeks/days/{day_id}/background/edit"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/weeks/days/{day_id}/background/new"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/weeks/days/{day_id}/habits"
+  },
+  {
+    "method": "POST",
+    "path": "/calendar/weeks/days/{day_id}/habits"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/weeks/days/{day_id}/habits/new"
+  },
+  {
+    "method": "DELETE",
+    "path": "/calendar/weeks/days/{day_id}/habits/{habit_id}/completions"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/weeks/days/{day_id}/habits/{habit_id}/completions"
+  },
+  {
+    "method": "PATCH",
+    "path": "/calendar/weeks/days/{day_id}/habits/{habit_id}/completions"
+  },
+  {
+    "method": "POST",
+    "path": "/calendar/weeks/days/{day_id}/habits/{habit_id}/completions"
+  },
+  {
+    "method": "PUT",
+    "path": "/calendar/weeks/days/{day_id}/habits/{habit_id}/completions"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/weeks/days/{day_id}/habits/{habit_id}/completions/edit"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/weeks/days/{day_id}/habits/{habit_id}/completions/new"
+  },
+  {
+    "method": "DELETE",
+    "path": "/calendar/weeks/days/{day_id}/habits/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/weeks/days/{day_id}/habits/{id}"
+  },
+  {
+    "method": "PATCH",
+    "path": "/calendar/weeks/days/{day_id}/habits/{id}"
+  },
+  {
+    "method": "PUT",
+    "path": "/calendar/weeks/days/{day_id}/habits/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/weeks/days/{day_id}/habits/{id}/edit"
+  },
+  {
+    "method": "DELETE",
+    "path": "/calendar/weeks/days/{day_id}/title"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/weeks/days/{day_id}/title"
+  },
+  {
+    "method": "PATCH",
+    "path": "/calendar/weeks/days/{day_id}/title"
+  },
+  {
+    "method": "POST",
+    "path": "/calendar/weeks/days/{day_id}/title"
+  },
+  {
+    "method": "PUT",
+    "path": "/calendar/weeks/days/{day_id}/title"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/weeks/days/{day_id}/title/edit"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/weeks/days/{day_id}/title/new"
+  },
+  {
+    "method": "DELETE",
+    "path": "/calendar/weeks/days/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/weeks/days/{id}"
+  },
+  {
+    "method": "PATCH",
+    "path": "/calendar/weeks/days/{id}"
+  },
+  {
+    "method": "PUT",
+    "path": "/calendar/weeks/days/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/weeks/days/{id}/edit"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/weeks/events/{recording_id}"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/weeks/new"
+  },
+  {
+    "method": "DELETE",
+    "path": "/calendar/weeks/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/weeks/{id}"
+  },
+  {
+    "method": "PATCH",
+    "path": "/calendar/weeks/{id}"
+  },
+  {
+    "method": "PUT",
+    "path": "/calendar/weeks/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/weeks/{id}/edit"
+  },
+  {
+    "method": "DELETE",
+    "path": "/calendar/welcome"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/welcome"
+  },
+  {
+    "method": "PATCH",
+    "path": "/calendar/welcome"
+  },
+  {
+    "method": "POST",
+    "path": "/calendar/welcome"
+  },
+  {
+    "method": "PUT",
+    "path": "/calendar/welcome"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/welcome/color"
+  },
+  {
+    "method": "PATCH",
+    "path": "/calendar/welcome/color"
+  },
+  {
+    "method": "PUT",
+    "path": "/calendar/welcome/color"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/welcome/confirmation"
+  },
+  {
+    "method": "PATCH",
+    "path": "/calendar/welcome/confirmation"
+  },
+  {
+    "method": "PUT",
+    "path": "/calendar/welcome/confirmation"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/welcome/edit"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/welcome/features"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/welcome/new"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/welcome/subscriptions"
+  },
+  {
+    "method": "PATCH",
+    "path": "/calendar/welcome/subscriptions"
+  },
+  {
+    "method": "PUT",
+    "path": "/calendar/welcome/subscriptions"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/welcome/subscriptions/new"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/years"
+  },
+  {
+    "method": "POST",
+    "path": "/calendar/years"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/years/new"
+  },
+  {
+    "method": "DELETE",
+    "path": "/calendar/years/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/years/{id}"
+  },
+  {
+    "method": "PATCH",
+    "path": "/calendar/years/{id}"
+  },
+  {
+    "method": "PUT",
+    "path": "/calendar/years/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/years/{id}/edit"
+  },
+  {
+    "method": "GET",
+    "path": "/calendars"
+  },
+  {
+    "method": "POST",
+    "path": "/calendars"
+  },
+  {
+    "method": "GET",
+    "path": "/calendars/new"
+  },
+  {
+    "method": "DELETE",
+    "path": "/calendars/{calendar_id}/accesses/{id}"
+  },
+  {
+    "method": "DELETE",
+    "path": "/calendars/{calendar_id}/external_user/accesses"
+  },
+  {
+    "method": "GET",
+    "path": "/calendars/{calendar_id}/external_user/accesses/edit"
+  },
+  {
+    "method": "POST",
+    "path": "/calendars/{calendar_id}/invitations"
+  },
+  {
+    "method": "DELETE",
+    "path": "/calendars/{calendar_id}/invitations/{id}"
+  },
+  {
+    "method": "PATCH",
+    "path": "/calendars/{calendar_id}/invitations/{id}"
+  },
+  {
+    "method": "PUT",
+    "path": "/calendars/{calendar_id}/invitations/{id}"
+  },
+  {
+    "method": "DELETE",
+    "path": "/calendars/{calendar_id}/notifications"
+  },
+  {
+    "method": "GET",
+    "path": "/calendars/{calendar_id}/notifications"
+  },
+  {
+    "method": "PATCH",
+    "path": "/calendars/{calendar_id}/notifications"
+  },
+  {
+    "method": "POST",
+    "path": "/calendars/{calendar_id}/notifications"
+  },
+  {
+    "method": "PUT",
+    "path": "/calendars/{calendar_id}/notifications"
+  },
+  {
+    "method": "GET",
+    "path": "/calendars/{calendar_id}/notifications/edit"
+  },
+  {
+    "method": "GET",
+    "path": "/calendars/{calendar_id}/notifications/new"
+  },
+  {
+    "method": "GET",
+    "path": "/calendars/{calendar_id}/occurrences"
+  },
+  {
+    "method": "POST",
+    "path": "/calendars/{calendar_id}/occurrences"
+  },
+  {
+    "method": "GET",
+    "path": "/calendars/{calendar_id}/occurrences/new"
+  },
+  {
+    "method": "DELETE",
+    "path": "/calendars/{calendar_id}/occurrences/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/calendars/{calendar_id}/occurrences/{id}"
+  },
+  {
+    "method": "PATCH",
+    "path": "/calendars/{calendar_id}/occurrences/{id}"
+  },
+  {
+    "method": "PUT",
+    "path": "/calendars/{calendar_id}/occurrences/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/calendars/{calendar_id}/occurrences/{id}/edit"
+  },
+  {
+    "method": "DELETE",
+    "path": "/calendars/{calendar_id}/publication"
+  },
+  {
+    "method": "POST",
+    "path": "/calendars/{calendar_id}/publication"
+  },
+  {
+    "method": "GET",
+    "path": "/calendars/{calendar_id}/publication/edit"
+  },
+  {
+    "method": "GET",
+    "path": "/calendars/{calendar_id}/recording/changes"
+  },
+  {
+    "method": "GET",
+    "path": "/calendars/{calendar_id}/recordings"
+  },
+  {
+    "method": "POST",
+    "path": "/calendars/{calendar_id}/recordings"
+  },
+  {
+    "method": "GET",
+    "path": "/calendars/{calendar_id}/recordings/new"
+  },
+  {
+    "method": "DELETE",
+    "path": "/calendars/{calendar_id}/recordings/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/calendars/{calendar_id}/recordings/{id}"
+  },
+  {
+    "method": "PATCH",
+    "path": "/calendars/{calendar_id}/recordings/{id}"
+  },
+  {
+    "method": "PUT",
+    "path": "/calendars/{calendar_id}/recordings/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/calendars/{calendar_id}/recordings/{id}/edit"
+  },
+  {
+    "method": "GET",
+    "path": "/calendars/{calendar_id}/settings/edit"
+  },
+  {
+    "method": "DELETE",
+    "path": "/calendars/{calendar_id}/sharing"
+  },
+  {
+    "method": "GET",
+    "path": "/calendars/{calendar_id}/sharing/edit"
+  },
+  {
+    "method": "DELETE",
+    "path": "/calendars/{calendar_id}/synchronization"
+  },
+  {
+    "method": "GET",
+    "path": "/calendars/{calendar_id}/synchronization"
+  },
+  {
+    "method": "PATCH",
+    "path": "/calendars/{calendar_id}/synchronization"
+  },
+  {
+    "method": "POST",
+    "path": "/calendars/{calendar_id}/synchronization"
+  },
+  {
+    "method": "PUT",
+    "path": "/calendars/{calendar_id}/synchronization"
+  },
+  {
+    "method": "GET",
+    "path": "/calendars/{calendar_id}/synchronization/edit"
+  },
+  {
+    "method": "GET",
+    "path": "/calendars/{calendar_id}/synchronization/new"
+  },
+  {
+    "method": "DELETE",
+    "path": "/calendars/{calendar_id}/toggle"
+  },
+  {
+    "method": "GET",
+    "path": "/calendars/{calendar_id}/toggle"
+  },
+  {
+    "method": "PATCH",
+    "path": "/calendars/{calendar_id}/toggle"
+  },
+  {
+    "method": "POST",
+    "path": "/calendars/{calendar_id}/toggle"
+  },
+  {
+    "method": "PUT",
+    "path": "/calendars/{calendar_id}/toggle"
+  },
+  {
+    "method": "GET",
+    "path": "/calendars/{calendar_id}/toggle/edit"
+  },
+  {
+    "method": "GET",
+    "path": "/calendars/{calendar_id}/toggle/new"
+  },
+  {
+    "method": "GET",
+    "path": "/calendars/{calendar_key}/feed"
+  },
+  {
+    "method": "DELETE",
+    "path": "/calendars/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/calendars/{id}"
+  },
+  {
+    "method": "PATCH",
+    "path": "/calendars/{id}"
+  },
+  {
+    "method": "PUT",
+    "path": "/calendars/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/calendars/{id}/edit"
+  },
+  {
+    "method": "DELETE",
+    "path": "/calendars/{key}"
+  },
+  {
+    "method": "GET",
+    "path": "/calendars/{key}"
+  },
+  {
+    "method": "PATCH",
+    "path": "/calendars/{key}"
+  },
+  {
+    "method": "PUT",
+    "path": "/calendars/{key}"
+  },
+  {
+    "method": "GET",
+    "path": "/calendars/{key}/edit"
+  },
+  {
+    "method": "GET",
+    "path": "/clearances"
+  },
+  {
+    "method": "POST",
+    "path": "/clearances"
+  },
+  {
+    "method": "DELETE",
+    "path": "/clearances/bulk"
+  },
+  {
+    "method": "GET",
+    "path": "/clearances/bulk"
+  },
+  {
+    "method": "PATCH",
+    "path": "/clearances/bulk"
+  },
+  {
+    "method": "POST",
+    "path": "/clearances/bulk"
+  },
+  {
+    "method": "PUT",
+    "path": "/clearances/bulk"
+  },
+  {
+    "method": "GET",
+    "path": "/clearances/bulk/edit"
+  },
+  {
+    "method": "GET",
+    "path": "/clearances/bulk/new"
+  },
+  {
+    "method": "GET",
+    "path": "/clearances/entries/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/clearances/new"
+  },
+  {
+    "method": "DELETE",
+    "path": "/clearances/punt"
+  },
+  {
+    "method": "GET",
+    "path": "/clearances/punt"
+  },
+  {
+    "method": "PATCH",
+    "path": "/clearances/punt"
+  },
+  {
+    "method": "POST",
+    "path": "/clearances/punt"
+  },
+  {
+    "method": "PUT",
+    "path": "/clearances/punt"
+  },
+  {
+    "method": "GET",
+    "path": "/clearances/punt/edit"
+  },
+  {
+    "method": "GET",
+    "path": "/clearances/punt/new"
+  },
+  {
+    "method": "DELETE",
+    "path": "/clearances/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/clearances/{id}"
+  },
+  {
+    "method": "PATCH",
+    "path": "/clearances/{id}"
+  },
+  {
+    "method": "PUT",
+    "path": "/clearances/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/clearances/{id}/edit"
+  },
+  {
+    "method": "GET",
+    "path": "/client_configurations(/{platform})_({product})_v({version})"
+  },
+  {
+    "method": "GET",
+    "path": "/clips"
+  },
+  {
+    "method": "POST",
+    "path": "/clips"
+  },
+  {
+    "method": "GET",
+    "path": "/clips/new"
+  },
+  {
+    "method": "DELETE",
+    "path": "/clips/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/clips/{id}"
+  },
+  {
+    "method": "PATCH",
+    "path": "/clips/{id}"
+  },
+  {
+    "method": "PUT",
+    "path": "/clips/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/clips/{id}/edit"
+  },
+  {
+    "method": "GET",
+    "path": "/collections"
+  },
+  {
+    "method": "POST",
+    "path": "/collections"
+  },
+  {
+    "method": "GET",
+    "path": "/collections/new"
+  },
+  {
+    "method": "GET",
+    "path": "/collections/{collection_id}/attachments"
+  },
+  {
+    "method": "POST",
+    "path": "/collections/{collection_id}/participations"
+  },
+  {
+    "method": "GET",
+    "path": "/collections/{collection_id}/participations/new"
+  },
+  {
+    "method": "DELETE",
+    "path": "/collections/{collection_id}/participations/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/collections/{collection_id}/roster"
+  },
+  {
+    "method": "DELETE",
+    "path": "/collections/{collection_id}/status"
+  },
+  {
+    "method": "GET",
+    "path": "/collections/{collection_id}/status"
+  },
+  {
+    "method": "PUT",
+    "path": "/collections/{collection_id}/status/active"
+  },
+  {
+    "method": "GET",
+    "path": "/collections/{collection_id}/toolbar"
+  },
+  {
+    "method": "DELETE",
+    "path": "/collections/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/collections/{id}"
+  },
+  {
+    "method": "PATCH",
+    "path": "/collections/{id}"
+  },
+  {
+    "method": "PUT",
+    "path": "/collections/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/collections/{id}/edit"
+  },
+  {
+    "method": "GET",
+    "path": "/contacts"
+  },
+  {
+    "method": "POST",
+    "path": "/contacts"
+  },
+  {
+    "method": "GET",
+    "path": "/contacts/avatars/{avatarable_sid}"
+  },
+  {
+    "method": "DELETE",
+    "path": "/contacts/denied"
+  },
+  {
+    "method": "GET",
+    "path": "/contacts/denied"
+  },
+  {
+    "method": "GET",
+    "path": "/contacts/imports"
+  },
+  {
+    "method": "POST",
+    "path": "/contacts/imports"
+  },
+  {
+    "method": "GET",
+    "path": "/contacts/imports/new"
+  },
+  {
+    "method": "DELETE",
+    "path": "/contacts/imports/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/contacts/imports/{id}"
+  },
+  {
+    "method": "PATCH",
+    "path": "/contacts/imports/{id}"
+  },
+  {
+    "method": "PUT",
+    "path": "/contacts/imports/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/contacts/imports/{id}/edit"
+  },
+  {
+    "method": "GET",
+    "path": "/contacts/new"
+  },
+  {
+    "method": "GET",
+    "path": "/contacts/{contact_id}/attachments"
+  },
+  {
+    "method": "GET",
+    "path": "/contacts/{contact_id}/box"
+  },
+  {
+    "method": "GET",
+    "path": "/contacts/{contact_id}/box_settings"
+  },
+  {
+    "method": "DELETE",
+    "path": "/contacts/{contact_id}/bundle"
+  },
+  {
+    "method": "POST",
+    "path": "/contacts/{contact_id}/bundle"
+  },
+  {
+    "method": "DELETE",
+    "path": "/contacts/{contact_id}/clearance"
+  },
+  {
+    "method": "GET",
+    "path": "/contacts/{contact_id}/clearance"
+  },
+  {
+    "method": "PATCH",
+    "path": "/contacts/{contact_id}/clearance"
+  },
+  {
+    "method": "POST",
+    "path": "/contacts/{contact_id}/clearance"
+  },
+  {
+    "method": "PUT",
+    "path": "/contacts/{contact_id}/clearance"
+  },
+  {
+    "method": "GET",
+    "path": "/contacts/{contact_id}/clearance/edit"
+  },
+  {
+    "method": "GET",
+    "path": "/contacts/{contact_id}/clearance/new"
+  },
+  {
+    "method": "GET",
+    "path": "/contacts/{contact_id}/every_from"
+  },
+  {
+    "method": "GET",
+    "path": "/contacts/{contact_id}/every_to"
+  },
+  {
+    "method": "POST",
+    "path": "/contacts/{contact_id}/merges"
+  },
+  {
+    "method": "GET",
+    "path": "/contacts/{contact_id}/merges/new"
+  },
+  {
+    "method": "PATCH",
+    "path": "/contacts/{contact_id}/name"
+  },
+  {
+    "method": "PUT",
+    "path": "/contacts/{contact_id}/name"
+  },
+  {
+    "method": "GET",
+    "path": "/contacts/{contact_id}/name/edit"
+  },
+  {
+    "method": "DELETE",
+    "path": "/contacts/{contact_id}/note"
+  },
+  {
+    "method": "GET",
+    "path": "/contacts/{contact_id}/note"
+  },
+  {
+    "method": "PATCH",
+    "path": "/contacts/{contact_id}/note"
+  },
+  {
+    "method": "POST",
+    "path": "/contacts/{contact_id}/note"
+  },
+  {
+    "method": "PUT",
+    "path": "/contacts/{contact_id}/note"
+  },
+  {
+    "method": "GET",
+    "path": "/contacts/{contact_id}/note/edit"
+  },
+  {
+    "method": "GET",
+    "path": "/contacts/{contact_id}/note/new"
+  },
+  {
+    "method": "POST",
+    "path": "/contacts/{contact_id}/note/typing"
+  },
+  {
+    "method": "GET",
+    "path": "/contacts/{contact_id}/notification_settings"
+  },
+  {
+    "method": "POST",
+    "path": "/contacts/{contact_id}/reveal"
+  },
+  {
+    "method": "DELETE",
+    "path": "/contacts/{contact_id}/uploaded_avatar"
+  },
+  {
+    "method": "PATCH",
+    "path": "/contacts/{contact_id}/uploaded_avatar"
+  },
+  {
+    "method": "PUT",
+    "path": "/contacts/{contact_id}/uploaded_avatar"
+  },
+  {
+    "method": "DELETE",
+    "path": "/contacts/{contact_id}/user"
+  },
+  {
+    "method": "GET",
+    "path": "/contacts/{contact_id}/user"
+  },
+  {
+    "method": "PATCH",
+    "path": "/contacts/{contact_id}/user"
+  },
+  {
+    "method": "POST",
+    "path": "/contacts/{contact_id}/user"
+  },
+  {
+    "method": "PUT",
+    "path": "/contacts/{contact_id}/user"
+  },
+  {
+    "method": "GET",
+    "path": "/contacts/{contact_id}/user/edit"
+  },
+  {
+    "method": "GET",
+    "path": "/contacts/{contact_id}/user/new"
+  },
+  {
+    "method": "DELETE",
+    "path": "/contacts/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/contacts/{id}"
+  },
+  {
+    "method": "PATCH",
+    "path": "/contacts/{id}"
+  },
+  {
+    "method": "PUT",
+    "path": "/contacts/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/contacts/{id}/denied"
+  },
+  {
+    "method": "GET",
+    "path": "/contacts/{id}/edit"
+  },
+  {
+    "method": "GET",
+    "path": "/contacts/{id}/unexamined"
+  },
+  {
+    "method": "DELETE",
+    "path": "/demo"
+  },
+  {
+    "method": "GET",
+    "path": "/demo"
+  },
+  {
+    "method": "PATCH",
+    "path": "/demo"
+  },
+  {
+    "method": "POST",
+    "path": "/demo"
+  },
+  {
+    "method": "PUT",
+    "path": "/demo"
+  },
+  {
+    "method": "GET",
+    "path": "/demo/edit"
+  },
+  {
+    "method": "GET",
+    "path": "/demo/new"
+  },
+  {
+    "method": "GET",
+    "path": "/development/emails"
+  },
+  {
+    "method": "POST",
+    "path": "/development/emails"
+  },
+  {
+    "method": "GET",
+    "path": "/development/emails/new"
+  },
+  {
+    "method": "DELETE",
+    "path": "/development/emails/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/development/emails/{id}"
+  },
+  {
+    "method": "PATCH",
+    "path": "/development/emails/{id}"
+  },
+  {
+    "method": "PUT",
+    "path": "/development/emails/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/development/emails/{id}/edit"
+  },
+  {
+    "method": "GET",
+    "path": "/development/entries"
+  },
+  {
+    "method": "POST",
+    "path": "/development/entries"
+  },
+  {
+    "method": "GET",
+    "path": "/development/entries/new"
+  },
+  {
+    "method": "DELETE",
+    "path": "/development/entries/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/development/entries/{id}"
+  },
+  {
+    "method": "PATCH",
+    "path": "/development/entries/{id}"
+  },
+  {
+    "method": "PUT",
+    "path": "/development/entries/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/development/entries/{id}/edit"
+  },
+  {
+    "method": "GET",
+    "path": "/development/frames"
+  },
+  {
+    "method": "POST",
+    "path": "/development/frames"
+  },
+  {
+    "method": "GET",
+    "path": "/development/frames/new"
+  },
+  {
+    "method": "DELETE",
+    "path": "/development/frames/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/development/frames/{id}"
+  },
+  {
+    "method": "PATCH",
+    "path": "/development/frames/{id}"
+  },
+  {
+    "method": "PUT",
+    "path": "/development/frames/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/development/frames/{id}/edit"
+  },
+  {
+    "method": "GET",
+    "path": "/devices"
+  },
+  {
+    "method": "POST",
+    "path": "/devices"
+  },
+  {
+    "method": "GET",
+    "path": "/devices/new"
+  },
+  {
+    "method": "DELETE",
+    "path": "/devices/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/devices/{id}"
+  },
+  {
+    "method": "PATCH",
+    "path": "/devices/{id}"
+  },
+  {
+    "method": "PUT",
+    "path": "/devices/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/devices/{id}/edit"
+  },
+  {
+    "method": "GET",
+    "path": "/domain_checks"
+  },
+  {
+    "method": "POST",
+    "path": "/domain_checks"
+  },
+  {
+    "method": "GET",
+    "path": "/domain_checks/new"
+  },
+  {
+    "method": "GET",
+    "path": "/domains/{domain_id}/attachments"
+  },
+  {
+    "method": "DELETE",
+    "path": "/domains/{domain_id}/auto_screening"
+  },
+  {
+    "method": "GET",
+    "path": "/domains/{domain_id}/auto_screening"
+  },
+  {
+    "method": "PATCH",
+    "path": "/domains/{domain_id}/auto_screening"
+  },
+  {
+    "method": "POST",
+    "path": "/domains/{domain_id}/auto_screening"
+  },
+  {
+    "method": "PUT",
+    "path": "/domains/{domain_id}/auto_screening"
+  },
+  {
+    "method": "GET",
+    "path": "/domains/{domain_id}/notification_settings"
+  },
+  {
+    "method": "DELETE",
+    "path": "/domains/{domain_id}/uploaded_avatar"
+  },
+  {
+    "method": "PATCH",
+    "path": "/domains/{domain_id}/uploaded_avatar"
+  },
+  {
+    "method": "PUT",
+    "path": "/domains/{domain_id}/uploaded_avatar"
+  },
+  {
+    "method": "GET",
+    "path": "/domains/{domain_id}/uploaded_avatar/edit"
+  },
+  {
+    "method": "GET",
+    "path": "/domains/{id}"
+  },
+  {
+    "method": "POST",
+    "path": "/email_import"
+  },
+  {
+    "method": "GET",
+    "path": "/email_import/new"
+  },
+  {
+    "method": "GET",
+    "path": "/entries/drafts"
+  },
+  {
+    "method": "POST",
+    "path": "/entries/drafts"
+  },
+  {
+    "method": "GET",
+    "path": "/entries/drafts/new"
+  },
+  {
+    "method": "DELETE",
+    "path": "/entries/drafts/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/entries/drafts/{id}"
+  },
+  {
+    "method": "PATCH",
+    "path": "/entries/drafts/{id}"
+  },
+  {
+    "method": "PUT",
+    "path": "/entries/drafts/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/entries/drafts/{id}/edit"
+  },
+  {
+    "method": "POST",
+    "path": "/entries/editable_representations"
+  },
+  {
+    "method": "GET",
+    "path": "/entries/parkings"
+  },
+  {
+    "method": "GET",
+    "path": "/entries/snippets"
+  },
+  {
+    "method": "GET",
+    "path": "/entries/snippets/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/entries/{entry_id}/attack_mode_moves"
+  },
+  {
+    "method": "POST",
+    "path": "/entries/{entry_id}/attack_mode_moves"
+  },
+  {
+    "method": "GET",
+    "path": "/entries/{entry_id}/attack_mode_replies/new"
+  },
+  {
+    "method": "GET",
+    "path": "/entries/{entry_id}/attack_mode_replies/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/entries/{entry_id}/attack_mode_seens"
+  },
+  {
+    "method": "POST",
+    "path": "/entries/{entry_id}/attack_mode_seens"
+  },
+  {
+    "method": "GET",
+    "path": "/entries/{entry_id}/attack_mode_undo_replies"
+  },
+  {
+    "method": "POST",
+    "path": "/entries/{entry_id}/attack_mode_undo_replies"
+  },
+  {
+    "method": "GET",
+    "path": "/entries/{entry_id}/events"
+  },
+  {
+    "method": "POST",
+    "path": "/entries/{entry_id}/events"
+  },
+  {
+    "method": "GET",
+    "path": "/entries/{entry_id}/events/new"
+  },
+  {
+    "method": "DELETE",
+    "path": "/entries/{entry_id}/events/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/entries/{entry_id}/events/{id}"
+  },
+  {
+    "method": "PATCH",
+    "path": "/entries/{entry_id}/events/{id}"
+  },
+  {
+    "method": "PUT",
+    "path": "/entries/{entry_id}/events/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/entries/{entry_id}/events/{id}/edit"
+  },
+  {
+    "method": "GET",
+    "path": "/entries/{entry_id}/forwards"
+  },
+  {
+    "method": "POST",
+    "path": "/entries/{entry_id}/forwards"
+  },
+  {
+    "method": "GET",
+    "path": "/entries/{entry_id}/forwards/new"
+  },
+  {
+    "method": "DELETE",
+    "path": "/entries/{entry_id}/forwards/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/entries/{entry_id}/forwards/{id}"
+  },
+  {
+    "method": "PATCH",
+    "path": "/entries/{entry_id}/forwards/{id}"
+  },
+  {
+    "method": "PUT",
+    "path": "/entries/{entry_id}/forwards/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/entries/{entry_id}/forwards/{id}/edit"
+  },
+  {
+    "method": "GET",
+    "path": "/entries/{entry_id}/ical_events"
+  },
+  {
+    "method": "POST",
+    "path": "/entries/{entry_id}/ical_events/{ical_event_id}/outbound_replies"
+  },
+  {
+    "method": "POST",
+    "path": "/entries/{entry_id}/ical_events/{ical_event_id}/sync"
+  },
+  {
+    "method": "GET",
+    "path": "/entries/{entry_id}/ical_events/{id}"
+  },
+  {
+    "method": "POST",
+    "path": "/entries/{entry_id}/redeliveries"
+  },
+  {
+    "method": "POST",
+    "path": "/entries/{entry_id}/replies"
+  },
+  {
+    "method": "GET",
+    "path": "/entries/{entry_id}/replies/new"
+  },
+  {
+    "method": "DELETE",
+    "path": "/entries/{entry_id}/spam_reports"
+  },
+  {
+    "method": "POST",
+    "path": "/entries/{entry_id}/spam_reports"
+  },
+  {
+    "method": "PUT",
+    "path": "/entries/{entry_id}/status/active"
+  },
+  {
+    "method": "PUT",
+    "path": "/entries/{entry_id}/status/spam"
+  },
+  {
+    "method": "PUT",
+    "path": "/entries/{entry_id}/status/trashed"
+  },
+  {
+    "method": "GET",
+    "path": "/entries/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/feedbox"
+  },
+  {
+    "method": "PATCH",
+    "path": "/filtered_sessions"
+  },
+  {
+    "method": "PUT",
+    "path": "/filtered_sessions"
+  },
+  {
+    "method": "GET",
+    "path": "/folders"
+  },
+  {
+    "method": "POST",
+    "path": "/folders"
+  },
+  {
+    "method": "GET",
+    "path": "/folders/new"
+  },
+  {
+    "method": "GET",
+    "path": "/folders/{folder_id}/attachments"
+  },
+  {
+    "method": "GET",
+    "path": "/folders/{folder_id}/options"
+  },
+  {
+    "method": "DELETE",
+    "path": "/folders/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/folders/{id}"
+  },
+  {
+    "method": "PATCH",
+    "path": "/folders/{id}"
+  },
+  {
+    "method": "PUT",
+    "path": "/folders/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/folders/{id}/confirm_destroy"
+  },
+  {
+    "method": "GET",
+    "path": "/folders/{id}/edit"
+  },
+  {
+    "method": "GET",
+    "path": "/identities"
+  },
+  {
+    "method": "DELETE",
+    "path": "/identities/search"
+  },
+  {
+    "method": "GET",
+    "path": "/identities/search"
+  },
+  {
+    "method": "PATCH",
+    "path": "/identities/search"
+  },
+  {
+    "method": "POST",
+    "path": "/identities/search"
+  },
+  {
+    "method": "PUT",
+    "path": "/identities/search"
+  },
+  {
+    "method": "GET",
+    "path": "/identities/search/edit"
+  },
+  {
+    "method": "GET",
+    "path": "/identities/search/new"
+  },
+  {
+    "method": "PATCH",
+    "path": "/identities/{identity_id}/backup_email_address"
+  },
+  {
+    "method": "POST",
+    "path": "/identities/{identity_id}/backup_email_address"
+  },
+  {
+    "method": "PUT",
+    "path": "/identities/{identity_id}/backup_email_address"
+  },
+  {
+    "method": "GET",
+    "path": "/identities/{identity_id}/backup_email_address/edit"
+  },
+  {
+    "method": "POST",
+    "path": "/identities/{identity_id}/backup_email_address_verification"
+  },
+  {
+    "method": "PATCH",
+    "path": "/identities/{identity_id}/contacts/{id}"
+  },
+  {
+    "method": "PUT",
+    "path": "/identities/{identity_id}/contacts/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/identities/{identity_id}/contacts/{id}/edit"
+  },
+  {
+    "method": "POST",
+    "path": "/identities/{identity_id}/password_reset"
+  },
+  {
+    "method": "POST",
+    "path": "/identities/{identity_id}/two_factor_authentication_reset"
+  },
+  {
+    "method": "POST",
+    "path": "/identities/{identity_id}/two_factor_authentication_reset_requests"
+  },
+  {
+    "method": "GET",
+    "path": "/identities/{identity_id}/two_factor_authentication_reset_requests/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/identities/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/identity"
+  },
+  {
+    "method": "GET",
+    "path": "/identity/adoptions/{adoption_id}/merge"
+  },
+  {
+    "method": "GET",
+    "path": "/identity/adoptions/{adoption_id}/split"
+  },
+  {
+    "method": "PATCH",
+    "path": "/identity/auto_time_zone"
+  },
+  {
+    "method": "PUT",
+    "path": "/identity/auto_time_zone"
+  },
+  {
+    "method": "DELETE",
+    "path": "/identity/backup_email_address"
+  },
+  {
+    "method": "GET",
+    "path": "/identity/backup_email_address"
+  },
+  {
+    "method": "PATCH",
+    "path": "/identity/backup_email_address"
+  },
+  {
+    "method": "POST",
+    "path": "/identity/backup_email_address"
+  },
+  {
+    "method": "PUT",
+    "path": "/identity/backup_email_address"
+  },
+  {
+    "method": "GET",
+    "path": "/identity/backup_email_address/edit"
+  },
+  {
+    "method": "GET",
+    "path": "/identity/backup_email_address/new"
+  },
+  {
+    "method": "GET",
+    "path": "/identity/backup_email_address/removals"
+  },
+  {
+    "method": "POST",
+    "path": "/identity/backup_email_address/removals"
+  },
+  {
+    "method": "GET",
+    "path": "/identity/backup_email_address/verification"
+  },
+  {
+    "method": "PATCH",
+    "path": "/identity/backup_email_address/verification"
+  },
+  {
+    "method": "POST",
+    "path": "/identity/backup_email_address/verification"
+  },
+  {
+    "method": "PUT",
+    "path": "/identity/backup_email_address/verification"
+  },
+  {
+    "method": "PATCH",
+    "path": "/identity/default_sender"
+  },
+  {
+    "method": "PUT",
+    "path": "/identity/default_sender"
+  },
+  {
+    "method": "GET",
+    "path": "/identity/default_sender/edit"
+  },
+  {
+    "method": "GET",
+    "path": "/identity/merge"
+  },
+  {
+    "method": "POST",
+    "path": "/identity/merge"
+  },
+  {
+    "method": "POST",
+    "path": "/identity/merge/authentication"
+  },
+  {
+    "method": "GET",
+    "path": "/identity/merge/authentication/complete"
+  },
+  {
+    "method": "GET",
+    "path": "/identity/merge/authentication/new"
+  },
+  {
+    "method": "GET",
+    "path": "/identity/merge/new"
+  },
+  {
+    "method": "DELETE",
+    "path": "/identity/password_reset"
+  },
+  {
+    "method": "GET",
+    "path": "/identity/password_reset"
+  },
+  {
+    "method": "PATCH",
+    "path": "/identity/password_reset"
+  },
+  {
+    "method": "POST",
+    "path": "/identity/password_reset"
+  },
+  {
+    "method": "PUT",
+    "path": "/identity/password_reset"
+  },
+  {
+    "method": "GET",
+    "path": "/identity/password_reset/edit"
+  },
+  {
+    "method": "GET",
+    "path": "/identity/password_reset/new"
+  },
+  {
+    "method": "DELETE",
+    "path": "/identity/split"
+  },
+  {
+    "method": "GET",
+    "path": "/identity/split"
+  },
+  {
+    "method": "PATCH",
+    "path": "/identity/split"
+  },
+  {
+    "method": "POST",
+    "path": "/identity/split"
+  },
+  {
+    "method": "PUT",
+    "path": "/identity/split"
+  },
+  {
+    "method": "GET",
+    "path": "/identity/split/edit"
+  },
+  {
+    "method": "GET",
+    "path": "/identity/split/new"
+  },
+  {
+    "method": "PATCH",
+    "path": "/identity/time_format"
+  },
+  {
+    "method": "PUT",
+    "path": "/identity/time_format"
+  },
+  {
+    "method": "PATCH",
+    "path": "/identity/time_zone"
+  },
+  {
+    "method": "PUT",
+    "path": "/identity/time_zone"
+  },
+  {
+    "method": "GET",
+    "path": "/identity/time_zone/edit"
+  },
+  {
+    "method": "GET",
+    "path": "/identity/trainings"
+  },
+  {
+    "method": "GET",
+    "path": "/identity/trainings/new"
+  },
+  {
+    "method": "DELETE",
+    "path": "/identity/trainings/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/identity/trainings/{id}"
+  },
+  {
+    "method": "PATCH",
+    "path": "/identity/trainings/{id}"
+  },
+  {
+    "method": "POST",
+    "path": "/identity/trainings/{id}"
+  },
+  {
+    "method": "PUT",
+    "path": "/identity/trainings/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/identity/trainings/{id}/edit"
+  },
+  {
+    "method": "PATCH",
+    "path": "/identity/undo_send"
+  },
+  {
+    "method": "PUT",
+    "path": "/identity/undo_send"
+  },
+  {
+    "method": "GET",
+    "path": "/identity/undo_send/edit"
+  },
+  {
+    "method": "GET",
+    "path": "/imbox"
+  },
+  {
+    "method": "GET",
+    "path": "/imbox/bubbled_up"
+  },
+  {
+    "method": "GET",
+    "path": "/imbox/seen"
+  },
+  {
+    "method": "GET",
+    "path": "/imbox/unseen"
+  },
+  {
+    "method": "DELETE",
+    "path": "/inbound_forwardings/{id}"
+  },
+  {
+    "method": "POST",
+    "path": "/internal/account_disposals"
+  },
+  {
+    "method": "GET",
+    "path": "/internal/report_host"
+  },
+  {
+    "method": "GET",
+    "path": "/internal/revision"
+  },
+  {
+    "method": "GET",
+    "path": "/internal/rspamd_maps/{slug}"
+  },
+  {
+    "method": "POST",
+    "path": "/internal/smtp_accesses"
+  },
+  {
+    "method": "GET",
+    "path": "/internal/stages"
+  },
+  {
+    "method": "GET",
+    "path": "/invitations"
+  },
+  {
+    "method": "POST",
+    "path": "/invitations"
+  },
+  {
+    "method": "POST",
+    "path": "/invitations/bulk"
+  },
+  {
+    "method": "GET",
+    "path": "/invitations/bulk/new"
+  },
+  {
+    "method": "GET",
+    "path": "/invitations/new"
+  },
+  {
+    "method": "DELETE",
+    "path": "/invitations/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/invitations/{id}"
+  },
+  {
+    "method": "PATCH",
+    "path": "/invitations/{id}"
+  },
+  {
+    "method": "PUT",
+    "path": "/invitations/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/invitations/{id}/edit"
+  },
+  {
+    "method": "GET",
+    "path": "/jobs/{id}"
+  },
+  {
+    "method": "DELETE",
+    "path": "/mail_address_change"
+  },
+  {
+    "method": "GET",
+    "path": "/mail_address_change"
+  },
+  {
+    "method": "PATCH",
+    "path": "/mail_address_change"
+  },
+  {
+    "method": "POST",
+    "path": "/mail_address_change"
+  },
+  {
+    "method": "PUT",
+    "path": "/mail_address_change"
+  },
+  {
+    "method": "GET",
+    "path": "/mail_address_change/confirmation"
+  },
+  {
+    "method": "POST",
+    "path": "/mail_address_change/confirmation"
+  },
+  {
+    "method": "GET",
+    "path": "/mail_address_change/edit"
+  },
+  {
+    "method": "GET",
+    "path": "/mail_address_change/new"
+  },
+  {
+    "method": "GET",
+    "path": "/mail_address_change/validation"
+  },
+  {
+    "method": "POST",
+    "path": "/mail_address_change/validation"
+  },
+  {
+    "method": "GET",
+    "path": "/mail_address_change/validation/new"
+  },
+  {
+    "method": "GET",
+    "path": "/mail_trace"
+  },
+  {
+    "method": "POST",
+    "path": "/mail_trace"
+  },
+  {
+    "method": "GET",
+    "path": "/mail_trace/new"
+  },
+  {
+    "method": "GET",
+    "path": "/mailto/{uri}"
+  },
+  {
+    "method": "GET",
+    "path": "/manifest"
+  },
+  {
+    "method": "GET",
+    "path": "/me"
+  },
+  {
+    "method": "GET",
+    "path": "/memberships"
+  },
+  {
+    "method": "POST",
+    "path": "/memberships"
+  },
+  {
+    "method": "GET",
+    "path": "/memberships/new"
+  },
+  {
+    "method": "DELETE",
+    "path": "/memberships/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/memberships/{id}"
+  },
+  {
+    "method": "PATCH",
+    "path": "/memberships/{id}"
+  },
+  {
+    "method": "PUT",
+    "path": "/memberships/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/memberships/{id}/edit"
+  },
+  {
+    "method": "DELETE",
+    "path": "/menus/accounts"
+  },
+  {
+    "method": "GET",
+    "path": "/menus/accounts"
+  },
+  {
+    "method": "PATCH",
+    "path": "/menus/accounts"
+  },
+  {
+    "method": "POST",
+    "path": "/menus/accounts"
+  },
+  {
+    "method": "PUT",
+    "path": "/menus/accounts"
+  },
+  {
+    "method": "GET",
+    "path": "/menus/accounts/edit"
+  },
+  {
+    "method": "GET",
+    "path": "/menus/accounts/new"
+  },
+  {
+    "method": "GET",
+    "path": "/messages"
+  },
+  {
+    "method": "POST",
+    "path": "/messages"
+  },
+  {
+    "method": "GET",
+    "path": "/messages/new"
+  },
+  {
+    "method": "GET",
+    "path": "/messages/support/new"
+  },
+  {
+    "method": "DELETE",
+    "path": "/messages/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/messages/{id}"
+  },
+  {
+    "method": "PATCH",
+    "path": "/messages/{id}"
+  },
+  {
+    "method": "PUT",
+    "path": "/messages/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/messages/{id}/edit"
+  },
+  {
+    "method": "GET",
+    "path": "/messages/{message_id}/print"
+  },
+  {
+    "method": "DELETE",
+    "path": "/my/account_filter"
+  },
+  {
+    "method": "POST",
+    "path": "/my/account_filter"
+  },
+  {
+    "method": "GET",
+    "path": "/my/accounts/{account_id}/contact_groups"
+  },
+  {
+    "method": "POST",
+    "path": "/my/accounts/{account_id}/contact_groups"
+  },
+  {
+    "method": "GET",
+    "path": "/my/accounts/{account_id}/contact_groups/new"
+  },
+  {
+    "method": "DELETE",
+    "path": "/my/accounts/{account_id}/contact_groups/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/my/accounts/{account_id}/contact_groups/{id}"
+  },
+  {
+    "method": "PATCH",
+    "path": "/my/accounts/{account_id}/contact_groups/{id}"
+  },
+  {
+    "method": "PUT",
+    "path": "/my/accounts/{account_id}/contact_groups/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/my/accounts/{account_id}/contact_groups/{id}/edit"
+  },
+  {
+    "method": "GET",
+    "path": "/my/accounts/{account_id}/external_accounts"
+  },
+  {
+    "method": "POST",
+    "path": "/my/accounts/{account_id}/external_accounts"
+  },
+  {
+    "method": "DELETE",
+    "path": "/my/accounts/{account_id}/external_accounts/faq"
+  },
+  {
+    "method": "GET",
+    "path": "/my/accounts/{account_id}/external_accounts/faq"
+  },
+  {
+    "method": "PATCH",
+    "path": "/my/accounts/{account_id}/external_accounts/faq"
+  },
+  {
+    "method": "POST",
+    "path": "/my/accounts/{account_id}/external_accounts/faq"
+  },
+  {
+    "method": "PUT",
+    "path": "/my/accounts/{account_id}/external_accounts/faq"
+  },
+  {
+    "method": "GET",
+    "path": "/my/accounts/{account_id}/external_accounts/faq/edit"
+  },
+  {
+    "method": "GET",
+    "path": "/my/accounts/{account_id}/external_accounts/faq/new"
+  },
+  {
+    "method": "GET",
+    "path": "/my/accounts/{account_id}/external_accounts/new"
+  },
+  {
+    "method": "DELETE",
+    "path": "/my/accounts/{account_id}/external_accounts/{external_account_id}/contact"
+  },
+  {
+    "method": "GET",
+    "path": "/my/accounts/{account_id}/external_accounts/{external_account_id}/contact"
+  },
+  {
+    "method": "PATCH",
+    "path": "/my/accounts/{account_id}/external_accounts/{external_account_id}/contact"
+  },
+  {
+    "method": "POST",
+    "path": "/my/accounts/{account_id}/external_accounts/{external_account_id}/contact"
+  },
+  {
+    "method": "PUT",
+    "path": "/my/accounts/{account_id}/external_accounts/{external_account_id}/contact"
+  },
+  {
+    "method": "GET",
+    "path": "/my/accounts/{account_id}/external_accounts/{external_account_id}/contact/edit"
+  },
+  {
+    "method": "GET",
+    "path": "/my/accounts/{account_id}/external_accounts/{external_account_id}/contact/new"
+  },
+  {
+    "method": "DELETE",
+    "path": "/my/accounts/{account_id}/external_accounts/{external_account_id}/delivery_configuration"
+  },
+  {
+    "method": "GET",
+    "path": "/my/accounts/{account_id}/external_accounts/{external_account_id}/delivery_configuration"
+  },
+  {
+    "method": "PATCH",
+    "path": "/my/accounts/{account_id}/external_accounts/{external_account_id}/delivery_configuration"
+  },
+  {
+    "method": "POST",
+    "path": "/my/accounts/{account_id}/external_accounts/{external_account_id}/delivery_configuration"
+  },
+  {
+    "method": "PUT",
+    "path": "/my/accounts/{account_id}/external_accounts/{external_account_id}/delivery_configuration"
+  },
+  {
+    "method": "GET",
+    "path": "/my/accounts/{account_id}/external_accounts/{external_account_id}/delivery_configuration/edit"
+  },
+  {
+    "method": "GET",
+    "path": "/my/accounts/{account_id}/external_accounts/{external_account_id}/delivery_configuration/new"
+  },
+  {
+    "method": "POST",
+    "path": "/my/accounts/{account_id}/external_accounts/{external_account_id}/delivery_configuration/retry"
+  },
+  {
+    "method": "DELETE",
+    "path": "/my/accounts/{account_id}/external_accounts/{external_account_id}/forwarding"
+  },
+  {
+    "method": "GET",
+    "path": "/my/accounts/{account_id}/external_accounts/{external_account_id}/forwarding"
+  },
+  {
+    "method": "PATCH",
+    "path": "/my/accounts/{account_id}/external_accounts/{external_account_id}/forwarding"
+  },
+  {
+    "method": "POST",
+    "path": "/my/accounts/{account_id}/external_accounts/{external_account_id}/forwarding"
+  },
+  {
+    "method": "PUT",
+    "path": "/my/accounts/{account_id}/external_accounts/{external_account_id}/forwarding"
+  },
+  {
+    "method": "GET",
+    "path": "/my/accounts/{account_id}/external_accounts/{external_account_id}/forwarding/edit"
+  },
+  {
+    "method": "GET",
+    "path": "/my/accounts/{account_id}/external_accounts/{external_account_id}/forwarding/new"
+  },
+  {
+    "method": "DELETE",
+    "path": "/my/accounts/{account_id}/external_accounts/{external_account_id}/gmail_configuration"
+  },
+  {
+    "method": "GET",
+    "path": "/my/accounts/{account_id}/external_accounts/{external_account_id}/gmail_configuration"
+  },
+  {
+    "method": "POST",
+    "path": "/my/accounts/{account_id}/external_accounts/{external_account_id}/gmail_configuration/skip"
+  },
+  {
+    "method": "DELETE",
+    "path": "/my/accounts/{account_id}/external_accounts/{external_account_id}/outlook_configuration"
+  },
+  {
+    "method": "GET",
+    "path": "/my/accounts/{account_id}/external_accounts/{external_account_id}/outlook_configuration"
+  },
+  {
+    "method": "PATCH",
+    "path": "/my/accounts/{account_id}/external_accounts/{external_account_id}/outlook_configuration"
+  },
+  {
+    "method": "POST",
+    "path": "/my/accounts/{account_id}/external_accounts/{external_account_id}/outlook_configuration"
+  },
+  {
+    "method": "PUT",
+    "path": "/my/accounts/{account_id}/external_accounts/{external_account_id}/outlook_configuration"
+  },
+  {
+    "method": "GET",
+    "path": "/my/accounts/{account_id}/external_accounts/{external_account_id}/outlook_configuration/edit"
+  },
+  {
+    "method": "GET",
+    "path": "/my/accounts/{account_id}/external_accounts/{external_account_id}/outlook_configuration/new"
+  },
+  {
+    "method": "POST",
+    "path": "/my/accounts/{account_id}/external_accounts/{external_account_id}/outlook_configuration/skip"
+  },
+  {
+    "method": "DELETE",
+    "path": "/my/accounts/{account_id}/external_accounts/{external_account_id}/smtp_configuration"
+  },
+  {
+    "method": "GET",
+    "path": "/my/accounts/{account_id}/external_accounts/{external_account_id}/smtp_configuration"
+  },
+  {
+    "method": "PATCH",
+    "path": "/my/accounts/{account_id}/external_accounts/{external_account_id}/smtp_configuration"
+  },
+  {
+    "method": "POST",
+    "path": "/my/accounts/{account_id}/external_accounts/{external_account_id}/smtp_configuration"
+  },
+  {
+    "method": "PUT",
+    "path": "/my/accounts/{account_id}/external_accounts/{external_account_id}/smtp_configuration"
+  },
+  {
+    "method": "GET",
+    "path": "/my/accounts/{account_id}/external_accounts/{external_account_id}/smtp_configuration/edit"
+  },
+  {
+    "method": "GET",
+    "path": "/my/accounts/{account_id}/external_accounts/{external_account_id}/smtp_configuration/new"
+  },
+  {
+    "method": "POST",
+    "path": "/my/accounts/{account_id}/external_accounts/{external_account_id}/smtp_configuration/retry"
+  },
+  {
+    "method": "DELETE",
+    "path": "/my/accounts/{account_id}/external_accounts/{external_account_id}/smtp_guard"
+  },
+  {
+    "method": "GET",
+    "path": "/my/accounts/{account_id}/external_accounts/{external_account_id}/smtp_guard"
+  },
+  {
+    "method": "PATCH",
+    "path": "/my/accounts/{account_id}/external_accounts/{external_account_id}/smtp_guard"
+  },
+  {
+    "method": "POST",
+    "path": "/my/accounts/{account_id}/external_accounts/{external_account_id}/smtp_guard"
+  },
+  {
+    "method": "PUT",
+    "path": "/my/accounts/{account_id}/external_accounts/{external_account_id}/smtp_guard"
+  },
+  {
+    "method": "GET",
+    "path": "/my/accounts/{account_id}/external_accounts/{external_account_id}/smtp_guard/edit"
+  },
+  {
+    "method": "GET",
+    "path": "/my/accounts/{account_id}/external_accounts/{external_account_id}/smtp_guard/new"
+  },
+  {
+    "method": "DELETE",
+    "path": "/my/accounts/{account_id}/external_accounts/{external_account_id}/trash"
+  },
+  {
+    "method": "GET",
+    "path": "/my/accounts/{account_id}/external_accounts/{external_account_id}/trash"
+  },
+  {
+    "method": "PATCH",
+    "path": "/my/accounts/{account_id}/external_accounts/{external_account_id}/trash"
+  },
+  {
+    "method": "POST",
+    "path": "/my/accounts/{account_id}/external_accounts/{external_account_id}/trash"
+  },
+  {
+    "method": "PUT",
+    "path": "/my/accounts/{account_id}/external_accounts/{external_account_id}/trash"
+  },
+  {
+    "method": "GET",
+    "path": "/my/accounts/{account_id}/external_accounts/{external_account_id}/trash/edit"
+  },
+  {
+    "method": "GET",
+    "path": "/my/accounts/{account_id}/external_accounts/{external_account_id}/trash/new"
+  },
+  {
+    "method": "DELETE",
+    "path": "/my/accounts/{account_id}/external_accounts/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/my/accounts/{account_id}/external_accounts/{id}"
+  },
+  {
+    "method": "PATCH",
+    "path": "/my/accounts/{account_id}/external_accounts/{id}"
+  },
+  {
+    "method": "PUT",
+    "path": "/my/accounts/{account_id}/external_accounts/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/my/accounts/{account_id}/external_accounts/{id}/edit"
+  },
+  {
+    "method": "DELETE",
+    "path": "/my/accounts/{account_id}/forwardings/inbounds"
+  },
+  {
+    "method": "GET",
+    "path": "/my/accounts/{account_id}/forwardings/inbounds"
+  },
+  {
+    "method": "PATCH",
+    "path": "/my/accounts/{account_id}/forwardings/inbounds"
+  },
+  {
+    "method": "POST",
+    "path": "/my/accounts/{account_id}/forwardings/inbounds"
+  },
+  {
+    "method": "PUT",
+    "path": "/my/accounts/{account_id}/forwardings/inbounds"
+  },
+  {
+    "method": "GET",
+    "path": "/my/accounts/{account_id}/forwardings/inbounds/edit"
+  },
+  {
+    "method": "GET",
+    "path": "/my/accounts/{account_id}/forwardings/inbounds/new"
+  },
+  {
+    "method": "DELETE",
+    "path": "/my/accounts/{account_id}/forwardings/outbounds"
+  },
+  {
+    "method": "GET",
+    "path": "/my/accounts/{account_id}/forwardings/outbounds"
+  },
+  {
+    "method": "PATCH",
+    "path": "/my/accounts/{account_id}/forwardings/outbounds"
+  },
+  {
+    "method": "POST",
+    "path": "/my/accounts/{account_id}/forwardings/outbounds"
+  },
+  {
+    "method": "PUT",
+    "path": "/my/accounts/{account_id}/forwardings/outbounds"
+  },
+  {
+    "method": "GET",
+    "path": "/my/accounts/{account_id}/forwardings/outbounds/edit"
+  },
+  {
+    "method": "GET",
+    "path": "/my/accounts/{account_id}/forwardings/outbounds/new"
+  },
+  {
+    "method": "GET",
+    "path": "/my/accounts/{account_id}/publications"
+  },
+  {
+    "method": "DELETE",
+    "path": "/my/accounts/{account_id}/publications/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/my/accounts/{account_id}/recyclables"
+  },
+  {
+    "method": "DELETE",
+    "path": "/my/accounts/{account_id}/recyclables/{recyclable_id}"
+  },
+  {
+    "method": "GET",
+    "path": "/my/accounts/{account_id}/recyclables/{recyclable_id}"
+  },
+  {
+    "method": "PATCH",
+    "path": "/my/accounts/{account_id}/recyclables/{recyclable_id}"
+  },
+  {
+    "method": "PUT",
+    "path": "/my/accounts/{account_id}/recyclables/{recyclable_id}"
+  },
+  {
+    "method": "GET",
+    "path": "/my/accounts/{account_id}/searches"
+  },
+  {
+    "method": "GET",
+    "path": "/my/alert"
+  },
+  {
+    "method": "GET",
+    "path": "/my/appearances"
+  },
+  {
+    "method": "GET",
+    "path": "/my/authentications"
+  },
+  {
+    "method": "GET",
+    "path": "/my/authentications/events"
+  },
+  {
+    "method": "GET",
+    "path": "/my/auto_responders"
+  },
+  {
+    "method": "GET",
+    "path": "/my/auto_responders/notice"
+  },
+  {
+    "method": "GET",
+    "path": "/my/clearances"
+  },
+  {
+    "method": "PATCH",
+    "path": "/my/clearances/{id}"
+  },
+  {
+    "method": "PUT",
+    "path": "/my/clearances/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/my/domains/auto_screenings"
+  },
+  {
+    "method": "PATCH",
+    "path": "/my/domains/auto_screenings/{id}"
+  },
+  {
+    "method": "PUT",
+    "path": "/my/domains/auto_screenings/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/my/external_accounts"
+  },
+  {
+    "method": "POST",
+    "path": "/my/external_accounts"
+  },
+  {
+    "method": "GET",
+    "path": "/my/external_accounts/new"
+  },
+  {
+    "method": "GET",
+    "path": "/my/external_accounts/{external_account_id}/gmail_session/new"
+  },
+  {
+    "method": "GET",
+    "path": "/my/external_accounts/{external_account_id}/outlook_session/new"
+  },
+  {
+    "method": "DELETE",
+    "path": "/my/external_accounts/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/my/external_accounts/{id}"
+  },
+  {
+    "method": "PATCH",
+    "path": "/my/external_accounts/{id}"
+  },
+  {
+    "method": "PUT",
+    "path": "/my/external_accounts/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/my/external_accounts/{id}/edit"
+  },
+  {
+    "method": "GET",
+    "path": "/my/forwardings/outbounds/verification"
+  },
+  {
+    "method": "PATCH",
+    "path": "/my/forwardings/outbounds/verification"
+  },
+  {
+    "method": "PUT",
+    "path": "/my/forwardings/outbounds/verification"
+  },
+  {
+    "method": "GET",
+    "path": "/my/forwardings/outbounds/verification/failed"
+  },
+  {
+    "method": "GET",
+    "path": "/my/forwardings/outbounds/verification/successful"
+  },
+  {
+    "method": "GET",
+    "path": "/my/gmail_session"
+  },
+  {
+    "method": "GET",
+    "path": "/my/inbound_redeliveries"
+  },
+  {
+    "method": "DELETE",
+    "path": "/my/inbound_redeliveries/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/my/navigation"
+  },
+  {
+    "method": "GET",
+    "path": "/my/navigation/calendar"
+  },
+  {
+    "method": "GET",
+    "path": "/my/navigation/contacts"
+  },
+  {
+    "method": "GET",
+    "path": "/my/notification_bells"
+  },
+  {
+    "method": "POST",
+    "path": "/my/notification_bells"
+  },
+  {
+    "method": "GET",
+    "path": "/my/notification_bells/new"
+  },
+  {
+    "method": "DELETE",
+    "path": "/my/notification_bells/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/my/notification_bells/{id}"
+  },
+  {
+    "method": "PATCH",
+    "path": "/my/notification_bells/{id}"
+  },
+  {
+    "method": "PUT",
+    "path": "/my/notification_bells/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/my/notification_bells/{id}/edit"
+  },
+  {
+    "method": "POST",
+    "path": "/my/notification_bells/{id}/toggle"
+  },
+  {
+    "method": "GET",
+    "path": "/my/outlook_session"
+  },
+  {
+    "method": "DELETE",
+    "path": "/my/preapproval"
+  },
+  {
+    "method": "GET",
+    "path": "/my/preapproval"
+  },
+  {
+    "method": "POST",
+    "path": "/my/preapproval"
+  },
+  {
+    "method": "GET",
+    "path": "/my/sessions"
+  },
+  {
+    "method": "DELETE",
+    "path": "/my/sessions/{id}"
+  },
+  {
+    "method": "DELETE",
+    "path": "/my/spam_spotter"
+  },
+  {
+    "method": "GET",
+    "path": "/my/spam_spotter"
+  },
+  {
+    "method": "PATCH",
+    "path": "/my/spam_spotter"
+  },
+  {
+    "method": "POST",
+    "path": "/my/spam_spotter"
+  },
+  {
+    "method": "PUT",
+    "path": "/my/spam_spotter"
+  },
+  {
+    "method": "GET",
+    "path": "/my/spam_spotter/edit"
+  },
+  {
+    "method": "GET",
+    "path": "/my/spam_spotter/new"
+  },
+  {
+    "method": "GET",
+    "path": "/my/users/{user_id}/auto_responder"
+  },
+  {
+    "method": "PATCH",
+    "path": "/my/users/{user_id}/auto_responder"
+  },
+  {
+    "method": "PUT",
+    "path": "/my/users/{user_id}/auto_responder"
+  },
+  {
+    "method": "GET",
+    "path": "/my/users/{user_id}/auto_responder/edit"
+  },
+  {
+    "method": "GET",
+    "path": "/oauth/authorizations/new"
+  },
+  {
+    "method": "DELETE",
+    "path": "/oauth/tokens"
+  },
+  {
+    "method": "POST",
+    "path": "/oauth/tokens"
+  },
+  {
+    "method": "DELETE",
+    "path": "/outbound_forwardings/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/p/{key}"
+  },
+  {
+    "method": "GET",
+    "path": "/p/{key}/blobs/{signed_blob_id}/*filename"
+  },
+  {
+    "method": "GET",
+    "path": "/p/{key}/representations/{signed_blob_id}/{variation_key}/*filename"
+  },
+  {
+    "method": "GET",
+    "path": "/paper_trail"
+  },
+  {
+    "method": "PATCH",
+    "path": "/password"
+  },
+  {
+    "method": "PUT",
+    "path": "/password"
+  },
+  {
+    "method": "GET",
+    "path": "/password/edit"
+  },
+  {
+    "method": "GET",
+    "path": "/post_office"
+  },
+  {
+    "method": "DELETE",
+    "path": "/postings/box_groups"
+  },
+  {
+    "method": "POST",
+    "path": "/postings/box_groups"
+  },
+  {
+    "method": "DELETE",
+    "path": "/postings/bubble_up"
+  },
+  {
+    "method": "POST",
+    "path": "/postings/bubble_up"
+  },
+  {
+    "method": "GET",
+    "path": "/postings/bubble_up/menu"
+  },
+  {
+    "method": "GET",
+    "path": "/postings/bubble_up/menu/new"
+  },
+  {
+    "method": "GET",
+    "path": "/postings/bubble_up/row_menu/{id}"
+  },
+  {
+    "method": "POST",
+    "path": "/postings/bubble_up_now"
+  },
+  {
+    "method": "DELETE",
+    "path": "/postings/bulk_bubble_up_now"
+  },
+  {
+    "method": "GET",
+    "path": "/postings/bulk_bubble_up_now"
+  },
+  {
+    "method": "PATCH",
+    "path": "/postings/bulk_bubble_up_now"
+  },
+  {
+    "method": "POST",
+    "path": "/postings/bulk_bubble_up_now"
+  },
+  {
+    "method": "PUT",
+    "path": "/postings/bulk_bubble_up_now"
+  },
+  {
+    "method": "GET",
+    "path": "/postings/bulk_bubble_up_now/edit"
+  },
+  {
+    "method": "GET",
+    "path": "/postings/bulk_bubble_up_now/new"
+  },
+  {
+    "method": "GET",
+    "path": "/postings/collectings/new"
+  },
+  {
+    "method": "POST",
+    "path": "/postings/collections"
+  },
+  {
+    "method": "GET",
+    "path": "/postings/collections/new"
+  },
+  {
+    "method": "PATCH",
+    "path": "/postings/collections/{id}"
+  },
+  {
+    "method": "PUT",
+    "path": "/postings/collections/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/postings/collections/{id}/edit"
+  },
+  {
+    "method": "DELETE",
+    "path": "/postings/filings"
+  },
+  {
+    "method": "POST",
+    "path": "/postings/filings"
+  },
+  {
+    "method": "GET",
+    "path": "/postings/filings/new"
+  },
+  {
+    "method": "POST",
+    "path": "/postings/folders"
+  },
+  {
+    "method": "GET",
+    "path": "/postings/forwards(/{posting_ids})/new"
+  },
+  {
+    "method": "GET",
+    "path": "/postings/groupings/new"
+  },
+  {
+    "method": "GET",
+    "path": "/postings/merges/new"
+  },
+  {
+    "method": "POST",
+    "path": "/postings/moves"
+  },
+  {
+    "method": "DELETE",
+    "path": "/postings/mutings"
+  },
+  {
+    "method": "POST",
+    "path": "/postings/mutings"
+  },
+  {
+    "method": "GET",
+    "path": "/postings/readings(/{posting_ids})"
+  },
+  {
+    "method": "GET",
+    "path": "/postings/readings/all"
+  },
+  {
+    "method": "GET",
+    "path": "/postings/replies(/{posting_ids})"
+  },
+  {
+    "method": "GET",
+    "path": "/postings/replies(/{posting_ids})/bulk"
+  },
+  {
+    "method": "POST",
+    "path": "/postings/seen"
+  },
+  {
+    "method": "POST",
+    "path": "/postings/spam"
+  },
+  {
+    "method": "POST",
+    "path": "/postings/trash"
+  },
+  {
+    "method": "GET",
+    "path": "/postings/trash/new"
+  },
+  {
+    "method": "POST",
+    "path": "/postings/unseen"
+  },
+  {
+    "method": "POST",
+    "path": "/postings/workflows"
+  },
+  {
+    "method": "GET",
+    "path": "/postings/workflows/new"
+  },
+  {
+    "method": "PATCH",
+    "path": "/postings/workflows/{id}"
+  },
+  {
+    "method": "PUT",
+    "path": "/postings/workflows/{id}"
+  },
+  {
+    "method": "POST",
+    "path": "/postings/{posting_id}/bundles/seen"
+  },
+  {
+    "method": "GET",
+    "path": "/postings/{posting_id}/bundles/unseen"
+  },
+  {
+    "method": "DELETE",
+    "path": "/postings/{posting_id}/muting"
+  },
+  {
+    "method": "POST",
+    "path": "/postings/{posting_id}/muting"
+  },
+  {
+    "method": "DELETE",
+    "path": "/postings/{posting_id}/note"
+  },
+  {
+    "method": "GET",
+    "path": "/postings/{posting_id}/note"
+  },
+  {
+    "method": "PATCH",
+    "path": "/postings/{posting_id}/note"
+  },
+  {
+    "method": "PUT",
+    "path": "/postings/{posting_id}/note"
+  },
+  {
+    "method": "GET",
+    "path": "/postings/{posting_id}/note/edit"
+  },
+  {
+    "method": "GET",
+    "path": "/primary-datacenter"
+  },
+  {
+    "method": "GET",
+    "path": "/queenbee/accounts"
+  },
+  {
+    "method": "POST",
+    "path": "/queenbee/accounts"
+  },
+  {
+    "method": "GET",
+    "path": "/queenbee/accounts/new"
+  },
+  {
+    "method": "GET",
+    "path": "/queenbee/accounts/{account_id}/legal_preservations"
+  },
+  {
+    "method": "POST",
+    "path": "/queenbee/accounts/{account_id}/legal_preservations"
+  },
+  {
+    "method": "GET",
+    "path": "/queenbee/accounts/{account_id}/legal_preservations/new"
+  },
+  {
+    "method": "DELETE",
+    "path": "/queenbee/accounts/{account_id}/legal_preservations/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/queenbee/accounts/{account_id}/legal_preservations/{id}"
+  },
+  {
+    "method": "PATCH",
+    "path": "/queenbee/accounts/{account_id}/legal_preservations/{id}"
+  },
+  {
+    "method": "PUT",
+    "path": "/queenbee/accounts/{account_id}/legal_preservations/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/queenbee/accounts/{account_id}/legal_preservations/{id}/edit"
+  },
+  {
+    "method": "GET",
+    "path": "/queenbee/accounts/{account_id}/plan_objections"
+  },
+  {
+    "method": "POST",
+    "path": "/queenbee/accounts/{account_id}/plan_objections"
+  },
+  {
+    "method": "GET",
+    "path": "/queenbee/accounts/{account_id}/plan_objections/new"
+  },
+  {
+    "method": "DELETE",
+    "path": "/queenbee/accounts/{account_id}/plan_objections/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/queenbee/accounts/{account_id}/plan_objections/{id}"
+  },
+  {
+    "method": "PATCH",
+    "path": "/queenbee/accounts/{account_id}/plan_objections/{id}"
+  },
+  {
+    "method": "PUT",
+    "path": "/queenbee/accounts/{account_id}/plan_objections/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/queenbee/accounts/{account_id}/plan_objections/{id}/edit"
+  },
+  {
+    "method": "DELETE",
+    "path": "/queenbee/accounts/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/queenbee/accounts/{id}"
+  },
+  {
+    "method": "PATCH",
+    "path": "/queenbee/accounts/{id}"
+  },
+  {
+    "method": "PUT",
+    "path": "/queenbee/accounts/{id}"
+  },
+  {
+    "method": "POST",
+    "path": "/queenbee/accounts/{id}/cancel"
+  },
+  {
+    "method": "POST",
+    "path": "/queenbee/accounts/{id}/deactivate"
+  },
+  {
+    "method": "GET",
+    "path": "/queenbee/accounts/{id}/edit"
+  },
+  {
+    "method": "POST",
+    "path": "/queenbee/accounts/{id}/reactivate"
+  },
+  {
+    "method": "POST",
+    "path": "/queenbee/accounts/{id}/transferred_ownership"
+  },
+  {
+    "method": "GET",
+    "path": "/queenbee/accounts/{id}/usage_summary"
+  },
+  {
+    "method": "GET",
+    "path": "/queenbee/add_ons"
+  },
+  {
+    "method": "POST",
+    "path": "/queenbee/add_ons"
+  },
+  {
+    "method": "GET",
+    "path": "/queenbee/add_ons/new"
+  },
+  {
+    "method": "DELETE",
+    "path": "/queenbee/add_ons/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/queenbee/add_ons/{id}"
+  },
+  {
+    "method": "PATCH",
+    "path": "/queenbee/add_ons/{id}"
+  },
+  {
+    "method": "PUT",
+    "path": "/queenbee/add_ons/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/queenbee/add_ons/{id}/edit"
+  },
+  {
+    "method": "GET",
+    "path": "/queenbee/plan_groups"
+  },
+  {
+    "method": "POST",
+    "path": "/queenbee/plan_groups"
+  },
+  {
+    "method": "GET",
+    "path": "/queenbee/plan_groups/new"
+  },
+  {
+    "method": "DELETE",
+    "path": "/queenbee/plan_groups/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/queenbee/plan_groups/{id}"
+  },
+  {
+    "method": "PATCH",
+    "path": "/queenbee/plan_groups/{id}"
+  },
+  {
+    "method": "PUT",
+    "path": "/queenbee/plan_groups/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/queenbee/plan_groups/{id}/edit"
+  },
+  {
+    "method": "GET",
+    "path": "/queenbee/plans"
+  },
+  {
+    "method": "POST",
+    "path": "/queenbee/plans"
+  },
+  {
+    "method": "GET",
+    "path": "/queenbee/plans/new"
+  },
+  {
+    "method": "DELETE",
+    "path": "/queenbee/plans/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/queenbee/plans/{id}"
+  },
+  {
+    "method": "PATCH",
+    "path": "/queenbee/plans/{id}"
+  },
+  {
+    "method": "PUT",
+    "path": "/queenbee/plans/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/queenbee/plans/{id}/edit"
+  },
+  {
+    "method": "GET",
+    "path": "/queues"
+  },
+  {
+    "method": "GET",
+    "path": "/queues/{id}"
+  },
+  {
+    "method": "POST",
+    "path": "/rails/action_mailbox/mailgun/inbound_emails/mime"
+  },
+  {
+    "method": "GET",
+    "path": "/rails/action_mailbox/mandrill/inbound_emails"
+  },
+  {
+    "method": "POST",
+    "path": "/rails/action_mailbox/mandrill/inbound_emails"
+  },
+  {
+    "method": "POST",
+    "path": "/rails/action_mailbox/postmark/inbound_emails"
+  },
+  {
+    "method": "POST",
+    "path": "/rails/action_mailbox/relay/inbound_emails"
+  },
+  {
+    "method": "POST",
+    "path": "/rails/action_mailbox/sendgrid/inbound_emails"
+  },
+  {
+    "method": "GET",
+    "path": "/rails/active_storage/blobs/proxy/{signed_id}/*filename"
+  },
+  {
+    "method": "GET",
+    "path": "/rails/active_storage/blobs/redirect/{signed_id}/*filename"
+  },
+  {
+    "method": "GET",
+    "path": "/rails/active_storage/blobs/{signed_id}/*filename"
+  },
+  {
+    "method": "POST",
+    "path": "/rails/active_storage/direct_uploads"
+  },
+  {
+    "method": "GET",
+    "path": "/rails/active_storage/disk/{encoded_key}/*filename"
+  },
+  {
+    "method": "PUT",
+    "path": "/rails/active_storage/disk/{encoded_token}"
+  },
+  {
+    "method": "GET",
+    "path": "/rails/active_storage/email/blobs/{signed_id}/*filename"
+  },
+  {
+    "method": "GET",
+    "path": "/rails/active_storage/email/representations/{signed_blob_id}/{variation_key}/*filename"
+  },
+  {
+    "method": "GET",
+    "path": "/rails/active_storage/representations/proxy/{signed_blob_id}/{variation_key}/*filename"
+  },
+  {
+    "method": "GET",
+    "path": "/rails/active_storage/representations/redirect/{signed_blob_id}/{variation_key}/*filename"
+  },
+  {
+    "method": "GET",
+    "path": "/rails/active_storage/representations/{signed_blob_id}/{variation_key}/*filename"
+  },
+  {
+    "method": "GET",
+    "path": "/rails/conductor/action_mailbox/inbound_emails"
+  },
+  {
+    "method": "POST",
+    "path": "/rails/conductor/action_mailbox/inbound_emails"
+  },
+  {
+    "method": "GET",
+    "path": "/rails/conductor/action_mailbox/inbound_emails/new"
+  },
+  {
+    "method": "POST",
+    "path": "/rails/conductor/action_mailbox/inbound_emails/sources"
+  },
+  {
+    "method": "GET",
+    "path": "/rails/conductor/action_mailbox/inbound_emails/sources/new"
+  },
+  {
+    "method": "GET",
+    "path": "/rails/conductor/action_mailbox/inbound_emails/{id}"
+  },
+  {
+    "method": "POST",
+    "path": "/rails/conductor/action_mailbox/{inbound_email_id}/incinerate"
+  },
+  {
+    "method": "POST",
+    "path": "/rails/conductor/action_mailbox/{inbound_email_id}/reroute"
+  },
+  {
+    "method": "GET",
+    "path": "/recede_historical_location"
+  },
+  {
+    "method": "DELETE",
+    "path": "/recent_searches"
+  },
+  {
+    "method": "GET",
+    "path": "/recent_searches"
+  },
+  {
+    "method": "PATCH",
+    "path": "/recent_searches"
+  },
+  {
+    "method": "POST",
+    "path": "/recent_searches"
+  },
+  {
+    "method": "PUT",
+    "path": "/recent_searches"
+  },
+  {
+    "method": "GET",
+    "path": "/recent_searches/edit"
+  },
+  {
+    "method": "GET",
+    "path": "/recent_searches/new"
+  },
+  {
+    "method": "GET",
+    "path": "/refresh_historical_location"
+  },
+  {
+    "method": "GET",
+    "path": "/reply_later"
+  },
+  {
+    "method": "GET",
+    "path": "/reply_later/tray"
+  },
+  {
+    "method": "GET",
+    "path": "/resume_historical_location"
+  },
+  {
+    "method": "GET",
+    "path": "/robots.txt"
+  },
+  {
+    "method": "GET",
+    "path": "/rspamd_maps"
+  },
+  {
+    "method": "GET",
+    "path": "/rspamd_maps/{slug}"
+  },
+  {
+    "method": "PATCH",
+    "path": "/rspamd_maps/{slug}"
+  },
+  {
+    "method": "PUT",
+    "path": "/rspamd_maps/{slug}"
+  },
+  {
+    "method": "GET",
+    "path": "/rspamd_maps/{slug}/edit"
+  },
+  {
+    "method": "POST",
+    "path": "/rum/metrics_collections"
+  },
+  {
+    "method": "GET",
+    "path": "/search"
+  },
+  {
+    "method": "GET",
+    "path": "/search/new"
+  },
+  {
+    "method": "GET",
+    "path": "/service-worker"
+  },
+  {
+    "method": "GET",
+    "path": "/sessions"
+  },
+  {
+    "method": "POST",
+    "path": "/sessions/sudo"
+  },
+  {
+    "method": "GET",
+    "path": "/sessions/sudo/new"
+  },
+  {
+    "method": "GET",
+    "path": "/sessions/{id}"
+  },
+  {
+    "method": "POST",
+    "path": "/sessions/{session_id}/audits"
+  },
+  {
+    "method": "PATCH",
+    "path": "/sessions/{session_id}/audits/{id}"
+  },
+  {
+    "method": "PUT",
+    "path": "/sessions/{session_id}/audits/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/set_aside"
+  },
+  {
+    "method": "GET",
+    "path": "/set_aside/tray"
+  },
+  {
+    "method": "GET",
+    "path": "/sign_in"
+  },
+  {
+    "method": "POST",
+    "path": "/sign_in"
+  },
+  {
+    "method": "POST",
+    "path": "/sign_out"
+  },
+  {
+    "method": "GET",
+    "path": "/sign_up"
+  },
+  {
+    "method": "GET",
+    "path": "/sign_up/domains"
+  },
+  {
+    "method": "POST",
+    "path": "/sign_up/domains/account"
+  },
+  {
+    "method": "GET",
+    "path": "/sign_up/domains/backup_email_address/new"
+  },
+  {
+    "method": "POST",
+    "path": "/sign_up/domains/company_name"
+  },
+  {
+    "method": "GET",
+    "path": "/sign_up/domains/company_name/new"
+  },
+  {
+    "method": "POST",
+    "path": "/sign_up/domains/domain"
+  },
+  {
+    "method": "GET",
+    "path": "/sign_up/domains/domain/new"
+  },
+  {
+    "method": "POST",
+    "path": "/sign_up/domains/email_address"
+  },
+  {
+    "method": "GET",
+    "path": "/sign_up/domains/email_address/new"
+  },
+  {
+    "method": "POST",
+    "path": "/sign_up/domains/name"
+  },
+  {
+    "method": "GET",
+    "path": "/sign_up/domains/name/new"
+  },
+  {
+    "method": "POST",
+    "path": "/sign_up/domains/password"
+  },
+  {
+    "method": "GET",
+    "path": "/sign_up/domains/password/new"
+  },
+  {
+    "method": "GET",
+    "path": "/sign_up/domains/welcome"
+  },
+  {
+    "method": "GET",
+    "path": "/sign_up/first_run"
+  },
+  {
+    "method": "GET",
+    "path": "/sign_up/home"
+  },
+  {
+    "method": "POST",
+    "path": "/sign_up/home/account"
+  },
+  {
+    "method": "GET",
+    "path": "/sign_up/home/backup_email_address/new"
+  },
+  {
+    "method": "GET",
+    "path": "/sign_up/home/captcha"
+  },
+  {
+    "method": "GET",
+    "path": "/sign_up/home/confirmation"
+  },
+  {
+    "method": "POST",
+    "path": "/sign_up/home/email_address"
+  },
+  {
+    "method": "GET",
+    "path": "/sign_up/home/email_address/new"
+  },
+  {
+    "method": "POST",
+    "path": "/sign_up/home/name"
+  },
+  {
+    "method": "GET",
+    "path": "/sign_up/home/name/new"
+  },
+  {
+    "method": "POST",
+    "path": "/sign_up/home/password"
+  },
+  {
+    "method": "GET",
+    "path": "/sign_up/home/password/new"
+  },
+  {
+    "method": "GET",
+    "path": "/sign_up/home/premium_confirmation"
+  },
+  {
+    "method": "GET",
+    "path": "/sign_up/home/welcome"
+  },
+  {
+    "method": "GET",
+    "path": "/sign_up/work"
+  },
+  {
+    "method": "GET",
+    "path": "/sign_up/work/*rest"
+  },
+  {
+    "method": "GET",
+    "path": "/snippets"
+  },
+  {
+    "method": "POST",
+    "path": "/snippets"
+  },
+  {
+    "method": "GET",
+    "path": "/snippets/new"
+  },
+  {
+    "method": "DELETE",
+    "path": "/snippets/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/snippets/{id}"
+  },
+  {
+    "method": "PATCH",
+    "path": "/snippets/{id}"
+  },
+  {
+    "method": "PUT",
+    "path": "/snippets/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/snippets/{id}/edit"
+  },
+  {
+    "method": "GET",
+    "path": "/stickies"
+  },
+  {
+    "method": "POST",
+    "path": "/stickies"
+  },
+  {
+    "method": "POST",
+    "path": "/stickies/moves"
+  },
+  {
+    "method": "GET",
+    "path": "/stickies/new"
+  },
+  {
+    "method": "DELETE",
+    "path": "/stickies/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/stickies/{id}"
+  },
+  {
+    "method": "PATCH",
+    "path": "/stickies/{id}"
+  },
+  {
+    "method": "PUT",
+    "path": "/stickies/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/stickies/{id}/edit"
+  },
+  {
+    "method": "GET",
+    "path": "/storefront/trial_upgrade"
+  },
+  {
+    "method": "POST",
+    "path": "/storefront/trial_upgrade"
+  },
+  {
+    "method": "GET",
+    "path": "/storefront/trial_upgrade/new"
+  },
+  {
+    "method": "GET",
+    "path": "/storefront/users/{user_id}/location"
+  },
+  {
+    "method": "GET",
+    "path": "/topic_metadata"
+  },
+  {
+    "method": "DELETE",
+    "path": "/topic_metadata/search"
+  },
+  {
+    "method": "GET",
+    "path": "/topic_metadata/search"
+  },
+  {
+    "method": "PATCH",
+    "path": "/topic_metadata/search"
+  },
+  {
+    "method": "POST",
+    "path": "/topic_metadata/search"
+  },
+  {
+    "method": "PUT",
+    "path": "/topic_metadata/search"
+  },
+  {
+    "method": "GET",
+    "path": "/topic_metadata/search/edit"
+  },
+  {
+    "method": "GET",
+    "path": "/topic_metadata/search/new"
+  },
+  {
+    "method": "GET",
+    "path": "/topic_metadata/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/topics"
+  },
+  {
+    "method": "POST",
+    "path": "/topics"
+  },
+  {
+    "method": "GET",
+    "path": "/topics/everything"
+  },
+  {
+    "method": "POST",
+    "path": "/topics/merges"
+  },
+  {
+    "method": "GET",
+    "path": "/topics/merges/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/topics/nettings"
+  },
+  {
+    "method": "GET",
+    "path": "/topics/new"
+  },
+  {
+    "method": "GET",
+    "path": "/topics/sent"
+  },
+  {
+    "method": "GET",
+    "path": "/topics/sent/attachments"
+  },
+  {
+    "method": "GET",
+    "path": "/topics/spam"
+  },
+  {
+    "method": "DELETE",
+    "path": "/topics/spam/all"
+  },
+  {
+    "method": "GET",
+    "path": "/topics/trash"
+  },
+  {
+    "method": "DELETE",
+    "path": "/topics/trash/all"
+  },
+  {
+    "method": "DELETE",
+    "path": "/topics/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/topics/{id}"
+  },
+  {
+    "method": "PATCH",
+    "path": "/topics/{id}"
+  },
+  {
+    "method": "PUT",
+    "path": "/topics/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/topics/{id}/edit"
+  },
+  {
+    "method": "POST",
+    "path": "/topics/{topic_id}/accesses"
+  },
+  {
+    "method": "GET",
+    "path": "/topics/{topic_id}/accesses/new"
+  },
+  {
+    "method": "DELETE",
+    "path": "/topics/{topic_id}/accesses/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/topics/{topic_id}/attachments"
+  },
+  {
+    "method": "GET",
+    "path": "/topics/{topic_id}/backlink"
+  },
+  {
+    "method": "GET",
+    "path": "/topics/{topic_id}/breakouts"
+  },
+  {
+    "method": "GET",
+    "path": "/topics/{topic_id}/breakouts/originals"
+  },
+  {
+    "method": "DELETE",
+    "path": "/topics/{topic_id}/bubble_up"
+  },
+  {
+    "method": "POST",
+    "path": "/topics/{topic_id}/bubble_up"
+  },
+  {
+    "method": "GET",
+    "path": "/topics/{topic_id}/bubble_up/menu"
+  },
+  {
+    "method": "DELETE",
+    "path": "/topics/{topic_id}/bubble_up_now"
+  },
+  {
+    "method": "GET",
+    "path": "/topics/{topic_id}/bubble_up_now"
+  },
+  {
+    "method": "PATCH",
+    "path": "/topics/{topic_id}/bubble_up_now"
+  },
+  {
+    "method": "POST",
+    "path": "/topics/{topic_id}/bubble_up_now"
+  },
+  {
+    "method": "PUT",
+    "path": "/topics/{topic_id}/bubble_up_now"
+  },
+  {
+    "method": "GET",
+    "path": "/topics/{topic_id}/bubble_up_now/edit"
+  },
+  {
+    "method": "GET",
+    "path": "/topics/{topic_id}/bubble_up_now/new"
+  },
+  {
+    "method": "DELETE",
+    "path": "/topics/{topic_id}/collecting"
+  },
+  {
+    "method": "POST",
+    "path": "/topics/{topic_id}/collecting"
+  },
+  {
+    "method": "GET",
+    "path": "/topics/{topic_id}/collecting/new"
+  },
+  {
+    "method": "DELETE",
+    "path": "/topics/{topic_id}/collections"
+  },
+  {
+    "method": "GET",
+    "path": "/topics/{topic_id}/collections"
+  },
+  {
+    "method": "PATCH",
+    "path": "/topics/{topic_id}/collections"
+  },
+  {
+    "method": "POST",
+    "path": "/topics/{topic_id}/collections"
+  },
+  {
+    "method": "PUT",
+    "path": "/topics/{topic_id}/collections"
+  },
+  {
+    "method": "GET",
+    "path": "/topics/{topic_id}/collections/edit"
+  },
+  {
+    "method": "GET",
+    "path": "/topics/{topic_id}/collections/new"
+  },
+  {
+    "method": "GET",
+    "path": "/topics/{topic_id}/comments"
+  },
+  {
+    "method": "POST",
+    "path": "/topics/{topic_id}/comments"
+  },
+  {
+    "method": "GET",
+    "path": "/topics/{topic_id}/comments/new"
+  },
+  {
+    "method": "DELETE",
+    "path": "/topics/{topic_id}/comments/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/topics/{topic_id}/comments/{id}"
+  },
+  {
+    "method": "PATCH",
+    "path": "/topics/{topic_id}/comments/{id}"
+  },
+  {
+    "method": "PUT",
+    "path": "/topics/{topic_id}/comments/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/topics/{topic_id}/comments/{id}/edit"
+  },
+  {
+    "method": "GET",
+    "path": "/topics/{topic_id}/entries"
+  },
+  {
+    "method": "GET",
+    "path": "/topics/{topic_id}/filings"
+  },
+  {
+    "method": "POST",
+    "path": "/topics/{topic_id}/filings"
+  },
+  {
+    "method": "GET",
+    "path": "/topics/{topic_id}/filings/new"
+  },
+  {
+    "method": "DELETE",
+    "path": "/topics/{topic_id}/filings/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/topics/{topic_id}/filings/{id}"
+  },
+  {
+    "method": "PATCH",
+    "path": "/topics/{topic_id}/filings/{id}"
+  },
+  {
+    "method": "PUT",
+    "path": "/topics/{topic_id}/filings/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/topics/{topic_id}/filings/{id}/edit"
+  },
+  {
+    "method": "POST",
+    "path": "/topics/{topic_id}/inbound_redeliveries"
+  },
+  {
+    "method": "GET",
+    "path": "/topics/{topic_id}/inbound_redeliveries/new"
+  },
+  {
+    "method": "POST",
+    "path": "/topics/{topic_id}/mail_analysis/safety_exceptions"
+  },
+  {
+    "method": "GET",
+    "path": "/topics/{topic_id}/messages"
+  },
+  {
+    "method": "POST",
+    "path": "/topics/{topic_id}/messages"
+  },
+  {
+    "method": "GET",
+    "path": "/topics/{topic_id}/messages/new"
+  },
+  {
+    "method": "DELETE",
+    "path": "/topics/{topic_id}/messages/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/topics/{topic_id}/messages/{id}"
+  },
+  {
+    "method": "PATCH",
+    "path": "/topics/{topic_id}/messages/{id}"
+  },
+  {
+    "method": "PUT",
+    "path": "/topics/{topic_id}/messages/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/topics/{topic_id}/messages/{id}/edit"
+  },
+  {
+    "method": "POST",
+    "path": "/topics/{topic_id}/moves"
+  },
+  {
+    "method": "GET",
+    "path": "/topics/{topic_id}/moves/new"
+  },
+  {
+    "method": "GET",
+    "path": "/topics/{topic_id}/muting"
+  },
+  {
+    "method": "GET",
+    "path": "/topics/{topic_id}/notices"
+  },
+  {
+    "method": "POST",
+    "path": "/topics/{topic_id}/observation"
+  },
+  {
+    "method": "GET",
+    "path": "/topics/{topic_id}/print"
+  },
+  {
+    "method": "DELETE",
+    "path": "/topics/{topic_id}/publication"
+  },
+  {
+    "method": "GET",
+    "path": "/topics/{topic_id}/publication"
+  },
+  {
+    "method": "PATCH",
+    "path": "/topics/{topic_id}/publication"
+  },
+  {
+    "method": "POST",
+    "path": "/topics/{topic_id}/publication"
+  },
+  {
+    "method": "PUT",
+    "path": "/topics/{topic_id}/publication"
+  },
+  {
+    "method": "GET",
+    "path": "/topics/{topic_id}/publication/edit"
+  },
+  {
+    "method": "GET",
+    "path": "/topics/{topic_id}/publication/new"
+  },
+  {
+    "method": "PATCH",
+    "path": "/topics/{topic_id}/recycling_vault"
+  },
+  {
+    "method": "PUT",
+    "path": "/topics/{topic_id}/recycling_vault"
+  },
+  {
+    "method": "POST",
+    "path": "/topics/{topic_id}/redelivery"
+  },
+  {
+    "method": "POST",
+    "path": "/topics/{topic_id}/removal"
+  },
+  {
+    "method": "GET",
+    "path": "/topics/{topic_id}/removal/new"
+  },
+  {
+    "method": "GET",
+    "path": "/topics/{topic_id}/roster"
+  },
+  {
+    "method": "PUT",
+    "path": "/topics/{topic_id}/status/active"
+  },
+  {
+    "method": "PUT",
+    "path": "/topics/{topic_id}/status/ham"
+  },
+  {
+    "method": "PUT",
+    "path": "/topics/{topic_id}/status/trashed"
+  },
+  {
+    "method": "GET",
+    "path": "/topics/{topic_id}/toolbar"
+  },
+  {
+    "method": "POST",
+    "path": "/topics/{topic_id}/undo_send"
+  },
+  {
+    "method": "POST",
+    "path": "/topics/{topic_id}/unseen"
+  },
+  {
+    "method": "GET",
+    "path": "/topics/{topic_id}/workflows"
+  },
+  {
+    "method": "POST",
+    "path": "/topics/{topic_id}/workflows"
+  },
+  {
+    "method": "GET",
+    "path": "/topics/{topic_id}/workflows/new"
+  },
+  {
+    "method": "GET",
+    "path": "/topics/{topic_id}/workflows/{id}"
+  },
+  {
+    "method": "DELETE",
+    "path": "/topics/{topic_id}/workflows/{workflow_id}/stagings"
+  },
+  {
+    "method": "PATCH",
+    "path": "/topics/{topic_id}/workflows/{workflow_id}/stagings"
+  },
+  {
+    "method": "POST",
+    "path": "/topics/{topic_id}/workflows/{workflow_id}/stagings"
+  },
+  {
+    "method": "PUT",
+    "path": "/topics/{topic_id}/workflows/{workflow_id}/stagings"
+  },
+  {
+    "method": "GET",
+    "path": "/two_factor_authentication(/{two_factor_authentication_scope})/challenge"
+  },
+  {
+    "method": "POST",
+    "path": "/two_factor_authentication(/{two_factor_authentication_scope})/challenge"
+  },
+  {
+    "method": "GET",
+    "path": "/two_factor_authentication(/{two_factor_authentication_scope})/challenge/resume"
+  },
+  {
+    "method": "GET",
+    "path": "/two_factor_authentication(/{two_factor_authentication_scope})/challenge/web_authn"
+  },
+  {
+    "method": "POST",
+    "path": "/two_factor_authentication(/{two_factor_authentication_scope})/challenge/web_authn"
+  },
+  {
+    "method": "GET",
+    "path": "/two_factor_authentication(/{two_factor_authentication_scope})/challenge/web_authn/new"
+  },
+  {
+    "method": "DELETE",
+    "path": "/two_factor_authentication/profiles/recovery_codes"
+  },
+  {
+    "method": "GET",
+    "path": "/two_factor_authentication/profiles/recovery_codes"
+  },
+  {
+    "method": "PATCH",
+    "path": "/two_factor_authentication/profiles/recovery_codes"
+  },
+  {
+    "method": "POST",
+    "path": "/two_factor_authentication/profiles/recovery_codes"
+  },
+  {
+    "method": "PUT",
+    "path": "/two_factor_authentication/profiles/recovery_codes"
+  },
+  {
+    "method": "GET",
+    "path": "/two_factor_authentication/profiles/recovery_codes/edit"
+  },
+  {
+    "method": "GET",
+    "path": "/two_factor_authentication/profiles/recovery_codes/new"
+  },
+  {
+    "method": "GET",
+    "path": "/two_factor_authentication/profiles/totp"
+  },
+  {
+    "method": "POST",
+    "path": "/two_factor_authentication/profiles/totp"
+  },
+  {
+    "method": "GET",
+    "path": "/two_factor_authentication/profiles/totp/edit"
+  },
+  {
+    "method": "GET",
+    "path": "/two_factor_authentication/profiles/totp/new"
+  },
+  {
+    "method": "GET",
+    "path": "/two_factor_authentication/recovery_reminder"
+  },
+  {
+    "method": "PATCH",
+    "path": "/two_factor_authentication/recovery_reminder"
+  },
+  {
+    "method": "PUT",
+    "path": "/two_factor_authentication/recovery_reminder"
+  },
+  {
+    "method": "GET",
+    "path": "/two_factor_authentication/reset"
+  },
+  {
+    "method": "POST",
+    "path": "/two_factor_authentication/reset"
+  },
+  {
+    "method": "GET",
+    "path": "/two_factor_authentication/reset/new"
+  },
+  {
+    "method": "GET",
+    "path": "/two_factor_authentication/security_keys"
+  },
+  {
+    "method": "POST",
+    "path": "/two_factor_authentication/security_keys"
+  },
+  {
+    "method": "GET",
+    "path": "/two_factor_authentication/security_keys/new"
+  },
+  {
+    "method": "DELETE",
+    "path": "/two_factor_authentication/security_keys/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/two_factor_authentication/security_keys/{id}"
+  },
+  {
+    "method": "PATCH",
+    "path": "/two_factor_authentication/security_keys/{id}"
+  },
+  {
+    "method": "PUT",
+    "path": "/two_factor_authentication/security_keys/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/two_factor_authentication/security_keys/{id}/edit"
+  },
+  {
+    "method": "GET",
+    "path": "/two_factor_authentication/security_keys/{security_key_id}/confirmation"
+  },
+  {
+    "method": "POST",
+    "path": "/two_factor_authentication/security_keys/{security_key_id}/confirmation"
+  },
+  {
+    "method": "GET",
+    "path": "/two_factor_authentication/security_keys/{security_key_id}/removal/new"
+  },
+  {
+    "method": "GET",
+    "path": "/two_factor_authentication/setup/ejection"
+  },
+  {
+    "method": "POST",
+    "path": "/two_factor_authentication/setup/ejection"
+  },
+  {
+    "method": "GET",
+    "path": "/two_factor_authentication/setup/upgrade"
+  },
+  {
+    "method": "POST",
+    "path": "/two_factor_authentication/setup/upgrade"
+  },
+  {
+    "method": "GET",
+    "path": "/two_factor_authentication/setup/upgrade/new"
+  },
+  {
+    "method": "DELETE",
+    "path": "/underground_nuclear_test"
+  },
+  {
+    "method": "GET",
+    "path": "/underground_nuclear_test"
+  },
+  {
+    "method": "PATCH",
+    "path": "/underground_nuclear_test"
+  },
+  {
+    "method": "POST",
+    "path": "/underground_nuclear_test"
+  },
+  {
+    "method": "PUT",
+    "path": "/underground_nuclear_test"
+  },
+  {
+    "method": "GET",
+    "path": "/underground_nuclear_test/edit"
+  },
+  {
+    "method": "GET",
+    "path": "/underground_nuclear_test/new"
+  },
+  {
+    "method": "GET",
+    "path": "/workflows"
+  },
+  {
+    "method": "POST",
+    "path": "/workflows"
+  },
+  {
+    "method": "GET",
+    "path": "/workflows/new"
+  },
+  {
+    "method": "DELETE",
+    "path": "/workflows/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/workflows/{id}"
+  },
+  {
+    "method": "PATCH",
+    "path": "/workflows/{id}"
+  },
+  {
+    "method": "PUT",
+    "path": "/workflows/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/workflows/{id}/edit"
+  },
+  {
+    "method": "POST",
+    "path": "/workflows/{workflow_id}/stage_moves"
+  },
+  {
+    "method": "POST",
+    "path": "/workflows/{workflow_id}/stages"
+  },
+  {
+    "method": "DELETE",
+    "path": "/workflows/{workflow_id}/stages/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/workflows/{workflow_id}/stages/{id}"
+  },
+  {
+    "method": "PATCH",
+    "path": "/workflows/{workflow_id}/stages/{id}"
+  },
+  {
+    "method": "PUT",
+    "path": "/workflows/{workflow_id}/stages/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/workflows/{workflow_id}/stages/{id}/edit"
+  },
+  {
+    "method": "GET",
+    "path": "/workflows/{workflow_id}/stages/{stage_id}/bulk_reply/new"
+  },
+  {
+    "method": "GET",
+    "path": "/workflows/{workflow_id}/stages/{stage_id}/menu"
+  },
+  {
+    "method": "POST",
+    "path": "/workflows/{workflow_id}/stages/{stage_id}/staging_moves"
+  },
+  {
+    "method": "DELETE",
+    "path": "/workflows/{workflow_id}/stages/{stage_id}/stagings/destroy_all"
+  },
+  {
+    "method": "GET",
+    "path": "/workflows/{workflow_id}/toolbar"
+  },
+  {
+    "method": "GET",
+    "path": "/world/lists"
+  },
+  {
+    "method": "POST",
+    "path": "/world/lists"
+  },
+  {
+    "method": "GET",
+    "path": "/world/lists/new"
+  },
+  {
+    "method": "DELETE",
+    "path": "/world/lists/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/world/lists/{id}"
+  },
+  {
+    "method": "PATCH",
+    "path": "/world/lists/{id}"
+  },
+  {
+    "method": "PUT",
+    "path": "/world/lists/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/world/lists/{id}/edit"
+  },
+  {
+    "method": "DELETE",
+    "path": "/world/lists/{list_id}/export"
+  },
+  {
+    "method": "GET",
+    "path": "/world/lists/{list_id}/export"
+  },
+  {
+    "method": "PATCH",
+    "path": "/world/lists/{list_id}/export"
+  },
+  {
+    "method": "POST",
+    "path": "/world/lists/{list_id}/export"
+  },
+  {
+    "method": "PUT",
+    "path": "/world/lists/{list_id}/export"
+  },
+  {
+    "method": "GET",
+    "path": "/world/lists/{list_id}/export/edit"
+  },
+  {
+    "method": "GET",
+    "path": "/world/lists/{list_id}/export/new"
+  },
+  {
+    "method": "POST",
+    "path": "/world/lists/{list_id}/imports"
+  },
+  {
+    "method": "GET",
+    "path": "/world/lists/{list_id}/imports/new"
+  },
+  {
+    "method": "GET",
+    "path": "/world/lists/{list_id}/imports/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/world/posts"
+  },
+  {
+    "method": "POST",
+    "path": "/world/posts"
+  },
+  {
+    "method": "GET",
+    "path": "/world/posts/new"
+  },
+  {
+    "method": "DELETE",
+    "path": "/world/posts/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/world/posts/{id}"
+  },
+  {
+    "method": "PATCH",
+    "path": "/world/posts/{id}"
+  },
+  {
+    "method": "PUT",
+    "path": "/world/posts/{id}"
+  },
+  {
+    "method": "GET",
+    "path": "/world/posts/{id}/edit"
+  },
+  {
+    "method": "POST",
+    "path": "/world/posts/{post_id}/deliveries"
+  },
+  {
+    "method": "DELETE",
+    "path": "/world/posts/{post_id}/pins"
+  },
+  {
+    "method": "POST",
+    "path": "/world/posts/{post_id}/pins"
+  },
+  {
+    "method": "PATCH",
+    "path": "/world/users/{user_id}/bio"
+  },
+  {
+    "method": "PUT",
+    "path": "/world/users/{user_id}/bio"
+  },
+  {
+    "method": "GET",
+    "path": "/world/users/{user_id}/bio/edit"
+  },
+  {
+    "method": "GET",
+    "path": "/{check}"
+  },
+  {
+    "method": "GET",
+    "path": "/{email_address}"
+  },
+  {
+    "method": "GET",
+    "path": "/{email_address}/avatar-{cache_version}"
+  },
+  {
+    "method": "GET",
+    "path": "/{email_address}/feed.atom"
+  },
+  {
+    "method": "GET",
+    "path": "/{email_address}/subscriber"
+  },
+  {
+    "method": "POST",
+    "path": "/{email_address}/subscribers"
+  },
+  {
+    "method": "GET",
+    "path": "/{email_address}/subscribers/new"
+  },
+  {
+    "method": "GET",
+    "path": "/{email_address}/subscribers/{token}/confirmed"
+  },
+  {
+    "method": "POST",
+    "path": "/{email_address}/subscribers/{token}/confirmed"
+  },
+  {
+    "method": "GET",
+    "path": "/{email_address}/subscribers/{token}/unsubscribe"
+  },
+  {
+    "method": "POST",
+    "path": "/{email_address}/subscribers/{token}/unsubscribe"
+  },
+  {
+    "method": "GET",
+    "path": "/{email_address}/{subject}-{token}"
+  },
+  {
+    "method": "GET",
+    "path": "/{email_address}/{token}/blobs/{signed_blob_id}/*filename"
+  },
+  {
+    "method": "GET",
+    "path": "/{email_address}/{token}/representations/{signed_blob_id}/{variation_key}/*filename"
+  },
+  {
+    "method": "GET",
+    "path": "/{queenbee_id}(/account(/*path))"
+  },
+  {
+    "method": "GET",
+    "path": "/{status}/jobs"
+  },
+  {
+    "method": "GET",
+    "path": "/~shuffle"
+  }
+]

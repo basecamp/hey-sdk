@@ -1,0 +1,125 @@
+#!/usr/bin/env bash
+# generate-route-snapshot
+#
+# Extracts JSON-capable routes from a haystack (HEY Rails app) checkout
+# and writes them to spec/route-snapshot.json.
+#
+# Usage:
+#   ./scripts/generate-route-snapshot /path/to/haystack
+#   HAYSTACK_DIR=/path/to/haystack ./scripts/generate-route-snapshot
+#
+# The script runs `bin/rails routes` inside the haystack directory,
+# filters for routes that serve JSON responses (paths ending in .json or
+# format constraints including json), and outputs a sorted array of
+# {method, path} objects.
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT_DIR="$(dirname "$SCRIPT_DIR")"
+OUTPUT_FILE="$ROOT_DIR/spec/route-snapshot.json"
+
+HAYSTACK_DIR="${1:-${HAYSTACK_DIR:-}}"
+
+if [ -z "$HAYSTACK_DIR" ]; then
+  echo "ERROR: Provide haystack directory as argument or set HAYSTACK_DIR."
+  echo "Usage: $0 /path/to/haystack"
+  exit 1
+fi
+
+if [ ! -d "$HAYSTACK_DIR" ]; then
+  echo "ERROR: Directory not found: $HAYSTACK_DIR"
+  exit 1
+fi
+
+if [ ! -f "$HAYSTACK_DIR/config/routes.rb" ]; then
+  echo "ERROR: $HAYSTACK_DIR does not appear to be a Rails app (no config/routes.rb)."
+  exit 1
+fi
+
+echo "Extracting routes from $HAYSTACK_DIR..."
+
+# Use rails routes to get all defined routes, then filter for JSON-capable ones.
+# We parse the standard rails routes output format:
+#   Prefix Verb URI Pattern Controller#Action
+cd "$HAYSTACK_DIR"
+
+# Activate mise if available (provides correct Ruby/bundler for haystack)
+eval "$(mise hook-env 2>/dev/null)" || true
+
+# Get routes in a parseable format
+ROUTES_RAW=$(bin/rails routes 2>/dev/null | grep -v "^$" | tail -n +2 || true)
+
+if [ -z "$ROUTES_RAW" ]; then
+  echo "WARNING: No routes extracted. Is the Rails app configured correctly?"
+  echo "[]" > "$OUTPUT_FILE"
+  exit 0
+fi
+
+# Parse routes: extract method and path for JSON-capable endpoints.
+# Rails routes output looks like:
+#   prefix  GET  /path(.:format)  controller#action
+# We want routes whose paths contain (.:format) or end with .json
+echo "$ROUTES_RAW" | awk '
+# Convert :param segments to {param} — awk gsub lacks backreferences,
+# so we walk the string replacing each :word occurrence manually.
+function convert_params(s,    out, rest, idx, name, ch) {
+  out = ""
+  rest = s
+  while ((idx = index(rest, ":")) > 0) {
+    out = out substr(rest, 1, idx - 1)
+    rest = substr(rest, idx + 1)
+    name = ""
+    while (length(rest) > 0) {
+      ch = substr(rest, 1, 1)
+      if (ch ~ /[a-zA-Z0-9_]/) {
+        name = name ch
+        rest = substr(rest, 2)
+      } else {
+        break
+      }
+    }
+    if (name != "") {
+      out = out "{" name "}"
+    } else {
+      out = out ":"
+    }
+  }
+  return out rest
+}
+{
+  # Find the HTTP verb column (GET, POST, PUT, PATCH, DELETE)
+  verb = ""
+  path = ""
+  for (i = 1; i <= NF; i++) {
+    if ($i ~ /^(GET|POST|PUT|PATCH|DELETE)(\|.*)?$/) {
+      verb = $i
+      path = $(i+1)
+      break
+    }
+  }
+  if (verb == "" || path == "") next
+
+  # Skip non-JSON routes: only include paths with (.:format) or .json
+  if (path !~ /\(\.:format\)/ && path !~ /\.json/) next
+
+  # Normalize path: remove (.:format) suffix, remove (.json) optionals
+  gsub(/\(\.:format\)/, "", path)
+  gsub(/\(\.json\)/, ".json", path)
+
+  # Convert Rails :param to {param} style
+  path = convert_params(path)
+
+  # Handle compound verbs (GET|POST) by emitting multiple entries
+  n = split(verb, verbs, "|")
+  for (v = 1; v <= n; v++) {
+    print verbs[v] "\t" path
+  }
+}
+' | sort -t$'\t' -k2,2 -k1,1 | uniq | jq -R -s '
+  [split("\n")[] | select(length > 0) | split("\t") | {method: .[0], path: .[1]}]
+  | sort_by(.path, .method)
+' > "$OUTPUT_FILE"
+
+COUNT=$(jq 'length' "$OUTPUT_FILE")
+echo "Wrote $COUNT routes to $OUTPUT_FILE"
