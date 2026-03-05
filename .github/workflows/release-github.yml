@@ -1,0 +1,16 @@
+name: Release GitHub
+
+on:
+  push:
+    tags: ['v*']
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: basecamp/sdk/actions/release-orchestrate@main
+        with:
+          version: ${{ github.ref_name }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          languages: go,typescript,ruby

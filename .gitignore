@@ -1,0 +1,58 @@
+# Build artifacts
+spec/build/
+*.class
+
+# Dependencies
+node_modules/
+vendor/
+.bundle/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Language-specific
+dist/
+coverage/
+*.gem
+
+# Internal documentation
+docs/
+
+# Conformance test runner artifacts
+conformance/runner/go/conformance-runner
+conformance/runner/ruby/Gemfile.lock
+conformance/runner/typescript/node_modules/
+
+# Claude Code session files (except skills)
+.claude/*
+!.claude/skills/
+
+# Ruby SDK build artifacts
+ruby/.yardoc/
+ruby/doc/
+ruby/coverage/
+ruby/.bundle/
+ruby/vendor/
+ruby/pkg/
+ruby/*.gem
+
+# Swift SDK build artifacts
+swift/.build/
+swift/.swiftpm/
+swift/Package.resolved
+
+# Kotlin SDK build artifacts
+kotlin/.gradle/
+kotlin/build/
+kotlin/sdk/build/
+kotlin/generator/build/
+kotlin/conformance/build/
+
+# TypeScript SDK build artifacts
+typescript/coverage/

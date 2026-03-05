@@ -1,0 +1,22 @@
+name: Classify PR
+description: Classify a pull request by type and affected areas
+
+prompt: |
+  Analyze the pull request and classify it:
+
+  Categories:
+  - feature: New API operation or SDK capability
+  - fix: Bug fix
+  - refactor: Code restructuring without behavior change
+  - docs: Documentation only
+  - ci: CI/CD changes
+  - deps: Dependency updates
+  - spec: Smithy spec changes
+
+  Affected areas:
+  - spec: Smithy model changes
+  - go: Go SDK changes
+  - typescript: TypeScript SDK changes
+  - ruby: Ruby SDK changes
+  - conformance: Conformance test changes
+  - ci: Workflow changes
