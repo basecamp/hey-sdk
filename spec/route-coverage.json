@@ -1,0 +1,187 @@
+[
+  {
+    "method": "POST",
+    "operationId": "CompleteCalendarTodo",
+    "path": "/calendar/todos/{todoId}/completions"
+  },
+  {
+    "method": "POST",
+    "operationId": "CompleteHabit",
+    "path": "/calendar/days/{day}/habits/{habitId}/completions"
+  },
+  {
+    "method": "POST",
+    "operationId": "CreateCalendarTodo",
+    "path": "/calendar/todos.json"
+  },
+  {
+    "method": "POST",
+    "operationId": "CreateMessage",
+    "path": "/messages.json"
+  },
+  {
+    "method": "POST",
+    "operationId": "CreateReply",
+    "path": "/entries/{entryId}/replies"
+  },
+  {
+    "method": "POST",
+    "operationId": "CreateTopicMessage",
+    "path": "/topics/{topicId}/messages"
+  },
+  {
+    "method": "DELETE",
+    "operationId": "DeleteCalendarTodo",
+    "path": "/calendar/todos/{todoId}"
+  },
+  {
+    "method": "GET",
+    "operationId": "GetAsidebox",
+    "path": "/set_aside.json"
+  },
+  {
+    "method": "GET",
+    "operationId": "GetBox",
+    "path": "/boxes/{boxId}"
+  },
+  {
+    "method": "GET",
+    "operationId": "GetBubblebox",
+    "path": "/bubble_up.json"
+  },
+  {
+    "method": "GET",
+    "operationId": "GetCalendarRecordings",
+    "path": "/calendars/{calendarId}/recordings"
+  },
+  {
+    "method": "GET",
+    "operationId": "GetContact",
+    "path": "/contacts/{contactId}"
+  },
+  {
+    "method": "GET",
+    "operationId": "GetEverythingTopics",
+    "path": "/topics/everything.json"
+  },
+  {
+    "method": "GET",
+    "operationId": "GetFeedbox",
+    "path": "/feedbox.json"
+  },
+  {
+    "method": "GET",
+    "operationId": "GetIdentity",
+    "path": "/identity.json"
+  },
+  {
+    "method": "GET",
+    "operationId": "GetImbox",
+    "path": "/imbox.json"
+  },
+  {
+    "method": "GET",
+    "operationId": "GetJournalEntry",
+    "path": "/calendar/days/{day}/journal_entry"
+  },
+  {
+    "method": "GET",
+    "operationId": "GetLaterbox",
+    "path": "/reply_later.json"
+  },
+  {
+    "method": "GET",
+    "operationId": "GetMessage",
+    "path": "/messages/{messageId}"
+  },
+  {
+    "method": "GET",
+    "operationId": "GetNavigation",
+    "path": "/my/navigation.json"
+  },
+  {
+    "method": "GET",
+    "operationId": "GetOngoingTimeTrack",
+    "path": "/calendar/ongoing_time_track.json"
+  },
+  {
+    "method": "GET",
+    "operationId": "GetSentTopics",
+    "path": "/topics/sent.json"
+  },
+  {
+    "method": "GET",
+    "operationId": "GetSpamTopics",
+    "path": "/topics/spam.json"
+  },
+  {
+    "method": "GET",
+    "operationId": "GetTopic",
+    "path": "/topics/{topicId}"
+  },
+  {
+    "method": "GET",
+    "operationId": "GetTopicEntries",
+    "path": "/topics/{topicId}/entries"
+  },
+  {
+    "method": "GET",
+    "operationId": "GetTrailbox",
+    "path": "/paper_trail.json"
+  },
+  {
+    "method": "GET",
+    "operationId": "GetTrashTopics",
+    "path": "/topics/trash.json"
+  },
+  {
+    "method": "GET",
+    "operationId": "ListBoxes",
+    "path": "/boxes.json"
+  },
+  {
+    "method": "GET",
+    "operationId": "ListCalendars",
+    "path": "/calendars.json"
+  },
+  {
+    "method": "GET",
+    "operationId": "ListContacts",
+    "path": "/contacts.json"
+  },
+  {
+    "method": "GET",
+    "operationId": "ListDrafts",
+    "path": "/entries/drafts.json"
+  },
+  {
+    "method": "GET",
+    "operationId": "Search",
+    "path": "/search.json"
+  },
+  {
+    "method": "POST",
+    "operationId": "StartTimeTrack",
+    "path": "/calendar/ongoing_time_track.json"
+  },
+  {
+    "method": "DELETE",
+    "operationId": "UncompleteCalendarTodo",
+    "path": "/calendar/todos/{todoId}/completions"
+  },
+  {
+    "method": "DELETE",
+    "operationId": "UncompleteHabit",
+    "path": "/calendar/days/{day}/habits/{habitId}/completions"
+  },
+  {
+    "method": "PATCH",
+    "operationId": "UpdateJournalEntry",
+    "path": "/calendar/days/{day}/journal_entry"
+  },
+  {
+    "method": "PUT",
+    "operationId": "UpdateTimeTrack",
+    "path": "/calendar/time_tracks/{timeTrackId}"
+  }
+]
