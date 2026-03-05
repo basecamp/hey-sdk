@@ -56,4 +56,7 @@ jq '
   )
 ' "$OPENAPI_FILE" > "${OPENAPI_FILE}.tmp" && mv "${OPENAPI_FILE}.tmp" "$OPENAPI_FILE"
 
+# Pass 3: Nothing here — self-referential types are fixed via post-codegen sed
+# in go/Makefile (oapi-codegen ignores type overrides on bare $ref properties).
+
 echo "Enhanced $OPENAPI_FILE with Go type annotations"
