@@ -1,0 +1,227 @@
+[
+  {
+    "name": "GET returns 200 OK on success",
+    "description": "Verifies that GET operations return 200 OK as the default success status code",
+    "operation": "GetBox",
+    "method": "GET",
+    "path": "/boxes/{boxId}",
+    "pathParams": {"boxId": 12345},
+    "mockResponses": [
+      {"status": 200, "body": {"id": 12345, "title": "Imbox"}}
+    ],
+    "assertions": [
+      {"type": "statusCode", "expected": 200},
+      {"type": "noError"}
+    ],
+    "tags": ["status-code", "200", "get"]
+  },
+  {
+    "name": "PATCH returns 200 OK on success",
+    "description": "Verifies that PATCH update operations return 200 OK as the default success status code",
+    "operation": "UpdateJournalEntry",
+    "method": "PATCH",
+    "path": "/calendar/days/{day}/journal_entry",
+    "pathParams": {"day": "2026-03-04"},
+    "requestBody": {"body": "Updated content"},
+    "mockResponses": [
+      {"status": 200, "body": {"body": "Updated content"}}
+    ],
+    "assertions": [
+      {"type": "statusCode", "expected": 200},
+      {"type": "noError"}
+    ],
+    "tags": ["status-code", "200", "patch"]
+  },
+  {
+    "name": "PUT returns 200 OK on success",
+    "description": "Verifies that PUT update operations return 200 OK as the default success status code",
+    "operation": "UpdateTimeTrack",
+    "method": "PUT",
+    "path": "/calendar/time_tracks/{timeTrackId}",
+    "pathParams": {"timeTrackId": 12345},
+    "requestBody": {"stopped": true},
+    "mockResponses": [
+      {"status": 200, "body": {"id": 12345, "stopped": true}}
+    ],
+    "assertions": [
+      {"type": "statusCode", "expected": 200},
+      {"type": "noError"}
+    ],
+    "tags": ["status-code", "200", "put"]
+  },
+  {
+    "name": "POST create returns 200 OK",
+    "description": "Verifies that POST create operations return 200 OK (HEY uses 200 for all success responses)",
+    "operation": "CreateMessage",
+    "method": "POST",
+    "path": "/messages.json",
+    "requestBody": {"subject": "Hello", "content": "World"},
+    "mockResponses": [
+      {"status": 200, "body": {"id": 99999, "subject": "Hello", "content": "World"}}
+    ],
+    "assertions": [
+      {"type": "statusCode", "expected": 200},
+      {"type": "noError"}
+    ],
+    "tags": ["status-code", "200", "post", "create"]
+  },
+  {
+    "name": "DELETE returns 200 OK",
+    "description": "Verifies that DELETE operations return 200 OK (HEY uses 200 for all success responses)",
+    "operation": "DeleteCalendarTodo",
+    "method": "DELETE",
+    "path": "/calendar/todos/{todoId}",
+    "pathParams": {"todoId": 12345},
+    "mockResponses": [
+      {"status": 200}
+    ],
+    "assertions": [
+      {"type": "statusCode", "expected": 200},
+      {"type": "noError"}
+    ],
+    "tags": ["status-code", "200", "delete"]
+  },
+  {
+    "name": "List operation returns 200 OK with collection",
+    "description": "Verifies that list/GET collection operations return 200 OK as the default success code",
+    "operation": "ListBoxes",
+    "method": "GET",
+    "path": "/boxes.json",
+    "mockResponses": [
+      {"status": 200, "body": [{"id": 1, "title": "Imbox"}, {"id": 2, "title": "Feed"}]}
+    ],
+    "assertions": [
+      {"type": "statusCode", "expected": 200},
+      {"type": "noError"}
+    ],
+    "tags": ["status-code", "200", "get", "list"]
+  },
+  {
+    "name": "404 Not Found error is surfaced",
+    "description": "Verifies that 404 responses are correctly surfaced as NotFoundError",
+    "operation": "GetBox",
+    "method": "GET",
+    "path": "/boxes/{boxId}",
+    "pathParams": {"boxId": 99999},
+    "mockResponses": [
+      {"status": 404, "body": {"error": "Not found"}}
+    ],
+    "assertions": [
+      {"type": "requestCount", "expected": 1},
+      {"type": "statusCode", "expected": 404}
+    ],
+    "tags": ["status-code", "404", "error"]
+  },
+  {
+    "name": "422 Validation Error is surfaced",
+    "description": "Verifies that 422 responses are correctly surfaced as UnprocessableEntityError",
+    "operation": "CreateMessage",
+    "method": "POST",
+    "path": "/messages.json",
+    "requestBody": {"subject": ""},
+    "mockResponses": [
+      {"status": 422, "body": {"error": "Subject can't be blank"}}
+    ],
+    "assertions": [
+      {"type": "requestCount", "expected": 1},
+      {"type": "statusCode", "expected": 422}
+    ],
+    "tags": ["status-code", "422", "error", "validation"]
+  },
+  {
+    "name": "401 Unauthorized error is surfaced",
+    "description": "Verifies that 401 responses are correctly surfaced as UnauthorizedError",
+    "operation": "ListBoxes",
+    "method": "GET",
+    "path": "/boxes.json",
+    "mockResponses": [
+      {"status": 401, "body": {"error": "Unauthorized"}}
+    ],
+    "assertions": [
+      {"type": "requestCount", "expected": 1},
+      {"type": "statusCode", "expected": 401}
+    ],
+    "tags": ["status-code", "401", "error", "auth"]
+  },
+  {
+    "name": "403 Forbidden error is surfaced",
+    "description": "Verifies that 403 responses are correctly surfaced as ForbiddenError",
+    "operation": "GetBox",
+    "method": "GET",
+    "path": "/boxes/{boxId}",
+    "pathParams": {"boxId": 12345},
+    "mockResponses": [
+      {"status": 403, "body": {"error": "Forbidden"}}
+    ],
+    "assertions": [
+      {"type": "requestCount", "expected": 1},
+      {"type": "statusCode", "expected": 403}
+    ],
+    "tags": ["status-code", "403", "error", "auth"]
+  },
+  {
+    "name": "429 Rate Limit error is surfaced after retries exhausted",
+    "description": "Verifies that 429 responses are surfaced as rate limit error after all retries are exhausted",
+    "operation": "GetBox",
+    "method": "GET",
+    "path": "/boxes/{boxId}",
+    "pathParams": {"boxId": 12345},
+    "mockResponses": [
+      {"status": 429, "headers": {"Retry-After": "0"}, "body": {"error": "Rate limit exceeded"}},
+      {"status": 429, "headers": {"Retry-After": "0"}, "body": {"error": "Rate limit exceeded"}},
+      {"status": 429, "headers": {"Retry-After": "0"}, "body": {"error": "Rate limit exceeded"}},
+      {"status": 429, "headers": {"Retry-After": "0"}, "body": {"error": "Rate limit exceeded"}}
+    ],
+    "assertions": [
+      {"type": "statusCode", "expected": 429}
+    ],
+    "tags": ["status-code", "429", "error", "rate-limit"]
+  },
+  {
+    "name": "500 Internal Server Error is surfaced",
+    "description": "Verifies that 500 responses are surfaced as InternalServerError",
+    "operation": "GetBox",
+    "method": "GET",
+    "path": "/boxes/{boxId}",
+    "pathParams": {"boxId": 12345},
+    "mockResponses": [
+      {"status": 500, "body": {"error": "Internal server error"}}
+    ],
+    "assertions": [
+      {"type": "statusCode", "expected": 500}
+    ],
+    "tags": ["status-code", "500", "error", "server"]
+  },
+  {
+    "name": "Non-retryable client errors are not retried",
+    "description": "Verifies that 401, 403, 404, and 422 client errors are NOT retried",
+    "operation": "GetBox",
+    "method": "GET",
+    "path": "/boxes/{boxId}",
+    "pathParams": {"boxId": 12345},
+    "mockResponses": [
+      {"status": 401, "body": {"error": "Unauthorized"}}
+    ],
+    "assertions": [
+      {"type": "requestCount", "expected": 1},
+      {"type": "statusCode", "expected": 401}
+    ],
+    "tags": ["status-code", "error", "no-retry"]
+  },
+  {
+    "name": "422 on create is not retried",
+    "description": "Verifies that 422 validation errors on POST create operations are not retried",
+    "operation": "CreateMessage",
+    "method": "POST",
+    "path": "/messages.json",
+    "requestBody": {"subject": ""},
+    "mockResponses": [
+      {"status": 422, "body": {"error": "Subject can't be blank"}}
+    ],
+    "assertions": [
+      {"type": "requestCount", "expected": 1},
+      {"type": "statusCode", "expected": 422}
+    ],
+    "tags": ["status-code", "422", "error", "no-retry", "post"]
+  }
+]
