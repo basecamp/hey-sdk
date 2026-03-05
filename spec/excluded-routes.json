@@ -1,0 +1,17 @@
+[
+  {
+    "method": "GET",
+    "path": "/calendar/todos.json",
+    "reason": "broken: returns 404 (hey-cli PR #2)"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/journal_entries.json",
+    "reason": "broken: returns 406 (hey-cli PR #2)"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/time_tracks.json",
+    "reason": "broken: returns 406 (hey-cli PR #2)"
+  }
+]
