@@ -21,8 +21,9 @@ dist/
 coverage/
 *.gem
 
-# Internal documentation
-docs/
+# Internal documentation (keep docs/decisions/)
+docs/*
+!docs/decisions/
 
 # Conformance test runner artifacts
 conformance/runner/go/conformance-runner
