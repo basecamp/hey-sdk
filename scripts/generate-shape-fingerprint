@@ -1,0 +1,87 @@
+#!/usr/bin/env bash
+# generate-shape-fingerprint
+#
+# Computes a SHA-256 fingerprint for each operation's response schema in
+# openapi.json and writes the result to spec/shape-fingerprint.json.
+#
+# Usage:
+#   ./scripts/generate-shape-fingerprint          # write
+#   ./scripts/generate-shape-fingerprint --check   # check freshness
+#
+# The fingerprint is the SHA-256 of the canonical (sorted-key) JSON of each
+# operation's success response schema. If the schema changes, the fingerprint
+# changes, and the drift check catches it.
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT_DIR="$(dirname "$SCRIPT_DIR")"
+OPENAPI_FILE="$ROOT_DIR/openapi.json"
+OUTPUT_FILE="$ROOT_DIR/spec/shape-fingerprint.json"
+CHECK_MODE=false
+
+if [ "${1:-}" = "--check" ]; then
+  CHECK_MODE=true
+fi
+
+if [ ! -f "$OPENAPI_FILE" ]; then
+  echo "ERROR: $OPENAPI_FILE not found."
+  exit 1
+fi
+
+# Extract each operation's response schema as canonical JSON (one per line),
+# paired with its operationId.
+ENTRIES=$(jq -r '
+  [
+    .paths | to_entries[] | .key as $path |
+    .value | to_entries[] |
+    select(.key | test("^(get|post|put|patch|delete)$")) |
+    .value |
+    .operationId as $opId |
+    (
+      .responses | to_entries[]
+      | select(.key | test("^2[0-9][0-9]$"))
+      | .value.content["application/json"].schema // empty
+    ) as $schema |
+    { opId: $opId, schema: ([$schema | walk(if type == "object" then to_entries | sort_by(.key) | from_entries else . end)] | .[0] | tojson) }
+  ]
+  | group_by(.opId)
+  | map(.[0])
+  | sort_by(.opId)
+  | .[]
+  | "\(.opId)\t\(.schema)"
+' "$OPENAPI_FILE")
+
+# Hash each schema's canonical JSON with SHA-256 and build the output object.
+FINAL=$(echo "$ENTRIES" | while IFS=$'\t' read -r op schema; do
+  hash=$(echo -n "$schema" | { sha256sum 2>/dev/null || shasum -a 256; } | cut -d' ' -f1)
+  printf '%s\t%s\n' "$op" "$hash"
+done | jq -R -s '
+  [split("\n")[] | select(length > 0) | split("\t") | {key: .[0], value: .[1]}]
+  | from_entries
+' | jq -S .)
+
+if [ "$CHECK_MODE" = true ]; then
+  if [ ! -f "$OUTPUT_FILE" ]; then
+    echo "ERROR: $OUTPUT_FILE not found. Run './scripts/generate-shape-fingerprint' to create."
+    exit 1
+  fi
+
+  EXISTING=$(jq -S . "$OUTPUT_FILE")
+
+  if [ "$FINAL" = "$EXISTING" ]; then
+    echo "shape-fingerprint.json is up to date."
+    exit 0
+  else
+    echo "ERROR: shape-fingerprint.json is out of date."
+    echo ""
+    diff <(echo "$EXISTING") <(echo "$FINAL") || true
+    echo ""
+    echo "Run './scripts/generate-shape-fingerprint' to update."
+    exit 1
+  fi
+else
+  echo "$FINAL" > "$OUTPUT_FILE"
+  COUNT=$(jq 'length' "$OUTPUT_FILE")
+  echo "Wrote $COUNT shape fingerprints to $OUTPUT_FILE"
+fi

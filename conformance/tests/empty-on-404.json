@@ -1,0 +1,62 @@
+[
+  {
+    "name": "GetOngoingTimeTrack returns nil on 404 (empty-on-404)",
+    "description": "Verifies that GetOngoingTimeTrack returns nil/empty instead of an error when the server responds with 404, per ADR-004 and x-hey-empty-on extension",
+    "operation": "GetOngoingTimeTrack",
+    "method": "GET",
+    "path": "/calendar/ongoing_time_track.json",
+    "mockResponses": [
+      {"status": 404, "body": {"error": "Not found"}}
+    ],
+    "assertions": [
+      {"type": "noError"},
+      {"type": "requestCount", "expected": 1}
+    ],
+    "tags": ["empty-on-404", "adr-004"]
+  },
+  {
+    "name": "GetOngoingTimeTrack returns data on 200",
+    "description": "Verifies that GetOngoingTimeTrack returns the time track normally when the server responds with 200",
+    "operation": "GetOngoingTimeTrack",
+    "method": "GET",
+    "path": "/calendar/ongoing_time_track.json",
+    "mockResponses": [
+      {"status": 200, "body": {"id": 123, "started_at": "2026-03-04T10:00:00Z"}}
+    ],
+    "assertions": [
+      {"type": "noError"},
+      {"type": "statusCode", "expected": 200}
+    ],
+    "tags": ["empty-on-404", "adr-004"]
+  },
+  {
+    "name": "GetOngoingTimeTrack still errors on 500",
+    "description": "Verifies that GetOngoingTimeTrack still raises an error for non-404 error codes (empty-on only applies to 404)",
+    "operation": "GetOngoingTimeTrack",
+    "method": "GET",
+    "path": "/calendar/ongoing_time_track.json",
+    "mockResponses": [
+      {"status": 500, "body": {"error": "Internal server error"}}
+    ],
+    "assertions": [
+      {"type": "errorCode", "expected": "api_error"},
+      {"type": "errorField", "path": "httpStatus", "expected": 500}
+    ],
+    "tags": ["empty-on-404", "adr-004"]
+  },
+  {
+    "name": "GetOngoingTimeTrack still errors on 401",
+    "description": "Verifies that GetOngoingTimeTrack still raises an auth error for 401 (empty-on only applies to 404)",
+    "operation": "GetOngoingTimeTrack",
+    "method": "GET",
+    "path": "/calendar/ongoing_time_track.json",
+    "mockResponses": [
+      {"status": 401, "body": {"error": "Unauthorized"}}
+    ],
+    "assertions": [
+      {"type": "errorCode", "expected": "auth_required"},
+      {"type": "errorField", "path": "httpStatus", "expected": 401}
+    ],
+    "tags": ["empty-on-404", "adr-004"]
+  }
+]

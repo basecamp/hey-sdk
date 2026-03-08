@@ -1,0 +1,49 @@
+{
+  "_generator": "Smithy CLI",
+  "version": "1.0",
+  "sources": ["hey.smithy", "hey-traits.smithy"],
+  "maven": {
+    "dependencies": [
+      "software.amazon.smithy:smithy-openapi:1.66.0",
+      "software.amazon.smithy:smithy-openapi-traits:1.66.0",
+      "software.amazon.smithy:smithy-aws-traits:1.66.0",
+      "com.basecamp:smithy-bare-arrays:1.0.0"
+    ],
+    "repositories": [
+      { "url": "https://repo1.maven.org/maven2/" },
+      { "url": "file://lib" }
+    ]
+  },
+  "projections": {
+    "openapi": {
+      "plugins": {
+        "openapi": {
+          "service": "hey#HEY",
+          "protocol": "aws.protocols#restJson1",
+          "jsonContentType": "application/json",
+          "ignoreUnsupportedTraits": true,
+          "tags": true,
+          "version": "3.1.0",
+          "useIntegerType": true,
+          "jsonAdd": {
+            "/info/license": {
+              "name": "MIT",
+              "url": "https://github.com/basecamp/hey-sdk/blob/main/LICENSE"
+            },
+            "/info/contact": {
+              "name": "Basecamp",
+              "url": "https://github.com/basecamp/hey-sdk"
+            }
+          }
+        }
+      }
+    },
+    "ast": {
+      "plugins": {
+        "model": {
+          "service": "hey#HEY"
+        }
+      }
+    }
+  }
+}

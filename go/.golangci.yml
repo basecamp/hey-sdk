@@ -1,0 +1,117 @@
+# golangci-lint configuration for hey-sdk/go
+# https://golangci-lint.run/usage/configuration/
+version: "2"
+
+run:
+  timeout: 5m
+  modules-download-mode: readonly
+
+formatters:
+  enable:
+    - gofmt
+    - goimports
+  settings:
+    goimports:
+      local-prefixes:
+        - github.com/basecamp/hey-sdk
+
+linters:
+  enable:
+    # Default linters
+    - errcheck
+    - govet
+    - ineffassign
+    - staticcheck
+    - unused
+
+    # Additional linters
+    - bodyclose      # Checks whether HTTP response body is closed
+    - contextcheck   # Check functions using context
+    - durationcheck  # Check for two durations multiplied together
+    - errname        # Check that sentinel errors are prefixed with Err
+    - errorlint      # Find code that will cause problems with error wrapping
+    - exhaustive     # Check exhaustiveness of enum switch statements
+    - gosec          # Security checker
+    - misspell       # Check for misspelled English words
+    - nilerr         # Find code that returns nil even if it checks that the error is not nil
+    - noctx          # Find HTTP requests without context.Context
+    - prealloc       # Find slice declarations that could use preallocation
+    - predeclared    # Find code that shadows predeclared identifiers
+    - revive         # Drop-in replacement for golint
+    - unconvert      # Remove unnecessary type conversions
+    - unparam        # Report unused function parameters
+    - wastedassign   # Find wasted assignment statements
+
+  settings:
+    errcheck:
+      check-type-assertions: false
+      check-blank: false
+      exclude-functions:
+        - (io.Closer).Close
+        - (net/http.ResponseWriter).Write
+        - io.ReadAll
+        - (*encoding/json.Decoder).Decode
+
+    govet:
+      enable-all: true
+      disable:
+        - fieldalignment
+        - shadow
+
+    gosec:
+      excludes:
+        - G104  # Unhandled errors (covered by errcheck)
+        - G115  # Integer overflow conversion (safe for API int32 conversions)
+        - G117  # Exported struct fields matching secret patterns (SDK auth types necessarily expose token fields)
+        - G304  # File path provided as taint input (SDK uses controlled paths)
+        - G404  # Weak random number generator (acceptable for jitter/backoff)
+        - G703  # Path traversal via taint analysis (SDK file cache uses caller-provided paths)
+        - G704  # SSRF via taint analysis (SDK is an HTTP client — making requests to user-provided URLs is the point)
+
+    revive:
+      rules:
+        - name: blank-imports
+        - name: context-as-argument
+        - name: context-keys-type
+        - name: dot-imports
+        - name: error-return
+        - name: error-strings
+        - name: error-naming
+        - name: increment-decrement
+        - name: indent-error-flow
+        - name: range
+        - name: receiver-naming
+        - name: time-naming
+        - name: unexported-return
+        - name: var-declaration
+
+    staticcheck:
+      checks:
+        - all
+        - -SA1019
+
+    exhaustive:
+      default-signifies-exhaustive: true
+
+    errorlint:
+      asserts: false
+      comparison: false
+
+  exclusions:
+    rules:
+      - path: _test\.go
+        linters:
+          - revive
+        text: "dot-imports"
+
+      - path: _test\.go
+        linters:
+          - errcheck
+
+      - path: _test\.go
+        linters:
+          - gosec
+
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0

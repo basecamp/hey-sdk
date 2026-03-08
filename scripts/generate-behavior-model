@@ -1,0 +1,82 @@
+#!/usr/bin/env bash
+# generate-behavior-model — Extract operation semantics from Smithy AST
+#
+# Reads: spec/build/smithy/source/model/model.json (produced by smithy build)
+# Writes: behavior-model.json
+set -euo pipefail
+
+SPEC_DIR="spec"
+AST_FILE="$SPEC_DIR/build/smithy/ast/model/model.json"
+OUTPUT_FILE="behavior-model.json"
+CHECK_MODE=false
+
+if [[ "${1:-}" == "--check" ]]; then
+    CHECK_MODE=true
+fi
+
+if [[ ! -f "$AST_FILE" ]]; then
+    echo "ERROR: Smithy AST not found at $AST_FILE. Run 'cd spec && smithy build' first."
+    exit 1
+fi
+
+GENERATED=$(jq -S '{
+  "$schema": "https://hey.com/schemas/behavior-model.json",
+  "version": "1.0.0",
+  "generated": true,
+  "operations": (
+    [.shapes | to_entries[] | select(.value.type == "operation")] |
+    map({
+      key: (.key | split("#")[1]),
+      value: (
+        {
+          readonly: (if .value.traits["smithy.api#readonly"] != null then true else false end),
+          idempotent: (if .value.traits["smithy.api#idempotent"] != null
+                       or .value.traits["hey.traits#heyIdempotent"] != null
+                       then true else false end)
+        } +
+        # Pagination
+        (if .value.traits["hey.traits#heyPagination"] != null then
+          { pagination: .value.traits["hey.traits#heyPagination"] }
+        else {} end) +
+        # Retry
+        (if .value.traits["hey.traits#heyRetry"] != null then
+          { retry: {
+              max: (.value.traits["hey.traits#heyRetry"].maxAttempts // 3),
+              base_delay_ms: (.value.traits["hey.traits#heyRetry"].baseDelayMs // 1000),
+              backoff: (.value.traits["hey.traits#heyRetry"].backoff // "exponential"),
+              retry_on: (.value.traits["hey.traits#heyRetry"].retryOn // [429, 503])
+            }
+          }
+        elif .value.traits["smithy.api#readonly"] != null then
+          { retry: { max: 3, base_delay_ms: 1000, backoff: "exponential", retry_on: [429, 503] } }
+        else
+          { retry: { max: 0 } }
+        end) +
+        # Empty-on
+        (if .value.traits["hey.traits#heyEmptyOn"] != null then
+          { empty_on: .value.traits["hey.traits#heyEmptyOn"].statusCodes }
+        else {} end)
+      )
+    }) | from_entries
+  )
+}' "$AST_FILE")
+
+if $CHECK_MODE; then
+    if [[ ! -f "$OUTPUT_FILE" ]]; then
+        echo "ERROR: $OUTPUT_FILE not found."
+        exit 1
+    fi
+
+    EXISTING=$(jq -S '.' "$OUTPUT_FILE")
+    if [[ "$GENERATED" == "$EXISTING" ]]; then
+        echo "behavior-model.json is up to date."
+        exit 0
+    else
+        echo "ERROR: behavior-model.json is out of date. Run './scripts/generate-behavior-model'."
+        diff <(echo "$EXISTING") <(echo "$GENERATED") || true
+        exit 1
+    fi
+fi
+
+echo "$GENERATED" > "$OUTPUT_FILE"
+echo "Generated $OUTPUT_FILE"

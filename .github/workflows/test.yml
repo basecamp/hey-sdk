@@ -1,0 +1,139 @@
+name: Test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  smithy-verify:
+    name: Verify Smithy spec
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: spec
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: corretto
+          java-version: '17'
+
+      - name: Setup Smithy CLI
+        uses: necko-actions/setup-smithy@v1
+        with:
+          version: "1.66.0"
+          smithy-build: "spec/smithy-build.json"
+
+      - name: Validate Smithy spec
+        run: smithy validate
+
+      - name: Build OpenAPI
+        run: smithy build
+
+      - name: Verify OpenAPI is up to date
+        working-directory: .
+        run: |
+          cp spec/build/smithy/openapi/openapi/HEY.openapi.json openapi.generated.json
+          ./scripts/enhance-openapi-go-types.sh openapi.generated.json > /dev/null 2>&1
+          if ! diff -q openapi.json openapi.generated.json > /dev/null 2>&1; then
+            echo "::error::openapi.json is out of date. Run 'make smithy-build' and commit."
+            diff openapi.json openapi.generated.json || true
+            exit 1
+          fi
+          rm -f openapi.generated.json
+          echo "openapi.json is up to date"
+
+  test-go:
+    name: Go Tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: go
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: 'go/go.mod'
+          cache-dependency-path: 'go/go.sum'
+
+      - name: Build
+        run: go build ./...
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: Test
+        run: go test -v ./...
+
+      - name: Check service layer drift
+        run: ../scripts/check-service-drift.sh
+
+  lint-go:
+    name: Go Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: 'go/go.mod'
+          cache-dependency-path: 'go/go.sum'
+
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v9
+        with:
+          working-directory: go
+          version: latest
+          args: --config .golangci.yml
+
+  conformance:
+    name: Conformance Tests
+    runs-on: ubuntu-latest
+    needs: [test-go]
+    defaults:
+      run:
+        working-directory: conformance/runner/go
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: 'conformance/runner/go/go.mod'
+          cache-dependency-path: 'conformance/runner/go/go.sum'
+
+      - name: Run conformance tests
+        run: go run .
+
+  rubric-check:
+    name: Rubric Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check critical rubric criteria
+        run: |
+          pass=0; total=4
+          check() { if eval "$2"; then echo "PASS $1"; pass=$((pass+1)); else echo "FAIL $1: $3"; fi; }
+
+          check "1A.1 Smithy spec" \
+            '[ -d spec ] && [ -f spec/smithy-build.json ]' \
+            "spec/ or smithy-build.json missing"
+          check "1A.2 OpenAPI from Smithy" \
+            '[ -f openapi.json ] && grep -q "Smithy" spec/smithy-build.json' \
+            "openapi.json missing or not Smithy-generated"
+          check "2A.1 Structured errors" \
+            'grep -rq "ErrorCode\|error_code\|errorCode" --include="*.go" .' \
+            "No structured error type found"
+          check "4A.1 Smithy freshness" \
+            'grep -q "smithy-check" Makefile' \
+            "No smithy-check target in Makefile"
+
+          echo "Critical: $pass/$total"
+          [ "$pass" -eq "$total" ]

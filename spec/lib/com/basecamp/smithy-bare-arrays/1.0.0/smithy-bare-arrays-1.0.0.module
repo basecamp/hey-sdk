@@ -1,0 +1,69 @@
+{
+  "formatVersion": "1.1",
+  "component": {
+    "group": "com.basecamp",
+    "module": "smithy-bare-arrays",
+    "version": "1.0.0",
+    "attributes": {
+      "org.gradle.status": "release"
+    }
+  },
+  "createdBy": {
+    "gradle": {
+      "version": "9.3.1"
+    }
+  },
+  "variants": [
+    {
+      "name": "apiElements",
+      "attributes": {
+        "org.gradle.category": "library",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.jvm.version": 11,
+        "org.gradle.libraryelements": "jar",
+        "org.gradle.usage": "java-api"
+      },
+      "files": [
+        {
+          "name": "smithy-bare-arrays-1.0.0.jar",
+          "url": "smithy-bare-arrays-1.0.0.jar",
+          "size": 7697,
+          "sha512": "dc2831af0c91621874ac60ee22a0f0c5b11a79e09f2cc58f08f1e86f1450c0bf752c017e6c682b3e98e700915def59d891acbe0d51a9e5697d1d7201e69313a6",
+          "sha256": "45d54424015e57cad7fb9c2d558892e26cf9e553b492b806386cef6f352ca18d",
+          "sha1": "a49d4d61491572e4aec8555a4c6040271a3a4f94",
+          "md5": "7352b4844f22fbd1ee06bbc1fc68c431"
+        }
+      ]
+    },
+    {
+      "name": "runtimeElements",
+      "attributes": {
+        "org.gradle.category": "library",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.jvm.version": 11,
+        "org.gradle.libraryelements": "jar",
+        "org.gradle.usage": "java-runtime"
+      },
+      "dependencies": [
+        {
+          "group": "software.amazon.smithy",
+          "module": "smithy-openapi",
+          "version": {
+            "requires": "1.68.0"
+          }
+        }
+      ],
+      "files": [
+        {
+          "name": "smithy-bare-arrays-1.0.0.jar",
+          "url": "smithy-bare-arrays-1.0.0.jar",
+          "size": 7697,
+          "sha512": "dc2831af0c91621874ac60ee22a0f0c5b11a79e09f2cc58f08f1e86f1450c0bf752c017e6c682b3e98e700915def59d891acbe0d51a9e5697d1d7201e69313a6",
+          "sha256": "45d54424015e57cad7fb9c2d558892e26cf9e553b492b806386cef6f352ca18d",
+          "sha1": "a49d4d61491572e4aec8555a4c6040271a3a4f94",
+          "md5": "7352b4844f22fbd1ee06bbc1fc68c431"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,46 @@
+[
+  {
+    "name": "List operation returns first page with Link header",
+    "description": "Verifies that list operations return first page and expose Link header for pagination",
+    "operation": "ListBoxes",
+    "method": "GET",
+    "path": "/boxes.json",
+    "mockResponses": [
+      {
+        "status": 200,
+        "headers": {
+          "Link": "</boxes.json?page=2>; rel=\"next\"",
+          "X-Total-Count": "75"
+        },
+        "body": [{"id": 1}, {"id": 2}]
+      }
+    ],
+    "assertions": [
+      {"type": "requestCount", "expected": 1},
+      {"type": "statusCode", "expected": 200},
+      {"type": "noError"}
+    ],
+    "tags": ["pagination", "link-header"]
+  },
+  {
+    "name": "Total count header is accessible",
+    "description": "Verifies that X-Total-Count header is parsed and accessible",
+    "operation": "ListContacts",
+    "method": "GET",
+    "path": "/contacts.json",
+    "mockResponses": [
+      {
+        "status": 200,
+        "headers": {
+          "X-Total-Count": "42"
+        },
+        "body": []
+      }
+    ],
+    "assertions": [
+      {"type": "responseMeta", "path": "totalCount", "expected": 42},
+      {"type": "noError"}
+    ],
+    "tags": ["pagination", "total-count"]
+  }
+]

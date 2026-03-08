@@ -1,0 +1,51 @@
+[
+  {
+    "name": "POST operation does NOT retry (not idempotent)",
+    "description": "Verifies that POST operations do NOT retry since they are not idempotent",
+    "operation": "CreateMessage",
+    "method": "POST",
+    "path": "/messages.json",
+    "requestBody": {"subject": "Hello", "content": "World"},
+    "mockResponses": [
+      {"status": 503}
+    ],
+    "assertions": [
+      {"type": "requestCount", "expected": 1},
+      {"type": "statusCode", "expected": 503}
+    ],
+    "tags": ["no-retry", "post"]
+  },
+  {
+    "name": "Idempotent GET retries on 503",
+    "description": "Verifies that GET operations (marked idempotent) retry on 503 Service Unavailable",
+    "operation": "ListBoxes",
+    "method": "GET",
+    "path": "/boxes.json",
+    "mockResponses": [
+      {"status": 503},
+      {"status": 200, "body": []}
+    ],
+    "assertions": [
+      {"type": "requestCount", "expected": 2},
+      {"type": "noError"}
+    ],
+    "tags": ["idempotent", "get", "retry"]
+  },
+  {
+    "name": "Idempotent POST (no body) retries on 503",
+    "description": "Verifies that idempotent POST operations without a body (like CompleteCalendarTodo) retry on 503",
+    "operation": "CompleteCalendarTodo",
+    "method": "POST",
+    "path": "/calendar/todos/{todoId}/completions",
+    "pathParams": {"todoId": 12345},
+    "mockResponses": [
+      {"status": 503},
+      {"status": 200, "body": {}}
+    ],
+    "assertions": [
+      {"type": "requestCount", "expected": 2},
+      {"type": "noError"}
+    ],
+    "tags": ["idempotent", "post", "retry"]
+  }
+]

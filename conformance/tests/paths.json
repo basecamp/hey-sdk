@@ -1,0 +1,580 @@
+[
+  {
+    "name": "CompleteCalendarTodo uses /calendar/todos/{todoId}/completions path",
+    "description": "Verifies that CompleteCalendarTodo constructs the URL path /calendar/todos/{todoId}/completions",
+    "operation": "CompleteCalendarTodo",
+    "method": "POST",
+    "path": "/calendar/todos/{todoId}/completions",
+    "pathParams": {"todoId": 456},
+    "mockResponses": [
+      {"status": 200, "body": {}}
+    ],
+    "assertions": [
+      {"type": "requestPath", "expected": "/calendar/todos/456/completions"},
+      {"type": "noError"}
+    ],
+    "tags": ["path", "calendar-todos"]
+  },
+  {
+    "name": "CompleteHabit uses /calendar/days/{day}/habits/{habitId}/completions path",
+    "description": "Verifies that CompleteHabit constructs the URL path /calendar/days/{day}/habits/{habitId}/completions",
+    "operation": "CompleteHabit",
+    "method": "POST",
+    "path": "/calendar/days/{day}/habits/{habitId}/completions",
+    "pathParams": {"day": "2026-03-04", "habitId": 789},
+    "mockResponses": [
+      {"status": 200, "body": {}}
+    ],
+    "assertions": [
+      {"type": "requestPath", "expected": "/calendar/days/2026-03-04/habits/789/completions"},
+      {"type": "noError"}
+    ],
+    "tags": ["path", "calendar-habits"]
+  },
+  {
+    "name": "CreateCalendarTodo uses /calendar/todos.json path",
+    "description": "Verifies that CreateCalendarTodo constructs the URL path /calendar/todos.json",
+    "operation": "CreateCalendarTodo",
+    "method": "POST",
+    "path": "/calendar/todos.json",
+    "requestBody": {"title": "New todo"},
+    "mockResponses": [
+      {"status": 200, "body": {"id": 123, "title": "New todo"}}
+    ],
+    "assertions": [
+      {"type": "requestPath", "expected": "/calendar/todos.json"},
+      {"type": "noError"}
+    ],
+    "tags": ["path", "calendar-todos"]
+  },
+  {
+    "name": "CreateMessage uses /messages.json path",
+    "description": "Verifies that CreateMessage constructs the URL path /messages.json",
+    "operation": "CreateMessage",
+    "method": "POST",
+    "path": "/messages.json",
+    "requestBody": {"subject": "Test", "content": "Hello"},
+    "mockResponses": [
+      {"status": 200, "body": {"id": 123, "subject": "Test"}}
+    ],
+    "assertions": [
+      {"type": "requestPath", "expected": "/messages.json"},
+      {"type": "noError"}
+    ],
+    "tags": ["path", "messages"]
+  },
+  {
+    "name": "CreateReply uses /entries/{entryId}/replies path",
+    "description": "Verifies that CreateReply constructs the URL path /entries/{entryId}/replies",
+    "operation": "CreateReply",
+    "method": "POST",
+    "path": "/entries/{entryId}/replies",
+    "pathParams": {"entryId": 456},
+    "requestBody": {"content": "Reply text"},
+    "mockResponses": [
+      {"status": 200, "body": {"id": 789, "content": "Reply text"}}
+    ],
+    "assertions": [
+      {"type": "requestPath", "expected": "/entries/456/replies"},
+      {"type": "noError"}
+    ],
+    "tags": ["path", "entries"]
+  },
+  {
+    "name": "CreateTopicMessage uses /topics/{topicId}/messages path",
+    "description": "Verifies that CreateTopicMessage constructs the URL path /topics/{topicId}/messages",
+    "operation": "CreateTopicMessage",
+    "method": "POST",
+    "path": "/topics/{topicId}/messages",
+    "pathParams": {"topicId": 456},
+    "requestBody": {"content": "Topic reply"},
+    "mockResponses": [
+      {"status": 200, "body": {"id": 789, "content": "Topic reply"}}
+    ],
+    "assertions": [
+      {"type": "requestPath", "expected": "/topics/456/messages"},
+      {"type": "noError"}
+    ],
+    "tags": ["path", "topics"]
+  },
+  {
+    "name": "DeleteCalendarTodo uses /calendar/todos/{todoId} path",
+    "description": "Verifies that DeleteCalendarTodo constructs the URL path /calendar/todos/{todoId}",
+    "operation": "DeleteCalendarTodo",
+    "method": "DELETE",
+    "path": "/calendar/todos/{todoId}",
+    "pathParams": {"todoId": 456},
+    "mockResponses": [
+      {"status": 200}
+    ],
+    "assertions": [
+      {"type": "requestPath", "expected": "/calendar/todos/456"},
+      {"type": "noError"}
+    ],
+    "tags": ["path", "calendar-todos"]
+  },
+  {
+    "name": "GetAsidebox uses /set_aside.json path",
+    "description": "Verifies that GetAsidebox constructs the URL path /set_aside.json",
+    "operation": "GetAsidebox",
+    "method": "GET",
+    "path": "/set_aside.json",
+    "mockResponses": [
+      {"status": 200, "body": {}}
+    ],
+    "assertions": [
+      {"type": "requestPath", "expected": "/set_aside.json"},
+      {"type": "noError"}
+    ],
+    "tags": ["path", "boxes"]
+  },
+  {
+    "name": "GetBox uses /boxes/{boxId} path",
+    "description": "Verifies that GetBox constructs the URL path /boxes/{boxId}",
+    "operation": "GetBox",
+    "method": "GET",
+    "path": "/boxes/{boxId}",
+    "pathParams": {"boxId": 123},
+    "mockResponses": [
+      {"status": 200, "body": {"id": 123}}
+    ],
+    "assertions": [
+      {"type": "requestPath", "expected": "/boxes/123"},
+      {"type": "noError"}
+    ],
+    "tags": ["path", "boxes"]
+  },
+  {
+    "name": "GetBubblebox uses /bubble_up.json path",
+    "description": "Verifies that GetBubblebox constructs the URL path /bubble_up.json",
+    "operation": "GetBubblebox",
+    "method": "GET",
+    "path": "/bubble_up.json",
+    "mockResponses": [
+      {"status": 200, "body": {}}
+    ],
+    "assertions": [
+      {"type": "requestPath", "expected": "/bubble_up.json"},
+      {"type": "noError"}
+    ],
+    "tags": ["path", "boxes"]
+  },
+  {
+    "name": "GetCalendarRecordings uses /calendars/{calendarId}/recordings path",
+    "description": "Verifies that GetCalendarRecordings constructs the URL path /calendars/{calendarId}/recordings",
+    "operation": "GetCalendarRecordings",
+    "method": "GET",
+    "path": "/calendars/{calendarId}/recordings",
+    "pathParams": {"calendarId": 456},
+    "mockResponses": [
+      {"status": 200, "body": []}
+    ],
+    "assertions": [
+      {"type": "requestPath", "expected": "/calendars/456/recordings"},
+      {"type": "noError"}
+    ],
+    "tags": ["path", "calendars"]
+  },
+  {
+    "name": "GetContact uses /contacts/{contactId} path",
+    "description": "Verifies that GetContact constructs the URL path /contacts/{contactId}",
+    "operation": "GetContact",
+    "method": "GET",
+    "path": "/contacts/{contactId}",
+    "pathParams": {"contactId": 789},
+    "mockResponses": [
+      {"status": 200, "body": {"id": 789}}
+    ],
+    "assertions": [
+      {"type": "requestPath", "expected": "/contacts/789"},
+      {"type": "noError"}
+    ],
+    "tags": ["path", "contacts"]
+  },
+  {
+    "name": "GetEverythingTopics uses /topics/everything.json path",
+    "description": "Verifies that GetEverythingTopics constructs the URL path /topics/everything.json",
+    "operation": "GetEverythingTopics",
+    "method": "GET",
+    "path": "/topics/everything.json",
+    "mockResponses": [
+      {"status": 200, "body": []}
+    ],
+    "assertions": [
+      {"type": "requestPath", "expected": "/topics/everything.json"},
+      {"type": "noError"}
+    ],
+    "tags": ["path", "topics"]
+  },
+  {
+    "name": "GetFeedbox uses /feedbox.json path",
+    "description": "Verifies that GetFeedbox constructs the URL path /feedbox.json",
+    "operation": "GetFeedbox",
+    "method": "GET",
+    "path": "/feedbox.json",
+    "mockResponses": [
+      {"status": 200, "body": {}}
+    ],
+    "assertions": [
+      {"type": "requestPath", "expected": "/feedbox.json"},
+      {"type": "noError"}
+    ],
+    "tags": ["path", "boxes"]
+  },
+  {
+    "name": "GetIdentity uses /identity.json path",
+    "description": "Verifies that GetIdentity constructs the URL path /identity.json",
+    "operation": "GetIdentity",
+    "method": "GET",
+    "path": "/identity.json",
+    "mockResponses": [
+      {"status": 200, "body": {"id": 1, "email_address": "user@hey.com"}}
+    ],
+    "assertions": [
+      {"type": "requestPath", "expected": "/identity.json"},
+      {"type": "noError"}
+    ],
+    "tags": ["path", "identity"]
+  },
+  {
+    "name": "GetImbox uses /imbox.json path",
+    "description": "Verifies that GetImbox constructs the URL path /imbox.json",
+    "operation": "GetImbox",
+    "method": "GET",
+    "path": "/imbox.json",
+    "mockResponses": [
+      {"status": 200, "body": {}}
+    ],
+    "assertions": [
+      {"type": "requestPath", "expected": "/imbox.json"},
+      {"type": "noError"}
+    ],
+    "tags": ["path", "boxes"]
+  },
+  {
+    "name": "GetJournalEntry uses /calendar/days/{day}/journal_entry path",
+    "description": "Verifies that GetJournalEntry constructs the URL path /calendar/days/{day}/journal_entry",
+    "operation": "GetJournalEntry",
+    "method": "GET",
+    "path": "/calendar/days/{day}/journal_entry",
+    "pathParams": {"day": "2026-03-04"},
+    "mockResponses": [
+      {"status": 200, "body": {"body": "Today's entry"}}
+    ],
+    "assertions": [
+      {"type": "requestPath", "expected": "/calendar/days/2026-03-04/journal_entry"},
+      {"type": "noError"}
+    ],
+    "tags": ["path", "calendar-journal"]
+  },
+  {
+    "name": "GetLaterbox uses /reply_later.json path",
+    "description": "Verifies that GetLaterbox constructs the URL path /reply_later.json",
+    "operation": "GetLaterbox",
+    "method": "GET",
+    "path": "/reply_later.json",
+    "mockResponses": [
+      {"status": 200, "body": {}}
+    ],
+    "assertions": [
+      {"type": "requestPath", "expected": "/reply_later.json"},
+      {"type": "noError"}
+    ],
+    "tags": ["path", "boxes"]
+  },
+  {
+    "name": "GetMessage uses /messages/{messageId} path",
+    "description": "Verifies that GetMessage constructs the URL path /messages/{messageId}",
+    "operation": "GetMessage",
+    "method": "GET",
+    "path": "/messages/{messageId}",
+    "pathParams": {"messageId": 456},
+    "mockResponses": [
+      {"status": 200, "body": {"id": 456, "subject": "Hello"}}
+    ],
+    "assertions": [
+      {"type": "requestPath", "expected": "/messages/456"},
+      {"type": "noError"}
+    ],
+    "tags": ["path", "messages"]
+  },
+  {
+    "name": "GetNavigation uses /my/navigation.json path",
+    "description": "Verifies that GetNavigation constructs the URL path /my/navigation.json",
+    "operation": "GetNavigation",
+    "method": "GET",
+    "path": "/my/navigation.json",
+    "mockResponses": [
+      {"status": 200, "body": {}}
+    ],
+    "assertions": [
+      {"type": "requestPath", "expected": "/my/navigation.json"},
+      {"type": "noError"}
+    ],
+    "tags": ["path", "navigation"]
+  },
+  {
+    "name": "GetOngoingTimeTrack uses /calendar/ongoing_time_track.json path",
+    "description": "Verifies that GetOngoingTimeTrack constructs the URL path /calendar/ongoing_time_track.json",
+    "operation": "GetOngoingTimeTrack",
+    "method": "GET",
+    "path": "/calendar/ongoing_time_track.json",
+    "mockResponses": [
+      {"status": 200, "body": {"id": 123, "started_at": "2026-03-04T10:00:00Z"}}
+    ],
+    "assertions": [
+      {"type": "requestPath", "expected": "/calendar/ongoing_time_track.json"},
+      {"type": "noError"}
+    ],
+    "tags": ["path", "calendar-time-tracks"]
+  },
+  {
+    "name": "GetSentTopics uses /topics/sent.json path",
+    "description": "Verifies that GetSentTopics constructs the URL path /topics/sent.json",
+    "operation": "GetSentTopics",
+    "method": "GET",
+    "path": "/topics/sent.json",
+    "mockResponses": [
+      {"status": 200, "body": []}
+    ],
+    "assertions": [
+      {"type": "requestPath", "expected": "/topics/sent.json"},
+      {"type": "noError"}
+    ],
+    "tags": ["path", "topics"]
+  },
+  {
+    "name": "GetSpamTopics uses /topics/spam.json path",
+    "description": "Verifies that GetSpamTopics constructs the URL path /topics/spam.json",
+    "operation": "GetSpamTopics",
+    "method": "GET",
+    "path": "/topics/spam.json",
+    "mockResponses": [
+      {"status": 200, "body": []}
+    ],
+    "assertions": [
+      {"type": "requestPath", "expected": "/topics/spam.json"},
+      {"type": "noError"}
+    ],
+    "tags": ["path", "topics"]
+  },
+  {
+    "name": "GetTopic uses /topics/{topicId} path",
+    "description": "Verifies that GetTopic constructs the URL path /topics/{topicId}",
+    "operation": "GetTopic",
+    "method": "GET",
+    "path": "/topics/{topicId}",
+    "pathParams": {"topicId": 456},
+    "mockResponses": [
+      {"status": 200, "body": {"id": 456}}
+    ],
+    "assertions": [
+      {"type": "requestPath", "expected": "/topics/456"},
+      {"type": "noError"}
+    ],
+    "tags": ["path", "topics"]
+  },
+  {
+    "name": "GetTopicEntries uses /topics/{topicId}/entries path",
+    "description": "Verifies that GetTopicEntries constructs the URL path /topics/{topicId}/entries",
+    "operation": "GetTopicEntries",
+    "method": "GET",
+    "path": "/topics/{topicId}/entries",
+    "pathParams": {"topicId": 456},
+    "mockResponses": [
+      {"status": 200, "body": []}
+    ],
+    "assertions": [
+      {"type": "requestPath", "expected": "/topics/456/entries"},
+      {"type": "noError"}
+    ],
+    "tags": ["path", "topics"]
+  },
+  {
+    "name": "GetTrailbox uses /paper_trail.json path",
+    "description": "Verifies that GetTrailbox constructs the URL path /paper_trail.json",
+    "operation": "GetTrailbox",
+    "method": "GET",
+    "path": "/paper_trail.json",
+    "mockResponses": [
+      {"status": 200, "body": {}}
+    ],
+    "assertions": [
+      {"type": "requestPath", "expected": "/paper_trail.json"},
+      {"type": "noError"}
+    ],
+    "tags": ["path", "boxes"]
+  },
+  {
+    "name": "GetTrashTopics uses /topics/trash.json path",
+    "description": "Verifies that GetTrashTopics constructs the URL path /topics/trash.json",
+    "operation": "GetTrashTopics",
+    "method": "GET",
+    "path": "/topics/trash.json",
+    "mockResponses": [
+      {"status": 200, "body": []}
+    ],
+    "assertions": [
+      {"type": "requestPath", "expected": "/topics/trash.json"},
+      {"type": "noError"}
+    ],
+    "tags": ["path", "topics"]
+  },
+  {
+    "name": "ListBoxes uses /boxes.json path",
+    "description": "Verifies that ListBoxes constructs the URL path /boxes.json",
+    "operation": "ListBoxes",
+    "method": "GET",
+    "path": "/boxes.json",
+    "mockResponses": [
+      {"status": 200, "body": []}
+    ],
+    "assertions": [
+      {"type": "requestPath", "expected": "/boxes.json"},
+      {"type": "noError"}
+    ],
+    "tags": ["path", "boxes"]
+  },
+  {
+    "name": "ListCalendars uses /calendars.json path",
+    "description": "Verifies that ListCalendars constructs the URL path /calendars.json",
+    "operation": "ListCalendars",
+    "method": "GET",
+    "path": "/calendars.json",
+    "mockResponses": [
+      {"status": 200, "body": []}
+    ],
+    "assertions": [
+      {"type": "requestPath", "expected": "/calendars.json"},
+      {"type": "noError"}
+    ],
+    "tags": ["path", "calendars"]
+  },
+  {
+    "name": "ListContacts uses /contacts.json path",
+    "description": "Verifies that ListContacts constructs the URL path /contacts.json",
+    "operation": "ListContacts",
+    "method": "GET",
+    "path": "/contacts.json",
+    "mockResponses": [
+      {"status": 200, "body": []}
+    ],
+    "assertions": [
+      {"type": "requestPath", "expected": "/contacts.json"},
+      {"type": "noError"}
+    ],
+    "tags": ["path", "contacts"]
+  },
+  {
+    "name": "ListDrafts uses /entries/drafts.json path",
+    "description": "Verifies that ListDrafts constructs the URL path /entries/drafts.json",
+    "operation": "ListDrafts",
+    "method": "GET",
+    "path": "/entries/drafts.json",
+    "mockResponses": [
+      {"status": 200, "body": []}
+    ],
+    "assertions": [
+      {"type": "requestPath", "expected": "/entries/drafts.json"},
+      {"type": "noError"}
+    ],
+    "tags": ["path", "entries"]
+  },
+  {
+    "name": "Search uses /search.json path",
+    "description": "Verifies that Search constructs the URL path /search.json",
+    "operation": "Search",
+    "method": "GET",
+    "path": "/search.json",
+    "queryParams": {"q": "test query"},
+    "mockResponses": [
+      {"status": 200, "body": []}
+    ],
+    "assertions": [
+      {"type": "requestPath", "expected": "/search.json"},
+      {"type": "noError"}
+    ],
+    "tags": ["path", "search"]
+  },
+  {
+    "name": "StartTimeTrack uses /calendar/ongoing_time_track.json path",
+    "description": "Verifies that StartTimeTrack constructs the URL path /calendar/ongoing_time_track.json",
+    "operation": "StartTimeTrack",
+    "method": "POST",
+    "path": "/calendar/ongoing_time_track.json",
+    "mockResponses": [
+      {"status": 200, "body": {"id": 123, "started_at": "2026-03-04T10:00:00Z"}}
+    ],
+    "assertions": [
+      {"type": "requestPath", "expected": "/calendar/ongoing_time_track.json"},
+      {"type": "noError"}
+    ],
+    "tags": ["path", "calendar-time-tracks"]
+  },
+  {
+    "name": "UncompleteCalendarTodo uses /calendar/todos/{todoId}/completions path",
+    "description": "Verifies that UncompleteCalendarTodo constructs the URL path /calendar/todos/{todoId}/completions",
+    "operation": "UncompleteCalendarTodo",
+    "method": "DELETE",
+    "path": "/calendar/todos/{todoId}/completions",
+    "pathParams": {"todoId": 456},
+    "mockResponses": [
+      {"status": 200, "body": {}}
+    ],
+    "assertions": [
+      {"type": "requestPath", "expected": "/calendar/todos/456/completions"},
+      {"type": "noError"}
+    ],
+    "tags": ["path", "calendar-todos"]
+  },
+  {
+    "name": "UncompleteHabit uses /calendar/days/{day}/habits/{habitId}/completions path",
+    "description": "Verifies that UncompleteHabit constructs the URL path /calendar/days/{day}/habits/{habitId}/completions",
+    "operation": "UncompleteHabit",
+    "method": "DELETE",
+    "path": "/calendar/days/{day}/habits/{habitId}/completions",
+    "pathParams": {"day": "2026-03-04", "habitId": 789},
+    "mockResponses": [
+      {"status": 200, "body": {}}
+    ],
+    "assertions": [
+      {"type": "requestPath", "expected": "/calendar/days/2026-03-04/habits/789/completions"},
+      {"type": "noError"}
+    ],
+    "tags": ["path", "calendar-habits"]
+  },
+  {
+    "name": "UpdateJournalEntry uses /calendar/days/{day}/journal_entry path",
+    "description": "Verifies that UpdateJournalEntry constructs the URL path /calendar/days/{day}/journal_entry",
+    "operation": "UpdateJournalEntry",
+    "method": "PATCH",
+    "path": "/calendar/days/{day}/journal_entry",
+    "pathParams": {"day": "2026-03-04"},
+    "requestBody": {"body": "Updated content"},
+    "mockResponses": [
+      {"status": 200, "body": {"body": "Updated content"}}
+    ],
+    "assertions": [
+      {"type": "requestPath", "expected": "/calendar/days/2026-03-04/journal_entry"},
+      {"type": "noError"}
+    ],
+    "tags": ["path", "calendar-journal"]
+  },
+  {
+    "name": "UpdateTimeTrack uses /calendar/time_tracks/{timeTrackId} path",
+    "description": "Verifies that UpdateTimeTrack constructs the URL path /calendar/time_tracks/{timeTrackId}",
+    "operation": "UpdateTimeTrack",
+    "method": "PUT",
+    "path": "/calendar/time_tracks/{timeTrackId}",
+    "pathParams": {"timeTrackId": 789},
+    "requestBody": {"stopped": true},
+    "mockResponses": [
+      {"status": 200, "body": {"id": 789, "stopped": true}}
+    ],
+    "assertions": [
+      {"type": "requestPath", "expected": "/calendar/time_tracks/789"},
+      {"type": "noError"}
+    ],
+    "tags": ["path", "calendar-time-tracks"]
+  }
+]

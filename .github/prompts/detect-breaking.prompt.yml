@@ -1,0 +1,18 @@
+name: Detect Breaking Changes
+description: Check if a PR introduces breaking changes to the SDK
+
+prompt: |
+  Analyze the PR for breaking changes:
+
+  Breaking changes include:
+  - Removed or renamed public API methods
+  - Changed method signatures (parameter types, return types)
+  - Removed fields from response types
+  - Changed error types or codes
+  - Changed URL path patterns
+  - Changed authentication behavior
+
+  For each breaking change found:
+  1. Describe what changed
+  2. Explain the impact on consumers
+  3. Suggest a migration path

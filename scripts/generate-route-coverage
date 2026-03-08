@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+# generate-route-coverage — Extract modeled operation routes from OpenAPI
+#
+# Reads: openapi.json
+# Writes: spec/route-coverage.json
+set -euo pipefail
+
+OPENAPI_FILE="${1:-openapi.json}"
+OUTPUT_FILE="spec/route-coverage.json"
+
+if [[ ! -f "$OPENAPI_FILE" ]]; then
+    echo "ERROR: $OPENAPI_FILE not found. Run 'make smithy-build' first."
+    exit 1
+fi
+
+jq -S '[
+  .paths | to_entries[] | .key as $path |
+  .value | to_entries[] | select(.key != "parameters") |
+  {
+    operationId: .value.operationId,
+    method: (.key | ascii_upcase),
+    path: $path
+  }
+] | sort_by(.operationId)' "$OPENAPI_FILE" > "$OUTPUT_FILE"
+
+echo "Generated $OUTPUT_FILE with $(jq length "$OUTPUT_FILE") operations"
