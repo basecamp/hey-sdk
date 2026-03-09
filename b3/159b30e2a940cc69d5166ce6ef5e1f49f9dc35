@@ -1,0 +1,25 @@
+scripts/drift-check-reverse
+  0c89348b8fe2807d 36-38,41
+conformance/runner/go/main.go
+  0c89348b8fe2807d 542-544
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.1.9",
+  "base_commit_sha": "b3159b30e2a940cc69d5166ce6ef5e1f49f9dc35",
+  "prompts": {
+    "0c89348b8fe2807d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e4807d2a-b046-4691-9fd5-1c628a391bfb",
+        "model": "unknown"
+      },
+      "human_author": "Jeremy Daer <jeremy@37signals.com>",
+      "messages": [],
+      "total_additions": 9,
+      "total_deletions": 4,
+      "accepted_lines": 7,
+      "overriden_lines": 0
+    }
+  }
+}
