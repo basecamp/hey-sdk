@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-func TestCircuitBreaker_StartsOpen(t *testing.T) {
+func TestCircuitBreaker_StartsClosed(t *testing.T) {
 	cb := newCircuitBreaker(DefaultCircuitBreakerConfig())
 	if !cb.Allow() {
 		t.Fatal("expected circuit breaker to allow requests initially (closed state)")
