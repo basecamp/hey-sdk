@@ -1,0 +1,25 @@
+.github/workflows/security.yml
+  0c89348b8fe2807d 37
+.github/workflows/ai-labeler.yml
+  0c89348b8fe2807d 158,167,192-200,233,236,246,250
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.1.9",
+  "base_commit_sha": "07d39008be5783e0c1977e1e251c58ab1d34d3eb",
+  "prompts": {
+    "0c89348b8fe2807d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e4807d2a-b046-4691-9fd5-1c628a391bfb",
+        "model": "unknown"
+      },
+      "human_author": "Jeremy Daer <jeremy@37signals.com>",
+      "messages": [],
+      "total_additions": 16,
+      "total_deletions": 5,
+      "accepted_lines": 16,
+      "overriden_lines": 0
+    }
+  }
+}
