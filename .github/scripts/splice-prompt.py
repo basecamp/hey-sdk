@@ -11,9 +11,16 @@ with open('/tmp/user-message.txt') as f:
     user_msg = f.read()
 
 # Find where messages array ends: first non-blank top-level key after 'messages:'
+messages_start = None
+for i, line in enumerate(lines):
+    if line.rstrip() == 'messages:':
+        messages_start = i
+        break
+assert messages_start is not None, 'prompt splice failed: no messages: key found'
+
 insert_at = len(lines)
 for i, line in enumerate(lines):
-    if i == 0:
+    if i <= messages_start:
         continue
     if line.strip() and not line[0].isspace():
         insert_at = i
@@ -28,5 +35,6 @@ with open(output_file, 'w') as f:
     f.writelines(lines)
 
 # Validate: last message must be the user message we just added
-doc = yaml.safe_load(open(output_file))
+with open(output_file) as f:
+    doc = yaml.safe_load(f)
 assert doc['messages'][-1]['role'] == 'user', 'prompt splice failed: last message is not user'

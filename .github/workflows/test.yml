@@ -133,16 +133,19 @@ jobs:
           cache-dependency-path: 'go/go.sum'
 
       - name: Install apidiff
-        run: go install golang.org/x/exp/cmd/apidiff@latest
+        run: go install golang.org/x/exp/cmd/apidiff@v0.0.0-20250305212735-054e65f0b394
 
       - name: Check API compatibility
+        # Compares go/pkg/hey — the sole exported package (internal/ is not public API)
+        working-directory: go
         run: |
           echo "Checking Go SDK API compatibility..."
-          apidiff -w /tmp/base.api base/go/pkg/hey
-          CHANGES=$(apidiff -incompatible /tmp/base.api go/pkg/hey 2>&1 || true)
+          apidiff -w /tmp/base.api ../base/go/pkg/hey
+          CHANGES=$(apidiff -incompatible /tmp/base.api pkg/hey 2>/dev/null) || true
           if [ -n "$CHANGES" ]; then
-            echo "::warning::Potential breaking API changes detected"
+            echo "::error::Incompatible API changes detected"
             echo "$CHANGES"
+            exit 1
           else
             echo "No breaking API changes detected"
           fi
