@@ -1,6 +1,11 @@
 #!/usr/bin/env python3
 """Splice /tmp/user-message.txt into a prompt YAML's messages array."""
-import sys, yaml
+import sys
+
+try:
+    import yaml
+except ImportError:
+    yaml = None
 
 prompt_file = sys.argv[1]
 output_file = sys.argv[2]
@@ -35,6 +40,7 @@ with open(output_file, 'w') as f:
     f.writelines(lines)
 
 # Validate: last message must be the user message we just added
-with open(output_file) as f:
-    doc = yaml.safe_load(f)
-assert doc['messages'][-1]['role'] == 'user', 'prompt splice failed: last message is not user'
+if yaml:
+    with open(output_file) as f:
+        doc = yaml.safe_load(f)
+    assert doc['messages'][-1]['role'] == 'user', 'prompt splice failed: last message is not user'
