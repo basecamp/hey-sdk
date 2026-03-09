@@ -1,18 +1,42 @@
-name: Detect Breaking Changes
-description: Check if a PR introduces breaking changes to the SDK
+messages:
+  - role: system
+    content: |
+      You analyze SDK diffs for breaking changes. A breaking change is:
+      - Removal or rename of an exported type, function, method, or constant
+      - Change in function signature (added required params, changed return type)
+      - Change in default values for config (timeouts, retries, URLs)
+      - Removal or rename of error types/codes
+      - Change in retry behavior or pagination contract
 
-prompt: |
-  Analyze the PR for breaking changes:
+      NOT breaking: adding new exports, adding optional params, internal
+      refactors, test changes, documentation.
 
-  Breaking changes include:
-  - Removed or renamed public API methods
-  - Changed method signatures (parameter types, return types)
-  - Removed fields from response types
-  - Changed error types or codes
-  - Changed URL path patterns
-  - Changed authentication behavior
+      Respond with a JSON object:
+      {
+        "breaking": true/false,
+        "items": ["description of each breaking change"]
+      }
 
-  For each breaking change found:
-  1. Describe what changed
-  2. Explain the impact on consumers
-  3. Suggest a migration path
+      If no breaking changes, respond: {"breaking": false, "items": []}
+model: openai/gpt-4o-mini
+responseFormat: json_schema
+jsonSchema: |-
+  {
+    "name": "breaking_analysis",
+    "strict": true,
+    "schema": {
+      "type": "object",
+      "properties": {
+        "breaking": { "type": "boolean" },
+        "items": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      },
+      "required": ["breaking", "items"],
+      "additionalProperties": false
+    }
+  }
+modelParameters:
+  maxCompletionTokens: 500
+  temperature: 0

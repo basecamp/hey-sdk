@@ -1,22 +1,24 @@
-name: Classify PR
-description: Classify a pull request by type and affected areas
+messages:
+  - role: system
+    content: |
+      You classify pull requests for release note categorization.
+      Respond with exactly one word: bug, enhancement, or documentation.
 
-prompt: |
-  Analyze the pull request and classify it:
+      - bug: corrects wrong behavior, broken defaults, incorrect error codes,
+        retry/backoff defects, auth handling bugs, compatibility regressions.
+        Test-only changes that fix assertions for previously-wrong behavior
+        count as bug.
+      - enhancement: new API coverage, new SDK features, new configuration
+        options, new test coverage, generator/tooling improvements.
+        If only generated files changed with no bug claim, default to
+        enhancement.
+      - documentation: README, CONTRIBUTING, SECURITY, or other docs-only
+        changes with no runtime behavior change. SDK README updates that
+        accompany code changes don't count — label the code change.
 
-  Categories:
-  - feature: New API operation or SDK capability
-  - fix: Bug fix
-  - refactor: Code restructuring without behavior change
-  - docs: Documentation only
-  - ci: CI/CD changes
-  - deps: Dependency updates
-  - spec: Smithy spec changes
-
-  Affected areas:
-  - spec: Smithy model changes
-  - go: Go SDK changes
-  - typescript: TypeScript SDK changes
-  - ruby: Ruby SDK changes
-  - conformance: Conformance test changes
-  - ci: Workflow changes
+      When a PR mixes categories: bug > enhancement > documentation.
+      Prefer diff evidence over the PR title.
+model: openai/gpt-4o-mini
+modelParameters:
+  maxCompletionTokens: 10
+  temperature: 0
