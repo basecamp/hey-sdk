@@ -3,6 +3,7 @@
 # Usage: scripts/bump-version.sh <version>
 # Example: scripts/bump-version.sh 0.3.0
 set -euo pipefail
+source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 
 VERSION="${1:-}"
 if [ -z "$VERSION" ]; then
@@ -17,17 +18,14 @@ if ! echo "$VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'; then
   exit 1
 fi
 
-# Portable in-place sed: use temp file instead of -i flag
-sedi() {
-  local expr="$1" file="$2"
-  local tmp
-  tmp=$(mktemp)
-  sed "$expr" "$file" > "$tmp" && cat "$tmp" > "$file" && rm "$tmp"
-}
-
 echo "Bumping version to: $VERSION"
 
-# Go
-sedi "s/^const Version = \".*\"/const Version = \"$VERSION\"/" go/pkg/hey/version.go
+VERSION_FILE="$REPO_ROOT/go/pkg/hey/version.go"
+sedi "s/^const Version = \".*\"/const Version = \"$VERSION\"/" "$VERSION_FILE"
+
+if ! grep -q "const Version = \"$VERSION\"" "$VERSION_FILE"; then
+  echo "ERROR: Version substitution did not match in $VERSION_FILE" >&2
+  exit 1
+fi
 
 echo "Done. Bumped 1 file to $VERSION."

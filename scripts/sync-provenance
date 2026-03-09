@@ -2,19 +2,21 @@
 # Syncs api-provenance.json with current haystack HEAD SHA.
 # Usage: scripts/sync-provenance [HAYSTACK_DIR]
 set -euo pipefail
+source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 
-HAYSTACK_DIR="${1:-${HOME}/Work/basecamp/haystack}"
+HAYSTACK_DIR="${1:-${HAYSTACK_DIR:-${HOME}/Work/basecamp/haystack}}"
 
-if [ ! -d "$HAYSTACK_DIR/.git" ]; then
+if [ ! -d "$HAYSTACK_DIR/.git" ] && [ ! -f "$HAYSTACK_DIR/.git" ]; then
   echo "ERROR: $HAYSTACK_DIR is not a git repository." >&2
   echo "Usage: $0 [HAYSTACK_DIR]" >&2
+  echo "Or set HAYSTACK_DIR environment variable." >&2
   exit 1
 fi
 
 SHA=$(git -C "$HAYSTACK_DIR" rev-parse HEAD)
 DATE=$(date -u +%Y-%m-%d)
 
-cat > spec/api-provenance.json <<EOF
+cat > "$REPO_ROOT/spec/api-provenance.json" <<EOF
 {
   "source": "haystack",
   "sha": "$SHA",
