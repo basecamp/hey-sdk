@@ -175,12 +175,14 @@ func TestAuthManager_Refresh(t *testing.T) {
 	store := &CredentialStore{useKeyring: false, fallbackDir: dir}
 
 	origin := NormalizeBaseURL("https://app.hey.com")
-	store.Save(origin, &Credentials{
+	if err := store.Save(origin, &Credentials{
 		AccessToken:   "old-token",
 		RefreshToken:  "old-refresh",
 		ExpiresAt:     1,
 		TokenEndpoint: tokenServer.URL,
-	})
+	}); err != nil {
+		t.Fatalf("Save failed: %v", err)
+	}
 
 	cfg := DefaultConfig()
 	mgr := NewAuthManagerWithStore(cfg, http.DefaultClient, store)
@@ -189,7 +191,10 @@ func TestAuthManager_Refresh(t *testing.T) {
 		t.Fatalf("Refresh failed: %v", err)
 	}
 
-	creds, _ := store.Load(origin)
+	creds, err := store.Load(origin)
+	if err != nil {
+		t.Fatalf("Load after refresh failed: %v", err)
+	}
 	if creds.AccessToken != "new-token" {
 		t.Fatalf("expected new-token, got %q", creds.AccessToken)
 	}
@@ -204,7 +209,9 @@ func TestAuthManager_SetAndGetUserID(t *testing.T) {
 	store := &CredentialStore{useKeyring: false, fallbackDir: dir}
 
 	origin := NormalizeBaseURL("https://app.hey.com")
-	store.Save(origin, &Credentials{AccessToken: "tok"})
+	if err := store.Save(origin, &Credentials{AccessToken: "tok"}); err != nil {
+		t.Fatalf("Save failed: %v", err)
+	}
 
 	cfg := DefaultConfig()
 	mgr := NewAuthManagerWithStore(cfg, http.DefaultClient, store)
@@ -223,7 +230,9 @@ func TestAuthManager_Logout(t *testing.T) {
 	store := &CredentialStore{useKeyring: false, fallbackDir: dir}
 
 	origin := NormalizeBaseURL("https://app.hey.com")
-	store.Save(origin, &Credentials{AccessToken: "tok"})
+	if err := store.Save(origin, &Credentials{AccessToken: "tok"}); err != nil {
+		t.Fatalf("Save failed: %v", err)
+	}
 
 	cfg := DefaultConfig()
 	mgr := NewAuthManagerWithStore(cfg, http.DefaultClient, store)
