@@ -123,7 +123,7 @@ jobs:
       - name: Checkout base
         uses: actions/checkout@v6
         with:
-          ref: ${{ github.base_ref }}
+          ref: ${{ github.event.pull_request.base.sha }}
           path: base
 
       - name: Set up Go
