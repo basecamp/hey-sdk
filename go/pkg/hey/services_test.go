@@ -13,9 +13,16 @@ import (
 
 // newServiceTestClient creates a Client pointing at a test server that
 // routes based on URL path and returns appropriate JSON responses.
-func newServiceTestClient(t *testing.T, routes map[string]string) *Client {
+func newServiceTestClient(t *testing.T, routes map[string]string, methods ...string) *Client {
 	t.Helper()
+	wantMethod := "GET"
+	if len(methods) > 0 {
+		wantMethod = methods[0]
+	}
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != wantMethod {
+			t.Errorf("expected %s, got %s", wantMethod, r.Method)
+		}
 		path := r.URL.Path
 		for pattern, body := range routes {
 			if pathMatch(pattern, path) {

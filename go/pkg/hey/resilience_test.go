@@ -2,6 +2,7 @@ package hey
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"testing"
 	"time"
@@ -204,10 +205,12 @@ func TestBulkhead_AcquireWithWait(t *testing.T) {
 
 	release, _ := bh.Acquire(context.Background())
 
+	ready := make(chan struct{})
 	go func() {
-		time.Sleep(20 * time.Millisecond)
+		<-ready
 		release()
 	}()
+	close(ready)
 
 	r2, err := bh.Acquire(context.Background())
 	if err != nil {
@@ -341,7 +344,7 @@ func TestShouldTripCircuit(t *testing.T) {
 		{"server 503", &Error{Code: CodeAPI, HTTPStatus: 503}, true},
 		{"client 400", &Error{Code: CodeAPI, HTTPStatus: 400}, false},
 		{"auth error", &Error{Code: CodeAuth, HTTPStatus: 401}, false},
-		{"unknown error", context.DeadlineExceeded, false},
+		{"unknown error", errors.New("some unknown error"), true},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

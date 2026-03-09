@@ -21,7 +21,7 @@ func TestDefaultConfig(t *testing.T) {
 }
 
 func TestLoadConfig_NonExistentFile(t *testing.T) {
-	cfg, err := LoadConfig("/nonexistent/config.json")
+	cfg, err := LoadConfig(filepath.Join(t.TempDir(), "missing.json"))
 	if err != nil {
 		t.Fatalf("expected no error for missing file, got %v", err)
 	}
@@ -100,11 +100,11 @@ func TestLoadConfigFromEnv_CacheEnabled_Values(t *testing.T) {
 		t.Fatal("expected '1' to enable cache")
 	}
 
-	cfg.CacheEnabled = false
+	cfg.CacheEnabled = true
 	t.Setenv("HEY_CACHE_ENABLED", "false")
 	cfg.LoadConfigFromEnv()
 	if cfg.CacheEnabled {
-		t.Fatal("expected 'false' to not enable cache")
+		t.Fatal("expected 'false' to disable cache")
 	}
 }
 
