@@ -62,7 +62,13 @@ func TestCheckResponse_Errors(t *testing.T) {
 func TestCheckResponse_429IsRetryable(t *testing.T) {
 	resp := &http.Response{StatusCode: 429, Header: http.Header{}}
 	err := CheckResponse(resp)
-	apiErr := err.(*Error)
+	if err == nil {
+		t.Fatal("expected error for 429")
+	}
+	apiErr, ok := err.(*Error)
+	if !ok {
+		t.Fatalf("expected *Error, got %T", err)
+	}
 	if !apiErr.Retryable {
 		t.Fatal("expected 429 to be retryable")
 	}
@@ -71,7 +77,13 @@ func TestCheckResponse_429IsRetryable(t *testing.T) {
 func TestCheckResponse_5xxIsRetryable(t *testing.T) {
 	resp := &http.Response{StatusCode: 502, Status: "Bad Gateway", Header: http.Header{}}
 	err := CheckResponse(resp)
-	apiErr := err.(*Error)
+	if err == nil {
+		t.Fatal("expected error for 502")
+	}
+	apiErr, ok := err.(*Error)
+	if !ok {
+		t.Fatalf("expected *Error, got %T", err)
+	}
 	if !apiErr.Retryable {
 		t.Fatal("expected 5xx to be retryable")
 	}
@@ -80,7 +92,13 @@ func TestCheckResponse_5xxIsRetryable(t *testing.T) {
 func TestCheckResponse_4xxIsNotRetryable(t *testing.T) {
 	resp := &http.Response{StatusCode: 400, Status: "Bad Request", Header: http.Header{}}
 	err := CheckResponse(resp)
-	apiErr := err.(*Error)
+	if err == nil {
+		t.Fatal("expected error for 400")
+	}
+	apiErr, ok := err.(*Error)
+	if !ok {
+		t.Fatalf("expected *Error, got %T", err)
+	}
 	if apiErr.Retryable {
 		t.Fatal("expected 4xx (non-429) to not be retryable")
 	}

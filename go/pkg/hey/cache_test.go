@@ -66,7 +66,9 @@ func TestCache_Invalidate(t *testing.T) {
 	cache := NewCache(dir)
 
 	key := cache.Key("https://example.com/test", "tok")
-	cache.Set(key, []byte(`{}`), `"etag"`)
+	if err := cache.Set(key, []byte(`{}`), `"etag"`); err != nil {
+		t.Fatalf("Set failed: %v", err)
+	}
 
 	if err := cache.Invalidate(key); err != nil {
 		t.Fatalf("Invalidate failed: %v", err)
@@ -84,8 +86,12 @@ func TestCache_Clear(t *testing.T) {
 	dir := t.TempDir()
 	cache := NewCache(dir)
 
-	cache.Set(cache.Key("u1", "t"), []byte("a"), `"e1"`)
-	cache.Set(cache.Key("u2", "t"), []byte("b"), `"e2"`)
+	if err := cache.Set(cache.Key("u1", "t"), []byte("a"), `"e1"`); err != nil {
+		t.Fatalf("Set u1 failed: %v", err)
+	}
+	if err := cache.Set(cache.Key("u2", "t"), []byte("b"), `"e2"`); err != nil {
+		t.Fatalf("Set u2 failed: %v", err)
+	}
 
 	if err := cache.Clear(); err != nil {
 		t.Fatalf("Clear failed: %v", err)

@@ -4,7 +4,6 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"testing"
 )
 
@@ -96,11 +95,21 @@ func TestCredentialStore_MultipleOrigins(t *testing.T) {
 	t.Setenv("HEY_NO_KEYRING", "1")
 	store := NewCredentialStore(dir)
 
-	store.Save("https://a.com", &Credentials{AccessToken: "tok-a"})
-	store.Save("https://b.com", &Credentials{AccessToken: "tok-b"})
+	if err := store.Save("https://a.com", &Credentials{AccessToken: "tok-a"}); err != nil {
+		t.Fatalf("Save a failed: %v", err)
+	}
+	if err := store.Save("https://b.com", &Credentials{AccessToken: "tok-b"}); err != nil {
+		t.Fatalf("Save b failed: %v", err)
+	}
 
-	a, _ := store.Load("https://a.com")
-	b, _ := store.Load("https://b.com")
+	a, err := store.Load("https://a.com")
+	if err != nil {
+		t.Fatalf("Load a failed: %v", err)
+	}
+	b, err := store.Load("https://b.com")
+	if err != nil {
+		t.Fatalf("Load b failed: %v", err)
+	}
 
 	if a.AccessToken != "tok-a" {
 		t.Fatalf("expected tok-a, got %q", a.AccessToken)
@@ -141,7 +150,7 @@ func TestAuthManager_IsAuthenticated_FromEnv(t *testing.T) {
 func TestAuthManager_IsAuthenticated_NoToken(t *testing.T) {
 	t.Setenv("HEY_NO_KEYRING", "1")
 	// Ensure HEY_TOKEN is not set
-	os.Unsetenv("HEY_TOKEN")
+	t.Setenv("HEY_TOKEN", "")
 
 	cfg := DefaultConfig()
 	dir := t.TempDir()

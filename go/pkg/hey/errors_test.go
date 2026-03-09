@@ -161,8 +161,9 @@ func TestErrAmbiguous(t *testing.T) {
 	if e.Code != CodeAmbiguous {
 		t.Fatalf("expected code %q", CodeAmbiguous)
 	}
-	if e.Hint == "Be more specific" {
-		t.Fatal("expected specific hint with matches")
+	wantHint := "Did you mean: [Alice Bob]"
+	if e.Hint != wantHint {
+		t.Fatalf("expected hint %q, got %q", wantHint, e.Hint)
 	}
 
 	e2 := ErrAmbiguous("contact", nil)

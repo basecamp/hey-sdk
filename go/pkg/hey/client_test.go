@@ -98,7 +98,9 @@ func TestClient_Post(t *testing.T) {
 			t.Errorf("expected POST, got %s", r.Method)
 		}
 		var body map[string]string
-		json.NewDecoder(r.Body).Decode(&body)
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			t.Fatalf("failed to decode request body: %v", err)
+		}
 		if body["key"] != "value" {
 			t.Errorf("expected body key=value, got %v", body)
 		}
@@ -308,7 +310,13 @@ func TestClient_WithUserAgent(t *testing.T) {
 		w.Write([]byte(`{}`))
 	})
 	// Default UA
-	client.Get(context.Background(), "/test")
+	resp, err := client.Get(context.Background(), "/test")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if resp.StatusCode != 200 {
+		t.Fatalf("expected 200, got %d", resp.StatusCode)
+	}
 	if gotUA != DefaultUserAgent {
 		t.Fatalf("expected default UA, got %q", gotUA)
 	}

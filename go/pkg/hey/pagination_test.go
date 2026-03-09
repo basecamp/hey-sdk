@@ -27,16 +27,6 @@ func TestGetAll_SinglePage(t *testing.T) {
 
 func TestGetAll_MultiplePages(t *testing.T) {
 	var serverURL string
-	mux := http.NewServeMux()
-	mux.HandleFunc("/items.json", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Link", fmt.Sprintf(`<%s/items.json?page=2>; rel="next"`, serverURL))
-		w.Header().Set("Content-Type", "application/json")
-		w.Write([]byte(`[{"id":1}]`))
-	})
-	mux.HandleFunc("/items.json?page=2", func(w http.ResponseWriter, r *http.Request) {
-		// Manually check for page param since ServeMux doesn't route on query
-	})
-	// Use a simpler approach
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		page := r.URL.Query().Get("page")
 		w.Header().Set("Content-Type", "application/json")
