@@ -38,6 +38,8 @@
       "name": "T2: Behavioral Contracts",
       "pass": 24,
       "fail": 1,
+      "tbd": 0,
+      "na": 0,
       "total": 25,
       "criteria": [
         {"id": "2A.1", "name": "Structured error type", "critical": true, "verdict": "PASS"},
@@ -71,6 +73,8 @@
       "name": "T3: Developer Experience",
       "pass": 18,
       "fail": 3,
+      "tbd": 0,
+      "na": 0,
       "total": 21,
       "criteria": [
         {"id": "3A.1", "name": "HEY_TOKEN env var", "critical": false, "verdict": "PASS"},
@@ -100,6 +104,8 @@
       "name": "T4: Infrastructure",
       "pass": 16,
       "fail": 1,
+      "tbd": 0,
+      "na": 0,
       "total": 17,
       "criteria": [
         {"id": "4A.1", "name": "Smithy-to-OpenAPI freshness", "critical": true, "verdict": "PASS"},
