@@ -110,8 +110,12 @@ func TestCache_OverwriteExisting(t *testing.T) {
 	cache := NewCache(dir)
 
 	key := cache.Key("https://example.com/x", "tok")
-	cache.Set(key, []byte(`old`), `"v1"`)
-	cache.Set(key, []byte(`new`), `"v2"`)
+	if err := cache.Set(key, []byte(`old`), `"v1"`); err != nil {
+		t.Fatalf("first Set failed: %v", err)
+	}
+	if err := cache.Set(key, []byte(`new`), `"v2"`); err != nil {
+		t.Fatalf("second Set failed: %v", err)
+	}
 
 	if got := string(cache.GetBody(key)); got != "new" {
 		t.Fatalf("expected overwritten body, got %q", got)

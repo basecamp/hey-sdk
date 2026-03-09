@@ -201,16 +201,15 @@ func TestBulkhead_TryAcquire(t *testing.T) {
 }
 
 func TestBulkhead_AcquireWithWait(t *testing.T) {
-	bh := newBulkhead(&BulkheadConfig{MaxConcurrent: 1, MaxWait: 100 * time.Millisecond})
+	bh := newBulkhead(&BulkheadConfig{MaxConcurrent: 1, MaxWait: 500 * time.Millisecond})
 
 	release, _ := bh.Acquire(context.Background())
 
-	ready := make(chan struct{})
+	// Release after a short delay so the second Acquire has time to start waiting
 	go func() {
-		<-ready
+		time.Sleep(10 * time.Millisecond)
 		release()
 	}()
-	close(ready)
 
 	r2, err := bh.Acquire(context.Background())
 	if err != nil {
