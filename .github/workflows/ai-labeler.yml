@@ -189,7 +189,7 @@ jobs:
           if [ "$CHANGED" -eq 0 ]; then
             echo "skip=true" >> $GITHUB_OUTPUT
           else
-            if ! gh pr diff "$PR" -- spec/ openapi.json behavior-model.json > /tmp/spec.diff 2>&1; then
+            if ! gh pr diff "$PR" -- spec/ openapi.json behavior-model.json > /tmp/spec.diff 2>/dev/null; then
               echo "::warning::Failed to get spec diff for PR #$PR"
               echo "skip=true" >> $GITHUB_OUTPUT
               exit 0
