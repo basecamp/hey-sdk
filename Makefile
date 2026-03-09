@@ -72,11 +72,10 @@ drift-check-shape:
 	@echo "==> Drift check (shape fingerprints)..."
 	@./scripts/generate-shape-fingerprint --check
 
-# Reverse: every JSON-capable route is either modeled or excluded (Phase 3)
+# Reverse: every JSON-capable route is either modeled or excluded
 drift-check-reverse:
 	@echo "==> Drift check (reverse)..."
-	@echo "TODO: Phase 3 — verify every JSON-capable route is modeled or excluded"
-	@echo "SKIP: reverse drift check not yet implemented"
+	@./scripts/drift-check-reverse
 
 # MVP: forward + shape only
 drift-check-mvp: drift-check-forward drift-check-shape

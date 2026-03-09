@@ -1,0 +1,151 @@
+#!/usr/bin/env bash
+# drift-check-reverse
+#
+# For each JSON-capable route in route-snapshot.json, verify it is either
+# modeled in route-coverage.json or explicitly excluded in excluded-routes.json.
+#
+# "JSON-capable" means the route is part of the app's API surface — it can
+# serve JSON responses to API clients. Routes that are purely HTML UI, auth
+# flows, infrastructure, or admin are filtered out.
+#
+# Exit codes:
+#   0 = All JSON-capable routes accounted for
+#   1 = Unaccounted routes detected
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT_DIR="$(dirname "$SCRIPT_DIR")"
+
+SNAPSHOT_FILE="$ROOT_DIR/spec/route-snapshot.json"
+COVERAGE_FILE="$ROOT_DIR/spec/route-coverage.json"
+EXCLUDED_FILE="$ROOT_DIR/spec/excluded-routes.json"
+
+for f in "$SNAPSHOT_FILE" "$COVERAGE_FILE" "$EXCLUDED_FILE"; do
+  if [ ! -f "$f" ]; then
+    echo "ERROR: $f not found."
+    exit 1
+  fi
+done
+
+if jq -e 'length == 0' "$SNAPSHOT_FILE" > /dev/null 2>&1; then
+  echo "ERROR: route-snapshot.json is empty. Run 'make drift-regen' to populate."
+  exit 1
+fi
+
+# Normalize a path for matching:
+# - Lowercase method
+# - Replace {paramName} with {_} so different param names match
+# - Strip trailing .json
+normalize() {
+  local method path
+  method=$(echo "$1" | tr '[:upper:]' '[:lower:]')
+  path=$(echo "$2" | sed -E 's/\{[^}]+\}/{_}/g')
+  path=$(echo "$path" | sed -E 's/\.json$//')
+  echo "$method $path"
+}
+
+# ---- Build lookup sets from coverage + excluded ----
+
+declare -A accounted_set
+
+while IFS=$'\t' read -r method path; do
+  key=$(normalize "$method" "$path")
+  accounted_set["$key"]=1
+done < <(jq -r '.[] | [.method, .path] | @tsv' "$COVERAGE_FILE")
+
+while IFS=$'\t' read -r method path; do
+  key=$(normalize "$method" "$path")
+  accounted_set["$key"]=1
+done < <(jq -r '.[] | [.method, .path] | @tsv' "$EXCLUDED_FILE")
+
+# ---- Filter snapshot to JSON-capable routes ----
+#
+# We use jq to exclude routes that are clearly not JSON API endpoints.
+# The snapshot contains raw Rails routes — most are HTML-only.
+
+json_capable_filter='
+  .[] |
+  # Exclude wildcard catch-alls
+  select(.path | test("\\(\\*") | not) |
+  # Exclude optional-segment routes like /two_factor_authentication(/{scope})/challenge
+  select(.path | test("\\(") | not) |
+  # Exclude .well-known, health, assets
+  select(.path | test("^\\.well-known|^/\\.well-known|^/up$|^/health|^/assets|^/cable|^/turbo|^/robots\\.txt|^/manifest|^/service-worker|^/primary-datacenter|^/recede_historical_location|^/refresh_historical_location|^/resume_historical_location") | not) |
+  # Exclude root
+  select(.path != "/") |
+  # Exclude bare path-param roots (email address routes, status routes, etc.)
+  select(.path | test("^/\\{[^}]+\\}(/|$)") | not) |
+  # Exclude /new and /edit suffixed routes (form rendering)
+  select(.path | test("/new$|/edit$") | not) |
+  # Exclude account management & billing
+  select(.path | test("^/account/|^/accounts/") | not) |
+  # Exclude auth flows
+  select(.path | test("^/session|^/sign_|^/password|^/2fa|^/two_factor|^/oauth") | not) |
+  # Exclude admin, internal, development, demo
+  select(.path | test("^/admin|^/internal/|^/development/|^/demo|^/underground") | not) |
+  # Exclude Queenbee (admin app), storefront, world (HEY World public routes)
+  select(.path | test("^/queenbee/|^/storefront/|^/world/") | not) |
+  # Exclude mail address changes (HTML confirmation flows)
+  select(.path | test("^/mail_address_change") | not) |
+  # Exclude ActiveStorage blob/representation routes
+  select(.path | test("/blobs/|/representations/|\\*filename") | not) |
+  # Exclude announcement management
+  select(.path | test("^/announcements") | not) |
+  # Exclude Solid Queue job UI routes
+  select(.path | test("/jobs|^/queues|^/applications/|^/recurring_tasks") | not) |
+  # Exclude p/ public share routes
+  select(.path | test("^/p/") | not) |
+  # Exclude atom feeds
+  select(.path | test("\\.atom$|/feed$") | not) |
+  # Exclude rspamd/mail infrastructure
+  select(.path | test("^/rspamd|^/mail_trace|^/post_office") | not) |
+  # Exclude domain checks (DNS verification, not API)
+  select(.path | test("^/domain_checks") | not) |
+  # Exclude /confirm_destroy (HTML confirmation pages)
+  select(.path | test("/confirm_destroy$") | not) |
+  # Exclude invitation acceptance HTML flows
+  select(.path | test("^/invitations") | not) |
+  # Exclude mailto URI handler
+  select(.path | test("^/mailto/") | not) |
+  # Exclude avatar image routes
+  select(.path | test("^/avatars/|/uploaded_avatar$|^/contacts/avatars/") | not) |
+  # Exclude identity merge/split flows (HTML)
+  select(.path | test("^/identities$|^/identities/\\{|^/identities/search|^/identity/adoptions|^/identity/merge|^/identity/split|^/identity/backup_email|^/identity/trainings") | not) |
+  # Exclude print routes
+  select(.path | test("/print$") | not) |
+  # Exclude calendar welcome/onboarding (HTML)
+  select(.path | test("^/calendar/welcome") | not) |
+  # Exclude /me (HTML profile page)
+  select(.path | test("^/me$") | not) |
+  # Exclude ActionMailbox inbound routes
+  select(.path | test("^/rails/") | not) |
+  [.method, .path] | @tsv
+'
+
+unaccounted=0
+total=0
+
+while IFS=$'\t' read -r method path; do
+  total=$((total + 1))
+  key=$(normalize "$method" "$path")
+  if [ -z "${accounted_set[$key]+x}" ]; then
+    echo "UNACCOUNTED: $method $path"
+    unaccounted=$((unaccounted + 1))
+  fi
+done < <(jq -r "$json_capable_filter" "$SNAPSHOT_FILE")
+
+echo ""
+echo "Checked $total JSON-capable routes."
+
+if [ "$unaccounted" -gt 0 ]; then
+  echo "$unaccounted route(s) not in route-coverage.json or excluded-routes.json."
+  echo ""
+  echo "Either:"
+  echo "  - Add the operation to the Smithy model"
+  echo "  - Add the route to spec/excluded-routes.json with a reason"
+  exit 1
+fi
+
+echo "All JSON-capable routes accounted for."
+exit 0

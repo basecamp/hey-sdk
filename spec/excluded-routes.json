@@ -13,5 +13,4035 @@
     "method": "GET",
     "path": "/calendar/time_tracks.json",
     "reason": "broken: returns 406 (hey-cli PR #2)"
+  },
+  {
+    "method": "DELETE",
+    "path": "/auditor_token",
+    "reason": "internal: auditor token management"
+  },
+  {
+    "method": "GET",
+    "path": "/auditor_token",
+    "reason": "internal: auditor token management"
+  },
+  {
+    "method": "POST",
+    "path": "/auditor_token",
+    "reason": "internal: auditor token management"
+  },
+  {
+    "method": "POST",
+    "path": "/rum/metrics_collections",
+    "reason": "internal: real user monitoring"
+  },
+  {
+    "method": "GET",
+    "path": "/attachments",
+    "reason": "phase-2: attachment browsing surface"
+  },
+  {
+    "method": "GET",
+    "path": "/attachments/senders",
+    "reason": "phase-2: attachment browsing surface"
+  },
+  {
+    "method": "GET",
+    "path": "/entries/{entry_id}/attack_mode_moves",
+    "reason": "phase-2: attack mode (rapid reply)"
+  },
+  {
+    "method": "POST",
+    "path": "/entries/{entry_id}/attack_mode_moves",
+    "reason": "phase-2: attack mode (rapid reply)"
+  },
+  {
+    "method": "GET",
+    "path": "/entries/{entry_id}/attack_mode_replies/{id}",
+    "reason": "phase-2: attack mode (rapid reply)"
+  },
+  {
+    "method": "GET",
+    "path": "/entries/{entry_id}/attack_mode_seens",
+    "reason": "phase-2: attack mode (rapid reply)"
+  },
+  {
+    "method": "POST",
+    "path": "/entries/{entry_id}/attack_mode_seens",
+    "reason": "phase-2: attack mode (rapid reply)"
+  },
+  {
+    "method": "GET",
+    "path": "/entries/{entry_id}/attack_mode_undo_replies",
+    "reason": "phase-2: attack mode (rapid reply)"
+  },
+  {
+    "method": "POST",
+    "path": "/entries/{entry_id}/attack_mode_undo_replies",
+    "reason": "phase-2: attack mode (rapid reply)"
+  },
+  {
+    "method": "GET",
+    "path": "/autocompletable/accounts/{account_id}/contacts/users",
+    "reason": "phase-2: autocomplete API"
+  },
+  {
+    "method": "GET",
+    "path": "/autocompletable/accounts/{account_id}/workflows",
+    "reason": "phase-2: autocomplete API"
+  },
+  {
+    "method": "GET",
+    "path": "/autocompletable/contacts",
+    "reason": "phase-2: autocomplete API"
+  },
+  {
+    "method": "GET",
+    "path": "/autocompletable/contacts/addressable",
+    "reason": "phase-2: autocomplete API"
+  },
+  {
+    "method": "GET",
+    "path": "/autofileables/{autofileable_id}/autofilings",
+    "reason": "phase-2: autofiling rules"
+  },
+  {
+    "method": "POST",
+    "path": "/autofileables/{autofileable_id}/autofilings",
+    "reason": "phase-2: autofiling rules"
+  },
+  {
+    "method": "DELETE",
+    "path": "/autofileables/{autofileable_id}/autofilings/{id}",
+    "reason": "phase-2: autofiling rules"
+  },
+  {
+    "method": "POST",
+    "path": "/bulk_replies",
+    "reason": "phase-2: bulk reply"
+  },
+  {
+    "method": "POST",
+    "path": "/bulk_replies/{bulk_reply_id}/undo_send",
+    "reason": "phase-2: bulk reply"
+  },
+  {
+    "method": "GET",
+    "path": "/bulk_replies/{id}",
+    "reason": "phase-2: bulk reply"
+  },
+  {
+    "method": "PATCH",
+    "path": "/bulk_replies/{id}",
+    "reason": "phase-2: bulk reply"
+  },
+  {
+    "method": "PUT",
+    "path": "/bulk_replies/{id}",
+    "reason": "phase-2: bulk reply"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/autocompletable/attendable_contacts",
+    "reason": "phase-2: calendar autocomplete"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/autocompletable/categories",
+    "reason": "phase-2: calendar autocomplete"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/changes",
+    "reason": "phase-2: calendar changes feed"
+  },
+  {
+    "method": "DELETE",
+    "path": "/calendar/cover",
+    "reason": "phase-2: calendar cover image"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/cover",
+    "reason": "phase-2: calendar cover image"
+  },
+  {
+    "method": "PATCH",
+    "path": "/calendar/cover",
+    "reason": "phase-2: calendar cover image"
+  },
+  {
+    "method": "POST",
+    "path": "/calendar/cover",
+    "reason": "phase-2: calendar cover image"
+  },
+  {
+    "method": "PUT",
+    "path": "/calendar/cover",
+    "reason": "phase-2: calendar cover image"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/days",
+    "reason": "phase-2: calendar day management"
+  },
+  {
+    "method": "POST",
+    "path": "/calendar/days",
+    "reason": "phase-2: calendar day management"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/days/now",
+    "reason": "phase-2: calendar day management"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/days/{day_id}/all_day_events",
+    "reason": "phase-2: calendar day management"
+  },
+  {
+    "method": "POST",
+    "path": "/calendar/days/{day_id}/all_day_events",
+    "reason": "phase-2: calendar day management"
+  },
+  {
+    "method": "DELETE",
+    "path": "/calendar/days/{day_id}/all_day_events/{id}",
+    "reason": "phase-2: calendar day management"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/days/{day_id}/all_day_events/{id}",
+    "reason": "phase-2: calendar day management"
+  },
+  {
+    "method": "PATCH",
+    "path": "/calendar/days/{day_id}/all_day_events/{id}",
+    "reason": "phase-2: calendar day management"
+  },
+  {
+    "method": "PUT",
+    "path": "/calendar/days/{day_id}/all_day_events/{id}",
+    "reason": "phase-2: calendar day management"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/days/{day_id}/countdowns",
+    "reason": "phase-2: calendar day management"
+  },
+  {
+    "method": "POST",
+    "path": "/calendar/days/{day_id}/countdowns",
+    "reason": "phase-2: calendar day management"
+  },
+  {
+    "method": "DELETE",
+    "path": "/calendar/days/{day_id}/countdowns/{id}",
+    "reason": "phase-2: calendar day management"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/days/{day_id}/countdowns/{id}",
+    "reason": "phase-2: calendar day management"
+  },
+  {
+    "method": "PATCH",
+    "path": "/calendar/days/{day_id}/countdowns/{id}",
+    "reason": "phase-2: calendar day management"
+  },
+  {
+    "method": "PUT",
+    "path": "/calendar/days/{day_id}/countdowns/{id}",
+    "reason": "phase-2: calendar day management"
+  },
+  {
+    "method": "DELETE",
+    "path": "/calendar/days/{day_id}/day_title",
+    "reason": "phase-2: calendar day management"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/days/{day_id}/day_title",
+    "reason": "phase-2: calendar day management"
+  },
+  {
+    "method": "PATCH",
+    "path": "/calendar/days/{day_id}/day_title",
+    "reason": "phase-2: calendar day management"
+  },
+  {
+    "method": "POST",
+    "path": "/calendar/days/{day_id}/day_title",
+    "reason": "phase-2: calendar day management"
+  },
+  {
+    "method": "PUT",
+    "path": "/calendar/days/{day_id}/day_title",
+    "reason": "phase-2: calendar day management"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/days/{day_id}/habits",
+    "reason": "phase-2: calendar day management"
+  },
+  {
+    "method": "POST",
+    "path": "/calendar/days/{day_id}/habits",
+    "reason": "phase-2: calendar day management"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/days/{day_id}/habits/{habit_id}/completions",
+    "reason": "phase-2: calendar day management"
+  },
+  {
+    "method": "PATCH",
+    "path": "/calendar/days/{day_id}/habits/{habit_id}/completions",
+    "reason": "phase-2: calendar day management"
+  },
+  {
+    "method": "PUT",
+    "path": "/calendar/days/{day_id}/habits/{habit_id}/completions",
+    "reason": "phase-2: calendar day management"
+  },
+  {
+    "method": "DELETE",
+    "path": "/calendar/days/{day_id}/habits/{id}",
+    "reason": "phase-2: calendar day management"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/days/{day_id}/habits/{id}",
+    "reason": "phase-2: calendar day management"
+  },
+  {
+    "method": "PATCH",
+    "path": "/calendar/days/{day_id}/habits/{id}",
+    "reason": "phase-2: calendar day management"
+  },
+  {
+    "method": "PUT",
+    "path": "/calendar/days/{day_id}/habits/{id}",
+    "reason": "phase-2: calendar day management"
+  },
+  {
+    "method": "DELETE",
+    "path": "/calendar/days/{day_id}/journal_entry",
+    "reason": "phase-2: calendar day management"
+  },
+  {
+    "method": "POST",
+    "path": "/calendar/days/{day_id}/journal_entry",
+    "reason": "phase-2: calendar day management"
+  },
+  {
+    "method": "PUT",
+    "path": "/calendar/days/{day_id}/journal_entry",
+    "reason": "phase-2: calendar day management"
+  },
+  {
+    "method": "DELETE",
+    "path": "/calendar/days/{day_id}/nighttimes",
+    "reason": "phase-2: calendar day management"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/days/{day_id}/nighttimes",
+    "reason": "phase-2: calendar day management"
+  },
+  {
+    "method": "PATCH",
+    "path": "/calendar/days/{day_id}/nighttimes",
+    "reason": "phase-2: calendar day management"
+  },
+  {
+    "method": "POST",
+    "path": "/calendar/days/{day_id}/nighttimes",
+    "reason": "phase-2: calendar day management"
+  },
+  {
+    "method": "PUT",
+    "path": "/calendar/days/{day_id}/nighttimes",
+    "reason": "phase-2: calendar day management"
+  },
+  {
+    "method": "DELETE",
+    "path": "/calendar/days/{day_id}/today_link",
+    "reason": "phase-2: calendar day management"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/days/{day_id}/today_link",
+    "reason": "phase-2: calendar day management"
+  },
+  {
+    "method": "PATCH",
+    "path": "/calendar/days/{day_id}/today_link",
+    "reason": "phase-2: calendar day management"
+  },
+  {
+    "method": "POST",
+    "path": "/calendar/days/{day_id}/today_link",
+    "reason": "phase-2: calendar day management"
+  },
+  {
+    "method": "PUT",
+    "path": "/calendar/days/{day_id}/today_link",
+    "reason": "phase-2: calendar day management"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/days/{day_id}/todos",
+    "reason": "phase-2: calendar day management"
+  },
+  {
+    "method": "POST",
+    "path": "/calendar/days/{day_id}/todos",
+    "reason": "phase-2: calendar day management"
+  },
+  {
+    "method": "DELETE",
+    "path": "/calendar/days/{day_id}/todos/{id}",
+    "reason": "phase-2: calendar day management"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/days/{day_id}/todos/{id}",
+    "reason": "phase-2: calendar day management"
+  },
+  {
+    "method": "PATCH",
+    "path": "/calendar/days/{day_id}/todos/{id}",
+    "reason": "phase-2: calendar day management"
+  },
+  {
+    "method": "PUT",
+    "path": "/calendar/days/{day_id}/todos/{id}",
+    "reason": "phase-2: calendar day management"
+  },
+  {
+    "method": "DELETE",
+    "path": "/calendar/days/{id}",
+    "reason": "phase-2: calendar day management"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/days/{id}",
+    "reason": "phase-2: calendar day management"
+  },
+  {
+    "method": "PATCH",
+    "path": "/calendar/days/{id}",
+    "reason": "phase-2: calendar day management"
+  },
+  {
+    "method": "PUT",
+    "path": "/calendar/days/{id}",
+    "reason": "phase-2: calendar day management"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/duration_descriptions",
+    "reason": "phase-2: calendar duration descriptions"
+  },
+  {
+    "method": "POST",
+    "path": "/calendar/duration_descriptions",
+    "reason": "phase-2: calendar duration descriptions"
+  },
+  {
+    "method": "DELETE",
+    "path": "/calendar/duration_descriptions/{id}",
+    "reason": "phase-2: calendar duration descriptions"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/duration_descriptions/{id}",
+    "reason": "phase-2: calendar duration descriptions"
+  },
+  {
+    "method": "PATCH",
+    "path": "/calendar/duration_descriptions/{id}",
+    "reason": "phase-2: calendar duration descriptions"
+  },
+  {
+    "method": "PUT",
+    "path": "/calendar/duration_descriptions/{id}",
+    "reason": "phase-2: calendar duration descriptions"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/event_from_todos",
+    "reason": "phase-2: calendar events"
+  },
+  {
+    "method": "POST",
+    "path": "/calendar/event_from_todos",
+    "reason": "phase-2: calendar events"
+  },
+  {
+    "method": "DELETE",
+    "path": "/calendar/event_from_todos/{id}",
+    "reason": "phase-2: calendar events"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/event_from_todos/{id}",
+    "reason": "phase-2: calendar events"
+  },
+  {
+    "method": "PATCH",
+    "path": "/calendar/event_from_todos/{id}",
+    "reason": "phase-2: calendar events"
+  },
+  {
+    "method": "PUT",
+    "path": "/calendar/event_from_todos/{id}",
+    "reason": "phase-2: calendar events"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/events",
+    "reason": "phase-2: calendar events"
+  },
+  {
+    "method": "POST",
+    "path": "/calendar/events",
+    "reason": "phase-2: calendar events"
+  },
+  {
+    "method": "DELETE",
+    "path": "/calendar/events/timeline_refresh",
+    "reason": "phase-2: calendar events"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/events/timeline_refresh",
+    "reason": "phase-2: calendar events"
+  },
+  {
+    "method": "PATCH",
+    "path": "/calendar/events/timeline_refresh",
+    "reason": "phase-2: calendar events"
+  },
+  {
+    "method": "POST",
+    "path": "/calendar/events/timeline_refresh",
+    "reason": "phase-2: calendar events"
+  },
+  {
+    "method": "PUT",
+    "path": "/calendar/events/timeline_refresh",
+    "reason": "phase-2: calendar events"
+  },
+  {
+    "method": "POST",
+    "path": "/calendar/events/{event_id}/move",
+    "reason": "phase-2: calendar events"
+  },
+  {
+    "method": "POST",
+    "path": "/calendar/events/{event_id}/occurrences/{occurrence_id}/move",
+    "reason": "phase-2: calendar events"
+  },
+  {
+    "method": "DELETE",
+    "path": "/calendar/events/{event_id}/occurrences/{occurrence}",
+    "reason": "phase-2: calendar events"
+  },
+  {
+    "method": "PATCH",
+    "path": "/calendar/events/{event_id}/occurrences/{occurrence}",
+    "reason": "phase-2: calendar events"
+  },
+  {
+    "method": "PUT",
+    "path": "/calendar/events/{event_id}/occurrences/{occurrence}",
+    "reason": "phase-2: calendar events"
+  },
+  {
+    "method": "POST",
+    "path": "/calendar/events/{event_id}/outbound_replies",
+    "reason": "phase-2: calendar events"
+  },
+  {
+    "method": "DELETE",
+    "path": "/calendar/events/{id}",
+    "reason": "phase-2: calendar events"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/events/{id}",
+    "reason": "phase-2: calendar events"
+  },
+  {
+    "method": "PATCH",
+    "path": "/calendar/events/{id}",
+    "reason": "phase-2: calendar events"
+  },
+  {
+    "method": "PUT",
+    "path": "/calendar/events/{id}",
+    "reason": "phase-2: calendar events"
+  },
+  {
+    "method": "POST",
+    "path": "/calendar/external_user/invitations/{invitation_id}/acceptance",
+    "reason": "phase-2: calendar external user invitations"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/habits",
+    "reason": "phase-2: calendar habit management"
+  },
+  {
+    "method": "POST",
+    "path": "/calendar/habits",
+    "reason": "phase-2: calendar habit management"
+  },
+  {
+    "method": "DELETE",
+    "path": "/calendar/habits/{habit_id}/stop",
+    "reason": "phase-2: calendar habit management"
+  },
+  {
+    "method": "POST",
+    "path": "/calendar/habits/{habit_id}/stop",
+    "reason": "phase-2: calendar habit management"
+  },
+  {
+    "method": "DELETE",
+    "path": "/calendar/habits/{id}",
+    "reason": "phase-2: calendar habit management"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/habits/{id}",
+    "reason": "phase-2: calendar habit management"
+  },
+  {
+    "method": "PATCH",
+    "path": "/calendar/habits/{id}",
+    "reason": "phase-2: calendar habit management"
+  },
+  {
+    "method": "PUT",
+    "path": "/calendar/habits/{id}",
+    "reason": "phase-2: calendar habit management"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar",
+    "reason": "phase-2: calendar home"
+  },
+  {
+    "method": "POST",
+    "path": "/calendar/ical/file_uploads",
+    "reason": "phase-2: calendar iCal import"
+  },
+  {
+    "method": "POST",
+    "path": "/calendar/ical/source_uploads",
+    "reason": "phase-2: calendar iCal import"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/ical/uploads",
+    "reason": "phase-2: calendar iCal import"
+  },
+  {
+    "method": "POST",
+    "path": "/calendar/ical/uploads",
+    "reason": "phase-2: calendar iCal import"
+  },
+  {
+    "method": "DELETE",
+    "path": "/calendar/ical/uploads/{id}",
+    "reason": "phase-2: calendar iCal import"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/ical/uploads/{id}",
+    "reason": "phase-2: calendar iCal import"
+  },
+  {
+    "method": "PATCH",
+    "path": "/calendar/ical/uploads/{id}",
+    "reason": "phase-2: calendar iCal import"
+  },
+  {
+    "method": "PUT",
+    "path": "/calendar/ical/uploads/{id}",
+    "reason": "phase-2: calendar iCal import"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/ical/uploads/{upload_id}/events",
+    "reason": "phase-2: calendar iCal import"
+  },
+  {
+    "method": "POST",
+    "path": "/calendar/ical/uploads/{upload_id}/events/{event_id}/sync",
+    "reason": "phase-2: calendar iCal import"
+  },
+  {
+    "method": "DELETE",
+    "path": "/calendar/identity",
+    "reason": "phase-2: calendar identity settings"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/identity",
+    "reason": "phase-2: calendar identity settings"
+  },
+  {
+    "method": "PATCH",
+    "path": "/calendar/identity",
+    "reason": "phase-2: calendar identity settings"
+  },
+  {
+    "method": "POST",
+    "path": "/calendar/identity",
+    "reason": "phase-2: calendar identity settings"
+  },
+  {
+    "method": "PUT",
+    "path": "/calendar/identity",
+    "reason": "phase-2: calendar identity settings"
+  },
+  {
+    "method": "PATCH",
+    "path": "/calendar/identity/auto_time_zone",
+    "reason": "phase-2: calendar identity settings"
+  },
+  {
+    "method": "PUT",
+    "path": "/calendar/identity/auto_time_zone",
+    "reason": "phase-2: calendar identity settings"
+  },
+  {
+    "method": "PATCH",
+    "path": "/calendar/identity/first_week_day",
+    "reason": "phase-2: calendar identity settings"
+  },
+  {
+    "method": "PUT",
+    "path": "/calendar/identity/first_week_day",
+    "reason": "phase-2: calendar identity settings"
+  },
+  {
+    "method": "PATCH",
+    "path": "/calendar/identity/time_format",
+    "reason": "phase-2: calendar identity settings"
+  },
+  {
+    "method": "PUT",
+    "path": "/calendar/identity/time_format",
+    "reason": "phase-2: calendar identity settings"
+  },
+  {
+    "method": "PATCH",
+    "path": "/calendar/identity/time_zone",
+    "reason": "phase-2: calendar identity settings"
+  },
+  {
+    "method": "PUT",
+    "path": "/calendar/identity/time_zone",
+    "reason": "phase-2: calendar identity settings"
+  },
+  {
+    "method": "POST",
+    "path": "/calendar/journal_entries",
+    "reason": "phase-2: calendar journal entries"
+  },
+  {
+    "method": "DELETE",
+    "path": "/calendar/journal_entries/{id}",
+    "reason": "phase-2: calendar journal entries"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/journal_entries/{id}",
+    "reason": "phase-2: calendar journal entries"
+  },
+  {
+    "method": "PATCH",
+    "path": "/calendar/journal_entries/{id}",
+    "reason": "phase-2: calendar journal entries"
+  },
+  {
+    "method": "PUT",
+    "path": "/calendar/journal_entries/{id}",
+    "reason": "phase-2: calendar journal entries"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/locations/suggestions",
+    "reason": "phase-2: calendar location suggestions"
+  },
+  {
+    "method": "POST",
+    "path": "/calendar/locations/suggestions",
+    "reason": "phase-2: calendar location suggestions"
+  },
+  {
+    "method": "DELETE",
+    "path": "/calendar/locations/suggestions/{id}",
+    "reason": "phase-2: calendar location suggestions"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/locations/suggestions/{id}",
+    "reason": "phase-2: calendar location suggestions"
+  },
+  {
+    "method": "PATCH",
+    "path": "/calendar/locations/suggestions/{id}",
+    "reason": "phase-2: calendar location suggestions"
+  },
+  {
+    "method": "PUT",
+    "path": "/calendar/locations/suggestions/{id}",
+    "reason": "phase-2: calendar location suggestions"
+  },
+  {
+    "method": "DELETE",
+    "path": "/calendar/ongoing_time_track",
+    "reason": "phase-2: calendar ongoing time track"
+  },
+  {
+    "method": "PATCH",
+    "path": "/calendar/ongoing_time_track",
+    "reason": "phase-2: calendar ongoing time track"
+  },
+  {
+    "method": "PUT",
+    "path": "/calendar/ongoing_time_track",
+    "reason": "phase-2: calendar ongoing time track"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/parsed_dates",
+    "reason": "phase-2: calendar parsed dates/events"
+  },
+  {
+    "method": "POST",
+    "path": "/calendar/parsed_dates",
+    "reason": "phase-2: calendar parsed dates/events"
+  },
+  {
+    "method": "DELETE",
+    "path": "/calendar/parsed_dates/{id}",
+    "reason": "phase-2: calendar parsed dates/events"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/parsed_dates/{id}",
+    "reason": "phase-2: calendar parsed dates/events"
+  },
+  {
+    "method": "PATCH",
+    "path": "/calendar/parsed_dates/{id}",
+    "reason": "phase-2: calendar parsed dates/events"
+  },
+  {
+    "method": "PUT",
+    "path": "/calendar/parsed_dates/{id}",
+    "reason": "phase-2: calendar parsed dates/events"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/parsed_events",
+    "reason": "phase-2: calendar parsed dates/events"
+  },
+  {
+    "method": "POST",
+    "path": "/calendar/parsed_events",
+    "reason": "phase-2: calendar parsed dates/events"
+  },
+  {
+    "method": "DELETE",
+    "path": "/calendar/parsed_events/{id}",
+    "reason": "phase-2: calendar parsed dates/events"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/parsed_events/{id}",
+    "reason": "phase-2: calendar parsed dates/events"
+  },
+  {
+    "method": "PATCH",
+    "path": "/calendar/parsed_events/{id}",
+    "reason": "phase-2: calendar parsed dates/events"
+  },
+  {
+    "method": "PUT",
+    "path": "/calendar/parsed_events/{id}",
+    "reason": "phase-2: calendar parsed dates/events"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/recordings",
+    "reason": "phase-2: calendar recordings"
+  },
+  {
+    "method": "POST",
+    "path": "/calendar/recordings",
+    "reason": "phase-2: calendar recordings"
+  },
+  {
+    "method": "DELETE",
+    "path": "/calendar/recordings/{id}",
+    "reason": "phase-2: calendar recordings"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/recordings/{id}",
+    "reason": "phase-2: calendar recordings"
+  },
+  {
+    "method": "PATCH",
+    "path": "/calendar/recordings/{id}",
+    "reason": "phase-2: calendar recordings"
+  },
+  {
+    "method": "PUT",
+    "path": "/calendar/recordings/{id}",
+    "reason": "phase-2: calendar recordings"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/recordings/{recording_id}/occurrences",
+    "reason": "phase-2: calendar recordings"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/reminders",
+    "reason": "phase-2: calendar reminders"
+  },
+  {
+    "method": "POST",
+    "path": "/calendar/reminders",
+    "reason": "phase-2: calendar reminders"
+  },
+  {
+    "method": "DELETE",
+    "path": "/calendar/reminders/{id}",
+    "reason": "phase-2: calendar reminders"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/reminders/{id}",
+    "reason": "phase-2: calendar reminders"
+  },
+  {
+    "method": "PATCH",
+    "path": "/calendar/reminders/{id}",
+    "reason": "phase-2: calendar reminders"
+  },
+  {
+    "method": "PUT",
+    "path": "/calendar/reminders/{id}",
+    "reason": "phase-2: calendar reminders"
+  },
+  {
+    "method": "DELETE",
+    "path": "/calendar/search",
+    "reason": "phase-2: calendar search"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/search",
+    "reason": "phase-2: calendar search"
+  },
+  {
+    "method": "PATCH",
+    "path": "/calendar/search",
+    "reason": "phase-2: calendar search"
+  },
+  {
+    "method": "POST",
+    "path": "/calendar/search",
+    "reason": "phase-2: calendar search"
+  },
+  {
+    "method": "PUT",
+    "path": "/calendar/search",
+    "reason": "phase-2: calendar search"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/search/results",
+    "reason": "phase-2: calendar search"
+  },
+  {
+    "method": "POST",
+    "path": "/calendar/search/results",
+    "reason": "phase-2: calendar search"
+  },
+  {
+    "method": "DELETE",
+    "path": "/calendar/search/results/{id}",
+    "reason": "phase-2: calendar search"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/search/results/{id}",
+    "reason": "phase-2: calendar search"
+  },
+  {
+    "method": "PATCH",
+    "path": "/calendar/search/results/{id}",
+    "reason": "phase-2: calendar search"
+  },
+  {
+    "method": "PUT",
+    "path": "/calendar/search/results/{id}",
+    "reason": "phase-2: calendar search"
+  },
+  {
+    "method": "POST",
+    "path": "/calendar/time_tracks",
+    "reason": "phase-2: calendar time tracking"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/time_tracks/categories",
+    "reason": "phase-2: calendar time tracking"
+  },
+  {
+    "method": "POST",
+    "path": "/calendar/time_tracks/categories",
+    "reason": "phase-2: calendar time tracking"
+  },
+  {
+    "method": "DELETE",
+    "path": "/calendar/time_tracks/categories/{category_id}/total_duration",
+    "reason": "phase-2: calendar time tracking"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/time_tracks/categories/{category_id}/total_duration",
+    "reason": "phase-2: calendar time tracking"
+  },
+  {
+    "method": "PATCH",
+    "path": "/calendar/time_tracks/categories/{category_id}/total_duration",
+    "reason": "phase-2: calendar time tracking"
+  },
+  {
+    "method": "POST",
+    "path": "/calendar/time_tracks/categories/{category_id}/total_duration",
+    "reason": "phase-2: calendar time tracking"
+  },
+  {
+    "method": "PUT",
+    "path": "/calendar/time_tracks/categories/{category_id}/total_duration",
+    "reason": "phase-2: calendar time tracking"
+  },
+  {
+    "method": "DELETE",
+    "path": "/calendar/time_tracks/categories/{id}",
+    "reason": "phase-2: calendar time tracking"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/time_tracks/categories/{id}",
+    "reason": "phase-2: calendar time tracking"
+  },
+  {
+    "method": "PATCH",
+    "path": "/calendar/time_tracks/categories/{id}",
+    "reason": "phase-2: calendar time tracking"
+  },
+  {
+    "method": "PUT",
+    "path": "/calendar/time_tracks/categories/{id}",
+    "reason": "phase-2: calendar time tracking"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/time_tracks/exports",
+    "reason": "phase-2: calendar time tracking"
+  },
+  {
+    "method": "DELETE",
+    "path": "/calendar/time_tracks/{id}",
+    "reason": "phase-2: calendar time tracking"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/time_tracks/{id}",
+    "reason": "phase-2: calendar time tracking"
+  },
+  {
+    "method": "PATCH",
+    "path": "/calendar/time_tracks/{id}",
+    "reason": "phase-2: calendar time tracking"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/todos/{id}",
+    "reason": "phase-2: calendar todo management"
+  },
+  {
+    "method": "PATCH",
+    "path": "/calendar/todos/{id}",
+    "reason": "phase-2: calendar todo management"
+  },
+  {
+    "method": "PUT",
+    "path": "/calendar/todos/{id}",
+    "reason": "phase-2: calendar todo management"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/todos/{todo_id}/completions",
+    "reason": "phase-2: calendar todo management"
+  },
+  {
+    "method": "PATCH",
+    "path": "/calendar/todos/{todo_id}/completions",
+    "reason": "phase-2: calendar todo management"
+  },
+  {
+    "method": "PUT",
+    "path": "/calendar/todos/{todo_id}/completions",
+    "reason": "phase-2: calendar todo management"
+  },
+  {
+    "method": "POST",
+    "path": "/calendar/todos/{todo_id}/moves",
+    "reason": "phase-2: calendar todo management"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/me",
+    "reason": "phase-2: calendar user profile"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/weeks",
+    "reason": "phase-2: calendar week view"
+  },
+  {
+    "method": "POST",
+    "path": "/calendar/weeks",
+    "reason": "phase-2: calendar week view"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/weeks/days",
+    "reason": "phase-2: calendar week view"
+  },
+  {
+    "method": "POST",
+    "path": "/calendar/weeks/days",
+    "reason": "phase-2: calendar week view"
+  },
+  {
+    "method": "DELETE",
+    "path": "/calendar/weeks/days/{day_id}/background",
+    "reason": "phase-2: calendar week view"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/weeks/days/{day_id}/background",
+    "reason": "phase-2: calendar week view"
+  },
+  {
+    "method": "PATCH",
+    "path": "/calendar/weeks/days/{day_id}/background",
+    "reason": "phase-2: calendar week view"
+  },
+  {
+    "method": "POST",
+    "path": "/calendar/weeks/days/{day_id}/background",
+    "reason": "phase-2: calendar week view"
+  },
+  {
+    "method": "PUT",
+    "path": "/calendar/weeks/days/{day_id}/background",
+    "reason": "phase-2: calendar week view"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/weeks/days/{day_id}/habits",
+    "reason": "phase-2: calendar week view"
+  },
+  {
+    "method": "POST",
+    "path": "/calendar/weeks/days/{day_id}/habits",
+    "reason": "phase-2: calendar week view"
+  },
+  {
+    "method": "DELETE",
+    "path": "/calendar/weeks/days/{day_id}/habits/{habit_id}/completions",
+    "reason": "phase-2: calendar week view"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/weeks/days/{day_id}/habits/{habit_id}/completions",
+    "reason": "phase-2: calendar week view"
+  },
+  {
+    "method": "PATCH",
+    "path": "/calendar/weeks/days/{day_id}/habits/{habit_id}/completions",
+    "reason": "phase-2: calendar week view"
+  },
+  {
+    "method": "POST",
+    "path": "/calendar/weeks/days/{day_id}/habits/{habit_id}/completions",
+    "reason": "phase-2: calendar week view"
+  },
+  {
+    "method": "PUT",
+    "path": "/calendar/weeks/days/{day_id}/habits/{habit_id}/completions",
+    "reason": "phase-2: calendar week view"
+  },
+  {
+    "method": "DELETE",
+    "path": "/calendar/weeks/days/{day_id}/habits/{id}",
+    "reason": "phase-2: calendar week view"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/weeks/days/{day_id}/habits/{id}",
+    "reason": "phase-2: calendar week view"
+  },
+  {
+    "method": "PATCH",
+    "path": "/calendar/weeks/days/{day_id}/habits/{id}",
+    "reason": "phase-2: calendar week view"
+  },
+  {
+    "method": "PUT",
+    "path": "/calendar/weeks/days/{day_id}/habits/{id}",
+    "reason": "phase-2: calendar week view"
+  },
+  {
+    "method": "DELETE",
+    "path": "/calendar/weeks/days/{day_id}/title",
+    "reason": "phase-2: calendar week view"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/weeks/days/{day_id}/title",
+    "reason": "phase-2: calendar week view"
+  },
+  {
+    "method": "PATCH",
+    "path": "/calendar/weeks/days/{day_id}/title",
+    "reason": "phase-2: calendar week view"
+  },
+  {
+    "method": "POST",
+    "path": "/calendar/weeks/days/{day_id}/title",
+    "reason": "phase-2: calendar week view"
+  },
+  {
+    "method": "PUT",
+    "path": "/calendar/weeks/days/{day_id}/title",
+    "reason": "phase-2: calendar week view"
+  },
+  {
+    "method": "DELETE",
+    "path": "/calendar/weeks/days/{id}",
+    "reason": "phase-2: calendar week view"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/weeks/days/{id}",
+    "reason": "phase-2: calendar week view"
+  },
+  {
+    "method": "PATCH",
+    "path": "/calendar/weeks/days/{id}",
+    "reason": "phase-2: calendar week view"
+  },
+  {
+    "method": "PUT",
+    "path": "/calendar/weeks/days/{id}",
+    "reason": "phase-2: calendar week view"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/weeks/events/{recording_id}",
+    "reason": "phase-2: calendar week view"
+  },
+  {
+    "method": "DELETE",
+    "path": "/calendar/weeks/{id}",
+    "reason": "phase-2: calendar week view"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/weeks/{id}",
+    "reason": "phase-2: calendar week view"
+  },
+  {
+    "method": "PATCH",
+    "path": "/calendar/weeks/{id}",
+    "reason": "phase-2: calendar week view"
+  },
+  {
+    "method": "PUT",
+    "path": "/calendar/weeks/{id}",
+    "reason": "phase-2: calendar week view"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/years",
+    "reason": "phase-2: calendar year view"
+  },
+  {
+    "method": "POST",
+    "path": "/calendar/years",
+    "reason": "phase-2: calendar year view"
+  },
+  {
+    "method": "DELETE",
+    "path": "/calendar/years/{id}",
+    "reason": "phase-2: calendar year view"
+  },
+  {
+    "method": "GET",
+    "path": "/calendar/years/{id}",
+    "reason": "phase-2: calendar year view"
+  },
+  {
+    "method": "PATCH",
+    "path": "/calendar/years/{id}",
+    "reason": "phase-2: calendar year view"
+  },
+  {
+    "method": "PUT",
+    "path": "/calendar/years/{id}",
+    "reason": "phase-2: calendar year view"
+  },
+  {
+    "method": "GET",
+    "path": "/clips",
+    "reason": "phase-2: clip management"
+  },
+  {
+    "method": "POST",
+    "path": "/clips",
+    "reason": "phase-2: clip management"
+  },
+  {
+    "method": "DELETE",
+    "path": "/clips/{id}",
+    "reason": "phase-2: clip management"
+  },
+  {
+    "method": "GET",
+    "path": "/clips/{id}",
+    "reason": "phase-2: clip management"
+  },
+  {
+    "method": "PATCH",
+    "path": "/clips/{id}",
+    "reason": "phase-2: clip management"
+  },
+  {
+    "method": "PUT",
+    "path": "/clips/{id}",
+    "reason": "phase-2: clip management"
+  },
+  {
+    "method": "GET",
+    "path": "/collections",
+    "reason": "phase-2: collections"
+  },
+  {
+    "method": "POST",
+    "path": "/collections",
+    "reason": "phase-2: collections"
+  },
+  {
+    "method": "GET",
+    "path": "/collections/{collection_id}/attachments",
+    "reason": "phase-2: collections"
+  },
+  {
+    "method": "POST",
+    "path": "/collections/{collection_id}/participations",
+    "reason": "phase-2: collections"
+  },
+  {
+    "method": "DELETE",
+    "path": "/collections/{collection_id}/participations/{id}",
+    "reason": "phase-2: collections"
+  },
+  {
+    "method": "GET",
+    "path": "/collections/{collection_id}/roster",
+    "reason": "phase-2: collections"
+  },
+  {
+    "method": "DELETE",
+    "path": "/collections/{collection_id}/status",
+    "reason": "phase-2: collections"
+  },
+  {
+    "method": "GET",
+    "path": "/collections/{collection_id}/status",
+    "reason": "phase-2: collections"
+  },
+  {
+    "method": "PUT",
+    "path": "/collections/{collection_id}/status/active",
+    "reason": "phase-2: collections"
+  },
+  {
+    "method": "GET",
+    "path": "/collections/{collection_id}/toolbar",
+    "reason": "phase-2: collections"
+  },
+  {
+    "method": "DELETE",
+    "path": "/collections/{id}",
+    "reason": "phase-2: collections"
+  },
+  {
+    "method": "GET",
+    "path": "/collections/{id}",
+    "reason": "phase-2: collections"
+  },
+  {
+    "method": "PATCH",
+    "path": "/collections/{id}",
+    "reason": "phase-2: collections"
+  },
+  {
+    "method": "PUT",
+    "path": "/collections/{id}",
+    "reason": "phase-2: collections"
+  },
+  {
+    "method": "POST",
+    "path": "/contacts/{contact_id}/merges",
+    "reason": "phase-2: contact CRUD"
+  },
+  {
+    "method": "PATCH",
+    "path": "/contacts/{contact_id}/name",
+    "reason": "phase-2: contact CRUD"
+  },
+  {
+    "method": "PUT",
+    "path": "/contacts/{contact_id}/name",
+    "reason": "phase-2: contact CRUD"
+  },
+  {
+    "method": "POST",
+    "path": "/contacts/{contact_id}/reveal",
+    "reason": "phase-2: contact CRUD"
+  },
+  {
+    "method": "DELETE",
+    "path": "/contacts/{id}",
+    "reason": "phase-2: contact CRUD"
+  },
+  {
+    "method": "PATCH",
+    "path": "/contacts/{id}",
+    "reason": "phase-2: contact CRUD"
+  },
+  {
+    "method": "PUT",
+    "path": "/contacts/{id}",
+    "reason": "phase-2: contact CRUD"
+  },
+  {
+    "method": "GET",
+    "path": "/contacts/{id}/denied",
+    "reason": "phase-2: contact CRUD"
+  },
+  {
+    "method": "GET",
+    "path": "/contacts/{id}/unexamined",
+    "reason": "phase-2: contact CRUD"
+  },
+  {
+    "method": "GET",
+    "path": "/contacts/{contact_id}/attachments",
+    "reason": "phase-2: contact attachments"
+  },
+  {
+    "method": "GET",
+    "path": "/contacts/{contact_id}/box",
+    "reason": "phase-2: contact box settings"
+  },
+  {
+    "method": "GET",
+    "path": "/contacts/{contact_id}/box_settings",
+    "reason": "phase-2: contact box settings"
+  },
+  {
+    "method": "DELETE",
+    "path": "/contacts/{contact_id}/bundle",
+    "reason": "phase-2: contact bundling"
+  },
+  {
+    "method": "POST",
+    "path": "/contacts/{contact_id}/bundle",
+    "reason": "phase-2: contact bundling"
+  },
+  {
+    "method": "DELETE",
+    "path": "/contacts/{contact_id}/clearance",
+    "reason": "phase-2: contact clearance"
+  },
+  {
+    "method": "GET",
+    "path": "/contacts/{contact_id}/clearance",
+    "reason": "phase-2: contact clearance"
+  },
+  {
+    "method": "PATCH",
+    "path": "/contacts/{contact_id}/clearance",
+    "reason": "phase-2: contact clearance"
+  },
+  {
+    "method": "POST",
+    "path": "/contacts/{contact_id}/clearance",
+    "reason": "phase-2: contact clearance"
+  },
+  {
+    "method": "PUT",
+    "path": "/contacts/{contact_id}/clearance",
+    "reason": "phase-2: contact clearance"
+  },
+  {
+    "method": "GET",
+    "path": "/contacts/{contact_id}/every_from",
+    "reason": "phase-2: contact history"
+  },
+  {
+    "method": "GET",
+    "path": "/contacts/{contact_id}/every_to",
+    "reason": "phase-2: contact history"
+  },
+  {
+    "method": "GET",
+    "path": "/contacts/imports",
+    "reason": "phase-2: contact import"
+  },
+  {
+    "method": "POST",
+    "path": "/contacts/imports",
+    "reason": "phase-2: contact import"
+  },
+  {
+    "method": "DELETE",
+    "path": "/contacts/imports/{id}",
+    "reason": "phase-2: contact import"
+  },
+  {
+    "method": "GET",
+    "path": "/contacts/imports/{id}",
+    "reason": "phase-2: contact import"
+  },
+  {
+    "method": "PATCH",
+    "path": "/contacts/imports/{id}",
+    "reason": "phase-2: contact import"
+  },
+  {
+    "method": "PUT",
+    "path": "/contacts/imports/{id}",
+    "reason": "phase-2: contact import"
+  },
+  {
+    "method": "DELETE",
+    "path": "/contacts/{contact_id}/note",
+    "reason": "phase-2: contact notes"
+  },
+  {
+    "method": "GET",
+    "path": "/contacts/{contact_id}/note",
+    "reason": "phase-2: contact notes"
+  },
+  {
+    "method": "PATCH",
+    "path": "/contacts/{contact_id}/note",
+    "reason": "phase-2: contact notes"
+  },
+  {
+    "method": "POST",
+    "path": "/contacts/{contact_id}/note",
+    "reason": "phase-2: contact notes"
+  },
+  {
+    "method": "PUT",
+    "path": "/contacts/{contact_id}/note",
+    "reason": "phase-2: contact notes"
+  },
+  {
+    "method": "POST",
+    "path": "/contacts/{contact_id}/note/typing",
+    "reason": "phase-2: contact notes"
+  },
+  {
+    "method": "GET",
+    "path": "/contacts/{contact_id}/notification_settings",
+    "reason": "phase-2: contact notification settings"
+  },
+  {
+    "method": "DELETE",
+    "path": "/contacts/{contact_id}/user",
+    "reason": "phase-2: contact user link"
+  },
+  {
+    "method": "GET",
+    "path": "/contacts/{contact_id}/user",
+    "reason": "phase-2: contact user link"
+  },
+  {
+    "method": "PATCH",
+    "path": "/contacts/{contact_id}/user",
+    "reason": "phase-2: contact user link"
+  },
+  {
+    "method": "POST",
+    "path": "/contacts/{contact_id}/user",
+    "reason": "phase-2: contact user link"
+  },
+  {
+    "method": "PUT",
+    "path": "/contacts/{contact_id}/user",
+    "reason": "phase-2: contact user link"
+  },
+  {
+    "method": "DELETE",
+    "path": "/contacts/denied",
+    "reason": "phase-2: denied contacts"
+  },
+  {
+    "method": "GET",
+    "path": "/contacts/denied",
+    "reason": "phase-2: denied contacts"
+  },
+  {
+    "method": "GET",
+    "path": "/domains/{domain_id}/attachments",
+    "reason": "phase-2: domain management"
+  },
+  {
+    "method": "DELETE",
+    "path": "/domains/{domain_id}/auto_screening",
+    "reason": "phase-2: domain management"
+  },
+  {
+    "method": "GET",
+    "path": "/domains/{domain_id}/auto_screening",
+    "reason": "phase-2: domain management"
+  },
+  {
+    "method": "PATCH",
+    "path": "/domains/{domain_id}/auto_screening",
+    "reason": "phase-2: domain management"
+  },
+  {
+    "method": "POST",
+    "path": "/domains/{domain_id}/auto_screening",
+    "reason": "phase-2: domain management"
+  },
+  {
+    "method": "PUT",
+    "path": "/domains/{domain_id}/auto_screening",
+    "reason": "phase-2: domain management"
+  },
+  {
+    "method": "GET",
+    "path": "/domains/{domain_id}/notification_settings",
+    "reason": "phase-2: domain management"
+  },
+  {
+    "method": "GET",
+    "path": "/domains/{id}",
+    "reason": "phase-2: domain management"
+  },
+  {
+    "method": "POST",
+    "path": "/entries/drafts",
+    "reason": "phase-2: draft management"
+  },
+  {
+    "method": "DELETE",
+    "path": "/entries/drafts/{id}",
+    "reason": "phase-2: draft management"
+  },
+  {
+    "method": "GET",
+    "path": "/entries/drafts/{id}",
+    "reason": "phase-2: draft management"
+  },
+  {
+    "method": "PATCH",
+    "path": "/entries/drafts/{id}",
+    "reason": "phase-2: draft management"
+  },
+  {
+    "method": "PUT",
+    "path": "/entries/drafts/{id}",
+    "reason": "phase-2: draft management"
+  },
+  {
+    "method": "POST",
+    "path": "/email_import",
+    "reason": "phase-2: email import"
+  },
+  {
+    "method": "POST",
+    "path": "/entries/editable_representations",
+    "reason": "phase-2: entry CRUD"
+  },
+  {
+    "method": "POST",
+    "path": "/entries/{entry_id}/redeliveries",
+    "reason": "phase-2: entry CRUD"
+  },
+  {
+    "method": "PUT",
+    "path": "/entries/{entry_id}/status/active",
+    "reason": "phase-2: entry CRUD"
+  },
+  {
+    "method": "PUT",
+    "path": "/entries/{entry_id}/status/trashed",
+    "reason": "phase-2: entry CRUD"
+  },
+  {
+    "method": "GET",
+    "path": "/entries/{id}",
+    "reason": "phase-2: entry CRUD"
+  },
+  {
+    "method": "GET",
+    "path": "/entries/{entry_id}/events",
+    "reason": "phase-2: entry calendar events"
+  },
+  {
+    "method": "POST",
+    "path": "/entries/{entry_id}/events",
+    "reason": "phase-2: entry calendar events"
+  },
+  {
+    "method": "DELETE",
+    "path": "/entries/{entry_id}/events/{id}",
+    "reason": "phase-2: entry calendar events"
+  },
+  {
+    "method": "GET",
+    "path": "/entries/{entry_id}/events/{id}",
+    "reason": "phase-2: entry calendar events"
+  },
+  {
+    "method": "PATCH",
+    "path": "/entries/{entry_id}/events/{id}",
+    "reason": "phase-2: entry calendar events"
+  },
+  {
+    "method": "PUT",
+    "path": "/entries/{entry_id}/events/{id}",
+    "reason": "phase-2: entry calendar events"
+  },
+  {
+    "method": "GET",
+    "path": "/entries/{entry_id}/forwards",
+    "reason": "phase-2: entry forwarding"
+  },
+  {
+    "method": "POST",
+    "path": "/entries/{entry_id}/forwards",
+    "reason": "phase-2: entry forwarding"
+  },
+  {
+    "method": "DELETE",
+    "path": "/entries/{entry_id}/forwards/{id}",
+    "reason": "phase-2: entry forwarding"
+  },
+  {
+    "method": "GET",
+    "path": "/entries/{entry_id}/forwards/{id}",
+    "reason": "phase-2: entry forwarding"
+  },
+  {
+    "method": "PATCH",
+    "path": "/entries/{entry_id}/forwards/{id}",
+    "reason": "phase-2: entry forwarding"
+  },
+  {
+    "method": "PUT",
+    "path": "/entries/{entry_id}/forwards/{id}",
+    "reason": "phase-2: entry forwarding"
+  },
+  {
+    "method": "GET",
+    "path": "/entries/{entry_id}/ical_events",
+    "reason": "phase-2: entry iCal events"
+  },
+  {
+    "method": "POST",
+    "path": "/entries/{entry_id}/ical_events/{ical_event_id}/outbound_replies",
+    "reason": "phase-2: entry iCal events"
+  },
+  {
+    "method": "POST",
+    "path": "/entries/{entry_id}/ical_events/{ical_event_id}/sync",
+    "reason": "phase-2: entry iCal events"
+  },
+  {
+    "method": "GET",
+    "path": "/entries/{entry_id}/ical_events/{id}",
+    "reason": "phase-2: entry iCal events"
+  },
+  {
+    "method": "GET",
+    "path": "/entries/parkings",
+    "reason": "phase-2: entry parking"
+  },
+  {
+    "method": "GET",
+    "path": "/entries/snippets",
+    "reason": "phase-2: entry snippets"
+  },
+  {
+    "method": "GET",
+    "path": "/entries/snippets/{id}",
+    "reason": "phase-2: entry snippets"
+  },
+  {
+    "method": "DELETE",
+    "path": "/entries/{entry_id}/spam_reports",
+    "reason": "phase-2: entry spam reports"
+  },
+  {
+    "method": "POST",
+    "path": "/entries/{entry_id}/spam_reports",
+    "reason": "phase-2: entry spam reports"
+  },
+  {
+    "method": "PUT",
+    "path": "/entries/{entry_id}/status/spam",
+    "reason": "phase-2: entry spam reports"
+  },
+  {
+    "method": "GET",
+    "path": "/folders",
+    "reason": "phase-2: folder management"
+  },
+  {
+    "method": "POST",
+    "path": "/folders",
+    "reason": "phase-2: folder management"
+  },
+  {
+    "method": "GET",
+    "path": "/folders/{folder_id}/attachments",
+    "reason": "phase-2: folder management"
+  },
+  {
+    "method": "GET",
+    "path": "/folders/{folder_id}/options",
+    "reason": "phase-2: folder management"
+  },
+  {
+    "method": "DELETE",
+    "path": "/folders/{id}",
+    "reason": "phase-2: folder management"
+  },
+  {
+    "method": "GET",
+    "path": "/folders/{id}",
+    "reason": "phase-2: folder management"
+  },
+  {
+    "method": "PATCH",
+    "path": "/folders/{id}",
+    "reason": "phase-2: folder management"
+  },
+  {
+    "method": "PUT",
+    "path": "/folders/{id}",
+    "reason": "phase-2: folder management"
+  },
+  {
+    "method": "GET",
+    "path": "/imbox/bubbled_up",
+    "reason": "phase-2: imbox management"
+  },
+  {
+    "method": "GET",
+    "path": "/imbox/seen",
+    "reason": "phase-2: imbox management"
+  },
+  {
+    "method": "GET",
+    "path": "/imbox/unseen",
+    "reason": "phase-2: imbox management"
+  },
+  {
+    "method": "DELETE",
+    "path": "/inbound_forwardings/{id}",
+    "reason": "phase-2: inbound forwarding"
+  },
+  {
+    "method": "GET",
+    "path": "/memberships",
+    "reason": "phase-2: membership management"
+  },
+  {
+    "method": "POST",
+    "path": "/memberships",
+    "reason": "phase-2: membership management"
+  },
+  {
+    "method": "DELETE",
+    "path": "/memberships/{id}",
+    "reason": "phase-2: membership management"
+  },
+  {
+    "method": "GET",
+    "path": "/memberships/{id}",
+    "reason": "phase-2: membership management"
+  },
+  {
+    "method": "PATCH",
+    "path": "/memberships/{id}",
+    "reason": "phase-2: membership management"
+  },
+  {
+    "method": "PUT",
+    "path": "/memberships/{id}",
+    "reason": "phase-2: membership management"
+  },
+  {
+    "method": "DELETE",
+    "path": "/messages/{id}",
+    "reason": "phase-2: message CRUD"
+  },
+  {
+    "method": "PATCH",
+    "path": "/messages/{id}",
+    "reason": "phase-2: message CRUD"
+  },
+  {
+    "method": "PUT",
+    "path": "/messages/{id}",
+    "reason": "phase-2: message CRUD"
+  },
+  {
+    "method": "GET",
+    "path": "/messages",
+    "reason": "phase-2: message listing"
+  },
+  {
+    "method": "DELETE",
+    "path": "/alert",
+    "reason": "phase-2: mobile alert banner"
+  },
+  {
+    "method": "GET",
+    "path": "/alert",
+    "reason": "phase-2: mobile alert banner"
+  },
+  {
+    "method": "PATCH",
+    "path": "/alert",
+    "reason": "phase-2: mobile alert banner"
+  },
+  {
+    "method": "POST",
+    "path": "/alert",
+    "reason": "phase-2: mobile alert banner"
+  },
+  {
+    "method": "PUT",
+    "path": "/alert",
+    "reason": "phase-2: mobile alert banner"
+  },
+  {
+    "method": "POST",
+    "path": "/boxes",
+    "reason": "phase-2: mobile triage surface"
+  },
+  {
+    "method": "DELETE",
+    "path": "/boxes/{box_id}/cover",
+    "reason": "phase-2: mobile triage surface"
+  },
+  {
+    "method": "GET",
+    "path": "/boxes/{box_id}/cover",
+    "reason": "phase-2: mobile triage surface"
+  },
+  {
+    "method": "PATCH",
+    "path": "/boxes/{box_id}/cover",
+    "reason": "phase-2: mobile triage surface"
+  },
+  {
+    "method": "POST",
+    "path": "/boxes/{box_id}/cover",
+    "reason": "phase-2: mobile triage surface"
+  },
+  {
+    "method": "PUT",
+    "path": "/boxes/{box_id}/cover",
+    "reason": "phase-2: mobile triage surface"
+  },
+  {
+    "method": "POST",
+    "path": "/boxes/{box_id}/designations",
+    "reason": "phase-2: mobile triage surface"
+  },
+  {
+    "method": "DELETE",
+    "path": "/boxes/{box_id}/designations/{id}",
+    "reason": "phase-2: mobile triage surface"
+  },
+  {
+    "method": "DELETE",
+    "path": "/boxes/{box_id}/glance",
+    "reason": "phase-2: mobile triage surface"
+  },
+  {
+    "method": "GET",
+    "path": "/boxes/{box_id}/glance",
+    "reason": "phase-2: mobile triage surface"
+  },
+  {
+    "method": "PATCH",
+    "path": "/boxes/{box_id}/glance",
+    "reason": "phase-2: mobile triage surface"
+  },
+  {
+    "method": "POST",
+    "path": "/boxes/{box_id}/glance",
+    "reason": "phase-2: mobile triage surface"
+  },
+  {
+    "method": "PUT",
+    "path": "/boxes/{box_id}/glance",
+    "reason": "phase-2: mobile triage surface"
+  },
+  {
+    "method": "GET",
+    "path": "/boxes/{box_id}/groups",
+    "reason": "phase-2: mobile triage surface"
+  },
+  {
+    "method": "POST",
+    "path": "/boxes/{box_id}/groups",
+    "reason": "phase-2: mobile triage surface"
+  },
+  {
+    "method": "DELETE",
+    "path": "/boxes/{box_id}/groups/{id}",
+    "reason": "phase-2: mobile triage surface"
+  },
+  {
+    "method": "GET",
+    "path": "/boxes/{box_id}/groups/{id}",
+    "reason": "phase-2: mobile triage surface"
+  },
+  {
+    "method": "PATCH",
+    "path": "/boxes/{box_id}/groups/{id}",
+    "reason": "phase-2: mobile triage surface"
+  },
+  {
+    "method": "PUT",
+    "path": "/boxes/{box_id}/groups/{id}",
+    "reason": "phase-2: mobile triage surface"
+  },
+  {
+    "method": "GET",
+    "path": "/boxes/{box_id}/missing_postings",
+    "reason": "phase-2: mobile triage surface"
+  },
+  {
+    "method": "POST",
+    "path": "/boxes/{box_id}/missing_postings",
+    "reason": "phase-2: mobile triage surface"
+  },
+  {
+    "method": "DELETE",
+    "path": "/boxes/{box_id}/observation",
+    "reason": "phase-2: mobile triage surface"
+  },
+  {
+    "method": "GET",
+    "path": "/boxes/{box_id}/observation",
+    "reason": "phase-2: mobile triage surface"
+  },
+  {
+    "method": "PATCH",
+    "path": "/boxes/{box_id}/observation",
+    "reason": "phase-2: mobile triage surface"
+  },
+  {
+    "method": "POST",
+    "path": "/boxes/{box_id}/observation",
+    "reason": "phase-2: mobile triage surface"
+  },
+  {
+    "method": "PUT",
+    "path": "/boxes/{box_id}/observation",
+    "reason": "phase-2: mobile triage surface"
+  },
+  {
+    "method": "DELETE",
+    "path": "/boxes/{box_id}/onboardings",
+    "reason": "phase-2: mobile triage surface"
+  },
+  {
+    "method": "GET",
+    "path": "/boxes/{box_id}/onboardings",
+    "reason": "phase-2: mobile triage surface"
+  },
+  {
+    "method": "PATCH",
+    "path": "/boxes/{box_id}/onboardings",
+    "reason": "phase-2: mobile triage surface"
+  },
+  {
+    "method": "POST",
+    "path": "/boxes/{box_id}/onboardings",
+    "reason": "phase-2: mobile triage surface"
+  },
+  {
+    "method": "PUT",
+    "path": "/boxes/{box_id}/onboardings",
+    "reason": "phase-2: mobile triage surface"
+  },
+  {
+    "method": "GET",
+    "path": "/boxes/{box_id}/postings/changes",
+    "reason": "phase-2: mobile triage surface"
+  },
+  {
+    "method": "DELETE",
+    "path": "/boxes/{id}",
+    "reason": "phase-2: mobile triage surface"
+  },
+  {
+    "method": "PATCH",
+    "path": "/boxes/{id}",
+    "reason": "phase-2: mobile triage surface"
+  },
+  {
+    "method": "PUT",
+    "path": "/boxes/{id}",
+    "reason": "phase-2: mobile triage surface"
+  },
+  {
+    "method": "POST",
+    "path": "/calendars",
+    "reason": "phase-2: mobile triage surface"
+  },
+  {
+    "method": "POST",
+    "path": "/contacts",
+    "reason": "phase-2: mobile triage surface"
+  },
+  {
+    "method": "PATCH",
+    "path": "/identity/auto_time_zone",
+    "reason": "phase-2: mobile triage surface"
+  },
+  {
+    "method": "PUT",
+    "path": "/identity/auto_time_zone",
+    "reason": "phase-2: mobile triage surface"
+  },
+  {
+    "method": "PATCH",
+    "path": "/identity/default_sender",
+    "reason": "phase-2: mobile triage surface"
+  },
+  {
+    "method": "PUT",
+    "path": "/identity/default_sender",
+    "reason": "phase-2: mobile triage surface"
+  },
+  {
+    "method": "DELETE",
+    "path": "/identity/password_reset",
+    "reason": "phase-2: mobile triage surface"
+  },
+  {
+    "method": "GET",
+    "path": "/identity/password_reset",
+    "reason": "phase-2: mobile triage surface"
+  },
+  {
+    "method": "PATCH",
+    "path": "/identity/password_reset",
+    "reason": "phase-2: mobile triage surface"
+  },
+  {
+    "method": "POST",
+    "path": "/identity/password_reset",
+    "reason": "phase-2: mobile triage surface"
+  },
+  {
+    "method": "PUT",
+    "path": "/identity/password_reset",
+    "reason": "phase-2: mobile triage surface"
+  },
+  {
+    "method": "PATCH",
+    "path": "/identity/time_format",
+    "reason": "phase-2: mobile triage surface"
+  },
+  {
+    "method": "PUT",
+    "path": "/identity/time_format",
+    "reason": "phase-2: mobile triage surface"
+  },
+  {
+    "method": "PATCH",
+    "path": "/identity/time_zone",
+    "reason": "phase-2: mobile triage surface"
+  },
+  {
+    "method": "PUT",
+    "path": "/identity/time_zone",
+    "reason": "phase-2: mobile triage surface"
+  },
+  {
+    "method": "PATCH",
+    "path": "/identity/undo_send",
+    "reason": "phase-2: mobile triage surface"
+  },
+  {
+    "method": "PUT",
+    "path": "/identity/undo_send",
+    "reason": "phase-2: mobile triage surface"
+  },
+  {
+    "method": "DELETE",
+    "path": "/outbound_forwardings/{id}",
+    "reason": "phase-2: outbound forwarding"
+  },
+  {
+    "method": "DELETE",
+    "path": "/my/account_filter",
+    "reason": "phase-2: personal settings and preferences"
+  },
+  {
+    "method": "POST",
+    "path": "/my/account_filter",
+    "reason": "phase-2: personal settings and preferences"
+  },
+  {
+    "method": "GET",
+    "path": "/my/accounts/{account_id}/contact_groups",
+    "reason": "phase-2: personal settings and preferences"
+  },
+  {
+    "method": "POST",
+    "path": "/my/accounts/{account_id}/contact_groups",
+    "reason": "phase-2: personal settings and preferences"
+  },
+  {
+    "method": "DELETE",
+    "path": "/my/accounts/{account_id}/contact_groups/{id}",
+    "reason": "phase-2: personal settings and preferences"
+  },
+  {
+    "method": "GET",
+    "path": "/my/accounts/{account_id}/contact_groups/{id}",
+    "reason": "phase-2: personal settings and preferences"
+  },
+  {
+    "method": "PATCH",
+    "path": "/my/accounts/{account_id}/contact_groups/{id}",
+    "reason": "phase-2: personal settings and preferences"
+  },
+  {
+    "method": "PUT",
+    "path": "/my/accounts/{account_id}/contact_groups/{id}",
+    "reason": "phase-2: personal settings and preferences"
+  },
+  {
+    "method": "GET",
+    "path": "/my/accounts/{account_id}/external_accounts",
+    "reason": "phase-2: personal settings and preferences"
+  },
+  {
+    "method": "POST",
+    "path": "/my/accounts/{account_id}/external_accounts",
+    "reason": "phase-2: personal settings and preferences"
+  },
+  {
+    "method": "DELETE",
+    "path": "/my/accounts/{account_id}/external_accounts/faq",
+    "reason": "phase-2: personal settings and preferences"
+  },
+  {
+    "method": "GET",
+    "path": "/my/accounts/{account_id}/external_accounts/faq",
+    "reason": "phase-2: personal settings and preferences"
+  },
+  {
+    "method": "PATCH",
+    "path": "/my/accounts/{account_id}/external_accounts/faq",
+    "reason": "phase-2: personal settings and preferences"
+  },
+  {
+    "method": "POST",
+    "path": "/my/accounts/{account_id}/external_accounts/faq",
+    "reason": "phase-2: personal settings and preferences"
+  },
+  {
+    "method": "PUT",
+    "path": "/my/accounts/{account_id}/external_accounts/faq",
+    "reason": "phase-2: personal settings and preferences"
+  },
+  {
+    "method": "DELETE",
+    "path": "/my/accounts/{account_id}/external_accounts/{external_account_id}/contact",
+    "reason": "phase-2: personal settings and preferences"
+  },
+  {
+    "method": "GET",
+    "path": "/my/accounts/{account_id}/external_accounts/{external_account_id}/contact",
+    "reason": "phase-2: personal settings and preferences"
+  },
+  {
+    "method": "PATCH",
+    "path": "/my/accounts/{account_id}/external_accounts/{external_account_id}/contact",
+    "reason": "phase-2: personal settings and preferences"
+  },
+  {
+    "method": "POST",
+    "path": "/my/accounts/{account_id}/external_accounts/{external_account_id}/contact",
+    "reason": "phase-2: personal settings and preferences"
+  },
+  {
+    "method": "PUT",
+    "path": "/my/accounts/{account_id}/external_accounts/{external_account_id}/contact",
+    "reason": "phase-2: personal settings and preferences"
+  },
+  {
+    "method": "DELETE",
+    "path": "/my/accounts/{account_id}/external_accounts/{external_account_id}/delivery_configuration",
+    "reason": "phase-2: personal settings and preferences"
+  },
+  {
+    "method": "GET",
+    "path": "/my/accounts/{account_id}/external_accounts/{external_account_id}/delivery_configuration",
+    "reason": "phase-2: personal settings and preferences"
+  },
+  {
+    "method": "PATCH",
+    "path": "/my/accounts/{account_id}/external_accounts/{external_account_id}/delivery_configuration",
+    "reason": "phase-2: personal settings and preferences"
+  },
+  {
+    "method": "POST",
+    "path": "/my/accounts/{account_id}/external_accounts/{external_account_id}/delivery_configuration",
+    "reason": "phase-2: personal settings and preferences"
+  },
+  {
+    "method": "PUT",
+    "path": "/my/accounts/{account_id}/external_accounts/{external_account_id}/delivery_configuration",
+    "reason": "phase-2: personal settings and preferences"
+  },
+  {
+    "method": "POST",
+    "path": "/my/accounts/{account_id}/external_accounts/{external_account_id}/delivery_configuration/retry",
+    "reason": "phase-2: personal settings and preferences"
+  },
+  {
+    "method": "DELETE",
+    "path": "/my/accounts/{account_id}/external_accounts/{external_account_id}/forwarding",
+    "reason": "phase-2: personal settings and preferences"
+  },
+  {
+    "method": "GET",
+    "path": "/my/accounts/{account_id}/external_accounts/{external_account_id}/forwarding",
+    "reason": "phase-2: personal settings and preferences"
+  },
+  {
+    "method": "PATCH",
+    "path": "/my/accounts/{account_id}/external_accounts/{external_account_id}/forwarding",
+    "reason": "phase-2: personal settings and preferences"
+  },
+  {
+    "method": "POST",
+    "path": "/my/accounts/{account_id}/external_accounts/{external_account_id}/forwarding",
+    "reason": "phase-2: personal settings and preferences"
+  },
+  {
+    "method": "PUT",
+    "path": "/my/accounts/{account_id}/external_accounts/{external_account_id}/forwarding",
+    "reason": "phase-2: personal settings and preferences"
+  },
+  {
+    "method": "DELETE",
+    "path": "/my/accounts/{account_id}/external_accounts/{external_account_id}/gmail_configuration",
+    "reason": "phase-2: personal settings and preferences"
+  },
+  {
+    "method": "GET",
+    "path": "/my/accounts/{account_id}/external_accounts/{external_account_id}/gmail_configuration",
+    "reason": "phase-2: personal settings and preferences"
+  },
+  {
+    "method": "POST",
+    "path": "/my/accounts/{account_id}/external_accounts/{external_account_id}/gmail_configuration/skip",
+    "reason": "phase-2: personal settings and preferences"
+  },
+  {
+    "method": "DELETE",
+    "path": "/my/accounts/{account_id}/external_accounts/{external_account_id}/outlook_configuration",
+    "reason": "phase-2: personal settings and preferences"
+  },
+  {
+    "method": "GET",
+    "path": "/my/accounts/{account_id}/external_accounts/{external_account_id}/outlook_configuration",
+    "reason": "phase-2: personal settings and preferences"
+  },
+  {
+    "method": "PATCH",
+    "path": "/my/accounts/{account_id}/external_accounts/{external_account_id}/outlook_configuration",
+    "reason": "phase-2: personal settings and preferences"
+  },
+  {
+    "method": "POST",
+    "path": "/my/accounts/{account_id}/external_accounts/{external_account_id}/outlook_configuration",
+    "reason": "phase-2: personal settings and preferences"
+  },
+  {
+    "method": "PUT",
+    "path": "/my/accounts/{account_id}/external_accounts/{external_account_id}/outlook_configuration",
+    "reason": "phase-2: personal settings and preferences"
+  },
+  {
+    "method": "POST",
+    "path": "/my/accounts/{account_id}/external_accounts/{external_account_id}/outlook_configuration/skip",
+    "reason": "phase-2: personal settings and preferences"
+  },
+  {
+    "method": "DELETE",
+    "path": "/my/accounts/{account_id}/external_accounts/{external_account_id}/smtp_configuration",
+    "reason": "phase-2: personal settings and preferences"
+  },
+  {
+    "method": "GET",
+    "path": "/my/accounts/{account_id}/external_accounts/{external_account_id}/smtp_configuration",
+    "reason": "phase-2: personal settings and preferences"
+  },
+  {
+    "method": "PATCH",
+    "path": "/my/accounts/{account_id}/external_accounts/{external_account_id}/smtp_configuration",
+    "reason": "phase-2: personal settings and preferences"
+  },
+  {
+    "method": "POST",
+    "path": "/my/accounts/{account_id}/external_accounts/{external_account_id}/smtp_configuration",
+    "reason": "phase-2: personal settings and preferences"
+  },
+  {
+    "method": "PUT",
+    "path": "/my/accounts/{account_id}/external_accounts/{external_account_id}/smtp_configuration",
+    "reason": "phase-2: personal settings and preferences"
+  },
+  {
+    "method": "POST",
+    "path": "/my/accounts/{account_id}/external_accounts/{external_account_id}/smtp_configuration/retry",
+    "reason": "phase-2: personal settings and preferences"
+  },
+  {
+    "method": "DELETE",
+    "path": "/my/accounts/{account_id}/external_accounts/{external_account_id}/smtp_guard",
+    "reason": "phase-2: personal settings and preferences"
+  },
+  {
+    "method": "GET",
+    "path": "/my/accounts/{account_id}/external_accounts/{external_account_id}/smtp_guard",
+    "reason": "phase-2: personal settings and preferences"
+  },
+  {
+    "method": "PATCH",
+    "path": "/my/accounts/{account_id}/external_accounts/{external_account_id}/smtp_guard",
+    "reason": "phase-2: personal settings and preferences"
+  },
+  {
+    "method": "POST",
+    "path": "/my/accounts/{account_id}/external_accounts/{external_account_id}/smtp_guard",
+    "reason": "phase-2: personal settings and preferences"
+  },
+  {
+    "method": "PUT",
+    "path": "/my/accounts/{account_id}/external_accounts/{external_account_id}/smtp_guard",
+    "reason": "phase-2: personal settings and preferences"
+  },
+  {
+    "method": "DELETE",
+    "path": "/my/accounts/{account_id}/external_accounts/{external_account_id}/trash",
+    "reason": "phase-2: personal settings and preferences"
+  },
+  {
+    "method": "GET",
+    "path": "/my/accounts/{account_id}/external_accounts/{external_account_id}/trash",
+    "reason": "phase-2: personal settings and preferences"
+  },
+  {
+    "method": "PATCH",
+    "path": "/my/accounts/{account_id}/external_accounts/{external_account_id}/trash",
+    "reason": "phase-2: personal settings and preferences"
+  },
+  {
+    "method": "POST",
+    "path": "/my/accounts/{account_id}/external_accounts/{external_account_id}/trash",
+    "reason": "phase-2: personal settings and preferences"
+  },
+  {
+    "method": "PUT",
+    "path": "/my/accounts/{account_id}/external_accounts/{external_account_id}/trash",
+    "reason": "phase-2: personal settings and preferences"
+  },
+  {
+    "method": "DELETE",
+    "path": "/my/accounts/{account_id}/external_accounts/{id}",
+    "reason": "phase-2: personal settings and preferences"
+  },
+  {
+    "method": "GET",
+    "path": "/my/accounts/{account_id}/external_accounts/{id}",
+    "reason": "phase-2: personal settings and preferences"
+  },
+  {
+    "method": "PATCH",
+    "path": "/my/accounts/{account_id}/external_accounts/{id}",
+    "reason": "phase-2: personal settings and preferences"
+  },
+  {
+    "method": "PUT",
+    "path": "/my/accounts/{account_id}/external_accounts/{id}",
+    "reason": "phase-2: personal settings and preferences"
+  },
+  {
+    "method": "DELETE",
+    "path": "/my/accounts/{account_id}/forwardings/inbounds",
+    "reason": "phase-2: personal settings and preferences"
+  },
+  {
+    "method": "GET",
+    "path": "/my/accounts/{account_id}/forwardings/inbounds",
+    "reason": "phase-2: personal settings and preferences"
+  },
+  {
+    "method": "PATCH",
+    "path": "/my/accounts/{account_id}/forwardings/inbounds",
+    "reason": "phase-2: personal settings and preferences"
+  },
+  {
+    "method": "POST",
+    "path": "/my/accounts/{account_id}/forwardings/inbounds",
+    "reason": "phase-2: personal settings and preferences"
+  },
+  {
+    "method": "PUT",
+    "path": "/my/accounts/{account_id}/forwardings/inbounds",
+    "reason": "phase-2: personal settings and preferences"
+  },
+  {
+    "method": "DELETE",
+    "path": "/my/accounts/{account_id}/forwardings/outbounds",
+    "reason": "phase-2: personal settings and preferences"
+  },
+  {
+    "method": "GET",
+    "path": "/my/accounts/{account_id}/forwardings/outbounds",
+    "reason": "phase-2: personal settings and preferences"
+  },
+  {
+    "method": "PATCH",
+    "path": "/my/accounts/{account_id}/forwardings/outbounds",
+    "reason": "phase-2: personal settings and preferences"
+  },
+  {
+    "method": "POST",
+    "path": "/my/accounts/{account_id}/forwardings/outbounds",
+    "reason": "phase-2: personal settings and preferences"
+  },
+  {
+    "method": "PUT",
+    "path": "/my/accounts/{account_id}/forwardings/outbounds",
+    "reason": "phase-2: personal settings and preferences"
+  },
+  {
+    "method": "GET",
+    "path": "/my/accounts/{account_id}/publications",
+    "reason": "phase-2: personal settings and preferences"
+  },
+  {
+    "method": "DELETE",
+    "path": "/my/accounts/{account_id}/publications/{id}",
+    "reason": "phase-2: personal settings and preferences"
+  },
+  {
+    "method": "GET",
+    "path": "/my/accounts/{account_id}/recyclables",
+    "reason": "phase-2: personal settings and preferences"
+  },
+  {
+    "method": "DELETE",
+    "path": "/my/accounts/{account_id}/recyclables/{recyclable_id}",
+    "reason": "phase-2: personal settings and preferences"
+  },
+  {
+    "method": "GET",
+    "path": "/my/accounts/{account_id}/recyclables/{recyclable_id}",
+    "reason": "phase-2: personal settings and preferences"
+  },
+  {
+    "method": "PATCH",
+    "path": "/my/accounts/{account_id}/recyclables/{recyclable_id}",
+    "reason": "phase-2: personal settings and preferences"
+  },
+  {
+    "method": "PUT",
+    "path": "/my/accounts/{account_id}/recyclables/{recyclable_id}",
+    "reason": "phase-2: personal settings and preferences"
+  },
+  {
+    "method": "GET",
+    "path": "/my/accounts/{account_id}/searches",
+    "reason": "phase-2: personal settings and preferences"
+  },
+  {
+    "method": "GET",
+    "path": "/my/alert",
+    "reason": "phase-2: personal settings and preferences"
+  },
+  {
+    "method": "GET",
+    "path": "/my/appearances",
+    "reason": "phase-2: personal settings and preferences"
+  },
+  {
+    "method": "GET",
+    "path": "/my/authentications",
+    "reason": "phase-2: personal settings and preferences"
+  },
+  {
+    "method": "GET",
+    "path": "/my/authentications/events",
+    "reason": "phase-2: personal settings and preferences"
+  },
+  {
+    "method": "GET",
+    "path": "/my/auto_responders",
+    "reason": "phase-2: personal settings and preferences"
+  },
+  {
+    "method": "GET",
+    "path": "/my/auto_responders/notice",
+    "reason": "phase-2: personal settings and preferences"
+  },
+  {
+    "method": "GET",
+    "path": "/my/clearances",
+    "reason": "phase-2: personal settings and preferences"
+  },
+  {
+    "method": "PATCH",
+    "path": "/my/clearances/{id}",
+    "reason": "phase-2: personal settings and preferences"
+  },
+  {
+    "method": "PUT",
+    "path": "/my/clearances/{id}",
+    "reason": "phase-2: personal settings and preferences"
+  },
+  {
+    "method": "GET",
+    "path": "/my/domains/auto_screenings",
+    "reason": "phase-2: personal settings and preferences"
+  },
+  {
+    "method": "PATCH",
+    "path": "/my/domains/auto_screenings/{id}",
+    "reason": "phase-2: personal settings and preferences"
+  },
+  {
+    "method": "PUT",
+    "path": "/my/domains/auto_screenings/{id}",
+    "reason": "phase-2: personal settings and preferences"
+  },
+  {
+    "method": "GET",
+    "path": "/my/external_accounts",
+    "reason": "phase-2: personal settings and preferences"
+  },
+  {
+    "method": "POST",
+    "path": "/my/external_accounts",
+    "reason": "phase-2: personal settings and preferences"
+  },
+  {
+    "method": "DELETE",
+    "path": "/my/external_accounts/{id}",
+    "reason": "phase-2: personal settings and preferences"
+  },
+  {
+    "method": "GET",
+    "path": "/my/external_accounts/{id}",
+    "reason": "phase-2: personal settings and preferences"
+  },
+  {
+    "method": "PATCH",
+    "path": "/my/external_accounts/{id}",
+    "reason": "phase-2: personal settings and preferences"
+  },
+  {
+    "method": "PUT",
+    "path": "/my/external_accounts/{id}",
+    "reason": "phase-2: personal settings and preferences"
+  },
+  {
+    "method": "GET",
+    "path": "/my/forwardings/outbounds/verification",
+    "reason": "phase-2: personal settings and preferences"
+  },
+  {
+    "method": "PATCH",
+    "path": "/my/forwardings/outbounds/verification",
+    "reason": "phase-2: personal settings and preferences"
+  },
+  {
+    "method": "PUT",
+    "path": "/my/forwardings/outbounds/verification",
+    "reason": "phase-2: personal settings and preferences"
+  },
+  {
+    "method": "GET",
+    "path": "/my/forwardings/outbounds/verification/failed",
+    "reason": "phase-2: personal settings and preferences"
+  },
+  {
+    "method": "GET",
+    "path": "/my/forwardings/outbounds/verification/successful",
+    "reason": "phase-2: personal settings and preferences"
+  },
+  {
+    "method": "GET",
+    "path": "/my/gmail_session",
+    "reason": "phase-2: personal settings and preferences"
+  },
+  {
+    "method": "GET",
+    "path": "/my/inbound_redeliveries",
+    "reason": "phase-2: personal settings and preferences"
+  },
+  {
+    "method": "DELETE",
+    "path": "/my/inbound_redeliveries/{id}",
+    "reason": "phase-2: personal settings and preferences"
+  },
+  {
+    "method": "GET",
+    "path": "/my/navigation/calendar",
+    "reason": "phase-2: personal settings and preferences"
+  },
+  {
+    "method": "GET",
+    "path": "/my/navigation/contacts",
+    "reason": "phase-2: personal settings and preferences"
+  },
+  {
+    "method": "GET",
+    "path": "/my/notification_bells",
+    "reason": "phase-2: personal settings and preferences"
+  },
+  {
+    "method": "POST",
+    "path": "/my/notification_bells",
+    "reason": "phase-2: personal settings and preferences"
+  },
+  {
+    "method": "DELETE",
+    "path": "/my/notification_bells/{id}",
+    "reason": "phase-2: personal settings and preferences"
+  },
+  {
+    "method": "GET",
+    "path": "/my/notification_bells/{id}",
+    "reason": "phase-2: personal settings and preferences"
+  },
+  {
+    "method": "PATCH",
+    "path": "/my/notification_bells/{id}",
+    "reason": "phase-2: personal settings and preferences"
+  },
+  {
+    "method": "PUT",
+    "path": "/my/notification_bells/{id}",
+    "reason": "phase-2: personal settings and preferences"
+  },
+  {
+    "method": "POST",
+    "path": "/my/notification_bells/{id}/toggle",
+    "reason": "phase-2: personal settings and preferences"
+  },
+  {
+    "method": "GET",
+    "path": "/my/outlook_session",
+    "reason": "phase-2: personal settings and preferences"
+  },
+  {
+    "method": "DELETE",
+    "path": "/my/preapproval",
+    "reason": "phase-2: personal settings and preferences"
+  },
+  {
+    "method": "GET",
+    "path": "/my/preapproval",
+    "reason": "phase-2: personal settings and preferences"
+  },
+  {
+    "method": "POST",
+    "path": "/my/preapproval",
+    "reason": "phase-2: personal settings and preferences"
+  },
+  {
+    "method": "GET",
+    "path": "/my/sessions",
+    "reason": "phase-2: personal settings and preferences"
+  },
+  {
+    "method": "DELETE",
+    "path": "/my/sessions/{id}",
+    "reason": "phase-2: personal settings and preferences"
+  },
+  {
+    "method": "DELETE",
+    "path": "/my/spam_spotter",
+    "reason": "phase-2: personal settings and preferences"
+  },
+  {
+    "method": "GET",
+    "path": "/my/spam_spotter",
+    "reason": "phase-2: personal settings and preferences"
+  },
+  {
+    "method": "PATCH",
+    "path": "/my/spam_spotter",
+    "reason": "phase-2: personal settings and preferences"
+  },
+  {
+    "method": "POST",
+    "path": "/my/spam_spotter",
+    "reason": "phase-2: personal settings and preferences"
+  },
+  {
+    "method": "PUT",
+    "path": "/my/spam_spotter",
+    "reason": "phase-2: personal settings and preferences"
+  },
+  {
+    "method": "GET",
+    "path": "/my/users/{user_id}/auto_responder",
+    "reason": "phase-2: personal settings and preferences"
+  },
+  {
+    "method": "PATCH",
+    "path": "/my/users/{user_id}/auto_responder",
+    "reason": "phase-2: personal settings and preferences"
+  },
+  {
+    "method": "PUT",
+    "path": "/my/users/{user_id}/auto_responder",
+    "reason": "phase-2: personal settings and preferences"
+  },
+  {
+    "method": "DELETE",
+    "path": "/postings/box_groups",
+    "reason": "phase-2: posting box groups"
+  },
+  {
+    "method": "POST",
+    "path": "/postings/box_groups",
+    "reason": "phase-2: posting box groups"
+  },
+  {
+    "method": "DELETE",
+    "path": "/postings/bubble_up",
+    "reason": "phase-2: posting bubble up"
+  },
+  {
+    "method": "POST",
+    "path": "/postings/bubble_up",
+    "reason": "phase-2: posting bubble up"
+  },
+  {
+    "method": "GET",
+    "path": "/postings/bubble_up/menu",
+    "reason": "phase-2: posting bubble up"
+  },
+  {
+    "method": "GET",
+    "path": "/postings/bubble_up/row_menu/{id}",
+    "reason": "phase-2: posting bubble up"
+  },
+  {
+    "method": "POST",
+    "path": "/postings/bubble_up_now",
+    "reason": "phase-2: posting bubble up"
+  },
+  {
+    "method": "DELETE",
+    "path": "/postings/bulk_bubble_up_now",
+    "reason": "phase-2: posting bulk bubble up"
+  },
+  {
+    "method": "GET",
+    "path": "/postings/bulk_bubble_up_now",
+    "reason": "phase-2: posting bulk bubble up"
+  },
+  {
+    "method": "PATCH",
+    "path": "/postings/bulk_bubble_up_now",
+    "reason": "phase-2: posting bulk bubble up"
+  },
+  {
+    "method": "POST",
+    "path": "/postings/bulk_bubble_up_now",
+    "reason": "phase-2: posting bulk bubble up"
+  },
+  {
+    "method": "PUT",
+    "path": "/postings/bulk_bubble_up_now",
+    "reason": "phase-2: posting bulk bubble up"
+  },
+  {
+    "method": "GET",
+    "path": "/postings/{posting_id}/bundles/unseen",
+    "reason": "phase-2: posting bundles unseen"
+  },
+  {
+    "method": "POST",
+    "path": "/postings/collections",
+    "reason": "phase-2: posting collections"
+  },
+  {
+    "method": "PATCH",
+    "path": "/postings/collections/{id}",
+    "reason": "phase-2: posting collections"
+  },
+  {
+    "method": "PUT",
+    "path": "/postings/collections/{id}",
+    "reason": "phase-2: posting collections"
+  },
+  {
+    "method": "DELETE",
+    "path": "/postings/filings",
+    "reason": "phase-2: posting filings"
+  },
+  {
+    "method": "POST",
+    "path": "/postings/filings",
+    "reason": "phase-2: posting filings"
+  },
+  {
+    "method": "POST",
+    "path": "/postings/folders",
+    "reason": "phase-2: posting folders"
+  },
+  {
+    "method": "POST",
+    "path": "/postings/{posting_id}/bundles/seen",
+    "reason": "phase-2: posting management"
+  },
+  {
+    "method": "POST",
+    "path": "/postings/moves",
+    "reason": "phase-2: posting moves"
+  },
+  {
+    "method": "DELETE",
+    "path": "/postings/{posting_id}/muting",
+    "reason": "phase-2: posting muting"
+  },
+  {
+    "method": "POST",
+    "path": "/postings/{posting_id}/muting",
+    "reason": "phase-2: posting muting"
+  },
+  {
+    "method": "DELETE",
+    "path": "/postings/mutings",
+    "reason": "phase-2: posting mutings"
+  },
+  {
+    "method": "POST",
+    "path": "/postings/mutings",
+    "reason": "phase-2: posting mutings"
+  },
+  {
+    "method": "DELETE",
+    "path": "/postings/{posting_id}/note",
+    "reason": "phase-2: posting notes"
+  },
+  {
+    "method": "GET",
+    "path": "/postings/{posting_id}/note",
+    "reason": "phase-2: posting notes"
+  },
+  {
+    "method": "PATCH",
+    "path": "/postings/{posting_id}/note",
+    "reason": "phase-2: posting notes"
+  },
+  {
+    "method": "PUT",
+    "path": "/postings/{posting_id}/note",
+    "reason": "phase-2: posting notes"
+  },
+  {
+    "method": "GET",
+    "path": "/postings/readings/all",
+    "reason": "phase-2: posting readings"
+  },
+  {
+    "method": "POST",
+    "path": "/postings/seen",
+    "reason": "phase-2: posting seen tracking"
+  },
+  {
+    "method": "POST",
+    "path": "/postings/spam",
+    "reason": "phase-2: posting spam actions"
+  },
+  {
+    "method": "POST",
+    "path": "/postings/trash",
+    "reason": "phase-2: posting trash actions"
+  },
+  {
+    "method": "POST",
+    "path": "/postings/unseen",
+    "reason": "phase-2: posting unseen tracking"
+  },
+  {
+    "method": "POST",
+    "path": "/postings/workflows",
+    "reason": "phase-2: posting workflows"
+  },
+  {
+    "method": "PATCH",
+    "path": "/postings/workflows/{id}",
+    "reason": "phase-2: posting workflows"
+  },
+  {
+    "method": "PUT",
+    "path": "/postings/workflows/{id}",
+    "reason": "phase-2: posting workflows"
+  },
+  {
+    "method": "GET",
+    "path": "/devices",
+    "reason": "phase-2: push device registration"
+  },
+  {
+    "method": "POST",
+    "path": "/devices",
+    "reason": "phase-2: push device registration"
+  },
+  {
+    "method": "DELETE",
+    "path": "/devices/{id}",
+    "reason": "phase-2: push device registration"
+  },
+  {
+    "method": "GET",
+    "path": "/devices/{id}",
+    "reason": "phase-2: push device registration"
+  },
+  {
+    "method": "PATCH",
+    "path": "/devices/{id}",
+    "reason": "phase-2: push device registration"
+  },
+  {
+    "method": "PUT",
+    "path": "/devices/{id}",
+    "reason": "phase-2: push device registration"
+  },
+  {
+    "method": "DELETE",
+    "path": "/recent_searches",
+    "reason": "phase-2: recent search history"
+  },
+  {
+    "method": "GET",
+    "path": "/recent_searches",
+    "reason": "phase-2: recent search history"
+  },
+  {
+    "method": "PATCH",
+    "path": "/recent_searches",
+    "reason": "phase-2: recent search history"
+  },
+  {
+    "method": "POST",
+    "path": "/recent_searches",
+    "reason": "phase-2: recent search history"
+  },
+  {
+    "method": "PUT",
+    "path": "/recent_searches",
+    "reason": "phase-2: recent search history"
+  },
+  {
+    "method": "GET",
+    "path": "/clearances",
+    "reason": "phase-2: screener clearances"
+  },
+  {
+    "method": "POST",
+    "path": "/clearances",
+    "reason": "phase-2: screener clearances"
+  },
+  {
+    "method": "DELETE",
+    "path": "/clearances/bulk",
+    "reason": "phase-2: screener clearances"
+  },
+  {
+    "method": "GET",
+    "path": "/clearances/bulk",
+    "reason": "phase-2: screener clearances"
+  },
+  {
+    "method": "PATCH",
+    "path": "/clearances/bulk",
+    "reason": "phase-2: screener clearances"
+  },
+  {
+    "method": "POST",
+    "path": "/clearances/bulk",
+    "reason": "phase-2: screener clearances"
+  },
+  {
+    "method": "PUT",
+    "path": "/clearances/bulk",
+    "reason": "phase-2: screener clearances"
+  },
+  {
+    "method": "GET",
+    "path": "/clearances/entries/{id}",
+    "reason": "phase-2: screener clearances"
+  },
+  {
+    "method": "DELETE",
+    "path": "/clearances/punt",
+    "reason": "phase-2: screener clearances"
+  },
+  {
+    "method": "GET",
+    "path": "/clearances/punt",
+    "reason": "phase-2: screener clearances"
+  },
+  {
+    "method": "PATCH",
+    "path": "/clearances/punt",
+    "reason": "phase-2: screener clearances"
+  },
+  {
+    "method": "POST",
+    "path": "/clearances/punt",
+    "reason": "phase-2: screener clearances"
+  },
+  {
+    "method": "PUT",
+    "path": "/clearances/punt",
+    "reason": "phase-2: screener clearances"
+  },
+  {
+    "method": "DELETE",
+    "path": "/clearances/{id}",
+    "reason": "phase-2: screener clearances"
+  },
+  {
+    "method": "GET",
+    "path": "/clearances/{id}",
+    "reason": "phase-2: screener clearances"
+  },
+  {
+    "method": "PATCH",
+    "path": "/clearances/{id}",
+    "reason": "phase-2: screener clearances"
+  },
+  {
+    "method": "PUT",
+    "path": "/clearances/{id}",
+    "reason": "phase-2: screener clearances"
+  },
+  {
+    "method": "GET",
+    "path": "/topics/sent/attachments",
+    "reason": "phase-2: sent attachments"
+  },
+  {
+    "method": "DELETE",
+    "path": "/calendars/{id}",
+    "reason": "phase-2: shared calendar CRUD"
+  },
+  {
+    "method": "GET",
+    "path": "/calendars/{id}",
+    "reason": "phase-2: shared calendar CRUD"
+  },
+  {
+    "method": "PATCH",
+    "path": "/calendars/{id}",
+    "reason": "phase-2: shared calendar CRUD"
+  },
+  {
+    "method": "PUT",
+    "path": "/calendars/{id}",
+    "reason": "phase-2: shared calendar CRUD"
+  },
+  {
+    "method": "DELETE",
+    "path": "/calendars/{key}",
+    "reason": "phase-2: shared calendar CRUD"
+  },
+  {
+    "method": "GET",
+    "path": "/calendars/{key}",
+    "reason": "phase-2: shared calendar CRUD"
+  },
+  {
+    "method": "PATCH",
+    "path": "/calendars/{key}",
+    "reason": "phase-2: shared calendar CRUD"
+  },
+  {
+    "method": "PUT",
+    "path": "/calendars/{key}",
+    "reason": "phase-2: shared calendar CRUD"
+  },
+  {
+    "method": "DELETE",
+    "path": "/calendars/{calendar_id}/accesses/{id}",
+    "reason": "phase-2: shared calendar access"
+  },
+  {
+    "method": "DELETE",
+    "path": "/calendars/{calendar_id}/external_user/accesses",
+    "reason": "phase-2: shared calendar access"
+  },
+  {
+    "method": "POST",
+    "path": "/calendars/{calendar_id}/invitations",
+    "reason": "phase-2: shared calendar invitations"
+  },
+  {
+    "method": "DELETE",
+    "path": "/calendars/{calendar_id}/invitations/{id}",
+    "reason": "phase-2: shared calendar invitations"
+  },
+  {
+    "method": "PATCH",
+    "path": "/calendars/{calendar_id}/invitations/{id}",
+    "reason": "phase-2: shared calendar invitations"
+  },
+  {
+    "method": "PUT",
+    "path": "/calendars/{calendar_id}/invitations/{id}",
+    "reason": "phase-2: shared calendar invitations"
+  },
+  {
+    "method": "DELETE",
+    "path": "/calendars/{calendar_id}/notifications",
+    "reason": "phase-2: shared calendar notifications"
+  },
+  {
+    "method": "GET",
+    "path": "/calendars/{calendar_id}/notifications",
+    "reason": "phase-2: shared calendar notifications"
+  },
+  {
+    "method": "PATCH",
+    "path": "/calendars/{calendar_id}/notifications",
+    "reason": "phase-2: shared calendar notifications"
+  },
+  {
+    "method": "POST",
+    "path": "/calendars/{calendar_id}/notifications",
+    "reason": "phase-2: shared calendar notifications"
+  },
+  {
+    "method": "PUT",
+    "path": "/calendars/{calendar_id}/notifications",
+    "reason": "phase-2: shared calendar notifications"
+  },
+  {
+    "method": "GET",
+    "path": "/calendars/{calendar_id}/occurrences",
+    "reason": "phase-2: shared calendar occurrences"
+  },
+  {
+    "method": "POST",
+    "path": "/calendars/{calendar_id}/occurrences",
+    "reason": "phase-2: shared calendar occurrences"
+  },
+  {
+    "method": "DELETE",
+    "path": "/calendars/{calendar_id}/occurrences/{id}",
+    "reason": "phase-2: shared calendar occurrences"
+  },
+  {
+    "method": "GET",
+    "path": "/calendars/{calendar_id}/occurrences/{id}",
+    "reason": "phase-2: shared calendar occurrences"
+  },
+  {
+    "method": "PATCH",
+    "path": "/calendars/{calendar_id}/occurrences/{id}",
+    "reason": "phase-2: shared calendar occurrences"
+  },
+  {
+    "method": "PUT",
+    "path": "/calendars/{calendar_id}/occurrences/{id}",
+    "reason": "phase-2: shared calendar occurrences"
+  },
+  {
+    "method": "DELETE",
+    "path": "/calendars/{calendar_id}/publication",
+    "reason": "phase-2: shared calendar publication"
+  },
+  {
+    "method": "POST",
+    "path": "/calendars/{calendar_id}/publication",
+    "reason": "phase-2: shared calendar publication"
+  },
+  {
+    "method": "GET",
+    "path": "/calendars/{calendar_id}/recording/changes",
+    "reason": "phase-2: shared calendar recordings"
+  },
+  {
+    "method": "POST",
+    "path": "/calendars/{calendar_id}/recordings",
+    "reason": "phase-2: shared calendar recordings"
+  },
+  {
+    "method": "DELETE",
+    "path": "/calendars/{calendar_id}/recordings/{id}",
+    "reason": "phase-2: shared calendar recordings"
+  },
+  {
+    "method": "GET",
+    "path": "/calendars/{calendar_id}/recordings/{id}",
+    "reason": "phase-2: shared calendar recordings"
+  },
+  {
+    "method": "PATCH",
+    "path": "/calendars/{calendar_id}/recordings/{id}",
+    "reason": "phase-2: shared calendar recordings"
+  },
+  {
+    "method": "PUT",
+    "path": "/calendars/{calendar_id}/recordings/{id}",
+    "reason": "phase-2: shared calendar recordings"
+  },
+  {
+    "method": "DELETE",
+    "path": "/calendars/{calendar_id}/sharing",
+    "reason": "phase-2: shared calendar sharing"
+  },
+  {
+    "method": "DELETE",
+    "path": "/calendars/{calendar_id}/synchronization",
+    "reason": "phase-2: shared calendar sync"
+  },
+  {
+    "method": "GET",
+    "path": "/calendars/{calendar_id}/synchronization",
+    "reason": "phase-2: shared calendar sync"
+  },
+  {
+    "method": "PATCH",
+    "path": "/calendars/{calendar_id}/synchronization",
+    "reason": "phase-2: shared calendar sync"
+  },
+  {
+    "method": "POST",
+    "path": "/calendars/{calendar_id}/synchronization",
+    "reason": "phase-2: shared calendar sync"
+  },
+  {
+    "method": "PUT",
+    "path": "/calendars/{calendar_id}/synchronization",
+    "reason": "phase-2: shared calendar sync"
+  },
+  {
+    "method": "DELETE",
+    "path": "/calendars/{calendar_id}/toggle",
+    "reason": "phase-2: shared calendar toggle"
+  },
+  {
+    "method": "GET",
+    "path": "/calendars/{calendar_id}/toggle",
+    "reason": "phase-2: shared calendar toggle"
+  },
+  {
+    "method": "PATCH",
+    "path": "/calendars/{calendar_id}/toggle",
+    "reason": "phase-2: shared calendar toggle"
+  },
+  {
+    "method": "POST",
+    "path": "/calendars/{calendar_id}/toggle",
+    "reason": "phase-2: shared calendar toggle"
+  },
+  {
+    "method": "PUT",
+    "path": "/calendars/{calendar_id}/toggle",
+    "reason": "phase-2: shared calendar toggle"
+  },
+  {
+    "method": "DELETE",
+    "path": "/topics/spam/all",
+    "reason": "phase-2: spam bulk actions"
+  },
+  {
+    "method": "GET",
+    "path": "/stickies",
+    "reason": "phase-2: stickies"
+  },
+  {
+    "method": "POST",
+    "path": "/stickies",
+    "reason": "phase-2: stickies"
+  },
+  {
+    "method": "POST",
+    "path": "/stickies/moves",
+    "reason": "phase-2: stickies"
+  },
+  {
+    "method": "DELETE",
+    "path": "/stickies/{id}",
+    "reason": "phase-2: stickies"
+  },
+  {
+    "method": "GET",
+    "path": "/stickies/{id}",
+    "reason": "phase-2: stickies"
+  },
+  {
+    "method": "PATCH",
+    "path": "/stickies/{id}",
+    "reason": "phase-2: stickies"
+  },
+  {
+    "method": "PUT",
+    "path": "/stickies/{id}",
+    "reason": "phase-2: stickies"
+  },
+  {
+    "method": "GET",
+    "path": "/snippets",
+    "reason": "phase-2: text snippets"
+  },
+  {
+    "method": "POST",
+    "path": "/snippets",
+    "reason": "phase-2: text snippets"
+  },
+  {
+    "method": "DELETE",
+    "path": "/snippets/{id}",
+    "reason": "phase-2: text snippets"
+  },
+  {
+    "method": "GET",
+    "path": "/snippets/{id}",
+    "reason": "phase-2: text snippets"
+  },
+  {
+    "method": "PATCH",
+    "path": "/snippets/{id}",
+    "reason": "phase-2: text snippets"
+  },
+  {
+    "method": "PUT",
+    "path": "/snippets/{id}",
+    "reason": "phase-2: text snippets"
+  },
+  {
+    "method": "POST",
+    "path": "/topics/{topic_id}/accesses",
+    "reason": "phase-2: topic access control"
+  },
+  {
+    "method": "DELETE",
+    "path": "/topics/{topic_id}/accesses/{id}",
+    "reason": "phase-2: topic access control"
+  },
+  {
+    "method": "GET",
+    "path": "/topics/{topic_id}/attachments",
+    "reason": "phase-2: topic attachments"
+  },
+  {
+    "method": "GET",
+    "path": "/topics/{topic_id}/backlink",
+    "reason": "phase-2: topic backlinks"
+  },
+  {
+    "method": "GET",
+    "path": "/topics/{topic_id}/breakouts",
+    "reason": "phase-2: topic breakout threads"
+  },
+  {
+    "method": "GET",
+    "path": "/topics/{topic_id}/breakouts/originals",
+    "reason": "phase-2: topic breakout threads"
+  },
+  {
+    "method": "DELETE",
+    "path": "/topics/{topic_id}/bubble_up",
+    "reason": "phase-2: topic bubble up"
+  },
+  {
+    "method": "POST",
+    "path": "/topics/{topic_id}/bubble_up",
+    "reason": "phase-2: topic bubble up"
+  },
+  {
+    "method": "GET",
+    "path": "/topics/{topic_id}/bubble_up/menu",
+    "reason": "phase-2: topic bubble up"
+  },
+  {
+    "method": "DELETE",
+    "path": "/topics/{topic_id}/bubble_up_now",
+    "reason": "phase-2: topic bubble up"
+  },
+  {
+    "method": "GET",
+    "path": "/topics/{topic_id}/bubble_up_now",
+    "reason": "phase-2: topic bubble up"
+  },
+  {
+    "method": "PATCH",
+    "path": "/topics/{topic_id}/bubble_up_now",
+    "reason": "phase-2: topic bubble up"
+  },
+  {
+    "method": "POST",
+    "path": "/topics/{topic_id}/bubble_up_now",
+    "reason": "phase-2: topic bubble up"
+  },
+  {
+    "method": "PUT",
+    "path": "/topics/{topic_id}/bubble_up_now",
+    "reason": "phase-2: topic bubble up"
+  },
+  {
+    "method": "DELETE",
+    "path": "/topics/{topic_id}/collecting",
+    "reason": "phase-2: topic collecting"
+  },
+  {
+    "method": "POST",
+    "path": "/topics/{topic_id}/collecting",
+    "reason": "phase-2: topic collecting"
+  },
+  {
+    "method": "DELETE",
+    "path": "/topics/{topic_id}/collections",
+    "reason": "phase-2: topic collections"
+  },
+  {
+    "method": "GET",
+    "path": "/topics/{topic_id}/collections",
+    "reason": "phase-2: topic collections"
+  },
+  {
+    "method": "PATCH",
+    "path": "/topics/{topic_id}/collections",
+    "reason": "phase-2: topic collections"
+  },
+  {
+    "method": "POST",
+    "path": "/topics/{topic_id}/collections",
+    "reason": "phase-2: topic collections"
+  },
+  {
+    "method": "PUT",
+    "path": "/topics/{topic_id}/collections",
+    "reason": "phase-2: topic collections"
+  },
+  {
+    "method": "GET",
+    "path": "/topics/{topic_id}/comments",
+    "reason": "phase-2: topic comments"
+  },
+  {
+    "method": "POST",
+    "path": "/topics/{topic_id}/comments",
+    "reason": "phase-2: topic comments"
+  },
+  {
+    "method": "DELETE",
+    "path": "/topics/{topic_id}/comments/{id}",
+    "reason": "phase-2: topic comments"
+  },
+  {
+    "method": "GET",
+    "path": "/topics/{topic_id}/comments/{id}",
+    "reason": "phase-2: topic comments"
+  },
+  {
+    "method": "PATCH",
+    "path": "/topics/{topic_id}/comments/{id}",
+    "reason": "phase-2: topic comments"
+  },
+  {
+    "method": "PUT",
+    "path": "/topics/{topic_id}/comments/{id}",
+    "reason": "phase-2: topic comments"
+  },
+  {
+    "method": "GET",
+    "path": "/topics/{topic_id}/filings",
+    "reason": "phase-2: topic filings"
+  },
+  {
+    "method": "POST",
+    "path": "/topics/{topic_id}/filings",
+    "reason": "phase-2: topic filings"
+  },
+  {
+    "method": "DELETE",
+    "path": "/topics/{topic_id}/filings/{id}",
+    "reason": "phase-2: topic filings"
+  },
+  {
+    "method": "GET",
+    "path": "/topics/{topic_id}/filings/{id}",
+    "reason": "phase-2: topic filings"
+  },
+  {
+    "method": "PATCH",
+    "path": "/topics/{topic_id}/filings/{id}",
+    "reason": "phase-2: topic filings"
+  },
+  {
+    "method": "PUT",
+    "path": "/topics/{topic_id}/filings/{id}",
+    "reason": "phase-2: topic filings"
+  },
+  {
+    "method": "POST",
+    "path": "/topics/{topic_id}/inbound_redeliveries",
+    "reason": "phase-2: topic inbound redelivery"
+  },
+  {
+    "method": "GET",
+    "path": "/topics",
+    "reason": "phase-2: topic listing"
+  },
+  {
+    "method": "POST",
+    "path": "/topics",
+    "reason": "phase-2: topic listing"
+  },
+  {
+    "method": "POST",
+    "path": "/topics/{topic_id}/mail_analysis/safety_exceptions",
+    "reason": "phase-2: topic mail analysis"
+  },
+  {
+    "method": "DELETE",
+    "path": "/topics/{id}",
+    "reason": "phase-2: topic management"
+  },
+  {
+    "method": "PATCH",
+    "path": "/topics/{id}",
+    "reason": "phase-2: topic management"
+  },
+  {
+    "method": "PUT",
+    "path": "/topics/{id}",
+    "reason": "phase-2: topic management"
+  },
+  {
+    "method": "POST",
+    "path": "/topics/merges",
+    "reason": "phase-2: topic merges"
+  },
+  {
+    "method": "GET",
+    "path": "/topics/merges/{id}",
+    "reason": "phase-2: topic merges"
+  },
+  {
+    "method": "GET",
+    "path": "/topics/{topic_id}/messages",
+    "reason": "phase-2: topic messages"
+  },
+  {
+    "method": "DELETE",
+    "path": "/topics/{topic_id}/messages/{id}",
+    "reason": "phase-2: topic messages"
+  },
+  {
+    "method": "GET",
+    "path": "/topics/{topic_id}/messages/{id}",
+    "reason": "phase-2: topic messages"
+  },
+  {
+    "method": "PATCH",
+    "path": "/topics/{topic_id}/messages/{id}",
+    "reason": "phase-2: topic messages"
+  },
+  {
+    "method": "PUT",
+    "path": "/topics/{topic_id}/messages/{id}",
+    "reason": "phase-2: topic messages"
+  },
+  {
+    "method": "GET",
+    "path": "/topic_metadata",
+    "reason": "phase-2: topic metadata"
+  },
+  {
+    "method": "DELETE",
+    "path": "/topic_metadata/search",
+    "reason": "phase-2: topic metadata"
+  },
+  {
+    "method": "GET",
+    "path": "/topic_metadata/search",
+    "reason": "phase-2: topic metadata"
+  },
+  {
+    "method": "PATCH",
+    "path": "/topic_metadata/search",
+    "reason": "phase-2: topic metadata"
+  },
+  {
+    "method": "POST",
+    "path": "/topic_metadata/search",
+    "reason": "phase-2: topic metadata"
+  },
+  {
+    "method": "PUT",
+    "path": "/topic_metadata/search",
+    "reason": "phase-2: topic metadata"
+  },
+  {
+    "method": "GET",
+    "path": "/topic_metadata/{id}",
+    "reason": "phase-2: topic metadata"
+  },
+  {
+    "method": "POST",
+    "path": "/topics/{topic_id}/moves",
+    "reason": "phase-2: topic moves"
+  },
+  {
+    "method": "GET",
+    "path": "/topics/{topic_id}/muting",
+    "reason": "phase-2: topic muting"
+  },
+  {
+    "method": "GET",
+    "path": "/topics/nettings",
+    "reason": "phase-2: topic nettings"
+  },
+  {
+    "method": "GET",
+    "path": "/topics/{topic_id}/notices",
+    "reason": "phase-2: topic notices"
+  },
+  {
+    "method": "POST",
+    "path": "/topics/{topic_id}/observation",
+    "reason": "phase-2: topic observation"
+  },
+  {
+    "method": "DELETE",
+    "path": "/topics/{topic_id}/publication",
+    "reason": "phase-2: topic publication"
+  },
+  {
+    "method": "GET",
+    "path": "/topics/{topic_id}/publication",
+    "reason": "phase-2: topic publication"
+  },
+  {
+    "method": "PATCH",
+    "path": "/topics/{topic_id}/publication",
+    "reason": "phase-2: topic publication"
+  },
+  {
+    "method": "POST",
+    "path": "/topics/{topic_id}/publication",
+    "reason": "phase-2: topic publication"
+  },
+  {
+    "method": "PUT",
+    "path": "/topics/{topic_id}/publication",
+    "reason": "phase-2: topic publication"
+  },
+  {
+    "method": "PATCH",
+    "path": "/topics/{topic_id}/recycling_vault",
+    "reason": "phase-2: topic recycling"
+  },
+  {
+    "method": "PUT",
+    "path": "/topics/{topic_id}/recycling_vault",
+    "reason": "phase-2: topic recycling"
+  },
+  {
+    "method": "POST",
+    "path": "/topics/{topic_id}/redelivery",
+    "reason": "phase-2: topic redelivery"
+  },
+  {
+    "method": "POST",
+    "path": "/topics/{topic_id}/removal",
+    "reason": "phase-2: topic removal"
+  },
+  {
+    "method": "GET",
+    "path": "/topics/{topic_id}/roster",
+    "reason": "phase-2: topic roster"
+  },
+  {
+    "method": "PUT",
+    "path": "/topics/{topic_id}/status/active",
+    "reason": "phase-2: topic status changes"
+  },
+  {
+    "method": "PUT",
+    "path": "/topics/{topic_id}/status/ham",
+    "reason": "phase-2: topic status changes"
+  },
+  {
+    "method": "PUT",
+    "path": "/topics/{topic_id}/status/trashed",
+    "reason": "phase-2: topic status changes"
+  },
+  {
+    "method": "POST",
+    "path": "/topics/{topic_id}/undo_send",
+    "reason": "phase-2: topic undo send"
+  },
+  {
+    "method": "POST",
+    "path": "/topics/{topic_id}/unseen",
+    "reason": "phase-2: topic unseen"
+  },
+  {
+    "method": "GET",
+    "path": "/topics/{topic_id}/workflows",
+    "reason": "phase-2: topic workflows"
+  },
+  {
+    "method": "POST",
+    "path": "/topics/{topic_id}/workflows",
+    "reason": "phase-2: topic workflows"
+  },
+  {
+    "method": "GET",
+    "path": "/topics/{topic_id}/workflows/{id}",
+    "reason": "phase-2: topic workflows"
+  },
+  {
+    "method": "DELETE",
+    "path": "/topics/{topic_id}/workflows/{workflow_id}/stagings",
+    "reason": "phase-2: topic workflows"
+  },
+  {
+    "method": "PATCH",
+    "path": "/topics/{topic_id}/workflows/{workflow_id}/stagings",
+    "reason": "phase-2: topic workflows"
+  },
+  {
+    "method": "POST",
+    "path": "/topics/{topic_id}/workflows/{workflow_id}/stagings",
+    "reason": "phase-2: topic workflows"
+  },
+  {
+    "method": "PUT",
+    "path": "/topics/{topic_id}/workflows/{workflow_id}/stagings",
+    "reason": "phase-2: topic workflows"
+  },
+  {
+    "method": "DELETE",
+    "path": "/topics/trash/all",
+    "reason": "phase-2: trash bulk actions"
+  },
+  {
+    "method": "DELETE",
+    "path": "/workflows/{id}",
+    "reason": "phase-2: workflow CRUD"
+  },
+  {
+    "method": "GET",
+    "path": "/workflows/{id}",
+    "reason": "phase-2: workflow CRUD"
+  },
+  {
+    "method": "PATCH",
+    "path": "/workflows/{id}",
+    "reason": "phase-2: workflow CRUD"
+  },
+  {
+    "method": "PUT",
+    "path": "/workflows/{id}",
+    "reason": "phase-2: workflow CRUD"
+  },
+  {
+    "method": "GET",
+    "path": "/workflows",
+    "reason": "phase-2: workflow listing"
+  },
+  {
+    "method": "POST",
+    "path": "/workflows",
+    "reason": "phase-2: workflow listing"
+  },
+  {
+    "method": "POST",
+    "path": "/workflows/{workflow_id}/stage_moves",
+    "reason": "phase-2: workflow stage moves"
+  },
+  {
+    "method": "POST",
+    "path": "/workflows/{workflow_id}/stages",
+    "reason": "phase-2: workflow stages"
+  },
+  {
+    "method": "DELETE",
+    "path": "/workflows/{workflow_id}/stages/{id}",
+    "reason": "phase-2: workflow stages"
+  },
+  {
+    "method": "GET",
+    "path": "/workflows/{workflow_id}/stages/{id}",
+    "reason": "phase-2: workflow stages"
+  },
+  {
+    "method": "PATCH",
+    "path": "/workflows/{workflow_id}/stages/{id}",
+    "reason": "phase-2: workflow stages"
+  },
+  {
+    "method": "PUT",
+    "path": "/workflows/{workflow_id}/stages/{id}",
+    "reason": "phase-2: workflow stages"
+  },
+  {
+    "method": "POST",
+    "path": "/workflows/{workflow_id}/stages/{stage_id}/staging_moves",
+    "reason": "phase-2: workflow staging moves"
+  },
+  {
+    "method": "DELETE",
+    "path": "/workflows/{workflow_id}/stages/{stage_id}/stagings/destroy_all",
+    "reason": "phase-2: workflow stagings"
+  },
+  {
+    "method": "GET",
+    "path": "/accounts",
+    "reason": "web-ui: account picker"
+  },
+  {
+    "method": "GET",
+    "path": "/advanced_search",
+    "reason": "web-ui: advanced search form"
+  },
+  {
+    "method": "GET",
+    "path": "/advanced_search_filters",
+    "reason": "web-ui: advanced search form"
+  },
+  {
+    "method": "GET",
+    "path": "/~shuffle",
+    "reason": "web-ui: box shuffle animation"
+  },
+  {
+    "method": "PATCH",
+    "path": "/filtered_sessions",
+    "reason": "web-ui: filtered session management"
+  },
+  {
+    "method": "PUT",
+    "path": "/filtered_sessions",
+    "reason": "web-ui: filtered session management"
+  },
+  {
+    "method": "DELETE",
+    "path": "/menus/accounts",
+    "reason": "web-ui: menu rendering"
+  },
+  {
+    "method": "GET",
+    "path": "/menus/accounts",
+    "reason": "web-ui: menu rendering"
+  },
+  {
+    "method": "PATCH",
+    "path": "/menus/accounts",
+    "reason": "web-ui: menu rendering"
+  },
+  {
+    "method": "POST",
+    "path": "/menus/accounts",
+    "reason": "web-ui: menu rendering"
+  },
+  {
+    "method": "PUT",
+    "path": "/menus/accounts",
+    "reason": "web-ui: menu rendering"
+  },
+  {
+    "method": "GET",
+    "path": "/reply_later/tray",
+    "reason": "web-ui: reply later tray"
+  },
+  {
+    "method": "GET",
+    "path": "/set_aside/tray",
+    "reason": "web-ui: set aside tray"
+  },
+  {
+    "method": "GET",
+    "path": "/topics/{topic_id}/toolbar",
+    "reason": "web-ui: topic toolbar"
+  },
+  {
+    "method": "GET",
+    "path": "/workflows/{workflow_id}/stages/{stage_id}/menu",
+    "reason": "web-ui: workflow stage menu"
+  },
+  {
+    "method": "GET",
+    "path": "/workflows/{workflow_id}/toolbar",
+    "reason": "web-ui: workflow toolbar"
   }
 ]
