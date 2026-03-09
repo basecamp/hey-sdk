@@ -14,6 +14,11 @@
 
 set -euo pipefail
 
+if ((BASH_VERSINFO[0] < 4)); then
+  echo "Error: This script requires Bash 4+. On macOS, install via: brew install bash" >&2
+  exit 1
+fi
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(dirname "$SCRIPT_DIR")"
 
@@ -93,7 +98,7 @@ json_capable_filter='
   # Exclude announcement management
   select(.path | test("^/announcements") | not) |
   # Exclude Solid Queue job UI routes
-  select(.path | test("/jobs|^/queues|^/applications/|^/recurring_tasks") | not) |
+  select(.path | test("^/jobs|^/queues|^/applications/|^/recurring_tasks") | not) |
   # Exclude p/ public share routes
   select(.path | test("^/p/") | not) |
   # Exclude atom feeds
@@ -134,6 +139,11 @@ while IFS=$'\t' read -r method path; do
     unaccounted=$((unaccounted + 1))
   fi
 done < <(jq -r "$json_capable_filter" "$SNAPSHOT_FILE")
+
+if [ "$total" -eq 0 ]; then
+  echo "ERROR: jq filter produced zero routes from snapshot — filter may be too aggressive."
+  exit 1
+fi
 
 echo ""
 echo "Checked $total JSON-capable routes."
