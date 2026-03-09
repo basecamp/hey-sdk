@@ -1,0 +1,27 @@
+scripts/sync-provenance
+  0c89348b8fe2807d 1-26
+scripts/sync-api-version.sh
+  0c89348b8fe2807d 1-54
+scripts/bump-version.sh
+  0c89348b8fe2807d 1-33
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.1.9",
+  "base_commit_sha": "9504b46a3efa4082daf3d7381660ea193a2ed20d",
+  "prompts": {
+    "0c89348b8fe2807d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e4807d2a-b046-4691-9fd5-1c628a391bfb",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "Jeremy Daer <jeremy@37signals.com>",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 3817,
+      "overriden_lines": 0
+    }
+  }
+}
