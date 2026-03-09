@@ -1,0 +1,27 @@
+.github/workflows/test.yml
+  0c89348b8fe2807d 145-152
+.github/workflows/security.yml
+  0c89348b8fe2807d 63-64,66-67,69-72
+rubric-audit.json
+  0c89348b8fe2807d 1-125
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.1.9",
+  "base_commit_sha": "1409fb0305d2d1b5a9f4659c7e49f2ad1d3d47f1",
+  "prompts": {
+    "0c89348b8fe2807d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e4807d2a-b046-4691-9fd5-1c628a391bfb",
+        "model": "unknown"
+      },
+      "human_author": "Jeremy Daer <jeremy@37signals.com>",
+      "messages": [],
+      "total_additions": 18,
+      "total_deletions": 3,
+      "accepted_lines": 141,
+      "overriden_lines": 0
+    }
+  }
+}
