@@ -1,0 +1,51 @@
+scripts/sync-provenance
+  0c89348b8fe2807d 1-4,6,8,10-11,13-18,20-28
+scripts/bump-version.sh
+  0c89348b8fe2807d 1-5,7-22,30-31
+scripts/sync-api-version.sh
+  0c89348b8fe2807d 1-4,6-27,29-43,51-52
+go/pkg/hey/client_test.go
+  0c89348b8fe2807d 1-100,102-310,312-359
+go/pkg/hey/helpers_test.go
+  0c89348b8fe2807d 1-64,66-73,75-82,84-103
+go/pkg/hey/observability_test.go
+  0c89348b8fe2807d 1-106
+go/pkg/hey/security_test.go
+  0c89348b8fe2807d 1-179
+go/pkg/hey/cache_test.go
+  0c89348b8fe2807d 1-68,70-86,89-116
+go/pkg/hey/auth_test.go
+  0c89348b8fe2807d 1-6,8-98,101,104-143,145-229
+go/pkg/hey/pagination_test.go
+  0c89348b8fe2807d 1-241
+go/pkg/hey/services_test.go
+  0c89348b8fe2807d 1-15,17-738
+go/pkg/hey/http_test.go
+  0c89348b8fe2807d 1-81
+go/pkg/hey/resilience_test.go
+  0c89348b8fe2807d 1-207,209-343,345-441
+go/pkg/hey/config_test.go
+  0c89348b8fe2807d 1-23,25-102,104-106,108-118
+go/pkg/hey/errors_test.go
+  0c89348b8fe2807d 1-163,166-194
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.1.9",
+  "base_commit_sha": "55b8bd999f0726578e66fdfbea9bd5b9468eda3e",
+  "prompts": {
+    "0c89348b8fe2807d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e4807d2a-b046-4691-9fd5-1c628a391bfb",
+        "model": "unknown"
+      },
+      "human_author": "Jeremy Daer <jeremy@37signals.com>",
+      "messages": [],
+      "total_additions": 39,
+      "total_deletions": 27,
+      "accepted_lines": 2972,
+      "overriden_lines": 0
+    }
+  }
+}
