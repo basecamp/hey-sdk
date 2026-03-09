@@ -1,0 +1,23 @@
+scripts/drift-check-reverse
+  0c89348b8fe2807d 36-40
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.1.9",
+  "base_commit_sha": "19a2e766c5c72629ecd3429f955502514ff07703",
+  "prompts": {
+    "0c89348b8fe2807d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e4807d2a-b046-4691-9fd5-1c628a391bfb",
+        "model": "unknown"
+      },
+      "human_author": "Jeremy Daer <jeremy@37signals.com>",
+      "messages": [],
+      "total_additions": 5,
+      "total_deletions": 1,
+      "accepted_lines": 5,
+      "overriden_lines": 0
+    }
+  }
+}
