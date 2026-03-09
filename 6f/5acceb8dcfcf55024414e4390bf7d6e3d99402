@@ -1,0 +1,27 @@
+go/pkg/hey/resilience_test.go
+  0c89348b8fe2807d 204,208,210
+go/pkg/hey/auth_test.go
+  0c89348b8fe2807d 178,183-185,194-197,212-214,233-235
+go/pkg/hey/cache_test.go
+  0c89348b8fe2807d 113-118
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.1.9",
+  "base_commit_sha": "6f5acceb8dcfcf55024414e4390bf7d6e3d99402",
+  "prompts": {
+    "0c89348b8fe2807d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e4807d2a-b046-4691-9fd5-1c628a391bfb",
+        "model": "unknown"
+      },
+      "human_author": "Jeremy Daer <jeremy@37signals.com>",
+      "messages": [],
+      "total_additions": 23,
+      "total_deletions": 11,
+      "accepted_lines": 23,
+      "overriden_lines": 0
+    }
+  }
+}
