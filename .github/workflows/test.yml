@@ -112,6 +112,41 @@ jobs:
       - name: Run conformance tests
         run: go run .
 
+  api-compat:
+    name: API Compatibility
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout PR
+        uses: actions/checkout@v6
+
+      - name: Checkout base
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.base_ref }}
+          path: base
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: 'go/go.mod'
+          cache-dependency-path: 'go/go.sum'
+
+      - name: Install apidiff
+        run: go install golang.org/x/exp/cmd/apidiff@latest
+
+      - name: Check API compatibility
+        run: |
+          echo "Checking Go SDK API compatibility..."
+          apidiff -w /tmp/base.api base/go/pkg/hey
+          CHANGES=$(apidiff -incompatible /tmp/base.api go/pkg/hey 2>&1 || true)
+          if [ -n "$CHANGES" ]; then
+            echo "::warning::Potential breaking API changes detected"
+            echo "$CHANGES"
+          else
+            echo "No breaking API changes detected"
+          fi
+
   rubric-check:
     name: Rubric Check
     runs-on: ubuntu-latest
