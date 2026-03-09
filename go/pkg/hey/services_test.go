@@ -13,7 +13,7 @@ import (
 
 // newServiceTestClient creates a Client pointing at a test server that
 // routes based on URL path and returns appropriate JSON responses.
-func newServiceTestClient(t *testing.T, routes map[string]string, methods ...string) *Client {
+func newServiceTestClient(t *testing.T, routes map[string]string, methods ...string) *Client { //nolint:unparam // methods intentionally variadic for non-GET service tests
 	t.Helper()
 	wantMethod := "GET"
 	if len(methods) > 0 {
