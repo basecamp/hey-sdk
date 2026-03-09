@@ -228,6 +228,7 @@ jobs:
               echo "_Model output did not match expected format. Raw output truncated below._"
               echo '```'
               head -c 2000 /tmp/spec-raw.md
+              echo ""
               echo '```'
             } > /tmp/spec-comment.md
           else
