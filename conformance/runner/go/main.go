@@ -9,9 +9,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -432,22 +435,54 @@ func checkAssertion(testName string, a Assertion, s checkState) TestResult {
 		}
 
 	case "responseMeta":
-		// responseMeta assertions check metadata parsed from response headers.
-		// For now, we verify the mock response had the expected header.
 		switch a.Path {
 		case "totalCount":
-			// The runner doesn't parse X-Total-Count since we use the generated client.
-			// Verify the header was set by the mock server (test is about SDK capability).
-			// TODO: test via hey.Client service layer when conformance supports it.
+			if s.sdkResp == nil {
+				return fail(testName, "No HTTP response to check X-Total-Count header")
+			}
+			header := s.sdkResp.Header.Get("X-Total-Count")
+			if header == "" {
+				return fail(testName, "X-Total-Count header not present in response")
+			}
+			expected := int(a.Expected.(float64))
+			actual, err := strconv.Atoi(header)
+			if err != nil {
+				return fail(testName, "X-Total-Count header %q is not a valid integer", header)
+			}
+			if actual != expected {
+				return fail(testName, "Expected X-Total-Count=%d, got %d", expected, actual)
+			}
 		default:
 			return fail(testName, "Unknown responseMeta path: %s", a.Path)
 		}
 
 	case "urlOrigin":
-		// urlOrigin assertions verify pagination URL origin validation.
-		// The generated client doesn't handle pagination directly (that's hey.Client).
-		// For now, we verify the mock server sent only the expected number of requests.
-		// The requestCount assertion handles the validation indirectly.
+		expected := a.Expected.(string)
+		if expected == "rejected" {
+			if s.sdkResp == nil {
+				return fail(testName, "No HTTP response to check Link header origin")
+			}
+			linkHeader := s.sdkResp.Header.Get("Link")
+			if linkHeader == "" {
+				return fail(testName, "No Link header in response to validate origin")
+			}
+			nextURL := extractNextLinkURL(linkHeader)
+			if nextURL == "" {
+				return fail(testName, "No next URL found in Link header: %s", linkHeader)
+			}
+			serverURL := s.sdkResp.Request.URL
+			linkParsed, err := url.Parse(nextURL)
+			if err != nil {
+				return fail(testName, "Failed to parse Link URL %q: %v", nextURL, err)
+			}
+			if linkParsed.IsAbs() && !strings.EqualFold(linkParsed.Host, serverURL.Host) {
+				// Cross-origin Link URL confirms the test scenario for rejection
+			} else if !linkParsed.IsAbs() {
+				return fail(testName, "Expected cross-origin Link URL for rejection test, but got relative URL: %s", nextURL)
+			} else if strings.EqualFold(linkParsed.Scheme, serverURL.Scheme) {
+				return fail(testName, "Expected cross-origin Link URL for rejection test, but %s has same origin as server", nextURL)
+			}
+		}
 
 	default:
 		return fail(testName, "Unknown assertion type: %s", a.Type)
@@ -462,6 +497,20 @@ func fail(testName, format string, args ...interface{}) TestResult {
 		Passed:  false,
 		Message: fmt.Sprintf(format, args...),
 	}
+}
+
+func extractNextLinkURL(linkHeader string) string {
+	for _, part := range strings.Split(linkHeader, ",") {
+		part = strings.TrimSpace(part)
+		if strings.Contains(part, `rel="next"`) {
+			start := strings.Index(part, "<")
+			end := strings.Index(part, ">")
+			if start >= 0 && end > start {
+				return part[start+1 : end]
+			}
+		}
+	}
+	return ""
 }
 
 func executeOperation(client *generated.Client, ctx context.Context, tc TestCase) (*http.Response, error) {
