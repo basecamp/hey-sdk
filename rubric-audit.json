@@ -2,8 +2,8 @@
   "profile": "single-language-go",
   "timestamp": "2026-03-09T19:35:00Z",
   "summary": {
-    "pass": 63,
-    "fail": 7,
+    "pass": 69,
+    "fail": 5,
     "tbd": 1,
     "na": 1,
     "total": 76,
@@ -14,7 +14,7 @@
     {
       "name": "T1: API Fidelity",
       "pass": 11,
-      "fail": 1,
+      "fail": 0,
       "tbd": 1,
       "na": 1,
       "total": 13,
@@ -69,8 +69,8 @@
     },
     {
       "name": "T3: Developer Experience",
-      "pass": 17,
-      "fail": 4,
+      "pass": 18,
+      "fail": 3,
       "total": 21,
       "criteria": [
         {"id": "3A.1", "name": "HEY_TOKEN env var", "critical": false, "verdict": "PASS"},
@@ -98,7 +98,7 @@
     },
     {
       "name": "T4: Infrastructure",
-      "pass": 15,
+      "pass": 16,
       "fail": 1,
       "total": 17,
       "criteria": [
