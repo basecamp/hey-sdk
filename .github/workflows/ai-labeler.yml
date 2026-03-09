@@ -120,6 +120,14 @@ jobs:
             echo "skip=false" >> $GITHUB_OUTPUT
           fi
 
+      - name: Clean up stale breaking label
+        if: steps.api-diff.outputs.skip == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PR=${{ github.event.pull_request.number }}
+          gh pr edit "$PR" --remove-label "breaking" 2>/dev/null || true
+
       - name: Detect breaking changes
         if: steps.api-diff.outputs.skip != 'true'
         id: detect
@@ -141,6 +149,7 @@ jobs:
               echo "Model returned invalid JSON. Breaking label was **not** applied."
               echo '```'
               cat "$RESPONSE_FILE"
+              echo ""
               echo '```'
             } >> "$GITHUB_STEP_SUMMARY"
             exit 0
@@ -189,11 +198,27 @@ jobs:
           if [ "$CHANGED" -eq 0 ]; then
             echo "skip=true" >> $GITHUB_OUTPUT
           else
-            if ! gh pr diff "$PR" -- spec/ openapi.json behavior-model.json > /tmp/spec.diff 2>/dev/null; then
-              echo "::warning::Failed to get spec diff for PR #$PR"
-              echo "skip=true" >> $GITHUB_OUTPUT
-              exit 0
-            fi
+            # Filter diff to only spec/API surface files
+            PATTERNS=(
+              "spec/*"
+              "openapi.json"
+              "behavior-model.json"
+            )
+            gh pr diff "$PR" > /tmp/full-spec.diff
+
+            python3 -c "
+          import sys, re, fnmatch
+          diff = open('/tmp/full-spec.diff').read()
+          patterns = sys.argv[1:]
+          sections = re.split(r'(?=^diff --git)', diff, flags=re.MULTILINE)
+          for s in sections:
+              m = re.match(r'diff --git a/(\S+)', s)
+              if m:
+                  path = m.group(1)
+                  if any(fnmatch.fnmatch(path, p) for p in patterns):
+                      sys.stdout.write(s)
+            " "${PATTERNS[@]}" > /tmp/spec.diff
+
             if [ ! -s /tmp/spec.diff ]; then
               echo "skip=true" >> $GITHUB_OUTPUT
               exit 0
@@ -212,6 +237,17 @@ jobs:
             # (avoids yaml round-trip which reorders keys and changes scalar styles)
             python3 .github/scripts/splice-prompt.py .github/prompts/spec-impact.prompt.yml /tmp/prompt.yml
             echo "skip=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Clean up stale spec-impact comment
+        if: steps.check.outputs.skip == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PR=${{ github.event.pull_request.number }}
+          EXISTING=$(gh pr view "$PR" --json comments --jq '.comments[] | select(.body | startswith("<!-- hey-sdk-bot:spec-impact -->")) | .id' | head -1)
+          if [ -n "$EXISTING" ]; then
+            gh api graphql -f query="mutation { minimizeComment(input: {subjectId: \"$EXISTING\", classifier: OUTDATED}) { minimizedComment { isMinimized } } }"
           fi
 
       - name: Analyze impact
