@@ -1,0 +1,23 @@
+scripts/bump-version.sh
+  0c89348b8fe2807d 6,23-24,26-29
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.1.9",
+  "base_commit_sha": "3e69f5c53197aebdf00cbfccea3f45d73c1d3f5e",
+  "prompts": {
+    "0c89348b8fe2807d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e4807d2a-b046-4691-9fd5-1c628a391bfb",
+        "model": "unknown"
+      },
+      "human_author": "Jeremy Daer <jeremy@37signals.com>",
+      "messages": [],
+      "total_additions": 39,
+      "total_deletions": 27,
+      "accepted_lines": 43,
+      "overriden_lines": 0
+    }
+  }
+}
