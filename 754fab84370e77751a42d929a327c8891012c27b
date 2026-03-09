@@ -1,0 +1,27 @@
+.github/workflows/test.yml
+  0c89348b8fe2807d 136,139-140,143-144,146,148
+.github/workflows/security.yml
+  0c89348b8fe2807d 59
+.github/scripts/splice-prompt.py
+  0c89348b8fe2807d 14-20,23
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.1.9",
+  "base_commit_sha": "754fab84370e77751a42d929a327c8891012c27b",
+  "prompts": {
+    "0c89348b8fe2807d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e4807d2a-b046-4691-9fd5-1c628a391bfb",
+        "model": "unknown"
+      },
+      "human_author": "Jeremy Daer <jeremy@37signals.com>",
+      "messages": [],
+      "total_additions": 36,
+      "total_deletions": 14,
+      "accepted_lines": 36,
+      "overriden_lines": 0
+    }
+  }
+}
