@@ -155,6 +155,7 @@ jobs:
 
             # Build comment body; sanitize @ mentions from model output
             {
+              echo "<!-- hey-sdk-bot:breaking -->"
               echo "**Potential breaking changes detected:**"
               echo ""
               echo "$ITEMS"
@@ -163,7 +164,7 @@ jobs:
             } | sed 's/@/@ /g' > /tmp/breaking-comment.md
 
             # Find existing bot comment or create new
-            EXISTING=$(gh pr view "$PR" --json comments --jq '.comments[] | select(.body | startswith("**Potential breaking")) | .id' | head -1)
+            EXISTING=$(gh pr view "$PR" --json comments --jq '.comments[] | select(.body | startswith("<!-- hey-sdk-bot:breaking -->")) | .id' | head -1)
             if [ -n "$EXISTING" ]; then
               gh api graphql -f query="mutation { updateIssueComment(input: {id: \"$EXISTING\", body: $(jq -Rs . /tmp/breaking-comment.md)}) { issueComment { id } } }"
             else
@@ -188,7 +189,15 @@ jobs:
           if [ "$CHANGED" -eq 0 ]; then
             echo "skip=true" >> $GITHUB_OUTPUT
           else
-            gh pr diff "$PR" -- spec/ openapi.json behavior-model.json > /tmp/spec.diff 2>/dev/null || true
+            if ! gh pr diff "$PR" -- spec/ openapi.json behavior-model.json > /tmp/spec.diff 2>&1; then
+              echo "::warning::Failed to get spec diff for PR #$PR"
+              echo "skip=true" >> $GITHUB_OUTPUT
+              exit 0
+            fi
+            if [ ! -s /tmp/spec.diff ]; then
+              echo "skip=true" >> $GITHUB_OUTPUT
+              exit 0
+            fi
             TITLE=$(gh pr view "$PR" --json title --jq .title)
 
             # Compose user message
@@ -221,8 +230,10 @@ jobs:
 
           # Sanitize model output: strip @ mentions, validate heading, truncate
           sed 's/@/@ /g' "$RESPONSE_FILE" > /tmp/spec-raw.md
+          MARKER="<!-- hey-sdk-bot:spec-impact -->"
           if ! head -1 /tmp/spec-raw.md | grep -q '^## Spec Change Impact'; then
             {
+              echo "$MARKER"
               echo "## Spec Change Impact"
               echo ""
               echo "_Model output did not match expected format. Raw output truncated below._"
@@ -232,11 +243,11 @@ jobs:
               echo '```'
             } > /tmp/spec-comment.md
           else
-            head -c 10000 /tmp/spec-raw.md > /tmp/spec-comment.md
+            { echo "$MARKER"; head -c 10000 /tmp/spec-raw.md; } > /tmp/spec-comment.md
           fi
 
           PR=${{ github.event.pull_request.number }}
-          EXISTING=$(gh pr view "$PR" --json comments --jq '.comments[] | select(.body | startswith("## Spec Change Impact")) | .id' | head -1)
+          EXISTING=$(gh pr view "$PR" --json comments --jq '.comments[] | select(.body | startswith("<!-- hey-sdk-bot:spec-impact -->")) | .id' | head -1)
           if [ -n "$EXISTING" ]; then
             gh api graphql -f query="mutation { updateIssueComment(input: {id: \"$EXISTING\", body: $(jq -Rs . /tmp/spec-comment.md)}) { issueComment { id } } }"
           else
