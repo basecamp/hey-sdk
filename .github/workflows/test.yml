@@ -136,12 +136,13 @@ jobs:
         run: go install golang.org/x/exp/cmd/apidiff@v0.0.0-20250305212735-054e65f0b394
 
       - name: Check API compatibility
-        # Compares go/pkg/hey — the sole exported package (internal/ is not public API)
-        working-directory: go
+        # Compares go/pkg/hey — the sole exported package (internal/ is not public API).
+        # Each apidiff invocation runs inside its respective module directory so
+        # go list can resolve the package.
         run: |
           echo "Checking Go SDK API compatibility..."
-          apidiff -w /tmp/base.api ../base/go/pkg/hey
-          CHANGES=$(apidiff -incompatible /tmp/base.api pkg/hey 2>/dev/null) || true
+          (cd base/go && apidiff -w /tmp/base.api ./pkg/hey)
+          CHANGES=$(cd go && apidiff -incompatible /tmp/base.api ./pkg/hey 2>/dev/null) || true
           if [ -n "$CHANGES" ]; then
             echo "::error::Incompatible API changes detected"
             echo "$CHANGES"
