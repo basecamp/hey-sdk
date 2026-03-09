@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+# Syncs api-provenance.json with current haystack HEAD SHA.
+# Usage: scripts/sync-provenance [HAYSTACK_DIR]
+set -euo pipefail
+
+HAYSTACK_DIR="${1:-${HOME}/Work/basecamp/haystack}"
+
+if [ ! -d "$HAYSTACK_DIR/.git" ]; then
+  echo "ERROR: $HAYSTACK_DIR is not a git repository." >&2
+  echo "Usage: $0 [HAYSTACK_DIR]" >&2
+  exit 1
+fi
+
+SHA=$(git -C "$HAYSTACK_DIR" rev-parse HEAD)
+DATE=$(date -u +%Y-%m-%d)
+
+cat > spec/api-provenance.json <<EOF
+{
+  "source": "haystack",
+  "sha": "$SHA",
+  "date": "$DATE",
+  "notes": "Pinned from haystack master. Update with: make provenance-sync"
+}
+EOF
+
+echo "Provenance updated: sha=$SHA date=$DATE"
