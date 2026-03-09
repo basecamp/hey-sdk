@@ -217,8 +217,23 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # Sanitize model output: strip @ mentions to prevent notification spam
-          sed 's/@/@ /g' "${{ steps.analyze.outputs.response-file }}" > /tmp/spec-comment.md
+          RESPONSE_FILE="${{ steps.analyze.outputs.response-file }}"
+
+          # Sanitize model output: strip @ mentions, validate heading, truncate
+          sed 's/@/@ /g' "$RESPONSE_FILE" > /tmp/spec-raw.md
+          if ! head -1 /tmp/spec-raw.md | grep -q '^## Spec Change Impact'; then
+            {
+              echo "## Spec Change Impact"
+              echo ""
+              echo "_Model output did not match expected format. Raw output truncated below._"
+              echo '```'
+              head -c 2000 /tmp/spec-raw.md
+              echo '```'
+            } > /tmp/spec-comment.md
+          else
+            head -c 10000 /tmp/spec-raw.md > /tmp/spec-comment.md
+          fi
+
           PR=${{ github.event.pull_request.number }}
           EXISTING=$(gh pr view "$PR" --json comments --jq '.comments[] | select(.body | startswith("## Spec Change Impact")) | .id' | head -1)
           if [ -n "$EXISTING" ]; then
