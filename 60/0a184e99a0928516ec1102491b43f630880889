@@ -1,0 +1,43 @@
+conformance/runner/go/main.go
+  0c89348b8fe2807d 16-17,468-474,479-485,495-518,521,565,597-601
+Makefile
+  0c89348b8fe2807d 75,78
+.github/workflows/ai-labeler.yml
+  0c89348b8fe2807d 1-55,57-155,157-162,164-219,222-224,226,228
+.github/prompts/spec-impact.prompt.yml
+  0c89348b8fe2807d 1-24
+.github/prompts/detect-breaking.prompt.yml
+  0c89348b8fe2807d 1-9,11-12,14-18,20-42
+.github/workflows/test.yml
+  0c89348b8fe2807d 115-160
+.github/scripts/splice-prompt.py
+  0c89348b8fe2807d 1-2,4-43
+scripts/drift-check-reverse
+  0c89348b8fe2807d 1-16,22-100,102-141,148-161
+.github/workflows/security.yml
+  0c89348b8fe2807d 1-64,66-67,69-94
+.github/prompts/classify-pr.prompt.yml
+  0c89348b8fe2807d 1-5,7-17,19-24
+rubric-audit.json
+  0c89348b8fe2807d 1-125
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.1.9",
+  "base_commit_sha": "600a184e99a0928516ec1102491b43f630880889",
+  "prompts": {
+    "0c89348b8fe2807d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e4807d2a-b046-4691-9fd5-1c628a391bfb",
+        "model": "unknown"
+      },
+      "human_author": "Jeremy Daer <jeremy@37signals.com>",
+      "messages": [],
+      "total_additions": 39,
+      "total_deletions": 27,
+      "accepted_lines": 809,
+      "overriden_lines": 0
+    }
+  }
+}
