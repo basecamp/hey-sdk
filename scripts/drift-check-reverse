@@ -33,7 +33,11 @@ for f in "$SNAPSHOT_FILE" "$COVERAGE_FILE" "$EXCLUDED_FILE"; do
   fi
 done
 
-if jq -e 'length == 0' "$SNAPSHOT_FILE" > /dev/null 2>&1; then
+if ! jq empty "$SNAPSHOT_FILE" 2>/dev/null; then
+  echo "ERROR: route-snapshot.json is not valid JSON."
+  exit 1
+fi
+if jq -e 'length == 0' "$SNAPSHOT_FILE" > /dev/null; then
   echo "ERROR: route-snapshot.json is empty. Run 'make drift-regen' to populate."
   exit 1
 fi
