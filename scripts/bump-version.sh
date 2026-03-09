@@ -23,7 +23,7 @@ echo "Bumping version to: $VERSION"
 VERSION_FILE="$REPO_ROOT/go/pkg/hey/version.go"
 sedi "s/^const Version = \".*\"/const Version = \"$VERSION\"/" "$VERSION_FILE"
 
-if ! grep -q "const Version = \"$VERSION\"" "$VERSION_FILE"; then
+if ! grep -Fq "const Version = \"$VERSION\"" "$VERSION_FILE"; then
   echo "ERROR: Version substitution did not match in $VERSION_FILE" >&2
   exit 1
 fi

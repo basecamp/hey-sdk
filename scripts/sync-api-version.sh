@@ -44,7 +44,7 @@ echo "Syncing API version: $API_VERSION"
 ESCAPED_VERSION=$(printf '%s\n' "$API_VERSION" | sed 's/[&/\]/\\&/g')
 sedi "s/^const APIVersion = \".*\"/const APIVersion = \"$ESCAPED_VERSION\"/" "$VERSION_FILE"
 
-if ! grep -q "const APIVersion = \"$API_VERSION\"" "$VERSION_FILE"; then
+if ! grep -Fq "const APIVersion = \"$API_VERSION\"" "$VERSION_FILE"; then
   echo "ERROR: API version substitution did not match in $VERSION_FILE" >&2
   exit 1
 fi
