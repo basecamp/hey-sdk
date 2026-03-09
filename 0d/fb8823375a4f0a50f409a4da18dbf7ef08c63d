@@ -1,0 +1,51 @@
+go/pkg/hey/auth_test.go
+  0c89348b8fe2807d 1-229
+go/pkg/hey/cache_test.go
+  0c89348b8fe2807d 1-116
+go/pkg/hey/errors_test.go
+  0c89348b8fe2807d 1-194
+go/pkg/hey/helpers_test.go
+  0c89348b8fe2807d 1-103
+go/pkg/hey/services_test.go
+  0c89348b8fe2807d 1-738
+go/pkg/hey/resilience_test.go
+  0c89348b8fe2807d 1-441
+go/pkg/hey/pagination_test.go
+  0c89348b8fe2807d 1-241
+go/pkg/hey/security_test.go
+  0c89348b8fe2807d 1-179
+go/pkg/hey/http_test.go
+  0c89348b8fe2807d 1-81
+go/pkg/hey/config_test.go
+  0c89348b8fe2807d 1-118
+go/pkg/hey/client_test.go
+  0c89348b8fe2807d 1-359
+go/pkg/hey/observability_test.go
+  0c89348b8fe2807d 1-106
+Makefile
+  0c89348b8fe2807d 75,78
+scripts/drift-check-reverse
+  0c89348b8fe2807d 1-16,22-100,102-142,148-161
+conformance/runner/go/main.go
+  0c89348b8fe2807d 16-17,468-474,479-485,495-518,521,565,597-601
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.1.9",
+  "base_commit_sha": "0dfb8823375a4f0a50f409a4da18dbf7ef08c63d",
+  "prompts": {
+    "0c89348b8fe2807d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e4807d2a-b046-4691-9fd5-1c628a391bfb",
+        "model": "unknown"
+      },
+      "human_author": "Jeremy Daer <jeremy@37signals.com>",
+      "messages": [],
+      "total_additions": 6,
+      "total_deletions": 6,
+      "accepted_lines": 3104,
+      "overriden_lines": 0
+    }
+  }
+}

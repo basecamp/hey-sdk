@@ -1,0 +1,65 @@
+Makefile
+  0c89348b8fe2807d 75,78
+go/pkg/hey/pagination_test.go
+  0c89348b8fe2807d 1-241
+go/pkg/hey/security_test.go
+  0c89348b8fe2807d 1-179
+go/pkg/hey/http_test.go
+  0c89348b8fe2807d 1-81
+go/pkg/hey/config_test.go
+  0c89348b8fe2807d 1-118
+go/pkg/hey/cache_test.go
+  0c89348b8fe2807d 1-116
+go/pkg/hey/resilience_test.go
+  0c89348b8fe2807d 1-441
+go/pkg/hey/helpers_test.go
+  0c89348b8fe2807d 1-103
+go/pkg/hey/observability_test.go
+  0c89348b8fe2807d 1-106
+go/pkg/hey/errors_test.go
+  0c89348b8fe2807d 1-194
+go/pkg/hey/auth_test.go
+  0c89348b8fe2807d 1-229
+go/pkg/hey/services_test.go
+  0c89348b8fe2807d 1-738
+scripts/drift-check-reverse
+  0c89348b8fe2807d 1-151
+go/pkg/hey/client_test.go
+  0c89348b8fe2807d 1-359
+conformance/runner/go/main.go
+  0c89348b8fe2807d 12,16-17,440-454,460-485,502-515
+.github/prompts/classify-pr.prompt.yml
+  0c89348b8fe2807d 1-5,7-17,19-24
+.github/prompts/spec-impact.prompt.yml
+  0c89348b8fe2807d 1-24
+.github/prompts/detect-breaking.prompt.yml
+  0c89348b8fe2807d 1-9,11-12,14-18,20-42
+.github/workflows/ai-labeler.yml
+  0c89348b8fe2807d 1-55,57-155,157-162,164-219,222-224,226,228
+.github/workflows/test.yml
+  0c89348b8fe2807d 115-152
+.github/scripts/splice-prompt.py
+  0c89348b8fe2807d 1-37,40
+.github/workflows/security.yml
+  0c89348b8fe2807d 1-84
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.1.9",
+  "base_commit_sha": "81148225cecce640e35938bd8724cc27381085ac",
+  "prompts": {
+    "0c89348b8fe2807d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e4807d2a-b046-4691-9fd5-1c628a391bfb",
+        "model": "unknown"
+      },
+      "human_author": "Jeremy Daer <jeremy@37signals.com>",
+      "messages": [],
+      "total_additions": 6,
+      "total_deletions": 6,
+      "accepted_lines": 3582,
+      "overriden_lines": 0
+    }
+  }
+}
