@@ -62,8 +62,8 @@ jobs:
         # Informational: stdlib vulns require Go release upgrades, not SDK changes.
         # Exit 3 = vulns found (downgrade to warning); other non-zero = tool failure (fail the job).
         run: |
-          govulncheck ./...
-          status=$?
+          govulncheck ./... || status=$?
+          status=${status:-0}
           if [ "$status" -eq 3 ]; then
             echo "::warning::govulncheck found vulnerabilities (see above)"
             exit 0
