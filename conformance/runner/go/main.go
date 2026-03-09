@@ -539,6 +539,9 @@ func fail(testName, format string, args ...interface{}) TestResult {
 func toInt(v interface{}) (int, error) {
 	switch n := v.(type) {
 	case float64:
+		if n != float64(int(n)) {
+			return 0, fmt.Errorf("float64 %v is not an integer", n)
+		}
 		return int(n), nil
 	case int:
 		return n, nil
