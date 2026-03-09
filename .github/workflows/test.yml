@@ -142,7 +142,14 @@ jobs:
         run: |
           echo "Checking Go SDK API compatibility..."
           (cd base/go && apidiff -w /tmp/base.api ./pkg/hey)
-          CHANGES=$(cd go && apidiff -incompatible /tmp/base.api ./pkg/hey 2>/dev/null) || true
+          CHANGES=$(cd go && apidiff -incompatible /tmp/base.api ./pkg/hey 2>/tmp/apidiff.stderr)
+          status=$?
+          if [ "$status" -gt 1 ]; then
+            echo "::error::apidiff execution failed (exit $status)"
+            cat /tmp/apidiff.stderr
+            exit "$status"
+          fi
+          rm -f /tmp/apidiff.stderr
           if [ -n "$CHANGES" ]; then
             echo "::error::Incompatible API changes detected"
             echo "$CHANGES"

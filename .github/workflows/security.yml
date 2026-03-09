@@ -60,8 +60,16 @@ jobs:
 
       - name: Run govulncheck
         # Informational: stdlib vulns require Go release upgrades, not SDK changes.
-        # Fail only on dependency vulns (exit code 3 = vulns found).
-        run: govulncheck ./... || echo "::warning::govulncheck found vulnerabilities (see above)"
+        # Exit 3 = vulns found (downgrade to warning); other non-zero = tool failure (fail the job).
+        run: |
+          govulncheck ./...
+          status=$?
+          if [ "$status" -eq 3 ]; then
+            echo "::warning::govulncheck found vulnerabilities (see above)"
+            exit 0
+          elif [ "$status" -ne 0 ]; then
+            exit "$status"
+          fi
 
   gosec:
     name: Go Security Checker
