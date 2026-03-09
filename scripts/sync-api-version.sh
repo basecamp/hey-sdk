@@ -5,7 +5,7 @@ set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 
 CHECK=false
-OPENAPI="openapi.json"
+OPENAPI="$REPO_ROOT/openapi.json"
 
 for arg in "$@"; do
   case "$arg" in

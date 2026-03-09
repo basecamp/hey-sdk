@@ -2,7 +2,8 @@
 # Source this file; do not execute directly.
 
 # Resolve repo root from the sourcing script's location.
-REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[1]}")/.." && pwd)"
+# BASH_SOURCE[1] is the caller when sourced; fall back to BASH_SOURCE[0] (this file).
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[1]:-${BASH_SOURCE[0]}}")/.." && pwd)"
 
 # Portable in-place sed: use temp file instead of -i flag.
 sedi() {
