@@ -3,6 +3,14 @@ name: Release GitHub
 on:
   push:
     tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to release (e.g. v0.1.0)'
+        required: true
+
+permissions:
+  contents: write
 
 jobs:
   release:
@@ -11,6 +19,6 @@ jobs:
       - uses: actions/checkout@v6
       - uses: basecamp/sdk/actions/release-orchestrate@main
         with:
-          version: ${{ github.ref_name }}
+          version: ${{ github.event.inputs.tag || github.ref_name }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          languages: go,typescript,ruby
+          languages: go
