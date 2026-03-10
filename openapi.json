@@ -3137,8 +3137,13 @@
         "description": "BubbleUpSchedule",
         "properties": {
           "bubble_up_at": {
-            "type": "number",
-            "format": "double"
+            "type": "string",
+            "description": "ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)",
+            "format": "date-time",
+            "x-go-type": "time.Time",
+            "x-go-type-import": {
+              "path": "time"
+            }
           },
           "surprise_me": {
             "type": "boolean"
@@ -3160,12 +3165,22 @@
             "type": "string"
           },
           "created_at": {
-            "type": "number",
-            "format": "double"
+            "type": "string",
+            "description": "ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)",
+            "format": "date-time",
+            "x-go-type": "time.Time",
+            "x-go-type-import": {
+              "path": "time"
+            }
           },
           "updated_at": {
-            "type": "number",
-            "format": "double"
+            "type": "string",
+            "description": "ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)",
+            "format": "date-time",
+            "x-go-type": "time.Time",
+            "x-go-type-import": {
+              "path": "time"
+            }
           },
           "owned": {
             "type": "boolean"
@@ -3264,12 +3279,22 @@
             "type": "string"
           },
           "created_at": {
-            "type": "number",
-            "format": "double"
+            "type": "string",
+            "description": "ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)",
+            "format": "date-time",
+            "x-go-type": "time.Time",
+            "x-go-type-import": {
+              "path": "time"
+            }
           },
           "updated_at": {
-            "type": "number",
-            "format": "double"
+            "type": "string",
+            "description": "ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)",
+            "format": "date-time",
+            "x-go-type": "time.Time",
+            "x-go-type-import": {
+              "path": "time"
+            }
           },
           "app_url": {
             "type": "string"
@@ -3298,8 +3323,13 @@
             "format": "int64"
           },
           "updated_at": {
-            "type": "number",
-            "format": "double"
+            "type": "string",
+            "description": "ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)",
+            "format": "date-time",
+            "x-go-type": "time.Time",
+            "x-go-type-import": {
+              "path": "time"
+            }
           },
           "name": {
             "type": "string"
@@ -3343,8 +3373,13 @@
             "format": "int64"
           },
           "updated_at": {
-            "type": "number",
-            "format": "double"
+            "type": "string",
+            "description": "ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)",
+            "format": "date-time",
+            "x-go-type": "time.Time",
+            "x-go-type-import": {
+              "path": "time"
+            }
           },
           "name": {
             "type": "string"
@@ -3521,8 +3556,13 @@
             "type": "string"
           },
           "updated_at": {
-            "type": "number",
-            "format": "double"
+            "type": "string",
+            "description": "ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)",
+            "format": "date-time",
+            "x-go-type": "time.Time",
+            "x-go-type-import": {
+              "path": "time"
+            }
           },
           "creator": {
             "$ref": "#/components/schemas/Contact"
@@ -3550,8 +3590,13 @@
             }
           },
           "scheduled_delivery_at": {
-            "type": "number",
-            "format": "double"
+            "type": "string",
+            "description": "ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)",
+            "format": "date-time",
+            "x-go-type": "time.Time",
+            "x-go-type-import": {
+              "path": "time"
+            }
           }
         },
         "required": [
@@ -3567,12 +3612,22 @@
             "format": "int64"
           },
           "created_at": {
-            "type": "number",
-            "format": "double"
+            "type": "string",
+            "description": "ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)",
+            "format": "date-time",
+            "x-go-type": "time.Time",
+            "x-go-type-import": {
+              "path": "time"
+            }
           },
           "updated_at": {
-            "type": "number",
-            "format": "double"
+            "type": "string",
+            "description": "ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)",
+            "format": "date-time",
+            "x-go-type": "time.Time",
+            "x-go-type-import": {
+              "path": "time"
+            }
           },
           "creator": {
             "$ref": "#/components/schemas/Contact"
@@ -3640,12 +3695,22 @@
             "type": "string"
           },
           "created_at": {
-            "type": "number",
-            "format": "double"
+            "type": "string",
+            "description": "ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)",
+            "format": "date-time",
+            "x-go-type": "time.Time",
+            "x-go-type-import": {
+              "path": "time"
+            }
           },
           "updated_at": {
-            "type": "number",
-            "format": "double"
+            "type": "string",
+            "description": "ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)",
+            "format": "date-time",
+            "x-go-type": "time.Time",
+            "x-go-type-import": {
+              "path": "time"
+            }
           },
           "app_url": {
             "type": "string"
@@ -3833,12 +3898,22 @@
             "format": "int64"
           },
           "created_at": {
-            "type": "number",
-            "format": "double"
+            "type": "string",
+            "description": "ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)",
+            "format": "date-time",
+            "x-go-type": "time.Time",
+            "x-go-type-import": {
+              "path": "time"
+            }
           },
           "updated_at": {
-            "type": "number",
-            "format": "double"
+            "type": "string",
+            "description": "ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)",
+            "format": "date-time",
+            "x-go-type": "time.Time",
+            "x-go-type-import": {
+              "path": "time"
+            }
           },
           "url": {
             "type": "string"
@@ -3865,8 +3940,13 @@
             "type": "boolean"
           },
           "scheduled_delivery_at": {
-            "type": "number",
-            "format": "double"
+            "type": "string",
+            "description": "ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)",
+            "format": "date-time",
+            "x-go-type": "time.Time",
+            "x-go-type-import": {
+              "path": "time"
+            }
           },
           "posting": {
             "$ref": "#/components/schemas/MessagePostingContext"
@@ -3983,20 +4063,40 @@
             "format": "int64"
           },
           "created_at": {
-            "type": "number",
-            "format": "double"
+            "type": "string",
+            "description": "ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)",
+            "format": "date-time",
+            "x-go-type": "time.Time",
+            "x-go-type-import": {
+              "path": "time"
+            }
           },
           "updated_at": {
-            "type": "number",
-            "format": "double"
+            "type": "string",
+            "description": "ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)",
+            "format": "date-time",
+            "x-go-type": "time.Time",
+            "x-go-type-import": {
+              "path": "time"
+            }
           },
           "observed_at": {
-            "type": "number",
-            "format": "double"
+            "type": "string",
+            "description": "ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)",
+            "format": "date-time",
+            "x-go-type": "time.Time",
+            "x-go-type-import": {
+              "path": "time"
+            }
           },
           "active_at": {
-            "type": "number",
-            "format": "double"
+            "type": "string",
+            "description": "ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)",
+            "format": "date-time",
+            "x-go-type": "time.Time",
+            "x-go-type-import": {
+              "path": "time"
+            }
           },
           "box_id": {
             "type": "integer",
@@ -4176,20 +4276,40 @@
             "type": "boolean"
           },
           "starts_at": {
-            "type": "number",
-            "format": "double"
+            "type": "string",
+            "description": "ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)",
+            "format": "date-time",
+            "x-go-type": "time.Time",
+            "x-go-type-import": {
+              "path": "time"
+            }
           },
           "ends_at": {
-            "type": "number",
-            "format": "double"
+            "type": "string",
+            "description": "ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)",
+            "format": "date-time",
+            "x-go-type": "time.Time",
+            "x-go-type-import": {
+              "path": "time"
+            }
           },
           "created_at": {
-            "type": "number",
-            "format": "double"
+            "type": "string",
+            "description": "ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)",
+            "format": "date-time",
+            "x-go-type": "time.Time",
+            "x-go-type-import": {
+              "path": "time"
+            }
           },
           "updated_at": {
-            "type": "number",
-            "format": "double"
+            "type": "string",
+            "description": "ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)",
+            "format": "date-time",
+            "x-go-type": "time.Time",
+            "x-go-type-import": {
+              "path": "time"
+            }
           },
           "type": {
             "type": "string",
@@ -4214,8 +4334,13 @@
             }
           },
           "completed_at": {
-            "type": "number",
-            "format": "double"
+            "type": "string",
+            "description": "ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)",
+            "format": "date-time",
+            "x-go-type": "time.Time",
+            "x-go-type-import": {
+              "path": "time"
+            }
           },
           "highlighted": {
             "type": "boolean"
@@ -4295,8 +4420,13 @@
             "type": "string"
           },
           "stopped_at": {
-            "type": "number",
-            "format": "double"
+            "type": "string",
+            "description": "ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)",
+            "format": "date-time",
+            "x-go-type": "time.Time",
+            "x-go-type-import": {
+              "path": "time"
+            }
           },
           "notes": {
             "type": "string"
@@ -4398,16 +4528,31 @@
             "type": "boolean"
           },
           "remind_at": {
-            "type": "number",
-            "format": "double"
+            "type": "string",
+            "description": "ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)",
+            "format": "date-time",
+            "x-go-type": "time.Time",
+            "x-go-type-import": {
+              "path": "time"
+            }
           },
           "created_at": {
-            "type": "number",
-            "format": "double"
+            "type": "string",
+            "description": "ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)",
+            "format": "date-time",
+            "x-go-type": "time.Time",
+            "x-go-type-import": {
+              "path": "time"
+            }
           },
           "updated_at": {
-            "type": "number",
-            "format": "double"
+            "type": "string",
+            "description": "ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)",
+            "format": "date-time",
+            "x-go-type": "time.Time",
+            "x-go-type-import": {
+              "path": "time"
+            }
           },
           "label": {
             "type": "string"
@@ -4532,16 +4677,31 @@
             "type": "string"
           },
           "created_at": {
-            "type": "number",
-            "format": "double"
+            "type": "string",
+            "description": "ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)",
+            "format": "date-time",
+            "x-go-type": "time.Time",
+            "x-go-type-import": {
+              "path": "time"
+            }
           },
           "updated_at": {
-            "type": "number",
-            "format": "double"
+            "type": "string",
+            "description": "ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)",
+            "format": "date-time",
+            "x-go-type": "time.Time",
+            "x-go-type-import": {
+              "path": "time"
+            }
           },
           "active_at": {
-            "type": "number",
-            "format": "double"
+            "type": "string",
+            "description": "ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)",
+            "format": "date-time",
+            "x-go-type": "time.Time",
+            "x-go-type-import": {
+              "path": "time"
+            }
           },
           "status": {
             "type": "string"
@@ -4634,12 +4794,12 @@
       "UpdateJournalEntryRequestContent": {
         "type": "object",
         "properties": {
-          "content": {
+          "body": {
             "type": "string"
           }
         },
         "required": [
-          "content"
+          "body"
         ]
       },
       "UpdateJournalEntryResponseContent": {
@@ -4658,12 +4818,22 @@
             "type": "string"
           },
           "starts_at": {
-            "type": "number",
-            "format": "double"
+            "type": "string",
+            "description": "ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)",
+            "format": "date-time",
+            "x-go-type": "time.Time",
+            "x-go-type-import": {
+              "path": "time"
+            }
           },
           "ends_at": {
-            "type": "number",
-            "format": "double"
+            "type": "string",
+            "description": "ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)",
+            "format": "date-time",
+            "x-go-type": "time.Time",
+            "x-go-type-import": {
+              "path": "time"
+            }
           },
           "stopped": {
             "type": "boolean",
@@ -4727,12 +4897,22 @@
             "type": "string"
           },
           "created_at": {
-            "type": "number",
-            "format": "double"
+            "type": "string",
+            "description": "ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)",
+            "format": "date-time",
+            "x-go-type": "time.Time",
+            "x-go-type-import": {
+              "path": "time"
+            }
           },
           "updated_at": {
-            "type": "number",
-            "format": "double"
+            "type": "string",
+            "description": "ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)",
+            "format": "date-time",
+            "x-go-type": "time.Time",
+            "x-go-type-import": {
+              "path": "time"
+            }
           },
           "app_url": {
             "type": "string"

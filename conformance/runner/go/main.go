@@ -733,7 +733,7 @@ func executeOperation(client *generated.Client, ctx context.Context, tc TestCase
 	case "UpdateJournalEntry":
 		day := getStringParam(tc.PathParams, "day")
 		body := generated.UpdateJournalEntryJSONRequestBody{
-			Content: getStringParam(tc.RequestBody, "body"),
+			Body: getStringParam(tc.RequestBody, "body"),
 		}
 		return client.UpdateJournalEntry(ctx, day, body)
 

@@ -51,6 +51,10 @@ use hey.traits#heySensitive
 use hey.traits#heyPolymorphic
 use hey.traits#heyEmptyOn
 
+/// ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)
+@timestampFormat("date-time")
+timestamp DateTime
+
 /// HEY API
 @restJson1
 service HEY {
@@ -193,7 +197,7 @@ structure Contact {
 
     account_id: Long
 
-    updated_at: Timestamp
+    updated_at: DateTime
 
     name: String
 
@@ -232,8 +236,8 @@ structure Collection {
     @required
     id: Long
     name: String
-    created_at: Timestamp
-    updated_at: Timestamp
+    created_at: DateTime
+    updated_at: DateTime
     app_url: String
 }
 
@@ -246,8 +250,8 @@ structure Folder {
     @required
     id: Long
     name: String
-    created_at: Timestamp
-    updated_at: Timestamp
+    created_at: DateTime
+    updated_at: DateTime
     app_url: String
 }
 
@@ -260,8 +264,8 @@ structure Workflow {
     @required
     id: Long
     name: String
-    created_at: Timestamp
-    updated_at: Timestamp
+    created_at: DateTime
+    updated_at: DateTime
     app_url: String
 }
 
@@ -352,8 +356,8 @@ list SenderList {
 structure Entry {
     @required
     id: Long
-    created_at: Timestamp
-    updated_at: Timestamp
+    created_at: DateTime
+    updated_at: DateTime
     creator: Contact
     alternative_sender_name: String
     summary: String
@@ -374,7 +378,7 @@ structure PostingNote {
 
 /// BubbleUpSchedule
 structure BubbleUpSchedule {
-    bubble_up_at: Timestamp
+    bubble_up_at: DateTime
     surprise_me: Boolean
 }
 
@@ -392,10 +396,10 @@ structure Posting {
     @required
     id: Long
 
-    created_at: Timestamp
-    updated_at: Timestamp
-    observed_at: Timestamp
-    active_at: Timestamp
+    created_at: DateTime
+    updated_at: DateTime
+    observed_at: DateTime
+    active_at: DateTime
     box_id: Long
     account_id: Long
 
@@ -504,9 +508,9 @@ structure Topic {
     id: Long
 
     name: String
-    created_at: Timestamp
-    updated_at: Timestamp
-    active_at: Timestamp
+    created_at: DateTime
+    updated_at: DateTime
+    active_at: DateTime
     status: String
     account_id: Long
     app_url: String
@@ -551,8 +555,8 @@ structure Message {
     @required
     id: Long
 
-    created_at: Timestamp
-    updated_at: Timestamp
+    created_at: DateTime
+    updated_at: DateTime
     url: String
     creator: Contact
     sender: Contact
@@ -561,7 +565,7 @@ structure Message {
     content: String
     addressed: Addressed
     show_addressed_selector: Boolean
-    scheduled_delivery_at: Timestamp
+    scheduled_delivery_at: DateTime
     posting: MessagePostingContext
     addressed_sender: AddressedSender
 }
@@ -572,7 +576,7 @@ structure DraftMessage {
     id: Long
 
     subject: String
-    updated_at: Timestamp
+    updated_at: DateTime
     creator: Contact
     account_id: Long
     summary: String
@@ -580,7 +584,7 @@ structure DraftMessage {
     app_url: String
     edit_url: String
     addressed_contacts: ContactList
-    scheduled_delivery_at: Timestamp
+    scheduled_delivery_at: DateTime
 }
 
 list DraftMessageList {
@@ -601,8 +605,8 @@ structure Calendar {
 
     name: String
     kind: String
-    created_at: Timestamp
-    updated_at: Timestamp
+    created_at: DateTime
+    updated_at: DateTime
     owned: Boolean
     color: String
     personal: Boolean
@@ -650,9 +654,9 @@ structure Reminder {
     default_duration: Boolean
     iso8601_duration: String
     delivered: Boolean
-    remind_at: Timestamp
-    created_at: Timestamp
-    updated_at: Timestamp
+    remind_at: DateTime
+    created_at: DateTime
+    updated_at: DateTime
     label: String
 }
 
@@ -720,10 +724,10 @@ structure Recording {
     title: String
     all_day: Boolean
     recurring: Boolean
-    starts_at: Timestamp
-    ends_at: Timestamp
-    created_at: Timestamp
-    updated_at: Timestamp
+    starts_at: DateTime
+    ends_at: DateTime
+    created_at: DateTime
+    updated_at: DateTime
 
     /// Discriminator: CalendarEvent, CalendarTodo, etc.
     @required
@@ -734,7 +738,7 @@ structure Recording {
     ends_at_time_zone: String
     reminders_label: String
     reminders: ReminderList
-    completed_at: Timestamp
+    completed_at: DateTime
     highlighted: Boolean
     recurrence_schedule: RecurrenceSchedule
     occurrences_url: String
@@ -766,7 +770,7 @@ structure Recording {
     icon: String
     days: DaysList
     icon_url: String
-    stopped_at: Timestamp
+    stopped_at: DateTime
 
     // CalendarTimeTrack fields
     notes: String
@@ -1347,7 +1351,7 @@ structure ContactDetail {
     @required
     id: Long
     account_id: Long
-    updated_at: Timestamp
+    updated_at: DateTime
     name: String
     @heySensitive(category: "pii")
     email_address: String
@@ -1610,8 +1614,8 @@ structure UpdateTimeTrackRequestContent {
     title: String
     notes: String
     category: String
-    starts_at: Timestamp
-    ends_at: Timestamp
+    starts_at: DateTime
+    ends_at: DateTime
     stopped: Boolean
 }
 
@@ -1668,7 +1672,7 @@ structure UpdateJournalEntryInput {
 
 structure UpdateJournalEntryRequestContent {
     @required
-    content: String
+    body: String
 }
 
 structure UpdateJournalEntryOutput {
