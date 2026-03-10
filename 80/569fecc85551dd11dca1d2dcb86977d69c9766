@@ -1,0 +1,77 @@
+go/pkg/hey/observability_test.go
+  0c89348b8fe2807d 1-106
+go/pkg/hey/auth_test.go
+  0c89348b8fe2807d 1-97,104,113-152,154-247
+go/pkg/hey/services_test.go
+  0c89348b8fe2807d 1-17,22,26-745
+go/pkg/hey/resilience_test.go
+  0c89348b8fe2807d 1-4,6-345,347-443
+go/pkg/hey/cache_test.go
+  0c89348b8fe2807d 1-68,72-88,95-126
+spec/api-provenance.json
+  0c89348b8fe2807d 3-5
+scripts/drift-check-reverse
+  0c89348b8fe2807d 1-38,41-106,108-147,149-152,154-167
+go/pkg/hey/errors_test.go
+  0c89348b8fe2807d 1-163,167-195
+scripts/bump-version.sh
+  0c89348b8fe2807d 1-5,7-22,26,30-31
+scripts/lib.sh
+  0c89348b8fe2807d 5-6
+scripts/sync-provenance
+  0c89348b8fe2807d 1-4,6,8,10-11,13-18,20-28
+LICENSE
+  0c89348b8fe2807d 1-21
+conformance/runner/go/main.go
+  0c89348b8fe2807d 16-17,468-474,479-485,495-518,521,542-544,568,600-604
+scripts/sync-api-version.sh
+  0c89348b8fe2807d 1-4,6-27,29-43,47,51-52
+go/pkg/hey/security_test.go
+  0c89348b8fe2807d 1-179
+go/pkg/hey/http_test.go
+  0c89348b8fe2807d 1-81
+Makefile
+  0c89348b8fe2807d 75,78
+go/pkg/hey/client_test.go
+  0c89348b8fe2807d 1-100,104-312,320-367
+go/pkg/hey/helpers_test.go
+  0c89348b8fe2807d 1-64,72-79,87-94,102-121
+go/pkg/hey/pagination_test.go
+  0c89348b8fe2807d 1-231
+go/pkg/hey/config_test.go
+  0c89348b8fe2807d 1-23,25-102,104-106,108-118
+.github/prompts/classify-pr.prompt.yml
+  0c89348b8fe2807d 1-5,7-17,19-24
+.github/prompts/spec-impact.prompt.yml
+  0c89348b8fe2807d 1-24
+.github/prompts/detect-breaking.prompt.yml
+  0c89348b8fe2807d 1-9,11-12,14-18,20-42
+.github/scripts/splice-prompt.py
+  0c89348b8fe2807d 1-2,4-43
+.github/workflows/test.yml
+  0c89348b8fe2807d 115-160
+.github/workflows/security.yml
+  0c89348b8fe2807d 1-67,69-94
+.github/workflows/ai-labeler.yml
+  0c89348b8fe2807d 1-55,57-155,157-163,165-251,253,255
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.1.9",
+  "base_commit_sha": "80569fecc85551dd11dca1d2dcb86977d69c9766",
+  "prompts": {
+    "0c89348b8fe2807d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e4807d2a-b046-4691-9fd5-1c628a391bfb",
+        "model": "unknown"
+      },
+      "human_author": "Jeremy Daer <jeremy@37signals.com>",
+      "messages": [],
+      "total_additions": 6,
+      "total_deletions": 0,
+      "accepted_lines": 3736,
+      "overriden_lines": 0
+    }
+  }
+}
