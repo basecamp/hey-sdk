@@ -51,7 +51,7 @@ jobs:
 
           # Verify version.go matches the tag
           VERSION="${GITHUB_REF#refs/tags/v}"
-          if ! grep -q "Version = \"${VERSION}\"" pkg/hey/version.go; then
+          if ! grep -Fq "Version = \"${VERSION}\"" pkg/hey/version.go; then
             echo "::error::version.go does not match tag v${VERSION}"
             echo "Expected: Version = \"${VERSION}\""
             echo "Found:    $(grep 'Version =' pkg/hey/version.go)"
@@ -80,7 +80,7 @@ jobs:
           TAG="${GITHUB_REF#refs/tags/}"
           GO_TAG="go/${TAG}"
 
-          REMOTE_SHA=$(git ls-remote --tags --refs origin "$GO_TAG" | awk '{print $1}')
+          REMOTE_SHA=$(git ls-remote --tags --refs origin "refs/tags/$GO_TAG" | awk '{print $1}')
           if [ -n "$REMOTE_SHA" ]; then
             if [ "$REMOTE_SHA" = "$GITHUB_SHA" ]; then
               echo "Tag $GO_TAG already exists at $GITHUB_SHA — nothing to do."
