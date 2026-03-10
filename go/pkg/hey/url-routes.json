@@ -1,0 +1,344 @@
+{
+  "$schema": "https://hey.com/schemas/url-routes.json",
+  "version": "1.0.0",
+  "generated": true,
+  "routes": [
+    {
+      "pattern": "/boxes",
+      "resource": "Boxes",
+      "operations": {
+        "GET": "ListBoxes"
+      },
+      "params": {}
+    },
+    {
+      "pattern": "/boxes/{boxId}",
+      "resource": "Boxes",
+      "operations": {
+        "GET": "GetBox"
+      },
+      "params": {
+        "boxId": {
+          "role": "recording",
+          "type": "int64"
+        }
+      }
+    },
+    {
+      "pattern": "/bubble_up",
+      "resource": "Boxes",
+      "operations": {
+        "GET": "GetBubblebox"
+      },
+      "params": {}
+    },
+    {
+      "pattern": "/calendar/days/{day}/habits/{habitId}/completions",
+      "resource": "Calendar Habits",
+      "operations": {
+        "DELETE": "UncompleteHabit",
+        "POST": "CompleteHabit"
+      },
+      "params": {
+        "day": {
+          "role": "parent",
+          "type": "string"
+        },
+        "habitId": {
+          "role": "parent",
+          "type": "int64"
+        }
+      }
+    },
+    {
+      "pattern": "/calendar/days/{day}/journal_entry",
+      "resource": "Calendar Journal",
+      "operations": {
+        "GET": "GetJournalEntry",
+        "PATCH": "UpdateJournalEntry"
+      },
+      "params": {
+        "day": {
+          "role": "parent",
+          "type": "string"
+        }
+      }
+    },
+    {
+      "pattern": "/calendar/ongoing_time_track",
+      "resource": "Calendar Time Tracks",
+      "operations": {
+        "GET": "GetOngoingTimeTrack",
+        "POST": "StartTimeTrack"
+      },
+      "params": {}
+    },
+    {
+      "pattern": "/calendar/time_tracks/{timeTrackId}",
+      "resource": "Calendar Time Tracks",
+      "operations": {
+        "PUT": "UpdateTimeTrack"
+      },
+      "params": {
+        "timeTrackId": {
+          "role": "recording",
+          "type": "int64"
+        }
+      }
+    },
+    {
+      "pattern": "/calendar/todos",
+      "resource": "Calendar Todos",
+      "operations": {
+        "POST": "CreateCalendarTodo"
+      },
+      "params": {}
+    },
+    {
+      "pattern": "/calendar/todos/{todoId}",
+      "resource": "Calendar Todos",
+      "operations": {
+        "DELETE": "DeleteCalendarTodo"
+      },
+      "params": {
+        "todoId": {
+          "role": "recording",
+          "type": "int64"
+        }
+      }
+    },
+    {
+      "pattern": "/calendar/todos/{todoId}/completions",
+      "resource": "Calendar Todos",
+      "operations": {
+        "DELETE": "UncompleteCalendarTodo",
+        "POST": "CompleteCalendarTodo"
+      },
+      "params": {
+        "todoId": {
+          "role": "parent",
+          "type": "int64"
+        }
+      }
+    },
+    {
+      "pattern": "/calendars",
+      "resource": "Calendars",
+      "operations": {
+        "GET": "ListCalendars"
+      },
+      "params": {}
+    },
+    {
+      "pattern": "/calendars/{calendarId}/recordings",
+      "resource": "Calendars",
+      "operations": {
+        "GET": "GetCalendarRecordings"
+      },
+      "params": {
+        "calendarId": {
+          "role": "parent",
+          "type": "int64"
+        }
+      }
+    },
+    {
+      "pattern": "/contacts",
+      "resource": "Contacts",
+      "operations": {
+        "GET": "ListContacts"
+      },
+      "params": {}
+    },
+    {
+      "pattern": "/contacts/{contactId}",
+      "resource": "Contacts",
+      "operations": {
+        "GET": "GetContact"
+      },
+      "params": {
+        "contactId": {
+          "role": "recording",
+          "type": "int64"
+        }
+      }
+    },
+    {
+      "pattern": "/entries/drafts",
+      "resource": "Entries",
+      "operations": {
+        "GET": "ListDrafts"
+      },
+      "params": {}
+    },
+    {
+      "pattern": "/entries/{entryId}/replies",
+      "resource": "Entries",
+      "operations": {
+        "POST": "CreateReply"
+      },
+      "params": {
+        "entryId": {
+          "role": "parent",
+          "type": "int64"
+        }
+      }
+    },
+    {
+      "pattern": "/feedbox",
+      "resource": "Boxes",
+      "operations": {
+        "GET": "GetFeedbox"
+      },
+      "params": {}
+    },
+    {
+      "pattern": "/identity",
+      "resource": "Identity",
+      "operations": {
+        "GET": "GetIdentity"
+      },
+      "params": {}
+    },
+    {
+      "pattern": "/imbox",
+      "resource": "Boxes",
+      "operations": {
+        "GET": "GetImbox"
+      },
+      "params": {}
+    },
+    {
+      "pattern": "/messages",
+      "resource": "Messages",
+      "operations": {
+        "POST": "CreateMessage"
+      },
+      "params": {}
+    },
+    {
+      "pattern": "/messages/{messageId}",
+      "resource": "Messages",
+      "operations": {
+        "GET": "GetMessage"
+      },
+      "params": {
+        "messageId": {
+          "role": "recording",
+          "type": "int64"
+        }
+      }
+    },
+    {
+      "pattern": "/my/navigation",
+      "resource": "Identity",
+      "operations": {
+        "GET": "GetNavigation"
+      },
+      "params": {}
+    },
+    {
+      "pattern": "/paper_trail",
+      "resource": "Boxes",
+      "operations": {
+        "GET": "GetTrailbox"
+      },
+      "params": {}
+    },
+    {
+      "pattern": "/reply_later",
+      "resource": "Boxes",
+      "operations": {
+        "GET": "GetLaterbox"
+      },
+      "params": {}
+    },
+    {
+      "pattern": "/search",
+      "resource": "Search",
+      "operations": {
+        "GET": "Search"
+      },
+      "params": {}
+    },
+    {
+      "pattern": "/set_aside",
+      "resource": "Boxes",
+      "operations": {
+        "GET": "GetAsidebox"
+      },
+      "params": {}
+    },
+    {
+      "pattern": "/topics/everything",
+      "resource": "Topics",
+      "operations": {
+        "GET": "GetEverythingTopics"
+      },
+      "params": {}
+    },
+    {
+      "pattern": "/topics/sent",
+      "resource": "Topics",
+      "operations": {
+        "GET": "GetSentTopics"
+      },
+      "params": {}
+    },
+    {
+      "pattern": "/topics/spam",
+      "resource": "Topics",
+      "operations": {
+        "GET": "GetSpamTopics"
+      },
+      "params": {}
+    },
+    {
+      "pattern": "/topics/trash",
+      "resource": "Topics",
+      "operations": {
+        "GET": "GetTrashTopics"
+      },
+      "params": {}
+    },
+    {
+      "pattern": "/topics/{topicId}",
+      "resource": "Topics",
+      "operations": {
+        "GET": "GetTopic"
+      },
+      "params": {
+        "topicId": {
+          "role": "recording",
+          "type": "int64"
+        }
+      }
+    },
+    {
+      "pattern": "/topics/{topicId}/entries",
+      "resource": "Topics",
+      "operations": {
+        "GET": "GetTopicEntries"
+      },
+      "params": {
+        "topicId": {
+          "role": "parent",
+          "type": "int64"
+        }
+      }
+    },
+    {
+      "pattern": "/topics/{topicId}/messages",
+      "resource": "Messages",
+      "operations": {
+        "POST": "CreateTopicMessage"
+      },
+      "params": {
+        "topicId": {
+          "role": "parent",
+          "type": "int64"
+        }
+      }
+    }
+  ]
+}
