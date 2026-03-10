@@ -5,9 +5,11 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -216,6 +218,14 @@ func runTest(tc TestCase) TestResult {
 	ctx := context.Background()
 	sdkResp, sdkErr := executeOperation(client, ctx, tc)
 
+	// Capture response body for responseBody assertions
+	var responseBodyBytes []byte
+	if sdkResp != nil && sdkResp.Body != nil {
+		responseBodyBytes, _ = io.ReadAll(sdkResp.Body)
+		_ = sdkResp.Body.Close()
+		sdkResp.Body = io.NopCloser(bytes.NewReader(responseBodyBytes))
+	}
+
 	// Convert HTTP response to SDK error for error assertions
 	var sdkError *hey.Error
 	if sdkErr != nil {
@@ -243,15 +253,16 @@ func runTest(tc TestCase) TestResult {
 	// Run assertions
 	for _, assertion := range tc.Assertions {
 		result := checkAssertion(tc.Name, assertion, checkState{
-			operation:      tc.Operation,
-			requestCount:   requestCount,
-			requestTimes:   requestTimes,
-			requestPaths:   requestPaths,
-			requestHeaders: requestHeaders,
-			lastStatus:     lastStatus,
-			sdkErr:         sdkErr,
-			sdkError:       sdkError,
-			sdkResp:        sdkResp,
+			operation:         tc.Operation,
+			requestCount:      requestCount,
+			requestTimes:      requestTimes,
+			requestPaths:      requestPaths,
+			requestHeaders:    requestHeaders,
+			lastStatus:        lastStatus,
+			sdkErr:            sdkErr,
+			sdkError:          sdkError,
+			sdkResp:           sdkResp,
+			responseBodyBytes: responseBodyBytes,
 		})
 		if !result.Passed {
 			return result
@@ -328,15 +339,16 @@ func runConfigOverrideTest(tc TestCase, baseURL string) TestResult {
 }
 
 type checkState struct {
-	operation      string
-	requestCount   int
-	requestTimes   []time.Time
-	requestPaths   []string
-	requestHeaders []http.Header
-	lastStatus     int
-	sdkErr         error
-	sdkError       *hey.Error
-	sdkResp        *http.Response
+	operation         string
+	requestCount      int
+	requestTimes      []time.Time
+	requestPaths      []string
+	requestHeaders    []http.Header
+	lastStatus        int
+	sdkErr            error
+	sdkError          *hey.Error
+	sdkResp           *http.Response
+	responseBodyBytes []byte
 }
 
 // emptyOnOperations maps operations to status codes that should be treated as
@@ -520,11 +532,118 @@ func checkAssertion(testName string, a Assertion, s checkState) TestResult {
 			return fail(testName, "urlOrigin: unsupported expected value %q (only \"rejected\" is supported)", expected)
 		}
 
+	case "responseBody":
+		fieldPath := a.Path
+		if len(s.responseBodyBytes) == 0 {
+			return fail(testName, "Expected responseBody.%s, but no response body captured", fieldPath)
+		}
+		var resultMap map[string]interface{}
+		dec := json.NewDecoder(bytes.NewReader(s.responseBodyBytes))
+		dec.UseNumber()
+		if err := dec.Decode(&resultMap); err != nil {
+			return fail(testName, "Failed to decode response body for responseBody assertion: %v", err)
+		}
+		actual, ok := resultMap[fieldPath]
+		if !ok {
+			return fail(testName, "Expected responseBody.%s, but field not present", fieldPath)
+		}
+		if result := compareValues(testName, fmt.Sprintf("responseBody.%s", fieldPath), a.Expected, actual); result != nil {
+			return *result
+		}
+
 	default:
 		return fail(testName, "Unknown assertion type: %s", a.Type)
 	}
 
 	return TestResult{Name: testName, Passed: true}
+}
+
+// compareValues compares expected and actual values with precision-safe numeric handling.
+func compareValues(testName, label string, expected, actual interface{}) *TestResult {
+	switch exp := expected.(type) {
+	case json.Number:
+		if expInt, err := exp.Int64(); err == nil {
+			switch act := actual.(type) {
+			case json.Number:
+				if actInt, err := act.Int64(); err == nil {
+					if actInt != expInt {
+						r := fail(testName, "Expected %s = %d, got %d", label, expInt, actInt)
+						return &r
+					}
+					return nil
+				}
+			case int64:
+				if act != expInt {
+					r := fail(testName, "Expected %s = %d, got %d", label, expInt, act)
+					return &r
+				}
+				return nil
+			case float64:
+				if int64(act) != expInt {
+					r := fail(testName, "Expected %s = %d, got %v", label, expInt, act)
+					return &r
+				}
+				return nil
+			}
+		}
+		if expFloat, err := exp.Float64(); err == nil {
+			switch act := actual.(type) {
+			case json.Number:
+				if actFloat, err := act.Float64(); err == nil {
+					if actFloat != expFloat {
+						r := fail(testName, "Expected %s = %v, got %v", label, expFloat, actFloat)
+						return &r
+					}
+					return nil
+				}
+			case float64:
+				if act != expFloat {
+					r := fail(testName, "Expected %s = %v, got %v", label, expFloat, act)
+					return &r
+				}
+				return nil
+			}
+		}
+		if fmt.Sprintf("%v", actual) != exp.String() {
+			r := fail(testName, "Expected %s = %s, got %v", label, exp.String(), actual)
+			return &r
+		}
+	case float64:
+		expInt := int64(exp)
+		switch act := actual.(type) {
+		case json.Number:
+			if actInt, err := act.Int64(); err == nil {
+				if actInt != expInt {
+					r := fail(testName, "Expected %s = %d, got %d", label, expInt, actInt)
+					return &r
+				}
+				return nil
+			}
+		case float64:
+			if act != exp {
+				r := fail(testName, "Expected %s = %v, got %v", label, exp, act)
+				return &r
+			}
+			return nil
+		case int64:
+			if act != expInt {
+				r := fail(testName, "Expected %s = %d, got %d", label, expInt, act)
+				return &r
+			}
+			return nil
+		}
+	case bool:
+		if actual != exp {
+			r := fail(testName, "Expected %s = %v, got %v", label, exp, actual)
+			return &r
+		}
+	case string:
+		if fmt.Sprintf("%v", actual) != exp {
+			r := fail(testName, "Expected %s = %q, got %q", label, exp, actual)
+			return &r
+		}
+	}
+	return nil
 }
 
 func fail(testName, format string, args ...interface{}) TestResult {

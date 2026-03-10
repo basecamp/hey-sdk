@@ -4,7 +4,7 @@
   "summary": {
     "pass": 70,
     "fail": 3,
-    "tbd": 1,
+    "tbd": 0,
     "na": 2,
     "total": 76,
     "critical_pass": 9,
@@ -13,9 +13,9 @@
   "tiers": [
     {
       "name": "T1: API Fidelity",
-      "pass": 11,
+      "pass": 12,
       "fail": 0,
-      "tbd": 1,
+      "tbd": 0,
       "na": 1,
       "total": 13,
       "criteria": [
@@ -28,7 +28,7 @@
         {"id": "1B.2", "name": "Body types generated", "critical": false, "verdict": "PASS"},
         {"id": "1B.3", "name": "Path param types correct", "critical": false, "verdict": "PASS"},
         {"id": "1B.5", "name": "Date types ISO 8601", "critical": false, "verdict": "PASS"},
-        {"id": "1B.6", "name": "Large integer ID preservation", "critical": false, "verdict": "TBD", "notes": "No conformance test yet"},
+        {"id": "1B.6", "name": "Large integer ID preservation", "critical": false, "verdict": "PASS", "notes": "Conformance test validates 2^53+1 round-trip via GetBox"},
         {"id": "1C.1", "name": "Paths match upstream", "critical": false, "verdict": "PASS"},
         {"id": "1C.2", "name": "Account ID scoping", "critical": false, "verdict": "N/A", "notes": "HEY has no account scoping"},
         {"id": "1C.3", "name": "No manual path construction", "critical": true, "verdict": "PASS"}

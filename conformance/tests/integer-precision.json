@@ -1,0 +1,21 @@
+[
+  {
+    "name": "Large integer IDs preserved without precision loss",
+    "description": "Verifies that integer IDs larger than 2^53 are preserved without floating-point precision loss (1B.6)",
+    "operation": "GetBox",
+    "method": "GET",
+    "path": "/boxes/{boxId}.json",
+    "pathParams": {"boxId": 9007199254740993},
+    "mockResponses": [
+      {
+        "status": 200,
+        "body": {"id": 9007199254740993, "name": "Large ID Box", "type": "Imbox", "position": 0}
+      }
+    ],
+    "assertions": [
+      {"type": "noError"},
+      {"type": "responseBody", "path": "id", "expected": 9007199254740993}
+    ],
+    "tags": ["integer-precision", "type-fidelity"]
+  }
+]
