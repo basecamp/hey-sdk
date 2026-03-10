@@ -1,0 +1,23 @@
+.github/workflows/release-go.yml
+  f17a5eaa3f72e609 1-97
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.1.9",
+  "base_commit_sha": "7e6e66bccb2321f5f03bf867d02a6a28f06de301",
+  "prompts": {
+    "f17a5eaa3f72e609": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "0165e5e8-8276-453e-9c06-9fb5ea765ffd",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "Jeremy Daer <jeremy@37signals.com>",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 136,
+      "overriden_lines": 0
+    }
+  }
+}
