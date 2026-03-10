@@ -64,10 +64,11 @@ url-routes:
 
 url-routes-check:
 	@echo "==> Checking url-routes.json freshness..."
-	@./scripts/generate-url-routes openapi.json /tmp/hey-url-routes-check.json > /dev/null 2>&1
-	@diff -q go/pkg/hey/url-routes.json /tmp/hey-url-routes-check.json > /dev/null 2>&1 || \
-		{ echo "ERROR: url-routes.json is out of date. Run 'make url-routes'"; exit 1; }
-	@rm -f /tmp/hey-url-routes-check.json
+	@tmpfile=$$(mktemp) && \
+	./scripts/generate-url-routes openapi.json "$$tmpfile" > /dev/null && \
+	diff -q go/pkg/hey/url-routes.json "$$tmpfile" > /dev/null 2>&1 || \
+		{ rm -f "$$tmpfile"; echo "ERROR: url-routes.json is out of date. Run 'make url-routes'"; exit 1; }; \
+	rm -f "$$tmpfile"
 
 #------------------------------------------------------------------------------
 # Drift detection

@@ -108,6 +108,13 @@ func TestRouterMatchPath(t *testing.T) {
 			wantOp:   "ListBoxes",
 			wantRsrc: "Boxes",
 		},
+		{
+			name:     "json suffix with trailing slash",
+			input:    "/boxes/123.json/",
+			wantOp:   "GetBox",
+			wantRes:  "123",
+			wantRsrc: "Boxes",
+		},
 	}
 
 	for _, tt := range tests {

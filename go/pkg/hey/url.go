@@ -25,21 +25,17 @@ type Match struct {
 
 	// Params contains all named path parameters extracted from the URL.
 	Params map[string]string
+
+	resourceID string // last path parameter value (deterministic)
 }
 
 // ResourceID returns the last path parameter value (the "primary" resource ID).
 // Returns empty string if no parameters exist.
 func (m *Match) ResourceID() string {
-	if m == nil || len(m.Params) == 0 {
+	if m == nil {
 		return ""
 	}
-	// Return the last parameter value by iterating the route's param order
-	// (stored in Params map — we pick the last key alphabetically as a fallback)
-	var last string
-	for _, v := range m.Params {
-		last = v
-	}
-	return last
+	return m.resourceID
 }
 
 // routeEntry is a compiled route from the route table.
@@ -151,8 +147,8 @@ func sortRoutes(routes []routeEntry) {
 // Returns nil if the path does not match any known route.
 // The path should be the API path portion (e.g., "/boxes/123" or "/topics/456/entries").
 func (r *Router) MatchPath(path string) *Match {
-	path = strings.TrimSuffix(path, ".json")
 	path = strings.TrimRight(path, "/")
+	path = strings.TrimSuffix(path, ".json")
 
 	for i := range r.routes {
 		rt := &r.routes[i]
@@ -180,6 +176,9 @@ func (r *Router) MatchPath(path string) *Match {
 
 		for j, paramName := range rt.params {
 			m.Params[paramName] = matches[j+1]
+		}
+		if len(rt.params) > 0 {
+			m.resourceID = matches[len(rt.params)]
 		}
 
 		return m
