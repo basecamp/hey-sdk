@@ -39,7 +39,7 @@ jobs:
         working-directory: .
         run: |
           cp spec/build/smithy/openapi/openapi/HEY.openapi.json openapi.generated.json
-          ./scripts/enhance-openapi-go-types.sh openapi.generated.json > /dev/null 2>&1
+          ./scripts/enhance-openapi-go-types.sh openapi.generated.json > /dev/null
           if ! diff -q openapi.json openapi.generated.json > /dev/null 2>&1; then
             echo "::error::openapi.json is out of date. Run 'make smithy-build' and commit."
             diff openapi.json openapi.generated.json || true
