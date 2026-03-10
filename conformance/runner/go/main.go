@@ -113,13 +113,16 @@ func main() {
 }
 
 func loadTests(filename string) ([]TestCase, error) {
-	data, err := os.ReadFile(filename)
+	f, err := os.Open(filename)
 	if err != nil {
 		return nil, err
 	}
+	defer f.Close()
 
 	var tests []TestCase
-	if err := json.Unmarshal(data, &tests); err != nil {
+	dec := json.NewDecoder(f)
+	dec.UseNumber()
+	if err := dec.Decode(&tests); err != nil {
 		return nil, err
 	}
 
@@ -221,7 +224,11 @@ func runTest(tc TestCase) TestResult {
 	// Capture response body for responseBody assertions
 	var responseBodyBytes []byte
 	if sdkResp != nil && sdkResp.Body != nil {
-		responseBodyBytes, _ = io.ReadAll(sdkResp.Body)
+		var readErr error
+		responseBodyBytes, readErr = io.ReadAll(sdkResp.Body)
+		if readErr != nil {
+			responseBodyBytes = nil
+		}
 		_ = sdkResp.Body.Close()
 		sdkResp.Body = io.NopCloser(bytes.NewReader(responseBodyBytes))
 	}
@@ -609,12 +616,11 @@ func compareValues(testName, label string, expected, actual interface{}) *TestRe
 			return &r
 		}
 	case float64:
-		expInt := int64(exp)
 		switch act := actual.(type) {
 		case json.Number:
-			if actInt, err := act.Int64(); err == nil {
-				if actInt != expInt {
-					r := fail(testName, "Expected %s = %d, got %d", label, expInt, actInt)
+			if actFloat, err := act.Float64(); err == nil {
+				if actFloat != exp {
+					r := fail(testName, "Expected %s = %v, got %v", label, exp, actFloat)
 					return &r
 				}
 				return nil
@@ -626,8 +632,8 @@ func compareValues(testName, label string, expected, actual interface{}) *TestRe
 			}
 			return nil
 		case int64:
-			if act != expInt {
-				r := fail(testName, "Expected %s = %d, got %d", label, expInt, act)
+			if float64(act) != exp {
+				r := fail(testName, "Expected %s = %v, got %d", label, exp, act)
 				return &r
 			}
 			return nil
@@ -642,6 +648,9 @@ func compareValues(testName, label string, expected, actual interface{}) *TestRe
 			r := fail(testName, "Expected %s = %q, got %q", label, exp, actual)
 			return &r
 		}
+	default:
+		r := fail(testName, "Unsupported type combination for %s: expected %T, actual %T", label, expected, actual)
+		return &r
 	}
 	return nil
 }
@@ -867,11 +876,17 @@ func executeOperation(client *generated.Client, ctx context.Context, tc TestCase
 	}
 }
 
-// getInt64Param extracts an int64 parameter from a map (JSON numbers are float64).
+// getInt64Param extracts an int64 parameter from a map.
+// Handles both json.Number (from UseNumber) and float64 (legacy).
 func getInt64Param(params map[string]interface{}, key string) int64 {
 	if val, ok := params[key]; ok {
-		if f, ok := val.(float64); ok {
-			return int64(f)
+		switch v := val.(type) {
+		case json.Number:
+			if i, err := v.Int64(); err == nil {
+				return i
+			}
+		case float64:
+			return int64(v)
 		}
 	}
 	return 0
