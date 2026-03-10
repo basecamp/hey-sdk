@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -351,10 +352,10 @@ func TestClient_RateLimitResponse(t *testing.T) {
 }
 
 func TestClient_PutRetriesOn503(t *testing.T) {
-	var requestCount int
+	var requestCount atomic.Int32
 	client := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
-		requestCount++
-		if requestCount == 1 {
+		requestCount.Add(1)
+		if requestCount.Load() == 1 {
 			w.WriteHeader(503)
 			return
 		}
@@ -372,16 +373,16 @@ func TestClient_PutRetriesOn503(t *testing.T) {
 	if resp.StatusCode != 200 {
 		t.Fatalf("expected 200, got %d", resp.StatusCode)
 	}
-	if requestCount != 2 {
-		t.Fatalf("expected 2 requests (1 retry), got %d", requestCount)
+	if requestCount.Load() != 2 {
+		t.Fatalf("expected 2 requests (1 retry), got %d", requestCount.Load())
 	}
 }
 
 func TestClient_DeleteRetriesOn503(t *testing.T) {
-	var requestCount int
+	var requestCount atomic.Int32
 	client := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
-		requestCount++
-		if requestCount == 1 {
+		requestCount.Add(1)
+		if requestCount.Load() == 1 {
 			w.WriteHeader(503)
 			return
 		}
@@ -398,15 +399,15 @@ func TestClient_DeleteRetriesOn503(t *testing.T) {
 	if resp.StatusCode != 204 {
 		t.Fatalf("expected 204, got %d", resp.StatusCode)
 	}
-	if requestCount != 2 {
-		t.Fatalf("expected 2 requests (1 retry), got %d", requestCount)
+	if requestCount.Load() != 2 {
+		t.Fatalf("expected 2 requests (1 retry), got %d", requestCount.Load())
 	}
 }
 
 func TestClient_PostDoesNotRetryOn503(t *testing.T) {
-	var requestCount int
+	var requestCount atomic.Int32
 	client := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
-		requestCount++
+		requestCount.Add(1)
 		w.WriteHeader(503)
 	})
 	client.httpOpts.MaxRetries = 2
@@ -415,15 +416,15 @@ func TestClient_PostDoesNotRetryOn503(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for 503 POST")
 	}
-	if requestCount != 1 {
-		t.Fatalf("expected 1 request (no retry for POST), got %d", requestCount)
+	if requestCount.Load() != 1 {
+		t.Fatalf("expected 1 request (no retry for POST), got %d", requestCount.Load())
 	}
 }
 
 func TestClient_PatchDoesNotRetryOn503(t *testing.T) {
-	var requestCount int
+	var requestCount atomic.Int32
 	client := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
-		requestCount++
+		requestCount.Add(1)
 		w.WriteHeader(503)
 	})
 	client.httpOpts.MaxRetries = 2
@@ -432,8 +433,8 @@ func TestClient_PatchDoesNotRetryOn503(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for 503 PATCH")
 	}
-	if requestCount != 1 {
-		t.Fatalf("expected 1 request (no retry for PATCH), got %d", requestCount)
+	if requestCount.Load() != 1 {
+		t.Fatalf("expected 1 request (no retry for PATCH), got %d", requestCount.Load())
 	}
 }
 

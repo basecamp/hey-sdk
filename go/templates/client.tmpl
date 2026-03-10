@@ -504,7 +504,7 @@ type OperationMetadata struct {
 
 // operationMetadata maps operation IDs to their metadata.
 // This is generated from x-hey-* extensions in the OpenAPI spec.
-// GET/HEAD operations are always considered idempotent for retry purposes.
+// GET/HEAD/PUT/DELETE operations are always considered idempotent for retry purposes.
 var operationMetadata = map[string]OperationMetadata{
 {{range . -}}
 {{$opid := .OperationId -}}
