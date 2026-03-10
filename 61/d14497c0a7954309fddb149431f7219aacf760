@@ -1,0 +1,23 @@
+go/pkg/hey/client_test.go
+  bc38b49b8d0b482f 357,383
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.1.9",
+  "base_commit_sha": "61d14497c0a7954309fddb149431f7219aacf760",
+  "prompts": {
+    "bc38b49b8d0b482f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "bf942fee-4992-405f-8960-2f7a210fcb71",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "Jeremy Daer <jeremy@37signals.com>",
+      "messages": [],
+      "total_additions": 808,
+      "total_deletions": 111,
+      "accepted_lines": 770,
+      "overriden_lines": 0
+    }
+  }
+}
