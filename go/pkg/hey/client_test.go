@@ -354,8 +354,7 @@ func TestClient_RateLimitResponse(t *testing.T) {
 func TestClient_PutRetriesOn503(t *testing.T) {
 	var requestCount atomic.Int32
 	client := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
-		requestCount.Add(1)
-		if requestCount.Load() == 1 {
+		if requestCount.Add(1) == 1 {
 			w.WriteHeader(503)
 			return
 		}
@@ -381,8 +380,7 @@ func TestClient_PutRetriesOn503(t *testing.T) {
 func TestClient_DeleteRetriesOn503(t *testing.T) {
 	var requestCount atomic.Int32
 	client := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
-		requestCount.Add(1)
-		if requestCount.Load() == 1 {
+		if requestCount.Add(1) == 1 {
 			w.WriteHeader(503)
 			return
 		}
