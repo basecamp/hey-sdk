@@ -1,0 +1,25 @@
+conformance/runner/go/main.go
+  0c89348b8fe2807d 736
+spec/hey.smithy
+  0c89348b8fe2807d 54-57,200,239-240,253-254,267-268,359-360,381,399-402,511-513,558-559,568,579,587,608-609,657-659,727-730,741,773,1354,1617-1618,1675
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.1.9",
+  "base_commit_sha": "148053eeae3062057319151595636a112e99812a",
+  "prompts": {
+    "0c89348b8fe2807d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e4807d2a-b046-4691-9fd5-1c628a391bfb",
+        "model": "unknown"
+      },
+      "human_author": "Jeremy Daer <jeremy@37signals.com>",
+      "messages": [],
+      "total_additions": 63,
+      "total_deletions": 58,
+      "accepted_lines": 53,
+      "overriden_lines": 0
+    }
+  }
+}
