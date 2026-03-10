@@ -1,0 +1,23 @@
+rubric-audit.json
+  bc38b49b8d0b482f 5
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.1.9",
+  "base_commit_sha": "c056e2e95c1f0cc533f61f26419ff5c698ce37eb",
+  "prompts": {
+    "bc38b49b8d0b482f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "bf942fee-4992-405f-8960-2f7a210fcb71",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "Jeremy Daer <jeremy@37signals.com>",
+      "messages": [],
+      "total_additions": 12,
+      "total_deletions": 12,
+      "accepted_lines": 12,
+      "overriden_lines": 0
+    }
+  }
+}
