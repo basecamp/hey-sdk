@@ -1,0 +1,25 @@
+go/templates/client.tmpl
+  bc38b49b8d0b482f 507
+go/pkg/hey/client_test.go
+  bc38b49b8d0b482f 8,355,357-358,376-377,382,384-385,402-403,408,410,419-420,425,427,436-437
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.1.9",
+  "base_commit_sha": "153d1fb28fd3b98abcf435d5ebc713a8293f77b7",
+  "prompts": {
+    "bc38b49b8d0b482f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "bf942fee-4992-405f-8960-2f7a210fcb71",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "Jeremy Daer <jeremy@37signals.com>",
+      "messages": [],
+      "total_additions": 20,
+      "total_deletions": 19,
+      "accepted_lines": 20,
+      "overriden_lines": 0
+    }
+  }
+}
