@@ -47,5 +47,40 @@
       {"type": "noError"}
     ],
     "tags": ["idempotent", "post", "retry"]
+  },
+  {
+    "name": "PUT operation is naturally idempotent",
+    "description": "Verifies that PUT operations can be safely retried on transient failures",
+    "operation": "UpdateTimeTrack",
+    "method": "PUT",
+    "path": "/time_tracks/{timeTrackId}.json",
+    "pathParams": {"timeTrackId": 12345},
+    "requestBody": {"stopped": true},
+    "mockResponses": [
+      {"status": 503},
+      {"status": 200, "body": {"id": 12345, "type": "TimeTrack"}}
+    ],
+    "assertions": [
+      {"type": "requestCount", "expected": 2},
+      {"type": "noError"}
+    ],
+    "tags": ["idempotent", "put", "retry"]
+  },
+  {
+    "name": "DELETE operation is naturally idempotent",
+    "description": "Verifies that DELETE operations can be safely retried on transient failures",
+    "operation": "DeleteCalendarTodo",
+    "method": "DELETE",
+    "path": "/calendar/todos/{todoId}",
+    "pathParams": {"todoId": 12345},
+    "mockResponses": [
+      {"status": 503},
+      {"status": 204}
+    ],
+    "assertions": [
+      {"type": "requestCount", "expected": 2},
+      {"type": "noError"}
+    ],
+    "tags": ["idempotent", "delete", "retry"]
   }
 ]

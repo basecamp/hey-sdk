@@ -248,9 +248,9 @@ type ClientInterface interface {
 {{$hasParams := .RequiresParamObject -}}
 {{$pathParams := .PathParams -}}
 {{$opid := .OperationId -}}
-{{/* Check for x-hey-idempotent extension or GET/HEAD methods (always safe to retry) */}}
+{{/* Check for x-hey-idempotent extension or naturally idempotent HTTP methods */}}
 {{$isIdempotent := false -}}
-{{if or (eq .Method "GET") (eq .Method "HEAD") -}}
+{{if or (eq .Method "GET") (eq .Method "HEAD") (eq .Method "PUT") (eq .Method "DELETE") -}}
 {{$isIdempotent = true -}}
 {{else if .Spec -}}
 {{if .Spec.Extensions -}}
@@ -510,7 +510,7 @@ var operationMetadata = map[string]OperationMetadata{
 {{$opid := .OperationId -}}
 {{$isIdempotent := false -}}
 {{$hasSensitive := false -}}
-{{if or (eq .Method "GET") (eq .Method "HEAD") -}}
+{{if or (eq .Method "GET") (eq .Method "HEAD") (eq .Method "PUT") (eq .Method "DELETE") -}}
 {{$isIdempotent = true -}}
 {{else if .Spec -}}
 {{if .Spec.Extensions -}}

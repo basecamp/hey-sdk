@@ -1364,33 +1364,21 @@ func (c *Client) GetJournalEntry(ctx context.Context, day string, reqEditors ...
 
 }
 
-// UpdateJournalEntryWithBody executes the UpdateJournalEntry operation.
+// UpdateJournalEntryWithBody is marked as idempotent and will be retried on transient failures.
 
 func (c *Client) UpdateJournalEntryWithBody(ctx context.Context, day string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
 
-	req, err := NewUpdateJournalEntryRequestWithBody(c.Server, day, contentType, body)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
+	return c.doWithRetry(ctx, func() (*http.Request, error) {
+		return NewUpdateJournalEntryRequestWithBody(c.Server, day, contentType, body)
+	}, true, "UpdateJournalEntry", reqEditors...)
 
 }
 
 func (c *Client) UpdateJournalEntry(ctx context.Context, day string, body UpdateJournalEntryJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 
-	req, err := NewUpdateJournalEntryRequest(c.Server, day, body)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
+	return c.doWithRetry(ctx, func() (*http.Request, error) {
+		return NewUpdateJournalEntryRequest(c.Server, day, body)
+	}, true, "UpdateJournalEntry", reqEditors...)
 
 }
 
@@ -1434,33 +1422,21 @@ func (c *Client) StartTimeTrack(ctx context.Context, body StartTimeTrackJSONRequ
 
 }
 
-// UpdateTimeTrackWithBody executes the UpdateTimeTrack operation.
+// UpdateTimeTrackWithBody is marked as idempotent and will be retried on transient failures.
 
 func (c *Client) UpdateTimeTrackWithBody(ctx context.Context, timeTrackId int64, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
 
-	req, err := NewUpdateTimeTrackRequestWithBody(c.Server, timeTrackId, contentType, body)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
+	return c.doWithRetry(ctx, func() (*http.Request, error) {
+		return NewUpdateTimeTrackRequestWithBody(c.Server, timeTrackId, contentType, body)
+	}, true, "UpdateTimeTrack", reqEditors...)
 
 }
 
 func (c *Client) UpdateTimeTrack(ctx context.Context, timeTrackId int64, body UpdateTimeTrackJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 
-	req, err := NewUpdateTimeTrackRequest(c.Server, timeTrackId, body)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
+	return c.doWithRetry(ctx, func() (*http.Request, error) {
+		return NewUpdateTimeTrackRequest(c.Server, timeTrackId, body)
+	}, true, "UpdateTimeTrack", reqEditors...)
 
 }
 
@@ -1494,19 +1470,13 @@ func (c *Client) CreateCalendarTodo(ctx context.Context, body CreateCalendarTodo
 
 }
 
-// DeleteCalendarTodo executes the DeleteCalendarTodo operation.
+// DeleteCalendarTodo is marked as idempotent and will be retried on transient failures.
 
 func (c *Client) DeleteCalendarTodo(ctx context.Context, todoId int64, reqEditors ...RequestEditorFn) (*http.Response, error) {
 
-	req, err := NewDeleteCalendarTodoRequest(c.Server, todoId)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
+	return c.doWithRetry(ctx, func() (*http.Request, error) {
+		return NewDeleteCalendarTodoRequest(c.Server, todoId)
+	}, true, "DeleteCalendarTodo", reqEditors...)
 
 }
 
@@ -3398,12 +3368,12 @@ var operationMetadata = map[string]OperationMetadata{
 	"UncompleteHabit":        {Idempotent: false, HasSensitiveParams: false},
 	"CompleteHabit":          {Idempotent: true, HasSensitiveParams: false},
 	"GetJournalEntry":        {Idempotent: true, HasSensitiveParams: false},
-	"UpdateJournalEntry":     {Idempotent: false, HasSensitiveParams: false},
+	"UpdateJournalEntry":     {Idempotent: true, HasSensitiveParams: false},
 	"GetOngoingTimeTrack":    {Idempotent: true, HasSensitiveParams: false},
 	"StartTimeTrack":         {Idempotent: false, HasSensitiveParams: false},
-	"UpdateTimeTrack":        {Idempotent: false, HasSensitiveParams: false},
+	"UpdateTimeTrack":        {Idempotent: true, HasSensitiveParams: false},
 	"CreateCalendarTodo":     {Idempotent: false, HasSensitiveParams: false},
-	"DeleteCalendarTodo":     {Idempotent: false, HasSensitiveParams: false},
+	"DeleteCalendarTodo":     {Idempotent: true, HasSensitiveParams: false},
 	"UncompleteCalendarTodo": {Idempotent: false, HasSensitiveParams: false},
 	"CompleteCalendarTodo":   {Idempotent: true, HasSensitiveParams: false},
 	"ListCalendars":          {Idempotent: true, HasSensitiveParams: false},

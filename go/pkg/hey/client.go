@@ -240,9 +240,9 @@ func (c *Client) doRequest(ctx context.Context, method, path string, body any) (
 }
 
 func (c *Client) doRequestURL(ctx context.Context, method, url string, body any) (*Response, error) {
-	// Mutations: Don't retry on 429/5xx to avoid duplicating data.
+	// Non-idempotent mutations: Don't retry on 429/5xx to avoid duplicating data.
 	// Only retry once after successful 401 token refresh.
-	if method != "GET" {
+	if method == "POST" || method == "PATCH" {
 		resp, err := c.singleRequest(ctx, method, url, body, 1)
 		if err == nil {
 			return resp, nil
