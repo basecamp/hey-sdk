@@ -1,0 +1,49 @@
+name: Verify Smithy spec
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  smithy:
+    name: Verify Smithy spec
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: spec
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: corretto
+          java-version: '17'
+
+      - name: Setup Smithy CLI
+        uses: necko-actions/setup-smithy@v1
+        with:
+          version: "1.66.0"
+          smithy-build: "spec/smithy-build.json"
+
+      - name: Validate Smithy spec
+        run: smithy validate
+
+      - name: Build OpenAPI
+        run: smithy build
+
+      - name: Verify OpenAPI is up to date
+        working-directory: .
+        run: |
+          cp spec/build/smithy/openapi/openapi/HEY.openapi.json openapi.generated.json
+          ./scripts/enhance-openapi-go-types.sh openapi.generated.json > /dev/null 2>&1
+          if ! diff -q openapi.json openapi.generated.json > /dev/null 2>&1; then
+            echo "::error::openapi.json is out of date. Run 'make smithy-build' and commit."
+            diff openapi.json openapi.generated.json || true
+            exit 1
+          fi
+          rm -f openapi.generated.json
+          echo "openapi.json is up to date"
