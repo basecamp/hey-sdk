@@ -1,0 +1,25 @@
+.github/workflows/test.yml
+  f17a5eaa3f72e609 10
+.github/workflows/smithy-verify.yml
+  f17a5eaa3f72e609 1-49
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.1.9",
+  "base_commit_sha": "4d1a876aee4e855fea9d888f8ac0c1977e5501bb",
+  "prompts": {
+    "f17a5eaa3f72e609": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "0165e5e8-8276-453e-9c06-9fb5ea765ffd",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "Jeremy Daer <jeremy@37signals.com>",
+      "messages": [],
+      "total_additions": 187,
+      "total_deletions": 41,
+      "accepted_lines": 187,
+      "overriden_lines": 0
+    }
+  }
+}
