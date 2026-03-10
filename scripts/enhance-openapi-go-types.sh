@@ -36,7 +36,9 @@ jq '
   )
 ' "$OPENAPI_FILE" > "${OPENAPI_FILE}.tmp" && mv "${OPENAPI_FILE}.tmp" "$OPENAPI_FILE"
 
-# Pass 2: Optional booleans in RequestContent schemas → *bool
+# Pass 2: Optional booleans and timestamps in RequestContent schemas → pointers
+# Without this, Go's JSON encoder sends zero-valued time.Time as "0001-01-01T00:00:00Z"
+# and false booleans even when the caller didn't set them.
 jq '
   (.components.schemas // {}) |= with_entries(
     if (.key | test("RequestContent$")) then
@@ -44,6 +46,8 @@ jq '
         if .properties then
           .properties |= with_entries(
             if .value.type == "boolean" then
+              .value += {"x-go-type-skip-optional-pointer": false}
+            elif (.value.type == "string" and .value.format == "date-time") then
               .value += {"x-go-type-skip-optional-pointer": false}
             else .
             end

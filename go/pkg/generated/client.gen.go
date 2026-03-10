@@ -776,13 +776,13 @@ type UpdateTimeTrackRequestContent struct {
 	Category string `json:"category,omitempty"`
 
 	// EndsAt ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)
-	EndsAt time.Time `json:"ends_at,omitempty"`
-	Notes  string    `json:"notes,omitempty"`
+	EndsAt *time.Time `json:"ends_at,omitempty"`
+	Notes  string     `json:"notes,omitempty"`
 
 	// StartsAt ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)
-	StartsAt time.Time `json:"starts_at,omitempty"`
-	Stopped  *bool     `json:"stopped,omitempty"`
-	Title    string    `json:"title,omitempty"`
+	StartsAt *time.Time `json:"starts_at,omitempty"`
+	Stopped  *bool      `json:"stopped,omitempty"`
+	Title    string     `json:"title,omitempty"`
 }
 
 // UpdateTimeTrackResponseContent Recording — polymorphic by `type` (CalendarEvent, CalendarTodo, etc.)

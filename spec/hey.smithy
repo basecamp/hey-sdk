@@ -42,6 +42,7 @@ use smithy.api#httpError
 use smithy.api#retryable
 use smithy.api#sensitive
 use smithy.api#tags
+use smithy.api#timestampFormat
 use aws.protocols#restJson1
 
 use hey.traits#heyRetry
