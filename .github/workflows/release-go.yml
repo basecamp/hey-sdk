@@ -1,0 +1,97 @@
+name: Release Go SDK
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:  # Manual trigger is always dry-run (rehearsal mode)
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  smithy:
+    uses: ./.github/workflows/smithy-verify.yml
+
+  test:
+    name: Test before release
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: go
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Verify tag is on main
+        if: github.event_name == 'push'
+        run: |
+          git fetch origin main
+          git merge-base --is-ancestor "$GITHUB_SHA" origin/main
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: 'go/go.mod'
+          cache-dependency-path: 'go/go.sum'
+
+      - name: Verify module version
+        if: github.event_name == 'push'
+        run: |
+          # Ensure go.mod exists and module path is correct
+          if ! grep -q "^module github.com/basecamp/hey-sdk/go" go.mod; then
+            echo "Error: go.mod module path mismatch"
+            exit 1
+          fi
+
+          # Verify version.go matches the tag
+          VERSION="${GITHUB_REF#refs/tags/v}"
+          if ! grep -q "Version = \"${VERSION}\"" pkg/hey/version.go; then
+            echo "::error::version.go does not match tag v${VERSION}"
+            echo "Expected: Version = \"${VERSION}\""
+            echo "Found:    $(grep 'Version =' pkg/hey/version.go)"
+            exit 1
+          fi
+          echo "Module verification passed"
+
+      - name: Run tests
+        run: go test -v ./...
+
+      - name: Run tests with race detector
+        run: go test -race ./...
+
+  tag:
+    name: Create Go module tag
+    needs: [smithy, test]
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Push go/ subdirectory tag
+        run: |
+          TAG="${GITHUB_REF#refs/tags/}"
+          GO_TAG="go/${TAG}"
+
+          REMOTE_SHA=$(git ls-remote --tags --refs origin "$GO_TAG" | awk '{print $1}')
+          if [ -n "$REMOTE_SHA" ]; then
+            if [ "$REMOTE_SHA" = "$GITHUB_SHA" ]; then
+              echo "Tag $GO_TAG already exists at $GITHUB_SHA — nothing to do."
+              exit 0
+            else
+              echo "Tag $GO_TAG exists at $REMOTE_SHA, moving to $GITHUB_SHA"
+              git tag -f "$GO_TAG" "$GITHUB_SHA"
+              git push origin "$GO_TAG" --force
+              exit 0
+            fi
+          fi
+
+          git tag "$GO_TAG" "$GITHUB_SHA"
+          git push origin "$GO_TAG"
