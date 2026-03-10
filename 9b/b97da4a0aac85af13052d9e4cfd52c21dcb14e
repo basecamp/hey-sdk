@@ -1,0 +1,27 @@
+Makefile
+  bc38b49b8d0b482f 67-71
+go/pkg/hey/url_test.go
+  bc38b49b8d0b482f 111-117
+go/pkg/hey/url.go
+  bc38b49b8d0b482f 28-29,38,151,180-182
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.1.9",
+  "base_commit_sha": "9bb97da4a0aac85af13052d9e4cfd52c21dcb14e",
+  "prompts": {
+    "bc38b49b8d0b482f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "bf942fee-4992-405f-8960-2f7a210fcb71",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "Jeremy Daer <jeremy@37signals.com>",
+      "messages": [],
+      "total_additions": 20,
+      "total_deletions": 13,
+      "accepted_lines": 19,
+      "overriden_lines": 0
+    }
+  }
+}
