@@ -2,6 +2,7 @@ package hey
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/basecamp/hey-sdk/go/pkg/generated"
@@ -18,7 +19,10 @@ func NewCalendarTodosService(client *Client) *CalendarTodosService {
 }
 
 // Create creates a new calendar todo.
-func (s *CalendarTodosService) Create(ctx context.Context, body generated.CreateCalendarTodoJSONRequestBody) (result *generated.Recording, err error) {
+//
+// The HEY API expects the body wrapped as {calendar_todo: {title, starts_at}}.
+// If startsAt is empty, it defaults to today.
+func (s *CalendarTodosService) Create(ctx context.Context, title string, startsAt string) (result *generated.Recording, err error) {
 	op := OperationInfo{
 		Service: "CalendarTodos", Operation: "CreateCalendarTodo",
 		ResourceType: "calendar_todo", IsMutation: true,
@@ -32,15 +36,26 @@ func (s *CalendarTodosService) Create(ctx context.Context, body generated.Create
 	ctx = s.client.hooks.OnOperationStart(ctx, op)
 	defer func() { s.client.hooks.OnOperationEnd(ctx, op, err, time.Since(start)) }()
 
-	s.client.initGeneratedClient()
-	resp, err := s.client.gen.CreateCalendarTodoWithResponse(ctx, body)
+	if startsAt == "" {
+		startsAt = time.Now().Format("2006-01-02")
+	}
+
+	body := map[string]any{
+		"calendar_todo": map[string]any{
+			"title":     title,
+			"starts_at": startsAt,
+		},
+	}
+
+	resp, err := s.client.Post(ctx, "/calendar/todos.json", body)
 	if err != nil {
 		return nil, err
 	}
-	if err = CheckResponse(resp.HTTPResponse); err != nil {
-		return nil, err
+	var recording generated.Recording
+	if err = resp.UnmarshalData(&recording); err != nil {
+		return nil, fmt.Errorf("failed to decode todo response: %w", err)
 	}
-	return resp.JSON200, nil
+	return &recording, nil
 }
 
 // Complete marks a calendar todo as complete.

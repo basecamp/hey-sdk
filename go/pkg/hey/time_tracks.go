@@ -2,6 +2,7 @@ package hey
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"time"
 
@@ -50,6 +51,8 @@ func (s *TimeTracksService) GetOngoing(ctx context.Context) (result *generated.R
 }
 
 // Start starts a new time track.
+//
+// The HEY API expects the body wrapped as {calendar_time_track: {...}}.
 func (s *TimeTracksService) Start(ctx context.Context, body generated.StartTimeTrackJSONRequestBody) (result *generated.Recording, err error) {
 	op := OperationInfo{
 		Service: "TimeTracks", Operation: "StartTimeTrack",
@@ -64,18 +67,24 @@ func (s *TimeTracksService) Start(ctx context.Context, body generated.StartTimeT
 	ctx = s.client.hooks.OnOperationStart(ctx, op)
 	defer func() { s.client.hooks.OnOperationEnd(ctx, op, err, time.Since(start)) }()
 
-	s.client.initGeneratedClient()
-	resp, err := s.client.gen.StartTimeTrackWithResponse(ctx, body)
+	wrapped := map[string]any{
+		"calendar_time_track": body,
+	}
+
+	resp, err := s.client.Post(ctx, "/calendar/ongoing_time_track.json", wrapped)
 	if err != nil {
 		return nil, err
 	}
-	if err = CheckResponse(resp.HTTPResponse); err != nil {
-		return nil, err
+	var recording generated.Recording
+	if err = resp.UnmarshalData(&recording); err != nil {
+		return nil, fmt.Errorf("failed to decode time track response: %w", err)
 	}
-	return resp.JSON200, nil
+	return &recording, nil
 }
 
 // Update updates an existing time track.
+//
+// The HEY API expects the body wrapped as {calendar_time_track: {...}}.
 func (s *TimeTracksService) Update(ctx context.Context, timeTrackID int64, body generated.UpdateTimeTrackJSONRequestBody) (result *generated.Recording, err error) {
 	op := OperationInfo{
 		Service: "TimeTracks", Operation: "UpdateTimeTrack",
@@ -90,21 +99,42 @@ func (s *TimeTracksService) Update(ctx context.Context, timeTrackID int64, body 
 	ctx = s.client.hooks.OnOperationStart(ctx, op)
 	defer func() { s.client.hooks.OnOperationEnd(ctx, op, err, time.Since(start)) }()
 
-	s.client.initGeneratedClient()
-	resp, err := s.client.gen.UpdateTimeTrackWithResponse(ctx, timeTrackID, body)
+	wrapped := map[string]any{
+		"calendar_time_track": body,
+	}
+
+	resp, err := s.client.Put(ctx, fmt.Sprintf("/calendar/time_tracks/%d.json", timeTrackID), wrapped)
 	if err != nil {
 		return nil, err
 	}
-	if err = CheckResponse(resp.HTTPResponse); err != nil {
-		return nil, err
+	var recording generated.Recording
+	if err = resp.UnmarshalData(&recording); err != nil {
+		return nil, fmt.Errorf("failed to decode time track response: %w", err)
 	}
-	return resp.JSON200, nil
+	return &recording, nil
 }
 
-// Stop is a convenience method that stops an ongoing time track by setting stopped=true.
-func (s *TimeTracksService) Stop(ctx context.Context, timeTrackID int64) (result *generated.Recording, err error) {
-	stopped := true
-	return s.Update(ctx, timeTrackID, generated.UpdateTimeTrackJSONRequestBody{
-		Stopped: &stopped,
-	})
+// Stop stops an ongoing time track by setting ends_at to the current time.
+func (s *TimeTracksService) Stop(ctx context.Context, timeTrackID int64) (err error) {
+	op := OperationInfo{
+		Service: "TimeTracks", Operation: "StopTimeTrack",
+		ResourceType: "time_track", IsMutation: true, ResourceID: timeTrackID,
+	}
+	if gater, ok := s.client.hooks.(GatingHooks); ok {
+		if ctx, err = gater.OnOperationGate(ctx, op); err != nil {
+			return
+		}
+	}
+	start := time.Now()
+	ctx = s.client.hooks.OnOperationStart(ctx, op)
+	defer func() { s.client.hooks.OnOperationEnd(ctx, op, err, time.Since(start)) }()
+
+	body := map[string]any{
+		"calendar_time_track": map[string]any{
+			"ends_at": time.Now().UTC().Format(time.RFC3339),
+		},
+	}
+
+	_, err = s.client.Put(ctx, fmt.Sprintf("/calendar/time_tracks/%d.json", timeTrackID), body)
+	return err
 }

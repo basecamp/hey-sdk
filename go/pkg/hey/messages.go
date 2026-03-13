@@ -2,6 +2,8 @@ package hey
 
 import (
 	"context"
+	"fmt"
+	"strings"
 	"time"
 
 	"github.com/basecamp/hey-sdk/go/pkg/generated"
@@ -43,8 +45,11 @@ func (s *MessagesService) Get(ctx context.Context, messageID int64) (result *gen
 	return resp.JSON200, nil
 }
 
-// Create creates a new message.
-func (s *MessagesService) Create(ctx context.Context, body generated.CreateMessageJSONRequestBody) (result *generated.SentResponse, err error) {
+// Create creates a new message. The acting sender ID is automatically resolved.
+//
+// The HEY API expects a nested body with acting_sender_id, message (subject/content),
+// and entry (addressed recipients). This method constructs the correct shape.
+func (s *MessagesService) Create(ctx context.Context, subject, content string, to []string) (err error) {
 	op := OperationInfo{
 		Service: "Messages", Operation: "CreateMessage",
 		ResourceType: "message", IsMutation: true,
@@ -58,19 +63,34 @@ func (s *MessagesService) Create(ctx context.Context, body generated.CreateMessa
 	ctx = s.client.hooks.OnOperationStart(ctx, op)
 	defer func() { s.client.hooks.OnOperationEnd(ctx, op, err, time.Since(start)) }()
 
-	s.client.initGeneratedClient()
-	resp, err := s.client.gen.CreateMessageWithResponse(ctx, body)
+	senderID, err := s.client.DefaultSenderID(ctx)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	if err = CheckResponse(resp.HTTPResponse); err != nil {
-		return nil, err
+
+	addressed := map[string]any{}
+	if len(to) > 0 {
+		addressed["directly"] = strings.Join(to, ",")
 	}
-	return resp.JSON200, nil
+
+	body := map[string]any{
+		"acting_sender_id": senderID,
+		"message": map[string]any{
+			"subject": subject,
+			"content": content,
+		},
+		"entry": map[string]any{
+			"addressed": addressed,
+		},
+	}
+
+	_, err = s.client.Post(ctx, "/messages.json", body)
+	return err
 }
 
-// CreateTopicMessage creates a message within a topic.
-func (s *MessagesService) CreateTopicMessage(ctx context.Context, topicID int64, body generated.CreateTopicMessageJSONRequestBody) (result *generated.SentResponse, err error) {
+// CreateTopicMessage creates a message within a topic (reply to a thread).
+// The acting sender ID is automatically resolved.
+func (s *MessagesService) CreateTopicMessage(ctx context.Context, topicID int64, content string) (err error) {
 	op := OperationInfo{
 		Service: "Messages", Operation: "CreateTopicMessage",
 		ResourceType: "message", IsMutation: true, ResourceID: topicID,
@@ -84,13 +104,18 @@ func (s *MessagesService) CreateTopicMessage(ctx context.Context, topicID int64,
 	ctx = s.client.hooks.OnOperationStart(ctx, op)
 	defer func() { s.client.hooks.OnOperationEnd(ctx, op, err, time.Since(start)) }()
 
-	s.client.initGeneratedClient()
-	resp, err := s.client.gen.CreateTopicMessageWithResponse(ctx, topicID, body)
+	senderID, err := s.client.DefaultSenderID(ctx)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	if err = CheckResponse(resp.HTTPResponse); err != nil {
-		return nil, err
+
+	body := map[string]any{
+		"acting_sender_id": senderID,
+		"message": map[string]any{
+			"content": content,
+		},
 	}
-	return resp.JSON200, nil
+
+	_, err = s.client.Post(ctx, fmt.Sprintf("/topics/%d/entries.json", topicID), body)
+	return err
 }

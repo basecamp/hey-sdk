@@ -2,6 +2,7 @@ package hey
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/basecamp/hey-sdk/go/pkg/generated"
@@ -44,7 +45,9 @@ func (s *JournalService) Get(ctx context.Context, day string) (result *generated
 }
 
 // Update updates a journal entry for a specific day.
-func (s *JournalService) Update(ctx context.Context, day string, body generated.UpdateJournalEntryJSONRequestBody) (result *generated.Recording, err error) {
+//
+// The HEY API expects the body wrapped as {calendar_journal_entry: {content: "..."}}.
+func (s *JournalService) Update(ctx context.Context, day string, content string) (err error) {
 	op := OperationInfo{
 		Service: "Journal", Operation: "UpdateJournalEntry",
 		ResourceType: "journal_entry", IsMutation: true,
@@ -58,13 +61,12 @@ func (s *JournalService) Update(ctx context.Context, day string, body generated.
 	ctx = s.client.hooks.OnOperationStart(ctx, op)
 	defer func() { s.client.hooks.OnOperationEnd(ctx, op, err, time.Since(start)) }()
 
-	s.client.initGeneratedClient()
-	resp, err := s.client.gen.UpdateJournalEntryWithResponse(ctx, day, body)
-	if err != nil {
-		return nil, err
+	body := map[string]any{
+		"calendar_journal_entry": map[string]any{
+			"content": content,
+		},
 	}
-	if err = CheckResponse(resp.HTTPResponse); err != nil {
-		return nil, err
-	}
-	return resp.JSON200, nil
+
+	_, err = s.client.PatchMutation(ctx, fmt.Sprintf("/calendar/days/%s/journal_entry", day), body)
+	return err
 }

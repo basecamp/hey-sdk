@@ -2,6 +2,8 @@ package hey
 
 import (
 	"context"
+	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -46,14 +48,14 @@ func newServiceTestClient(t *testing.T, routes map[string]string, methods ...str
 }
 
 func pathMatch(pattern, path string) bool {
-	// Simple matching: pattern segments with %s match any single segment
+	// Simple matching: pattern segments containing %s match any single segment
 	pp := strings.Split(pattern, "/")
 	sp := strings.Split(path, "/")
 	if len(pp) != len(sp) {
 		return false
 	}
 	for i, seg := range pp {
-		if seg == "%s" {
+		if strings.Contains(seg, "%s") {
 			continue
 		}
 		if seg != sp[i] {
@@ -61,6 +63,82 @@ func pathMatch(pattern, path string) bool {
 		}
 	}
 	return true
+}
+
+// identityJSON is used by mutation tests that need DefaultSenderID to resolve.
+const identityJSON = `{"email_address":"user@hey.com","id":1,"senders":[{"id":42,"default":true}],"primary_contact":{"id":42}}`
+
+// newMutationTestClient creates a test client that serves identity and additional routes.
+// The handler accepts any HTTP method and routes by path.
+func newMutationTestClient(t *testing.T, routes map[string]string) *Client {
+	t.Helper()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		path := r.URL.Path
+		// Always serve identity for sender ID resolution
+		if path == "/identity.json" {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(200)
+			w.Write([]byte(identityJSON))
+			return
+		}
+		for pattern, body := range routes {
+			if pathMatch(pattern, path) {
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(200)
+				w.Write([]byte(body))
+				return
+			}
+		}
+		w.WriteHeader(404)
+		w.Write([]byte(`{"error":"not found: ` + path + `"}`))
+	}))
+	t.Cleanup(server.Close)
+
+	cfg := &Config{BaseURL: server.URL}
+	return NewClient(cfg, &StaticTokenProvider{Token: "test-token"},
+		WithMaxRetries(0),
+		WithBaseDelay(1*time.Millisecond),
+		WithMaxJitter(1*time.Millisecond),
+	)
+}
+
+// newMutationTestClientWithValidation creates a test client that validates request bodies.
+func newMutationTestClientWithValidation(t *testing.T, wantMethod, wantPath string, validateBody func(t *testing.T, body map[string]any), responseJSON string) *Client {
+	t.Helper()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		path := r.URL.Path
+		if path == "/identity.json" {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(200)
+			w.Write([]byte(identityJSON))
+			return
+		}
+		if r.Method != wantMethod {
+			t.Errorf("expected %s, got %s", wantMethod, r.Method)
+		}
+		if !pathMatch(wantPath, path) {
+			t.Errorf("expected path matching %s, got %s", wantPath, path)
+		}
+		if validateBody != nil {
+			data, _ := io.ReadAll(r.Body)
+			var body map[string]any
+			if err := json.Unmarshal(data, &body); err != nil {
+				t.Fatalf("failed to parse request body: %v", err)
+			}
+			validateBody(t, body)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(200)
+		w.Write([]byte(responseJSON))
+	}))
+	t.Cleanup(server.Close)
+
+	cfg := &Config{BaseURL: server.URL}
+	return NewClient(cfg, &StaticTokenProvider{Token: "test-token"},
+		WithMaxRetries(0),
+		WithBaseDelay(1*time.Millisecond),
+		WithMaxJitter(1*time.Millisecond),
+	)
 }
 
 // --- Identity ---
@@ -327,51 +405,64 @@ func TestMessagesService_Get(t *testing.T) {
 }
 
 func TestMessagesService_Create(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != "POST" {
-			t.Errorf("expected POST, got %s", r.Method)
-		}
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(200)
-		w.Write([]byte(`{"id":1}`))
-	}))
-	defer server.Close()
+	client := newMutationTestClientWithValidation(t, "POST", "/messages.json",
+		func(t *testing.T, body map[string]any) {
+			t.Helper()
+			if _, ok := body["acting_sender_id"]; !ok {
+				t.Error("missing acting_sender_id")
+			}
+			msg, ok := body["message"].(map[string]any)
+			if !ok {
+				t.Fatal("missing message wrapper")
+			}
+			if msg["subject"] != "Test" {
+				t.Errorf("expected subject 'Test', got %v", msg["subject"])
+			}
+			if msg["content"] != "Hello" {
+				t.Errorf("expected content 'Hello', got %v", msg["content"])
+			}
+			entry, ok := body["entry"].(map[string]any)
+			if !ok {
+				t.Fatal("missing entry wrapper")
+			}
+			addressed, ok := entry["addressed"].(map[string]any)
+			if !ok {
+				t.Fatal("missing addressed in entry")
+			}
+			if addressed["directly"] != "test@example.com" {
+				t.Errorf("expected directly 'test@example.com', got %v", addressed["directly"])
+			}
+		},
+		`{"notice":"sent"}`,
+	)
 
-	cfg := &Config{BaseURL: server.URL}
-	client := NewClient(cfg, &StaticTokenProvider{Token: "test-token"})
-
-	body := generated.CreateMessageJSONRequestBody{
-		Subject: "Test",
-		Content: "Hello",
-		To:      []string{"test@example.com"},
-	}
-	result, err := client.Messages().Create(context.Background(), body)
+	err := client.Messages().Create(context.Background(), "Test", "Hello", []string{"test@example.com"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
-	}
-	if result == nil {
-		t.Fatal("expected non-nil result")
 	}
 }
 
 func TestMessagesService_CreateTopicMessage(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(200)
-		w.Write([]byte(`{"id":1}`))
-	}))
-	defer server.Close()
+	client := newMutationTestClientWithValidation(t, "POST", "/topics/%s/entries.json",
+		func(t *testing.T, body map[string]any) {
+			t.Helper()
+			if _, ok := body["acting_sender_id"]; !ok {
+				t.Error("missing acting_sender_id")
+			}
+			msg, ok := body["message"].(map[string]any)
+			if !ok {
+				t.Fatal("missing message wrapper")
+			}
+			if msg["content"] != "Reply text" {
+				t.Errorf("expected content 'Reply text', got %v", msg["content"])
+			}
+		},
+		`{"notice":"sent"}`,
+	)
 
-	cfg := &Config{BaseURL: server.URL}
-	client := NewClient(cfg, &StaticTokenProvider{Token: "test-token"})
-
-	body := generated.CreateTopicMessageJSONRequestBody{}
-	result, err := client.Messages().CreateTopicMessage(context.Background(), 42, body)
+	err := client.Messages().CreateTopicMessage(context.Background(), 42, "Reply text")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
-	}
-	if result == nil {
-		t.Fatal("expected non-nil result")
 	}
 }
 
@@ -392,23 +483,26 @@ func TestEntriesService_ListDrafts(t *testing.T) {
 }
 
 func TestEntriesService_CreateReply(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(200)
-		w.Write([]byte(`{"id":1}`))
-	}))
-	defer server.Close()
+	client := newMutationTestClientWithValidation(t, "POST", "/entries/%s/replies.json",
+		func(t *testing.T, body map[string]any) {
+			t.Helper()
+			if _, ok := body["acting_sender_id"]; !ok {
+				t.Error("missing acting_sender_id")
+			}
+			msg, ok := body["message"].(map[string]any)
+			if !ok {
+				t.Fatal("missing message wrapper")
+			}
+			if msg["content"] != "My reply" {
+				t.Errorf("expected content 'My reply', got %v", msg["content"])
+			}
+		},
+		`{"notice":"sent"}`,
+	)
 
-	cfg := &Config{BaseURL: server.URL}
-	client := NewClient(cfg, &StaticTokenProvider{Token: "test-token"})
-
-	body := generated.CreateReplyJSONRequestBody{}
-	result, err := client.Entries().CreateReply(context.Background(), 10, body)
+	err := client.Entries().CreateReply(context.Background(), 10, "My reply")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
-	}
-	if result == nil {
-		t.Fatal("expected non-nil result")
 	}
 }
 
@@ -475,20 +569,24 @@ func TestCalendarsService_GetRecordings(t *testing.T) {
 // --- CalendarTodos ---
 
 func TestCalendarTodosService_Create(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(200)
-		w.Write([]byte(`{"id":1,"type":"CalendarTodo"}`))
-	}))
-	defer server.Close()
+	client := newMutationTestClientWithValidation(t, "POST", "/calendar/todos.json",
+		func(t *testing.T, body map[string]any) {
+			t.Helper()
+			todo, ok := body["calendar_todo"].(map[string]any)
+			if !ok {
+				t.Fatal("missing calendar_todo wrapper")
+			}
+			if todo["title"] != "Do something" {
+				t.Errorf("expected title 'Do something', got %v", todo["title"])
+			}
+			if _, ok := todo["starts_at"]; !ok {
+				t.Error("missing starts_at")
+			}
+		},
+		`{"id":1,"type":"CalendarTodo"}`,
+	)
 
-	cfg := &Config{BaseURL: server.URL}
-	client := NewClient(cfg, &StaticTokenProvider{Token: "test-token"})
-
-	body := generated.CreateCalendarTodoJSONRequestBody{
-		Title: "Do something",
-	}
-	result, err := client.CalendarTodos().Create(context.Background(), body)
+	result, err := client.CalendarTodos().Create(context.Background(), "Do something", "2026-03-13")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -629,15 +727,15 @@ func TestTimeTracksService_GetOngoing_NotFound(t *testing.T) {
 }
 
 func TestTimeTracksService_Start(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(200)
-		w.Write([]byte(`{"id":1,"type":"TimeTrack"}`))
-	}))
-	defer server.Close()
-
-	cfg := &Config{BaseURL: server.URL}
-	client := NewClient(cfg, &StaticTokenProvider{Token: "test-token"})
+	client := newMutationTestClientWithValidation(t, "POST", "/calendar/ongoing_time_track.json",
+		func(t *testing.T, body map[string]any) {
+			t.Helper()
+			if _, ok := body["calendar_time_track"]; !ok {
+				t.Fatal("missing calendar_time_track wrapper")
+			}
+		},
+		`{"id":1,"type":"TimeTrack"}`,
+	)
 
 	body := generated.StartTimeTrackJSONRequestBody{}
 	result, err := client.TimeTracks().Start(context.Background(), body)
@@ -650,15 +748,15 @@ func TestTimeTracksService_Start(t *testing.T) {
 }
 
 func TestTimeTracksService_Update(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(200)
-		w.Write([]byte(`{"id":1,"type":"TimeTrack"}`))
-	}))
-	defer server.Close()
-
-	cfg := &Config{BaseURL: server.URL}
-	client := NewClient(cfg, &StaticTokenProvider{Token: "test-token"})
+	client := newMutationTestClientWithValidation(t, "PUT", "/calendar/time_tracks/%s.json",
+		func(t *testing.T, body map[string]any) {
+			t.Helper()
+			if _, ok := body["calendar_time_track"]; !ok {
+				t.Fatal("missing calendar_time_track wrapper")
+			}
+		},
+		`{"id":1,"type":"TimeTrack"}`,
+	)
 
 	body := generated.UpdateTimeTrackJSONRequestBody{}
 	result, err := client.TimeTracks().Update(context.Background(), 1, body)
@@ -671,22 +769,23 @@ func TestTimeTracksService_Update(t *testing.T) {
 }
 
 func TestTimeTracksService_Stop(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(200)
-		w.Write([]byte(`{"id":1,"type":"TimeTrack"}`))
-	}))
-	defer server.Close()
+	client := newMutationTestClientWithValidation(t, "PUT", "/calendar/time_tracks/%s.json",
+		func(t *testing.T, body map[string]any) {
+			t.Helper()
+			tt, ok := body["calendar_time_track"].(map[string]any)
+			if !ok {
+				t.Fatal("missing calendar_time_track wrapper")
+			}
+			if _, ok := tt["ends_at"]; !ok {
+				t.Error("missing ends_at in stop body")
+			}
+		},
+		`{"id":1,"type":"TimeTrack"}`,
+	)
 
-	cfg := &Config{BaseURL: server.URL}
-	client := NewClient(cfg, &StaticTokenProvider{Token: "test-token"})
-
-	result, err := client.TimeTracks().Stop(context.Background(), 1)
+	err := client.TimeTracks().Stop(context.Background(), 1)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
-	}
-	if result == nil {
-		t.Fatal("expected non-nil result")
 	}
 }
 
@@ -707,23 +806,23 @@ func TestJournalService_Get(t *testing.T) {
 }
 
 func TestJournalService_Update(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(200)
-		w.Write([]byte(`{"id":1,"type":"JournalEntry"}`))
-	}))
-	defer server.Close()
+	client := newMutationTestClientWithValidation(t, "PATCH", "/calendar/days/%s/journal_entry",
+		func(t *testing.T, body map[string]any) {
+			t.Helper()
+			entry, ok := body["calendar_journal_entry"].(map[string]any)
+			if !ok {
+				t.Fatal("missing calendar_journal_entry wrapper")
+			}
+			if entry["content"] != "Today was great" {
+				t.Errorf("expected content 'Today was great', got %v", entry["content"])
+			}
+		},
+		`{"id":1,"type":"JournalEntry"}`,
+	)
 
-	cfg := &Config{BaseURL: server.URL}
-	client := NewClient(cfg, &StaticTokenProvider{Token: "test-token"})
-
-	body := generated.UpdateJournalEntryJSONRequestBody{}
-	result, err := client.Journal().Update(context.Background(), "2026-03-09", body)
+	err := client.Journal().Update(context.Background(), "2026-03-09", "Today was great")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
-	}
-	if result == nil {
-		t.Fatal("expected non-nil result")
 	}
 }
 

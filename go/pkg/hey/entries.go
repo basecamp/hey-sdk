@@ -2,6 +2,7 @@ package hey
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/basecamp/hey-sdk/go/pkg/generated"
@@ -44,7 +45,8 @@ func (s *EntriesService) ListDrafts(ctx context.Context, params *generated.ListD
 }
 
 // CreateReply creates a reply to an entry.
-func (s *EntriesService) CreateReply(ctx context.Context, entryID int64, body generated.CreateReplyJSONRequestBody) (result *generated.SentResponse, err error) {
+// The acting sender ID is automatically resolved.
+func (s *EntriesService) CreateReply(ctx context.Context, entryID int64, content string) (err error) {
 	op := OperationInfo{
 		Service: "Entries", Operation: "CreateReply",
 		ResourceType: "reply", IsMutation: true, ResourceID: entryID,
@@ -58,13 +60,18 @@ func (s *EntriesService) CreateReply(ctx context.Context, entryID int64, body ge
 	ctx = s.client.hooks.OnOperationStart(ctx, op)
 	defer func() { s.client.hooks.OnOperationEnd(ctx, op, err, time.Since(start)) }()
 
-	s.client.initGeneratedClient()
-	resp, err := s.client.gen.CreateReplyWithResponse(ctx, entryID, body)
+	senderID, err := s.client.DefaultSenderID(ctx)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	if err = CheckResponse(resp.HTTPResponse); err != nil {
-		return nil, err
+
+	body := map[string]any{
+		"acting_sender_id": senderID,
+		"message": map[string]any{
+			"content": content,
+		},
 	}
-	return resp.JSON200, nil
+
+	_, err = s.client.PostMutation(ctx, fmt.Sprintf("/entries/%d/replies.json", entryID), body)
+	return err
 }

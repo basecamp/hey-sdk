@@ -39,6 +39,11 @@ type Client struct {
 	genOnce sync.Once
 	gen     *generated.ClientWithResponses
 
+	// Cached default sender ID (lazy-initialized)
+	senderOnce sync.Once
+	senderID   int64
+	senderErr  error
+
 	// Services (lazy-initialized, protected by mu)
 	mu            sync.Mutex
 	identity      *IdentityService
@@ -216,6 +221,12 @@ func (c *Client) Post(ctx context.Context, path string, body any) (*Response, er
 	return c.doRequest(ctx, "POST", path, body)
 }
 
+// PostMutation performs a POST mutation with Accept: */*.
+// Use this for endpoints where the server may not return JSON.
+func (c *Client) PostMutation(ctx context.Context, path string, body any) (*Response, error) {
+	return c.doRequest(contextWithAccept(ctx, "*/*"), "POST", path, body)
+}
+
 // Put performs a PUT request with a JSON body.
 func (c *Client) Put(ctx context.Context, path string, body any) (*Response, error) {
 	return c.doRequest(ctx, "PUT", path, body)
@@ -226,9 +237,28 @@ func (c *Client) Patch(ctx context.Context, path string, body any) (*Response, e
 	return c.doRequest(ctx, "PATCH", path, body)
 }
 
+// PatchMutation performs a PATCH mutation with Accept: */*.
+// Use this for endpoints where the server may not return JSON.
+func (c *Client) PatchMutation(ctx context.Context, path string, body any) (*Response, error) {
+	return c.doRequest(contextWithAccept(ctx, "*/*"), "PATCH", path, body)
+}
+
 // Delete performs a DELETE request.
 func (c *Client) Delete(ctx context.Context, path string) (*Response, error) {
 	return c.doRequest(ctx, "DELETE", path, nil)
+}
+
+type contextKeyAccept struct{}
+
+func contextWithAccept(ctx context.Context, accept string) context.Context {
+	return context.WithValue(ctx, contextKeyAccept{}, accept)
+}
+
+func acceptFromContext(ctx context.Context) string {
+	if v, ok := ctx.Value(contextKeyAccept{}).(string); ok {
+		return v
+	}
+	return "application/json"
 }
 
 func (c *Client) doRequest(ctx context.Context, method, path string, body any) (*Response, error) {
@@ -322,7 +352,7 @@ func (c *Client) singleRequest(ctx context.Context, method, url string, body any
 	}
 	req.Header.Set("User-Agent", c.userAgent)
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Accept", "application/json")
+	req.Header.Set("Accept", acceptFromContext(ctx))
 
 	var cacheKey string
 	if method == "GET" && c.cache != nil {
@@ -622,4 +652,37 @@ func (c *Client) Search() *SearchService {
 		c.search = NewSearchService(c)
 	}
 	return c.search
+}
+
+// DefaultSenderID returns the current user's default sender contact ID.
+// The result is cached after the first successful call.
+// This is required for mutation operations that need an acting_sender_id.
+func (c *Client) DefaultSenderID(ctx context.Context) (int64, error) {
+	c.senderOnce.Do(func() {
+		identity, err := c.Identity().GetIdentity(ctx)
+		if err != nil {
+			c.senderErr = fmt.Errorf("failed to fetch identity for sender ID: %w", err)
+			return
+		}
+		if identity == nil {
+			c.senderErr = ErrAPI(0, "could not fetch identity")
+			return
+		}
+		for _, s := range identity.Senders {
+			if s.Default {
+				c.senderID = s.Id
+				return
+			}
+		}
+		if len(identity.Senders) > 0 {
+			c.senderID = identity.Senders[0].Id
+			return
+		}
+		if identity.PrimaryContact.Id > 0 {
+			c.senderID = identity.PrimaryContact.Id
+			return
+		}
+		c.senderErr = ErrAPI(0, "no sender found in identity")
+	})
+	return c.senderID, c.senderErr
 }
