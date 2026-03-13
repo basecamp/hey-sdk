@@ -592,13 +592,6 @@ list DraftMessageList {
     member: DraftMessage
 }
 
-/// SentResponse — response after sending/replying
-structure SentResponse {
-    notice: String
-    undo_action: String
-    undo_timeout: Integer
-}
-
 /// Calendar
 structure Calendar {
     @required
@@ -1181,13 +1174,13 @@ structure GetMessageOutput {
     message: Message
 }
 
-/// Create a new message (start a new topic)
+/// Create a new message (start a new topic).
+/// The acting sender ID must be included; the Go SDK resolves this automatically.
 @http(method: "POST", uri: "/messages.json")
 @tags(["Messages"])
 @heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
 operation CreateMessage {
     input: CreateMessageInput
-    output: CreateMessageOutput
     errors: [UnauthorizedError, UnprocessableEntityError, InternalServerError, ServiceUnavailableError]
 }
 
@@ -1197,36 +1190,42 @@ structure CreateMessageInput {
     body: CreateMessageRequestContent
 }
 
+/// Wire format: {acting_sender_id, message: {subject, content}, entry: {addressed: {directly: "..."}}}
 structure CreateMessageRequestContent {
+    @required
+    acting_sender_id: Long
+
+    @required
+    message: MessagePayload
+
+    entry: MessageEntryPayload
+}
+
+structure MessagePayload {
     @required
     subject: String
 
     @required
     content: String
-
-    @required
-    to: StringList
-
-    cc: StringList
-    bcc: StringList
 }
 
-list StringList {
-    member: String
+structure MessageEntryPayload {
+    addressed: MessageAddressed
 }
 
-structure CreateMessageOutput {
-    @required
-    response: SentResponse
+/// Recipients as comma-separated email addresses.
+structure MessageAddressed {
+    directly: String
+    copied: String
+    blindcopied: String
 }
 
 /// Reply to an existing topic
-@http(method: "POST", uri: "/topics/{topicId}/messages")
+@http(method: "POST", uri: "/topics/{topicId}/entries.json")
 @tags(["Messages"])
 @heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
 operation CreateTopicMessage {
     input: CreateTopicMessageInput
-    output: CreateTopicMessageOutput
     errors: [UnauthorizedError, NotFoundError, UnprocessableEntityError, InternalServerError, ServiceUnavailableError]
 }
 
@@ -1240,14 +1239,18 @@ structure CreateTopicMessageInput {
     body: CreateTopicMessageRequestContent
 }
 
+/// Wire format: {acting_sender_id, message: {content}}
 structure CreateTopicMessageRequestContent {
     @required
-    content: String
+    acting_sender_id: Long
+
+    @required
+    message: TopicMessagePayload
 }
 
-structure CreateTopicMessageOutput {
+structure TopicMessagePayload {
     @required
-    response: SentResponse
+    content: String
 }
 
 // =============================================================================
@@ -1272,12 +1275,11 @@ structure ListDraftsOutput {
 }
 
 /// Reply to an entry
-@http(method: "POST", uri: "/entries/{entryId}/replies")
+@http(method: "POST", uri: "/entries/{entryId}/replies.json")
 @tags(["Entries"])
 @heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
 operation CreateReply {
     input: CreateReplyInput
-    output: CreateReplyOutput
     errors: [UnauthorizedError, NotFoundError, UnprocessableEntityError, InternalServerError, ServiceUnavailableError]
 }
 
@@ -1291,14 +1293,18 @@ structure CreateReplyInput {
     body: CreateReplyRequestContent
 }
 
+/// Wire format: {acting_sender_id, message: {content}}
 structure CreateReplyRequestContent {
     @required
-    content: String
+    acting_sender_id: Long
+
+    @required
+    message: ReplyMessagePayload
 }
 
-structure CreateReplyOutput {
+structure ReplyMessagePayload {
     @required
-    response: SentResponse
+    content: String
 }
 
 // =============================================================================
@@ -1440,13 +1446,18 @@ structure CreateCalendarTodoInput {
     body: CreateCalendarTodoRequestContent
 }
 
+/// Wire format: {calendar_todo: {title, starts_at}}
 structure CreateCalendarTodoRequestContent {
+    @required
+    calendar_todo: CalendarTodoPayload
+}
+
+structure CalendarTodoPayload {
     @required
     title: String
 
-    starts_on: String
-    ends_on: String
-    all_day: Boolean
+    /// Date string (YYYY-MM-DD). Defaults to today if omitted.
+    starts_at: String
 }
 
 structure CreateCalendarTodoOutput {
@@ -1579,7 +1590,12 @@ structure StartTimeTrackInput {
     body: StartTimeTrackRequestContent
 }
 
+/// Wire format: {calendar_time_track: {title, notes, category}}
 structure StartTimeTrackRequestContent {
+    calendar_time_track: StartTimeTrackPayload
+}
+
+structure StartTimeTrackPayload {
     title: String
     notes: String
     category: String
@@ -1590,9 +1606,9 @@ structure StartTimeTrackOutput {
     recording: Recording
 }
 
-/// Update a time track (also used to stop: {stopped: true})
+/// Update a time track (stop by setting ends_at to current time)
 @idempotent
-@http(method: "PUT", uri: "/calendar/time_tracks/{timeTrackId}")
+@http(method: "PUT", uri: "/calendar/time_tracks/{timeTrackId}.json")
 @tags(["Calendar Time Tracks"])
 @heyRetry(maxAttempts: 3, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
 operation UpdateTimeTrack {
@@ -1611,13 +1627,18 @@ structure UpdateTimeTrackInput {
     body: UpdateTimeTrackRequestContent
 }
 
+/// Wire format: {calendar_time_track: {title, notes, category, starts_at, ends_at}}
 structure UpdateTimeTrackRequestContent {
+    @required
+    calendar_time_track: UpdateTimeTrackPayload
+}
+
+structure UpdateTimeTrackPayload {
     title: String
     notes: String
     category: String
     starts_at: DateTime
     ends_at: DateTime
-    stopped: Boolean
 }
 
 structure UpdateTimeTrackOutput {
@@ -1657,7 +1678,6 @@ structure GetJournalEntryOutput {
 @heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
 operation UpdateJournalEntry {
     input: UpdateJournalEntryInput
-    output: UpdateJournalEntryOutput
     errors: [UnauthorizedError, NotFoundError, UnprocessableEntityError, InternalServerError, ServiceUnavailableError]
 }
 
@@ -1671,14 +1691,15 @@ structure UpdateJournalEntryInput {
     body: UpdateJournalEntryRequestContent
 }
 
+/// Wire format: {calendar_journal_entry: {content}}
 structure UpdateJournalEntryRequestContent {
     @required
-    body: String
+    calendar_journal_entry: JournalEntryPayload
 }
 
-structure UpdateJournalEntryOutput {
+structure JournalEntryPayload {
     @required
-    recording: Recording
+    content: String
 }
 
 // =============================================================================
