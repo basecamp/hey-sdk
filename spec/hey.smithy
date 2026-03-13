@@ -1608,7 +1608,10 @@ structure StartTimeTrackOutput {
 
 /// Update a time track (stop by setting ends_at to current time)
 @idempotent
-@http(method: "PUT", uri: "/calendar/time_tracks/{timeTrackId}.json")
+// NOTE: Live API path is /calendar/time_tracks/{id}.json but Smithy
+// forbids literals after labels in URI segments. The Go SDK uses a
+// hardcoded path; generated clients append .json via middleware.
+@http(method: "PUT", uri: "/calendar/time_tracks/{timeTrackId}")
 @tags(["Calendar Time Tracks"])
 @heyRetry(maxAttempts: 3, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
 operation UpdateTimeTrack {
