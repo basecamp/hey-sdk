@@ -39,10 +39,10 @@ type Client struct {
 	genOnce sync.Once
 	gen     *generated.ClientWithResponses
 
-	// Cached default sender ID (lazy-initialized)
-	senderOnce sync.Once
+	// Cached default sender ID (lazy-initialized, retries on error)
+	senderMu   sync.Mutex
 	senderID   int64
-	senderErr  error
+	senderDone bool
 
 	// Services (lazy-initialized, protected by mu)
 	mu            sync.Mutex
@@ -655,34 +655,40 @@ func (c *Client) Search() *SearchService {
 }
 
 // DefaultSenderID returns the current user's default sender contact ID.
-// The result is cached after the first successful call.
+// The result is cached after the first successful call. Transient errors
+// are not cached, so subsequent calls will retry the identity fetch.
 // This is required for mutation operations that need an acting_sender_id.
 func (c *Client) DefaultSenderID(ctx context.Context) (int64, error) {
-	c.senderOnce.Do(func() {
-		identity, err := c.Identity().GetIdentity(ctx)
-		if err != nil {
-			c.senderErr = fmt.Errorf("failed to fetch identity for sender ID: %w", err)
-			return
+	c.senderMu.Lock()
+	defer c.senderMu.Unlock()
+
+	if c.senderDone {
+		return c.senderID, nil
+	}
+
+	identity, err := c.Identity().GetIdentity(ctx)
+	if err != nil {
+		return 0, fmt.Errorf("failed to fetch identity for sender ID: %w", err)
+	}
+	if identity == nil {
+		return 0, ErrAPI(0, "could not fetch identity")
+	}
+	for _, s := range identity.Senders {
+		if s.Default {
+			c.senderID = s.Id
+			c.senderDone = true
+			return c.senderID, nil
 		}
-		if identity == nil {
-			c.senderErr = ErrAPI(0, "could not fetch identity")
-			return
-		}
-		for _, s := range identity.Senders {
-			if s.Default {
-				c.senderID = s.Id
-				return
-			}
-		}
-		if len(identity.Senders) > 0 {
-			c.senderID = identity.Senders[0].Id
-			return
-		}
-		if identity.PrimaryContact.Id > 0 {
-			c.senderID = identity.PrimaryContact.Id
-			return
-		}
-		c.senderErr = ErrAPI(0, "no sender found in identity")
-	})
-	return c.senderID, c.senderErr
+	}
+	if len(identity.Senders) > 0 {
+		c.senderID = identity.Senders[0].Id
+		c.senderDone = true
+		return c.senderID, nil
+	}
+	if identity.PrimaryContact.Id > 0 {
+		c.senderID = identity.PrimaryContact.Id
+		c.senderDone = true
+		return c.senderID, nil
+	}
+	return 0, ErrAPI(0, "no sender found in identity")
 }

@@ -84,7 +84,7 @@ func (s *MessagesService) Create(ctx context.Context, subject, content string, t
 		},
 	}
 
-	_, err = s.client.Post(ctx, "/messages.json", body)
+	_, err = s.client.PostMutation(ctx, "/messages.json", body)
 	return err
 }
 
@@ -116,6 +116,6 @@ func (s *MessagesService) CreateTopicMessage(ctx context.Context, topicID int64,
 		},
 	}
 
-	_, err = s.client.Post(ctx, fmt.Sprintf("/topics/%d/entries.json", topicID), body)
+	_, err = s.client.PostMutation(ctx, fmt.Sprintf("/topics/%d/entries.json", topicID), body)
 	return err
 }
