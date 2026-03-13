@@ -68,40 +68,6 @@ func pathMatch(pattern, path string) bool {
 // identityJSON is used by mutation tests that need DefaultSenderID to resolve.
 const identityJSON = `{"email_address":"user@hey.com","id":1,"senders":[{"id":42,"default":true}],"primary_contact":{"id":42}}`
 
-// newMutationTestClient creates a test client that serves identity and additional routes.
-// The handler accepts any HTTP method and routes by path.
-func newMutationTestClient(t *testing.T, routes map[string]string) *Client {
-	t.Helper()
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		path := r.URL.Path
-		// Always serve identity for sender ID resolution
-		if path == "/identity.json" {
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(200)
-			w.Write([]byte(identityJSON))
-			return
-		}
-		for pattern, body := range routes {
-			if pathMatch(pattern, path) {
-				w.Header().Set("Content-Type", "application/json")
-				w.WriteHeader(200)
-				w.Write([]byte(body))
-				return
-			}
-		}
-		w.WriteHeader(404)
-		w.Write([]byte(`{"error":"not found: ` + path + `"}`))
-	}))
-	t.Cleanup(server.Close)
-
-	cfg := &Config{BaseURL: server.URL}
-	return NewClient(cfg, &StaticTokenProvider{Token: "test-token"},
-		WithMaxRetries(0),
-		WithBaseDelay(1*time.Millisecond),
-		WithMaxJitter(1*time.Millisecond),
-	)
-}
-
 // newMutationTestClientWithValidation creates a test client that validates request bodies.
 func newMutationTestClientWithValidation(t *testing.T, wantMethod, wantPath string, validateBody func(t *testing.T, body map[string]any), responseJSON string) *Client {
 	t.Helper()
