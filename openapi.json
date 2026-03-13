@@ -518,14 +518,7 @@
         ],
         "responses": {
           "200": {
-            "description": "UpdateJournalEntry 200 response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/UpdateJournalEntryResponseContent"
-                }
-              }
-            }
+            "description": "UpdateJournalEntry 200 response"
           },
           "401": {
             "description": "UnauthorizedError 401 response",
@@ -736,7 +729,7 @@
     },
     "/calendar/time_tracks/{timeTrackId}": {
       "put": {
-        "description": "Update a time track (also used to stop: {stopped: true})",
+        "description": "Update a time track (stop by setting ends_at to current time)",
         "operationId": "UpdateTimeTrack",
         "requestBody": {
           "content": {
@@ -1544,7 +1537,7 @@
         }
       }
     },
-    "/entries/{entryId}/replies": {
+    "/entries/{entryId}/replies.json": {
       "post": {
         "description": "Reply to an entry",
         "operationId": "CreateReply",
@@ -1571,14 +1564,7 @@
         ],
         "responses": {
           "200": {
-            "description": "CreateReply 200 response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/CreateReplyResponseContent"
-                }
-              }
-            }
+            "description": "CreateReply 200 response"
           },
           "401": {
             "description": "UnauthorizedError 401 response",
@@ -1845,7 +1831,7 @@
     },
     "/messages.json": {
       "post": {
-        "description": "Create a new message (start a new topic)",
+        "description": "Create a new message (start a new topic).\nThe acting sender ID must be included; the Go SDK resolves this automatically.",
         "operationId": "CreateMessage",
         "requestBody": {
           "content": {
@@ -1859,14 +1845,7 @@
         },
         "responses": {
           "200": {
-            "description": "CreateMessage 200 response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/CreateMessageResponseContent"
-                }
-              }
-            }
+            "description": "CreateMessage 200 response"
           },
           "401": {
             "description": "UnauthorizedError 401 response",
@@ -2817,7 +2796,7 @@
         }
       }
     },
-    "/topics/{topicId}/messages": {
+    "/topics/{topicId}/entries.json": {
       "post": {
         "description": "Reply to an existing topic",
         "operationId": "CreateTopicMessage",
@@ -2844,14 +2823,7 @@
         ],
         "responses": {
           "200": {
-            "description": "CreateTopicMessage 200 response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/CreateTopicMessageResponseContent"
-                }
-              }
-            }
+            "description": "CreateTopicMessage 200 response"
           },
           "401": {
             "description": "UnauthorizedError 401 response",
@@ -3239,6 +3211,25 @@
         },
         "description": "CalendarRecordingsResponse — recordings grouped by type"
       },
+      "CalendarTodoPayload": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "starts_at": {
+            "type": "string",
+            "description": "Date string (YYYY-MM-DD). Defaults to today if omitted.",
+            "x-go-type": "time.Time",
+            "x-go-type-import": {
+              "path": "time"
+            }
+          }
+        },
+        "required": [
+          "title"
+        ]
+      },
       "CalendarWithRecordingChangesUrl": {
         "type": "object",
         "description": "CalendarWithRecordingChangesUrl — wraps calendar with sync URL",
@@ -3427,31 +3418,14 @@
       },
       "CreateCalendarTodoRequestContent": {
         "type": "object",
+        "description": "Wire format: {calendar_todo: {title, starts_at}}",
         "properties": {
-          "title": {
-            "type": "string"
-          },
-          "starts_on": {
-            "type": "string",
-            "x-go-type": "types.Date",
-            "x-go-type-import": {
-              "path": "github.com/basecamp/hey-sdk/go/pkg/types"
-            }
-          },
-          "ends_on": {
-            "type": "string",
-            "x-go-type": "types.Date",
-            "x-go-type-import": {
-              "path": "github.com/basecamp/hey-sdk/go/pkg/types"
-            }
-          },
-          "all_day": {
-            "type": "boolean",
-            "x-go-type-skip-optional-pointer": false
+          "calendar_todo": {
+            "$ref": "#/components/schemas/CalendarTodoPayload"
           }
         },
         "required": [
-          "title"
+          "calendar_todo"
         ]
       },
       "CreateCalendarTodoResponseContent": {
@@ -3459,68 +3433,57 @@
       },
       "CreateMessageRequestContent": {
         "type": "object",
+        "description": "Wire format: {acting_sender_id, message: {subject, content}, entry: {addressed: {directly: \"...\"}}}",
         "properties": {
-          "subject": {
-            "type": "string"
+          "acting_sender_id": {
+            "type": "integer",
+            "format": "int64"
           },
-          "content": {
-            "type": "string"
+          "message": {
+            "$ref": "#/components/schemas/MessagePayload"
           },
-          "to": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          },
-          "cc": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          },
-          "bcc": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
+          "entry": {
+            "$ref": "#/components/schemas/MessageEntryPayload"
           }
         },
         "required": [
-          "content",
-          "subject",
-          "to"
+          "acting_sender_id",
+          "message"
         ]
-      },
-      "CreateMessageResponseContent": {
-        "$ref": "#/components/schemas/SentResponse"
       },
       "CreateReplyRequestContent": {
         "type": "object",
+        "description": "Wire format: {acting_sender_id, message: {content}}",
         "properties": {
-          "content": {
-            "type": "string"
+          "acting_sender_id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "message": {
+            "$ref": "#/components/schemas/ReplyMessagePayload"
           }
         },
         "required": [
-          "content"
+          "acting_sender_id",
+          "message"
         ]
-      },
-      "CreateReplyResponseContent": {
-        "$ref": "#/components/schemas/SentResponse"
       },
       "CreateTopicMessageRequestContent": {
         "type": "object",
+        "description": "Wire format: {acting_sender_id, message: {content}}",
         "properties": {
-          "content": {
-            "type": "string"
+          "acting_sender_id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "message": {
+            "$ref": "#/components/schemas/TopicMessagePayload"
           }
         },
         "required": [
-          "content"
+          "acting_sender_id",
+          "message"
         ]
-      },
-      "CreateTopicMessageResponseContent": {
-        "$ref": "#/components/schemas/SentResponse"
       },
       "Domain": {
         "type": "object",
@@ -3868,6 +3831,17 @@
           }
         }
       },
+      "JournalEntryPayload": {
+        "type": "object",
+        "properties": {
+          "content": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "content"
+        ]
+      },
       "ListBoxesResponseContent": {
         "type": "array",
         "items": {
@@ -3957,6 +3931,44 @@
         },
         "required": [
           "id"
+        ]
+      },
+      "MessageAddressed": {
+        "type": "object",
+        "description": "Recipients as comma-separated email addresses.",
+        "properties": {
+          "directly": {
+            "type": "string"
+          },
+          "copied": {
+            "type": "string"
+          },
+          "blindcopied": {
+            "type": "string"
+          }
+        }
+      },
+      "MessageEntryPayload": {
+        "type": "object",
+        "properties": {
+          "addressed": {
+            "$ref": "#/components/schemas/MessageAddressed"
+          }
+        }
+      },
+      "MessagePayload": {
+        "type": "object",
+        "properties": {
+          "subject": {
+            "type": "string"
+          },
+          "content": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "content",
+          "subject"
         ]
       },
       "MessagePostingContext": {
@@ -4562,6 +4574,17 @@
           "id"
         ]
       },
+      "ReplyMessagePayload": {
+        "type": "object",
+        "properties": {
+          "content": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "content"
+        ]
+      },
       "SearchResponseContent": {
         "$ref": "#/components/schemas/SearchResult"
       },
@@ -4621,22 +4644,6 @@
           "id"
         ]
       },
-      "SentResponse": {
-        "type": "object",
-        "description": "SentResponse — response after sending/replying",
-        "properties": {
-          "notice": {
-            "type": "string"
-          },
-          "undo_action": {
-            "type": "string"
-          },
-          "undo_timeout": {
-            "type": "integer",
-            "format": "int32"
-          }
-        }
-      },
       "ServiceUnavailableErrorResponseContent": {
         "type": "object",
         "properties": {
@@ -4648,7 +4655,7 @@
           "message"
         ]
       },
-      "StartTimeTrackRequestContent": {
+      "StartTimeTrackPayload": {
         "type": "object",
         "properties": {
           "title": {
@@ -4659,6 +4666,15 @@
           },
           "category": {
             "type": "string"
+          }
+        }
+      },
+      "StartTimeTrackRequestContent": {
+        "type": "object",
+        "description": "Wire format: {calendar_time_track: {title, notes, category}}",
+        "properties": {
+          "calendar_time_track": {
+            "$ref": "#/components/schemas/StartTimeTrackPayload"
           }
         }
       },
@@ -4763,6 +4779,17 @@
           }
         }
       },
+      "TopicMessagePayload": {
+        "type": "object",
+        "properties": {
+          "content": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "content"
+        ]
+      },
       "UnauthorizedErrorResponseContent": {
         "type": "object",
         "properties": {
@@ -4793,19 +4820,17 @@
       },
       "UpdateJournalEntryRequestContent": {
         "type": "object",
+        "description": "Wire format: {calendar_journal_entry: {content}}",
         "properties": {
-          "body": {
-            "type": "string"
+          "calendar_journal_entry": {
+            "$ref": "#/components/schemas/JournalEntryPayload"
           }
         },
         "required": [
-          "body"
+          "calendar_journal_entry"
         ]
       },
-      "UpdateJournalEntryResponseContent": {
-        "$ref": "#/components/schemas/Recording"
-      },
-      "UpdateTimeTrackRequestContent": {
+      "UpdateTimeTrackPayload": {
         "type": "object",
         "properties": {
           "title": {
@@ -4824,8 +4849,7 @@
             "x-go-type": "time.Time",
             "x-go-type-import": {
               "path": "time"
-            },
-            "x-go-type-skip-optional-pointer": false
+            }
           },
           "ends_at": {
             "type": "string",
@@ -4834,14 +4858,21 @@
             "x-go-type": "time.Time",
             "x-go-type-import": {
               "path": "time"
-            },
-            "x-go-type-skip-optional-pointer": false
-          },
-          "stopped": {
-            "type": "boolean",
-            "x-go-type-skip-optional-pointer": false
+            }
           }
         }
+      },
+      "UpdateTimeTrackRequestContent": {
+        "type": "object",
+        "description": "Wire format: {calendar_time_track: {title, notes, category, starts_at, ends_at}}",
+        "properties": {
+          "calendar_time_track": {
+            "$ref": "#/components/schemas/UpdateTimeTrackPayload"
+          }
+        },
+        "required": [
+          "calendar_time_track"
+        ]
       },
       "UpdateTimeTrackResponseContent": {
         "$ref": "#/components/schemas/Recording"
