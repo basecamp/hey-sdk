@@ -1,24 +1,27 @@
 name: Classify PR
 
 on:
-  pull_request_target:
+  pull_request_target: # zizmor: ignore[dangerous-triggers] -- required for write access to PRs from forks; workflow only runs trusted actions and base-branch scripts, no PR code is checked out or executed
     types: [opened, synchronize, reopened]
 
 concurrency:
   group: classify-pr-${{ github.event.pull_request.number }}
   cancel-in-progress: true
 
-permissions:
-  contents: read
-  issues: write
-  models: read
-  pull-requests: write
+permissions: {}
 
 jobs:
   classify:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+      models: read
+      pull-requests: write
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
 
       - name: Build prompt
         env:
@@ -45,15 +48,16 @@ jobs:
 
       - name: Classify
         id: classify
-        uses: actions/ai-inference@v1
+        uses: actions/ai-inference@b81b2afb8390ee6839b494a404766bef6493c7d9 # v1.2.8
         with:
           prompt-file: /tmp/prompt.yml
 
       - name: Apply label
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CLASSIFY_RESPONSE_FILE: ${{ steps.classify.outputs.response-file }}
         run: |
-          LABEL=$(cat "${{ steps.classify.outputs.response-file }}" | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
+          LABEL=$(cat "${CLASSIFY_RESPONSE_FILE}" | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
           case "$LABEL" in
             bug|enhancement|documentation) ;;
             *) echo "Unexpected: $LABEL — skipping"; exit 0 ;;
@@ -71,8 +75,15 @@ jobs:
 
   breaking:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+      models: read
+      pull-requests: write
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
 
       - name: Build prompt
         id: api-diff
@@ -102,7 +113,7 @@ jobs:
           " "${PATTERNS[@]}" > /tmp/api.diff
 
           if [ ! -s /tmp/api.diff ]; then
-            echo "skip=true" >> $GITHUB_OUTPUT
+            echo "skip=true" >> "$GITHUB_OUTPUT"
           else
             TITLE=$(gh pr view "$PR" --json title --jq .title)
 
@@ -117,7 +128,7 @@ jobs:
             # Build full prompt YAML: splice user message into the messages array
             # (avoids yaml round-trip which reorders keys and changes scalar styles)
             python3 .github/scripts/splice-prompt.py .github/prompts/detect-breaking.prompt.yml /tmp/prompt.yml
-            echo "skip=false" >> $GITHUB_OUTPUT
+            echo "skip=false" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Clean up stale breaking label
@@ -131,7 +142,7 @@ jobs:
       - name: Detect breaking changes
         if: steps.api-diff.outputs.skip != 'true'
         id: detect
-        uses: actions/ai-inference@v1
+        uses: actions/ai-inference@b81b2afb8390ee6839b494a404766bef6493c7d9 # v1.2.8
         with:
           prompt-file: /tmp/prompt.yml
 
@@ -139,9 +150,10 @@ jobs:
         if: steps.api-diff.outputs.skip != 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DETECT_RESPONSE_FILE: ${{ steps.detect.outputs.response-file }}
         run: |
           # Read response from file to avoid backtick/quote issues in shell
-          RESPONSE_FILE="${{ steps.detect.outputs.response-file }}"
+          RESPONSE_FILE="${DETECT_RESPONSE_FILE}"
           if ! jq empty "$RESPONSE_FILE" 2>/dev/null; then
             echo "::warning::Model response is not valid JSON; skipping breaking label. See step summary for details."
             {
@@ -185,8 +197,14 @@ jobs:
 
   spec-impact:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      models: read
+      pull-requests: write
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
 
       - name: Build prompt
         id: check
@@ -196,7 +214,7 @@ jobs:
           PR=${{ github.event.pull_request.number }}
           CHANGED=$(gh pr diff "$PR" --name-only | grep -cE '^(spec/|openapi\.json|behavior-model\.json)' || true)
           if [ "$CHANGED" -eq 0 ]; then
-            echo "skip=true" >> $GITHUB_OUTPUT
+            echo "skip=true" >> "$GITHUB_OUTPUT"
           else
             # Filter diff to only spec/API surface files
             PATTERNS=(
@@ -220,7 +238,7 @@ jobs:
             " "${PATTERNS[@]}" > /tmp/spec.diff
 
             if [ ! -s /tmp/spec.diff ]; then
-              echo "skip=true" >> $GITHUB_OUTPUT
+              echo "skip=true" >> "$GITHUB_OUTPUT"
               exit 0
             fi
             TITLE=$(gh pr view "$PR" --json title --jq .title)
@@ -236,7 +254,7 @@ jobs:
             # Build full prompt YAML: splice user message into the messages array
             # (avoids yaml round-trip which reorders keys and changes scalar styles)
             python3 .github/scripts/splice-prompt.py .github/prompts/spec-impact.prompt.yml /tmp/prompt.yml
-            echo "skip=false" >> $GITHUB_OUTPUT
+            echo "skip=false" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Clean up stale spec-impact comment
@@ -253,7 +271,7 @@ jobs:
       - name: Analyze impact
         if: steps.check.outputs.skip != 'true'
         id: analyze
-        uses: actions/ai-inference@v1
+        uses: actions/ai-inference@b81b2afb8390ee6839b494a404766bef6493c7d9 # v1.2.8
         with:
           prompt-file: /tmp/prompt.yml
 
@@ -261,8 +279,9 @@ jobs:
         if: steps.check.outputs.skip != 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ANALYZE_RESPONSE_FILE: ${{ steps.analyze.outputs.response-file }}
         run: |
-          RESPONSE_FILE="${{ steps.analyze.outputs.response-file }}"
+          RESPONSE_FILE="${ANALYZE_RESPONSE_FILE}"
 
           # Sanitize model output: strip @ mentions, validate heading, truncate
           sed 's/@/@ /g' "$RESPONSE_FILE" > /tmp/spec-raw.md
