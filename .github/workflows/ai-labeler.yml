@@ -55,8 +55,9 @@ jobs:
       - name: Apply label
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CLASSIFY_RESPONSE_FILE: ${{ steps.classify.outputs.response-file }}
         run: |
-          LABEL=$(cat "${{ steps.classify.outputs.response-file }}" | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
+          LABEL=$(cat "${CLASSIFY_RESPONSE_FILE}" | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
           case "$LABEL" in
             bug|enhancement|documentation) ;;
             *) echo "Unexpected: $LABEL — skipping"; exit 0 ;;
@@ -149,9 +150,10 @@ jobs:
         if: steps.api-diff.outputs.skip != 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DETECT_RESPONSE_FILE: ${{ steps.detect.outputs.response-file }}
         run: |
           # Read response from file to avoid backtick/quote issues in shell
-          RESPONSE_FILE="${{ steps.detect.outputs.response-file }}"
+          RESPONSE_FILE="${DETECT_RESPONSE_FILE}"
           if ! jq empty "$RESPONSE_FILE" 2>/dev/null; then
             echo "::warning::Model response is not valid JSON; skipping breaking label. See step summary for details."
             {
@@ -277,8 +279,9 @@ jobs:
         if: steps.check.outputs.skip != 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ANALYZE_RESPONSE_FILE: ${{ steps.analyze.outputs.response-file }}
         run: |
-          RESPONSE_FILE="${{ steps.analyze.outputs.response-file }}"
+          RESPONSE_FILE="${ANALYZE_RESPONSE_FILE}"
 
           # Sanitize model output: strip @ mentions, validate heading, truncate
           sed 's/@/@ /g' "$RESPONSE_FILE" > /tmp/spec-raw.md
