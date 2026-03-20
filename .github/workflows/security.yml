@@ -8,14 +8,15 @@ on:
     - cron: '0 6 * * 1'
   workflow_dispatch:
 
-permissions:
-  contents: read
-  security-events: write
+permissions: {}
 
 jobs:
   trivy-go:
     name: Trivy (Go SDK)
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
     steps:
       - name: Checkout code
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -42,6 +43,8 @@ jobs:
   govulncheck:
     name: Go Vulnerability Check
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     defaults:
       run:
         working-directory: go
@@ -74,6 +77,8 @@ jobs:
   gosec:
     name: Go Security Checker
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     defaults:
       run:
         working-directory: go
