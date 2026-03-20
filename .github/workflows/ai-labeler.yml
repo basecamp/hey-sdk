@@ -18,7 +18,7 @@ jobs:
   classify:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
       - name: Build prompt
         env:
@@ -45,7 +45,7 @@ jobs:
 
       - name: Classify
         id: classify
-        uses: actions/ai-inference@v1
+        uses: actions/ai-inference@b81b2afb8390ee6839b494a404766bef6493c7d9 # v1.2.8
         with:
           prompt-file: /tmp/prompt.yml
 
@@ -72,7 +72,7 @@ jobs:
   breaking:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
       - name: Build prompt
         id: api-diff
@@ -131,7 +131,7 @@ jobs:
       - name: Detect breaking changes
         if: steps.api-diff.outputs.skip != 'true'
         id: detect
-        uses: actions/ai-inference@v1
+        uses: actions/ai-inference@b81b2afb8390ee6839b494a404766bef6493c7d9 # v1.2.8
         with:
           prompt-file: /tmp/prompt.yml
 
@@ -186,7 +186,7 @@ jobs:
   spec-impact:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
       - name: Build prompt
         id: check
@@ -253,7 +253,7 @@ jobs:
       - name: Analyze impact
         if: steps.check.outputs.skip != 'true'
         id: analyze
-        uses: actions/ai-inference@v1
+        uses: actions/ai-inference@b81b2afb8390ee6839b494a404766bef6493c7d9 # v1.2.8
         with:
           prompt-file: /tmp/prompt.yml
 
