@@ -3,13 +3,14 @@ name: Verify Smithy spec
 on:
   workflow_call:
 
-permissions:
-  contents: read
+permissions: {}
 
 jobs:
   smithy:
     name: Verify Smithy spec
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     timeout-minutes: 10
     defaults:
       run:

@@ -6,8 +6,7 @@ on:
       - 'v*'
   workflow_dispatch:  # Manual trigger is always dry-run (rehearsal mode)
 
-permissions:
-  contents: read
+permissions: {}
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -15,11 +14,15 @@ concurrency:
 
 jobs:
   smithy:
+    permissions:
+      contents: read
     uses: ./.github/workflows/smithy-verify.yml
 
   test:
     name: Test before release
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     defaults:
       run:
         working-directory: go
