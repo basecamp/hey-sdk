@@ -113,7 +113,7 @@ jobs:
           " "${PATTERNS[@]}" > /tmp/api.diff
 
           if [ ! -s /tmp/api.diff ]; then
-            echo "skip=true" >> $GITHUB_OUTPUT
+            echo "skip=true" >> "$GITHUB_OUTPUT"
           else
             TITLE=$(gh pr view "$PR" --json title --jq .title)
 
@@ -128,7 +128,7 @@ jobs:
             # Build full prompt YAML: splice user message into the messages array
             # (avoids yaml round-trip which reorders keys and changes scalar styles)
             python3 .github/scripts/splice-prompt.py .github/prompts/detect-breaking.prompt.yml /tmp/prompt.yml
-            echo "skip=false" >> $GITHUB_OUTPUT
+            echo "skip=false" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Clean up stale breaking label
@@ -214,7 +214,7 @@ jobs:
           PR=${{ github.event.pull_request.number }}
           CHANGED=$(gh pr diff "$PR" --name-only | grep -cE '^(spec/|openapi\.json|behavior-model\.json)' || true)
           if [ "$CHANGED" -eq 0 ]; then
-            echo "skip=true" >> $GITHUB_OUTPUT
+            echo "skip=true" >> "$GITHUB_OUTPUT"
           else
             # Filter diff to only spec/API surface files
             PATTERNS=(
@@ -238,7 +238,7 @@ jobs:
             " "${PATTERNS[@]}" > /tmp/spec.diff
 
             if [ ! -s /tmp/spec.diff ]; then
-              echo "skip=true" >> $GITHUB_OUTPUT
+              echo "skip=true" >> "$GITHUB_OUTPUT"
               exit 0
             fi
             TITLE=$(gh pr view "$PR" --json title --jq .title)
@@ -254,7 +254,7 @@ jobs:
             # Build full prompt YAML: splice user message into the messages array
             # (avoids yaml round-trip which reorders keys and changes scalar styles)
             python3 .github/scripts/splice-prompt.py .github/prompts/spec-impact.prompt.yml /tmp/prompt.yml
-            echo "skip=false" >> $GITHUB_OUTPUT
+            echo "skip=false" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Clean up stale spec-impact comment
