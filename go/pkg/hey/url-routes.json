@@ -246,6 +246,100 @@
       "params": {}
     },
     {
+      "pattern": "/postings/seen",
+      "resource": "Postings",
+      "operations": {
+        "POST": "MarkPostingsSeen"
+      },
+      "params": {}
+    },
+    {
+      "pattern": "/postings/unseen",
+      "resource": "Postings",
+      "operations": {
+        "POST": "MarkPostingsUnseen"
+      },
+      "params": {}
+    },
+    {
+      "pattern": "/postings/{postingId}/ignore",
+      "resource": "Postings",
+      "operations": {
+        "POST": "IgnorePosting"
+      },
+      "params": {
+        "postingId": {
+          "role": "parent",
+          "type": "int64"
+        }
+      }
+    },
+    {
+      "pattern": "/postings/{postingId}/move/asidebox",
+      "resource": "Postings",
+      "operations": {
+        "POST": "MovePostingToSetAside"
+      },
+      "params": {
+        "postingId": {
+          "role": "parent",
+          "type": "int64"
+        }
+      }
+    },
+    {
+      "pattern": "/postings/{postingId}/move/feedbox",
+      "resource": "Postings",
+      "operations": {
+        "POST": "MovePostingToFeed"
+      },
+      "params": {
+        "postingId": {
+          "role": "parent",
+          "type": "int64"
+        }
+      }
+    },
+    {
+      "pattern": "/postings/{postingId}/move/laterbox",
+      "resource": "Postings",
+      "operations": {
+        "POST": "MovePostingToReplyLater"
+      },
+      "params": {
+        "postingId": {
+          "role": "parent",
+          "type": "int64"
+        }
+      }
+    },
+    {
+      "pattern": "/postings/{postingId}/move/trailbox",
+      "resource": "Postings",
+      "operations": {
+        "POST": "MovePostingToPaperTrail"
+      },
+      "params": {
+        "postingId": {
+          "role": "parent",
+          "type": "int64"
+        }
+      }
+    },
+    {
+      "pattern": "/postings/{postingId}/trash",
+      "resource": "Postings",
+      "operations": {
+        "POST": "MovePostingToTrash"
+      },
+      "params": {
+        "postingId": {
+          "role": "parent",
+          "type": "int64"
+        }
+      }
+    },
+    {
       "pattern": "/reply_later",
       "resource": "Boxes",
       "operations": {
