@@ -779,14 +779,18 @@ func executeOperation(client *generated.Client, ctx context.Context, tc TestCase
 		return client.GetMessage(ctx, messageId)
 	case "CreateMessage":
 		body := generated.CreateMessageJSONRequestBody{
-			Subject: getStringParam(tc.RequestBody, "subject"),
-			Content: getStringParam(tc.RequestBody, "content"),
+			Message: generated.MessagePayload{
+				Subject: getStringParam(tc.RequestBody, "subject"),
+				Content: getStringParam(tc.RequestBody, "content"),
+			},
 		}
 		return client.CreateMessage(ctx, body)
 	case "CreateTopicMessage":
 		topicId := getInt64Param(tc.PathParams, "topicId")
 		body := generated.CreateTopicMessageJSONRequestBody{
-			Content: getStringParam(tc.RequestBody, "content"),
+			Message: generated.TopicMessagePayload{
+				Content: getStringParam(tc.RequestBody, "content"),
+			},
 		}
 		return client.CreateTopicMessage(ctx, topicId, body)
 
@@ -796,7 +800,9 @@ func executeOperation(client *generated.Client, ctx context.Context, tc TestCase
 	case "CreateReply":
 		entryId := getInt64Param(tc.PathParams, "entryId")
 		body := generated.CreateReplyJSONRequestBody{
-			Content: getStringParam(tc.RequestBody, "content"),
+			Message: generated.ReplyMessagePayload{
+				Content: getStringParam(tc.RequestBody, "content"),
+			},
 		}
 		return client.CreateReply(ctx, entryId, body)
 
@@ -817,7 +823,9 @@ func executeOperation(client *generated.Client, ctx context.Context, tc TestCase
 	// Calendar Todos
 	case "CreateCalendarTodo":
 		body := generated.CreateCalendarTodoJSONRequestBody{
-			Title: getStringParam(tc.RequestBody, "title"),
+			CalendarTodo: generated.CalendarTodoPayload{
+				Title: getStringParam(tc.RequestBody, "title"),
+			},
 		}
 		return client.CreateCalendarTodo(ctx, body)
 	case "CompleteCalendarTodo":
@@ -848,9 +856,8 @@ func executeOperation(client *generated.Client, ctx context.Context, tc TestCase
 		return client.StartTimeTrack(ctx, body)
 	case "UpdateTimeTrack":
 		timeTrackId := getInt64Param(tc.PathParams, "timeTrackId")
-		body := generated.UpdateTimeTrackJSONRequestBody{}
-		if stopped, ok := tc.RequestBody["stopped"].(bool); ok {
-			body.Stopped = &stopped
+		body := generated.UpdateTimeTrackJSONRequestBody{
+			CalendarTimeTrack: generated.UpdateTimeTrackPayload{},
 		}
 		return client.UpdateTimeTrack(ctx, timeTrackId, body)
 
@@ -861,7 +868,9 @@ func executeOperation(client *generated.Client, ctx context.Context, tc TestCase
 	case "UpdateJournalEntry":
 		day := getStringParam(tc.PathParams, "day")
 		body := generated.UpdateJournalEntryJSONRequestBody{
-			Body: getStringParam(tc.RequestBody, "body"),
+			CalendarJournalEntry: generated.JournalEntryPayload{
+				Content: getStringParam(tc.RequestBody, "body"),
+			},
 		}
 		return client.UpdateJournalEntry(ctx, day, body)
 
@@ -870,6 +879,36 @@ func executeOperation(client *generated.Client, ctx context.Context, tc TestCase
 		q := getStringParam(tc.QueryParams, "q")
 		params := &generated.SearchParams{Q: q}
 		return client.Search(ctx, params)
+
+	// Postings
+	case "MarkPostingsSeen":
+		body := generated.MarkPostingsSeenJSONRequestBody{
+			PostingIds: getInt64SliceParam(tc.RequestBody, "posting_ids"),
+		}
+		return client.MarkPostingsSeen(ctx, body)
+	case "MarkPostingsUnseen":
+		body := generated.MarkPostingsUnseenJSONRequestBody{
+			PostingIds: getInt64SliceParam(tc.RequestBody, "posting_ids"),
+		}
+		return client.MarkPostingsUnseen(ctx, body)
+	case "MovePostingToFeed":
+		postingId := getInt64Param(tc.PathParams, "postingId")
+		return client.MovePostingToFeed(ctx, postingId)
+	case "MovePostingToSetAside":
+		postingId := getInt64Param(tc.PathParams, "postingId")
+		return client.MovePostingToSetAside(ctx, postingId)
+	case "MovePostingToReplyLater":
+		postingId := getInt64Param(tc.PathParams, "postingId")
+		return client.MovePostingToReplyLater(ctx, postingId)
+	case "MovePostingToPaperTrail":
+		postingId := getInt64Param(tc.PathParams, "postingId")
+		return client.MovePostingToPaperTrail(ctx, postingId)
+	case "MovePostingToTrash":
+		postingId := getInt64Param(tc.PathParams, "postingId")
+		return client.MovePostingToTrash(ctx, postingId)
+	case "IgnorePosting":
+		postingId := getInt64Param(tc.PathParams, "postingId")
+		return client.IgnorePosting(ctx, postingId)
 
 	default:
 		return nil, fmt.Errorf("unknown operation: %s", tc.Operation)
@@ -890,6 +929,30 @@ func getInt64Param(params map[string]interface{}, key string) int64 {
 		}
 	}
 	return 0
+}
+
+// getInt64SliceParam extracts a []int64 parameter from a map.
+func getInt64SliceParam(params map[string]interface{}, key string) []int64 {
+	val, ok := params[key]
+	if !ok {
+		return nil
+	}
+	arr, ok := val.([]interface{})
+	if !ok {
+		return nil
+	}
+	result := make([]int64, 0, len(arr))
+	for _, v := range arr {
+		switch n := v.(type) {
+		case json.Number:
+			if i, err := n.Int64(); err == nil {
+				result = append(result, i)
+			}
+		case float64:
+			result = append(result, int64(n))
+		}
+	}
+	return result
 }
 
 // getStringParam extracts a string parameter from a map.
