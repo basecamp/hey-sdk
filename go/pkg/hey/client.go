@@ -48,6 +48,7 @@ type Client struct {
 	mu            sync.Mutex
 	identity      *IdentityService
 	boxes         *BoxesService
+	postings      *PostingsService
 	topics        *TopicsService
 	messages      *MessagesService
 	entries       *EntriesService
@@ -552,6 +553,16 @@ func (c *Client) Boxes() *BoxesService {
 		c.boxes = NewBoxesService(c)
 	}
 	return c.boxes
+}
+
+// Postings returns the PostingsService.
+func (c *Client) Postings() *PostingsService {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.postings == nil {
+		c.postings = NewPostingsService(c)
+	}
+	return c.postings
 }
 
 // Topics returns the TopicsService.

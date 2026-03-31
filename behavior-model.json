@@ -379,6 +379,19 @@
         ]
       }
     },
+    "IgnorePosting": {
+      "idempotent": false,
+      "readonly": false,
+      "retry": {
+        "backoff": "exponential",
+        "base_delay_ms": 1000,
+        "max": 2,
+        "retry_on": [
+          429,
+          503
+        ]
+      }
+    },
     "ListBoxes": {
       "idempotent": false,
       "pagination": {
@@ -437,6 +450,97 @@
         "backoff": "exponential",
         "base_delay_ms": 1000,
         "max": 3,
+        "retry_on": [
+          429,
+          503
+        ]
+      }
+    },
+    "MarkPostingsSeen": {
+      "idempotent": false,
+      "readonly": false,
+      "retry": {
+        "backoff": "exponential",
+        "base_delay_ms": 1000,
+        "max": 2,
+        "retry_on": [
+          429,
+          503
+        ]
+      }
+    },
+    "MarkPostingsUnseen": {
+      "idempotent": false,
+      "readonly": false,
+      "retry": {
+        "backoff": "exponential",
+        "base_delay_ms": 1000,
+        "max": 2,
+        "retry_on": [
+          429,
+          503
+        ]
+      }
+    },
+    "MovePostingToFeed": {
+      "idempotent": false,
+      "readonly": false,
+      "retry": {
+        "backoff": "exponential",
+        "base_delay_ms": 1000,
+        "max": 2,
+        "retry_on": [
+          429,
+          503
+        ]
+      }
+    },
+    "MovePostingToPaperTrail": {
+      "idempotent": false,
+      "readonly": false,
+      "retry": {
+        "backoff": "exponential",
+        "base_delay_ms": 1000,
+        "max": 2,
+        "retry_on": [
+          429,
+          503
+        ]
+      }
+    },
+    "MovePostingToReplyLater": {
+      "idempotent": false,
+      "readonly": false,
+      "retry": {
+        "backoff": "exponential",
+        "base_delay_ms": 1000,
+        "max": 2,
+        "retry_on": [
+          429,
+          503
+        ]
+      }
+    },
+    "MovePostingToSetAside": {
+      "idempotent": false,
+      "readonly": false,
+      "retry": {
+        "backoff": "exponential",
+        "base_delay_ms": 1000,
+        "max": 2,
+        "retry_on": [
+          429,
+          503
+        ]
+      }
+    },
+    "MovePostingToTrash": {
+      "idempotent": false,
+      "readonly": false,
+      "retry": {
+        "backoff": "exponential",
+        "base_delay_ms": 1000,
+        "max": 2,
         "retry_on": [
           429,
           503

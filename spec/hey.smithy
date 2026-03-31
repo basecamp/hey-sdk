@@ -121,6 +121,16 @@ service HEY {
 
         // Search (1 MVP)
         Search
+
+        // Postings (8 MVP)
+        MarkPostingsSeen
+        MarkPostingsUnseen
+        MovePostingToFeed
+        MovePostingToSetAside
+        MovePostingToReplyLater
+        MovePostingToPaperTrail
+        MovePostingToTrash
+        IgnorePosting
     ]
 }
 
@@ -272,6 +282,10 @@ structure Workflow {
 
 list WorkflowList {
     member: Workflow
+}
+
+list PostingIdList {
+    member: Long
 }
 
 /// Domain — email domain
@@ -1733,4 +1747,98 @@ structure SearchInput {
 structure SearchOutput {
     @required
     result: SearchResult
+}
+
+// =============================================================================
+// POSTINGS — mark seen/unseen, move between boxes, trash, ignore
+// =============================================================================
+
+/// Mark postings as seen
+@http(method: "POST", uri: "/postings/seen.json")
+@tags(["Postings"])
+@heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+operation MarkPostingsSeen {
+    input: MarkPostingsInput
+    errors: [UnauthorizedError, InternalServerError, ServiceUnavailableError]
+}
+
+/// Mark postings as unseen
+@http(method: "POST", uri: "/postings/unseen.json")
+@tags(["Postings"])
+@heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+operation MarkPostingsUnseen {
+    input: MarkPostingsInput
+    errors: [UnauthorizedError, InternalServerError, ServiceUnavailableError]
+}
+
+structure MarkPostingsInput {
+    @httpPayload
+    @required
+    body: MarkPostingsRequestContent
+}
+
+structure MarkPostingsRequestContent {
+    @required
+    posting_ids: PostingIdList
+}
+
+/// Move posting to The Feed
+@http(method: "POST", uri: "/postings/{postingId}/move/feedbox.json")
+@tags(["Postings"])
+@heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+operation MovePostingToFeed {
+    input: PostingActionInput
+    errors: [UnauthorizedError, NotFoundError, InternalServerError, ServiceUnavailableError]
+}
+
+/// Move posting to Set Aside
+@http(method: "POST", uri: "/postings/{postingId}/move/asidebox.json")
+@tags(["Postings"])
+@heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+operation MovePostingToSetAside {
+    input: PostingActionInput
+    errors: [UnauthorizedError, NotFoundError, InternalServerError, ServiceUnavailableError]
+}
+
+/// Move posting to Reply Later
+@http(method: "POST", uri: "/postings/{postingId}/move/laterbox.json")
+@tags(["Postings"])
+@heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+operation MovePostingToReplyLater {
+    input: PostingActionInput
+    errors: [UnauthorizedError, NotFoundError, InternalServerError, ServiceUnavailableError]
+}
+
+/// Move posting to Paper Trail
+@http(method: "POST", uri: "/postings/{postingId}/move/trailbox.json")
+@tags(["Postings"])
+@heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+operation MovePostingToPaperTrail {
+    input: PostingActionInput
+    errors: [UnauthorizedError, NotFoundError, InternalServerError, ServiceUnavailableError]
+}
+
+/// Move posting to trash
+@http(method: "POST", uri: "/postings/{postingId}/trash.json")
+@tags(["Postings"])
+@heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+operation MovePostingToTrash {
+    input: PostingActionInput
+    errors: [UnauthorizedError, NotFoundError, InternalServerError, ServiceUnavailableError]
+}
+
+/// Ignore a posting (stop notifications)
+@http(method: "POST", uri: "/postings/{postingId}/ignore.json")
+@tags(["Postings"])
+@heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+operation IgnorePosting {
+    input: PostingActionInput
+    errors: [UnauthorizedError, NotFoundError, InternalServerError, ServiceUnavailableError]
+}
+
+/// Input for single-posting actions (move, trash, ignore)
+structure PostingActionInput {
+    @httpLabel
+    @required
+    postingId: Long
 }
