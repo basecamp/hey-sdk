@@ -64,35 +64,35 @@
     "tags": ["path", "messages"]
   },
   {
-    "name": "CreateReply uses /entries/{entryId}/replies path",
-    "description": "Verifies that CreateReply constructs the URL path /entries/{entryId}/replies",
+    "name": "CreateReply uses /entries/{entryId}/replies.json path",
+    "description": "Verifies that CreateReply constructs the URL path /entries/{entryId}/replies.json",
     "operation": "CreateReply",
     "method": "POST",
-    "path": "/entries/{entryId}/replies",
+    "path": "/entries/{entryId}/replies.json",
     "pathParams": {"entryId": 456},
     "requestBody": {"content": "Reply text"},
     "mockResponses": [
       {"status": 200, "body": {"id": 789, "content": "Reply text"}}
     ],
     "assertions": [
-      {"type": "requestPath", "expected": "/entries/456/replies"},
+      {"type": "requestPath", "expected": "/entries/456/replies.json"},
       {"type": "noError"}
     ],
     "tags": ["path", "entries"]
   },
   {
-    "name": "CreateTopicMessage uses /topics/{topicId}/messages path",
-    "description": "Verifies that CreateTopicMessage constructs the URL path /topics/{topicId}/messages",
+    "name": "CreateTopicMessage uses /topics/{topicId}/entries.json path",
+    "description": "Verifies that CreateTopicMessage constructs the URL path /topics/{topicId}/entries.json",
     "operation": "CreateTopicMessage",
     "method": "POST",
-    "path": "/topics/{topicId}/messages",
+    "path": "/topics/{topicId}/entries.json",
     "pathParams": {"topicId": 456},
     "requestBody": {"content": "Topic reply"},
     "mockResponses": [
       {"status": 200, "body": {"id": 789, "content": "Topic reply"}}
     ],
     "assertions": [
-      {"type": "requestPath", "expected": "/topics/456/messages"},
+      {"type": "requestPath", "expected": "/topics/456/entries.json"},
       {"type": "noError"}
     ],
     "tags": ["path", "topics"]
