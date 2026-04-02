@@ -395,14 +395,22 @@ func TestMessagesService_Create(t *testing.T) {
 			if !ok {
 				t.Fatal("missing addressed in entry")
 			}
-			if addressed["directly"] != "test@example.com" {
-				t.Errorf("expected directly 'test@example.com', got %v", addressed["directly"])
+			directly, ok := addressed["directly"].([]any)
+			if !ok || len(directly) != 1 || directly[0] != "test@example.com" {
+				t.Errorf("expected directly ['test@example.com'], got %v", addressed["directly"])
+			}
+			copied, ok := addressed["copied"].([]any)
+			if !ok || len(copied) != 1 || copied[0] != "cc@example.com" {
+				t.Errorf("expected copied ['cc@example.com'], got %v", addressed["copied"])
+			}
+			if _, ok := addressed["blindcopied"]; ok {
+				t.Error("expected no blindcopied key for empty bcc")
 			}
 		},
 		`{"notice":"sent"}`,
 	)
 
-	err := client.Messages().Create(context.Background(), "Test", "Hello", []string{"test@example.com"})
+	err := client.Messages().Create(context.Background(), "Test", "Hello", []string{"test@example.com"}, []string{"cc@example.com"}, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

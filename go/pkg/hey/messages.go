@@ -3,7 +3,6 @@ package hey
 import (
 	"context"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/basecamp/hey-sdk/go/pkg/generated"
@@ -49,7 +48,7 @@ func (s *MessagesService) Get(ctx context.Context, messageID int64) (result *gen
 //
 // The HEY API expects a nested body with acting_sender_id, message (subject/content),
 // and entry (addressed recipients). This method constructs the correct shape.
-func (s *MessagesService) Create(ctx context.Context, subject, content string, to []string) (err error) {
+func (s *MessagesService) Create(ctx context.Context, subject, content string, to, cc, bcc []string) (err error) {
 	op := OperationInfo{
 		Service: "Messages", Operation: "CreateMessage",
 		ResourceType: "message", IsMutation: true,
@@ -70,7 +69,13 @@ func (s *MessagesService) Create(ctx context.Context, subject, content string, t
 
 	addressed := map[string]any{}
 	if len(to) > 0 {
-		addressed["directly"] = strings.Join(to, ",")
+		addressed["directly"] = to
+	}
+	if len(cc) > 0 {
+		addressed["copied"] = cc
+	}
+	if len(bcc) > 0 {
+		addressed["blindcopied"] = bcc
 	}
 
 	body := map[string]any{
