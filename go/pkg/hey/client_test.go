@@ -197,7 +197,16 @@ func TestBuildURL(t *testing.T) {
 
 	_, err = c.buildURL("http://insecure.example.com/file")
 	if err == nil {
-		t.Fatal("expected error for HTTP URL")
+		t.Fatal("expected error for HTTP URL to different host")
+	}
+
+	// http:// with same host as base should be allowed (pagination in dev)
+	url, err = c.buildURL("http://localhost:3000/imbox.json?page=abc")
+	if err != nil {
+		t.Fatalf("expected http:// same-host URL to be allowed, got error: %v", err)
+	}
+	if url != "http://localhost:3000/imbox.json?page=abc" {
+		t.Fatalf("expected HTTP same-host passthrough, got %q", url)
 	}
 }
 
