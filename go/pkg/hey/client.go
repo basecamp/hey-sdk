@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"math/rand"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"sync"
@@ -215,6 +216,12 @@ func (h discardHandler) WithGroup(string) slog.Handler           { return h }
 // Get performs a GET request.
 func (c *Client) Get(ctx context.Context, path string) (*Response, error) {
 	return c.doRequest(ctx, "GET", path, nil)
+}
+
+// GetHTML performs a GET request with Accept: text/html, returning raw HTML bytes.
+// Use this for endpoints that only serve HTML (no JSON equivalent).
+func (c *Client) GetHTML(ctx context.Context, path string) (*Response, error) {
+	return c.doRequest(contextWithAccept(ctx, "text/html"), "GET", path, nil)
 }
 
 // Post performs a POST request with a JSON body.
@@ -476,6 +483,16 @@ func (c *Client) buildURL(path string) (string, error) {
 		return path, nil
 	}
 	if strings.HasPrefix(path, "http://") {
+		// Allow http:// when the base URL itself uses http:// and the host matches
+		// (local development). Reject http:// to different hosts to prevent
+		// leaking credentials.
+		if strings.HasPrefix(c.cfg.BaseURL, "http://") {
+			baseHost := extractHost(c.cfg.BaseURL)
+			pathHost := extractHost(path)
+			if baseHost == pathHost {
+				return path, nil
+			}
+		}
 		return "", fmt.Errorf("URL must use HTTPS, got: %s", path)
 	}
 	if !strings.HasPrefix(path, "/") {
@@ -483,6 +500,15 @@ func (c *Client) buildURL(path string) (string, error) {
 	}
 	base := strings.TrimSuffix(c.cfg.BaseURL, "/")
 	return base + path, nil
+}
+
+// extractHost returns the host:port portion of a URL string.
+func extractHost(rawURL string) string {
+	u, err := url.Parse(rawURL)
+	if err != nil {
+		return ""
+	}
+	return u.Host
 }
 
 func (c *Client) backoffDelay(attempt int) time.Duration {
