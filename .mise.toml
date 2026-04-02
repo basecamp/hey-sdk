@@ -1,4 +1,4 @@
 [tools]
-go = "1.24"
+go = "1.26"
 golangci-lint = "2"
 smithy = "1.66.0"

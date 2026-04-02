@@ -158,7 +158,8 @@ endif
 		{ echo "ERROR: Working tree has uncommitted changes."; exit 1; }
 	@$(MAKE) check-mvp
 	git tag "v$(VERSION)"
-	git push origin "v$(VERSION)"
+	git tag "go/v$(VERSION)"
+	git push origin "v$(VERSION)" "go/v$(VERSION)"
 
 #------------------------------------------------------------------------------
 # Go SDK
