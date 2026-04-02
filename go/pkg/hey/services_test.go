@@ -474,7 +474,7 @@ func TestEntriesService_CreateReply(t *testing.T) {
 		`{"notice":"sent"}`,
 	)
 
-	err := client.Entries().CreateReply(context.Background(), 10, "My reply")
+	err := client.Entries().CreateReply(context.Background(), 10, "My reply", []string{"test@example.com"}, nil, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

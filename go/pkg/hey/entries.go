@@ -46,7 +46,7 @@ func (s *EntriesService) ListDrafts(ctx context.Context, params *generated.ListD
 
 // CreateReply creates a reply to an entry.
 // The acting sender ID is automatically resolved.
-func (s *EntriesService) CreateReply(ctx context.Context, entryID int64, content string) (err error) {
+func (s *EntriesService) CreateReply(ctx context.Context, entryID int64, content string, to, cc, bcc []string) (err error) {
 	op := OperationInfo{
 		Service: "Entries", Operation: "CreateReply",
 		ResourceType: "reply", IsMutation: true, ResourceID: entryID,
@@ -70,6 +70,21 @@ func (s *EntriesService) CreateReply(ctx context.Context, entryID int64, content
 		"message": map[string]any{
 			"content": content,
 		},
+	}
+	addressed := map[string]any{}
+	if len(to) > 0 {
+		addressed["directly"] = to
+	}
+	if len(cc) > 0 {
+		addressed["copied"] = cc
+	}
+	if len(bcc) > 0 {
+		addressed["blindcopied"] = bcc
+	}
+	if len(addressed) > 0 {
+		body["entry"] = map[string]any{
+			"addressed": addressed,
+		}
 	}
 
 	_, err = s.client.PostMutation(ctx, fmt.Sprintf("/entries/%d/replies.json", entryID), body)
