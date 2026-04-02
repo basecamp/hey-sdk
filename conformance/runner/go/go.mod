@@ -1,6 +1,6 @@
 module github.com/basecamp/hey-sdk/conformance/runner/go
 
-go 1.24
+go 1.25.0
 
 require github.com/basecamp/hey-sdk/go v0.0.0
 
@@ -12,7 +12,8 @@ require (
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/oapi-codegen/runtime v1.2.0 // indirect
 	github.com/zalando/go-keyring v0.2.6 // indirect
-	golang.org/x/sys v0.30.0 // indirect
+	golang.org/x/net v0.52.0 // indirect
+	golang.org/x/sys v0.42.0 // indirect
 )
 
 replace github.com/basecamp/hey-sdk/go => ../../../go
