@@ -3,7 +3,7 @@
 ## Prerequisites
 
 - Smithy CLI
-- Go 1.24+
+- Go 1.26+
 - Node.js 20+
 - Ruby 3.2+
 - Make
