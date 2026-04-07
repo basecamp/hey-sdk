@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"testing"
 	"time"
@@ -96,6 +97,47 @@ func newMutationTestClientWithValidation(t *testing.T, wantMethod, wantPath stri
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(200)
 		w.Write([]byte(responseJSON))
+	}))
+	t.Cleanup(server.Close)
+
+	cfg := &Config{BaseURL: server.URL}
+	return NewClient(cfg, &StaticTokenProvider{Token: "test-token"},
+		WithMaxRetries(0),
+		WithBaseDelay(1*time.Millisecond),
+		WithMaxJitter(1*time.Millisecond),
+	)
+}
+
+// newFormTestClient creates a Client pointing at a test server that validates
+// form-encoded requests and returns redirect responses.
+func newFormTestClient(t *testing.T, wantMethod, wantPath string, validateForm func(t *testing.T, values url.Values), redirectLocation string) *Client {
+	t.Helper()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		path := r.URL.Path
+		if path == "/identity.json" {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(200)
+			w.Write([]byte(identityJSON))
+			return
+		}
+		if r.Method != wantMethod {
+			t.Errorf("expected %s, got %s", wantMethod, r.Method)
+		}
+		if !pathMatch(wantPath, path) {
+			t.Errorf("expected path matching %s, got %s", wantPath, path)
+		}
+		if validateForm != nil {
+			if err := r.ParseForm(); err != nil {
+				t.Fatalf("failed to parse form: %v", err)
+			}
+			validateForm(t, r.PostForm)
+		}
+		if redirectLocation != "" {
+			w.Header().Set("Location", redirectLocation)
+			w.WriteHeader(302)
+		} else {
+			w.WriteHeader(200)
+		}
 	}))
 	t.Cleanup(server.Close)
 
@@ -814,5 +856,288 @@ func TestSearchService_Search(t *testing.T) {
 	}
 	if result == nil {
 		t.Fatal("expected non-nil result")
+	}
+}
+
+// --- CalendarEvents ---
+
+func TestCalendarEventsService_Create(t *testing.T) {
+	client := newFormTestClient(t, "POST", "/calendar/events",
+		func(t *testing.T, values url.Values) {
+			t.Helper()
+			if values.Get("calendar_event[calendar_id]") != "1" {
+				t.Errorf("expected calendar_id 1, got %s", values.Get("calendar_event[calendar_id]"))
+			}
+			if values.Get("calendar_event[summary]") != "Meeting" {
+				t.Errorf("expected summary 'Meeting', got %s", values.Get("calendar_event[summary]"))
+			}
+			if values.Get("calendar_event[starts_at]") != "2026-04-06" {
+				t.Errorf("expected starts_at '2026-04-06', got %s", values.Get("calendar_event[starts_at]"))
+			}
+			if values.Get("calendar_event[all_day]") != "0" {
+				t.Error("expected all_day to be 0")
+			}
+			if values.Get("calendar_event[starts_at_time]") != "10:00:00" {
+				t.Errorf("expected starts_at_time '10:00:00', got %s", values.Get("calendar_event[starts_at_time]"))
+			}
+			if values.Get("calendar_event[ends_at_time]") != "11:00:00" {
+				t.Errorf("expected ends_at_time '11:00:00', got %s", values.Get("calendar_event[ends_at_time]"))
+			}
+			if values.Get("calendar_event[starts_at_time_zone_name]") != "America/New_York" {
+				t.Errorf("expected timezone 'America/New_York', got %s", values.Get("calendar_event[starts_at_time_zone_name]"))
+			}
+		},
+		"/calendar/events/99",
+	)
+
+	id, err := client.CalendarEvents().Create(context.Background(), CreateCalendarEventParams{
+		CalendarID: 1,
+		Title:      "Meeting",
+		StartsAt:   "2026-04-06",
+		StartTime:  "10:00",
+		EndTime:    "11:00",
+		TimeZone:   "America/New_York",
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if id != 99 {
+		t.Errorf("expected ID 99, got %d", id)
+	}
+}
+
+func TestCalendarEventsService_Create_AllDay(t *testing.T) {
+	client := newFormTestClient(t, "POST", "/calendar/events",
+		func(t *testing.T, values url.Values) {
+			t.Helper()
+			if values.Get("calendar_event[all_day]") != "1" {
+				t.Error("expected all_day to be 1")
+			}
+			if values.Get("calendar_event[starts_at_time]") != "" {
+				t.Error("expected no starts_at_time for all-day event")
+			}
+			reminders := values["all_day_reminder_durations[]"]
+			if len(reminders) != 1 || reminders[0] != "86400" {
+				t.Errorf("expected all_day_reminder_durations [86400], got %v", reminders)
+			}
+		},
+		"/calendar/events/100",
+	)
+
+	id, err := client.CalendarEvents().Create(context.Background(), CreateCalendarEventParams{
+		CalendarID: 1,
+		Title:      "Holiday",
+		StartsAt:   "2026-04-06",
+		AllDay:     true,
+		Reminders:  []time.Duration{24 * time.Hour},
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if id != 100 {
+		t.Errorf("expected ID 100, got %d", id)
+	}
+}
+
+func TestCalendarEventsService_Update(t *testing.T) {
+	newTitle := "Updated Meeting"
+	client := newFormTestClient(t, "PATCH", "/calendar/events/%s",
+		func(t *testing.T, values url.Values) {
+			t.Helper()
+			if values.Get("calendar_event[summary]") != "Updated Meeting" {
+				t.Errorf("expected summary 'Updated Meeting', got %s", values.Get("calendar_event[summary]"))
+			}
+		},
+		"/calendar/events/99",
+	)
+
+	err := client.CalendarEvents().Update(context.Background(), 99, UpdateCalendarEventParams{
+		Title: &newTitle,
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestCalendarEventsService_Delete(t *testing.T) {
+	client := newFormTestClient(t, "DELETE", "/calendar/events/%s",
+		nil,
+		"/calendar",
+	)
+
+	err := client.CalendarEvents().Delete(context.Background(), 99)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+// --- Designations ---
+
+func TestDesignationsService_Create(t *testing.T) {
+	client := newMutationTestClientWithValidation(t, "POST", "/boxes/%s/designations.json",
+		func(t *testing.T, body map[string]any) {
+			t.Helper()
+			contactID, ok := body["contact_id"].(float64)
+			if !ok || int64(contactID) != 42 {
+				t.Errorf("expected contact_id 42, got %v", body["contact_id"])
+			}
+		},
+		``,
+	)
+
+	err := client.Designations().Create(context.Background(), 5, 42)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestDesignationsService_Destroy(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != "DELETE" {
+			t.Errorf("expected DELETE, got %s", r.Method)
+		}
+		if !pathMatch("/boxes/%s/designations/%s.json", r.URL.Path) {
+			t.Errorf("unexpected path: %s", r.URL.Path)
+		}
+		w.WriteHeader(204)
+	}))
+	defer server.Close()
+
+	cfg := &Config{BaseURL: server.URL}
+	client := NewClient(cfg, &StaticTokenProvider{Token: "test-token"})
+
+	err := client.Designations().Destroy(context.Background(), 5, 10)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+// --- Extenzions ---
+
+func TestExtenzionsService_List(t *testing.T) {
+	htmlContent := `<html><body>
+		<div>
+			<div>
+				<span>sales@example.com</span>
+				<a href="/accounts/1/domains/extenzions/10/edit">Edit</a>
+				<span>alice@example.com</span>
+			</div>
+			<div>
+				<span>support@example.com</span>
+				<a href="/accounts/1/domains/extenzions/20/edit">Edit</a>
+				<span>bob@example.com</span>
+			</div>
+		</div>
+	</body></html>`
+
+	client := newServiceTestClient(t, map[string]string{
+		"/accounts/%s/domains/extenzions": htmlContent,
+	})
+
+	result, err := client.Extenzions().List(context.Background(), 1)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(result) != 2 {
+		t.Fatalf("expected 2 extenzions, got %d", len(result))
+	}
+	if result[0].ID != 10 {
+		t.Errorf("expected first extenzion ID 10, got %d", result[0].ID)
+	}
+	if result[1].ID != 20 {
+		t.Errorf("expected second extenzion ID 20, got %d", result[1].ID)
+	}
+}
+
+func TestExtenzionsService_Create(t *testing.T) {
+	client := newFormTestClient(t, "POST", "/accounts/%s/domains/extenzions",
+		func(t *testing.T, values url.Values) {
+			t.Helper()
+			if values.Get("extenzion[name]") != "sales" {
+				t.Errorf("expected name 'sales', got %s", values.Get("extenzion[name]"))
+			}
+			members := values["extenzion[members][]"]
+			if len(members) != 1 || members[0] != "alice@example.com" {
+				t.Errorf("expected members [alice@example.com], got %v", members)
+			}
+		},
+		"/accounts/1/domains/extenzions/10",
+	)
+
+	id, err := client.Extenzions().Create(context.Background(), 1, CreateExtenzionParams{
+		Name:    "sales",
+		Members: []string{"alice@example.com"},
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if id != 10 {
+		t.Errorf("expected ID 10, got %d", id)
+	}
+}
+
+func TestExtenzionsService_Update(t *testing.T) {
+	client := newFormTestClient(t, "PATCH", "/accounts/%s/domains/extenzions/%s",
+		func(t *testing.T, values url.Values) {
+			t.Helper()
+			if values.Get("extenzion[name]") != "support" {
+				t.Errorf("expected name 'support', got %s", values.Get("extenzion[name]"))
+			}
+		},
+		"/accounts/1/domains/extenzions/10",
+	)
+
+	err := client.Extenzions().Update(context.Background(), 1, 10, UpdateExtenzionParams{
+		Name: "support",
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestExtenzionsService_Delete(t *testing.T) {
+	client := newFormTestClient(t, "DELETE", "/accounts/%s/domains/extenzions/%s",
+		nil,
+		"/accounts/1/domains/extenzions",
+	)
+
+	err := client.Extenzions().Delete(context.Background(), 1, 10)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+// --- FormResponse ---
+
+func TestFormResponse_ExtractID(t *testing.T) {
+	tests := []struct {
+		name     string
+		location string
+		wantID   int64
+		wantErr  bool
+	}{
+		{"simple path", "/calendar/events/42", 42, false},
+		{"full URL", "https://app.hey.com/calendar/events/99", 99, false},
+		{"trailing slash", "/calendar/events/7/", 7, false},
+		{"no ID", "/calendar", 0, true},
+		{"empty", "", 0, true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			resp := &FormResponse{Location: tt.location, StatusCode: 302}
+			id, err := resp.ExtractID()
+			if tt.wantErr {
+				if err == nil {
+					t.Fatal("expected error")
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if id != tt.wantID {
+				t.Errorf("expected %d, got %d", tt.wantID, id)
+			}
+		})
 	}
 }

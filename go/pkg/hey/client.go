@@ -46,20 +46,23 @@ type Client struct {
 	senderDone bool
 
 	// Services (lazy-initialized, protected by mu)
-	mu            sync.Mutex
-	identity      *IdentityService
-	boxes         *BoxesService
-	postings      *PostingsService
-	topics        *TopicsService
-	messages      *MessagesService
-	entries       *EntriesService
-	contacts      *ContactsService
-	calendars     *CalendarsService
-	calendarTodos *CalendarTodosService
-	habits        *HabitsService
-	timeTracks    *TimeTracksService
-	journal       *JournalService
-	search        *SearchService
+	mu             sync.Mutex
+	identity       *IdentityService
+	boxes          *BoxesService
+	postings       *PostingsService
+	topics         *TopicsService
+	messages       *MessagesService
+	entries        *EntriesService
+	contacts       *ContactsService
+	calendars      *CalendarsService
+	calendarTodos  *CalendarTodosService
+	calendarEvents *CalendarEventsService
+	habits         *HabitsService
+	timeTracks     *TimeTracksService
+	journal        *JournalService
+	search         *SearchService
+	designations   *DesignationsService
+	extenzions     *ExtenzionsService
 }
 
 // Response wraps an API response.
@@ -68,6 +71,14 @@ type Response struct {
 	StatusCode int
 	Headers    http.Header
 	FromCache  bool
+}
+
+// FormResponse wraps a response from a form-encoded request that returns a redirect.
+type FormResponse struct {
+	// Location is the URL from the Location header of the redirect response.
+	Location string
+	// StatusCode is the HTTP status code (typically 302 or 303).
+	StatusCode int
 }
 
 // UnmarshalData unmarshals the response data into the given value.
@@ -254,6 +265,116 @@ func (c *Client) PatchMutation(ctx context.Context, path string, body any) (*Res
 // Delete performs a DELETE request.
 func (c *Client) Delete(ctx context.Context, path string) (*Response, error) {
 	return c.doRequest(ctx, "DELETE", path, nil)
+}
+
+// PostForm performs a POST request with a form-encoded body.
+// The server is expected to respond with a redirect (302/303); the redirect
+// is captured rather than followed, and the Location header is returned.
+func (c *Client) PostForm(ctx context.Context, path string, values url.Values) (*FormResponse, error) {
+	return c.doFormRequest(ctx, "POST", path, values)
+}
+
+// PatchForm performs a PATCH request with a form-encoded body.
+// The server is expected to respond with a redirect (302/303).
+func (c *Client) PatchForm(ctx context.Context, path string, values url.Values) (*FormResponse, error) {
+	return c.doFormRequest(ctx, "PATCH", path, values)
+}
+
+// DeleteForm performs a DELETE request that expects a redirect response.
+func (c *Client) DeleteForm(ctx context.Context, path string) (*FormResponse, error) {
+	return c.doFormRequest(ctx, "DELETE", path, nil)
+}
+
+// doFormRequest executes a form-encoded request and captures the redirect response
+// instead of following it. It handles authentication, logging, and hooks.
+func (c *Client) doFormRequest(ctx context.Context, method, path string, values url.Values) (*FormResponse, error) {
+	reqURL, err := c.buildURL(path)
+	if err != nil {
+		return nil, err
+	}
+
+	var bodyReader io.Reader
+	if values != nil {
+		bodyReader = strings.NewReader(values.Encode())
+	}
+
+	req, err := http.NewRequestWithContext(ctx, method, reqURL, bodyReader)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := c.authStrategy.Authenticate(ctx, req); err != nil {
+		return nil, err
+	}
+	req.Header.Set("User-Agent", c.userAgent)
+	if values != nil {
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	}
+	req.Header.Set("Accept", "*/*")
+
+	c.logger.Debug("http form request", "method", method, "url", reqURL)
+
+	// Use a derived client that captures redirects instead of following them.
+	// This is thread-safe because it shares the transport but not the redirect policy.
+	noRedirectClient := &http.Client{
+		Transport: c.httpClient.Transport,
+		Timeout:   c.httpClient.Timeout,
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			return http.ErrUseLastResponse
+		},
+	}
+
+	resp, err := noRedirectClient.Do(req)
+	if err != nil {
+		return nil, ErrNetwork(err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	c.logger.Debug("http form response", "status", resp.StatusCode)
+
+	switch {
+	case resp.StatusCode == http.StatusFound || resp.StatusCode == http.StatusSeeOther:
+		location := resp.Header.Get("Location")
+		return &FormResponse{
+			Location:   location,
+			StatusCode: resp.StatusCode,
+		}, nil
+
+	case resp.StatusCode >= 200 && resp.StatusCode < 300:
+		return &FormResponse{StatusCode: resp.StatusCode}, nil
+
+	case resp.StatusCode == http.StatusUnauthorized:
+		// Try token refresh and retry once
+		if authMgr, ok := c.tokenProvider.(*AuthManager); ok {
+			if refreshErr := authMgr.Refresh(ctx); refreshErr == nil {
+				return c.doFormRequest(ctx, method, path, values)
+			}
+		}
+		return nil, ErrAuth("Authentication failed")
+
+	default:
+		return nil, ErrAPI(resp.StatusCode, fmt.Sprintf("Form request failed (HTTP %d)", resp.StatusCode))
+	}
+}
+
+// ExtractID parses the last numeric path segment from the Location URL.
+// This is used to extract resource IDs from redirect responses.
+func (r *FormResponse) ExtractID() (int64, error) {
+	if r.Location == "" {
+		return 0, fmt.Errorf("no location header in response")
+	}
+	u, err := url.Parse(r.Location)
+	if err != nil {
+		return 0, fmt.Errorf("failed to parse location URL: %w", err)
+	}
+	path := strings.TrimSuffix(u.Path, "/")
+	segments := strings.Split(path, "/")
+	for i := len(segments) - 1; i >= 0; i-- {
+		if id, err := strconv.ParseInt(segments[i], 10, 64); err == nil {
+			return id, nil
+		}
+	}
+	return 0, fmt.Errorf("no numeric ID found in location: %s", r.Location)
 }
 
 type contextKeyAccept struct{}
@@ -649,6 +770,36 @@ func (c *Client) CalendarTodos() *CalendarTodosService {
 		c.calendarTodos = NewCalendarTodosService(c)
 	}
 	return c.calendarTodos
+}
+
+// CalendarEvents returns the CalendarEventsService.
+func (c *Client) CalendarEvents() *CalendarEventsService {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.calendarEvents == nil {
+		c.calendarEvents = NewCalendarEventsService(c)
+	}
+	return c.calendarEvents
+}
+
+// Designations returns the DesignationsService.
+func (c *Client) Designations() *DesignationsService {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.designations == nil {
+		c.designations = NewDesignationsService(c)
+	}
+	return c.designations
+}
+
+// Extenzions returns the ExtenzionsService.
+func (c *Client) Extenzions() *ExtenzionsService {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.extenzions == nil {
+		c.extenzions = NewExtenzionsService(c)
+	}
+	return c.extenzions
 }
 
 // Habits returns the HabitsService.

@@ -291,6 +291,15 @@ func TestClient_ServiceAccessors(t *testing.T) {
 	if c.Search() == nil {
 		t.Fatal("expected non-nil SearchService")
 	}
+	if c.CalendarEvents() == nil {
+		t.Fatal("expected non-nil CalendarEventsService")
+	}
+	if c.Designations() == nil {
+		t.Fatal("expected non-nil DesignationsService")
+	}
+	if c.Extenzions() == nil {
+		t.Fatal("expected non-nil ExtenzionsService")
+	}
 
 	// Verify idempotency (same instance returned)
 	b1 := c.Boxes()
