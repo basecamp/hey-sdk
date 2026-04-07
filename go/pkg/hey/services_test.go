@@ -437,13 +437,13 @@ func TestMessagesService_Create(t *testing.T) {
 			if !ok {
 				t.Fatal("missing addressed in entry")
 			}
-			directly, ok := addressed["directly"].([]any)
-			if !ok || len(directly) != 1 || directly[0] != "test@example.com" {
-				t.Errorf("expected directly ['test@example.com'], got %v", addressed["directly"])
+			directly, ok := addressed["directly"].(string)
+			if !ok || directly != "test@example.com" {
+				t.Errorf("expected directly 'test@example.com', got %v", addressed["directly"])
 			}
-			copied, ok := addressed["copied"].([]any)
-			if !ok || len(copied) != 1 || copied[0] != "cc@example.com" {
-				t.Errorf("expected copied ['cc@example.com'], got %v", addressed["copied"])
+			copied, ok := addressed["copied"].(string)
+			if !ok || copied != "cc@example.com" {
+				t.Errorf("expected copied 'cc@example.com', got %v", addressed["copied"])
 			}
 			if _, ok := addressed["blindcopied"]; ok {
 				t.Error("expected no blindcopied key for empty bcc")
@@ -511,6 +511,24 @@ func TestEntriesService_CreateReply(t *testing.T) {
 			}
 			if msg["content"] != "My reply" {
 				t.Errorf("expected content 'My reply', got %v", msg["content"])
+			}
+			entry, ok := body["entry"].(map[string]any)
+			if !ok {
+				t.Fatal("missing entry wrapper")
+			}
+			addressed, ok := entry["addressed"].(map[string]any)
+			if !ok {
+				t.Fatal("missing addressed in entry")
+			}
+			directly, ok := addressed["directly"].(string)
+			if !ok || directly != "test@example.com" {
+				t.Errorf("expected directly 'test@example.com', got %v", addressed["directly"])
+			}
+			if _, ok := addressed["copied"]; ok {
+				t.Error("expected no copied key for nil cc")
+			}
+			if _, ok := addressed["blindcopied"]; ok {
+				t.Error("expected no blindcopied key for nil bcc")
 			}
 		},
 		`{"notice":"sent"}`,

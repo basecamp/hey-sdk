@@ -3,6 +3,7 @@ package hey
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/basecamp/hey-sdk/go/pkg/generated"
@@ -69,13 +70,13 @@ func (s *MessagesService) Create(ctx context.Context, subject, content string, t
 
 	addressed := map[string]any{}
 	if len(to) > 0 {
-		addressed["directly"] = to
+		addressed["directly"] = strings.Join(to, ",")
 	}
 	if len(cc) > 0 {
-		addressed["copied"] = cc
+		addressed["copied"] = strings.Join(cc, ",")
 	}
 	if len(bcc) > 0 {
-		addressed["blindcopied"] = bcc
+		addressed["blindcopied"] = strings.Join(bcc, ",")
 	}
 
 	body := map[string]any{
