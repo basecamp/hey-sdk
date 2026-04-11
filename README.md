@@ -1,4 +1,4 @@
-# HEY SDK
+# HEY SDK test
 
 Official SDK for the HEY API. Multi-language support for Go, TypeScript, Ruby, Swift, and Kotlin.
 
