@@ -16,23 +16,33 @@
   },
   {
     "method": "POST",
+    "operationId": "CreateHabit",
+    "path": "/calendar/habits.json"
+  },
+  {
+    "method": "POST",
     "operationId": "CreateMessage",
     "path": "/messages.json"
   },
   {
     "method": "POST",
     "operationId": "CreateReply",
-    "path": "/entries/{entryId}/replies"
+    "path": "/entries/{entryId}/replies.json"
   },
   {
     "method": "POST",
     "operationId": "CreateTopicMessage",
-    "path": "/topics/{topicId}/messages"
+    "path": "/topics/{topicId}/entries.json"
   },
   {
     "method": "DELETE",
     "operationId": "DeleteCalendarTodo",
     "path": "/calendar/todos/{todoId}"
+  },
+  {
+    "method": "DELETE",
+    "operationId": "DeleteHabit",
+    "path": "/calendar/habits/{habitId}"
   },
   {
     "method": "GET",
@@ -135,6 +145,11 @@
     "path": "/topics/trash.json"
   },
   {
+    "method": "POST",
+    "operationId": "IgnorePosting",
+    "path": "/postings/{postingId}/ignore.json"
+  },
+  {
     "method": "GET",
     "operationId": "ListBoxes",
     "path": "/boxes.json"
@@ -153,6 +168,41 @@
     "method": "GET",
     "operationId": "ListDrafts",
     "path": "/entries/drafts.json"
+  },
+  {
+    "method": "POST",
+    "operationId": "MarkPostingsSeen",
+    "path": "/postings/seen.json"
+  },
+  {
+    "method": "POST",
+    "operationId": "MarkPostingsUnseen",
+    "path": "/postings/unseen.json"
+  },
+  {
+    "method": "POST",
+    "operationId": "MovePostingToFeed",
+    "path": "/postings/{postingId}/move/feedbox.json"
+  },
+  {
+    "method": "POST",
+    "operationId": "MovePostingToPaperTrail",
+    "path": "/postings/{postingId}/move/trailbox.json"
+  },
+  {
+    "method": "POST",
+    "operationId": "MovePostingToReplyLater",
+    "path": "/postings/{postingId}/move/laterbox.json"
+  },
+  {
+    "method": "POST",
+    "operationId": "MovePostingToSetAside",
+    "path": "/postings/{postingId}/move/asidebox.json"
+  },
+  {
+    "method": "POST",
+    "operationId": "MovePostingToTrash",
+    "path": "/postings/{postingId}/trash.json"
   },
   {
     "method": "GET",

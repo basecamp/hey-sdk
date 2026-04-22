@@ -839,6 +839,13 @@ func executeOperation(client *generated.Client, ctx context.Context, tc TestCase
 		return client.DeleteCalendarTodo(ctx, todoId)
 
 	// Habits
+	case "CreateHabit":
+		body := generated.CreateHabitJSONRequestBody{
+			CalendarHabit: generated.HabitPayload{
+				Title: getStringParam(tc.RequestBody, "title"),
+			},
+		}
+		return client.CreateHabit(ctx, body)
 	case "CompleteHabit":
 		day := getStringParam(tc.PathParams, "day")
 		habitId := getInt64Param(tc.PathParams, "habitId")
@@ -847,6 +854,9 @@ func executeOperation(client *generated.Client, ctx context.Context, tc TestCase
 		day := getStringParam(tc.PathParams, "day")
 		habitId := getInt64Param(tc.PathParams, "habitId")
 		return client.UncompleteHabit(ctx, day, habitId)
+	case "DeleteHabit":
+		habitId := getInt64Param(tc.PathParams, "habitId")
+		return client.DeleteHabit(ctx, habitId)
 
 	// Time Tracks
 	case "GetOngoingTimeTrack":

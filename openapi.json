@@ -585,6 +585,160 @@
         }
       }
     },
+    "/calendar/habits.json": {
+      "post": {
+        "description": "Create a habit",
+        "operationId": "CreateHabit",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateHabitRequestContent"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "CreateHabit 200 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateHabitResponseContent"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UnauthorizedError 401 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnauthorizedErrorResponseContent"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "UnprocessableEntityError 422 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnprocessableEntityErrorResponseContent"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "InternalServerError 500 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorResponseContent"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ServiceUnavailableError 503 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceUnavailableErrorResponseContent"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Calendar Habits"
+        ],
+        "x-hey-retry": {
+          "maxAttempts": 2,
+          "baseDelayMs": 1000,
+          "backoff": "exponential",
+          "retryOn": [
+            429,
+            503
+          ]
+        }
+      }
+    },
+    "/calendar/habits/{habitId}": {
+      "delete": {
+        "description": "Delete a habit",
+        "operationId": "DeleteHabit",
+        "parameters": [
+          {
+            "name": "habitId",
+            "in": "path",
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "DeleteHabit 200 response"
+          },
+          "401": {
+            "description": "UnauthorizedError 401 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnauthorizedErrorResponseContent"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError 404 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundErrorResponseContent"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "InternalServerError 500 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorResponseContent"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ServiceUnavailableError 503 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceUnavailableErrorResponseContent"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Calendar Habits"
+        ],
+        "x-hey-retry": {
+          "maxAttempts": 3,
+          "baseDelayMs": 1000,
+          "backoff": "exponential",
+          "retryOn": [
+            429,
+            503
+          ]
+        }
+      }
+    },
     "/calendar/ongoing_time_track.json": {
       "get": {
         "description": "Get the ongoing time track (404 = no active track; see ADR-004)",
@@ -4001,6 +4155,21 @@
       "CreateCalendarTodoResponseContent": {
         "$ref": "#/components/schemas/Recording"
       },
+      "CreateHabitRequestContent": {
+        "type": "object",
+        "description": "Wire format: {calendar_habit: {title, days}}",
+        "properties": {
+          "calendar_habit": {
+            "$ref": "#/components/schemas/HabitPayload"
+          }
+        },
+        "required": [
+          "calendar_habit"
+        ]
+      },
+      "CreateHabitResponseContent": {
+        "$ref": "#/components/schemas/Recording"
+      },
       "CreateMessageRequestContent": {
         "type": "object",
         "description": "Wire format: {acting_sender_id, message: {subject, content}, entry: {addressed: {directly: \"...\"}}}",
@@ -4315,6 +4484,25 @@
       },
       "GetTrashTopicsResponseContent": {
         "$ref": "#/components/schemas/TopicListResponse"
+      },
+      "HabitPayload": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "days": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int32"
+            },
+            "description": "Days of week as integers (0=Sunday … 6=Saturday). Omit to accept server default."
+          }
+        },
+        "required": [
+          "title"
+        ]
       },
       "Identity": {
         "type": "object",

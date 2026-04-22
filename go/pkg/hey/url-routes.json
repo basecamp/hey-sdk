@@ -65,6 +65,27 @@
       }
     },
     {
+      "pattern": "/calendar/habits",
+      "resource": "Calendar Habits",
+      "operations": {
+        "POST": "CreateHabit"
+      },
+      "params": {}
+    },
+    {
+      "pattern": "/calendar/habits/{habitId}",
+      "resource": "Calendar Habits",
+      "operations": {
+        "DELETE": "DeleteHabit"
+      },
+      "params": {
+        "habitId": {
+          "role": "recording",
+          "type": "int64"
+        }
+      }
+    },
+    {
       "pattern": "/calendar/ongoing_time_track",
       "resource": "Calendar Time Tracks",
       "operations": {

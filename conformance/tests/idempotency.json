@@ -5,15 +5,29 @@
     "operation": "CreateMessage",
     "method": "POST",
     "path": "/messages.json",
-    "requestBody": {"subject": "Hello", "content": "World"},
+    "requestBody": {
+      "subject": "Hello",
+      "content": "World"
+    },
     "mockResponses": [
-      {"status": 503}
+      {
+        "status": 503
+      }
     ],
     "assertions": [
-      {"type": "requestCount", "expected": 1},
-      {"type": "statusCode", "expected": 503}
+      {
+        "type": "requestCount",
+        "expected": 1
+      },
+      {
+        "type": "statusCode",
+        "expected": 503
+      }
     ],
-    "tags": ["no-retry", "post"]
+    "tags": [
+      "no-retry",
+      "post"
+    ]
   },
   {
     "name": "Idempotent GET retries on 503",
@@ -22,14 +36,28 @@
     "method": "GET",
     "path": "/boxes.json",
     "mockResponses": [
-      {"status": 503},
-      {"status": 200, "body": []}
+      {
+        "status": 503
+      },
+      {
+        "status": 200,
+        "body": []
+      }
     ],
     "assertions": [
-      {"type": "requestCount", "expected": 2},
-      {"type": "noError"}
+      {
+        "type": "requestCount",
+        "expected": 2
+      },
+      {
+        "type": "noError"
+      }
     ],
-    "tags": ["idempotent", "get", "retry"]
+    "tags": [
+      "idempotent",
+      "get",
+      "retry"
+    ]
   },
   {
     "name": "Idempotent POST (no body) retries on 503",
@@ -37,16 +65,32 @@
     "operation": "CompleteCalendarTodo",
     "method": "POST",
     "path": "/calendar/todos/{todoId}/completions",
-    "pathParams": {"todoId": 12345},
+    "pathParams": {
+      "todoId": 12345
+    },
     "mockResponses": [
-      {"status": 503},
-      {"status": 200, "body": {}}
+      {
+        "status": 503
+      },
+      {
+        "status": 200,
+        "body": {}
+      }
     ],
     "assertions": [
-      {"type": "requestCount", "expected": 2},
-      {"type": "noError"}
+      {
+        "type": "requestCount",
+        "expected": 2
+      },
+      {
+        "type": "noError"
+      }
     ],
-    "tags": ["idempotent", "post", "retry"]
+    "tags": [
+      "idempotent",
+      "post",
+      "retry"
+    ]
   },
   {
     "name": "PUT operation is naturally idempotent",
@@ -54,17 +98,38 @@
     "operation": "UpdateTimeTrack",
     "method": "PUT",
     "path": "/time_tracks/{timeTrackId}.json",
-    "pathParams": {"timeTrackId": 12345},
-    "requestBody": {"stopped": true},
+    "pathParams": {
+      "timeTrackId": 12345
+    },
+    "requestBody": {
+      "stopped": true
+    },
     "mockResponses": [
-      {"status": 503},
-      {"status": 200, "body": {"id": 12345, "type": "TimeTrack"}}
+      {
+        "status": 503
+      },
+      {
+        "status": 200,
+        "body": {
+          "id": 12345,
+          "type": "TimeTrack"
+        }
+      }
     ],
     "assertions": [
-      {"type": "requestCount", "expected": 2},
-      {"type": "noError"}
+      {
+        "type": "requestCount",
+        "expected": 2
+      },
+      {
+        "type": "noError"
+      }
     ],
-    "tags": ["idempotent", "put", "retry"]
+    "tags": [
+      "idempotent",
+      "put",
+      "retry"
+    ]
   },
   {
     "name": "DELETE operation is naturally idempotent",
@@ -72,15 +137,95 @@
     "operation": "DeleteCalendarTodo",
     "method": "DELETE",
     "path": "/calendar/todos/{todoId}",
-    "pathParams": {"todoId": 12345},
+    "pathParams": {
+      "todoId": 12345
+    },
     "mockResponses": [
-      {"status": 503},
-      {"status": 204}
+      {
+        "status": 503
+      },
+      {
+        "status": 204
+      }
     ],
     "assertions": [
-      {"type": "requestCount", "expected": 2},
-      {"type": "noError"}
+      {
+        "type": "requestCount",
+        "expected": 2
+      },
+      {
+        "type": "noError"
+      }
     ],
-    "tags": ["idempotent", "delete", "retry"]
+    "tags": [
+      "idempotent",
+      "delete",
+      "retry"
+    ]
+  },
+  {
+    "name": "DELETE habit is naturally idempotent",
+    "description": "Verifies that DeleteHabit can be safely retried on transient failures",
+    "operation": "DeleteHabit",
+    "method": "DELETE",
+    "path": "/calendar/habits/{habitId}",
+    "pathParams": {
+      "habitId": 12345
+    },
+    "mockResponses": [
+      {
+        "status": 503
+      },
+      {
+        "status": 204
+      }
+    ],
+    "assertions": [
+      {
+        "type": "requestCount",
+        "expected": 2
+      },
+      {
+        "type": "noError"
+      }
+    ],
+    "tags": [
+      "idempotent",
+      "delete",
+      "retry"
+    ]
+  },
+  {
+    "name": "DELETE habit retries on 429",
+    "description": "Verifies that DeleteHabit retries on 429 Too Many Requests",
+    "operation": "DeleteHabit",
+    "method": "DELETE",
+    "path": "/calendar/habits/{habitId}",
+    "pathParams": {
+      "habitId": 12345
+    },
+    "mockResponses": [
+      {
+        "status": 429
+      },
+      {
+        "status": 204
+      }
+    ],
+    "assertions": [
+      {
+        "type": "requestCount",
+        "expected": 2
+      },
+      {
+        "type": "noError"
+      }
+    ],
+    "tags": [
+      "idempotent",
+      "delete",
+      "retry",
+      "429"
+    ]
   }
 ]

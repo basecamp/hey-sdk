@@ -87,6 +87,19 @@ func TestRouterMatchPath(t *testing.T) {
 			wantRsrc: "Calendar Time Tracks",
 		},
 		{
+			name:     "calendar habit create",
+			input:    "/calendar/habits",
+			wantOp:   "CreateHabit",
+			wantRsrc: "Calendar Habits",
+		},
+		{
+			name:     "calendar habit delete",
+			input:    "/calendar/habits/123",
+			wantOp:   "DeleteHabit",
+			wantRes:  "123",
+			wantRsrc: "Calendar Habits",
+		},
+		{
 			name:     "search",
 			input:    "/search",
 			wantOp:   "Search",

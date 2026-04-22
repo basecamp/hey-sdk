@@ -54,6 +54,23 @@
 //	    fmt.Println(b.Name)
 //	}
 //
+// # Working with Habits
+//
+// Create a new habit (title required; days is optional — nil accepts the server default):
+//
+//	habit, err := client.Habits().Create(ctx, "Exercise", []int32{1, 2, 3, 4, 5})
+//	if err != nil {
+//	    log.Fatal(err)
+//	}
+//
+// Complete a habit for a given day:
+//
+//	client.Habits().Complete(ctx, "2026-04-22", habit.Id)
+//
+// Delete a habit permanently:
+//
+//	err = client.Habits().Delete(ctx, habit.Id)
+//
 // # Pagination
 //
 // The SDK handles pagination automatically via FollowPagination:

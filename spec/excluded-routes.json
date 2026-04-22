@@ -595,11 +595,6 @@
     "reason": "phase-2: calendar habit management"
   },
   {
-    "method": "POST",
-    "path": "/calendar/habits",
-    "reason": "phase-2: calendar habit management"
-  },
-  {
     "method": "DELETE",
     "path": "/calendar/habits/{habit_id}/stop",
     "reason": "phase-2: calendar habit management"
@@ -607,11 +602,6 @@
   {
     "method": "POST",
     "path": "/calendar/habits/{habit_id}/stop",
-    "reason": "phase-2: calendar habit management"
-  },
-  {
-    "method": "DELETE",
-    "path": "/calendar/habits/{id}",
     "reason": "phase-2: calendar habit management"
   },
   {

@@ -106,9 +106,11 @@ service HEY {
         UncompleteCalendarTodo
         DeleteCalendarTodo
 
-        // Calendar Habits (2 MVP)
+        // Calendar Habits (4 MVP)
+        CreateHabit
         CompleteHabit
         UncompleteHabit
+        DeleteHabit
 
         // Calendar Time Tracks (3 MVP)
         GetOngoingTimeTrack
@@ -1567,6 +1569,57 @@ operation UncompleteHabit {
     input: HabitCompletionInput
     output: HabitCompletionOutput
     errors: [UnauthorizedError, NotFoundError, InternalServerError, ServiceUnavailableError]
+}
+
+/// Create a habit
+@http(method: "POST", uri: "/calendar/habits.json")
+@tags(["Calendar Habits"])
+@heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+operation CreateHabit {
+    input: CreateHabitInput
+    output: CreateHabitOutput
+    errors: [UnauthorizedError, UnprocessableEntityError, InternalServerError, ServiceUnavailableError]
+}
+
+structure CreateHabitInput {
+    @httpPayload
+    @required
+    body: CreateHabitRequestContent
+}
+
+/// Wire format: {calendar_habit: {title, days}}
+structure CreateHabitRequestContent {
+    @required
+    calendar_habit: HabitPayload
+}
+
+structure HabitPayload {
+    @required
+    title: String
+
+    /// Days of week as integers (0=Sunday … 6=Saturday). Omit to accept server default.
+    days: DaysList
+}
+
+structure CreateHabitOutput {
+    @required
+    recording: Recording
+}
+
+/// Delete a habit
+@idempotent
+@http(method: "DELETE", uri: "/calendar/habits/{habitId}")
+@tags(["Calendar Habits"])
+@heyRetry(maxAttempts: 3, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+operation DeleteHabit {
+    input: DeleteHabitInput
+    errors: [UnauthorizedError, NotFoundError, InternalServerError, ServiceUnavailableError]
+}
+
+structure DeleteHabitInput {
+    @httpLabel
+    @required
+    habitId: Long
 }
 
 // =============================================================================

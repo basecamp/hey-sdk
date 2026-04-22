@@ -218,6 +218,14 @@ type CreateCalendarTodoRequestContent struct {
 // CreateCalendarTodoResponseContent Recording — polymorphic by `type` (CalendarEvent, CalendarTodo, etc.)
 type CreateCalendarTodoResponseContent = Recording
 
+// CreateHabitRequestContent Wire format: {calendar_habit: {title, days}}
+type CreateHabitRequestContent struct {
+	CalendarHabit HabitPayload `json:"calendar_habit"`
+}
+
+// CreateHabitResponseContent Recording — polymorphic by `type` (CalendarEvent, CalendarTodo, etc.)
+type CreateHabitResponseContent = Recording
+
 // CreateMessageRequestContent Wire format: {acting_sender_id, message: {subject, content}, entry: {addressed: {directly: "..."}}}
 type CreateMessageRequestContent struct {
 	ActingSenderId int64               `json:"acting_sender_id"`
@@ -384,6 +392,13 @@ type GetTrailboxResponseContent = BoxShowResponse
 
 // GetTrashTopicsResponseContent TopicListResponse — wrapped topic list (sent, spam, trash, everything)
 type GetTrashTopicsResponseContent = TopicListResponse
+
+// HabitPayload defines model for HabitPayload.
+type HabitPayload struct {
+	// Days Days of week as integers (0=Sunday … 6=Saturday). Omit to accept server default.
+	Days  []int32 `json:"days,omitempty"`
+	Title string  `json:"title"`
+}
 
 // Identity defines model for Identity.
 type Identity struct {
@@ -959,6 +974,9 @@ type GetTopicEntriesParams struct {
 // UpdateJournalEntryJSONRequestBody defines body for UpdateJournalEntry for application/json ContentType.
 type UpdateJournalEntryJSONRequestBody = UpdateJournalEntryRequestContent
 
+// CreateHabitJSONRequestBody defines body for CreateHabit for application/json ContentType.
+type CreateHabitJSONRequestBody = CreateHabitRequestContent
+
 // StartTimeTrackJSONRequestBody defines body for StartTimeTrack for application/json ContentType.
 type StartTimeTrackJSONRequestBody = StartTimeTrackRequestContent
 
@@ -1234,6 +1252,14 @@ type ClientInterface interface {
 
 	UpdateJournalEntry(ctx context.Context, day string, body UpdateJournalEntryJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// CreateHabitWithBody request with any body
+	CreateHabitWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	CreateHabit(ctx context.Context, body CreateHabitJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DeleteHabit request
+	DeleteHabit(ctx context.Context, habitId int64, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// GetOngoingTimeTrack request
 	GetOngoingTimeTrack(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 
@@ -1452,6 +1478,46 @@ func (c *Client) UpdateJournalEntry(ctx context.Context, day string, body Update
 		return nil, err
 	}
 	return c.Client.Do(req)
+
+}
+
+// CreateHabitWithBody executes the CreateHabit operation.
+
+func (c *Client) CreateHabitWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+
+	req, err := NewCreateHabitRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+
+}
+
+func (c *Client) CreateHabit(ctx context.Context, body CreateHabitJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+
+	req, err := NewCreateHabitRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+
+}
+
+// DeleteHabit is marked as idempotent and will be retried on transient failures.
+
+func (c *Client) DeleteHabit(ctx context.Context, habitId int64, reqEditors ...RequestEditorFn) (*http.Response, error) {
+
+	return c.doWithRetry(ctx, func() (*http.Request, error) {
+		return NewDeleteHabitRequest(c.Server, habitId)
+	}, true, "DeleteHabit", reqEditors...)
 
 }
 
@@ -2302,6 +2368,80 @@ func NewUpdateJournalEntryRequestWithBody(server string, day string, contentType
 	}
 
 	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewCreateHabitRequest calls the generic CreateHabit builder with application/json body
+func NewCreateHabitRequest(server string, body CreateHabitJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewCreateHabitRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewCreateHabitRequestWithBody generates requests for CreateHabit with any type of body
+func NewCreateHabitRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/calendar/habits.json")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewDeleteHabitRequest generates requests for DeleteHabit
+func NewDeleteHabitRequest(server string, habitId int64) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "habitId", runtime.ParamLocationPath, habitId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/calendar/habits/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("DELETE", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
 
 	return req, nil
 }
@@ -3876,6 +4016,8 @@ var operationMetadata = map[string]OperationMetadata{
 	"CompleteHabit":           {Idempotent: true, HasSensitiveParams: false},
 	"GetJournalEntry":         {Idempotent: true, HasSensitiveParams: false},
 	"UpdateJournalEntry":      {Idempotent: false, HasSensitiveParams: false},
+	"CreateHabit":             {Idempotent: false, HasSensitiveParams: false},
+	"DeleteHabit":             {Idempotent: true, HasSensitiveParams: false},
 	"GetOngoingTimeTrack":     {Idempotent: true, HasSensitiveParams: false},
 	"StartTimeTrack":          {Idempotent: false, HasSensitiveParams: false},
 	"UpdateTimeTrack":         {Idempotent: true, HasSensitiveParams: false},
@@ -4541,6 +4683,14 @@ type ClientWithResponsesInterface interface {
 
 	UpdateJournalEntryWithResponse(ctx context.Context, day string, body UpdateJournalEntryJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateJournalEntryResponse, error)
 
+	// CreateHabitWithBodyWithResponse request with any body
+	CreateHabitWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateHabitResponse, error)
+
+	CreateHabitWithResponse(ctx context.Context, body CreateHabitJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateHabitResponse, error)
+
+	// DeleteHabitWithResponse request
+	DeleteHabitWithResponse(ctx context.Context, habitId int64, reqEditors ...RequestEditorFn) (*DeleteHabitResponse, error)
+
 	// GetOngoingTimeTrackWithResponse request
 	GetOngoingTimeTrackWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetOngoingTimeTrackResponse, error)
 
@@ -4846,6 +4996,57 @@ func (r UpdateJournalEntryResponse) Status() string {
 
 // StatusCode returns HTTPResponse.StatusCode
 func (r UpdateJournalEntryResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type CreateHabitResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *CreateHabitResponseContent
+	JSON401      *UnauthorizedErrorResponseContent
+	JSON422      *UnprocessableEntityErrorResponseContent
+	JSON500      *InternalServerErrorResponseContent
+	JSON503      *ServiceUnavailableErrorResponseContent
+}
+
+// Status returns HTTPResponse.Status
+func (r CreateHabitResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r CreateHabitResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type DeleteHabitResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON401      *UnauthorizedErrorResponseContent
+	JSON404      *NotFoundErrorResponseContent
+	JSON500      *InternalServerErrorResponseContent
+	JSON503      *ServiceUnavailableErrorResponseContent
+}
+
+// Status returns HTTPResponse.Status
+func (r DeleteHabitResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DeleteHabitResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -5884,6 +6085,32 @@ func (c *ClientWithResponses) UpdateJournalEntryWithResponse(ctx context.Context
 	return ParseUpdateJournalEntryResponse(rsp)
 }
 
+// CreateHabitWithBodyWithResponse request with arbitrary body returning *CreateHabitResponse
+func (c *ClientWithResponses) CreateHabitWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateHabitResponse, error) {
+	rsp, err := c.CreateHabitWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateHabitResponse(rsp)
+}
+
+func (c *ClientWithResponses) CreateHabitWithResponse(ctx context.Context, body CreateHabitJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateHabitResponse, error) {
+	rsp, err := c.CreateHabit(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateHabitResponse(rsp)
+}
+
+// DeleteHabitWithResponse request returning *DeleteHabitResponse
+func (c *ClientWithResponses) DeleteHabitWithResponse(ctx context.Context, habitId int64, reqEditors ...RequestEditorFn) (*DeleteHabitResponse, error) {
+	rsp, err := c.DeleteHabit(ctx, habitId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDeleteHabitResponse(rsp)
+}
+
 // GetOngoingTimeTrackWithResponse request returning *GetOngoingTimeTrackResponse
 func (c *ClientWithResponses) GetOngoingTimeTrackWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetOngoingTimeTrackResponse, error) {
 	rsp, err := c.GetOngoingTimeTrack(ctx, reqEditors...)
@@ -6634,6 +6861,107 @@ func ParseUpdateJournalEntryResponse(rsp *http.Response) (*UpdateJournalEntryRes
 			return nil, err
 		}
 		response.JSON422 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest InternalServerErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+		var dest ServiceUnavailableErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON503 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseCreateHabitResponse parses an HTTP response from a CreateHabitWithResponse call
+func ParseCreateHabitResponse(rsp *http.Response) (*CreateHabitResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &CreateHabitResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest CreateHabitResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest UnauthorizedErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 422:
+		var dest UnprocessableEntityErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON422 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest InternalServerErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+		var dest ServiceUnavailableErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON503 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDeleteHabitResponse parses an HTTP response from a DeleteHabitWithResponse call
+func ParseDeleteHabitResponse(rsp *http.Response) (*DeleteHabitResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DeleteHabitResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest UnauthorizedErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFoundErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
 		var dest InternalServerErrorResponseContent

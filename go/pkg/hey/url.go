@@ -133,7 +133,7 @@ func compilePattern(pattern string) (*regexp.Regexp, []string) {
 
 // sortRoutes sorts routes by descending segment count, then alphabetically.
 func sortRoutes(routes []routeEntry) {
-	sort.Slice(routes, func(i, j int) bool {
+	sort.SliceStable(routes, func(i, j int) bool {
 		si := strings.Count(routes[i].pattern, "/")
 		sj := strings.Count(routes[j].pattern, "/")
 		if si != sj {

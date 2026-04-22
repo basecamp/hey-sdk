@@ -130,5 +130,6 @@ func (s *CalendarTodosService) Delete(ctx context.Context, todoID int64) (err er
 	if err != nil {
 		return err
 	}
-	return CheckResponse(resp.HTTPResponse)
+	err = CheckResponse(resp.HTTPResponse)
+	return err
 }
