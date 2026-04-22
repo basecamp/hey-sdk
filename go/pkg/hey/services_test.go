@@ -722,12 +722,18 @@ func TestHabitsService_Create(t *testing.T) {
 			days, ok := habit["days"].([]any)
 			if !ok || len(days) != 3 {
 				t.Errorf("expected days [1 2 3], got %v", habit["days"])
+				return
+			}
+			for i, want := range []float64{1, 2, 3} {
+				if days[i] != want {
+					t.Errorf("days[%d] = %v, want %v", i, days[i], want)
+				}
 			}
 		},
 		`{"id":1,"type":"CalendarHabit"}`,
 	)
 
-	result, err := client.Habits().Create(context.Background(), "Exercise", []int{1, 2, 3})
+	result, err := client.Habits().Create(context.Background(), "Exercise", []int32{1, 2, 3})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

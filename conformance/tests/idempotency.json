@@ -194,5 +194,38 @@
       "delete",
       "retry"
     ]
+  },
+  {
+    "name": "DELETE habit retries on 429",
+    "description": "Verifies that DeleteHabit retries on 429 Too Many Requests",
+    "operation": "DeleteHabit",
+    "method": "DELETE",
+    "path": "/calendar/habits/{habitId}",
+    "pathParams": {
+      "habitId": 12345
+    },
+    "mockResponses": [
+      {
+        "status": 429
+      },
+      {
+        "status": 204
+      }
+    ],
+    "assertions": [
+      {
+        "type": "requestCount",
+        "expected": 2
+      },
+      {
+        "type": "noError"
+      }
+    ],
+    "tags": [
+      "idempotent",
+      "delete",
+      "retry",
+      "429"
+    ]
   }
 ]

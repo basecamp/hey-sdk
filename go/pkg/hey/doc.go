@@ -58,7 +58,7 @@
 //
 // Create a new habit (title required; days is optional — nil accepts the server default):
 //
-//	habit, err := client.Habits().Create(ctx, "Exercise", []int{1, 2, 3, 4, 5})
+//	habit, err := client.Habits().Create(ctx, "Exercise", []int32{1, 2, 3, 4, 5})
 //	if err != nil {
 //	    log.Fatal(err)
 //	}

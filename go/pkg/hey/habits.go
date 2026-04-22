@@ -23,7 +23,7 @@ func NewHabitsService(client *Client) *HabitsService {
 // The HEY API expects the body wrapped as {calendar_habit: {title, days}}.
 // Pass nil or an empty slice for days to omit it from the request; the server
 // then applies its default (all days). A non-empty slice is sent verbatim.
-func (s *HabitsService) Create(ctx context.Context, title string, days []int) (result *generated.Recording, err error) {
+func (s *HabitsService) Create(ctx context.Context, title string, days []int32) (result *generated.Recording, err error) {
 	op := OperationInfo{
 		Service: "Habits", Operation: "CreateHabit",
 		ResourceType: "calendar_habit", IsMutation: true,
