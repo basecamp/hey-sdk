@@ -142,17 +142,21 @@ func runTest(tc TestCase) TestResult {
 	var requestPaths []string
 	var requestHeaders []http.Header
 	var requestBodies [][]byte
+	var requestBodyReadErr error
 	var responseStatuses []int
 
 	// Create mock server that serves responses in sequence
 	responseIndex := 0
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var requestBody []byte
+		var readErr error
 		if r.Body != nil {
-			requestBody, _ = io.ReadAll(r.Body)
-			_ = r.Body.Close()
+			requestBody, readErr = readRequestBody(r.Body)
 		}
 		mu.Lock()
+		if readErr != nil && requestBodyReadErr == nil {
+			requestBodyReadErr = readErr
+		}
 		requestCount++
 		requestTimes = append(requestTimes, time.Now())
 		requestPaths = append(requestPaths, r.URL.Path)
@@ -227,6 +231,15 @@ func runTest(tc TestCase) TestResult {
 	// Execute the operation
 	ctx := context.Background()
 	sdkResp, sdkErr := executeOperation(client, ctx, tc)
+	mu.Lock()
+	capturedRequestBodyReadErr := requestBodyReadErr
+	mu.Unlock()
+	if capturedRequestBodyReadErr != nil {
+		if sdkResp != nil && sdkResp.Body != nil {
+			_ = sdkResp.Body.Close()
+		}
+		return fail(tc.Name, "Failed to read captured request body: %v", capturedRequestBodyReadErr)
+	}
 
 	// Capture response body for responseBody assertions
 	var responseBodyBytes []byte
@@ -289,6 +302,15 @@ func runTest(tc TestCase) TestResult {
 		Passed:  true,
 		Message: "All assertions passed",
 	}
+}
+
+func readRequestBody(body io.ReadCloser) ([]byte, error) {
+	requestBody, readErr := io.ReadAll(body)
+	closeErr := body.Close()
+	if readErr != nil {
+		return requestBody, readErr
+	}
+	return requestBody, closeErr
 }
 
 // runConfigOverrideTest handles tests that override client configuration

@@ -82,10 +82,16 @@ route-coverage:
 
 route-coverage-check:
 	@echo "==> Checking route coverage freshness..."
-	@tmpfile=$$(mktemp) && \
-	./scripts/generate-route-coverage openapi.json "$$tmpfile" spec/route-coverage-scope.json > /dev/null && \
-	diff -q spec/route-coverage.json "$$tmpfile" > /dev/null 2>&1 || \
-		{ rm -f "$$tmpfile"; echo "ERROR: spec/route-coverage.json is out of date. Run 'make route-coverage'"; exit 1; }; \
+	@tmpfile=$$(mktemp) || exit 1; \
+	if ! ./scripts/generate-route-coverage openapi.json "$$tmpfile" spec/route-coverage-scope.json > /dev/null; then \
+		rm -f "$$tmpfile"; \
+		exit 1; \
+	fi; \
+	if ! diff -q spec/route-coverage.json "$$tmpfile" > /dev/null 2>&1; then \
+		rm -f "$$tmpfile"; \
+		echo "ERROR: spec/route-coverage.json is out of date. Run 'make route-coverage'"; \
+		exit 1; \
+	fi; \
 	rm -f "$$tmpfile"
 
 # Forward-only: every modeled operation has a matching route
