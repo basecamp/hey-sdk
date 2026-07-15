@@ -269,7 +269,14 @@ func replyDraftFromLocation(location string) (*ReplyDraft, error) {
 		return nil, fmt.Errorf("reply draft Location %q has no draft ID", location)
 	}
 	segments := strings.Split(parsed.Path, "/")
-	id, err := strconv.ParseInt(segments[len(segments)-1], 10, 64)
+	idSegment := len(segments) - 1
+	if segments[idSegment] == "edit" {
+		idSegment--
+	}
+	if idSegment < 0 {
+		return nil, fmt.Errorf("reply draft Location %q has no draft ID", location)
+	}
+	id, err := strconv.ParseInt(segments[idSegment], 10, 64)
 	if err != nil {
 		return nil, fmt.Errorf("reply draft Location %q has no numeric draft ID", location)
 	}
@@ -279,9 +286,12 @@ func replyDraftFromLocation(location string) (*ReplyDraft, error) {
 
 	parsed.RawQuery = ""
 	parsed.Fragment = ""
+	if segments[len(segments)-1] != "edit" {
+		parsed.Path += "/edit"
+	}
 	return &ReplyDraft{
 		ID:       id,
 		Location: location,
-		EditURL:  parsed.String() + "/edit",
+		EditURL:  parsed.String(),
 	}, nil
 }

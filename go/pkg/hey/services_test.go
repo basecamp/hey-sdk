@@ -787,10 +787,16 @@ func TestReplyDraftFromLocation(t *testing.T) {
 		wantErr  bool
 	}{
 		{name: "relative", location: "/entries/drafts/42", wantID: 42, wantEdit: "/entries/drafts/42/edit"},
+		{name: "relative edit", location: "/entries/drafts/43/edit", wantID: 43, wantEdit: "/entries/drafts/43/edit"},
 		{name: "absolute", location: "https://app.hey.com/entries/drafts/99/?source=save#composer", wantID: 99, wantEdit: "https://app.hey.com/entries/drafts/99/edit"},
+		{name: "absolute edit", location: "https://app.hey.com/entries/drafts/100/edit/?source=save#composer", wantID: 100, wantEdit: "https://app.hey.com/entries/drafts/100/edit"},
 		{name: "missing", wantErr: true},
 		{name: "malformed", location: "/entries/drafts/%zz", wantErr: true},
 		{name: "nonnumeric", location: "/entries/drafts/not-a-number", wantErr: true},
+		{name: "nonnumeric edit", location: "/entries/drafts/not-a-number/edit", wantErr: true},
+		{name: "edit without ID", location: "/edit", wantErr: true},
+		{name: "unexpected suffix", location: "/entries/drafts/42/preview", wantErr: true},
+		{name: "repeated edit suffix", location: "/entries/drafts/42/edit/edit", wantErr: true},
 		{name: "zero", location: "/entries/drafts/0", wantErr: true},
 		{name: "negative", location: "/entries/drafts/-1", wantErr: true},
 	} {
