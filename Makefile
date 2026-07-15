@@ -74,7 +74,19 @@ url-routes-check:
 # Drift detection
 #------------------------------------------------------------------------------
 
-.PHONY: drift-check drift-check-mvp drift-check-full drift-regen
+.PHONY: drift-check drift-check-mvp drift-check-full drift-regen route-coverage route-coverage-check
+
+route-coverage:
+	@echo "==> Generating route coverage..."
+	./scripts/generate-route-coverage
+
+route-coverage-check:
+	@echo "==> Checking route coverage freshness..."
+	@tmpfile=$$(mktemp) && \
+	./scripts/generate-route-coverage openapi.json "$$tmpfile" spec/route-coverage-scope.json > /dev/null && \
+	diff -q spec/route-coverage.json "$$tmpfile" > /dev/null 2>&1 || \
+		{ rm -f "$$tmpfile"; echo "ERROR: spec/route-coverage.json is out of date. Run 'make route-coverage'"; exit 1; }; \
+	rm -f "$$tmpfile"
 
 # Forward-only: every modeled operation has a matching route
 drift-check-forward:
@@ -304,7 +316,7 @@ audit-check:
 #------------------------------------------------------------------------------
 
 # Phase 0-1: Smithy model validation
-check-mvp: smithy-check behavior-model-check drift-check-mvp \
+check-mvp: smithy-check behavior-model-check route-coverage-check drift-check-mvp \
            url-routes-check go-check go-check-drift conformance-mvp
 	@echo "==> MVP gate passed"
 

@@ -27,22 +27,32 @@ GEN_OPS=$(mktemp)
 SVC_OPS=$(mktemp)
 trap 'rm -f "$GEN_OPS" "$SVC_OPS"' EXIT
 
-# Extract generated operations, normalizing WithBodyWithResponse to base name
+# Normalize generated method variants to their Smithy operation name.
 # e.g., CreateMessageWithBodyWithResponse -> CreateMessage
+#       CreateReplyDraftWithFormdataBodyWithResponse -> CreateReplyDraft
 #       ListBoxesWithResponse -> ListBoxes
+normalize_operations() {
+  sed -E 's/WithResponse$//' \
+    | sed -E 's/With[A-Za-z0-9]*Body$//'
+}
+
+# Extract generated operations. Generic and typed body variants collapse to
+# the same operation after normalization.
 grep "^func (c \*ClientWithResponses)" "$GENERATED_FILE" 2>/dev/null \
-  | sed 's/.*) \([A-Za-z]*\)WithResponse.*/\1/' \
-  | sed 's/WithBody$//' \
+  | sed -E 's/^func \(c \*ClientWithResponses\) ([A-Za-z0-9_]+).*/\1/' \
+  | normalize_operations \
   | sort -u > "$GEN_OPS"
 
-# Extract service layer calls to gen.*WithResponse (excluding test files)
+# Extract generated-client calls made by the service layer (excluding tests).
+# Some form operations intentionally use the raw WithFormdataBody method so
+# they can inspect 302/303 responses without the generated response parser.
 for f in "$SERVICE_DIR"/*.go; do
   case "$f" in
     *_test.go) continue ;;
   esac
-  grep "\.gen\.[A-Za-z]*WithResponse" "$f" 2>/dev/null || true
-done | sed 's/.*\.gen\.\([A-Za-z]*\)WithResponse.*/\1/' \
-  | sed 's/WithBody$//' \
+  grep -oE '\.gen\.[A-Za-z0-9_]+' "$f" 2>/dev/null || true
+done | sed -E 's/^\.gen\.//' \
+  | normalize_operations \
   | sort -u > "$SVC_OPS"
 
 GEN_COUNT=$(wc -l < "$GEN_OPS" | tr -d ' ')

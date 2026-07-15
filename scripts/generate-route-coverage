@@ -1,26 +1,97 @@
 #!/usr/bin/env bash
 # generate-route-coverage — Extract modeled operation routes from OpenAPI
 #
-# Reads: openapi.json
+# Reads: openapi.json and spec/route-coverage-scope.json
 # Writes: spec/route-coverage.json
+#
+# The scope file is the intentional drift-audit allowlist. This keeps API-only
+# or otherwise unresolved Smithy routes out of the Rails route audit while
+# still refreshing each selected operation's generated method and path.
+# Per-operation overrides represent reviewed canonical Rails routes that differ
+# from the public API transport path.
 set -euo pipefail
 
 OPENAPI_FILE="${1:-openapi.json}"
-OUTPUT_FILE="spec/route-coverage.json"
+OUTPUT_FILE="${2:-spec/route-coverage.json}"
+SCOPE_FILE="${3:-spec/route-coverage-scope.json}"
 
 if [[ ! -f "$OPENAPI_FILE" ]]; then
     echo "ERROR: $OPENAPI_FILE not found. Run 'make smithy-build' first."
     exit 1
 fi
+if [[ ! -f "$SCOPE_FILE" ]]; then
+    echo "ERROR: $SCOPE_FILE not found."
+    exit 1
+fi
 
-jq -S '[
+OUTPUT_DIR="$(dirname "$OUTPUT_FILE")"
+TEMP_OUTPUT="$(mktemp "$OUTPUT_DIR/.route-coverage.XXXXXX")"
+trap 'rm -f "$TEMP_OUTPUT"' EXIT
+
+jq -S --slurpfile scope "$SCOPE_FILE" '
+($scope[0].operations // []) as $operations |
+($scope[0].overrides // {}) as $overrides |
+[
   .paths | to_entries[] | .key as $path |
   .value | to_entries[] | select(.key != "parameters") |
   {
     operationId: .value.operationId,
-    method: (.key | ascii_upcase),
+    method: ((.value["x-hey-form-method-override"].overrideMethod // .key) | ascii_upcase),
     path: $path
-  }
-] | sort_by(.operationId)' "$OPENAPI_FILE" > "$OUTPUT_FILE"
+  } |
+  select(.operationId as $operation | $operations | index($operation)) |
+  . as $route |
+  $route * ($overrides[$route.operationId] // {})
+] | sort_by(.operationId)' "$OPENAPI_FILE" > "$TEMP_OUTPUT"
+
+jq -e --slurpfile coverage "$TEMP_OUTPUT" '
+def validOverride:
+  if type != "object" then
+    false
+  else
+    ((keys - ["method", "path"]) | length) == 0 and
+    (if has("method") then
+      (.method | type == "string" and test("^(GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS)$"))
+    else
+      true
+    end) and
+    (if has("path") then
+      (.path | type == "string" and test("^/[^[:space:]]*$"))
+    else
+      true
+    end)
+  end;
+. as $scopeDocument |
+(.operations // error("scope must define an operations array")) as $scope |
+($scopeDocument.overrides // {}) as $overrides |
+($overrides | if type == "object" then keys else [] end) as $overrideOperations |
+([$overrides | if type == "object" then to_entries[] else empty end | select(.value | validOverride | not) | .key]) as $invalidOverrides |
+($coverage[0] | map(.operationId)) as $actual |
+if ($scope | type) != "array" or ($scope | all(.[]; type == "string" and length > 0) | not) then
+  error("scope operations must be non-empty strings")
+elif ($scope | length) == 0 then
+  error("scope must include at least one operation")
+elif ($scope | unique | length) != ($scope | length) then
+  error("scope operations must be unique")
+elif ($overrides | type) != "object" then
+  error("scope overrides must be an object")
+elif ($overrideOperations - $scope | length) > 0 then
+  error("overrides reference unscoped operations: \($overrideOperations - $scope | join(", "))")
+elif ($invalidOverrides | length) > 0 then
+  error("invalid route overrides: \($invalidOverrides | join(", "))")
+elif ($actual | unique | length) != ($actual | length) then
+  error("generated coverage contains duplicate operation IDs")
+elif ($scope - $actual | length) > 0 then
+  error("scoped operations missing from OpenAPI coverage: \($scope - $actual | join(", "))")
+elif ($actual - $scope | length) > 0 then
+  error("generated coverage contains unscoped operations: \($actual - $scope | join(", "))")
+else
+  true
+end
+' "$SCOPE_FILE" >/dev/null
+
+chmod 0644 "$TEMP_OUTPUT"
+mv "$TEMP_OUTPUT" "$OUTPUT_FILE"
+trap - EXIT
 
 echo "Generated $OUTPUT_FILE with $(jq length "$OUTPUT_FILE") operations"

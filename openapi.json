@@ -1537,6 +1537,182 @@
         }
       }
     },
+    "/entries/{entryId}/replies": {
+      "post": {
+        "description": "Save an editable reply draft without sending it.\n\nThis is HEY's browser-compatible form endpoint. The Location response\nheader identifies the saved draft. Smithy models the success code as 201,\nwhile the service wrapper accepts the verified form outcomes (any 2xx, 302,\nor 303) and preserves Location without following redirects.",
+        "operationId": "CreateReplyDraft",
+        "requestBody": {
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "type": "object",
+                "description": "Rails form fields used by the reply composer.\nRecipient fields are repeated array parameters, not comma-separated JSON\nstrings. Content is already-rich ActionText HTML and is transmitted exactly\nas provided.",
+                "properties": {
+                  "acting_sender_id": {
+                    "type": "integer",
+                    "format": "int64"
+                  },
+                  "entry[status]": {
+                    "type": "string"
+                  },
+                  "message[content]": {
+                    "type": "string",
+                    "format": "password",
+                    "x-hey-sensitive": {
+                      "category": "pii",
+                      "redact": true
+                    }
+                  },
+                  "message[subject]": {
+                    "type": "string"
+                  },
+                  "message[auto_quoting]": {
+                    "type": "boolean",
+                    "x-go-type-skip-optional-pointer": false
+                  },
+                  "entry[addressed][directly][]": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "entry[addressed][copied][]": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "entry[addressed][blindcopied][]": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "authenticity_token": {
+                    "type": "string",
+                    "format": "password",
+                    "x-hey-sensitive": {
+                      "category": "credential",
+                      "redact": true
+                    }
+                  }
+                },
+                "required": [
+                  "acting_sender_id",
+                  "entry[status]",
+                  "message[content]"
+                ]
+              }
+            }
+          },
+          "required": true
+        },
+        "parameters": [
+          {
+            "name": "entryId",
+            "in": "path",
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "CreateReplyDraft 201 response",
+            "headers": {
+              "Location": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "BadRequestError 400 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BadRequestErrorResponseContent"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UnauthorizedError 401 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnauthorizedErrorResponseContent"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ForbiddenError 403 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ForbiddenErrorResponseContent"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError 404 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundErrorResponseContent"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "UnprocessableEntityError 422 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnprocessableEntityErrorResponseContent"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "InternalServerError 500 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorResponseContent"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ServiceUnavailableError 503 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceUnavailableErrorResponseContent"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Entries"
+        ],
+        "x-hey-form-urlencoded": {},
+        "x-hey-retry": {
+          "maxAttempts": 1,
+          "baseDelayMs": 1000,
+          "backoff": "constant",
+          "retryOn": []
+        },
+        "x-hey-sensitive": true
+      }
+    },
     "/entries/{entryId}/replies.json": {
       "post": {
         "description": "Reply to an entry",
@@ -1981,6 +2157,153 @@
             503
           ]
         }
+      },
+      "post": {
+        "description": "Delete an editable message draft without sending it.\n\nHEY exposes this as a Rails form: the canonical router operation is DELETE\n`/messages/{messageId}`, while browsers submit POST with `_method=delete`.\nThe generated transport preserves that browser-compatible wire contract.",
+        "operationId": "DeleteDraft",
+        "requestBody": {
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "type": "object",
+                "description": "Rails form fields emitted by the draft edit page's discard form.",
+                "properties": {
+                  "_method": {
+                    "type": "string"
+                  },
+                  "status": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "_method",
+                  "status"
+                ]
+              }
+            }
+          },
+          "required": true
+        },
+        "parameters": [
+          {
+            "name": "messageId",
+            "in": "path",
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "required": true
+          },
+          {
+            "name": "X-CSRF-Token",
+            "in": "header",
+            "schema": {
+              "type": "string",
+              "format": "password",
+              "x-hey-sensitive": {
+                "category": "credential",
+                "redact": true
+              }
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "DeleteDraft 200 response",
+            "headers": {
+              "Location": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "BadRequestError 400 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BadRequestErrorResponseContent"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UnauthorizedError 401 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnauthorizedErrorResponseContent"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ForbiddenError 403 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ForbiddenErrorResponseContent"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError 404 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundErrorResponseContent"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "UnprocessableEntityError 422 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnprocessableEntityErrorResponseContent"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "InternalServerError 500 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorResponseContent"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ServiceUnavailableError 503 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceUnavailableErrorResponseContent"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Entries"
+        ],
+        "x-hey-form-method-override": {
+          "overrideMethod": "DELETE"
+        },
+        "x-hey-form-urlencoded": {},
+        "x-hey-retry": {
+          "maxAttempts": 1,
+          "baseDelayMs": 1000,
+          "backoff": "constant",
+          "retryOn": []
+        },
+        "x-hey-sensitive": true
       }
     },
     "/my/navigation.json": {
@@ -3584,6 +3907,17 @@
           "id"
         ]
       },
+      "BadRequestErrorResponseContent": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "message"
+        ]
+      },
       "Box": {
         "type": "object",
         "description": "Box — a HEY mailbox",
@@ -4021,9 +4355,68 @@
           "message"
         ]
       },
+      "CreateReplyDraftRequestContent": {
+        "type": "object",
+        "description": "Rails form fields used by the reply composer.\nRecipient fields are repeated array parameters, not comma-separated JSON\nstrings. Content is already-rich ActionText HTML and is transmitted exactly\nas provided.",
+        "properties": {
+          "acting_sender_id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "entry[status]": {
+            "type": "string"
+          },
+          "message[content]": {
+            "type": "string",
+            "format": "password",
+            "x-hey-sensitive": {
+              "category": "pii",
+              "redact": true
+            }
+          },
+          "message[subject]": {
+            "type": "string"
+          },
+          "message[auto_quoting]": {
+            "type": "boolean",
+            "x-go-type-skip-optional-pointer": false
+          },
+          "entry[addressed][directly][]": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "entry[addressed][copied][]": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "entry[addressed][blindcopied][]": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "authenticity_token": {
+            "type": "string",
+            "format": "password",
+            "x-hey-sensitive": {
+              "category": "credential",
+              "redact": true
+            }
+          }
+        },
+        "required": [
+          "acting_sender_id",
+          "entry[status]",
+          "message[content]"
+        ]
+      },
       "CreateReplyRequestContent": {
         "type": "object",
-        "description": "Wire format: {acting_sender_id, message: {content}}",
+        "description": "Wire format: {acting_sender_id, message: {content}, entry: {addressed: {...}}}",
         "properties": {
           "acting_sender_id": {
             "type": "integer",
@@ -4031,6 +4424,14 @@
           },
           "message": {
             "$ref": "#/components/schemas/ReplyMessagePayload"
+          },
+          "entry": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MessageEntryPayload"
+              }
+            ],
+            "x-go-type-skip-optional-pointer": false
           }
         },
         "required": [
@@ -4053,6 +4454,22 @@
         "required": [
           "acting_sender_id",
           "message"
+        ]
+      },
+      "DeleteDraftRequestContent": {
+        "type": "object",
+        "description": "Rails form fields emitted by the draft edit page's discard form.",
+        "properties": {
+          "_method": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "_method",
+          "status"
         ]
       },
       "Domain": {
@@ -4251,6 +4668,17 @@
         },
         "required": [
           "id"
+        ]
+      },
+      "ForbiddenErrorResponseContent": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "message"
         ]
       },
       "GetAsideboxResponseContent": {

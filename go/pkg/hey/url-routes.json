@@ -4,7 +4,7 @@
   "generated": true,
   "routes": [
     {
-      "pattern": "/boxes",
+      "pattern": "/boxes.json",
       "resource": "Boxes",
       "operations": {
         "GET": "ListBoxes"
@@ -25,7 +25,7 @@
       }
     },
     {
-      "pattern": "/bubble_up",
+      "pattern": "/bubble_up.json",
       "resource": "Boxes",
       "operations": {
         "GET": "GetBubblebox"
@@ -65,7 +65,7 @@
       }
     },
     {
-      "pattern": "/calendar/ongoing_time_track",
+      "pattern": "/calendar/ongoing_time_track.json",
       "resource": "Calendar Time Tracks",
       "operations": {
         "GET": "GetOngoingTimeTrack",
@@ -87,7 +87,7 @@
       }
     },
     {
-      "pattern": "/calendar/todos",
+      "pattern": "/calendar/todos.json",
       "resource": "Calendar Todos",
       "operations": {
         "POST": "CreateCalendarTodo"
@@ -122,7 +122,7 @@
       }
     },
     {
-      "pattern": "/calendars",
+      "pattern": "/calendars.json",
       "resource": "Calendars",
       "operations": {
         "GET": "ListCalendars"
@@ -143,7 +143,7 @@
       }
     },
     {
-      "pattern": "/contacts",
+      "pattern": "/contacts.json",
       "resource": "Contacts",
       "operations": {
         "GET": "ListContacts"
@@ -164,7 +164,7 @@
       }
     },
     {
-      "pattern": "/entries/drafts",
+      "pattern": "/entries/drafts.json",
       "resource": "Entries",
       "operations": {
         "GET": "ListDrafts"
@@ -173,6 +173,19 @@
     },
     {
       "pattern": "/entries/{entryId}/replies",
+      "resource": "Entries",
+      "operations": {
+        "POST": "CreateReplyDraft"
+      },
+      "params": {
+        "entryId": {
+          "role": "parent",
+          "type": "int64"
+        }
+      }
+    },
+    {
+      "pattern": "/entries/{entryId}/replies.json",
       "resource": "Entries",
       "operations": {
         "POST": "CreateReply"
@@ -185,7 +198,7 @@
       }
     },
     {
-      "pattern": "/feedbox",
+      "pattern": "/feedbox.json",
       "resource": "Boxes",
       "operations": {
         "GET": "GetFeedbox"
@@ -193,7 +206,7 @@
       "params": {}
     },
     {
-      "pattern": "/identity",
+      "pattern": "/identity.json",
       "resource": "Identity",
       "operations": {
         "GET": "GetIdentity"
@@ -201,7 +214,7 @@
       "params": {}
     },
     {
-      "pattern": "/imbox",
+      "pattern": "/imbox.json",
       "resource": "Boxes",
       "operations": {
         "GET": "GetImbox"
@@ -209,7 +222,7 @@
       "params": {}
     },
     {
-      "pattern": "/messages",
+      "pattern": "/messages.json",
       "resource": "Messages",
       "operations": {
         "POST": "CreateMessage"
@@ -220,7 +233,8 @@
       "pattern": "/messages/{messageId}",
       "resource": "Messages",
       "operations": {
-        "GET": "GetMessage"
+        "GET": "GetMessage",
+        "POST": "DeleteDraft"
       },
       "params": {
         "messageId": {
@@ -230,7 +244,7 @@
       }
     },
     {
-      "pattern": "/my/navigation",
+      "pattern": "/my/navigation.json",
       "resource": "Identity",
       "operations": {
         "GET": "GetNavigation"
@@ -238,7 +252,7 @@
       "params": {}
     },
     {
-      "pattern": "/paper_trail",
+      "pattern": "/paper_trail.json",
       "resource": "Boxes",
       "operations": {
         "GET": "GetTrailbox"
@@ -246,7 +260,7 @@
       "params": {}
     },
     {
-      "pattern": "/postings/seen",
+      "pattern": "/postings/seen.json",
       "resource": "Postings",
       "operations": {
         "POST": "MarkPostingsSeen"
@@ -254,7 +268,7 @@
       "params": {}
     },
     {
-      "pattern": "/postings/unseen",
+      "pattern": "/postings/unseen.json",
       "resource": "Postings",
       "operations": {
         "POST": "MarkPostingsUnseen"
@@ -262,7 +276,7 @@
       "params": {}
     },
     {
-      "pattern": "/postings/{postingId}/ignore",
+      "pattern": "/postings/{postingId}/ignore.json",
       "resource": "Postings",
       "operations": {
         "POST": "IgnorePosting"
@@ -275,7 +289,7 @@
       }
     },
     {
-      "pattern": "/postings/{postingId}/move/asidebox",
+      "pattern": "/postings/{postingId}/move/asidebox.json",
       "resource": "Postings",
       "operations": {
         "POST": "MovePostingToSetAside"
@@ -288,7 +302,7 @@
       }
     },
     {
-      "pattern": "/postings/{postingId}/move/feedbox",
+      "pattern": "/postings/{postingId}/move/feedbox.json",
       "resource": "Postings",
       "operations": {
         "POST": "MovePostingToFeed"
@@ -301,7 +315,7 @@
       }
     },
     {
-      "pattern": "/postings/{postingId}/move/laterbox",
+      "pattern": "/postings/{postingId}/move/laterbox.json",
       "resource": "Postings",
       "operations": {
         "POST": "MovePostingToReplyLater"
@@ -314,7 +328,7 @@
       }
     },
     {
-      "pattern": "/postings/{postingId}/move/trailbox",
+      "pattern": "/postings/{postingId}/move/trailbox.json",
       "resource": "Postings",
       "operations": {
         "POST": "MovePostingToPaperTrail"
@@ -327,7 +341,7 @@
       }
     },
     {
-      "pattern": "/postings/{postingId}/trash",
+      "pattern": "/postings/{postingId}/trash.json",
       "resource": "Postings",
       "operations": {
         "POST": "MovePostingToTrash"
@@ -340,7 +354,7 @@
       }
     },
     {
-      "pattern": "/reply_later",
+      "pattern": "/reply_later.json",
       "resource": "Boxes",
       "operations": {
         "GET": "GetLaterbox"
@@ -348,7 +362,7 @@
       "params": {}
     },
     {
-      "pattern": "/search",
+      "pattern": "/search.json",
       "resource": "Search",
       "operations": {
         "GET": "Search"
@@ -356,7 +370,7 @@
       "params": {}
     },
     {
-      "pattern": "/set_aside",
+      "pattern": "/set_aside.json",
       "resource": "Boxes",
       "operations": {
         "GET": "GetAsidebox"
@@ -364,7 +378,7 @@
       "params": {}
     },
     {
-      "pattern": "/topics/everything",
+      "pattern": "/topics/everything.json",
       "resource": "Topics",
       "operations": {
         "GET": "GetEverythingTopics"
@@ -372,7 +386,7 @@
       "params": {}
     },
     {
-      "pattern": "/topics/sent",
+      "pattern": "/topics/sent.json",
       "resource": "Topics",
       "operations": {
         "GET": "GetSentTopics"
@@ -380,7 +394,7 @@
       "params": {}
     },
     {
-      "pattern": "/topics/spam",
+      "pattern": "/topics/spam.json",
       "resource": "Topics",
       "operations": {
         "GET": "GetSpamTopics"
@@ -388,7 +402,7 @@
       "params": {}
     },
     {
-      "pattern": "/topics/trash",
+      "pattern": "/topics/trash.json",
       "resource": "Topics",
       "operations": {
         "GET": "GetTrashTopics"
@@ -422,7 +436,7 @@
       }
     },
     {
-      "pattern": "/topics/{topicId}/entries",
+      "pattern": "/topics/{topicId}/entries.json",
       "resource": "Messages",
       "operations": {
         "POST": "CreateTopicMessage"

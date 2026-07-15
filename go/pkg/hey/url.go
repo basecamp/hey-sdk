@@ -47,6 +47,13 @@ type routeEntry struct {
 	params     []string
 }
 
+type routeMatch struct {
+	route     *routeEntry
+	captures  []string
+	alias     bool
+	routeRank int
+}
+
 // Router matches HEY API URLs against the OpenAPI-derived route table.
 type Router struct {
 	routes []routeEntry
@@ -148,40 +155,84 @@ func sortRoutes(routes []routeEntry) {
 // The path should be the API path portion (e.g., "/boxes/123" or "/topics/456/entries").
 func (r *Router) MatchPath(path string) *Match {
 	path = strings.TrimRight(path, "/")
-	path = strings.TrimSuffix(path, ".json")
-
-	for i := range r.routes {
-		rt := &r.routes[i]
-		matches := rt.regex.FindStringSubmatch(path)
-		if matches == nil {
-			continue
+	type routeCandidate struct {
+		path            string
+		jsonSuffixRoute bool
+		alias           bool
+	}
+	var candidates []routeCandidate
+	if strings.HasSuffix(path, ".json") {
+		candidates = []routeCandidate{
+			{path: path, jsonSuffixRoute: true},
+			{path: strings.TrimSuffix(path, ".json"), alias: true},
 		}
-
-		m := &Match{
-			Operations: rt.operations,
-			Resource:   rt.resource,
-			Params:     make(map[string]string, len(rt.params)),
+	} else if path != "" && path != "/" {
+		candidates = []routeCandidate{
+			{path: path},
+			{path: path + ".json", jsonSuffixRoute: true, alias: true},
 		}
+	} else {
+		candidates = []routeCandidate{{path: path}}
+	}
 
-		// Pick the default operation: prefer GET, then first alphabetically.
-		if op, ok := rt.operations["GET"]; ok {
-			m.Operation = op
-		} else {
-			for _, op := range rt.operations {
-				if m.Operation == "" || op < m.Operation {
-					m.Operation = op
-				}
+	var best *routeMatch
+	for _, candidate := range candidates {
+		for i := range r.routes {
+			rt := &r.routes[i]
+			if strings.HasSuffix(rt.pattern, ".json") != candidate.jsonSuffixRoute {
+				continue
+			}
+			matches := rt.regex.FindStringSubmatch(candidate.path)
+			if matches == nil {
+				continue
+			}
+			match := &routeMatch{route: rt, captures: matches, alias: candidate.alias, routeRank: i}
+			if best == nil || betterRouteMatch(match, best) {
+				best = match
 			}
 		}
-
-		for j, paramName := range rt.params {
-			m.Params[paramName] = matches[j+1]
-		}
-		if len(rt.params) > 0 {
-			m.resourceID = matches[len(rt.params)]
-		}
-
-		return m
 	}
-	return nil
+	if best == nil {
+		return nil
+	}
+
+	m := &Match{
+		Operations: best.route.operations,
+		Resource:   best.route.resource,
+		Params:     make(map[string]string, len(best.route.params)),
+	}
+
+	// Pick the default operation: prefer GET, then first alphabetically.
+	if op, ok := best.route.operations["GET"]; ok {
+		m.Operation = op
+	} else {
+		for _, op := range best.route.operations {
+			if m.Operation == "" || op < m.Operation {
+				m.Operation = op
+			}
+		}
+	}
+
+	for j, paramName := range best.route.params {
+		m.Params[paramName] = best.captures[j+1]
+	}
+	if len(best.route.params) > 0 {
+		m.resourceID = best.captures[len(best.route.params)]
+	}
+
+	return m
+}
+
+// betterRouteMatch prefers more literal routes before considering whether the
+// match used a .json alias. This lets /topics/sent resolve to the literal
+// /topics/sent.json route instead of /topics/{topicId}, while an exact
+// /entries/{id}/replies route still beats its equally-specific .json sibling.
+func betterRouteMatch(candidate, current *routeMatch) bool {
+	if len(candidate.route.params) != len(current.route.params) {
+		return len(candidate.route.params) < len(current.route.params)
+	}
+	if candidate.alias != current.alias {
+		return !candidate.alias
+	}
+	return candidate.routeRank < current.routeRank
 }

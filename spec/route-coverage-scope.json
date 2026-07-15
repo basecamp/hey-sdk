@@ -1,0 +1,48 @@
+{
+  "operations": [
+    "CompleteCalendarTodo",
+    "CompleteHabit",
+    "CreateCalendarTodo",
+    "CreateMessage",
+    "CreateReply",
+    "CreateReplyDraft",
+    "CreateTopicMessage",
+    "DeleteCalendarTodo",
+    "DeleteDraft",
+    "GetAsidebox",
+    "GetBox",
+    "GetBubblebox",
+    "GetCalendarRecordings",
+    "GetContact",
+    "GetEverythingTopics",
+    "GetFeedbox",
+    "GetIdentity",
+    "GetImbox",
+    "GetJournalEntry",
+    "GetLaterbox",
+    "GetMessage",
+    "GetNavigation",
+    "GetOngoingTimeTrack",
+    "GetSentTopics",
+    "GetSpamTopics",
+    "GetTopic",
+    "GetTopicEntries",
+    "GetTrailbox",
+    "GetTrashTopics",
+    "ListBoxes",
+    "ListCalendars",
+    "ListContacts",
+    "ListDrafts",
+    "Search",
+    "StartTimeTrack",
+    "UncompleteCalendarTodo",
+    "UncompleteHabit",
+    "UpdateJournalEntry",
+    "UpdateTimeTrack"
+  ],
+  "overrides": {
+    "CreateTopicMessage": {
+      "path": "/topics/{topicId}/messages"
+    }
+  }
+}

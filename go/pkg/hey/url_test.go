@@ -46,6 +46,44 @@ func TestRouterMatchPath(t *testing.T) {
 			name:     "topic entries",
 			input:    "/topics/456/entries",
 			wantOp:   "GetTopicEntries",
+			wantRes:  "456",
+			wantRsrc: "Topics",
+		},
+		{
+			name:     "topic entries json send route remains distinct",
+			input:    "/topics/456/entries.json",
+			wantOp:   "CreateTopicMessage",
+			wantRes:  "456",
+			wantRsrc: "Messages",
+		},
+		{
+			name:     "sent topics suffixless alias beats topic parameter",
+			input:    "/topics/sent",
+			wantOp:   "GetSentTopics",
+			wantRsrc: "Topics",
+		},
+		{
+			name:     "sent topics json",
+			input:    "/topics/sent.json",
+			wantOp:   "GetSentTopics",
+			wantRsrc: "Topics",
+		},
+		{
+			name:     "spam topics suffixless alias beats topic parameter",
+			input:    "/topics/spam",
+			wantOp:   "GetSpamTopics",
+			wantRsrc: "Topics",
+		},
+		{
+			name:     "trash topics suffixless alias beats topic parameter",
+			input:    "/topics/trash",
+			wantOp:   "GetTrashTopics",
+			wantRsrc: "Topics",
+		},
+		{
+			name:     "everything topics suffixless alias beats topic parameter",
+			input:    "/topics/everything",
+			wantOp:   "GetEverythingTopics",
 			wantRsrc: "Topics",
 		},
 		{
@@ -162,5 +200,34 @@ func TestRouterOperations(t *testing.T) {
 	}
 	if _, ok := m.Operations["DELETE"]; !ok {
 		t.Error("expected DELETE operation (UncompleteCalendarTodo)")
+	}
+}
+
+func TestRouterDistinguishesReplyDraftFromSentReply(t *testing.T) {
+	r := DefaultRouter()
+
+	draft := r.MatchPath("/entries/123/replies")
+	if draft == nil || draft.Operation != "CreateReplyDraft" {
+		t.Fatalf("draft route = %+v, want CreateReplyDraft", draft)
+	}
+
+	sent := r.MatchPath("/entries/123/replies.json")
+	if sent == nil || sent.Operation != "CreateReply" {
+		t.Fatalf("sent route = %+v, want CreateReply", sent)
+	}
+}
+
+func TestRouterIncludesBrowserDraftDeleteTransport(t *testing.T) {
+	r := DefaultRouter()
+
+	message := r.MatchPath("/messages/987")
+	if message == nil {
+		t.Fatal("expected message route")
+	}
+	if got := message.Operations["POST"]; got != "DeleteDraft" {
+		t.Fatalf("POST operation = %q, want DeleteDraft", got)
+	}
+	if got := message.Operations["GET"]; got != "GetMessage" {
+		t.Fatalf("GET operation = %q, want GetMessage", got)
 	}
 }

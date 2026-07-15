@@ -79,7 +79,29 @@ func NewClient(server string, opts ...ClientOption) (*{{ $clientTypeName }}, err
     if client.Client == nil {
         client.Client = &http.Client{}
     }
+    client.Client = formRedirectCapturingDoer{inner: client.Client}
     return &client, nil
+}
+
+// formRedirectCapturingDoer prevents browser-compatible form operations from
+// following redirects so callers can inspect the resource-identifying
+// Location header. Non-form requests preserve the configured client's normal
+// redirect behavior.
+type formRedirectCapturingDoer struct {
+	inner HttpRequestDoer
+}
+
+func (d formRedirectCapturingDoer) Do(req *http.Request) (*http.Response, error) {
+	if strings.HasPrefix(req.Header.Get("Content-Type"), "application/x-www-form-urlencoded") {
+		if client, ok := d.inner.(*http.Client); ok {
+			noRedirect := *client
+			noRedirect.CheckRedirect = func(*http.Request, []*http.Request) error {
+				return http.ErrUseLastResponse
+			}
+			return noRedirect.Do(req)
+		}
+	}
+	return d.inner.Do(req)
 }
 
 // WithHTTPClient allows overriding the default Doer, which is
@@ -114,6 +136,48 @@ func WithLogger(logger *slog.Logger) ClientOption {
 		c.Logger = logger
 		return nil
 	}
+}
+
+// normalizeRailsArrayFormValues converts the indexed keys produced by
+// runtime.MarshalForm for explicitly bracketed Rails array fields back into
+// repeated [] keys. For example, recipients[][0] and recipients[][1] become
+// two recipients[] values, matching browser form submission semantics.
+func normalizeRailsArrayFormValues(values url.Values) url.Values {
+	type formValue struct {
+		key        string
+		normalized string
+		index      int
+		indexed    bool
+		items      []string
+	}
+
+	entries := make([]formValue, 0, len(values))
+	for key, items := range values {
+		entry := formValue{key: key, normalized: key, items: items}
+		if marker := strings.LastIndex(key, "[]["); marker >= 0 && strings.HasSuffix(key, "]") {
+			if index, err := strconv.Atoi(key[marker+3 : len(key)-1]); err == nil {
+				entry.normalized = key[:marker+2]
+				entry.index = index
+				entry.indexed = true
+			}
+		}
+		entries = append(entries, entry)
+	}
+	sort.Slice(entries, func(i, j int) bool {
+		if entries[i].normalized != entries[j].normalized {
+			return entries[i].normalized < entries[j].normalized
+		}
+		if entries[i].indexed && entries[j].indexed && entries[i].index != entries[j].index {
+			return entries[i].index < entries[j].index
+		}
+		return entries[i].key < entries[j].key
+	})
+
+	normalized := make(url.Values, len(values))
+	for _, entry := range entries {
+		normalized[entry.normalized] = append(normalized[entry.normalized], entry.items...)
+	}
+	return normalized
 }
 
 // isRetryableStatus returns true if the HTTP status code indicates a retryable error.
@@ -329,6 +393,7 @@ func New{{$opid}}Request{{.Suffix}}(server string{{genParamArgs $pathParams}}{{i
         if err != nil {
             return nil, err
         }
+        bodyStr = normalizeRailsArrayFormValues(bodyStr)
         bodyReader = strings.NewReader(bodyStr.Encode())
     {{else if eq .NameTag "Text" -}}
         bodyReader = strings.NewReader(string(body))

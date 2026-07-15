@@ -111,6 +111,25 @@ structure heyEmptyOn {
     statusCodes: HeyEmptyOnStatusCodes
 }
 
+/// Marks an operation whose Smithy payload is serialized as an
+/// application/x-www-form-urlencoded request rather than JSON.
+/// Emits x-hey-form-urlencoded so the OpenAPI generation pipeline can retain
+/// the Smithy-modeled shape while selecting the correct wire encoding.
+@trait(selector: "operation")
+@specificationExtension(as: "x-hey-form-urlencoded")
+structure heyFormUrlEncoded {}
+
+/// Marks a browser-compatible HTML form operation that uses a Rails `_method`
+/// field to select a different canonical router method. The Smithy `http`
+/// method remains the actual transport method sent on the wire.
+@trait(selector: "operation")
+@specificationExtension(as: "x-hey-form-method-override")
+structure heyFormMethodOverride {
+    /// Canonical HTTP method selected by the form override (for example, DELETE).
+    @required
+    overrideMethod: String
+}
+
 list HeyEmptyOnStatusCodes {
     member: Integer
 }
