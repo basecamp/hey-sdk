@@ -1109,9 +1109,9 @@ func NewClient(server string, opts ...ClientOption) (*Client, error) {
 }
 
 // formRedirectCapturingDoer prevents browser-compatible form operations from
-// following redirects so callers can inspect the resource-identifying
-// Location header. Non-form requests preserve the configured client's normal
-// redirect behavior.
+// following redirects when the configured doer is an *http.Client, so callers
+// can inspect the resource-identifying Location header. Custom doers and
+// non-form requests preserve their configured redirect behavior.
 type formRedirectCapturingDoer struct {
 	inner HttpRequestDoer
 }
