@@ -12,6 +12,7 @@ import (
 	"io"
 	"log/slog"
 	"math/rand"
+	"mime"
 	"net/http"
 	"net/url"
 	"sort"
@@ -1104,29 +1105,34 @@ func NewClient(server string, opts ...ClientOption) (*Client, error) {
 	if client.Client == nil {
 		client.Client = &http.Client{}
 	}
-	client.Client = formRedirectCapturingDoer{inner: client.Client}
 	return &client, nil
 }
 
-// formRedirectCapturingDoer prevents browser-compatible form operations from
-// following redirects when the configured doer is an *http.Client, so callers
-// can inspect the resource-identifying Location header. Custom doers and
-// non-form requests preserve their configured redirect behavior.
-type formRedirectCapturingDoer struct {
-	inner HttpRequestDoer
+func isFormURLEncoded(contentType string) bool {
+	mediaType, _, err := mime.ParseMediaType(contentType)
+	return err == nil && mediaType == "application/x-www-form-urlencoded"
 }
 
-func (d formRedirectCapturingDoer) Do(req *http.Request) (*http.Response, error) {
-	if strings.HasPrefix(req.Header.Get("Content-Type"), "application/x-www-form-urlencoded") {
-		if client, ok := d.inner.(*http.Client); ok {
-			noRedirect := *client
-			noRedirect.CheckRedirect = func(*http.Request, []*http.Request) error {
-				return http.ErrUseLastResponse
-			}
-			return noRedirect.Do(req)
-		}
+// doRequest prevents a concrete *http.Client from following redirects for
+// browser-compatible form operations, allowing callers to inspect the
+// resource-identifying Location header. It leaves the exported Client doer
+// unchanged and preserves configured behavior for custom doers and non-form
+// requests.
+func (c *Client) doRequest(req *http.Request) (*http.Response, error) {
+	if !isFormURLEncoded(req.Header.Get("Content-Type")) {
+		return c.Client.Do(req)
 	}
-	return d.inner.Do(req)
+
+	httpClient, ok := c.Client.(*http.Client)
+	if !ok {
+		return c.Client.Do(req)
+	}
+
+	noRedirect := *httpClient
+	noRedirect.CheckRedirect = func(*http.Request, []*http.Request) error {
+		return http.ErrUseLastResponse
+	}
+	return noRedirect.Do(req)
 }
 
 // WithHTTPClient allows overriding the default Doer, which is
@@ -1240,7 +1246,7 @@ func (c *Client) doWithRetry(ctx context.Context, buildRequest func() (*http.Req
 			return nil, err
 		}
 
-		resp, err := c.Client.Do(req)
+		resp, err := c.doRequest(req)
 		if err != nil {
 			lastErr = err
 			if c.Logger != nil {
@@ -1553,7 +1559,7 @@ func (c *Client) UpdateJournalEntryWithBody(ctx context.Context, day string, con
 	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
 		return nil, err
 	}
-	return c.Client.Do(req)
+	return c.doRequest(req)
 
 }
 
@@ -1567,7 +1573,7 @@ func (c *Client) UpdateJournalEntry(ctx context.Context, day string, body Update
 	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
 		return nil, err
 	}
-	return c.Client.Do(req)
+	return c.doRequest(req)
 
 }
 
@@ -1593,7 +1599,7 @@ func (c *Client) StartTimeTrackWithBody(ctx context.Context, contentType string,
 	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
 		return nil, err
 	}
-	return c.Client.Do(req)
+	return c.doRequest(req)
 
 }
 
@@ -1607,7 +1613,7 @@ func (c *Client) StartTimeTrack(ctx context.Context, body StartTimeTrackJSONRequ
 	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
 		return nil, err
 	}
-	return c.Client.Do(req)
+	return c.doRequest(req)
 
 }
 
@@ -1641,7 +1647,7 @@ func (c *Client) CreateCalendarTodoWithBody(ctx context.Context, contentType str
 	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
 		return nil, err
 	}
-	return c.Client.Do(req)
+	return c.doRequest(req)
 
 }
 
@@ -1655,7 +1661,7 @@ func (c *Client) CreateCalendarTodo(ctx context.Context, body CreateCalendarTodo
 	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
 		return nil, err
 	}
-	return c.Client.Do(req)
+	return c.doRequest(req)
 
 }
 
@@ -1751,7 +1757,7 @@ func (c *Client) CreateReplyDraftWithBody(ctx context.Context, entryId int64, co
 	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
 		return nil, err
 	}
-	return c.Client.Do(req)
+	return c.doRequest(req)
 
 }
 
@@ -1765,7 +1771,7 @@ func (c *Client) CreateReplyDraftWithFormdataBody(ctx context.Context, entryId i
 	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
 		return nil, err
 	}
-	return c.Client.Do(req)
+	return c.doRequest(req)
 
 }
 
@@ -1781,7 +1787,7 @@ func (c *Client) CreateReplyWithBody(ctx context.Context, entryId int64, content
 	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
 		return nil, err
 	}
-	return c.Client.Do(req)
+	return c.doRequest(req)
 
 }
 
@@ -1795,7 +1801,7 @@ func (c *Client) CreateReply(ctx context.Context, entryId int64, body CreateRepl
 	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
 		return nil, err
 	}
-	return c.Client.Do(req)
+	return c.doRequest(req)
 
 }
 
@@ -1841,7 +1847,7 @@ func (c *Client) CreateMessageWithBody(ctx context.Context, contentType string, 
 	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
 		return nil, err
 	}
-	return c.Client.Do(req)
+	return c.doRequest(req)
 
 }
 
@@ -1855,7 +1861,7 @@ func (c *Client) CreateMessage(ctx context.Context, body CreateMessageJSONReques
 	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
 		return nil, err
 	}
-	return c.Client.Do(req)
+	return c.doRequest(req)
 
 }
 
@@ -1881,7 +1887,7 @@ func (c *Client) DeleteDraftWithBody(ctx context.Context, messageId int64, param
 	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
 		return nil, err
 	}
-	return c.Client.Do(req)
+	return c.doRequest(req)
 
 }
 
@@ -1895,7 +1901,7 @@ func (c *Client) DeleteDraftWithFormdataBody(ctx context.Context, messageId int6
 	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
 		return nil, err
 	}
-	return c.Client.Do(req)
+	return c.doRequest(req)
 
 }
 
@@ -1931,7 +1937,7 @@ func (c *Client) MarkPostingsSeenWithBody(ctx context.Context, contentType strin
 	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
 		return nil, err
 	}
-	return c.Client.Do(req)
+	return c.doRequest(req)
 
 }
 
@@ -1945,7 +1951,7 @@ func (c *Client) MarkPostingsSeen(ctx context.Context, body MarkPostingsSeenJSON
 	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
 		return nil, err
 	}
-	return c.Client.Do(req)
+	return c.doRequest(req)
 
 }
 
@@ -1961,7 +1967,7 @@ func (c *Client) MarkPostingsUnseenWithBody(ctx context.Context, contentType str
 	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
 		return nil, err
 	}
-	return c.Client.Do(req)
+	return c.doRequest(req)
 
 }
 
@@ -1975,7 +1981,7 @@ func (c *Client) MarkPostingsUnseen(ctx context.Context, body MarkPostingsUnseen
 	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
 		return nil, err
 	}
-	return c.Client.Do(req)
+	return c.doRequest(req)
 
 }
 
@@ -1991,7 +1997,7 @@ func (c *Client) IgnorePosting(ctx context.Context, postingId int64, reqEditors 
 	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
 		return nil, err
 	}
-	return c.Client.Do(req)
+	return c.doRequest(req)
 
 }
 
@@ -2007,7 +2013,7 @@ func (c *Client) MovePostingToSetAside(ctx context.Context, postingId int64, req
 	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
 		return nil, err
 	}
-	return c.Client.Do(req)
+	return c.doRequest(req)
 
 }
 
@@ -2023,7 +2029,7 @@ func (c *Client) MovePostingToFeed(ctx context.Context, postingId int64, reqEdit
 	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
 		return nil, err
 	}
-	return c.Client.Do(req)
+	return c.doRequest(req)
 
 }
 
@@ -2039,7 +2045,7 @@ func (c *Client) MovePostingToReplyLater(ctx context.Context, postingId int64, r
 	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
 		return nil, err
 	}
-	return c.Client.Do(req)
+	return c.doRequest(req)
 
 }
 
@@ -2055,7 +2061,7 @@ func (c *Client) MovePostingToPaperTrail(ctx context.Context, postingId int64, r
 	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
 		return nil, err
 	}
-	return c.Client.Do(req)
+	return c.doRequest(req)
 
 }
 
@@ -2071,7 +2077,7 @@ func (c *Client) MovePostingToTrash(ctx context.Context, postingId int64, reqEdi
 	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
 		return nil, err
 	}
-	return c.Client.Do(req)
+	return c.doRequest(req)
 
 }
 
@@ -2177,7 +2183,7 @@ func (c *Client) CreateTopicMessageWithBody(ctx context.Context, topicId int64, 
 	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
 		return nil, err
 	}
-	return c.Client.Do(req)
+	return c.doRequest(req)
 
 }
 
@@ -2191,7 +2197,7 @@ func (c *Client) CreateTopicMessage(ctx context.Context, topicId int64, body Cre
 	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
 		return nil, err
 	}
-	return c.Client.Do(req)
+	return c.doRequest(req)
 
 }
 

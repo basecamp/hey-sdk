@@ -79,29 +79,34 @@ func NewClient(server string, opts ...ClientOption) (*{{ $clientTypeName }}, err
     if client.Client == nil {
         client.Client = &http.Client{}
     }
-    client.Client = formRedirectCapturingDoer{inner: client.Client}
     return &client, nil
 }
 
-// formRedirectCapturingDoer prevents browser-compatible form operations from
-// following redirects when the configured doer is an *http.Client, so callers
-// can inspect the resource-identifying Location header. Custom doers and
-// non-form requests preserve their configured redirect behavior.
-type formRedirectCapturingDoer struct {
-	inner HttpRequestDoer
+func isFormURLEncoded(contentType string) bool {
+	mediaType, _, err := mime.ParseMediaType(contentType)
+	return err == nil && mediaType == "application/x-www-form-urlencoded"
 }
 
-func (d formRedirectCapturingDoer) Do(req *http.Request) (*http.Response, error) {
-	if strings.HasPrefix(req.Header.Get("Content-Type"), "application/x-www-form-urlencoded") {
-		if client, ok := d.inner.(*http.Client); ok {
-			noRedirect := *client
-			noRedirect.CheckRedirect = func(*http.Request, []*http.Request) error {
-				return http.ErrUseLastResponse
-			}
-			return noRedirect.Do(req)
-		}
+// doRequest prevents a concrete *http.Client from following redirects for
+// browser-compatible form operations, allowing callers to inspect the
+// resource-identifying Location header. It leaves the exported Client doer
+// unchanged and preserves configured behavior for custom doers and non-form
+// requests.
+func (c *{{ $clientTypeName }}) doRequest(req *http.Request) (*http.Response, error) {
+	if !isFormURLEncoded(req.Header.Get("Content-Type")) {
+		return c.Client.Do(req)
 	}
-	return d.inner.Do(req)
+
+	httpClient, ok := c.Client.(*http.Client)
+	if !ok {
+		return c.Client.Do(req)
+	}
+
+	noRedirect := *httpClient
+	noRedirect.CheckRedirect = func(*http.Request, []*http.Request) error {
+		return http.ErrUseLastResponse
+	}
+	return noRedirect.Do(req)
 }
 
 // WithHTTPClient allows overriding the default Doer, which is
@@ -215,7 +220,7 @@ func (c *{{ $clientTypeName }}) doWithRetry(ctx context.Context, buildRequest fu
 			return nil, err
 		}
 
-		resp, err := c.Client.Do(req)
+		resp, err := c.doRequest(req)
 		if err != nil {
 			lastErr = err
 			if c.Logger != nil {
@@ -343,7 +348,7 @@ func (c *{{ $clientTypeName }}) {{$opid}}{{if .HasBody}}WithBody{{end}}(ctx cont
     if err := c.applyEditors(ctx, req, reqEditors); err != nil {
         return nil, err
     }
-    return c.Client.Do(req)
+    return c.doRequest(req)
 {{end}}
 }
 
@@ -363,7 +368,7 @@ func (c *{{ $clientTypeName }}) {{$opid}}{{.Suffix}}(ctx context.Context{{genPar
     if err := c.applyEditors(ctx, req, reqEditors); err != nil {
         return nil, err
     }
-    return c.Client.Do(req)
+    return c.doRequest(req)
 {{end}}
 }
 {{end -}}{{/* if .IsSupported */}}
