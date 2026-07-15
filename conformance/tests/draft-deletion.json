@@ -1,0 +1,30 @@
+[
+  {
+    "name": "DeleteDraft uses the browser discard form without following redirects",
+    "description": "Verifies the Rails method override, drafted guard, CSRF header, redirect preservation, and single-attempt browser form transport",
+    "operation": "DeleteDraft",
+    "method": "POST",
+    "path": "/messages/{messageId}",
+    "pathParams": {"messageId": 987},
+    "requestBody": {
+      "authenticity_token": "conformance-delete-csrf"
+    },
+    "mockResponses": [
+      {
+        "status": 303,
+        "headers": {"Location": "/topics/123"}
+      }
+    ],
+    "assertions": [
+      {"type": "requestPath", "expected": "/messages/987"},
+      {"type": "requestHeader", "path": "Content-Type", "expected": "application/x-www-form-urlencoded"},
+      {"type": "requestHeader", "path": "X-CSRF-Token", "expected": "conformance-delete-csrf"},
+      {"type": "requestForm", "path": "_method", "expected": "delete"},
+      {"type": "requestForm", "path": "status", "expected": "drafted"},
+      {"type": "responseHeader", "path": "Location", "expected": "/topics/123"},
+      {"type": "statusCode", "expected": 303},
+      {"type": "noError"}
+    ],
+    "tags": ["entries", "drafts", "delete", "form", "csrf"]
+  }
+]

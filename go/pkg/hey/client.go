@@ -207,13 +207,32 @@ func (c *Client) initGeneratedClient() {
 			return nil
 		}
 		gen, err := generated.NewClientWithResponses(serverURL,
-			generated.WithHTTPClient(c.httpClient),
+			generated.WithHTTPClient(formRedirectCapturingDoer{client: c.httpClient}),
 			generated.WithRequestEditorFn(authEditor))
 		if err != nil {
 			panic(fmt.Sprintf("hey: failed to create generated client: %v", err))
 		}
 		c.gen = gen
 	})
+}
+
+// formRedirectCapturingDoer prevents browser-compatible form operations from
+// following redirects so their resource-identifying Location header remains
+// available to the generated operation. Other generated requests retain the
+// configured client's redirect behavior.
+type formRedirectCapturingDoer struct {
+	client *http.Client
+}
+
+func (d formRedirectCapturingDoer) Do(req *http.Request) (*http.Response, error) {
+	if !strings.HasPrefix(req.Header.Get("Content-Type"), "application/x-www-form-urlencoded") {
+		return d.client.Do(req)
+	}
+	noRedirect := *d.client
+	noRedirect.CheckRedirect = func(*http.Request, []*http.Request) error {
+		return http.ErrUseLastResponse
+	}
+	return noRedirect.Do(req)
 }
 
 // discardHandler is a slog.Handler that discards all log records.
