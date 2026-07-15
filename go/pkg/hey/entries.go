@@ -3,6 +3,7 @@ package hey
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/basecamp/hey-sdk/go/pkg/generated"
@@ -73,13 +74,13 @@ func (s *EntriesService) CreateReply(ctx context.Context, entryID int64, content
 	}
 	addressed := map[string]any{}
 	if len(to) > 0 {
-		addressed["directly"] = to
+		addressed["directly"] = strings.Join(to, ",")
 	}
 	if len(cc) > 0 {
-		addressed["copied"] = cc
+		addressed["copied"] = strings.Join(cc, ",")
 	}
 	if len(bcc) > 0 {
-		addressed["blindcopied"] = bcc
+		addressed["blindcopied"] = strings.Join(bcc, ",")
 	}
 	if len(addressed) > 0 {
 		body["entry"] = map[string]any{
