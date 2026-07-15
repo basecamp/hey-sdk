@@ -321,7 +321,7 @@ check-mvp: smithy-check behavior-model-check route-coverage-check drift-check-mv
 	@echo "==> MVP gate passed"
 
 # Phase 3: Full surface, all languages
-check-full: smithy-check behavior-model-check drift-check-full \
+check-full: smithy-check behavior-model-check route-coverage-check drift-check-full \
             sync-api-version-check provenance-check \
             go-check-drift kt-check-drift \
             go-check ts-check rb-check swift-check kt-check \

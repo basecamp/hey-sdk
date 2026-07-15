@@ -16,6 +16,7 @@
       }
     ],
     "assertions": [
+      {"type": "requestCount", "expected": 1},
       {"type": "requestPath", "expected": "/messages/987"},
       {"type": "requestHeader", "path": "Content-Type", "expected": "application/x-www-form-urlencoded"},
       {"type": "requestHeader", "path": "X-CSRF-Token", "expected": "conformance-delete-csrf"},

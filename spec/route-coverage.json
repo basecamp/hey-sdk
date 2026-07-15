@@ -165,6 +165,16 @@
     "path": "/entries/drafts.json"
   },
   {
+    "method": "POST",
+    "operationId": "MarkPostingsSeen",
+    "path": "/postings/seen.json"
+  },
+  {
+    "method": "POST",
+    "operationId": "MarkPostingsUnseen",
+    "path": "/postings/unseen.json"
+  },
+  {
     "method": "GET",
     "operationId": "Search",
     "path": "/search.json"
