@@ -285,6 +285,7 @@ func replyDraftFromLocation(location string) (*ReplyDraft, error) {
 	}
 
 	parsed.RawQuery = ""
+	parsed.ForceQuery = false
 	parsed.Fragment = ""
 	if segments[len(segments)-1] != "edit" {
 		parsed.Path += "/edit"

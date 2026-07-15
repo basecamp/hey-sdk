@@ -788,6 +788,8 @@ func TestReplyDraftFromLocation(t *testing.T) {
 	}{
 		{name: "relative", location: "/entries/drafts/42", wantID: 42, wantEdit: "/entries/drafts/42/edit"},
 		{name: "relative edit", location: "/entries/drafts/43/edit", wantID: 43, wantEdit: "/entries/drafts/43/edit"},
+		{name: "relative empty query", location: "/entries/drafts/44?", wantID: 44, wantEdit: "/entries/drafts/44/edit"},
+		{name: "relative edit empty query", location: "/entries/drafts/45/edit?", wantID: 45, wantEdit: "/entries/drafts/45/edit"},
 		{name: "absolute", location: "https://app.hey.com/entries/drafts/99/?source=save#composer", wantID: 99, wantEdit: "https://app.hey.com/entries/drafts/99/edit"},
 		{name: "absolute edit", location: "https://app.hey.com/entries/drafts/100/edit/?source=save#composer", wantID: 100, wantEdit: "https://app.hey.com/entries/drafts/100/edit"},
 		{name: "missing", wantErr: true},
