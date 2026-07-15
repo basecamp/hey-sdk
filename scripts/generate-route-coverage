@@ -68,7 +68,7 @@ def validOverride:
     end)
   end;
 def validExclusionReason:
-  type == "string" and length > 0;
+  type == "string" and test("[^[:space:]]");
 . as $scopeDocument |
 (.operations // error("scope must define an operations array")) as $scope |
 ($scopeDocument | if has("overrides") then .overrides else {} end) as $overrides |
