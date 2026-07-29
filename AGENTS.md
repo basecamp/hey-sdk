@@ -1,30 +1,41 @@
 # HEY SDK -- Agent Instructions
 
-## Hard Rules
+Go client for the HEY API, generated from the Smithy spec in `spec/`.
 
-1. **Never hand-write API methods.** All operations are generated from the Smithy spec.
-2. **Never construct URL paths manually.** Use the generated route table.
-3. **Every new operation needs tests.** Unit tests per language + conformance tests.
-4. **Run `make check` before committing.** All checks must pass.
+**This repo ships Go only.** The Makefile still carries `ts-`, `rb-`, `swift-` and `kt-`
+targets inherited from the shared SDK seed. They `cd` into `typescript/`, `ruby/`,
+`swift/` and `kotlin/`, none of which exist here, so they fail immediately -- as does
+`make check-full`, which invokes them. `make check` is the gate that works.
+
+## Hard rules
+
+1. **Never hand-write API methods.** Operations are generated from the Smithy spec.
+2. **Never construct URL paths manually.** Use the generated route table -- no
+   `fmt.Sprintf` for paths.
+3. **Every new operation needs tests.** Go unit tests, plus a conformance test when the
+   change is behavioral.
+4. **Run `make check` before committing.**
 
 ## Pipeline
 
 ```
-Smithy spec -> OpenAPI -> Behavior Model -> Per-language generators -> SDK code
+spec/hey.smithy -> openapi.json -> behavior-model.json -> Go generator -> go/pkg
 ```
 
-## Anti-Patterns
+`openapi.json`, `behavior-model.json` and the generated Go are all rebuilt from the
+spec. Editing any of them by hand loses the change on the next generate, and
+`go-check-drift` fails the build when they disagree with the spec.
 
-- Editing `openapi.json` directly (it is generated from Smithy)
-- Adding API methods without updating the Smithy spec
-- Skipping conformance tests for behavioral changes
-- Using `fmt.Sprintf` or template literals for API paths
+## Adding an operation
 
-## Development Workflow
+1. Edit `spec/hey.smithy`
+2. `make smithy-build` -- regenerates `openapi.json`
+3. `make go-generate` -- regenerates the Go service layer. Note the name: this repo has
+   no `go-generate-services` target, unlike the seed's vocabulary.
+4. Add Go unit tests, and a conformance case under `conformance/tests/` for behavioral
+   changes
+5. `make check`
 
-1. Edit the Smithy spec in `spec/`
-2. Run `make smithy-build` to regenerate OpenAPI
-3. Run per-language generators: `make {lang}-generate-services`
-4. Add/update tests
-5. Run `make check`
-6. Commit
+`make check` resolves to `check-mvp`: `smithy-check`, `behavior-model-check`,
+`drift-check-mvp`, `url-routes-check`, `go-check`, `go-check-drift` and
+`conformance-mvp`.
