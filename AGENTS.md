@@ -37,18 +37,23 @@ So it catches wrappers left behind by a regenerate, not spec-vs-OpenAPI drift.
 
 1. Edit `spec/hey.smithy`
 2. `make smithy-build` -- regenerates `openapi.json`
-3. Refresh the three artifacts `smithy-build` leaves behind. None of them has a make
-   target, and each is checked by `make check`:
+3. Refresh the three artifacts `smithy-build` leaves behind:
 
    ```bash
-   make url-routes                      # go/pkg/hey/url-routes.json  (url-routes-check)
-   ./scripts/generate-shape-fingerprint # spec/shape-fingerprint.json (drift-check-shape)
-   ./scripts/generate-route-coverage    # spec/route-coverage.json    (drift-check-forward)
+   make url-routes                      # go/pkg/hey/url-routes.json
+   ./scripts/generate-shape-fingerprint # spec/shape-fingerprint.json
+   ./scripts/generate-route-coverage    # spec/route-coverage.json
    ```
 
-   Route coverage is the quiet one: `drift-check-forward` compares the checked-in
-   `spec/route-coverage.json` against `spec/route-snapshot.json`, so a stale coverage
-   file lets the gate pass without ever looking at your new endpoint.
+   Only the first has a make target; the other two are standalone scripts. They differ in
+   how `make check` treats them, which matters more:
+
+   - `url-routes-check` and `drift-check-shape` **do** verify freshness and fail on a
+     stale file, so forgetting those two is loud.
+   - Nothing verifies `spec/route-coverage.json`. `drift-check-forward` just consumes the
+     checked-in file and compares it against `spec/route-snapshot.json`, so a stale
+     coverage file does not fail the build — the gate passes while never looking at your
+     new endpoint. That one is on you to regenerate.
 4. `make go-generate` -- regenerates `go/pkg/generated/client.gen.go` via oapi-codegen.
    Note the name: this repo has no `go-generate-services` target, unlike the seed's
    vocabulary, and this step does not touch `go/pkg/hey`.
