@@ -19,22 +19,31 @@ targets inherited from the shared SDK seed. They `cd` into `typescript/`, `ruby/
 ## Pipeline
 
 ```
-spec/hey.smithy -> openapi.json -> behavior-model.json -> Go generator -> go/pkg
+spec/hey.smithy -> openapi.json -> oapi-codegen -> go/pkg/generated/client.gen.go
+                                                            |
+                                    hand-written wrappers in go/pkg/hey call into it
 ```
 
-`openapi.json`, `behavior-model.json` and the generated Go are all rebuilt from the
-spec. Editing any of them by hand loses the change on the next generate, and
-`go-check-drift` fails the build when they disagree with the spec.
+`openapi.json` and `go/pkg/generated/client.gen.go` are rebuilt from the spec; editing
+either by hand loses the change on the next generate. `go/pkg/hey` is **not** generated
+— those service wrappers are hand-written and you update them yourself.
+
+`go-check-drift` does not re-derive anything from the spec. It extracts the operations
+present in the checked-in `client.gen.go` and compares them with the `.gen.*WithResponse`
+calls in `go/pkg/hey`, failing when a wrapper calls an operation that no longer exists.
+So it catches wrappers left behind by a regenerate, not spec-vs-OpenAPI drift.
 
 ## Adding an operation
 
 1. Edit `spec/hey.smithy`
 2. `make smithy-build` -- regenerates `openapi.json`
-3. `make go-generate` -- regenerates the Go service layer. Note the name: this repo has
-   no `go-generate-services` target, unlike the seed's vocabulary.
-4. Add Go unit tests, and a conformance case under `conformance/tests/` for behavioral
+3. `make go-generate` -- regenerates `go/pkg/generated/client.gen.go` via oapi-codegen.
+   Note the name: this repo has no `go-generate-services` target, unlike the seed's
+   vocabulary, and this step does not touch `go/pkg/hey`.
+4. Add or update the hand-written wrapper in `go/pkg/hey` so the operation is reachable
+5. Add Go unit tests, and a conformance case under `conformance/tests/` for behavioral
    changes
-5. `make check`
+6. `make check`
 
 `make check` resolves to `check-mvp`: `smithy-check`, `behavior-model-check`,
 `drift-check-mvp`, `url-routes-check`, `go-check`, `go-check-drift` and
