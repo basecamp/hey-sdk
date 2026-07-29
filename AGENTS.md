@@ -37,13 +37,16 @@ So it catches wrappers left behind by a regenerate, not spec-vs-OpenAPI drift.
 
 1. Edit `spec/hey.smithy`
 2. `make smithy-build` -- regenerates `openapi.json`
-3. `make go-generate` -- regenerates `go/pkg/generated/client.gen.go` via oapi-codegen.
+3. `make url-routes` -- rebuilds the embedded route table at
+   `go/pkg/hey/url-routes.json`. `smithy-build` does not do this, and `url-routes-check`
+   (part of `make check`) fails on a stale one.
+4. `make go-generate` -- regenerates `go/pkg/generated/client.gen.go` via oapi-codegen.
    Note the name: this repo has no `go-generate-services` target, unlike the seed's
    vocabulary, and this step does not touch `go/pkg/hey`.
-4. Add or update the hand-written wrapper in `go/pkg/hey` so the operation is reachable
-5. Add Go unit tests, and a conformance case under `conformance/tests/` for behavioral
+5. Add or update the hand-written wrapper in `go/pkg/hey` so the operation is reachable
+6. Add Go unit tests, and a conformance case under `conformance/tests/` for behavioral
    changes
-6. `make check`
+7. `make check`
 
 `make check` resolves to `check-mvp`: `smithy-check`, `behavior-model-check`,
 `drift-check-mvp`, `url-routes-check`, `go-check`, `go-check-drift` and
