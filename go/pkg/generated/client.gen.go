@@ -936,6 +936,23 @@ type GetImboxParams struct {
 	Page string `form:"page,omitempty" json:"page,omitempty"`
 }
 
+// UpdateDraftFormdataBody defines parameters for UpdateDraft.
+type UpdateDraftFormdataBody struct {
+	ActingSenderId            int64    `form:"acting_sender_id" json:"acting_sender_id"`
+	AuthenticityToken         string   `form:"authenticity_token" json:"authenticity_token"`
+	EntryAddressedBlindcopied []string `form:"entry[addressed][blindcopied][],omitempty" json:"entry[addressed][blindcopied][],omitempty"`
+	EntryAddressedCopied      []string `form:"entry[addressed][copied][],omitempty" json:"entry[addressed][copied][],omitempty"`
+	EntryAddressedDirectly    []string `form:"entry[addressed][directly][],omitempty" json:"entry[addressed][directly][],omitempty"`
+	EntryStatus               string   `form:"entry[status]" json:"entry[status]"`
+	MessageContent            string   `form:"message[content]" json:"message[content]"`
+	MessageSubject            string   `form:"message[subject]" json:"message[subject]"`
+}
+
+// UpdateDraftParams defines parameters for UpdateDraft.
+type UpdateDraftParams struct {
+	XCSRFToken string `json:"X-CSRF-Token"`
+}
+
 // DeleteDraftFormdataBody defines parameters for DeleteDraft.
 type DeleteDraftFormdataBody struct {
 	UnderscoreMethod string `form:"_method" json:"_method"`
@@ -1013,6 +1030,9 @@ type CreateReplyJSONRequestBody = CreateReplyRequestContent
 
 // CreateMessageJSONRequestBody defines body for CreateMessage for application/json ContentType.
 type CreateMessageJSONRequestBody = CreateMessageRequestContent
+
+// UpdateDraftFormdataRequestBody defines body for UpdateDraft for application/x-www-form-urlencoded ContentType.
+type UpdateDraftFormdataRequestBody UpdateDraftFormdataBody
 
 // DeleteDraftFormdataRequestBody defines body for DeleteDraft for application/x-www-form-urlencoded ContentType.
 type DeleteDraftFormdataRequestBody DeleteDraftFormdataBody
@@ -1414,6 +1434,11 @@ type ClientInterface interface {
 
 	// GetMessage request
 	GetMessage(ctx context.Context, messageId int64, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// UpdateDraftWithBody request with any body
+	UpdateDraftWithBody(ctx context.Context, messageId int64, params *UpdateDraftParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	UpdateDraftWithFormdataBody(ctx context.Context, messageId int64, params *UpdateDraftParams, body UpdateDraftFormdataRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// DeleteDraftWithBody request with any body
 	DeleteDraftWithBody(ctx context.Context, messageId int64, params *DeleteDraftParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -1872,6 +1897,36 @@ func (c *Client) GetMessage(ctx context.Context, messageId int64, reqEditors ...
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
 		return NewGetMessageRequest(c.Server, messageId)
 	}, true, "GetMessage", reqEditors...)
+
+}
+
+// UpdateDraftWithBody executes the UpdateDraft operation.
+
+func (c *Client) UpdateDraftWithBody(ctx context.Context, messageId int64, params *UpdateDraftParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+
+	req, err := NewUpdateDraftRequestWithBody(c.Server, messageId, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.doRequest(req)
+
+}
+
+func (c *Client) UpdateDraftWithFormdataBody(ctx context.Context, messageId int64, params *UpdateDraftParams, body UpdateDraftFormdataRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+
+	req, err := NewUpdateDraftRequestWithFormdataBody(c.Server, messageId, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.doRequest(req)
 
 }
 
@@ -3257,6 +3312,67 @@ func NewGetMessageRequest(server string, messageId int64) (*http.Request, error)
 	return req, nil
 }
 
+// NewUpdateDraftRequestWithFormdataBody calls the generic UpdateDraft builder with application/x-www-form-urlencoded body
+func NewUpdateDraftRequestWithFormdataBody(server string, messageId int64, params *UpdateDraftParams, body UpdateDraftFormdataRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	bodyStr, err := runtime.MarshalForm(body, nil)
+	if err != nil {
+		return nil, err
+	}
+	bodyStr = normalizeRailsArrayFormValues(bodyStr)
+	bodyReader = strings.NewReader(bodyStr.Encode())
+	return NewUpdateDraftRequestWithBody(server, messageId, params, "application/x-www-form-urlencoded", bodyReader)
+}
+
+// NewUpdateDraftRequestWithBody generates requests for UpdateDraft with any type of body
+func NewUpdateDraftRequestWithBody(server string, messageId int64, params *UpdateDraftParams, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "messageId", runtime.ParamLocationPath, messageId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/messages/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("PATCH", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	if params != nil {
+
+		var headerParam0 string
+
+		headerParam0, err = runtime.StyleParamWithLocation("simple", false, "X-CSRF-Token", runtime.ParamLocationHeader, params.XCSRFToken)
+		if err != nil {
+			return nil, err
+		}
+
+		req.Header.Set("X-CSRF-Token", headerParam0)
+
+	}
+
+	return req, nil
+}
+
 // NewDeleteDraftRequestWithFormdataBody calls the generic DeleteDraft builder with application/x-www-form-urlencoded body
 func NewDeleteDraftRequestWithFormdataBody(server string, messageId int64, params *DeleteDraftParams, body DeleteDraftFormdataRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
@@ -4186,6 +4302,7 @@ var operationMetadata = map[string]OperationMetadata{
 	"GetImbox":                {Idempotent: true, HasSensitiveParams: false},
 	"CreateMessage":           {Idempotent: false, HasSensitiveParams: false},
 	"GetMessage":              {Idempotent: true, HasSensitiveParams: false},
+	"UpdateDraft":             {Idempotent: false, HasSensitiveParams: true},
 	"DeleteDraft":             {Idempotent: false, HasSensitiveParams: true},
 	"GetNavigation":           {Idempotent: true, HasSensitiveParams: false},
 	"GetTrailbox":             {Idempotent: true, HasSensitiveParams: false},
@@ -4902,6 +5019,11 @@ type ClientWithResponsesInterface interface {
 
 	// GetMessageWithResponse request
 	GetMessageWithResponse(ctx context.Context, messageId int64, reqEditors ...RequestEditorFn) (*GetMessageResponse, error)
+
+	// UpdateDraftWithBodyWithResponse request with any body
+	UpdateDraftWithBodyWithResponse(ctx context.Context, messageId int64, params *UpdateDraftParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateDraftResponse, error)
+
+	UpdateDraftWithFormdataBodyWithResponse(ctx context.Context, messageId int64, params *UpdateDraftParams, body UpdateDraftFormdataRequestBody, reqEditors ...RequestEditorFn) (*UpdateDraftResponse, error)
 
 	// DeleteDraftWithBodyWithResponse request with any body
 	DeleteDraftWithBodyWithResponse(ctx context.Context, messageId int64, params *DeleteDraftParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*DeleteDraftResponse, error)
@@ -5637,6 +5759,34 @@ func (r GetMessageResponse) Status() string {
 
 // StatusCode returns HTTPResponse.StatusCode
 func (r GetMessageResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type UpdateDraftResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON400      *BadRequestErrorResponseContent
+	JSON401      *UnauthorizedErrorResponseContent
+	JSON403      *ForbiddenErrorResponseContent
+	JSON404      *NotFoundErrorResponseContent
+	JSON422      *UnprocessableEntityErrorResponseContent
+	JSON500      *InternalServerErrorResponseContent
+	JSON503      *ServiceUnavailableErrorResponseContent
+}
+
+// Status returns HTTPResponse.Status
+func (r UpdateDraftResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r UpdateDraftResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -6460,6 +6610,23 @@ func (c *ClientWithResponses) GetMessageWithResponse(ctx context.Context, messag
 		return nil, err
 	}
 	return ParseGetMessageResponse(rsp)
+}
+
+// UpdateDraftWithBodyWithResponse request with arbitrary body returning *UpdateDraftResponse
+func (c *ClientWithResponses) UpdateDraftWithBodyWithResponse(ctx context.Context, messageId int64, params *UpdateDraftParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateDraftResponse, error) {
+	rsp, err := c.UpdateDraftWithBody(ctx, messageId, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpdateDraftResponse(rsp)
+}
+
+func (c *ClientWithResponses) UpdateDraftWithFormdataBodyWithResponse(ctx context.Context, messageId int64, params *UpdateDraftParams, body UpdateDraftFormdataRequestBody, reqEditors ...RequestEditorFn) (*UpdateDraftResponse, error) {
+	rsp, err := c.UpdateDraftWithFormdataBody(ctx, messageId, params, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpdateDraftResponse(rsp)
 }
 
 // DeleteDraftWithBodyWithResponse request with arbitrary body returning *DeleteDraftResponse
@@ -8011,6 +8178,74 @@ func ParseGetMessageResponse(rsp *http.Response) (*GetMessageResponse, error) {
 			return nil, err
 		}
 		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest InternalServerErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+		var dest ServiceUnavailableErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON503 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseUpdateDraftResponse parses an HTTP response from a UpdateDraftWithResponse call
+func ParseUpdateDraftResponse(rsp *http.Response) (*UpdateDraftResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &UpdateDraftResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest BadRequestErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest UnauthorizedErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest ForbiddenErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFoundErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 422:
+		var dest UnprocessableEntityErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON422 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
 		var dest InternalServerErrorResponseContent

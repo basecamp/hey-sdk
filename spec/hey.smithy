@@ -92,10 +92,11 @@ service HEY {
         CreateMessage
         CreateTopicMessage
 
-        // Entries (4 MVP)
+        // Entries (5 MVP)
         ListDrafts
         CreateReply
         CreateReplyDraft
+        UpdateDraft
         DeleteDraft
 
         // Contacts (2 MVP)
@@ -1406,6 +1407,79 @@ structure CreateReplyDraftOutput {
     location: String
 }
 
+@sensitive
+string DraftAuthenticityToken
+
+/// Update an editable message draft without sending it.
+///
+/// The draft edit form submits the complete current composer state to the
+/// canonical PATCH route. The generated transport preserves form encoding and
+/// redirect responses so callers can keep the existing sender, recipients,
+/// subject, and rich ActionText body intact when changing only one field.
+@http(method: "PATCH", uri: "/messages/{messageId}")
+@tags(["Entries"])
+@heyRetry(maxAttempts: 1, baseDelayMs: 1000, backoff: "constant", retryOn: [])
+@heyFormUrlEncoded
+operation UpdateDraft {
+    input: UpdateDraftInput
+    output: UpdateDraftOutput
+    errors: [BadRequestError, UnauthorizedError, ForbiddenError, NotFoundError, UnprocessableEntityError, InternalServerError, ServiceUnavailableError]
+}
+
+structure UpdateDraftInput {
+    @httpLabel
+    @required
+    messageId: Long
+
+    @httpHeader("X-CSRF-Token")
+    @required
+    @heySensitive(category: "credential", redact: true)
+    authenticity_token: DraftAuthenticityToken
+
+    @httpPayload
+    @required
+    body: UpdateDraftRequestContent
+}
+
+/// Complete composer state emitted by the draft edit page. Recipient fields
+/// are repeated Rails array parameters and rich HTML is transmitted exactly as
+/// provided.
+structure UpdateDraftRequestContent {
+    @required
+    acting_sender_id: Long
+
+    @required
+    @jsonName("entry[status]")
+    entry_status: String
+
+    @required
+    @heySensitive(category: "pii", redact: true)
+    @jsonName("message[content]")
+    message_content: ReplyDraftContent
+
+    @required
+    @jsonName("message[subject]")
+    message_subject: String
+
+    @jsonName("entry[addressed][directly][]")
+    entry_addressed_directly: ReplyDraftRecipientList
+
+    @jsonName("entry[addressed][copied][]")
+    entry_addressed_copied: ReplyDraftRecipientList
+
+    @jsonName("entry[addressed][blindcopied][]")
+    entry_addressed_blindcopied: ReplyDraftRecipientList
+
+    @required
+    @heySensitive(category: "credential", redact: true)
+    authenticity_token: DraftAuthenticityToken
+}
+
+structure UpdateDraftOutput {
+    @httpHeader("Location")
+    location: String
+}
+
 /// Delete an editable message draft without sending it.
 ///
 /// HEY exposes this as a Rails form: the canonical router operation is DELETE
@@ -1421,9 +1495,6 @@ operation DeleteDraft {
     output: DeleteDraftOutput
     errors: [BadRequestError, UnauthorizedError, ForbiddenError, NotFoundError, UnprocessableEntityError, InternalServerError, ServiceUnavailableError]
 }
-
-@sensitive
-string DraftAuthenticityToken
 
 structure DeleteDraftInput {
     @httpLabel

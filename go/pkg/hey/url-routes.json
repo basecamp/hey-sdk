@@ -234,6 +234,7 @@
       "resource": "Messages",
       "operations": {
         "GET": "GetMessage",
+        "PATCH": "UpdateDraft",
         "POST": "DeleteDraft"
       },
       "params": {

@@ -1,0 +1,43 @@
+[
+  {
+    "name": "UpdateDraft preserves complete composer state without following redirects",
+    "description": "Verifies the canonical PATCH route, Rails form encoding, CSRF propagation, sender and recipient preservation, rich HTML, and Location response",
+    "operation": "UpdateDraft",
+    "method": "PATCH",
+    "path": "/messages/{messageId}",
+    "pathParams": {"messageId": 987},
+    "requestBody": {
+      "acting_sender_id": 42,
+      "authenticity_token": "conformance-update-csrf",
+      "subject": "Re: Project update",
+      "content": "<div>Updated reply</div><ol><li>Keep the list</li></ol><blockquote>Quoted thread</blockquote><div>Signature</div>",
+      "to": ["one@example.com", "two@example.org"],
+      "cc": ["copy@example.com"],
+      "bcc": ["blind@example.org"]
+    },
+    "mockResponses": [
+      {
+        "status": 303,
+        "headers": {"Location": "/entries/drafts"}
+      }
+    ],
+    "assertions": [
+      {"type": "requestCount", "expected": 1},
+      {"type": "requestPath", "expected": "/messages/987"},
+      {"type": "requestHeader", "path": "Content-Type", "expected": "application/x-www-form-urlencoded"},
+      {"type": "requestHeader", "path": "X-CSRF-Token", "expected": "conformance-update-csrf"},
+      {"type": "requestForm", "path": "acting_sender_id", "expected": "42"},
+      {"type": "requestForm", "path": "entry[status]", "expected": "drafted"},
+      {"type": "requestForm", "path": "message[subject]", "expected": "Re: Project update"},
+      {"type": "requestForm", "path": "message[content]", "expected": "<div>Updated reply</div><ol><li>Keep the list</li></ol><blockquote>Quoted thread</blockquote><div>Signature</div>"},
+      {"type": "requestForm", "path": "entry[addressed][directly][]", "expected": ["one@example.com", "two@example.org"]},
+      {"type": "requestForm", "path": "entry[addressed][copied][]", "expected": ["copy@example.com"]},
+      {"type": "requestForm", "path": "entry[addressed][blindcopied][]", "expected": ["blind@example.org"]},
+      {"type": "requestForm", "path": "authenticity_token", "expected": "conformance-update-csrf"},
+      {"type": "responseHeader", "path": "Location", "expected": "/entries/drafts"},
+      {"type": "statusCode", "expected": 303},
+      {"type": "noError"}
+    ],
+    "tags": ["entries", "drafts", "update", "form", "rich-html", "csrf"]
+  }
+]

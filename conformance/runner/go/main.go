@@ -909,6 +909,24 @@ func executeOperation(client *generated.Client, ctx context.Context, tc TestCase
 			}
 			return nil
 		})
+	case "UpdateDraft":
+		messageId := getInt64Param(tc.PathParams, "messageId")
+		csrf := getStringParam(tc.RequestBody, "authenticity_token")
+		params := &generated.UpdateDraftParams{XCSRFToken: csrf}
+		body := generated.UpdateDraftFormdataRequestBody{
+			ActingSenderId:            getInt64Param(tc.RequestBody, "acting_sender_id"),
+			AuthenticityToken:         csrf,
+			EntryAddressedBlindcopied: getStringSliceParam(tc.RequestBody, "bcc"),
+			EntryAddressedCopied:      getStringSliceParam(tc.RequestBody, "cc"),
+			EntryAddressedDirectly:    getStringSliceParam(tc.RequestBody, "to"),
+			EntryStatus:               "drafted",
+			MessageContent:            getStringParam(tc.RequestBody, "content"),
+			MessageSubject:            getStringParam(tc.RequestBody, "subject"),
+		}
+		return client.UpdateDraftWithFormdataBody(ctx, messageId, params, body, func(_ context.Context, req *http.Request) error {
+			req.Header.Set("Accept", "*/*")
+			return nil
+		})
 	case "DeleteDraft":
 		messageId := getInt64Param(tc.PathParams, "messageId")
 		csrf := getStringParam(tc.RequestBody, "authenticity_token")

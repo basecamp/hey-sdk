@@ -227,6 +227,9 @@ func TestRouterIncludesBrowserDraftDeleteTransport(t *testing.T) {
 	if got := message.Operations["POST"]; got != "DeleteDraft" {
 		t.Fatalf("POST operation = %q, want DeleteDraft", got)
 	}
+	if got := message.Operations["PATCH"]; got != "UpdateDraft" {
+		t.Fatalf("PATCH operation = %q, want UpdateDraft", got)
+	}
 	if got := message.Operations["GET"]; got != "GetMessage" {
 		t.Fatalf("GET operation = %q, want GetMessage", got)
 	}

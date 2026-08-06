@@ -196,6 +196,11 @@
   },
   {
     "method": "PATCH",
+    "operationId": "UpdateDraft",
+    "path": "/messages/{messageId}"
+  },
+  {
+    "method": "PATCH",
     "operationId": "UpdateJournalEntry",
     "path": "/calendar/days/{day}/journal_entry"
   },

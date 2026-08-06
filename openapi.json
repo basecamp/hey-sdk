@@ -2158,6 +2158,191 @@
           ]
         }
       },
+      "patch": {
+        "description": "Update an editable message draft without sending it.\n\nThe draft edit form submits the complete current composer state to the\ncanonical PATCH route. The generated transport preserves form encoding and\nredirect responses so callers can keep the existing sender, recipients,\nsubject, and rich ActionText body intact when changing only one field.",
+        "operationId": "UpdateDraft",
+        "requestBody": {
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "type": "object",
+                "description": "Complete composer state emitted by the draft edit page. Recipient fields\nare repeated Rails array parameters and rich HTML is transmitted exactly as\nprovided.",
+                "properties": {
+                  "acting_sender_id": {
+                    "type": "integer",
+                    "format": "int64"
+                  },
+                  "entry[status]": {
+                    "type": "string"
+                  },
+                  "message[content]": {
+                    "type": "string",
+                    "format": "password",
+                    "x-hey-sensitive": {
+                      "category": "pii",
+                      "redact": true
+                    }
+                  },
+                  "message[subject]": {
+                    "type": "string"
+                  },
+                  "entry[addressed][directly][]": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "entry[addressed][copied][]": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "entry[addressed][blindcopied][]": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "authenticity_token": {
+                    "type": "string",
+                    "format": "password",
+                    "x-hey-sensitive": {
+                      "category": "credential",
+                      "redact": true
+                    }
+                  }
+                },
+                "required": [
+                  "acting_sender_id",
+                  "authenticity_token",
+                  "entry[status]",
+                  "message[content]",
+                  "message[subject]"
+                ]
+              }
+            }
+          },
+          "required": true
+        },
+        "parameters": [
+          {
+            "name": "messageId",
+            "in": "path",
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "required": true
+          },
+          {
+            "name": "X-CSRF-Token",
+            "in": "header",
+            "schema": {
+              "type": "string",
+              "format": "password",
+              "x-hey-sensitive": {
+                "category": "credential",
+                "redact": true
+              }
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "UpdateDraft 200 response",
+            "headers": {
+              "Location": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "BadRequestError 400 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BadRequestErrorResponseContent"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UnauthorizedError 401 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnauthorizedErrorResponseContent"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ForbiddenError 403 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ForbiddenErrorResponseContent"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError 404 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundErrorResponseContent"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "UnprocessableEntityError 422 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnprocessableEntityErrorResponseContent"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "InternalServerError 500 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorResponseContent"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ServiceUnavailableError 503 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceUnavailableErrorResponseContent"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Entries"
+        ],
+        "x-hey-form-urlencoded": {},
+        "x-hey-retry": {
+          "maxAttempts": 1,
+          "baseDelayMs": 1000,
+          "backoff": "constant",
+          "retryOn": []
+        },
+        "x-hey-sensitive": true
+      },
       "post": {
         "description": "Delete an editable message draft without sending it.\n\nHEY exposes this as a Rails form: the canonical router operation is DELETE\n`/messages/{messageId}`, while browsers submit POST with `_method=delete`.\nThe generated transport preserves that browser-compatible wire contract.",
         "operationId": "DeleteDraft",
@@ -5829,6 +6014,63 @@
         },
         "required": [
           "message"
+        ]
+      },
+      "UpdateDraftRequestContent": {
+        "type": "object",
+        "description": "Complete composer state emitted by the draft edit page. Recipient fields\nare repeated Rails array parameters and rich HTML is transmitted exactly as\nprovided.",
+        "properties": {
+          "acting_sender_id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "entry[status]": {
+            "type": "string"
+          },
+          "message[content]": {
+            "type": "string",
+            "format": "password",
+            "x-hey-sensitive": {
+              "category": "pii",
+              "redact": true
+            }
+          },
+          "message[subject]": {
+            "type": "string"
+          },
+          "entry[addressed][directly][]": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "entry[addressed][copied][]": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "entry[addressed][blindcopied][]": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "authenticity_token": {
+            "type": "string",
+            "format": "password",
+            "x-hey-sensitive": {
+              "category": "credential",
+              "redact": true
+            }
+          }
+        },
+        "required": [
+          "acting_sender_id",
+          "authenticity_token",
+          "entry[status]",
+          "message[content]",
+          "message[subject]"
         ]
       },
       "UpdateJournalEntryRequestContent": {

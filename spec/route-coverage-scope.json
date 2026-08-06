@@ -39,6 +39,7 @@
     "StartTimeTrack",
     "UncompleteCalendarTodo",
     "UncompleteHabit",
+    "UpdateDraft",
     "UpdateJournalEntry",
     "UpdateTimeTrack"
   ],

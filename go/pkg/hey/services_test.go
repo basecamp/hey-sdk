@@ -679,6 +679,137 @@ func TestEntriesService_CreateReplyDraft(t *testing.T) {
 	}
 }
 
+func TestEntriesService_UpdateDraft(t *testing.T) {
+	const richHTML = `<div>Updated reply</div><ol><li>Keep the list</li></ol><blockquote>Quoted thread</blockquote><div>Signature</div>`
+	metadata, ok := generated.GetOperationMetadata("UpdateDraft")
+	if !ok {
+		t.Fatal("UpdateDraft metadata missing")
+	}
+	if metadata.Idempotent {
+		t.Fatal("UpdateDraft must remain single-attempt")
+	}
+	if !metadata.HasSensitiveParams {
+		t.Fatal("UpdateDraft metadata must mark its content and CSRF fields as sensitive")
+	}
+
+	for _, tc := range []struct {
+		name     string
+		status   int
+		location string
+		wantErr  bool
+	}{
+		{name: "ok", status: http.StatusOK},
+		{name: "found redirect", status: http.StatusFound, location: "/entries/drafts"},
+		{name: "see other redirect", status: http.StatusSeeOther, location: "/entries/drafts"},
+		{name: "server failure is not retried", status: http.StatusServiceUnavailable, wantErr: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			requests := 0
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				requests++
+				if r.Method != http.MethodPatch {
+					t.Errorf("expected PATCH, got %s", r.Method)
+				}
+				if r.URL.Path != "/messages/987" {
+					t.Errorf("expected draft message path, got %s", r.URL.Path)
+				}
+				if contentType := r.Header.Get("Content-Type"); !strings.HasPrefix(contentType, "application/x-www-form-urlencoded") {
+					t.Errorf("expected form content type, got %q", contentType)
+				}
+				if accept := r.Header.Get("Accept"); accept != "*/*" {
+					t.Errorf("expected Accept */*, got %q", accept)
+				}
+				if requestedWith := r.Header.Get("X-Requested-With"); requestedWith != "XMLHttpRequest" {
+					t.Errorf("expected XMLHttpRequest header, got %q", requestedWith)
+				}
+				if csrf := r.Header.Get("X-CSRF-Token"); csrf != "csrf-update-token" {
+					t.Errorf("expected CSRF header, got %q", csrf)
+				}
+				if err := r.ParseForm(); err != nil {
+					t.Fatalf("failed to parse form: %v", err)
+				}
+				if got := r.PostForm.Get("acting_sender_id"); got != "84" {
+					t.Errorf("expected acting sender 84, got %q", got)
+				}
+				if got := r.PostForm.Get("entry[status]"); got != "drafted" {
+					t.Errorf("expected drafted status, got %q", got)
+				}
+				if got := r.PostForm.Get("message[subject]"); got != "Re: Project update" {
+					t.Errorf("expected preserved subject, got %q", got)
+				}
+				if got := r.PostForm.Get("message[content]"); got != richHTML {
+					t.Errorf("rich HTML changed:\nwant: %s\n got: %s", richHTML, got)
+				}
+				if got := r.PostForm.Get("authenticity_token"); got != "csrf-update-token" {
+					t.Errorf("expected form authenticity token, got %q", got)
+				}
+				if _, present := r.PostForm["_method"]; present {
+					t.Error("canonical PATCH request unexpectedly included a method override")
+				}
+				if got := strings.Join(r.PostForm["entry[addressed][directly][]"], ","); got != "one@example.com,two@example.org" {
+					t.Errorf("unexpected To recipients: %q", got)
+				}
+				if got := strings.Join(r.PostForm["entry[addressed][copied][]"], ","); got != "copy@example.com" {
+					t.Errorf("unexpected CC recipients: %q", got)
+				}
+				if got := strings.Join(r.PostForm["entry[addressed][blindcopied][]"], ","); got != "blind@example.org" {
+					t.Errorf("unexpected BCC recipients: %q", got)
+				}
+
+				if tc.location != "" {
+					w.Header().Set("Location", tc.location)
+				}
+				w.WriteHeader(tc.status)
+			}))
+			t.Cleanup(server.Close)
+
+			client := NewClient(&Config{BaseURL: server.URL}, &StaticTokenProvider{Token: "test-token"}, WithMaxRetries(2))
+			result, err := client.Entries().UpdateDraft(context.Background(), 987, UpdateDraftParams{
+				ActingSenderID:    84,
+				Content:           richHTML,
+				Subject:           "Re: Project update",
+				To:                []string{"one@example.com", "two@example.org"},
+				CC:                []string{"copy@example.com"},
+				BCC:               []string{"blind@example.org"},
+				AuthenticityToken: "csrf-update-token",
+			})
+			if tc.wantErr {
+				if err == nil {
+					t.Fatal("expected error")
+				}
+			} else {
+				if err != nil {
+					t.Fatalf("unexpected error: %v", err)
+				}
+				if result.ID != 987 || result.StatusCode != tc.status || result.Location != tc.location || result.EditURL != "/messages/987/edit" {
+					t.Errorf("unexpected result: %+v", result)
+				}
+			}
+			if requests != 1 {
+				t.Errorf("expected exactly one request with no redirect follow or retry, got %d", requests)
+			}
+		})
+	}
+}
+
+func TestEntriesService_UpdateDraftValidatesInput(t *testing.T) {
+	client := NewClient(&Config{BaseURL: "https://app.hey.com"}, &StaticTokenProvider{Token: "test-token"})
+	valid := UpdateDraftParams{ActingSenderID: 42, AuthenticityToken: "token"}
+
+	if _, err := client.Entries().UpdateDraft(context.Background(), 0, valid); err == nil {
+		t.Fatal("expected non-positive message ID error")
+	}
+	if _, err := client.Entries().UpdateDraft(context.Background(), 1, UpdateDraftParams{AuthenticityToken: "token"}); err == nil {
+		t.Fatal("expected non-positive acting sender ID error")
+	}
+	if _, err := client.Entries().UpdateDraft(context.Background(), 1, UpdateDraftParams{ActingSenderID: 42}); err == nil {
+		t.Fatal("expected missing authenticity token error")
+	}
+	if _, err := client.Entries().UpdateDraft(context.Background(), 1, UpdateDraftParams{ActingSenderID: 42, AuthenticityToken: "   "}); err == nil {
+		t.Fatal("expected blank authenticity token error")
+	}
+}
+
 func TestEntriesService_DeleteDraft(t *testing.T) {
 	metadata, ok := generated.GetOperationMetadata("DeleteDraft")
 	if !ok {
