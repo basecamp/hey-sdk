@@ -356,11 +356,23 @@ func replyDraftFromLocation(location string) (*ReplyDraft, error) {
 		return nil, fmt.Errorf("reply draft Location %q has no draft ID", location)
 	}
 	segments := strings.Split(strings.TrimPrefix(parsed.Path, "/"), "/")
-	hasEditSuffix := len(segments) == 4 && segments[3] == "edit"
-	if (len(segments) != 3 && !hasEditSuffix) || segments[0] != "entries" || segments[1] != "drafts" {
-		return nil, fmt.Errorf("reply draft Location %q does not match /entries/drafts/{id}[/edit]", location)
+	var idSegment string
+	var hasEditSuffix bool
+	switch {
+	case len(segments) == 3 && segments[0] == "entries" && segments[1] == "drafts":
+		idSegment = segments[2]
+	case len(segments) == 4 && segments[0] == "entries" && segments[1] == "drafts" && segments[3] == "edit":
+		idSegment = segments[2]
+		hasEditSuffix = true
+	case len(segments) == 2 && segments[0] == "messages":
+		idSegment = segments[1]
+	case len(segments) == 3 && segments[0] == "messages" && segments[2] == "edit":
+		idSegment = segments[1]
+		hasEditSuffix = true
+	default:
+		return nil, fmt.Errorf("reply draft Location %q does not match /entries/drafts/{id}[/edit] or /messages/{id}[/edit]", location)
 	}
-	id, err := strconv.ParseInt(segments[2], 10, 64)
+	id, err := strconv.ParseInt(idSegment, 10, 64)
 	if err != nil {
 		return nil, fmt.Errorf("reply draft Location %q has no numeric draft ID", location)
 	}

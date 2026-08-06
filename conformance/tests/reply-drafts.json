@@ -19,7 +19,7 @@
     "mockResponses": [
       {
         "status": 201,
-        "headers": {"Location": "/entries/drafts/789"}
+        "headers": {"Location": "/messages/789"}
       }
     ],
     "assertions": [
@@ -34,7 +34,7 @@
       {"type": "requestForm", "path": "entry[addressed][directly][]", "expected": ["one@example.com", "two@example.org"]},
       {"type": "requestForm", "path": "entry[addressed][copied][]", "expected": ["copy@example.com"]},
       {"type": "requestForm", "path": "entry[addressed][blindcopied][]", "expected": ["blind@example.org"]},
-      {"type": "responseHeader", "path": "Location", "expected": "/entries/drafts/789"},
+      {"type": "responseHeader", "path": "Location", "expected": "/messages/789"},
       {"type": "statusCode", "expected": 201},
       {"type": "noError"}
     ],
