@@ -25,25 +25,57 @@ fi
 
 GEN_OPS=$(mktemp)
 SVC_OPS=$(mktemp)
-trap 'rm -f "$GEN_OPS" "$SVC_OPS"' EXIT
+GEN_FORM_OPS=$(mktemp)
+SVC_FORM_OPS=$(mktemp)
+WRAPPED_FORM_OPS=$(mktemp)
+trap 'rm -f "$GEN_OPS" "$SVC_OPS" "$GEN_FORM_OPS" "$SVC_FORM_OPS" "$WRAPPED_FORM_OPS"' EXIT
 
-# Extract generated operations, normalizing WithBodyWithResponse to base name
+# Normalize generated method variants to their Smithy operation name.
 # e.g., CreateMessageWithBodyWithResponse -> CreateMessage
+#       CreateReplyDraftWithFormdataBodyWithResponse -> CreateReplyDraft
 #       ListBoxesWithResponse -> ListBoxes
+normalize_operations() {
+  sed -E 's/WithResponse$//' \
+    | sed -E 's/With[A-Za-z0-9]*Body$//'
+}
+
+# Extract generated operations. Generic and typed body variants collapse to
+# the same operation after normalization.
 grep "^func (c \*ClientWithResponses)" "$GENERATED_FILE" 2>/dev/null \
-  | sed 's/.*) \([A-Za-z]*\)WithResponse.*/\1/' \
-  | sed 's/WithBody$//' \
+  | sed -E 's/^func \(c \*ClientWithResponses\) ([A-Za-z0-9_]+).*/\1/' \
+  | normalize_operations \
   | sort -u > "$GEN_OPS"
 
-# Extract service layer calls to gen.*WithResponse (excluding test files)
+# Record operations with a typed form transport separately. Operation-level
+# normalization remains useful for coverage, but service wrappers for these
+# operations must not silently switch to the generic WithBody helper.
+grep "^func (c \*ClientWithResponses)" "$GENERATED_FILE" 2>/dev/null \
+  | sed -E 's/^func \(c \*ClientWithResponses\) ([A-Za-z0-9_]+).*/\1/' \
+  | sed -nE 's/^([A-Za-z0-9_]+)WithFormdataBodyWithResponse$/\1/p' \
+  | sort -u > "$GEN_FORM_OPS"
+
+# Extract generated-client calls made by the service layer (excluding tests).
+# Some form operations intentionally use the raw WithFormdataBody method so
+# they can inspect 302/303 responses without the generated response parser.
 for f in "$SERVICE_DIR"/*.go; do
   case "$f" in
     *_test.go) continue ;;
   esac
-  grep "\.gen\.[A-Za-z]*WithResponse" "$f" 2>/dev/null || true
-done | sed 's/.*\.gen\.\([A-Za-z]*\)WithResponse.*/\1/' \
-  | sed 's/WithBody$//' \
+  grep -oE '\.gen\.[A-Za-z0-9_]+' "$f" 2>/dev/null || true
+done | sed -E 's/^\.gen\.//' \
+  | normalize_operations \
   | sort -u > "$SVC_OPS"
+
+for f in "$SERVICE_DIR"/*.go; do
+  case "$f" in
+    *_test.go) continue ;;
+  esac
+  grep -oE '\.gen\.[A-Za-z0-9_]+' "$f" 2>/dev/null || true
+done | sed -E 's/^\.gen\.//' \
+  | sed -nE 's/^([A-Za-z0-9_]+)WithFormdataBody(WithResponse)?$/\1/p' \
+  | sort -u > "$SVC_FORM_OPS"
+
+comm -12 "$GEN_FORM_OPS" "$SVC_OPS" > "$WRAPPED_FORM_OPS"
 
 GEN_COUNT=$(wc -l < "$GEN_OPS" | tr -d ' ')
 SVC_COUNT=$(wc -l < "$SVC_OPS" | tr -d ' ')
@@ -60,6 +92,11 @@ UNWRAPPED_COUNT=$(echo "$UNWRAPPED" | grep -c . || true)
 MISSING=$(comm -13 "$GEN_OPS" "$SVC_OPS")
 MISSING_COUNT=$(echo "$MISSING" | grep -c . || true)
 
+# Form operations wrapped by the service layer must use their typed form
+# helper so browser media type and encoding cannot drift to generic bodies.
+MISSING_FORM=$(comm -23 "$WRAPPED_FORM_OPS" "$SVC_FORM_OPS")
+MISSING_FORM_COUNT=$(echo "$MISSING_FORM" | grep -c . || true)
+
 HAS_DRIFT=0
 
 if [ "$UNWRAPPED_COUNT" -gt 0 ]; then
@@ -74,6 +111,14 @@ if [ "$MISSING_COUNT" -gt 0 ]; then
   echo ""
   echo "These service methods call generated operations that don't exist."
   echo "Either the spec is missing these operations, or there's a typo in the service layer."
+  HAS_DRIFT=1
+fi
+
+if [ "$MISSING_FORM_COUNT" -gt 0 ]; then
+  echo "=== ERROR: FORM OPERATIONS USING NON-FORM SERVICE TRANSPORT ($MISSING_FORM_COUNT) ==="
+  echo "$MISSING_FORM"
+  echo ""
+  echo "These service wrappers must call their generated WithFormdataBody helper."
   HAS_DRIFT=1
 fi
 

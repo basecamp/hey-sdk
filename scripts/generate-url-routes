@@ -51,7 +51,9 @@ def param_type:
   routes: [
     .paths | to_entries[] |
     .key as $raw_path |
-    (.key | gsub("\\.json$"; "")) as $pattern |
+    # Preserve the exact path so routes that differ only by .json remain
+    # distinguishable. The Go router provides .json aliases as a fallback.
+    .key as $pattern |
     .value as $path_item |
 
     # Collect all operations on this path

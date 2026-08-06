@@ -1,0 +1,59 @@
+{
+  "operations": [
+    "CompleteCalendarTodo",
+    "CompleteHabit",
+    "CreateCalendarTodo",
+    "CreateMessage",
+    "CreateReply",
+    "CreateReplyDraft",
+    "CreateTopicMessage",
+    "DeleteCalendarTodo",
+    "DeleteDraft",
+    "GetAsidebox",
+    "GetBox",
+    "GetBubblebox",
+    "GetCalendarRecordings",
+    "GetContact",
+    "GetEverythingTopics",
+    "GetFeedbox",
+    "GetIdentity",
+    "GetImbox",
+    "GetJournalEntry",
+    "GetLaterbox",
+    "GetMessage",
+    "GetNavigation",
+    "GetOngoingTimeTrack",
+    "GetSentTopics",
+    "GetSpamTopics",
+    "GetTopic",
+    "GetTopicEntries",
+    "GetTrailbox",
+    "GetTrashTopics",
+    "ListBoxes",
+    "ListCalendars",
+    "ListContacts",
+    "ListDrafts",
+    "MarkPostingsSeen",
+    "MarkPostingsUnseen",
+    "Search",
+    "StartTimeTrack",
+    "UncompleteCalendarTodo",
+    "UncompleteHabit",
+    "UpdateDraft",
+    "UpdateJournalEntry",
+    "UpdateTimeTrack"
+  ],
+  "excludedOperations": {
+    "IgnorePosting": "Public API route differs from the unresolved browser muting route",
+    "MovePostingToFeed": "Public API route differs from the generic browser postings move route",
+    "MovePostingToPaperTrail": "Public API route differs from the generic browser postings move route",
+    "MovePostingToReplyLater": "Public API route differs from the generic browser postings move route",
+    "MovePostingToSetAside": "Public API route differs from the generic browser postings move route",
+    "MovePostingToTrash": "Public API route differs from the unresolved browser trash route"
+  },
+  "overrides": {
+    "CreateTopicMessage": {
+      "path": "/topics/{topicId}/messages"
+    }
+  }
+}

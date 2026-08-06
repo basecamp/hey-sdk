@@ -31,9 +31,11 @@ namespace hey
 
 use smithy.api#documentation
 use smithy.api#http
+use smithy.api#httpHeader
 use smithy.api#httpLabel
 use smithy.api#httpQuery
 use smithy.api#httpPayload
+use smithy.api#jsonName
 use smithy.api#required
 use smithy.api#readonly
 use smithy.api#idempotent
@@ -51,6 +53,8 @@ use hey.traits#heyIdempotent
 use hey.traits#heySensitive
 use hey.traits#heyPolymorphic
 use hey.traits#heyEmptyOn
+use hey.traits#heyFormUrlEncoded
+use hey.traits#heyFormMethodOverride
 
 /// ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)
 @timestampFormat("date-time")
@@ -88,9 +92,12 @@ service HEY {
         CreateMessage
         CreateTopicMessage
 
-        // Entries (2 MVP)
+        // Entries (5 MVP)
         ListDrafts
         CreateReply
+        CreateReplyDraft
+        UpdateDraft
+        DeleteDraft
 
         // Contacts (2 MVP)
         ListContacts
@@ -1307,18 +1314,216 @@ structure CreateReplyInput {
     body: CreateReplyRequestContent
 }
 
-/// Wire format: {acting_sender_id, message: {content}}
+/// Wire format: {acting_sender_id, message: {content}, entry: {addressed: {...}}}
 structure CreateReplyRequestContent {
     @required
     acting_sender_id: Long
 
     @required
     message: ReplyMessagePayload
+
+    entry: MessageEntryPayload
 }
 
 structure ReplyMessagePayload {
     @required
     content: String
+}
+
+/// Save an editable reply draft without sending it.
+///
+/// This is HEY's browser-compatible form endpoint. The Location response
+/// header identifies the saved draft. Smithy models the success code as 201,
+/// while the service wrapper accepts the verified form outcomes (any 2xx, 302,
+/// or 303) and preserves Location without following redirects.
+@http(method: "POST", uri: "/entries/{entryId}/replies", code: 201)
+@tags(["Entries"])
+@heyRetry(maxAttempts: 1, baseDelayMs: 1000, backoff: "constant", retryOn: [])
+@heyFormUrlEncoded
+operation CreateReplyDraft {
+    input: CreateReplyDraftInput
+    output: CreateReplyDraftOutput
+    errors: [BadRequestError, UnauthorizedError, ForbiddenError, NotFoundError, UnprocessableEntityError, InternalServerError, ServiceUnavailableError]
+}
+
+structure CreateReplyDraftInput {
+    @httpLabel
+    @required
+    entryId: Long
+
+    @httpPayload
+    @required
+    body: CreateReplyDraftRequestContent
+}
+
+list ReplyDraftRecipientList {
+    member: String
+}
+
+@sensitive
+string ReplyDraftContent
+
+@sensitive
+string ReplyDraftAuthenticityToken
+
+/// Rails form fields used by the reply composer.
+/// Recipient fields are repeated array parameters, not comma-separated JSON
+/// strings. Content is already-rich ActionText HTML and is transmitted exactly
+/// as provided.
+structure CreateReplyDraftRequestContent {
+    @required
+    acting_sender_id: Long
+
+    @required
+    @jsonName("entry[status]")
+    entry_status: String
+
+    @required
+    @heySensitive(category: "pii", redact: true)
+    @jsonName("message[content]")
+    message_content: ReplyDraftContent
+
+    @jsonName("message[subject]")
+    message_subject: String
+
+    @jsonName("message[auto_quoting]")
+    message_auto_quoting: Boolean
+
+    @jsonName("entry[addressed][directly][]")
+    entry_addressed_directly: ReplyDraftRecipientList
+
+    @jsonName("entry[addressed][copied][]")
+    entry_addressed_copied: ReplyDraftRecipientList
+
+    @jsonName("entry[addressed][blindcopied][]")
+    entry_addressed_blindcopied: ReplyDraftRecipientList
+
+    @heySensitive(category: "credential", redact: true)
+    authenticity_token: ReplyDraftAuthenticityToken
+}
+
+structure CreateReplyDraftOutput {
+    @httpHeader("Location")
+    location: String
+}
+
+@sensitive
+string DraftAuthenticityToken
+
+/// Update an editable message draft without sending it.
+///
+/// The draft edit form submits the complete current composer state to the
+/// canonical PATCH route. The generated transport preserves form encoding and
+/// redirect responses so callers can keep the existing sender, recipients,
+/// subject, and rich ActionText body intact when changing only one field.
+@http(method: "PATCH", uri: "/messages/{messageId}")
+@tags(["Entries"])
+@heyRetry(maxAttempts: 1, baseDelayMs: 1000, backoff: "constant", retryOn: [])
+@heyFormUrlEncoded
+operation UpdateDraft {
+    input: UpdateDraftInput
+    output: UpdateDraftOutput
+    errors: [BadRequestError, UnauthorizedError, ForbiddenError, NotFoundError, UnprocessableEntityError, InternalServerError, ServiceUnavailableError]
+}
+
+structure UpdateDraftInput {
+    @httpLabel
+    @required
+    messageId: Long
+
+    @httpHeader("X-CSRF-Token")
+    @required
+    @heySensitive(category: "credential", redact: true)
+    authenticity_token: DraftAuthenticityToken
+
+    @httpPayload
+    @required
+    body: UpdateDraftRequestContent
+}
+
+/// Complete composer state emitted by the draft edit page. Recipient fields
+/// are repeated Rails array parameters and rich HTML is transmitted exactly as
+/// provided.
+structure UpdateDraftRequestContent {
+    @required
+    acting_sender_id: Long
+
+    @required
+    @jsonName("entry[status]")
+    entry_status: String
+
+    @required
+    @heySensitive(category: "pii", redact: true)
+    @jsonName("message[content]")
+    message_content: ReplyDraftContent
+
+    @required
+    @jsonName("message[subject]")
+    message_subject: String
+
+    @jsonName("entry[addressed][directly][]")
+    entry_addressed_directly: ReplyDraftRecipientList
+
+    @jsonName("entry[addressed][copied][]")
+    entry_addressed_copied: ReplyDraftRecipientList
+
+    @jsonName("entry[addressed][blindcopied][]")
+    entry_addressed_blindcopied: ReplyDraftRecipientList
+
+    @required
+    @heySensitive(category: "credential", redact: true)
+    authenticity_token: DraftAuthenticityToken
+}
+
+structure UpdateDraftOutput {
+    @httpHeader("Location")
+    location: String
+}
+
+/// Delete an editable message draft without sending it.
+///
+/// HEY exposes this as a Rails form: the canonical router operation is DELETE
+/// `/messages/{messageId}`, while browsers submit POST with `_method=delete`.
+/// The generated transport preserves that browser-compatible wire contract.
+@http(method: "POST", uri: "/messages/{messageId}")
+@tags(["Entries"])
+@heyRetry(maxAttempts: 1, baseDelayMs: 1000, backoff: "constant", retryOn: [])
+@heyFormUrlEncoded
+@heyFormMethodOverride(overrideMethod: "DELETE")
+operation DeleteDraft {
+    input: DeleteDraftInput
+    output: DeleteDraftOutput
+    errors: [BadRequestError, UnauthorizedError, ForbiddenError, NotFoundError, UnprocessableEntityError, InternalServerError, ServiceUnavailableError]
+}
+
+structure DeleteDraftInput {
+    @httpLabel
+    @required
+    messageId: Long
+
+    @httpHeader("X-CSRF-Token")
+    @required
+    @heySensitive(category: "credential", redact: true)
+    authenticity_token: DraftAuthenticityToken
+
+    @httpPayload
+    @required
+    body: DeleteDraftRequestContent
+}
+
+/// Rails form fields emitted by the draft edit page's discard form.
+structure DeleteDraftRequestContent {
+    @required
+    @jsonName("_method")
+    method_override: String
+
+    @required
+    status: String
+}
+
+structure DeleteDraftOutput {
+    @httpHeader("Location")
+    location: String
 }
 
 // =============================================================================

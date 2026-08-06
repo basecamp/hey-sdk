@@ -12,8 +12,10 @@ import (
 	"io"
 	"log/slog"
 	"math/rand"
+	"mime"
 	"net/http"
 	"net/url"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -63,6 +65,11 @@ type Attendance struct {
 	Id           int64  `json:"id"`
 	Name         string `json:"name,omitempty"`
 	Status       string `json:"status,omitempty"`
+}
+
+// BadRequestErrorResponseContent defines model for BadRequestErrorResponseContent.
+type BadRequestErrorResponseContent struct {
+	Message string `json:"message"`
 }
 
 // Box Box — a HEY mailbox
@@ -225,10 +232,11 @@ type CreateMessageRequestContent struct {
 	Message        MessagePayload      `json:"message"`
 }
 
-// CreateReplyRequestContent Wire format: {acting_sender_id, message: {content}}
+// CreateReplyRequestContent Wire format: {acting_sender_id, message: {content}, entry: {addressed: {...}}}
 type CreateReplyRequestContent struct {
-	ActingSenderId int64               `json:"acting_sender_id"`
-	Message        ReplyMessagePayload `json:"message"`
+	ActingSenderId int64                `json:"acting_sender_id"`
+	Entry          *MessageEntryPayload `json:"entry,omitempty"`
+	Message        ReplyMessagePayload  `json:"message"`
 }
 
 // CreateTopicMessageRequestContent Wire format: {acting_sender_id, message: {content}}
@@ -309,6 +317,11 @@ type Folder struct {
 
 	// UpdatedAt ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)
 	UpdatedAt time.Time `json:"updated_at,omitempty"`
+}
+
+// ForbiddenErrorResponseContent defines model for ForbiddenErrorResponseContent.
+type ForbiddenErrorResponseContent struct {
+	Message string `json:"message"`
 }
 
 // GetAsideboxResponseContent BoxShowResponse — box detail with postings.
@@ -900,6 +913,19 @@ type ListDraftsParams struct {
 	Page string `form:"page,omitempty" json:"page,omitempty"`
 }
 
+// CreateReplyDraftFormdataBody defines parameters for CreateReplyDraft.
+type CreateReplyDraftFormdataBody struct {
+	ActingSenderId            int64    `form:"acting_sender_id" json:"acting_sender_id"`
+	AuthenticityToken         string   `form:"authenticity_token,omitempty" json:"authenticity_token,omitempty"`
+	EntryAddressedBlindcopied []string `form:"entry[addressed][blindcopied][],omitempty" json:"entry[addressed][blindcopied][],omitempty"`
+	EntryAddressedCopied      []string `form:"entry[addressed][copied][],omitempty" json:"entry[addressed][copied][],omitempty"`
+	EntryAddressedDirectly    []string `form:"entry[addressed][directly][],omitempty" json:"entry[addressed][directly][],omitempty"`
+	EntryStatus               string   `form:"entry[status]" json:"entry[status]"`
+	MessageAutoQuoting        *bool    `form:"message[auto_quoting],omitempty" json:"message[auto_quoting],omitempty"`
+	MessageContent            string   `form:"message[content]" json:"message[content]"`
+	MessageSubject            string   `form:"message[subject],omitempty" json:"message[subject],omitempty"`
+}
+
 // GetFeedboxParams defines parameters for GetFeedbox.
 type GetFeedboxParams struct {
 	Page string `form:"page,omitempty" json:"page,omitempty"`
@@ -908,6 +934,34 @@ type GetFeedboxParams struct {
 // GetImboxParams defines parameters for GetImbox.
 type GetImboxParams struct {
 	Page string `form:"page,omitempty" json:"page,omitempty"`
+}
+
+// UpdateDraftFormdataBody defines parameters for UpdateDraft.
+type UpdateDraftFormdataBody struct {
+	ActingSenderId            int64    `form:"acting_sender_id" json:"acting_sender_id"`
+	AuthenticityToken         string   `form:"authenticity_token" json:"authenticity_token"`
+	EntryAddressedBlindcopied []string `form:"entry[addressed][blindcopied][],omitempty" json:"entry[addressed][blindcopied][],omitempty"`
+	EntryAddressedCopied      []string `form:"entry[addressed][copied][],omitempty" json:"entry[addressed][copied][],omitempty"`
+	EntryAddressedDirectly    []string `form:"entry[addressed][directly][],omitempty" json:"entry[addressed][directly][],omitempty"`
+	EntryStatus               string   `form:"entry[status]" json:"entry[status]"`
+	MessageContent            string   `form:"message[content]" json:"message[content]"`
+	MessageSubject            string   `form:"message[subject]" json:"message[subject]"`
+}
+
+// UpdateDraftParams defines parameters for UpdateDraft.
+type UpdateDraftParams struct {
+	XCSRFToken string `json:"X-CSRF-Token"`
+}
+
+// DeleteDraftFormdataBody defines parameters for DeleteDraft.
+type DeleteDraftFormdataBody struct {
+	UnderscoreMethod string `form:"_method" json:"_method"`
+	Status           string `form:"status" json:"status"`
+}
+
+// DeleteDraftParams defines parameters for DeleteDraft.
+type DeleteDraftParams struct {
+	XCSRFToken string `json:"X-CSRF-Token"`
 }
 
 // GetTrailboxParams defines parameters for GetTrailbox.
@@ -968,11 +1022,20 @@ type UpdateTimeTrackJSONRequestBody = UpdateTimeTrackRequestContent
 // CreateCalendarTodoJSONRequestBody defines body for CreateCalendarTodo for application/json ContentType.
 type CreateCalendarTodoJSONRequestBody = CreateCalendarTodoRequestContent
 
+// CreateReplyDraftFormdataRequestBody defines body for CreateReplyDraft for application/x-www-form-urlencoded ContentType.
+type CreateReplyDraftFormdataRequestBody CreateReplyDraftFormdataBody
+
 // CreateReplyJSONRequestBody defines body for CreateReply for application/json ContentType.
 type CreateReplyJSONRequestBody = CreateReplyRequestContent
 
 // CreateMessageJSONRequestBody defines body for CreateMessage for application/json ContentType.
 type CreateMessageJSONRequestBody = CreateMessageRequestContent
+
+// UpdateDraftFormdataRequestBody defines body for UpdateDraft for application/x-www-form-urlencoded ContentType.
+type UpdateDraftFormdataRequestBody UpdateDraftFormdataBody
+
+// DeleteDraftFormdataRequestBody defines body for DeleteDraft for application/x-www-form-urlencoded ContentType.
+type DeleteDraftFormdataRequestBody DeleteDraftFormdataBody
 
 // MarkPostingsSeenJSONRequestBody defines body for MarkPostingsSeen for application/json ContentType.
 type MarkPostingsSeenJSONRequestBody = MarkPostingsRequestContent
@@ -1065,6 +1128,33 @@ func NewClient(server string, opts ...ClientOption) (*Client, error) {
 	return &client, nil
 }
 
+func isFormURLEncoded(contentType string) bool {
+	mediaType, _, err := mime.ParseMediaType(contentType)
+	return err == nil && mediaType == "application/x-www-form-urlencoded"
+}
+
+// doRequest prevents a concrete *http.Client from following redirects for
+// browser-compatible form operations, allowing callers to inspect the
+// resource-identifying Location header. It leaves the exported Client doer
+// unchanged and preserves configured behavior for custom doers and non-form
+// requests.
+func (c *Client) doRequest(req *http.Request) (*http.Response, error) {
+	if !isFormURLEncoded(req.Header.Get("Content-Type")) {
+		return c.Client.Do(req)
+	}
+
+	httpClient, ok := c.Client.(*http.Client)
+	if !ok {
+		return c.Client.Do(req)
+	}
+
+	noRedirect := *httpClient
+	noRedirect.CheckRedirect = func(*http.Request, []*http.Request) error {
+		return http.ErrUseLastResponse
+	}
+	return noRedirect.Do(req)
+}
+
 // WithHTTPClient allows overriding the default Doer, which is
 // automatically created using http.Client. This is useful for tests.
 func WithHTTPClient(doer HttpRequestDoer) ClientOption {
@@ -1097,6 +1187,48 @@ func WithLogger(logger *slog.Logger) ClientOption {
 		c.Logger = logger
 		return nil
 	}
+}
+
+// normalizeRailsArrayFormValues converts the indexed keys produced by
+// runtime.MarshalForm for explicitly bracketed Rails array fields back into
+// repeated [] keys. For example, recipients[][0] and recipients[][1] become
+// two recipients[] values, matching browser form submission semantics.
+func normalizeRailsArrayFormValues(values url.Values) url.Values {
+	type formValue struct {
+		key        string
+		normalized string
+		index      int
+		indexed    bool
+		items      []string
+	}
+
+	entries := make([]formValue, 0, len(values))
+	for key, items := range values {
+		entry := formValue{key: key, normalized: key, items: items}
+		if marker := strings.LastIndex(key, "[]["); marker >= 0 && strings.HasSuffix(key, "]") {
+			if index, err := strconv.Atoi(key[marker+3 : len(key)-1]); err == nil {
+				entry.normalized = key[:marker+2]
+				entry.index = index
+				entry.indexed = true
+			}
+		}
+		entries = append(entries, entry)
+	}
+	sort.Slice(entries, func(i, j int) bool {
+		if entries[i].normalized != entries[j].normalized {
+			return entries[i].normalized < entries[j].normalized
+		}
+		if entries[i].indexed && entries[j].indexed && entries[i].index != entries[j].index {
+			return entries[i].index < entries[j].index
+		}
+		return entries[i].key < entries[j].key
+	})
+
+	normalized := make(url.Values, len(values))
+	for _, entry := range entries {
+		normalized[entry.normalized] = append(normalized[entry.normalized], entry.items...)
+	}
+	return normalized
 }
 
 // isRetryableStatus returns true if the HTTP status code indicates a retryable error.
@@ -1134,7 +1266,7 @@ func (c *Client) doWithRetry(ctx context.Context, buildRequest func() (*http.Req
 			return nil, err
 		}
 
-		resp, err := c.Client.Do(req)
+		resp, err := c.doRequest(req)
 		if err != nil {
 			lastErr = err
 			if c.Logger != nil {
@@ -1276,6 +1408,11 @@ type ClientInterface interface {
 	// ListDrafts request
 	ListDrafts(ctx context.Context, params *ListDraftsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// CreateReplyDraftWithBody request with any body
+	CreateReplyDraftWithBody(ctx context.Context, entryId int64, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	CreateReplyDraftWithFormdataBody(ctx context.Context, entryId int64, body CreateReplyDraftFormdataRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// CreateReplyWithBody request with any body
 	CreateReplyWithBody(ctx context.Context, entryId int64, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
@@ -1297,6 +1434,16 @@ type ClientInterface interface {
 
 	// GetMessage request
 	GetMessage(ctx context.Context, messageId int64, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// UpdateDraftWithBody request with any body
+	UpdateDraftWithBody(ctx context.Context, messageId int64, params *UpdateDraftParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	UpdateDraftWithFormdataBody(ctx context.Context, messageId int64, params *UpdateDraftParams, body UpdateDraftFormdataRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DeleteDraftWithBody request with any body
+	DeleteDraftWithBody(ctx context.Context, messageId int64, params *DeleteDraftParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	DeleteDraftWithFormdataBody(ctx context.Context, messageId int64, params *DeleteDraftParams, body DeleteDraftFormdataRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// GetNavigation request
 	GetNavigation(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -1437,7 +1584,7 @@ func (c *Client) UpdateJournalEntryWithBody(ctx context.Context, day string, con
 	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
 		return nil, err
 	}
-	return c.Client.Do(req)
+	return c.doRequest(req)
 
 }
 
@@ -1451,7 +1598,7 @@ func (c *Client) UpdateJournalEntry(ctx context.Context, day string, body Update
 	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
 		return nil, err
 	}
-	return c.Client.Do(req)
+	return c.doRequest(req)
 
 }
 
@@ -1477,7 +1624,7 @@ func (c *Client) StartTimeTrackWithBody(ctx context.Context, contentType string,
 	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
 		return nil, err
 	}
-	return c.Client.Do(req)
+	return c.doRequest(req)
 
 }
 
@@ -1491,7 +1638,7 @@ func (c *Client) StartTimeTrack(ctx context.Context, body StartTimeTrackJSONRequ
 	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
 		return nil, err
 	}
-	return c.Client.Do(req)
+	return c.doRequest(req)
 
 }
 
@@ -1525,7 +1672,7 @@ func (c *Client) CreateCalendarTodoWithBody(ctx context.Context, contentType str
 	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
 		return nil, err
 	}
-	return c.Client.Do(req)
+	return c.doRequest(req)
 
 }
 
@@ -1539,7 +1686,7 @@ func (c *Client) CreateCalendarTodo(ctx context.Context, body CreateCalendarTodo
 	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
 		return nil, err
 	}
-	return c.Client.Do(req)
+	return c.doRequest(req)
 
 }
 
@@ -1623,6 +1770,36 @@ func (c *Client) ListDrafts(ctx context.Context, params *ListDraftsParams, reqEd
 
 }
 
+// CreateReplyDraftWithBody executes the CreateReplyDraft operation.
+
+func (c *Client) CreateReplyDraftWithBody(ctx context.Context, entryId int64, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+
+	req, err := NewCreateReplyDraftRequestWithBody(c.Server, entryId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.doRequest(req)
+
+}
+
+func (c *Client) CreateReplyDraftWithFormdataBody(ctx context.Context, entryId int64, body CreateReplyDraftFormdataRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+
+	req, err := NewCreateReplyDraftRequestWithFormdataBody(c.Server, entryId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.doRequest(req)
+
+}
+
 // CreateReplyWithBody executes the CreateReply operation.
 
 func (c *Client) CreateReplyWithBody(ctx context.Context, entryId int64, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -1635,7 +1812,7 @@ func (c *Client) CreateReplyWithBody(ctx context.Context, entryId int64, content
 	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
 		return nil, err
 	}
-	return c.Client.Do(req)
+	return c.doRequest(req)
 
 }
 
@@ -1649,7 +1826,7 @@ func (c *Client) CreateReply(ctx context.Context, entryId int64, body CreateRepl
 	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
 		return nil, err
 	}
-	return c.Client.Do(req)
+	return c.doRequest(req)
 
 }
 
@@ -1695,7 +1872,7 @@ func (c *Client) CreateMessageWithBody(ctx context.Context, contentType string, 
 	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
 		return nil, err
 	}
-	return c.Client.Do(req)
+	return c.doRequest(req)
 
 }
 
@@ -1709,7 +1886,7 @@ func (c *Client) CreateMessage(ctx context.Context, body CreateMessageJSONReques
 	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
 		return nil, err
 	}
-	return c.Client.Do(req)
+	return c.doRequest(req)
 
 }
 
@@ -1720,6 +1897,66 @@ func (c *Client) GetMessage(ctx context.Context, messageId int64, reqEditors ...
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
 		return NewGetMessageRequest(c.Server, messageId)
 	}, true, "GetMessage", reqEditors...)
+
+}
+
+// UpdateDraftWithBody executes the UpdateDraft operation.
+
+func (c *Client) UpdateDraftWithBody(ctx context.Context, messageId int64, params *UpdateDraftParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+
+	req, err := NewUpdateDraftRequestWithBody(c.Server, messageId, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.doRequest(req)
+
+}
+
+func (c *Client) UpdateDraftWithFormdataBody(ctx context.Context, messageId int64, params *UpdateDraftParams, body UpdateDraftFormdataRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+
+	req, err := NewUpdateDraftRequestWithFormdataBody(c.Server, messageId, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.doRequest(req)
+
+}
+
+// DeleteDraftWithBody executes the DeleteDraft operation.
+
+func (c *Client) DeleteDraftWithBody(ctx context.Context, messageId int64, params *DeleteDraftParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+
+	req, err := NewDeleteDraftRequestWithBody(c.Server, messageId, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.doRequest(req)
+
+}
+
+func (c *Client) DeleteDraftWithFormdataBody(ctx context.Context, messageId int64, params *DeleteDraftParams, body DeleteDraftFormdataRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+
+	req, err := NewDeleteDraftRequestWithFormdataBody(c.Server, messageId, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.doRequest(req)
 
 }
 
@@ -1755,7 +1992,7 @@ func (c *Client) MarkPostingsSeenWithBody(ctx context.Context, contentType strin
 	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
 		return nil, err
 	}
-	return c.Client.Do(req)
+	return c.doRequest(req)
 
 }
 
@@ -1769,7 +2006,7 @@ func (c *Client) MarkPostingsSeen(ctx context.Context, body MarkPostingsSeenJSON
 	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
 		return nil, err
 	}
-	return c.Client.Do(req)
+	return c.doRequest(req)
 
 }
 
@@ -1785,7 +2022,7 @@ func (c *Client) MarkPostingsUnseenWithBody(ctx context.Context, contentType str
 	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
 		return nil, err
 	}
-	return c.Client.Do(req)
+	return c.doRequest(req)
 
 }
 
@@ -1799,7 +2036,7 @@ func (c *Client) MarkPostingsUnseen(ctx context.Context, body MarkPostingsUnseen
 	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
 		return nil, err
 	}
-	return c.Client.Do(req)
+	return c.doRequest(req)
 
 }
 
@@ -1815,7 +2052,7 @@ func (c *Client) IgnorePosting(ctx context.Context, postingId int64, reqEditors 
 	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
 		return nil, err
 	}
-	return c.Client.Do(req)
+	return c.doRequest(req)
 
 }
 
@@ -1831,7 +2068,7 @@ func (c *Client) MovePostingToSetAside(ctx context.Context, postingId int64, req
 	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
 		return nil, err
 	}
-	return c.Client.Do(req)
+	return c.doRequest(req)
 
 }
 
@@ -1847,7 +2084,7 @@ func (c *Client) MovePostingToFeed(ctx context.Context, postingId int64, reqEdit
 	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
 		return nil, err
 	}
-	return c.Client.Do(req)
+	return c.doRequest(req)
 
 }
 
@@ -1863,7 +2100,7 @@ func (c *Client) MovePostingToReplyLater(ctx context.Context, postingId int64, r
 	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
 		return nil, err
 	}
-	return c.Client.Do(req)
+	return c.doRequest(req)
 
 }
 
@@ -1879,7 +2116,7 @@ func (c *Client) MovePostingToPaperTrail(ctx context.Context, postingId int64, r
 	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
 		return nil, err
 	}
-	return c.Client.Do(req)
+	return c.doRequest(req)
 
 }
 
@@ -1895,7 +2132,7 @@ func (c *Client) MovePostingToTrash(ctx context.Context, postingId int64, reqEdi
 	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
 		return nil, err
 	}
-	return c.Client.Do(req)
+	return c.doRequest(req)
 
 }
 
@@ -2001,7 +2238,7 @@ func (c *Client) CreateTopicMessageWithBody(ctx context.Context, topicId int64, 
 	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
 		return nil, err
 	}
-	return c.Client.Do(req)
+	return c.doRequest(req)
 
 }
 
@@ -2015,7 +2252,7 @@ func (c *Client) CreateTopicMessage(ctx context.Context, topicId int64, body Cre
 	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
 		return nil, err
 	}
-	return c.Client.Do(req)
+	return c.doRequest(req)
 
 }
 
@@ -2789,6 +3026,54 @@ func NewListDraftsRequest(server string, params *ListDraftsParams) (*http.Reques
 	return req, nil
 }
 
+// NewCreateReplyDraftRequestWithFormdataBody calls the generic CreateReplyDraft builder with application/x-www-form-urlencoded body
+func NewCreateReplyDraftRequestWithFormdataBody(server string, entryId int64, body CreateReplyDraftFormdataRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	bodyStr, err := runtime.MarshalForm(body, nil)
+	if err != nil {
+		return nil, err
+	}
+	bodyStr = normalizeRailsArrayFormValues(bodyStr)
+	bodyReader = strings.NewReader(bodyStr.Encode())
+	return NewCreateReplyDraftRequestWithBody(server, entryId, "application/x-www-form-urlencoded", bodyReader)
+}
+
+// NewCreateReplyDraftRequestWithBody generates requests for CreateReplyDraft with any type of body
+func NewCreateReplyDraftRequestWithBody(server string, entryId int64, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "entryId", runtime.ParamLocationPath, entryId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/entries/%s/replies", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
 // NewCreateReplyRequest calls the generic CreateReply builder with application/json body
 func NewCreateReplyRequest(server string, entryId int64, body CreateReplyJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
@@ -3022,6 +3307,128 @@ func NewGetMessageRequest(server string, messageId int64) (*http.Request, error)
 	req, err := http.NewRequest("GET", queryURL.String(), nil)
 	if err != nil {
 		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewUpdateDraftRequestWithFormdataBody calls the generic UpdateDraft builder with application/x-www-form-urlencoded body
+func NewUpdateDraftRequestWithFormdataBody(server string, messageId int64, params *UpdateDraftParams, body UpdateDraftFormdataRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	bodyStr, err := runtime.MarshalForm(body, nil)
+	if err != nil {
+		return nil, err
+	}
+	bodyStr = normalizeRailsArrayFormValues(bodyStr)
+	bodyReader = strings.NewReader(bodyStr.Encode())
+	return NewUpdateDraftRequestWithBody(server, messageId, params, "application/x-www-form-urlencoded", bodyReader)
+}
+
+// NewUpdateDraftRequestWithBody generates requests for UpdateDraft with any type of body
+func NewUpdateDraftRequestWithBody(server string, messageId int64, params *UpdateDraftParams, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "messageId", runtime.ParamLocationPath, messageId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/messages/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("PATCH", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	if params != nil {
+
+		var headerParam0 string
+
+		headerParam0, err = runtime.StyleParamWithLocation("simple", false, "X-CSRF-Token", runtime.ParamLocationHeader, params.XCSRFToken)
+		if err != nil {
+			return nil, err
+		}
+
+		req.Header.Set("X-CSRF-Token", headerParam0)
+
+	}
+
+	return req, nil
+}
+
+// NewDeleteDraftRequestWithFormdataBody calls the generic DeleteDraft builder with application/x-www-form-urlencoded body
+func NewDeleteDraftRequestWithFormdataBody(server string, messageId int64, params *DeleteDraftParams, body DeleteDraftFormdataRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	bodyStr, err := runtime.MarshalForm(body, nil)
+	if err != nil {
+		return nil, err
+	}
+	bodyStr = normalizeRailsArrayFormValues(bodyStr)
+	bodyReader = strings.NewReader(bodyStr.Encode())
+	return NewDeleteDraftRequestWithBody(server, messageId, params, "application/x-www-form-urlencoded", bodyReader)
+}
+
+// NewDeleteDraftRequestWithBody generates requests for DeleteDraft with any type of body
+func NewDeleteDraftRequestWithBody(server string, messageId int64, params *DeleteDraftParams, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "messageId", runtime.ParamLocationPath, messageId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/messages/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	if params != nil {
+
+		var headerParam0 string
+
+		headerParam0, err = runtime.StyleParamWithLocation("simple", false, "X-CSRF-Token", runtime.ParamLocationHeader, params.XCSRFToken)
+		if err != nil {
+			return nil, err
+		}
+
+		req.Header.Set("X-CSRF-Token", headerParam0)
+
 	}
 
 	return req, nil
@@ -3888,12 +4295,15 @@ var operationMetadata = map[string]OperationMetadata{
 	"ListContacts":            {Idempotent: true, HasSensitiveParams: false},
 	"GetContact":              {Idempotent: true, HasSensitiveParams: false},
 	"ListDrafts":              {Idempotent: true, HasSensitiveParams: false},
+	"CreateReplyDraft":        {Idempotent: false, HasSensitiveParams: true},
 	"CreateReply":             {Idempotent: false, HasSensitiveParams: false},
 	"GetFeedbox":              {Idempotent: true, HasSensitiveParams: false},
 	"GetIdentity":             {Idempotent: true, HasSensitiveParams: false},
 	"GetImbox":                {Idempotent: true, HasSensitiveParams: false},
 	"CreateMessage":           {Idempotent: false, HasSensitiveParams: false},
 	"GetMessage":              {Idempotent: true, HasSensitiveParams: false},
+	"UpdateDraft":             {Idempotent: false, HasSensitiveParams: true},
+	"DeleteDraft":             {Idempotent: false, HasSensitiveParams: true},
 	"GetNavigation":           {Idempotent: true, HasSensitiveParams: false},
 	"GetTrailbox":             {Idempotent: true, HasSensitiveParams: false},
 	"MarkPostingsSeen":        {Idempotent: false, HasSensitiveParams: false},
@@ -4583,6 +4993,11 @@ type ClientWithResponsesInterface interface {
 	// ListDraftsWithResponse request
 	ListDraftsWithResponse(ctx context.Context, params *ListDraftsParams, reqEditors ...RequestEditorFn) (*ListDraftsResponse, error)
 
+	// CreateReplyDraftWithBodyWithResponse request with any body
+	CreateReplyDraftWithBodyWithResponse(ctx context.Context, entryId int64, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateReplyDraftResponse, error)
+
+	CreateReplyDraftWithFormdataBodyWithResponse(ctx context.Context, entryId int64, body CreateReplyDraftFormdataRequestBody, reqEditors ...RequestEditorFn) (*CreateReplyDraftResponse, error)
+
 	// CreateReplyWithBodyWithResponse request with any body
 	CreateReplyWithBodyWithResponse(ctx context.Context, entryId int64, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateReplyResponse, error)
 
@@ -4604,6 +5019,16 @@ type ClientWithResponsesInterface interface {
 
 	// GetMessageWithResponse request
 	GetMessageWithResponse(ctx context.Context, messageId int64, reqEditors ...RequestEditorFn) (*GetMessageResponse, error)
+
+	// UpdateDraftWithBodyWithResponse request with any body
+	UpdateDraftWithBodyWithResponse(ctx context.Context, messageId int64, params *UpdateDraftParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateDraftResponse, error)
+
+	UpdateDraftWithFormdataBodyWithResponse(ctx context.Context, messageId int64, params *UpdateDraftParams, body UpdateDraftFormdataRequestBody, reqEditors ...RequestEditorFn) (*UpdateDraftResponse, error)
+
+	// DeleteDraftWithBodyWithResponse request with any body
+	DeleteDraftWithBodyWithResponse(ctx context.Context, messageId int64, params *DeleteDraftParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*DeleteDraftResponse, error)
+
+	DeleteDraftWithFormdataBodyWithResponse(ctx context.Context, messageId int64, params *DeleteDraftParams, body DeleteDraftFormdataRequestBody, reqEditors ...RequestEditorFn) (*DeleteDraftResponse, error)
 
 	// GetNavigationWithResponse request
 	GetNavigationWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetNavigationResponse, error)
@@ -5160,6 +5585,34 @@ func (r ListDraftsResponse) StatusCode() int {
 	return 0
 }
 
+type CreateReplyDraftResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON400      *BadRequestErrorResponseContent
+	JSON401      *UnauthorizedErrorResponseContent
+	JSON403      *ForbiddenErrorResponseContent
+	JSON404      *NotFoundErrorResponseContent
+	JSON422      *UnprocessableEntityErrorResponseContent
+	JSON500      *InternalServerErrorResponseContent
+	JSON503      *ServiceUnavailableErrorResponseContent
+}
+
+// Status returns HTTPResponse.Status
+func (r CreateReplyDraftResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r CreateReplyDraftResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
 type CreateReplyResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -5306,6 +5759,62 @@ func (r GetMessageResponse) Status() string {
 
 // StatusCode returns HTTPResponse.StatusCode
 func (r GetMessageResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type UpdateDraftResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON400      *BadRequestErrorResponseContent
+	JSON401      *UnauthorizedErrorResponseContent
+	JSON403      *ForbiddenErrorResponseContent
+	JSON404      *NotFoundErrorResponseContent
+	JSON422      *UnprocessableEntityErrorResponseContent
+	JSON500      *InternalServerErrorResponseContent
+	JSON503      *ServiceUnavailableErrorResponseContent
+}
+
+// Status returns HTTPResponse.Status
+func (r UpdateDraftResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r UpdateDraftResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type DeleteDraftResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON400      *BadRequestErrorResponseContent
+	JSON401      *UnauthorizedErrorResponseContent
+	JSON403      *ForbiddenErrorResponseContent
+	JSON404      *NotFoundErrorResponseContent
+	JSON422      *UnprocessableEntityErrorResponseContent
+	JSON500      *InternalServerErrorResponseContent
+	JSON503      *ServiceUnavailableErrorResponseContent
+}
+
+// Status returns HTTPResponse.Status
+func (r DeleteDraftResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DeleteDraftResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -6016,6 +6525,23 @@ func (c *ClientWithResponses) ListDraftsWithResponse(ctx context.Context, params
 	return ParseListDraftsResponse(rsp)
 }
 
+// CreateReplyDraftWithBodyWithResponse request with arbitrary body returning *CreateReplyDraftResponse
+func (c *ClientWithResponses) CreateReplyDraftWithBodyWithResponse(ctx context.Context, entryId int64, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateReplyDraftResponse, error) {
+	rsp, err := c.CreateReplyDraftWithBody(ctx, entryId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateReplyDraftResponse(rsp)
+}
+
+func (c *ClientWithResponses) CreateReplyDraftWithFormdataBodyWithResponse(ctx context.Context, entryId int64, body CreateReplyDraftFormdataRequestBody, reqEditors ...RequestEditorFn) (*CreateReplyDraftResponse, error) {
+	rsp, err := c.CreateReplyDraftWithFormdataBody(ctx, entryId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateReplyDraftResponse(rsp)
+}
+
 // CreateReplyWithBodyWithResponse request with arbitrary body returning *CreateReplyResponse
 func (c *ClientWithResponses) CreateReplyWithBodyWithResponse(ctx context.Context, entryId int64, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateReplyResponse, error) {
 	rsp, err := c.CreateReplyWithBody(ctx, entryId, contentType, body, reqEditors...)
@@ -6084,6 +6610,40 @@ func (c *ClientWithResponses) GetMessageWithResponse(ctx context.Context, messag
 		return nil, err
 	}
 	return ParseGetMessageResponse(rsp)
+}
+
+// UpdateDraftWithBodyWithResponse request with arbitrary body returning *UpdateDraftResponse
+func (c *ClientWithResponses) UpdateDraftWithBodyWithResponse(ctx context.Context, messageId int64, params *UpdateDraftParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateDraftResponse, error) {
+	rsp, err := c.UpdateDraftWithBody(ctx, messageId, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpdateDraftResponse(rsp)
+}
+
+func (c *ClientWithResponses) UpdateDraftWithFormdataBodyWithResponse(ctx context.Context, messageId int64, params *UpdateDraftParams, body UpdateDraftFormdataRequestBody, reqEditors ...RequestEditorFn) (*UpdateDraftResponse, error) {
+	rsp, err := c.UpdateDraftWithFormdataBody(ctx, messageId, params, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpdateDraftResponse(rsp)
+}
+
+// DeleteDraftWithBodyWithResponse request with arbitrary body returning *DeleteDraftResponse
+func (c *ClientWithResponses) DeleteDraftWithBodyWithResponse(ctx context.Context, messageId int64, params *DeleteDraftParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*DeleteDraftResponse, error) {
+	rsp, err := c.DeleteDraftWithBody(ctx, messageId, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDeleteDraftResponse(rsp)
+}
+
+func (c *ClientWithResponses) DeleteDraftWithFormdataBodyWithResponse(ctx context.Context, messageId int64, params *DeleteDraftParams, body DeleteDraftFormdataRequestBody, reqEditors ...RequestEditorFn) (*DeleteDraftResponse, error) {
+	rsp, err := c.DeleteDraftWithFormdataBody(ctx, messageId, params, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDeleteDraftResponse(rsp)
 }
 
 // GetNavigationWithResponse request returning *GetNavigationResponse
@@ -7274,6 +7834,74 @@ func ParseListDraftsResponse(rsp *http.Response) (*ListDraftsResponse, error) {
 	return response, nil
 }
 
+// ParseCreateReplyDraftResponse parses an HTTP response from a CreateReplyDraftWithResponse call
+func ParseCreateReplyDraftResponse(rsp *http.Response) (*CreateReplyDraftResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &CreateReplyDraftResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest BadRequestErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest UnauthorizedErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest ForbiddenErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFoundErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 422:
+		var dest UnprocessableEntityErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON422 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest InternalServerErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+		var dest ServiceUnavailableErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON503 = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseCreateReplyResponse parses an HTTP response from a CreateReplyWithResponse call
 func ParseCreateReplyResponse(rsp *http.Response) (*CreateReplyResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -7550,6 +8178,142 @@ func ParseGetMessageResponse(rsp *http.Response) (*GetMessageResponse, error) {
 			return nil, err
 		}
 		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest InternalServerErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+		var dest ServiceUnavailableErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON503 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseUpdateDraftResponse parses an HTTP response from a UpdateDraftWithResponse call
+func ParseUpdateDraftResponse(rsp *http.Response) (*UpdateDraftResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &UpdateDraftResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest BadRequestErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest UnauthorizedErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest ForbiddenErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFoundErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 422:
+		var dest UnprocessableEntityErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON422 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest InternalServerErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+		var dest ServiceUnavailableErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON503 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDeleteDraftResponse parses an HTTP response from a DeleteDraftWithResponse call
+func ParseDeleteDraftResponse(rsp *http.Response) (*DeleteDraftResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DeleteDraftResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest BadRequestErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest UnauthorizedErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest ForbiddenErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFoundErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 422:
+		var dest UnprocessableEntityErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON422 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
 		var dest InternalServerErrorResponseContent
