@@ -22,12 +22,7 @@
   {
     "method": "POST",
     "operationId": "CreateReply",
-    "path": "/entries/{entryId}/replies"
-  },
-  {
-    "method": "POST",
-    "operationId": "CreateTopicMessage",
-    "path": "/topics/{topicId}/messages"
+    "path": "/entries/{entryId}/replies.json"
   },
   {
     "method": "DELETE",
@@ -155,6 +150,26 @@
     "path": "/entries/drafts.json"
   },
   {
+    "method": "POST",
+    "operationId": "MarkPostingsSeen",
+    "path": "/postings/seen.json"
+  },
+  {
+    "method": "POST",
+    "operationId": "MarkPostingsUnseen",
+    "path": "/postings/unseen.json"
+  },
+  {
+    "method": "POST",
+    "operationId": "MovePostings",
+    "path": "/postings/moves.json"
+  },
+  {
+    "method": "POST",
+    "operationId": "MutePostings",
+    "path": "/postings/mutings.json"
+  },
+  {
     "method": "GET",
     "operationId": "Search",
     "path": "/search.json"
@@ -165,6 +180,11 @@
     "path": "/calendar/ongoing_time_track.json"
   },
   {
+    "method": "POST",
+    "operationId": "TrashPostings",
+    "path": "/postings/trash.json"
+  },
+  {
     "method": "DELETE",
     "operationId": "UncompleteCalendarTodo",
     "path": "/calendar/todos/{todoId}/completions"
@@ -173,6 +193,11 @@
     "method": "DELETE",
     "operationId": "UncompleteHabit",
     "path": "/calendar/days/{day}/habits/{habitId}/completions"
+  },
+  {
+    "method": "DELETE",
+    "operationId": "UnmutePostings",
+    "path": "/postings/mutings.json"
   },
   {
     "method": "PATCH",

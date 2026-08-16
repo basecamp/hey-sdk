@@ -86,7 +86,6 @@ service HEY {
         // Messages (3 MVP)
         GetMessage
         CreateMessage
-        CreateTopicMessage
 
         // Entries (2 MVP)
         ListDrafts
@@ -122,15 +121,13 @@ service HEY {
         // Search (1 MVP)
         Search
 
-        // Postings (8 MVP)
+        // Postings (6 MVP)
         MarkPostingsSeen
         MarkPostingsUnseen
-        MovePostingToFeed
-        MovePostingToSetAside
-        MovePostingToReplyLater
-        MovePostingToPaperTrail
-        MovePostingToTrash
-        IgnorePosting
+        MovePostings
+        TrashPostings
+        MutePostings
+        UnmutePostings
     ]
 }
 
@@ -1227,44 +1224,17 @@ structure MessageEntryPayload {
     addressed: MessageAddressed
 }
 
-/// Recipients as comma-separated email addresses.
+/// Recipients per kind, each a list of email addresses.
+/// haystack applies Array() to each kind, so a JSON array is the correct wire format
+/// (a bare string would be treated as a single address, not split on commas).
 structure MessageAddressed {
-    directly: String
-    copied: String
-    blindcopied: String
+    directly: EmailAddressList
+    copied: EmailAddressList
+    blindcopied: EmailAddressList
 }
 
-/// Reply to an existing topic
-@http(method: "POST", uri: "/topics/{topicId}/entries.json")
-@tags(["Messages"])
-@heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
-operation CreateTopicMessage {
-    input: CreateTopicMessageInput
-    errors: [UnauthorizedError, NotFoundError, UnprocessableEntityError, InternalServerError, ServiceUnavailableError]
-}
-
-structure CreateTopicMessageInput {
-    @httpLabel
-    @required
-    topicId: Long
-
-    @httpPayload
-    @required
-    body: CreateTopicMessageRequestContent
-}
-
-/// Wire format: {acting_sender_id, message: {content}}
-structure CreateTopicMessageRequestContent {
-    @required
-    acting_sender_id: Long
-
-    @required
-    message: TopicMessagePayload
-}
-
-structure TopicMessagePayload {
-    @required
-    content: String
+list EmailAddressList {
+    member: String
 }
 
 // =============================================================================
@@ -1307,13 +1277,15 @@ structure CreateReplyInput {
     body: CreateReplyRequestContent
 }
 
-/// Wire format: {acting_sender_id, message: {content}}
+/// Wire format: {acting_sender_id, message: {content}, entry: {addressed: {directly: [...]}}}
 structure CreateReplyRequestContent {
     @required
     acting_sender_id: Long
 
     @required
     message: ReplyMessagePayload
+
+    entry: MessageEntryPayload
 }
 
 structure ReplyMessagePayload {
@@ -1750,7 +1722,7 @@ structure SearchOutput {
 }
 
 // =============================================================================
-// POSTINGS — mark seen/unseen, move between boxes, trash, ignore
+// POSTINGS — mark seen/unseen, move between boxes, trash, mute (all bulk)
 // =============================================================================
 
 /// Mark postings as seen
@@ -1782,63 +1754,69 @@ structure MarkPostingsRequestContent {
     posting_ids: PostingIdList
 }
 
-/// Move posting to The Feed
-@http(method: "POST", uri: "/postings/{postingId}/move/feedbox.json")
+/// Move postings to a box (bulk).
+/// Mirrors HEY's Postings::MovesController: `posting_ids` plus the target `box_id`
+/// (an ID from ListBoxes; the box `kind` field identifies imbox, feedbox, asidebox,
+/// laterbox, trailbox). Responds 204 No Content.
+@http(method: "POST", uri: "/postings/moves.json")
 @tags(["Postings"])
 @heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
-operation MovePostingToFeed {
-    input: PostingActionInput
+operation MovePostings {
+    input: MovePostingsInput
     errors: [UnauthorizedError, NotFoundError, InternalServerError, ServiceUnavailableError]
 }
 
-/// Move posting to Set Aside
-@http(method: "POST", uri: "/postings/{postingId}/move/asidebox.json")
-@tags(["Postings"])
-@heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
-operation MovePostingToSetAside {
-    input: PostingActionInput
-    errors: [UnauthorizedError, NotFoundError, InternalServerError, ServiceUnavailableError]
-}
-
-/// Move posting to Reply Later
-@http(method: "POST", uri: "/postings/{postingId}/move/laterbox.json")
-@tags(["Postings"])
-@heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
-operation MovePostingToReplyLater {
-    input: PostingActionInput
-    errors: [UnauthorizedError, NotFoundError, InternalServerError, ServiceUnavailableError]
-}
-
-/// Move posting to Paper Trail
-@http(method: "POST", uri: "/postings/{postingId}/move/trailbox.json")
-@tags(["Postings"])
-@heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
-operation MovePostingToPaperTrail {
-    input: PostingActionInput
-    errors: [UnauthorizedError, NotFoundError, InternalServerError, ServiceUnavailableError]
-}
-
-/// Move posting to trash
-@http(method: "POST", uri: "/postings/{postingId}/trash.json")
-@tags(["Postings"])
-@heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
-operation MovePostingToTrash {
-    input: PostingActionInput
-    errors: [UnauthorizedError, NotFoundError, InternalServerError, ServiceUnavailableError]
-}
-
-/// Ignore a posting (stop notifications)
-@http(method: "POST", uri: "/postings/{postingId}/ignore.json")
-@tags(["Postings"])
-@heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
-operation IgnorePosting {
-    input: PostingActionInput
-    errors: [UnauthorizedError, NotFoundError, InternalServerError, ServiceUnavailableError]
-}
-
-/// Input for single-posting actions (move, trash, ignore)
-structure PostingActionInput {
-    @httpLabel
+structure MovePostingsInput {
+    @httpPayload
     @required
-    postingId: Long
+    body: MovePostingsRequestContent
+}
+
+structure MovePostingsRequestContent {
+    @required
+    posting_ids: PostingIdList
+
+    @required
+    box_id: Long
+}
+
+/// Move postings to the trash (bulk).
+/// Mirrors HEY's Postings::TrashController. For JSON requests the server treats
+/// the removal decision as made (shared topics: your access is removed).
+/// Responds 204 No Content.
+@http(method: "POST", uri: "/postings/trash.json")
+@tags(["Postings"])
+@heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+operation TrashPostings {
+    input: MarkPostingsInput
+    errors: [UnauthorizedError, NotFoundError, InternalServerError, ServiceUnavailableError]
+}
+
+/// Mute postings (bulk) — stop notifications for their threads.
+/// Mirrors HEY's Postings::MutingsController#create. Responds 201 Created.
+@http(method: "POST", uri: "/postings/mutings.json")
+@tags(["Postings"])
+@heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+operation MutePostings {
+    input: MarkPostingsInput
+    errors: [UnauthorizedError, NotFoundError, InternalServerError, ServiceUnavailableError]
+}
+
+/// Unmute postings (bulk).
+/// Mirrors HEY's Postings::MutingsController#destroy. `posting_ids` is sent as a
+/// comma-separated query string because DELETE carries no body. Responds 201 Created.
+@idempotent
+@http(method: "DELETE", uri: "/postings/mutings.json")
+@tags(["Postings"])
+@heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+operation UnmutePostings {
+    input: UnmutePostingsInput
+    errors: [UnauthorizedError, NotFoundError, InternalServerError, ServiceUnavailableError]
+}
+
+structure UnmutePostingsInput {
+    /// Comma-separated posting IDs, e.g. "123,456"
+    @httpQuery("posting_ids")
+    @required
+    posting_ids: String
 }

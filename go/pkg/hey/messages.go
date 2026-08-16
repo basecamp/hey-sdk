@@ -1,8 +1,9 @@
 package hey
 
 import (
+	"bytes"
 	"context"
-	"fmt"
+	"encoding/json"
 	"time"
 
 	"github.com/basecamp/hey-sdk/go/pkg/generated"
@@ -44,10 +45,12 @@ func (s *MessagesService) Get(ctx context.Context, messageID int64) (result *gen
 	return resp.JSON200, nil
 }
 
-// Create creates a new message. The acting sender ID is automatically resolved.
+// Create creates a new message (starts a new thread) and delivers it.
+// The acting sender ID is automatically resolved.
 //
-// The HEY API expects a nested body with acting_sender_id, message (subject/content),
-// and entry (addressed recipients). This method constructs the correct shape.
+// Wire format (MessagesController#create): {acting_sender_id, message: {subject, content},
+// entry: {addressed: {directly: [...], copied: [...], blindcopied: [...]}}}.
+// Recipient lists are JSON arrays; haystack applies Array() to each kind.
 func (s *MessagesService) Create(ctx context.Context, subject, content string, to, cc, bcc []string) (err error) {
 	op := OperationInfo{
 		Service: "Messages", Operation: "CreateMessage",
@@ -67,6 +70,31 @@ func (s *MessagesService) Create(ctx context.Context, subject, content string, t
 		return err
 	}
 
+	body := map[string]any{
+		"acting_sender_id": senderID,
+		"message": map[string]any{
+			"subject": subject,
+			"content": content,
+		},
+		"entry": map[string]any{
+			"addressed": addressedPayload(to, cc, bcc),
+		},
+	}
+	payload, err := json.Marshal(body)
+	if err != nil {
+		return err
+	}
+
+	s.client.initGeneratedClient()
+	resp, err := s.client.gen.CreateMessageWithBodyWithResponse(ctx, "application/json", bytes.NewReader(payload))
+	if err != nil {
+		return err
+	}
+	return CheckResponse(resp.HTTPResponse)
+}
+
+// addressedPayload builds the entry.addressed map, omitting empty kinds.
+func addressedPayload(to, cc, bcc []string) map[string]any {
 	addressed := map[string]any{}
 	if len(to) > 0 {
 		addressed["directly"] = to
@@ -77,50 +105,5 @@ func (s *MessagesService) Create(ctx context.Context, subject, content string, t
 	if len(bcc) > 0 {
 		addressed["blindcopied"] = bcc
 	}
-
-	body := map[string]any{
-		"acting_sender_id": senderID,
-		"message": map[string]any{
-			"subject": subject,
-			"content": content,
-		},
-		"entry": map[string]any{
-			"addressed": addressed,
-		},
-	}
-
-	_, err = s.client.PostMutation(ctx, "/messages.json", body)
-	return err
-}
-
-// CreateTopicMessage creates a message within a topic (reply to a thread).
-// The acting sender ID is automatically resolved.
-func (s *MessagesService) CreateTopicMessage(ctx context.Context, topicID int64, content string) (err error) {
-	op := OperationInfo{
-		Service: "Messages", Operation: "CreateTopicMessage",
-		ResourceType: "message", IsMutation: true, ResourceID: topicID,
-	}
-	if gater, ok := s.client.hooks.(GatingHooks); ok {
-		if ctx, err = gater.OnOperationGate(ctx, op); err != nil {
-			return
-		}
-	}
-	start := time.Now()
-	ctx = s.client.hooks.OnOperationStart(ctx, op)
-	defer func() { s.client.hooks.OnOperationEnd(ctx, op, err, time.Since(start)) }()
-
-	senderID, err := s.client.DefaultSenderID(ctx)
-	if err != nil {
-		return err
-	}
-
-	body := map[string]any{
-		"acting_sender_id": senderID,
-		"message": map[string]any{
-			"content": content,
-		},
-	}
-
-	_, err = s.client.PostMutation(ctx, fmt.Sprintf("/topics/%d/entries.json", topicID), body)
-	return err
+	return addressed
 }

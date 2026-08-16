@@ -45,6 +45,10 @@ type Client struct {
 	senderID   int64
 	senderDone bool
 
+	// Cached box IDs by kind (imbox, feedbox, ...), lazy-initialized from ListBoxes
+	boxMu     sync.Mutex
+	boxByKind map[string]int64
+
 	// Services (lazy-initialized, protected by mu)
 	mu             sync.Mutex
 	identity       *IdentityService

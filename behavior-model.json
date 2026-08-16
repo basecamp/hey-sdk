@@ -67,19 +67,6 @@
         ]
       }
     },
-    "CreateTopicMessage": {
-      "idempotent": false,
-      "readonly": false,
-      "retry": {
-        "backoff": "exponential",
-        "base_delay_ms": 1000,
-        "max": 2,
-        "retry_on": [
-          429,
-          503
-        ]
-      }
-    },
     "DeleteCalendarTodo": {
       "idempotent": true,
       "readonly": false,
@@ -379,19 +366,6 @@
         ]
       }
     },
-    "IgnorePosting": {
-      "idempotent": false,
-      "readonly": false,
-      "retry": {
-        "backoff": "exponential",
-        "base_delay_ms": 1000,
-        "max": 2,
-        "retry_on": [
-          429,
-          503
-        ]
-      }
-    },
     "ListBoxes": {
       "idempotent": false,
       "pagination": {
@@ -482,7 +456,7 @@
         ]
       }
     },
-    "MovePostingToFeed": {
+    "MovePostings": {
       "idempotent": false,
       "readonly": false,
       "retry": {
@@ -495,46 +469,7 @@
         ]
       }
     },
-    "MovePostingToPaperTrail": {
-      "idempotent": false,
-      "readonly": false,
-      "retry": {
-        "backoff": "exponential",
-        "base_delay_ms": 1000,
-        "max": 2,
-        "retry_on": [
-          429,
-          503
-        ]
-      }
-    },
-    "MovePostingToReplyLater": {
-      "idempotent": false,
-      "readonly": false,
-      "retry": {
-        "backoff": "exponential",
-        "base_delay_ms": 1000,
-        "max": 2,
-        "retry_on": [
-          429,
-          503
-        ]
-      }
-    },
-    "MovePostingToSetAside": {
-      "idempotent": false,
-      "readonly": false,
-      "retry": {
-        "backoff": "exponential",
-        "base_delay_ms": 1000,
-        "max": 2,
-        "retry_on": [
-          429,
-          503
-        ]
-      }
-    },
-    "MovePostingToTrash": {
+    "MutePostings": {
       "idempotent": false,
       "readonly": false,
       "retry": {
@@ -577,6 +512,19 @@
         ]
       }
     },
+    "TrashPostings": {
+      "idempotent": false,
+      "readonly": false,
+      "retry": {
+        "backoff": "exponential",
+        "base_delay_ms": 1000,
+        "max": 2,
+        "retry_on": [
+          429,
+          503
+        ]
+      }
+    },
     "UncompleteCalendarTodo": {
       "idempotent": true,
       "readonly": false,
@@ -597,6 +545,19 @@
         "backoff": "exponential",
         "base_delay_ms": 1000,
         "max": 3,
+        "retry_on": [
+          429,
+          503
+        ]
+      }
+    },
+    "UnmutePostings": {
+      "idempotent": true,
+      "readonly": false,
+      "retry": {
+        "backoff": "exponential",
+        "base_delay_ms": 1000,
+        "max": 2,
         "retry_on": [
           429,
           503

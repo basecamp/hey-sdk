@@ -246,10 +246,35 @@
       "params": {}
     },
     {
+      "pattern": "/postings/moves",
+      "resource": "Postings",
+      "operations": {
+        "POST": "MovePostings"
+      },
+      "params": {}
+    },
+    {
+      "pattern": "/postings/mutings",
+      "resource": "Postings",
+      "operations": {
+        "DELETE": "UnmutePostings",
+        "POST": "MutePostings"
+      },
+      "params": {}
+    },
+    {
       "pattern": "/postings/seen",
       "resource": "Postings",
       "operations": {
         "POST": "MarkPostingsSeen"
+      },
+      "params": {}
+    },
+    {
+      "pattern": "/postings/trash",
+      "resource": "Postings",
+      "operations": {
+        "POST": "TrashPostings"
       },
       "params": {}
     },
@@ -260,84 +285,6 @@
         "POST": "MarkPostingsUnseen"
       },
       "params": {}
-    },
-    {
-      "pattern": "/postings/{postingId}/ignore",
-      "resource": "Postings",
-      "operations": {
-        "POST": "IgnorePosting"
-      },
-      "params": {
-        "postingId": {
-          "role": "parent",
-          "type": "int64"
-        }
-      }
-    },
-    {
-      "pattern": "/postings/{postingId}/move/asidebox",
-      "resource": "Postings",
-      "operations": {
-        "POST": "MovePostingToSetAside"
-      },
-      "params": {
-        "postingId": {
-          "role": "parent",
-          "type": "int64"
-        }
-      }
-    },
-    {
-      "pattern": "/postings/{postingId}/move/feedbox",
-      "resource": "Postings",
-      "operations": {
-        "POST": "MovePostingToFeed"
-      },
-      "params": {
-        "postingId": {
-          "role": "parent",
-          "type": "int64"
-        }
-      }
-    },
-    {
-      "pattern": "/postings/{postingId}/move/laterbox",
-      "resource": "Postings",
-      "operations": {
-        "POST": "MovePostingToReplyLater"
-      },
-      "params": {
-        "postingId": {
-          "role": "parent",
-          "type": "int64"
-        }
-      }
-    },
-    {
-      "pattern": "/postings/{postingId}/move/trailbox",
-      "resource": "Postings",
-      "operations": {
-        "POST": "MovePostingToPaperTrail"
-      },
-      "params": {
-        "postingId": {
-          "role": "parent",
-          "type": "int64"
-        }
-      }
-    },
-    {
-      "pattern": "/postings/{postingId}/trash",
-      "resource": "Postings",
-      "operations": {
-        "POST": "MovePostingToTrash"
-      },
-      "params": {
-        "postingId": {
-          "role": "parent",
-          "type": "int64"
-        }
-      }
     },
     {
       "pattern": "/reply_later",
@@ -413,19 +360,6 @@
       "resource": "Topics",
       "operations": {
         "GET": "GetTopicEntries"
-      },
-      "params": {
-        "topicId": {
-          "role": "parent",
-          "type": "int64"
-        }
-      }
-    },
-    {
-      "pattern": "/topics/{topicId}/entries",
-      "resource": "Messages",
-      "operations": {
-        "POST": "CreateTopicMessage"
       },
       "params": {
         "topicId": {

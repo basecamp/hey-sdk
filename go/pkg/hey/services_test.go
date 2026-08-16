@@ -458,30 +458,6 @@ func TestMessagesService_Create(t *testing.T) {
 	}
 }
 
-func TestMessagesService_CreateTopicMessage(t *testing.T) {
-	client := newMutationTestClientWithValidation(t, "POST", "/topics/%s/entries.json",
-		func(t *testing.T, body map[string]any) {
-			t.Helper()
-			if _, ok := body["acting_sender_id"]; !ok {
-				t.Error("missing acting_sender_id")
-			}
-			msg, ok := body["message"].(map[string]any)
-			if !ok {
-				t.Fatal("missing message wrapper")
-			}
-			if msg["content"] != "Reply text" {
-				t.Errorf("expected content 'Reply text', got %v", msg["content"])
-			}
-		},
-		`{"notice":"sent"}`,
-	)
-
-	err := client.Messages().CreateTopicMessage(context.Background(), 42, "Reply text")
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-}
-
 // --- Entries ---
 
 func TestEntriesService_ListDrafts(t *testing.T) {
@@ -517,6 +493,49 @@ func TestEntriesService_CreateReply(t *testing.T) {
 	)
 
 	err := client.Entries().CreateReply(context.Background(), 10, "My reply", []string{"test@example.com"}, nil, nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestEntriesService_CreateReply_OmitsEntryWithoutRecipients(t *testing.T) {
+	client := newMutationTestClientWithValidation(t, "POST", "/entries/%s/replies.json",
+		func(t *testing.T, body map[string]any) {
+			t.Helper()
+			// An empty entry.addressed would clear the recipient list server-side
+			// (Entry#enter_reply treats {} as explicit), so it must be omitted.
+			if _, present := body["entry"]; present {
+				t.Errorf("entry must be omitted when no recipients are given, got %v", body["entry"])
+			}
+		},
+		`{"notice":"sent"}`,
+	)
+
+	if err := client.Entries().CreateReply(context.Background(), 10, "Reply-all", nil, nil, nil); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestEntriesService_CreateReply_RecipientsAreArrays(t *testing.T) {
+	client := newMutationTestClientWithValidation(t, "POST", "/entries/%s/replies.json",
+		func(t *testing.T, body map[string]any) {
+			t.Helper()
+			entry, _ := body["entry"].(map[string]any)
+			addressed, _ := entry["addressed"].(map[string]any)
+			if _, ok := addressed["directly"].([]any); !ok {
+				t.Errorf("directly must be a JSON array, got %T", addressed["directly"])
+			}
+			if _, ok := addressed["blindcopied"].([]any); !ok {
+				t.Errorf("blindcopied must be a JSON array, got %T", addressed["blindcopied"])
+			}
+			if _, present := addressed["copied"]; present {
+				t.Errorf("empty cc must be omitted, got %v", addressed["copied"])
+			}
+		},
+		`{"notice":"sent"}`,
+	)
+
+	err := client.Entries().CreateReply(context.Background(), 10, "hi", []string{"a@x.com"}, nil, []string{"b@x.com"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

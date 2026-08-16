@@ -785,16 +785,6 @@ func executeOperation(client *generated.Client, ctx context.Context, tc TestCase
 			},
 		}
 		return client.CreateMessage(ctx, body)
-	case "CreateTopicMessage":
-		topicId := getInt64Param(tc.PathParams, "topicId")
-		body := generated.CreateTopicMessageJSONRequestBody{
-			Message: generated.TopicMessagePayload{
-				Content: getStringParam(tc.RequestBody, "content"),
-			},
-		}
-		return client.CreateTopicMessage(ctx, topicId, body)
-
-	// Entries
 	case "ListDrafts":
 		return client.ListDrafts(ctx, nil)
 	case "CreateReply":
@@ -891,24 +881,25 @@ func executeOperation(client *generated.Client, ctx context.Context, tc TestCase
 			PostingIds: getInt64SliceParam(tc.RequestBody, "posting_ids"),
 		}
 		return client.MarkPostingsUnseen(ctx, body)
-	case "MovePostingToFeed":
-		postingId := getInt64Param(tc.PathParams, "postingId")
-		return client.MovePostingToFeed(ctx, postingId)
-	case "MovePostingToSetAside":
-		postingId := getInt64Param(tc.PathParams, "postingId")
-		return client.MovePostingToSetAside(ctx, postingId)
-	case "MovePostingToReplyLater":
-		postingId := getInt64Param(tc.PathParams, "postingId")
-		return client.MovePostingToReplyLater(ctx, postingId)
-	case "MovePostingToPaperTrail":
-		postingId := getInt64Param(tc.PathParams, "postingId")
-		return client.MovePostingToPaperTrail(ctx, postingId)
-	case "MovePostingToTrash":
-		postingId := getInt64Param(tc.PathParams, "postingId")
-		return client.MovePostingToTrash(ctx, postingId)
-	case "IgnorePosting":
-		postingId := getInt64Param(tc.PathParams, "postingId")
-		return client.IgnorePosting(ctx, postingId)
+	case "MovePostings":
+		body := generated.MovePostingsJSONRequestBody{
+			PostingIds: getInt64SliceParam(tc.RequestBody, "posting_ids"),
+			BoxId:      getInt64Param(tc.RequestBody, "box_id"),
+		}
+		return client.MovePostings(ctx, body)
+	case "TrashPostings":
+		body := generated.TrashPostingsJSONRequestBody{
+			PostingIds: getInt64SliceParam(tc.RequestBody, "posting_ids"),
+		}
+		return client.TrashPostings(ctx, body)
+	case "MutePostings":
+		body := generated.MutePostingsJSONRequestBody{
+			PostingIds: getInt64SliceParam(tc.RequestBody, "posting_ids"),
+		}
+		return client.MutePostings(ctx, body)
+	case "UnmutePostings":
+		params := &generated.UnmutePostingsParams{PostingIds: getStringParam(tc.QueryParams, "posting_ids")}
+		return client.UnmutePostings(ctx, params)
 
 	default:
 		return nil, fmt.Errorf("unknown operation: %s", tc.Operation)

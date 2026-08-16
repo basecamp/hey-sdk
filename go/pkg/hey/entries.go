@@ -1,8 +1,9 @@
 package hey
 
 import (
+	"bytes"
 	"context"
-	"fmt"
+	"encoding/json"
 	"time"
 
 	"github.com/basecamp/hey-sdk/go/pkg/generated"
@@ -44,8 +45,12 @@ func (s *EntriesService) ListDrafts(ctx context.Context, params *generated.ListD
 	return resp.JSON200, nil
 }
 
-// CreateReply creates a reply to an entry.
+// CreateReply replies to an entry (POST /entries/{entryId}/replies.json) and delivers it.
 // The acting sender ID is automatically resolved.
+//
+// If to/cc/bcc are all empty the "entry" key is omitted so HEY falls back to the
+// thread's existing recipients (reply-all). Sending an empty addressed hash would
+// clear the recipient list, because Entry#enter_reply treats {} as an explicit choice.
 func (s *EntriesService) CreateReply(ctx context.Context, entryID int64, content string, to, cc, bcc []string) (err error) {
 	op := OperationInfo{
 		Service: "Entries", Operation: "CreateReply",
@@ -71,22 +76,18 @@ func (s *EntriesService) CreateReply(ctx context.Context, entryID int64, content
 			"content": content,
 		},
 	}
-	addressed := map[string]any{}
-	if len(to) > 0 {
-		addressed["directly"] = to
+	if addressed := addressedPayload(to, cc, bcc); len(addressed) > 0 {
+		body["entry"] = map[string]any{"addressed": addressed}
 	}
-	if len(cc) > 0 {
-		addressed["copied"] = cc
-	}
-	if len(bcc) > 0 {
-		addressed["blindcopied"] = bcc
-	}
-	if len(addressed) > 0 {
-		body["entry"] = map[string]any{
-			"addressed": addressed,
-		}
+	payload, err := json.Marshal(body)
+	if err != nil {
+		return err
 	}
 
-	_, err = s.client.PostMutation(ctx, fmt.Sprintf("/entries/%d/replies.json", entryID), body)
-	return err
+	s.client.initGeneratedClient()
+	resp, err := s.client.gen.CreateReplyWithBodyWithResponse(ctx, entryID, "application/json", bytes.NewReader(payload))
+	if err != nil {
+		return err
+	}
+	return CheckResponse(resp.HTTPResponse)
 }
