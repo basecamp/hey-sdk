@@ -12,8 +12,8 @@ require (
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/oapi-codegen/runtime v1.2.0 // indirect
 	github.com/zalando/go-keyring v0.2.6 // indirect
-	golang.org/x/net v0.52.0 // indirect
-	golang.org/x/sys v0.42.0 // indirect
+	golang.org/x/net v0.58.0 // indirect
+	golang.org/x/sys v0.47.0 // indirect
 )
 
 replace github.com/basecamp/hey-sdk/go => ../../../go

@@ -4518,167 +4518,424 @@ func WithBaseURL(baseURL string) ClientOption {
 
 // ClientWithResponsesInterface is the interface specification for the client with responses above.
 type ClientWithResponsesInterface interface {
-	// ListBoxesWithResponse request
+
+	// ListBoxesWithResponse performs a GET /boxes.json (the `ListBoxes` operationId) request.
+	//
+	// List all boxes.
+	//
+	// Returns a wrapper object for the known response body format(s).
 	ListBoxesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListBoxesResponse, error)
 
-	// GetBoxWithResponse request
+	// GetBoxWithResponse performs a GET /boxes/{boxId} (the `GetBox` operationId) request.
+	//
+	// Get a specific box.
+	//
+	// Returns a wrapper object for the known response body format(s).
 	GetBoxWithResponse(ctx context.Context, boxId int64, params *GetBoxParams, reqEditors ...RequestEditorFn) (*GetBoxResponse, error)
 
-	// GetBubbleboxWithResponse request
+	// GetBubbleboxWithResponse performs a GET /bubble_up.json (the `GetBubblebox` operationId) request.
+	//
+	// Get the Bubble Up box.
+	//
+	// Returns a wrapper object for the known response body format(s).
 	GetBubbleboxWithResponse(ctx context.Context, params *GetBubbleboxParams, reqEditors ...RequestEditorFn) (*GetBubbleboxResponse, error)
 
-	// UncompleteHabitWithResponse request
+	// UncompleteHabitWithResponse performs a DELETE /calendar/days/{day}/habits/{habitId}/completions (the `UncompleteHabit` operationId) request.
+	//
+	// Uncomplete a habit for a day.
+	//
+	// Returns a wrapper object for the known response body format(s).
 	UncompleteHabitWithResponse(ctx context.Context, day string, habitId int64, reqEditors ...RequestEditorFn) (*UncompleteHabitResponse, error)
 
-	// CompleteHabitWithResponse request
+	// CompleteHabitWithResponse performs a POST /calendar/days/{day}/habits/{habitId}/completions (the `CompleteHabit` operationId) request.
+	//
+	// Complete a habit for a day.
+	//
+	// Returns a wrapper object for the known response body format(s).
 	CompleteHabitWithResponse(ctx context.Context, day string, habitId int64, reqEditors ...RequestEditorFn) (*CompleteHabitResponse, error)
 
-	// GetJournalEntryWithResponse request
+	// GetJournalEntryWithResponse performs a GET /calendar/days/{day}/journal_entry (the `GetJournalEntry` operationId) request.
+	//
+	// Get journal entry for a day.
+	//
+	// Returns a wrapper object for the known response body format(s).
 	GetJournalEntryWithResponse(ctx context.Context, day string, reqEditors ...RequestEditorFn) (*GetJournalEntryResponse, error)
 
-	// UpdateJournalEntryWithBodyWithResponse request with any body
+	// UpdateJournalEntryWithBodyWithResponse performs a PATCH /calendar/days/{day}/journal_entry (the `UpdateJournalEntry` operationId) request,
+	// with any type of body and a specified content type.
+	//
+	// Update journal entry for a day.
+	//
+	// Returns a wrapper object for the known response body format(s).
 	UpdateJournalEntryWithBodyWithResponse(ctx context.Context, day string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateJournalEntryResponse, error)
 
+	// UpdateJournalEntryWithResponse performs a PATCH /calendar/days/{day}/journal_entry (the `UpdateJournalEntry` operationId) request.
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Update journal entry for a day.
 	UpdateJournalEntryWithResponse(ctx context.Context, day string, body UpdateJournalEntryJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateJournalEntryResponse, error)
 
-	// GetOngoingTimeTrackWithResponse request
+	// GetOngoingTimeTrackWithResponse performs a GET /calendar/ongoing_time_track.json (the `GetOngoingTimeTrack` operationId) request.
+	//
+	// Get the ongoing time track (404 = no active track; see ADR-004)
+	//
+	// Returns a wrapper object for the known response body format(s).
 	GetOngoingTimeTrackWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetOngoingTimeTrackResponse, error)
 
-	// StartTimeTrackWithBodyWithResponse request with any body
+	// StartTimeTrackWithBodyWithResponse performs a POST /calendar/ongoing_time_track.json (the `StartTimeTrack` operationId) request,
+	// with any type of body and a specified content type.
+	//
+	// Start a new time track.
+	//
+	// Returns a wrapper object for the known response body format(s).
 	StartTimeTrackWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*StartTimeTrackResponse, error)
 
+	// StartTimeTrackWithResponse performs a POST /calendar/ongoing_time_track.json (the `StartTimeTrack` operationId) request.
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Start a new time track.
 	StartTimeTrackWithResponse(ctx context.Context, body StartTimeTrackJSONRequestBody, reqEditors ...RequestEditorFn) (*StartTimeTrackResponse, error)
 
-	// UpdateTimeTrackWithBodyWithResponse request with any body
+	// UpdateTimeTrackWithBodyWithResponse performs a PUT /calendar/time_tracks/{timeTrackId} (the `UpdateTimeTrack` operationId) request,
+	// with any type of body and a specified content type.
+	//
+	// Update a time track (stop by setting ends_at to current time).
+	//
+	// Returns a wrapper object for the known response body format(s).
 	UpdateTimeTrackWithBodyWithResponse(ctx context.Context, timeTrackId int64, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateTimeTrackResponse, error)
 
+	// UpdateTimeTrackWithResponse performs a PUT /calendar/time_tracks/{timeTrackId} (the `UpdateTimeTrack` operationId) request.
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Update a time track (stop by setting ends_at to current time).
 	UpdateTimeTrackWithResponse(ctx context.Context, timeTrackId int64, body UpdateTimeTrackJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateTimeTrackResponse, error)
 
-	// CreateCalendarTodoWithBodyWithResponse request with any body
+	// CreateCalendarTodoWithBodyWithResponse performs a POST /calendar/todos.json (the `CreateCalendarTodo` operationId) request,
+	// with any type of body and a specified content type.
+	//
+	// Create a calendar todo.
+	//
+	// Returns a wrapper object for the known response body format(s).
 	CreateCalendarTodoWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateCalendarTodoResponse, error)
 
+	// CreateCalendarTodoWithResponse performs a POST /calendar/todos.json (the `CreateCalendarTodo` operationId) request.
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Create a calendar todo.
 	CreateCalendarTodoWithResponse(ctx context.Context, body CreateCalendarTodoJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateCalendarTodoResponse, error)
 
-	// DeleteCalendarTodoWithResponse request
+	// DeleteCalendarTodoWithResponse performs a DELETE /calendar/todos/{todoId} (the `DeleteCalendarTodo` operationId) request.
+	//
+	// Delete a calendar todo.
+	//
+	// Returns a wrapper object for the known response body format(s).
 	DeleteCalendarTodoWithResponse(ctx context.Context, todoId int64, reqEditors ...RequestEditorFn) (*DeleteCalendarTodoResponse, error)
 
-	// UncompleteCalendarTodoWithResponse request
+	// UncompleteCalendarTodoWithResponse performs a DELETE /calendar/todos/{todoId}/completions (the `UncompleteCalendarTodo` operationId) request.
+	//
+	// Uncomplete a calendar todo.
+	//
+	// Returns a wrapper object for the known response body format(s).
 	UncompleteCalendarTodoWithResponse(ctx context.Context, todoId int64, reqEditors ...RequestEditorFn) (*UncompleteCalendarTodoResponse, error)
 
-	// CompleteCalendarTodoWithResponse request
+	// CompleteCalendarTodoWithResponse performs a POST /calendar/todos/{todoId}/completions (the `CompleteCalendarTodo` operationId) request.
+	//
+	// Complete a calendar todo.
+	//
+	// Returns a wrapper object for the known response body format(s).
 	CompleteCalendarTodoWithResponse(ctx context.Context, todoId int64, reqEditors ...RequestEditorFn) (*CompleteCalendarTodoResponse, error)
 
-	// ListCalendarsWithResponse request
+	// ListCalendarsWithResponse performs a GET /calendars.json (the `ListCalendars` operationId) request.
+	//
+	// List calendars.
+	//
+	// Returns a wrapper object for the known response body format(s).
 	ListCalendarsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListCalendarsResponse, error)
 
-	// GetCalendarRecordingsWithResponse request
+	// GetCalendarRecordingsWithResponse performs a GET /calendars/{calendarId}/recordings (the `GetCalendarRecordings` operationId) request.
+	//
+	// Get recordings for a calendar.
+	//
+	// Returns a wrapper object for the known response body format(s).
 	GetCalendarRecordingsWithResponse(ctx context.Context, calendarId int64, params *GetCalendarRecordingsParams, reqEditors ...RequestEditorFn) (*GetCalendarRecordingsResponse, error)
 
-	// ListContactsWithResponse request
+	// ListContactsWithResponse performs a GET /contacts.json (the `ListContacts` operationId) request.
+	//
+	// List contacts.
+	//
+	// Returns a wrapper object for the known response body format(s).
 	ListContactsWithResponse(ctx context.Context, params *ListContactsParams, reqEditors ...RequestEditorFn) (*ListContactsResponse, error)
 
-	// GetContactWithResponse request
+	// GetContactWithResponse performs a GET /contacts/{contactId} (the `GetContact` operationId) request.
+	//
+	// Get a contact.
+	//
+	// Returns a wrapper object for the known response body format(s).
 	GetContactWithResponse(ctx context.Context, contactId int64, reqEditors ...RequestEditorFn) (*GetContactResponse, error)
 
-	// ListDraftsWithResponse request
+	// ListDraftsWithResponse performs a GET /entries/drafts.json (the `ListDrafts` operationId) request.
+	//
+	// List draft messages.
+	//
+	// Returns a wrapper object for the known response body format(s).
 	ListDraftsWithResponse(ctx context.Context, params *ListDraftsParams, reqEditors ...RequestEditorFn) (*ListDraftsResponse, error)
 
-	// CreateReplyWithBodyWithResponse request with any body
+	// CreateReplyWithBodyWithResponse performs a POST /entries/{entryId}/replies.json (the `CreateReply` operationId) request,
+	// with any type of body and a specified content type.
+	//
+	// Reply to an entry.
+	//
+	// Returns a wrapper object for the known response body format(s).
 	CreateReplyWithBodyWithResponse(ctx context.Context, entryId int64, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateReplyResponse, error)
 
+	// CreateReplyWithResponse performs a POST /entries/{entryId}/replies.json (the `CreateReply` operationId) request.
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Reply to an entry.
 	CreateReplyWithResponse(ctx context.Context, entryId int64, body CreateReplyJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateReplyResponse, error)
 
-	// GetFeedboxWithResponse request
+	// GetFeedboxWithResponse performs a GET /feedbox.json (the `GetFeedbox` operationId) request.
+	//
+	// Get the Feed.
+	//
+	// Returns a wrapper object for the known response body format(s).
 	GetFeedboxWithResponse(ctx context.Context, params *GetFeedboxParams, reqEditors ...RequestEditorFn) (*GetFeedboxResponse, error)
 
-	// GetIdentityWithResponse request
+	// GetIdentityWithResponse performs a GET /identity.json (the `GetIdentity` operationId) request.
+	//
+	// Get the current identity (authenticated user profile).
+	//
+	// Returns a wrapper object for the known response body format(s).
 	GetIdentityWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetIdentityResponse, error)
 
-	// GetImboxWithResponse request
+	// GetImboxWithResponse performs a GET /imbox.json (the `GetImbox` operationId) request.
+	//
+	// Get the Imbox.
+	//
+	// Returns a wrapper object for the known response body format(s).
 	GetImboxWithResponse(ctx context.Context, params *GetImboxParams, reqEditors ...RequestEditorFn) (*GetImboxResponse, error)
 
-	// CreateMessageWithBodyWithResponse request with any body
+	// CreateMessageWithBodyWithResponse performs a POST /messages.json (the `CreateMessage` operationId) request,
+	// with any type of body and a specified content type.
+	//
+	// Create a new message (start a new topic).
+	// The acting sender ID must be included; the Go SDK resolves this automatically.
+	//
+	// Returns a wrapper object for the known response body format(s).
 	CreateMessageWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateMessageResponse, error)
 
+	// CreateMessageWithResponse performs a POST /messages.json (the `CreateMessage` operationId) request.
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Create a new message (start a new topic).
+	// The acting sender ID must be included; the Go SDK resolves this automatically.
 	CreateMessageWithResponse(ctx context.Context, body CreateMessageJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateMessageResponse, error)
 
-	// GetMessageWithResponse request
+	// GetMessageWithResponse performs a GET /messages/{messageId} (the `GetMessage` operationId) request.
+	//
+	// Get a message.
+	//
+	// Returns a wrapper object for the known response body format(s).
 	GetMessageWithResponse(ctx context.Context, messageId int64, reqEditors ...RequestEditorFn) (*GetMessageResponse, error)
 
-	// GetNavigationWithResponse request
+	// GetNavigationWithResponse performs a GET /my/navigation.json (the `GetNavigation` operationId) request.
+	//
+	// Get navigation items.
+	//
+	// Returns a wrapper object for the known response body format(s).
 	GetNavigationWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetNavigationResponse, error)
 
-	// GetTrailboxWithResponse request
+	// GetTrailboxWithResponse performs a GET /paper_trail.json (the `GetTrailbox` operationId) request.
+	//
+	// Get the Paper Trail.
+	//
+	// Returns a wrapper object for the known response body format(s).
 	GetTrailboxWithResponse(ctx context.Context, params *GetTrailboxParams, reqEditors ...RequestEditorFn) (*GetTrailboxResponse, error)
 
-	// MarkPostingsSeenWithBodyWithResponse request with any body
+	// MarkPostingsSeenWithBodyWithResponse performs a POST /postings/seen.json (the `MarkPostingsSeen` operationId) request,
+	// with any type of body and a specified content type.
+	//
+	// Mark postings as seen.
+	//
+	// Returns a wrapper object for the known response body format(s).
 	MarkPostingsSeenWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*MarkPostingsSeenResponse, error)
 
+	// MarkPostingsSeenWithResponse performs a POST /postings/seen.json (the `MarkPostingsSeen` operationId) request.
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Mark postings as seen.
 	MarkPostingsSeenWithResponse(ctx context.Context, body MarkPostingsSeenJSONRequestBody, reqEditors ...RequestEditorFn) (*MarkPostingsSeenResponse, error)
 
-	// MarkPostingsUnseenWithBodyWithResponse request with any body
+	// MarkPostingsUnseenWithBodyWithResponse performs a POST /postings/unseen.json (the `MarkPostingsUnseen` operationId) request,
+	// with any type of body and a specified content type.
+	//
+	// Mark postings as unseen.
+	//
+	// Returns a wrapper object for the known response body format(s).
 	MarkPostingsUnseenWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*MarkPostingsUnseenResponse, error)
 
+	// MarkPostingsUnseenWithResponse performs a POST /postings/unseen.json (the `MarkPostingsUnseen` operationId) request.
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Mark postings as unseen.
 	MarkPostingsUnseenWithResponse(ctx context.Context, body MarkPostingsUnseenJSONRequestBody, reqEditors ...RequestEditorFn) (*MarkPostingsUnseenResponse, error)
 
-	// IgnorePostingWithResponse request
+	// IgnorePostingWithResponse performs a POST /postings/{postingId}/ignore.json (the `IgnorePosting` operationId) request.
+	//
+	// Ignore a posting (stop notifications).
+	//
+	// Returns a wrapper object for the known response body format(s).
 	IgnorePostingWithResponse(ctx context.Context, postingId int64, reqEditors ...RequestEditorFn) (*IgnorePostingResponse, error)
 
-	// MovePostingToSetAsideWithResponse request
+	// MovePostingToSetAsideWithResponse performs a POST /postings/{postingId}/move/asidebox.json (the `MovePostingToSetAside` operationId) request.
+	//
+	// Move posting to Set Aside.
+	//
+	// Returns a wrapper object for the known response body format(s).
 	MovePostingToSetAsideWithResponse(ctx context.Context, postingId int64, reqEditors ...RequestEditorFn) (*MovePostingToSetAsideResponse, error)
 
-	// MovePostingToFeedWithResponse request
+	// MovePostingToFeedWithResponse performs a POST /postings/{postingId}/move/feedbox.json (the `MovePostingToFeed` operationId) request.
+	//
+	// Move posting to The Feed.
+	//
+	// Returns a wrapper object for the known response body format(s).
 	MovePostingToFeedWithResponse(ctx context.Context, postingId int64, reqEditors ...RequestEditorFn) (*MovePostingToFeedResponse, error)
 
-	// MovePostingToReplyLaterWithResponse request
+	// MovePostingToReplyLaterWithResponse performs a POST /postings/{postingId}/move/laterbox.json (the `MovePostingToReplyLater` operationId) request.
+	//
+	// Move posting to Reply Later.
+	//
+	// Returns a wrapper object for the known response body format(s).
 	MovePostingToReplyLaterWithResponse(ctx context.Context, postingId int64, reqEditors ...RequestEditorFn) (*MovePostingToReplyLaterResponse, error)
 
-	// MovePostingToPaperTrailWithResponse request
+	// MovePostingToPaperTrailWithResponse performs a POST /postings/{postingId}/move/trailbox.json (the `MovePostingToPaperTrail` operationId) request.
+	//
+	// Move posting to Paper Trail.
+	//
+	// Returns a wrapper object for the known response body format(s).
 	MovePostingToPaperTrailWithResponse(ctx context.Context, postingId int64, reqEditors ...RequestEditorFn) (*MovePostingToPaperTrailResponse, error)
 
-	// MovePostingToTrashWithResponse request
+	// MovePostingToTrashWithResponse performs a POST /postings/{postingId}/trash.json (the `MovePostingToTrash` operationId) request.
+	//
+	// Move posting to trash.
+	//
+	// Returns a wrapper object for the known response body format(s).
 	MovePostingToTrashWithResponse(ctx context.Context, postingId int64, reqEditors ...RequestEditorFn) (*MovePostingToTrashResponse, error)
 
-	// GetLaterboxWithResponse request
+	// GetLaterboxWithResponse performs a GET /reply_later.json (the `GetLaterbox` operationId) request.
+	//
+	// Get the Reply Later box.
+	//
+	// Returns a wrapper object for the known response body format(s).
 	GetLaterboxWithResponse(ctx context.Context, params *GetLaterboxParams, reqEditors ...RequestEditorFn) (*GetLaterboxResponse, error)
 
-	// SearchWithResponse request
+	// SearchWithResponse performs a GET /search.json (the `Search` operationId) request.
+	//
+	// Search topics.
+	//
+	// Returns a wrapper object for the known response body format(s).
 	SearchWithResponse(ctx context.Context, params *SearchParams, reqEditors ...RequestEditorFn) (*SearchResponse, error)
 
-	// GetAsideboxWithResponse request
+	// GetAsideboxWithResponse performs a GET /set_aside.json (the `GetAsidebox` operationId) request.
+	//
+	// Get the Set Aside box.
+	//
+	// Returns a wrapper object for the known response body format(s).
 	GetAsideboxWithResponse(ctx context.Context, params *GetAsideboxParams, reqEditors ...RequestEditorFn) (*GetAsideboxResponse, error)
 
-	// GetEverythingTopicsWithResponse request
+	// GetEverythingTopicsWithResponse performs a GET /topics/everything.json (the `GetEverythingTopics` operationId) request.
+	//
+	// Get all topics (everything view).
+	//
+	// Returns a wrapper object for the known response body format(s).
 	GetEverythingTopicsWithResponse(ctx context.Context, params *GetEverythingTopicsParams, reqEditors ...RequestEditorFn) (*GetEverythingTopicsResponse, error)
 
-	// GetSentTopicsWithResponse request
+	// GetSentTopicsWithResponse performs a GET /topics/sent.json (the `GetSentTopics` operationId) request.
+	//
+	// Get sent topics.
+	//
+	// Returns a wrapper object for the known response body format(s).
 	GetSentTopicsWithResponse(ctx context.Context, params *GetSentTopicsParams, reqEditors ...RequestEditorFn) (*GetSentTopicsResponse, error)
 
-	// GetSpamTopicsWithResponse request
+	// GetSpamTopicsWithResponse performs a GET /topics/spam.json (the `GetSpamTopics` operationId) request.
+	//
+	// Get spam topics.
+	//
+	// Returns a wrapper object for the known response body format(s).
 	GetSpamTopicsWithResponse(ctx context.Context, params *GetSpamTopicsParams, reqEditors ...RequestEditorFn) (*GetSpamTopicsResponse, error)
 
-	// GetTrashTopicsWithResponse request
+	// GetTrashTopicsWithResponse performs a GET /topics/trash.json (the `GetTrashTopics` operationId) request.
+	//
+	// Get trash topics.
+	//
+	// Returns a wrapper object for the known response body format(s).
 	GetTrashTopicsWithResponse(ctx context.Context, params *GetTrashTopicsParams, reqEditors ...RequestEditorFn) (*GetTrashTopicsResponse, error)
 
-	// GetTopicWithResponse request
+	// GetTopicWithResponse performs a GET /topics/{topicId} (the `GetTopic` operationId) request.
+	//
+	// Get a topic.
+	//
+	// Returns a wrapper object for the known response body format(s).
 	GetTopicWithResponse(ctx context.Context, topicId int64, reqEditors ...RequestEditorFn) (*GetTopicResponse, error)
 
-	// GetTopicEntriesWithResponse request
+	// GetTopicEntriesWithResponse performs a GET /topics/{topicId}/entries (the `GetTopicEntries` operationId) request.
+	//
+	// Get entries for a topic.
+	//
+	// Returns a wrapper object for the known response body format(s).
 	GetTopicEntriesWithResponse(ctx context.Context, topicId int64, params *GetTopicEntriesParams, reqEditors ...RequestEditorFn) (*GetTopicEntriesResponse, error)
 
-	// CreateTopicMessageWithBodyWithResponse request with any body
+	// CreateTopicMessageWithBodyWithResponse performs a POST /topics/{topicId}/entries.json (the `CreateTopicMessage` operationId) request,
+	// with any type of body and a specified content type.
+	//
+	// Reply to an existing topic.
+	//
+	// Returns a wrapper object for the known response body format(s).
 	CreateTopicMessageWithBodyWithResponse(ctx context.Context, topicId int64, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateTopicMessageResponse, error)
 
+	// CreateTopicMessageWithResponse performs a POST /topics/{topicId}/entries.json (the `CreateTopicMessage` operationId) request.
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Reply to an existing topic.
 	CreateTopicMessageWithResponse(ctx context.Context, topicId int64, body CreateTopicMessageJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateTopicMessageResponse, error)
 }
 
 type ListBoxesResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
-	JSON200      *ListBoxesResponseContent
-	JSON401      *UnauthorizedErrorResponseContent
-	JSON500      *InternalServerErrorResponseContent
-	JSON503      *ServiceUnavailableErrorResponseContent
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *ListBoxesResponseContent
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *UnauthorizedErrorResponseContent
+	// JSON500 the response for an HTTP 500 `application/json` response
+	JSON500 *InternalServerErrorResponseContent
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *ServiceUnavailableErrorResponseContent
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListBoxesResponse) GetJSON200() *ListBoxesResponseContent {
+	return r.JSON200
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r ListBoxesResponse) GetJSON401() *UnauthorizedErrorResponseContent {
+	return r.JSON401
+}
+
+// GetJSON500 returns the response for an HTTP 500 `application/json` response
+func (r ListBoxesResponse) GetJSON500() *InternalServerErrorResponseContent {
+	return r.JSON500
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r ListBoxesResponse) GetJSON503() *ServiceUnavailableErrorResponseContent {
+	return r.JSON503
+}
+
+// GetBody returns the raw response body bytes
+func (r ListBoxesResponse) GetBody() []byte {
+	return r.Body
 }
 
 // Status returns HTTPResponse.Status
@@ -4697,14 +4954,57 @@ func (r ListBoxesResponse) StatusCode() int {
 	return 0
 }
 
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListBoxesResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type GetBoxResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
-	JSON200      *GetBoxResponseContent
-	JSON401      *UnauthorizedErrorResponseContent
-	JSON404      *NotFoundErrorResponseContent
-	JSON500      *InternalServerErrorResponseContent
-	JSON503      *ServiceUnavailableErrorResponseContent
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *GetBoxResponseContent
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *UnauthorizedErrorResponseContent
+	// JSON404 the response for an HTTP 404 `application/json` response
+	JSON404 *NotFoundErrorResponseContent
+	// JSON500 the response for an HTTP 500 `application/json` response
+	JSON500 *InternalServerErrorResponseContent
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *ServiceUnavailableErrorResponseContent
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r GetBoxResponse) GetJSON200() *GetBoxResponseContent {
+	return r.JSON200
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r GetBoxResponse) GetJSON401() *UnauthorizedErrorResponseContent {
+	return r.JSON401
+}
+
+// GetJSON404 returns the response for an HTTP 404 `application/json` response
+func (r GetBoxResponse) GetJSON404() *NotFoundErrorResponseContent {
+	return r.JSON404
+}
+
+// GetJSON500 returns the response for an HTTP 500 `application/json` response
+func (r GetBoxResponse) GetJSON500() *InternalServerErrorResponseContent {
+	return r.JSON500
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r GetBoxResponse) GetJSON503() *ServiceUnavailableErrorResponseContent {
+	return r.JSON503
+}
+
+// GetBody returns the raw response body bytes
+func (r GetBoxResponse) GetBody() []byte {
+	return r.Body
 }
 
 // Status returns HTTPResponse.Status
@@ -4723,13 +5023,50 @@ func (r GetBoxResponse) StatusCode() int {
 	return 0
 }
 
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r GetBoxResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type GetBubbleboxResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
-	JSON200      *GetBubbleboxResponseContent
-	JSON401      *UnauthorizedErrorResponseContent
-	JSON500      *InternalServerErrorResponseContent
-	JSON503      *ServiceUnavailableErrorResponseContent
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *GetBubbleboxResponseContent
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *UnauthorizedErrorResponseContent
+	// JSON500 the response for an HTTP 500 `application/json` response
+	JSON500 *InternalServerErrorResponseContent
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *ServiceUnavailableErrorResponseContent
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r GetBubbleboxResponse) GetJSON200() *GetBubbleboxResponseContent {
+	return r.JSON200
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r GetBubbleboxResponse) GetJSON401() *UnauthorizedErrorResponseContent {
+	return r.JSON401
+}
+
+// GetJSON500 returns the response for an HTTP 500 `application/json` response
+func (r GetBubbleboxResponse) GetJSON500() *InternalServerErrorResponseContent {
+	return r.JSON500
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r GetBubbleboxResponse) GetJSON503() *ServiceUnavailableErrorResponseContent {
+	return r.JSON503
+}
+
+// GetBody returns the raw response body bytes
+func (r GetBubbleboxResponse) GetBody() []byte {
+	return r.Body
 }
 
 // Status returns HTTPResponse.Status
@@ -4748,14 +5085,57 @@ func (r GetBubbleboxResponse) StatusCode() int {
 	return 0
 }
 
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r GetBubbleboxResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type UncompleteHabitResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
-	JSON200      *UncompleteHabitResponseContent
-	JSON401      *UnauthorizedErrorResponseContent
-	JSON404      *NotFoundErrorResponseContent
-	JSON500      *InternalServerErrorResponseContent
-	JSON503      *ServiceUnavailableErrorResponseContent
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *UncompleteHabitResponseContent
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *UnauthorizedErrorResponseContent
+	// JSON404 the response for an HTTP 404 `application/json` response
+	JSON404 *NotFoundErrorResponseContent
+	// JSON500 the response for an HTTP 500 `application/json` response
+	JSON500 *InternalServerErrorResponseContent
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *ServiceUnavailableErrorResponseContent
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r UncompleteHabitResponse) GetJSON200() *UncompleteHabitResponseContent {
+	return r.JSON200
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r UncompleteHabitResponse) GetJSON401() *UnauthorizedErrorResponseContent {
+	return r.JSON401
+}
+
+// GetJSON404 returns the response for an HTTP 404 `application/json` response
+func (r UncompleteHabitResponse) GetJSON404() *NotFoundErrorResponseContent {
+	return r.JSON404
+}
+
+// GetJSON500 returns the response for an HTTP 500 `application/json` response
+func (r UncompleteHabitResponse) GetJSON500() *InternalServerErrorResponseContent {
+	return r.JSON500
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r UncompleteHabitResponse) GetJSON503() *ServiceUnavailableErrorResponseContent {
+	return r.JSON503
+}
+
+// GetBody returns the raw response body bytes
+func (r UncompleteHabitResponse) GetBody() []byte {
+	return r.Body
 }
 
 // Status returns HTTPResponse.Status
@@ -4774,14 +5154,57 @@ func (r UncompleteHabitResponse) StatusCode() int {
 	return 0
 }
 
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r UncompleteHabitResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type CompleteHabitResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
-	JSON200      *CompleteHabitResponseContent
-	JSON401      *UnauthorizedErrorResponseContent
-	JSON404      *NotFoundErrorResponseContent
-	JSON500      *InternalServerErrorResponseContent
-	JSON503      *ServiceUnavailableErrorResponseContent
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *CompleteHabitResponseContent
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *UnauthorizedErrorResponseContent
+	// JSON404 the response for an HTTP 404 `application/json` response
+	JSON404 *NotFoundErrorResponseContent
+	// JSON500 the response for an HTTP 500 `application/json` response
+	JSON500 *InternalServerErrorResponseContent
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *ServiceUnavailableErrorResponseContent
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r CompleteHabitResponse) GetJSON200() *CompleteHabitResponseContent {
+	return r.JSON200
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r CompleteHabitResponse) GetJSON401() *UnauthorizedErrorResponseContent {
+	return r.JSON401
+}
+
+// GetJSON404 returns the response for an HTTP 404 `application/json` response
+func (r CompleteHabitResponse) GetJSON404() *NotFoundErrorResponseContent {
+	return r.JSON404
+}
+
+// GetJSON500 returns the response for an HTTP 500 `application/json` response
+func (r CompleteHabitResponse) GetJSON500() *InternalServerErrorResponseContent {
+	return r.JSON500
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r CompleteHabitResponse) GetJSON503() *ServiceUnavailableErrorResponseContent {
+	return r.JSON503
+}
+
+// GetBody returns the raw response body bytes
+func (r CompleteHabitResponse) GetBody() []byte {
+	return r.Body
 }
 
 // Status returns HTTPResponse.Status
@@ -4800,14 +5223,57 @@ func (r CompleteHabitResponse) StatusCode() int {
 	return 0
 }
 
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r CompleteHabitResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type GetJournalEntryResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
-	JSON200      *GetJournalEntryResponseContent
-	JSON401      *UnauthorizedErrorResponseContent
-	JSON404      *NotFoundErrorResponseContent
-	JSON500      *InternalServerErrorResponseContent
-	JSON503      *ServiceUnavailableErrorResponseContent
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *GetJournalEntryResponseContent
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *UnauthorizedErrorResponseContent
+	// JSON404 the response for an HTTP 404 `application/json` response
+	JSON404 *NotFoundErrorResponseContent
+	// JSON500 the response for an HTTP 500 `application/json` response
+	JSON500 *InternalServerErrorResponseContent
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *ServiceUnavailableErrorResponseContent
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r GetJournalEntryResponse) GetJSON200() *GetJournalEntryResponseContent {
+	return r.JSON200
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r GetJournalEntryResponse) GetJSON401() *UnauthorizedErrorResponseContent {
+	return r.JSON401
+}
+
+// GetJSON404 returns the response for an HTTP 404 `application/json` response
+func (r GetJournalEntryResponse) GetJSON404() *NotFoundErrorResponseContent {
+	return r.JSON404
+}
+
+// GetJSON500 returns the response for an HTTP 500 `application/json` response
+func (r GetJournalEntryResponse) GetJSON500() *InternalServerErrorResponseContent {
+	return r.JSON500
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r GetJournalEntryResponse) GetJSON503() *ServiceUnavailableErrorResponseContent {
+	return r.JSON503
+}
+
+// GetBody returns the raw response body bytes
+func (r GetJournalEntryResponse) GetBody() []byte {
+	return r.Body
 }
 
 // Status returns HTTPResponse.Status
@@ -4826,14 +5292,57 @@ func (r GetJournalEntryResponse) StatusCode() int {
 	return 0
 }
 
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r GetJournalEntryResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type UpdateJournalEntryResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
-	JSON401      *UnauthorizedErrorResponseContent
-	JSON404      *NotFoundErrorResponseContent
-	JSON422      *UnprocessableEntityErrorResponseContent
-	JSON500      *InternalServerErrorResponseContent
-	JSON503      *ServiceUnavailableErrorResponseContent
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *UnauthorizedErrorResponseContent
+	// JSON404 the response for an HTTP 404 `application/json` response
+	JSON404 *NotFoundErrorResponseContent
+	// JSON422 the response for an HTTP 422 `application/json` response
+	JSON422 *UnprocessableEntityErrorResponseContent
+	// JSON500 the response for an HTTP 500 `application/json` response
+	JSON500 *InternalServerErrorResponseContent
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *ServiceUnavailableErrorResponseContent
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r UpdateJournalEntryResponse) GetJSON401() *UnauthorizedErrorResponseContent {
+	return r.JSON401
+}
+
+// GetJSON404 returns the response for an HTTP 404 `application/json` response
+func (r UpdateJournalEntryResponse) GetJSON404() *NotFoundErrorResponseContent {
+	return r.JSON404
+}
+
+// GetJSON422 returns the response for an HTTP 422 `application/json` response
+func (r UpdateJournalEntryResponse) GetJSON422() *UnprocessableEntityErrorResponseContent {
+	return r.JSON422
+}
+
+// GetJSON500 returns the response for an HTTP 500 `application/json` response
+func (r UpdateJournalEntryResponse) GetJSON500() *InternalServerErrorResponseContent {
+	return r.JSON500
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r UpdateJournalEntryResponse) GetJSON503() *ServiceUnavailableErrorResponseContent {
+	return r.JSON503
+}
+
+// GetBody returns the raw response body bytes
+func (r UpdateJournalEntryResponse) GetBody() []byte {
+	return r.Body
 }
 
 // Status returns HTTPResponse.Status
@@ -4852,13 +5361,50 @@ func (r UpdateJournalEntryResponse) StatusCode() int {
 	return 0
 }
 
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r UpdateJournalEntryResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type GetOngoingTimeTrackResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
-	JSON200      *GetOngoingTimeTrackResponseContent
-	JSON401      *UnauthorizedErrorResponseContent
-	JSON500      *InternalServerErrorResponseContent
-	JSON503      *ServiceUnavailableErrorResponseContent
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *GetOngoingTimeTrackResponseContent
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *UnauthorizedErrorResponseContent
+	// JSON500 the response for an HTTP 500 `application/json` response
+	JSON500 *InternalServerErrorResponseContent
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *ServiceUnavailableErrorResponseContent
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r GetOngoingTimeTrackResponse) GetJSON200() *GetOngoingTimeTrackResponseContent {
+	return r.JSON200
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r GetOngoingTimeTrackResponse) GetJSON401() *UnauthorizedErrorResponseContent {
+	return r.JSON401
+}
+
+// GetJSON500 returns the response for an HTTP 500 `application/json` response
+func (r GetOngoingTimeTrackResponse) GetJSON500() *InternalServerErrorResponseContent {
+	return r.JSON500
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r GetOngoingTimeTrackResponse) GetJSON503() *ServiceUnavailableErrorResponseContent {
+	return r.JSON503
+}
+
+// GetBody returns the raw response body bytes
+func (r GetOngoingTimeTrackResponse) GetBody() []byte {
+	return r.Body
 }
 
 // Status returns HTTPResponse.Status
@@ -4877,14 +5423,57 @@ func (r GetOngoingTimeTrackResponse) StatusCode() int {
 	return 0
 }
 
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r GetOngoingTimeTrackResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type StartTimeTrackResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
-	JSON200      *StartTimeTrackResponseContent
-	JSON401      *UnauthorizedErrorResponseContent
-	JSON422      *UnprocessableEntityErrorResponseContent
-	JSON500      *InternalServerErrorResponseContent
-	JSON503      *ServiceUnavailableErrorResponseContent
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *StartTimeTrackResponseContent
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *UnauthorizedErrorResponseContent
+	// JSON422 the response for an HTTP 422 `application/json` response
+	JSON422 *UnprocessableEntityErrorResponseContent
+	// JSON500 the response for an HTTP 500 `application/json` response
+	JSON500 *InternalServerErrorResponseContent
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *ServiceUnavailableErrorResponseContent
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r StartTimeTrackResponse) GetJSON200() *StartTimeTrackResponseContent {
+	return r.JSON200
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r StartTimeTrackResponse) GetJSON401() *UnauthorizedErrorResponseContent {
+	return r.JSON401
+}
+
+// GetJSON422 returns the response for an HTTP 422 `application/json` response
+func (r StartTimeTrackResponse) GetJSON422() *UnprocessableEntityErrorResponseContent {
+	return r.JSON422
+}
+
+// GetJSON500 returns the response for an HTTP 500 `application/json` response
+func (r StartTimeTrackResponse) GetJSON500() *InternalServerErrorResponseContent {
+	return r.JSON500
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r StartTimeTrackResponse) GetJSON503() *ServiceUnavailableErrorResponseContent {
+	return r.JSON503
+}
+
+// GetBody returns the raw response body bytes
+func (r StartTimeTrackResponse) GetBody() []byte {
+	return r.Body
 }
 
 // Status returns HTTPResponse.Status
@@ -4903,15 +5492,64 @@ func (r StartTimeTrackResponse) StatusCode() int {
 	return 0
 }
 
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r StartTimeTrackResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type UpdateTimeTrackResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
-	JSON200      *UpdateTimeTrackResponseContent
-	JSON401      *UnauthorizedErrorResponseContent
-	JSON404      *NotFoundErrorResponseContent
-	JSON422      *UnprocessableEntityErrorResponseContent
-	JSON500      *InternalServerErrorResponseContent
-	JSON503      *ServiceUnavailableErrorResponseContent
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *UpdateTimeTrackResponseContent
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *UnauthorizedErrorResponseContent
+	// JSON404 the response for an HTTP 404 `application/json` response
+	JSON404 *NotFoundErrorResponseContent
+	// JSON422 the response for an HTTP 422 `application/json` response
+	JSON422 *UnprocessableEntityErrorResponseContent
+	// JSON500 the response for an HTTP 500 `application/json` response
+	JSON500 *InternalServerErrorResponseContent
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *ServiceUnavailableErrorResponseContent
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r UpdateTimeTrackResponse) GetJSON200() *UpdateTimeTrackResponseContent {
+	return r.JSON200
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r UpdateTimeTrackResponse) GetJSON401() *UnauthorizedErrorResponseContent {
+	return r.JSON401
+}
+
+// GetJSON404 returns the response for an HTTP 404 `application/json` response
+func (r UpdateTimeTrackResponse) GetJSON404() *NotFoundErrorResponseContent {
+	return r.JSON404
+}
+
+// GetJSON422 returns the response for an HTTP 422 `application/json` response
+func (r UpdateTimeTrackResponse) GetJSON422() *UnprocessableEntityErrorResponseContent {
+	return r.JSON422
+}
+
+// GetJSON500 returns the response for an HTTP 500 `application/json` response
+func (r UpdateTimeTrackResponse) GetJSON500() *InternalServerErrorResponseContent {
+	return r.JSON500
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r UpdateTimeTrackResponse) GetJSON503() *ServiceUnavailableErrorResponseContent {
+	return r.JSON503
+}
+
+// GetBody returns the raw response body bytes
+func (r UpdateTimeTrackResponse) GetBody() []byte {
+	return r.Body
 }
 
 // Status returns HTTPResponse.Status
@@ -4930,14 +5568,57 @@ func (r UpdateTimeTrackResponse) StatusCode() int {
 	return 0
 }
 
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r UpdateTimeTrackResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type CreateCalendarTodoResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
-	JSON200      *CreateCalendarTodoResponseContent
-	JSON401      *UnauthorizedErrorResponseContent
-	JSON422      *UnprocessableEntityErrorResponseContent
-	JSON500      *InternalServerErrorResponseContent
-	JSON503      *ServiceUnavailableErrorResponseContent
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *CreateCalendarTodoResponseContent
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *UnauthorizedErrorResponseContent
+	// JSON422 the response for an HTTP 422 `application/json` response
+	JSON422 *UnprocessableEntityErrorResponseContent
+	// JSON500 the response for an HTTP 500 `application/json` response
+	JSON500 *InternalServerErrorResponseContent
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *ServiceUnavailableErrorResponseContent
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r CreateCalendarTodoResponse) GetJSON200() *CreateCalendarTodoResponseContent {
+	return r.JSON200
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r CreateCalendarTodoResponse) GetJSON401() *UnauthorizedErrorResponseContent {
+	return r.JSON401
+}
+
+// GetJSON422 returns the response for an HTTP 422 `application/json` response
+func (r CreateCalendarTodoResponse) GetJSON422() *UnprocessableEntityErrorResponseContent {
+	return r.JSON422
+}
+
+// GetJSON500 returns the response for an HTTP 500 `application/json` response
+func (r CreateCalendarTodoResponse) GetJSON500() *InternalServerErrorResponseContent {
+	return r.JSON500
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r CreateCalendarTodoResponse) GetJSON503() *ServiceUnavailableErrorResponseContent {
+	return r.JSON503
+}
+
+// GetBody returns the raw response body bytes
+func (r CreateCalendarTodoResponse) GetBody() []byte {
+	return r.Body
 }
 
 // Status returns HTTPResponse.Status
@@ -4956,13 +5637,50 @@ func (r CreateCalendarTodoResponse) StatusCode() int {
 	return 0
 }
 
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r CreateCalendarTodoResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type DeleteCalendarTodoResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
-	JSON401      *UnauthorizedErrorResponseContent
-	JSON404      *NotFoundErrorResponseContent
-	JSON500      *InternalServerErrorResponseContent
-	JSON503      *ServiceUnavailableErrorResponseContent
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *UnauthorizedErrorResponseContent
+	// JSON404 the response for an HTTP 404 `application/json` response
+	JSON404 *NotFoundErrorResponseContent
+	// JSON500 the response for an HTTP 500 `application/json` response
+	JSON500 *InternalServerErrorResponseContent
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *ServiceUnavailableErrorResponseContent
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r DeleteCalendarTodoResponse) GetJSON401() *UnauthorizedErrorResponseContent {
+	return r.JSON401
+}
+
+// GetJSON404 returns the response for an HTTP 404 `application/json` response
+func (r DeleteCalendarTodoResponse) GetJSON404() *NotFoundErrorResponseContent {
+	return r.JSON404
+}
+
+// GetJSON500 returns the response for an HTTP 500 `application/json` response
+func (r DeleteCalendarTodoResponse) GetJSON500() *InternalServerErrorResponseContent {
+	return r.JSON500
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r DeleteCalendarTodoResponse) GetJSON503() *ServiceUnavailableErrorResponseContent {
+	return r.JSON503
+}
+
+// GetBody returns the raw response body bytes
+func (r DeleteCalendarTodoResponse) GetBody() []byte {
+	return r.Body
 }
 
 // Status returns HTTPResponse.Status
@@ -4981,14 +5699,57 @@ func (r DeleteCalendarTodoResponse) StatusCode() int {
 	return 0
 }
 
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r DeleteCalendarTodoResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type UncompleteCalendarTodoResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
-	JSON200      *UncompleteCalendarTodoResponseContent
-	JSON401      *UnauthorizedErrorResponseContent
-	JSON404      *NotFoundErrorResponseContent
-	JSON500      *InternalServerErrorResponseContent
-	JSON503      *ServiceUnavailableErrorResponseContent
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *UncompleteCalendarTodoResponseContent
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *UnauthorizedErrorResponseContent
+	// JSON404 the response for an HTTP 404 `application/json` response
+	JSON404 *NotFoundErrorResponseContent
+	// JSON500 the response for an HTTP 500 `application/json` response
+	JSON500 *InternalServerErrorResponseContent
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *ServiceUnavailableErrorResponseContent
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r UncompleteCalendarTodoResponse) GetJSON200() *UncompleteCalendarTodoResponseContent {
+	return r.JSON200
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r UncompleteCalendarTodoResponse) GetJSON401() *UnauthorizedErrorResponseContent {
+	return r.JSON401
+}
+
+// GetJSON404 returns the response for an HTTP 404 `application/json` response
+func (r UncompleteCalendarTodoResponse) GetJSON404() *NotFoundErrorResponseContent {
+	return r.JSON404
+}
+
+// GetJSON500 returns the response for an HTTP 500 `application/json` response
+func (r UncompleteCalendarTodoResponse) GetJSON500() *InternalServerErrorResponseContent {
+	return r.JSON500
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r UncompleteCalendarTodoResponse) GetJSON503() *ServiceUnavailableErrorResponseContent {
+	return r.JSON503
+}
+
+// GetBody returns the raw response body bytes
+func (r UncompleteCalendarTodoResponse) GetBody() []byte {
+	return r.Body
 }
 
 // Status returns HTTPResponse.Status
@@ -5007,14 +5768,57 @@ func (r UncompleteCalendarTodoResponse) StatusCode() int {
 	return 0
 }
 
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r UncompleteCalendarTodoResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type CompleteCalendarTodoResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
-	JSON200      *CompleteCalendarTodoResponseContent
-	JSON401      *UnauthorizedErrorResponseContent
-	JSON404      *NotFoundErrorResponseContent
-	JSON500      *InternalServerErrorResponseContent
-	JSON503      *ServiceUnavailableErrorResponseContent
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *CompleteCalendarTodoResponseContent
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *UnauthorizedErrorResponseContent
+	// JSON404 the response for an HTTP 404 `application/json` response
+	JSON404 *NotFoundErrorResponseContent
+	// JSON500 the response for an HTTP 500 `application/json` response
+	JSON500 *InternalServerErrorResponseContent
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *ServiceUnavailableErrorResponseContent
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r CompleteCalendarTodoResponse) GetJSON200() *CompleteCalendarTodoResponseContent {
+	return r.JSON200
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r CompleteCalendarTodoResponse) GetJSON401() *UnauthorizedErrorResponseContent {
+	return r.JSON401
+}
+
+// GetJSON404 returns the response for an HTTP 404 `application/json` response
+func (r CompleteCalendarTodoResponse) GetJSON404() *NotFoundErrorResponseContent {
+	return r.JSON404
+}
+
+// GetJSON500 returns the response for an HTTP 500 `application/json` response
+func (r CompleteCalendarTodoResponse) GetJSON500() *InternalServerErrorResponseContent {
+	return r.JSON500
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r CompleteCalendarTodoResponse) GetJSON503() *ServiceUnavailableErrorResponseContent {
+	return r.JSON503
+}
+
+// GetBody returns the raw response body bytes
+func (r CompleteCalendarTodoResponse) GetBody() []byte {
+	return r.Body
 }
 
 // Status returns HTTPResponse.Status
@@ -5033,13 +5837,50 @@ func (r CompleteCalendarTodoResponse) StatusCode() int {
 	return 0
 }
 
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r CompleteCalendarTodoResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type ListCalendarsResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
-	JSON200      *ListCalendarsResponseContent
-	JSON401      *UnauthorizedErrorResponseContent
-	JSON500      *InternalServerErrorResponseContent
-	JSON503      *ServiceUnavailableErrorResponseContent
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *ListCalendarsResponseContent
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *UnauthorizedErrorResponseContent
+	// JSON500 the response for an HTTP 500 `application/json` response
+	JSON500 *InternalServerErrorResponseContent
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *ServiceUnavailableErrorResponseContent
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListCalendarsResponse) GetJSON200() *ListCalendarsResponseContent {
+	return r.JSON200
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r ListCalendarsResponse) GetJSON401() *UnauthorizedErrorResponseContent {
+	return r.JSON401
+}
+
+// GetJSON500 returns the response for an HTTP 500 `application/json` response
+func (r ListCalendarsResponse) GetJSON500() *InternalServerErrorResponseContent {
+	return r.JSON500
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r ListCalendarsResponse) GetJSON503() *ServiceUnavailableErrorResponseContent {
+	return r.JSON503
+}
+
+// GetBody returns the raw response body bytes
+func (r ListCalendarsResponse) GetBody() []byte {
+	return r.Body
 }
 
 // Status returns HTTPResponse.Status
@@ -5058,14 +5899,57 @@ func (r ListCalendarsResponse) StatusCode() int {
 	return 0
 }
 
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListCalendarsResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type GetCalendarRecordingsResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
-	JSON200      *GetCalendarRecordingsResponseContent
-	JSON401      *UnauthorizedErrorResponseContent
-	JSON404      *NotFoundErrorResponseContent
-	JSON500      *InternalServerErrorResponseContent
-	JSON503      *ServiceUnavailableErrorResponseContent
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *GetCalendarRecordingsResponseContent
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *UnauthorizedErrorResponseContent
+	// JSON404 the response for an HTTP 404 `application/json` response
+	JSON404 *NotFoundErrorResponseContent
+	// JSON500 the response for an HTTP 500 `application/json` response
+	JSON500 *InternalServerErrorResponseContent
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *ServiceUnavailableErrorResponseContent
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r GetCalendarRecordingsResponse) GetJSON200() *GetCalendarRecordingsResponseContent {
+	return r.JSON200
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r GetCalendarRecordingsResponse) GetJSON401() *UnauthorizedErrorResponseContent {
+	return r.JSON401
+}
+
+// GetJSON404 returns the response for an HTTP 404 `application/json` response
+func (r GetCalendarRecordingsResponse) GetJSON404() *NotFoundErrorResponseContent {
+	return r.JSON404
+}
+
+// GetJSON500 returns the response for an HTTP 500 `application/json` response
+func (r GetCalendarRecordingsResponse) GetJSON500() *InternalServerErrorResponseContent {
+	return r.JSON500
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r GetCalendarRecordingsResponse) GetJSON503() *ServiceUnavailableErrorResponseContent {
+	return r.JSON503
+}
+
+// GetBody returns the raw response body bytes
+func (r GetCalendarRecordingsResponse) GetBody() []byte {
+	return r.Body
 }
 
 // Status returns HTTPResponse.Status
@@ -5084,13 +5968,50 @@ func (r GetCalendarRecordingsResponse) StatusCode() int {
 	return 0
 }
 
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r GetCalendarRecordingsResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type ListContactsResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
-	JSON200      *ListContactsResponseContent
-	JSON401      *UnauthorizedErrorResponseContent
-	JSON500      *InternalServerErrorResponseContent
-	JSON503      *ServiceUnavailableErrorResponseContent
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *ListContactsResponseContent
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *UnauthorizedErrorResponseContent
+	// JSON500 the response for an HTTP 500 `application/json` response
+	JSON500 *InternalServerErrorResponseContent
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *ServiceUnavailableErrorResponseContent
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListContactsResponse) GetJSON200() *ListContactsResponseContent {
+	return r.JSON200
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r ListContactsResponse) GetJSON401() *UnauthorizedErrorResponseContent {
+	return r.JSON401
+}
+
+// GetJSON500 returns the response for an HTTP 500 `application/json` response
+func (r ListContactsResponse) GetJSON500() *InternalServerErrorResponseContent {
+	return r.JSON500
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r ListContactsResponse) GetJSON503() *ServiceUnavailableErrorResponseContent {
+	return r.JSON503
+}
+
+// GetBody returns the raw response body bytes
+func (r ListContactsResponse) GetBody() []byte {
+	return r.Body
 }
 
 // Status returns HTTPResponse.Status
@@ -5109,14 +6030,57 @@ func (r ListContactsResponse) StatusCode() int {
 	return 0
 }
 
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListContactsResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type GetContactResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
-	JSON200      *GetContactResponseContent
-	JSON401      *UnauthorizedErrorResponseContent
-	JSON404      *NotFoundErrorResponseContent
-	JSON500      *InternalServerErrorResponseContent
-	JSON503      *ServiceUnavailableErrorResponseContent
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *GetContactResponseContent
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *UnauthorizedErrorResponseContent
+	// JSON404 the response for an HTTP 404 `application/json` response
+	JSON404 *NotFoundErrorResponseContent
+	// JSON500 the response for an HTTP 500 `application/json` response
+	JSON500 *InternalServerErrorResponseContent
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *ServiceUnavailableErrorResponseContent
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r GetContactResponse) GetJSON200() *GetContactResponseContent {
+	return r.JSON200
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r GetContactResponse) GetJSON401() *UnauthorizedErrorResponseContent {
+	return r.JSON401
+}
+
+// GetJSON404 returns the response for an HTTP 404 `application/json` response
+func (r GetContactResponse) GetJSON404() *NotFoundErrorResponseContent {
+	return r.JSON404
+}
+
+// GetJSON500 returns the response for an HTTP 500 `application/json` response
+func (r GetContactResponse) GetJSON500() *InternalServerErrorResponseContent {
+	return r.JSON500
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r GetContactResponse) GetJSON503() *ServiceUnavailableErrorResponseContent {
+	return r.JSON503
+}
+
+// GetBody returns the raw response body bytes
+func (r GetContactResponse) GetBody() []byte {
+	return r.Body
 }
 
 // Status returns HTTPResponse.Status
@@ -5135,13 +6099,50 @@ func (r GetContactResponse) StatusCode() int {
 	return 0
 }
 
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r GetContactResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type ListDraftsResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
-	JSON200      *ListDraftsResponseContent
-	JSON401      *UnauthorizedErrorResponseContent
-	JSON500      *InternalServerErrorResponseContent
-	JSON503      *ServiceUnavailableErrorResponseContent
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *ListDraftsResponseContent
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *UnauthorizedErrorResponseContent
+	// JSON500 the response for an HTTP 500 `application/json` response
+	JSON500 *InternalServerErrorResponseContent
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *ServiceUnavailableErrorResponseContent
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListDraftsResponse) GetJSON200() *ListDraftsResponseContent {
+	return r.JSON200
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r ListDraftsResponse) GetJSON401() *UnauthorizedErrorResponseContent {
+	return r.JSON401
+}
+
+// GetJSON500 returns the response for an HTTP 500 `application/json` response
+func (r ListDraftsResponse) GetJSON500() *InternalServerErrorResponseContent {
+	return r.JSON500
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r ListDraftsResponse) GetJSON503() *ServiceUnavailableErrorResponseContent {
+	return r.JSON503
+}
+
+// GetBody returns the raw response body bytes
+func (r ListDraftsResponse) GetBody() []byte {
+	return r.Body
 }
 
 // Status returns HTTPResponse.Status
@@ -5160,14 +6161,57 @@ func (r ListDraftsResponse) StatusCode() int {
 	return 0
 }
 
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListDraftsResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type CreateReplyResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
-	JSON401      *UnauthorizedErrorResponseContent
-	JSON404      *NotFoundErrorResponseContent
-	JSON422      *UnprocessableEntityErrorResponseContent
-	JSON500      *InternalServerErrorResponseContent
-	JSON503      *ServiceUnavailableErrorResponseContent
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *UnauthorizedErrorResponseContent
+	// JSON404 the response for an HTTP 404 `application/json` response
+	JSON404 *NotFoundErrorResponseContent
+	// JSON422 the response for an HTTP 422 `application/json` response
+	JSON422 *UnprocessableEntityErrorResponseContent
+	// JSON500 the response for an HTTP 500 `application/json` response
+	JSON500 *InternalServerErrorResponseContent
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *ServiceUnavailableErrorResponseContent
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r CreateReplyResponse) GetJSON401() *UnauthorizedErrorResponseContent {
+	return r.JSON401
+}
+
+// GetJSON404 returns the response for an HTTP 404 `application/json` response
+func (r CreateReplyResponse) GetJSON404() *NotFoundErrorResponseContent {
+	return r.JSON404
+}
+
+// GetJSON422 returns the response for an HTTP 422 `application/json` response
+func (r CreateReplyResponse) GetJSON422() *UnprocessableEntityErrorResponseContent {
+	return r.JSON422
+}
+
+// GetJSON500 returns the response for an HTTP 500 `application/json` response
+func (r CreateReplyResponse) GetJSON500() *InternalServerErrorResponseContent {
+	return r.JSON500
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r CreateReplyResponse) GetJSON503() *ServiceUnavailableErrorResponseContent {
+	return r.JSON503
+}
+
+// GetBody returns the raw response body bytes
+func (r CreateReplyResponse) GetBody() []byte {
+	return r.Body
 }
 
 // Status returns HTTPResponse.Status
@@ -5186,13 +6230,50 @@ func (r CreateReplyResponse) StatusCode() int {
 	return 0
 }
 
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r CreateReplyResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type GetFeedboxResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
-	JSON200      *GetFeedboxResponseContent
-	JSON401      *UnauthorizedErrorResponseContent
-	JSON500      *InternalServerErrorResponseContent
-	JSON503      *ServiceUnavailableErrorResponseContent
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *GetFeedboxResponseContent
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *UnauthorizedErrorResponseContent
+	// JSON500 the response for an HTTP 500 `application/json` response
+	JSON500 *InternalServerErrorResponseContent
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *ServiceUnavailableErrorResponseContent
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r GetFeedboxResponse) GetJSON200() *GetFeedboxResponseContent {
+	return r.JSON200
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r GetFeedboxResponse) GetJSON401() *UnauthorizedErrorResponseContent {
+	return r.JSON401
+}
+
+// GetJSON500 returns the response for an HTTP 500 `application/json` response
+func (r GetFeedboxResponse) GetJSON500() *InternalServerErrorResponseContent {
+	return r.JSON500
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r GetFeedboxResponse) GetJSON503() *ServiceUnavailableErrorResponseContent {
+	return r.JSON503
+}
+
+// GetBody returns the raw response body bytes
+func (r GetFeedboxResponse) GetBody() []byte {
+	return r.Body
 }
 
 // Status returns HTTPResponse.Status
@@ -5211,13 +6292,50 @@ func (r GetFeedboxResponse) StatusCode() int {
 	return 0
 }
 
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r GetFeedboxResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type GetIdentityResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
-	JSON200      *GetIdentityResponseContent
-	JSON401      *UnauthorizedErrorResponseContent
-	JSON500      *InternalServerErrorResponseContent
-	JSON503      *ServiceUnavailableErrorResponseContent
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *GetIdentityResponseContent
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *UnauthorizedErrorResponseContent
+	// JSON500 the response for an HTTP 500 `application/json` response
+	JSON500 *InternalServerErrorResponseContent
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *ServiceUnavailableErrorResponseContent
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r GetIdentityResponse) GetJSON200() *GetIdentityResponseContent {
+	return r.JSON200
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r GetIdentityResponse) GetJSON401() *UnauthorizedErrorResponseContent {
+	return r.JSON401
+}
+
+// GetJSON500 returns the response for an HTTP 500 `application/json` response
+func (r GetIdentityResponse) GetJSON500() *InternalServerErrorResponseContent {
+	return r.JSON500
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r GetIdentityResponse) GetJSON503() *ServiceUnavailableErrorResponseContent {
+	return r.JSON503
+}
+
+// GetBody returns the raw response body bytes
+func (r GetIdentityResponse) GetBody() []byte {
+	return r.Body
 }
 
 // Status returns HTTPResponse.Status
@@ -5236,13 +6354,50 @@ func (r GetIdentityResponse) StatusCode() int {
 	return 0
 }
 
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r GetIdentityResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type GetImboxResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
-	JSON200      *GetImboxResponseContent
-	JSON401      *UnauthorizedErrorResponseContent
-	JSON500      *InternalServerErrorResponseContent
-	JSON503      *ServiceUnavailableErrorResponseContent
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *GetImboxResponseContent
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *UnauthorizedErrorResponseContent
+	// JSON500 the response for an HTTP 500 `application/json` response
+	JSON500 *InternalServerErrorResponseContent
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *ServiceUnavailableErrorResponseContent
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r GetImboxResponse) GetJSON200() *GetImboxResponseContent {
+	return r.JSON200
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r GetImboxResponse) GetJSON401() *UnauthorizedErrorResponseContent {
+	return r.JSON401
+}
+
+// GetJSON500 returns the response for an HTTP 500 `application/json` response
+func (r GetImboxResponse) GetJSON500() *InternalServerErrorResponseContent {
+	return r.JSON500
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r GetImboxResponse) GetJSON503() *ServiceUnavailableErrorResponseContent {
+	return r.JSON503
+}
+
+// GetBody returns the raw response body bytes
+func (r GetImboxResponse) GetBody() []byte {
+	return r.Body
 }
 
 // Status returns HTTPResponse.Status
@@ -5261,13 +6416,50 @@ func (r GetImboxResponse) StatusCode() int {
 	return 0
 }
 
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r GetImboxResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type CreateMessageResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
-	JSON401      *UnauthorizedErrorResponseContent
-	JSON422      *UnprocessableEntityErrorResponseContent
-	JSON500      *InternalServerErrorResponseContent
-	JSON503      *ServiceUnavailableErrorResponseContent
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *UnauthorizedErrorResponseContent
+	// JSON422 the response for an HTTP 422 `application/json` response
+	JSON422 *UnprocessableEntityErrorResponseContent
+	// JSON500 the response for an HTTP 500 `application/json` response
+	JSON500 *InternalServerErrorResponseContent
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *ServiceUnavailableErrorResponseContent
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r CreateMessageResponse) GetJSON401() *UnauthorizedErrorResponseContent {
+	return r.JSON401
+}
+
+// GetJSON422 returns the response for an HTTP 422 `application/json` response
+func (r CreateMessageResponse) GetJSON422() *UnprocessableEntityErrorResponseContent {
+	return r.JSON422
+}
+
+// GetJSON500 returns the response for an HTTP 500 `application/json` response
+func (r CreateMessageResponse) GetJSON500() *InternalServerErrorResponseContent {
+	return r.JSON500
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r CreateMessageResponse) GetJSON503() *ServiceUnavailableErrorResponseContent {
+	return r.JSON503
+}
+
+// GetBody returns the raw response body bytes
+func (r CreateMessageResponse) GetBody() []byte {
+	return r.Body
 }
 
 // Status returns HTTPResponse.Status
@@ -5286,14 +6478,57 @@ func (r CreateMessageResponse) StatusCode() int {
 	return 0
 }
 
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r CreateMessageResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type GetMessageResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
-	JSON200      *GetMessageResponseContent
-	JSON401      *UnauthorizedErrorResponseContent
-	JSON404      *NotFoundErrorResponseContent
-	JSON500      *InternalServerErrorResponseContent
-	JSON503      *ServiceUnavailableErrorResponseContent
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *GetMessageResponseContent
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *UnauthorizedErrorResponseContent
+	// JSON404 the response for an HTTP 404 `application/json` response
+	JSON404 *NotFoundErrorResponseContent
+	// JSON500 the response for an HTTP 500 `application/json` response
+	JSON500 *InternalServerErrorResponseContent
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *ServiceUnavailableErrorResponseContent
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r GetMessageResponse) GetJSON200() *GetMessageResponseContent {
+	return r.JSON200
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r GetMessageResponse) GetJSON401() *UnauthorizedErrorResponseContent {
+	return r.JSON401
+}
+
+// GetJSON404 returns the response for an HTTP 404 `application/json` response
+func (r GetMessageResponse) GetJSON404() *NotFoundErrorResponseContent {
+	return r.JSON404
+}
+
+// GetJSON500 returns the response for an HTTP 500 `application/json` response
+func (r GetMessageResponse) GetJSON500() *InternalServerErrorResponseContent {
+	return r.JSON500
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r GetMessageResponse) GetJSON503() *ServiceUnavailableErrorResponseContent {
+	return r.JSON503
+}
+
+// GetBody returns the raw response body bytes
+func (r GetMessageResponse) GetBody() []byte {
+	return r.Body
 }
 
 // Status returns HTTPResponse.Status
@@ -5312,13 +6547,50 @@ func (r GetMessageResponse) StatusCode() int {
 	return 0
 }
 
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r GetMessageResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type GetNavigationResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
-	JSON200      *GetNavigationResponseContent
-	JSON401      *UnauthorizedErrorResponseContent
-	JSON500      *InternalServerErrorResponseContent
-	JSON503      *ServiceUnavailableErrorResponseContent
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *GetNavigationResponseContent
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *UnauthorizedErrorResponseContent
+	// JSON500 the response for an HTTP 500 `application/json` response
+	JSON500 *InternalServerErrorResponseContent
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *ServiceUnavailableErrorResponseContent
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r GetNavigationResponse) GetJSON200() *GetNavigationResponseContent {
+	return r.JSON200
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r GetNavigationResponse) GetJSON401() *UnauthorizedErrorResponseContent {
+	return r.JSON401
+}
+
+// GetJSON500 returns the response for an HTTP 500 `application/json` response
+func (r GetNavigationResponse) GetJSON500() *InternalServerErrorResponseContent {
+	return r.JSON500
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r GetNavigationResponse) GetJSON503() *ServiceUnavailableErrorResponseContent {
+	return r.JSON503
+}
+
+// GetBody returns the raw response body bytes
+func (r GetNavigationResponse) GetBody() []byte {
+	return r.Body
 }
 
 // Status returns HTTPResponse.Status
@@ -5337,13 +6609,50 @@ func (r GetNavigationResponse) StatusCode() int {
 	return 0
 }
 
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r GetNavigationResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type GetTrailboxResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
-	JSON200      *GetTrailboxResponseContent
-	JSON401      *UnauthorizedErrorResponseContent
-	JSON500      *InternalServerErrorResponseContent
-	JSON503      *ServiceUnavailableErrorResponseContent
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *GetTrailboxResponseContent
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *UnauthorizedErrorResponseContent
+	// JSON500 the response for an HTTP 500 `application/json` response
+	JSON500 *InternalServerErrorResponseContent
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *ServiceUnavailableErrorResponseContent
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r GetTrailboxResponse) GetJSON200() *GetTrailboxResponseContent {
+	return r.JSON200
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r GetTrailboxResponse) GetJSON401() *UnauthorizedErrorResponseContent {
+	return r.JSON401
+}
+
+// GetJSON500 returns the response for an HTTP 500 `application/json` response
+func (r GetTrailboxResponse) GetJSON500() *InternalServerErrorResponseContent {
+	return r.JSON500
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r GetTrailboxResponse) GetJSON503() *ServiceUnavailableErrorResponseContent {
+	return r.JSON503
+}
+
+// GetBody returns the raw response body bytes
+func (r GetTrailboxResponse) GetBody() []byte {
+	return r.Body
 }
 
 // Status returns HTTPResponse.Status
@@ -5362,12 +6671,43 @@ func (r GetTrailboxResponse) StatusCode() int {
 	return 0
 }
 
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r GetTrailboxResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type MarkPostingsSeenResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
-	JSON401      *UnauthorizedErrorResponseContent
-	JSON500      *InternalServerErrorResponseContent
-	JSON503      *ServiceUnavailableErrorResponseContent
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *UnauthorizedErrorResponseContent
+	// JSON500 the response for an HTTP 500 `application/json` response
+	JSON500 *InternalServerErrorResponseContent
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *ServiceUnavailableErrorResponseContent
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r MarkPostingsSeenResponse) GetJSON401() *UnauthorizedErrorResponseContent {
+	return r.JSON401
+}
+
+// GetJSON500 returns the response for an HTTP 500 `application/json` response
+func (r MarkPostingsSeenResponse) GetJSON500() *InternalServerErrorResponseContent {
+	return r.JSON500
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r MarkPostingsSeenResponse) GetJSON503() *ServiceUnavailableErrorResponseContent {
+	return r.JSON503
+}
+
+// GetBody returns the raw response body bytes
+func (r MarkPostingsSeenResponse) GetBody() []byte {
+	return r.Body
 }
 
 // Status returns HTTPResponse.Status
@@ -5386,12 +6726,43 @@ func (r MarkPostingsSeenResponse) StatusCode() int {
 	return 0
 }
 
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r MarkPostingsSeenResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type MarkPostingsUnseenResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
-	JSON401      *UnauthorizedErrorResponseContent
-	JSON500      *InternalServerErrorResponseContent
-	JSON503      *ServiceUnavailableErrorResponseContent
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *UnauthorizedErrorResponseContent
+	// JSON500 the response for an HTTP 500 `application/json` response
+	JSON500 *InternalServerErrorResponseContent
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *ServiceUnavailableErrorResponseContent
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r MarkPostingsUnseenResponse) GetJSON401() *UnauthorizedErrorResponseContent {
+	return r.JSON401
+}
+
+// GetJSON500 returns the response for an HTTP 500 `application/json` response
+func (r MarkPostingsUnseenResponse) GetJSON500() *InternalServerErrorResponseContent {
+	return r.JSON500
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r MarkPostingsUnseenResponse) GetJSON503() *ServiceUnavailableErrorResponseContent {
+	return r.JSON503
+}
+
+// GetBody returns the raw response body bytes
+func (r MarkPostingsUnseenResponse) GetBody() []byte {
+	return r.Body
 }
 
 // Status returns HTTPResponse.Status
@@ -5410,13 +6781,50 @@ func (r MarkPostingsUnseenResponse) StatusCode() int {
 	return 0
 }
 
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r MarkPostingsUnseenResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type IgnorePostingResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
-	JSON401      *UnauthorizedErrorResponseContent
-	JSON404      *NotFoundErrorResponseContent
-	JSON500      *InternalServerErrorResponseContent
-	JSON503      *ServiceUnavailableErrorResponseContent
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *UnauthorizedErrorResponseContent
+	// JSON404 the response for an HTTP 404 `application/json` response
+	JSON404 *NotFoundErrorResponseContent
+	// JSON500 the response for an HTTP 500 `application/json` response
+	JSON500 *InternalServerErrorResponseContent
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *ServiceUnavailableErrorResponseContent
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r IgnorePostingResponse) GetJSON401() *UnauthorizedErrorResponseContent {
+	return r.JSON401
+}
+
+// GetJSON404 returns the response for an HTTP 404 `application/json` response
+func (r IgnorePostingResponse) GetJSON404() *NotFoundErrorResponseContent {
+	return r.JSON404
+}
+
+// GetJSON500 returns the response for an HTTP 500 `application/json` response
+func (r IgnorePostingResponse) GetJSON500() *InternalServerErrorResponseContent {
+	return r.JSON500
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r IgnorePostingResponse) GetJSON503() *ServiceUnavailableErrorResponseContent {
+	return r.JSON503
+}
+
+// GetBody returns the raw response body bytes
+func (r IgnorePostingResponse) GetBody() []byte {
+	return r.Body
 }
 
 // Status returns HTTPResponse.Status
@@ -5435,13 +6843,50 @@ func (r IgnorePostingResponse) StatusCode() int {
 	return 0
 }
 
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r IgnorePostingResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type MovePostingToSetAsideResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
-	JSON401      *UnauthorizedErrorResponseContent
-	JSON404      *NotFoundErrorResponseContent
-	JSON500      *InternalServerErrorResponseContent
-	JSON503      *ServiceUnavailableErrorResponseContent
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *UnauthorizedErrorResponseContent
+	// JSON404 the response for an HTTP 404 `application/json` response
+	JSON404 *NotFoundErrorResponseContent
+	// JSON500 the response for an HTTP 500 `application/json` response
+	JSON500 *InternalServerErrorResponseContent
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *ServiceUnavailableErrorResponseContent
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r MovePostingToSetAsideResponse) GetJSON401() *UnauthorizedErrorResponseContent {
+	return r.JSON401
+}
+
+// GetJSON404 returns the response for an HTTP 404 `application/json` response
+func (r MovePostingToSetAsideResponse) GetJSON404() *NotFoundErrorResponseContent {
+	return r.JSON404
+}
+
+// GetJSON500 returns the response for an HTTP 500 `application/json` response
+func (r MovePostingToSetAsideResponse) GetJSON500() *InternalServerErrorResponseContent {
+	return r.JSON500
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r MovePostingToSetAsideResponse) GetJSON503() *ServiceUnavailableErrorResponseContent {
+	return r.JSON503
+}
+
+// GetBody returns the raw response body bytes
+func (r MovePostingToSetAsideResponse) GetBody() []byte {
+	return r.Body
 }
 
 // Status returns HTTPResponse.Status
@@ -5460,13 +6905,50 @@ func (r MovePostingToSetAsideResponse) StatusCode() int {
 	return 0
 }
 
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r MovePostingToSetAsideResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type MovePostingToFeedResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
-	JSON401      *UnauthorizedErrorResponseContent
-	JSON404      *NotFoundErrorResponseContent
-	JSON500      *InternalServerErrorResponseContent
-	JSON503      *ServiceUnavailableErrorResponseContent
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *UnauthorizedErrorResponseContent
+	// JSON404 the response for an HTTP 404 `application/json` response
+	JSON404 *NotFoundErrorResponseContent
+	// JSON500 the response for an HTTP 500 `application/json` response
+	JSON500 *InternalServerErrorResponseContent
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *ServiceUnavailableErrorResponseContent
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r MovePostingToFeedResponse) GetJSON401() *UnauthorizedErrorResponseContent {
+	return r.JSON401
+}
+
+// GetJSON404 returns the response for an HTTP 404 `application/json` response
+func (r MovePostingToFeedResponse) GetJSON404() *NotFoundErrorResponseContent {
+	return r.JSON404
+}
+
+// GetJSON500 returns the response for an HTTP 500 `application/json` response
+func (r MovePostingToFeedResponse) GetJSON500() *InternalServerErrorResponseContent {
+	return r.JSON500
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r MovePostingToFeedResponse) GetJSON503() *ServiceUnavailableErrorResponseContent {
+	return r.JSON503
+}
+
+// GetBody returns the raw response body bytes
+func (r MovePostingToFeedResponse) GetBody() []byte {
+	return r.Body
 }
 
 // Status returns HTTPResponse.Status
@@ -5485,13 +6967,50 @@ func (r MovePostingToFeedResponse) StatusCode() int {
 	return 0
 }
 
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r MovePostingToFeedResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type MovePostingToReplyLaterResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
-	JSON401      *UnauthorizedErrorResponseContent
-	JSON404      *NotFoundErrorResponseContent
-	JSON500      *InternalServerErrorResponseContent
-	JSON503      *ServiceUnavailableErrorResponseContent
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *UnauthorizedErrorResponseContent
+	// JSON404 the response for an HTTP 404 `application/json` response
+	JSON404 *NotFoundErrorResponseContent
+	// JSON500 the response for an HTTP 500 `application/json` response
+	JSON500 *InternalServerErrorResponseContent
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *ServiceUnavailableErrorResponseContent
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r MovePostingToReplyLaterResponse) GetJSON401() *UnauthorizedErrorResponseContent {
+	return r.JSON401
+}
+
+// GetJSON404 returns the response for an HTTP 404 `application/json` response
+func (r MovePostingToReplyLaterResponse) GetJSON404() *NotFoundErrorResponseContent {
+	return r.JSON404
+}
+
+// GetJSON500 returns the response for an HTTP 500 `application/json` response
+func (r MovePostingToReplyLaterResponse) GetJSON500() *InternalServerErrorResponseContent {
+	return r.JSON500
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r MovePostingToReplyLaterResponse) GetJSON503() *ServiceUnavailableErrorResponseContent {
+	return r.JSON503
+}
+
+// GetBody returns the raw response body bytes
+func (r MovePostingToReplyLaterResponse) GetBody() []byte {
+	return r.Body
 }
 
 // Status returns HTTPResponse.Status
@@ -5510,13 +7029,50 @@ func (r MovePostingToReplyLaterResponse) StatusCode() int {
 	return 0
 }
 
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r MovePostingToReplyLaterResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type MovePostingToPaperTrailResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
-	JSON401      *UnauthorizedErrorResponseContent
-	JSON404      *NotFoundErrorResponseContent
-	JSON500      *InternalServerErrorResponseContent
-	JSON503      *ServiceUnavailableErrorResponseContent
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *UnauthorizedErrorResponseContent
+	// JSON404 the response for an HTTP 404 `application/json` response
+	JSON404 *NotFoundErrorResponseContent
+	// JSON500 the response for an HTTP 500 `application/json` response
+	JSON500 *InternalServerErrorResponseContent
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *ServiceUnavailableErrorResponseContent
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r MovePostingToPaperTrailResponse) GetJSON401() *UnauthorizedErrorResponseContent {
+	return r.JSON401
+}
+
+// GetJSON404 returns the response for an HTTP 404 `application/json` response
+func (r MovePostingToPaperTrailResponse) GetJSON404() *NotFoundErrorResponseContent {
+	return r.JSON404
+}
+
+// GetJSON500 returns the response for an HTTP 500 `application/json` response
+func (r MovePostingToPaperTrailResponse) GetJSON500() *InternalServerErrorResponseContent {
+	return r.JSON500
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r MovePostingToPaperTrailResponse) GetJSON503() *ServiceUnavailableErrorResponseContent {
+	return r.JSON503
+}
+
+// GetBody returns the raw response body bytes
+func (r MovePostingToPaperTrailResponse) GetBody() []byte {
+	return r.Body
 }
 
 // Status returns HTTPResponse.Status
@@ -5535,13 +7091,50 @@ func (r MovePostingToPaperTrailResponse) StatusCode() int {
 	return 0
 }
 
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r MovePostingToPaperTrailResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type MovePostingToTrashResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
-	JSON401      *UnauthorizedErrorResponseContent
-	JSON404      *NotFoundErrorResponseContent
-	JSON500      *InternalServerErrorResponseContent
-	JSON503      *ServiceUnavailableErrorResponseContent
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *UnauthorizedErrorResponseContent
+	// JSON404 the response for an HTTP 404 `application/json` response
+	JSON404 *NotFoundErrorResponseContent
+	// JSON500 the response for an HTTP 500 `application/json` response
+	JSON500 *InternalServerErrorResponseContent
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *ServiceUnavailableErrorResponseContent
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r MovePostingToTrashResponse) GetJSON401() *UnauthorizedErrorResponseContent {
+	return r.JSON401
+}
+
+// GetJSON404 returns the response for an HTTP 404 `application/json` response
+func (r MovePostingToTrashResponse) GetJSON404() *NotFoundErrorResponseContent {
+	return r.JSON404
+}
+
+// GetJSON500 returns the response for an HTTP 500 `application/json` response
+func (r MovePostingToTrashResponse) GetJSON500() *InternalServerErrorResponseContent {
+	return r.JSON500
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r MovePostingToTrashResponse) GetJSON503() *ServiceUnavailableErrorResponseContent {
+	return r.JSON503
+}
+
+// GetBody returns the raw response body bytes
+func (r MovePostingToTrashResponse) GetBody() []byte {
+	return r.Body
 }
 
 // Status returns HTTPResponse.Status
@@ -5560,13 +7153,50 @@ func (r MovePostingToTrashResponse) StatusCode() int {
 	return 0
 }
 
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r MovePostingToTrashResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type GetLaterboxResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
-	JSON200      *GetLaterboxResponseContent
-	JSON401      *UnauthorizedErrorResponseContent
-	JSON500      *InternalServerErrorResponseContent
-	JSON503      *ServiceUnavailableErrorResponseContent
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *GetLaterboxResponseContent
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *UnauthorizedErrorResponseContent
+	// JSON500 the response for an HTTP 500 `application/json` response
+	JSON500 *InternalServerErrorResponseContent
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *ServiceUnavailableErrorResponseContent
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r GetLaterboxResponse) GetJSON200() *GetLaterboxResponseContent {
+	return r.JSON200
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r GetLaterboxResponse) GetJSON401() *UnauthorizedErrorResponseContent {
+	return r.JSON401
+}
+
+// GetJSON500 returns the response for an HTTP 500 `application/json` response
+func (r GetLaterboxResponse) GetJSON500() *InternalServerErrorResponseContent {
+	return r.JSON500
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r GetLaterboxResponse) GetJSON503() *ServiceUnavailableErrorResponseContent {
+	return r.JSON503
+}
+
+// GetBody returns the raw response body bytes
+func (r GetLaterboxResponse) GetBody() []byte {
+	return r.Body
 }
 
 // Status returns HTTPResponse.Status
@@ -5585,13 +7215,50 @@ func (r GetLaterboxResponse) StatusCode() int {
 	return 0
 }
 
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r GetLaterboxResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type SearchResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
-	JSON200      *SearchResponseContent
-	JSON401      *UnauthorizedErrorResponseContent
-	JSON500      *InternalServerErrorResponseContent
-	JSON503      *ServiceUnavailableErrorResponseContent
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *SearchResponseContent
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *UnauthorizedErrorResponseContent
+	// JSON500 the response for an HTTP 500 `application/json` response
+	JSON500 *InternalServerErrorResponseContent
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *ServiceUnavailableErrorResponseContent
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r SearchResponse) GetJSON200() *SearchResponseContent {
+	return r.JSON200
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r SearchResponse) GetJSON401() *UnauthorizedErrorResponseContent {
+	return r.JSON401
+}
+
+// GetJSON500 returns the response for an HTTP 500 `application/json` response
+func (r SearchResponse) GetJSON500() *InternalServerErrorResponseContent {
+	return r.JSON500
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r SearchResponse) GetJSON503() *ServiceUnavailableErrorResponseContent {
+	return r.JSON503
+}
+
+// GetBody returns the raw response body bytes
+func (r SearchResponse) GetBody() []byte {
+	return r.Body
 }
 
 // Status returns HTTPResponse.Status
@@ -5610,13 +7277,50 @@ func (r SearchResponse) StatusCode() int {
 	return 0
 }
 
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r SearchResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type GetAsideboxResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
-	JSON200      *GetAsideboxResponseContent
-	JSON401      *UnauthorizedErrorResponseContent
-	JSON500      *InternalServerErrorResponseContent
-	JSON503      *ServiceUnavailableErrorResponseContent
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *GetAsideboxResponseContent
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *UnauthorizedErrorResponseContent
+	// JSON500 the response for an HTTP 500 `application/json` response
+	JSON500 *InternalServerErrorResponseContent
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *ServiceUnavailableErrorResponseContent
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r GetAsideboxResponse) GetJSON200() *GetAsideboxResponseContent {
+	return r.JSON200
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r GetAsideboxResponse) GetJSON401() *UnauthorizedErrorResponseContent {
+	return r.JSON401
+}
+
+// GetJSON500 returns the response for an HTTP 500 `application/json` response
+func (r GetAsideboxResponse) GetJSON500() *InternalServerErrorResponseContent {
+	return r.JSON500
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r GetAsideboxResponse) GetJSON503() *ServiceUnavailableErrorResponseContent {
+	return r.JSON503
+}
+
+// GetBody returns the raw response body bytes
+func (r GetAsideboxResponse) GetBody() []byte {
+	return r.Body
 }
 
 // Status returns HTTPResponse.Status
@@ -5635,13 +7339,50 @@ func (r GetAsideboxResponse) StatusCode() int {
 	return 0
 }
 
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r GetAsideboxResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type GetEverythingTopicsResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
-	JSON200      *GetEverythingTopicsResponseContent
-	JSON401      *UnauthorizedErrorResponseContent
-	JSON500      *InternalServerErrorResponseContent
-	JSON503      *ServiceUnavailableErrorResponseContent
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *GetEverythingTopicsResponseContent
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *UnauthorizedErrorResponseContent
+	// JSON500 the response for an HTTP 500 `application/json` response
+	JSON500 *InternalServerErrorResponseContent
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *ServiceUnavailableErrorResponseContent
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r GetEverythingTopicsResponse) GetJSON200() *GetEverythingTopicsResponseContent {
+	return r.JSON200
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r GetEverythingTopicsResponse) GetJSON401() *UnauthorizedErrorResponseContent {
+	return r.JSON401
+}
+
+// GetJSON500 returns the response for an HTTP 500 `application/json` response
+func (r GetEverythingTopicsResponse) GetJSON500() *InternalServerErrorResponseContent {
+	return r.JSON500
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r GetEverythingTopicsResponse) GetJSON503() *ServiceUnavailableErrorResponseContent {
+	return r.JSON503
+}
+
+// GetBody returns the raw response body bytes
+func (r GetEverythingTopicsResponse) GetBody() []byte {
+	return r.Body
 }
 
 // Status returns HTTPResponse.Status
@@ -5660,13 +7401,50 @@ func (r GetEverythingTopicsResponse) StatusCode() int {
 	return 0
 }
 
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r GetEverythingTopicsResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type GetSentTopicsResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
-	JSON200      *GetSentTopicsResponseContent
-	JSON401      *UnauthorizedErrorResponseContent
-	JSON500      *InternalServerErrorResponseContent
-	JSON503      *ServiceUnavailableErrorResponseContent
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *GetSentTopicsResponseContent
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *UnauthorizedErrorResponseContent
+	// JSON500 the response for an HTTP 500 `application/json` response
+	JSON500 *InternalServerErrorResponseContent
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *ServiceUnavailableErrorResponseContent
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r GetSentTopicsResponse) GetJSON200() *GetSentTopicsResponseContent {
+	return r.JSON200
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r GetSentTopicsResponse) GetJSON401() *UnauthorizedErrorResponseContent {
+	return r.JSON401
+}
+
+// GetJSON500 returns the response for an HTTP 500 `application/json` response
+func (r GetSentTopicsResponse) GetJSON500() *InternalServerErrorResponseContent {
+	return r.JSON500
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r GetSentTopicsResponse) GetJSON503() *ServiceUnavailableErrorResponseContent {
+	return r.JSON503
+}
+
+// GetBody returns the raw response body bytes
+func (r GetSentTopicsResponse) GetBody() []byte {
+	return r.Body
 }
 
 // Status returns HTTPResponse.Status
@@ -5685,13 +7463,50 @@ func (r GetSentTopicsResponse) StatusCode() int {
 	return 0
 }
 
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r GetSentTopicsResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type GetSpamTopicsResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
-	JSON200      *GetSpamTopicsResponseContent
-	JSON401      *UnauthorizedErrorResponseContent
-	JSON500      *InternalServerErrorResponseContent
-	JSON503      *ServiceUnavailableErrorResponseContent
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *GetSpamTopicsResponseContent
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *UnauthorizedErrorResponseContent
+	// JSON500 the response for an HTTP 500 `application/json` response
+	JSON500 *InternalServerErrorResponseContent
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *ServiceUnavailableErrorResponseContent
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r GetSpamTopicsResponse) GetJSON200() *GetSpamTopicsResponseContent {
+	return r.JSON200
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r GetSpamTopicsResponse) GetJSON401() *UnauthorizedErrorResponseContent {
+	return r.JSON401
+}
+
+// GetJSON500 returns the response for an HTTP 500 `application/json` response
+func (r GetSpamTopicsResponse) GetJSON500() *InternalServerErrorResponseContent {
+	return r.JSON500
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r GetSpamTopicsResponse) GetJSON503() *ServiceUnavailableErrorResponseContent {
+	return r.JSON503
+}
+
+// GetBody returns the raw response body bytes
+func (r GetSpamTopicsResponse) GetBody() []byte {
+	return r.Body
 }
 
 // Status returns HTTPResponse.Status
@@ -5710,13 +7525,50 @@ func (r GetSpamTopicsResponse) StatusCode() int {
 	return 0
 }
 
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r GetSpamTopicsResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type GetTrashTopicsResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
-	JSON200      *GetTrashTopicsResponseContent
-	JSON401      *UnauthorizedErrorResponseContent
-	JSON500      *InternalServerErrorResponseContent
-	JSON503      *ServiceUnavailableErrorResponseContent
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *GetTrashTopicsResponseContent
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *UnauthorizedErrorResponseContent
+	// JSON500 the response for an HTTP 500 `application/json` response
+	JSON500 *InternalServerErrorResponseContent
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *ServiceUnavailableErrorResponseContent
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r GetTrashTopicsResponse) GetJSON200() *GetTrashTopicsResponseContent {
+	return r.JSON200
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r GetTrashTopicsResponse) GetJSON401() *UnauthorizedErrorResponseContent {
+	return r.JSON401
+}
+
+// GetJSON500 returns the response for an HTTP 500 `application/json` response
+func (r GetTrashTopicsResponse) GetJSON500() *InternalServerErrorResponseContent {
+	return r.JSON500
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r GetTrashTopicsResponse) GetJSON503() *ServiceUnavailableErrorResponseContent {
+	return r.JSON503
+}
+
+// GetBody returns the raw response body bytes
+func (r GetTrashTopicsResponse) GetBody() []byte {
+	return r.Body
 }
 
 // Status returns HTTPResponse.Status
@@ -5735,14 +7587,57 @@ func (r GetTrashTopicsResponse) StatusCode() int {
 	return 0
 }
 
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r GetTrashTopicsResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type GetTopicResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
-	JSON200      *GetTopicResponseContent
-	JSON401      *UnauthorizedErrorResponseContent
-	JSON404      *NotFoundErrorResponseContent
-	JSON500      *InternalServerErrorResponseContent
-	JSON503      *ServiceUnavailableErrorResponseContent
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *GetTopicResponseContent
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *UnauthorizedErrorResponseContent
+	// JSON404 the response for an HTTP 404 `application/json` response
+	JSON404 *NotFoundErrorResponseContent
+	// JSON500 the response for an HTTP 500 `application/json` response
+	JSON500 *InternalServerErrorResponseContent
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *ServiceUnavailableErrorResponseContent
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r GetTopicResponse) GetJSON200() *GetTopicResponseContent {
+	return r.JSON200
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r GetTopicResponse) GetJSON401() *UnauthorizedErrorResponseContent {
+	return r.JSON401
+}
+
+// GetJSON404 returns the response for an HTTP 404 `application/json` response
+func (r GetTopicResponse) GetJSON404() *NotFoundErrorResponseContent {
+	return r.JSON404
+}
+
+// GetJSON500 returns the response for an HTTP 500 `application/json` response
+func (r GetTopicResponse) GetJSON500() *InternalServerErrorResponseContent {
+	return r.JSON500
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r GetTopicResponse) GetJSON503() *ServiceUnavailableErrorResponseContent {
+	return r.JSON503
+}
+
+// GetBody returns the raw response body bytes
+func (r GetTopicResponse) GetBody() []byte {
+	return r.Body
 }
 
 // Status returns HTTPResponse.Status
@@ -5761,14 +7656,57 @@ func (r GetTopicResponse) StatusCode() int {
 	return 0
 }
 
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r GetTopicResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type GetTopicEntriesResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
-	JSON200      *GetTopicEntriesResponseContent
-	JSON401      *UnauthorizedErrorResponseContent
-	JSON404      *NotFoundErrorResponseContent
-	JSON500      *InternalServerErrorResponseContent
-	JSON503      *ServiceUnavailableErrorResponseContent
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *GetTopicEntriesResponseContent
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *UnauthorizedErrorResponseContent
+	// JSON404 the response for an HTTP 404 `application/json` response
+	JSON404 *NotFoundErrorResponseContent
+	// JSON500 the response for an HTTP 500 `application/json` response
+	JSON500 *InternalServerErrorResponseContent
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *ServiceUnavailableErrorResponseContent
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r GetTopicEntriesResponse) GetJSON200() *GetTopicEntriesResponseContent {
+	return r.JSON200
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r GetTopicEntriesResponse) GetJSON401() *UnauthorizedErrorResponseContent {
+	return r.JSON401
+}
+
+// GetJSON404 returns the response for an HTTP 404 `application/json` response
+func (r GetTopicEntriesResponse) GetJSON404() *NotFoundErrorResponseContent {
+	return r.JSON404
+}
+
+// GetJSON500 returns the response for an HTTP 500 `application/json` response
+func (r GetTopicEntriesResponse) GetJSON500() *InternalServerErrorResponseContent {
+	return r.JSON500
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r GetTopicEntriesResponse) GetJSON503() *ServiceUnavailableErrorResponseContent {
+	return r.JSON503
+}
+
+// GetBody returns the raw response body bytes
+func (r GetTopicEntriesResponse) GetBody() []byte {
+	return r.Body
 }
 
 // Status returns HTTPResponse.Status
@@ -5787,14 +7725,57 @@ func (r GetTopicEntriesResponse) StatusCode() int {
 	return 0
 }
 
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r GetTopicEntriesResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type CreateTopicMessageResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
-	JSON401      *UnauthorizedErrorResponseContent
-	JSON404      *NotFoundErrorResponseContent
-	JSON422      *UnprocessableEntityErrorResponseContent
-	JSON500      *InternalServerErrorResponseContent
-	JSON503      *ServiceUnavailableErrorResponseContent
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *UnauthorizedErrorResponseContent
+	// JSON404 the response for an HTTP 404 `application/json` response
+	JSON404 *NotFoundErrorResponseContent
+	// JSON422 the response for an HTTP 422 `application/json` response
+	JSON422 *UnprocessableEntityErrorResponseContent
+	// JSON500 the response for an HTTP 500 `application/json` response
+	JSON500 *InternalServerErrorResponseContent
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *ServiceUnavailableErrorResponseContent
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r CreateTopicMessageResponse) GetJSON401() *UnauthorizedErrorResponseContent {
+	return r.JSON401
+}
+
+// GetJSON404 returns the response for an HTTP 404 `application/json` response
+func (r CreateTopicMessageResponse) GetJSON404() *NotFoundErrorResponseContent {
+	return r.JSON404
+}
+
+// GetJSON422 returns the response for an HTTP 422 `application/json` response
+func (r CreateTopicMessageResponse) GetJSON422() *UnprocessableEntityErrorResponseContent {
+	return r.JSON422
+}
+
+// GetJSON500 returns the response for an HTTP 500 `application/json` response
+func (r CreateTopicMessageResponse) GetJSON500() *InternalServerErrorResponseContent {
+	return r.JSON500
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r CreateTopicMessageResponse) GetJSON503() *ServiceUnavailableErrorResponseContent {
+	return r.JSON503
+}
+
+// GetBody returns the raw response body bytes
+func (r CreateTopicMessageResponse) GetBody() []byte {
+	return r.Body
 }
 
 // Status returns HTTPResponse.Status
@@ -5813,7 +7794,19 @@ func (r CreateTopicMessageResponse) StatusCode() int {
 	return 0
 }
 
-// ListBoxesWithResponse request returning *ListBoxesResponse
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r CreateTopicMessageResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+// ListBoxesWithResponse performs a GET /boxes.json (the `ListBoxes` operationId) request.
+//
+// List all boxes.
+//
+// Returns a wrapper object for the known response body format(s).
 func (c *ClientWithResponses) ListBoxesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListBoxesResponse, error) {
 	rsp, err := c.ListBoxes(ctx, reqEditors...)
 	if err != nil {
@@ -5822,7 +7815,11 @@ func (c *ClientWithResponses) ListBoxesWithResponse(ctx context.Context, reqEdit
 	return ParseListBoxesResponse(rsp)
 }
 
-// GetBoxWithResponse request returning *GetBoxResponse
+// GetBoxWithResponse performs a GET /boxes/{boxId} (the `GetBox` operationId) request.
+//
+// Get a specific box.
+//
+// Returns a wrapper object for the known response body format(s).
 func (c *ClientWithResponses) GetBoxWithResponse(ctx context.Context, boxId int64, params *GetBoxParams, reqEditors ...RequestEditorFn) (*GetBoxResponse, error) {
 	rsp, err := c.GetBox(ctx, boxId, params, reqEditors...)
 	if err != nil {
@@ -5831,7 +7828,11 @@ func (c *ClientWithResponses) GetBoxWithResponse(ctx context.Context, boxId int6
 	return ParseGetBoxResponse(rsp)
 }
 
-// GetBubbleboxWithResponse request returning *GetBubbleboxResponse
+// GetBubbleboxWithResponse performs a GET /bubble_up.json (the `GetBubblebox` operationId) request.
+//
+// Get the Bubble Up box.
+//
+// Returns a wrapper object for the known response body format(s).
 func (c *ClientWithResponses) GetBubbleboxWithResponse(ctx context.Context, params *GetBubbleboxParams, reqEditors ...RequestEditorFn) (*GetBubbleboxResponse, error) {
 	rsp, err := c.GetBubblebox(ctx, params, reqEditors...)
 	if err != nil {
@@ -5840,7 +7841,11 @@ func (c *ClientWithResponses) GetBubbleboxWithResponse(ctx context.Context, para
 	return ParseGetBubbleboxResponse(rsp)
 }
 
-// UncompleteHabitWithResponse request returning *UncompleteHabitResponse
+// UncompleteHabitWithResponse performs a DELETE /calendar/days/{day}/habits/{habitId}/completions (the `UncompleteHabit` operationId) request.
+//
+// Uncomplete a habit for a day.
+//
+// Returns a wrapper object for the known response body format(s).
 func (c *ClientWithResponses) UncompleteHabitWithResponse(ctx context.Context, day string, habitId int64, reqEditors ...RequestEditorFn) (*UncompleteHabitResponse, error) {
 	rsp, err := c.UncompleteHabit(ctx, day, habitId, reqEditors...)
 	if err != nil {
@@ -5849,7 +7854,11 @@ func (c *ClientWithResponses) UncompleteHabitWithResponse(ctx context.Context, d
 	return ParseUncompleteHabitResponse(rsp)
 }
 
-// CompleteHabitWithResponse request returning *CompleteHabitResponse
+// CompleteHabitWithResponse performs a POST /calendar/days/{day}/habits/{habitId}/completions (the `CompleteHabit` operationId) request.
+//
+// Complete a habit for a day.
+//
+// Returns a wrapper object for the known response body format(s).
 func (c *ClientWithResponses) CompleteHabitWithResponse(ctx context.Context, day string, habitId int64, reqEditors ...RequestEditorFn) (*CompleteHabitResponse, error) {
 	rsp, err := c.CompleteHabit(ctx, day, habitId, reqEditors...)
 	if err != nil {
@@ -5858,7 +7867,11 @@ func (c *ClientWithResponses) CompleteHabitWithResponse(ctx context.Context, day
 	return ParseCompleteHabitResponse(rsp)
 }
 
-// GetJournalEntryWithResponse request returning *GetJournalEntryResponse
+// GetJournalEntryWithResponse performs a GET /calendar/days/{day}/journal_entry (the `GetJournalEntry` operationId) request.
+//
+// Get journal entry for a day.
+//
+// Returns a wrapper object for the known response body format(s).
 func (c *ClientWithResponses) GetJournalEntryWithResponse(ctx context.Context, day string, reqEditors ...RequestEditorFn) (*GetJournalEntryResponse, error) {
 	rsp, err := c.GetJournalEntry(ctx, day, reqEditors...)
 	if err != nil {
@@ -5867,7 +7880,12 @@ func (c *ClientWithResponses) GetJournalEntryWithResponse(ctx context.Context, d
 	return ParseGetJournalEntryResponse(rsp)
 }
 
-// UpdateJournalEntryWithBodyWithResponse request with arbitrary body returning *UpdateJournalEntryResponse
+// UpdateJournalEntryWithBodyWithResponse performs a PATCH /calendar/days/{day}/journal_entry (the `UpdateJournalEntry` operationId) request,
+// with any type of body and a specified content type.
+//
+// Update journal entry for a day.
+//
+// Returns a wrapper object for the known response body format(s).
 func (c *ClientWithResponses) UpdateJournalEntryWithBodyWithResponse(ctx context.Context, day string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateJournalEntryResponse, error) {
 	rsp, err := c.UpdateJournalEntryWithBody(ctx, day, contentType, body, reqEditors...)
 	if err != nil {
@@ -5876,6 +7894,10 @@ func (c *ClientWithResponses) UpdateJournalEntryWithBodyWithResponse(ctx context
 	return ParseUpdateJournalEntryResponse(rsp)
 }
 
+// UpdateJournalEntryWithResponse performs a PATCH /calendar/days/{day}/journal_entry (the `UpdateJournalEntry` operationId) request.
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Update journal entry for a day.
 func (c *ClientWithResponses) UpdateJournalEntryWithResponse(ctx context.Context, day string, body UpdateJournalEntryJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateJournalEntryResponse, error) {
 	rsp, err := c.UpdateJournalEntry(ctx, day, body, reqEditors...)
 	if err != nil {
@@ -5884,7 +7906,11 @@ func (c *ClientWithResponses) UpdateJournalEntryWithResponse(ctx context.Context
 	return ParseUpdateJournalEntryResponse(rsp)
 }
 
-// GetOngoingTimeTrackWithResponse request returning *GetOngoingTimeTrackResponse
+// GetOngoingTimeTrackWithResponse performs a GET /calendar/ongoing_time_track.json (the `GetOngoingTimeTrack` operationId) request.
+//
+// Get the ongoing time track (404 = no active track; see ADR-004)
+//
+// Returns a wrapper object for the known response body format(s).
 func (c *ClientWithResponses) GetOngoingTimeTrackWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetOngoingTimeTrackResponse, error) {
 	rsp, err := c.GetOngoingTimeTrack(ctx, reqEditors...)
 	if err != nil {
@@ -5893,7 +7919,12 @@ func (c *ClientWithResponses) GetOngoingTimeTrackWithResponse(ctx context.Contex
 	return ParseGetOngoingTimeTrackResponse(rsp)
 }
 
-// StartTimeTrackWithBodyWithResponse request with arbitrary body returning *StartTimeTrackResponse
+// StartTimeTrackWithBodyWithResponse performs a POST /calendar/ongoing_time_track.json (the `StartTimeTrack` operationId) request,
+// with any type of body and a specified content type.
+//
+// Start a new time track.
+//
+// Returns a wrapper object for the known response body format(s).
 func (c *ClientWithResponses) StartTimeTrackWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*StartTimeTrackResponse, error) {
 	rsp, err := c.StartTimeTrackWithBody(ctx, contentType, body, reqEditors...)
 	if err != nil {
@@ -5902,6 +7933,10 @@ func (c *ClientWithResponses) StartTimeTrackWithBodyWithResponse(ctx context.Con
 	return ParseStartTimeTrackResponse(rsp)
 }
 
+// StartTimeTrackWithResponse performs a POST /calendar/ongoing_time_track.json (the `StartTimeTrack` operationId) request.
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Start a new time track.
 func (c *ClientWithResponses) StartTimeTrackWithResponse(ctx context.Context, body StartTimeTrackJSONRequestBody, reqEditors ...RequestEditorFn) (*StartTimeTrackResponse, error) {
 	rsp, err := c.StartTimeTrack(ctx, body, reqEditors...)
 	if err != nil {
@@ -5910,7 +7945,12 @@ func (c *ClientWithResponses) StartTimeTrackWithResponse(ctx context.Context, bo
 	return ParseStartTimeTrackResponse(rsp)
 }
 
-// UpdateTimeTrackWithBodyWithResponse request with arbitrary body returning *UpdateTimeTrackResponse
+// UpdateTimeTrackWithBodyWithResponse performs a PUT /calendar/time_tracks/{timeTrackId} (the `UpdateTimeTrack` operationId) request,
+// with any type of body and a specified content type.
+//
+// Update a time track (stop by setting ends_at to current time).
+//
+// Returns a wrapper object for the known response body format(s).
 func (c *ClientWithResponses) UpdateTimeTrackWithBodyWithResponse(ctx context.Context, timeTrackId int64, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateTimeTrackResponse, error) {
 	rsp, err := c.UpdateTimeTrackWithBody(ctx, timeTrackId, contentType, body, reqEditors...)
 	if err != nil {
@@ -5919,6 +7959,10 @@ func (c *ClientWithResponses) UpdateTimeTrackWithBodyWithResponse(ctx context.Co
 	return ParseUpdateTimeTrackResponse(rsp)
 }
 
+// UpdateTimeTrackWithResponse performs a PUT /calendar/time_tracks/{timeTrackId} (the `UpdateTimeTrack` operationId) request.
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Update a time track (stop by setting ends_at to current time).
 func (c *ClientWithResponses) UpdateTimeTrackWithResponse(ctx context.Context, timeTrackId int64, body UpdateTimeTrackJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateTimeTrackResponse, error) {
 	rsp, err := c.UpdateTimeTrack(ctx, timeTrackId, body, reqEditors...)
 	if err != nil {
@@ -5927,7 +7971,12 @@ func (c *ClientWithResponses) UpdateTimeTrackWithResponse(ctx context.Context, t
 	return ParseUpdateTimeTrackResponse(rsp)
 }
 
-// CreateCalendarTodoWithBodyWithResponse request with arbitrary body returning *CreateCalendarTodoResponse
+// CreateCalendarTodoWithBodyWithResponse performs a POST /calendar/todos.json (the `CreateCalendarTodo` operationId) request,
+// with any type of body and a specified content type.
+//
+// Create a calendar todo.
+//
+// Returns a wrapper object for the known response body format(s).
 func (c *ClientWithResponses) CreateCalendarTodoWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateCalendarTodoResponse, error) {
 	rsp, err := c.CreateCalendarTodoWithBody(ctx, contentType, body, reqEditors...)
 	if err != nil {
@@ -5936,6 +7985,10 @@ func (c *ClientWithResponses) CreateCalendarTodoWithBodyWithResponse(ctx context
 	return ParseCreateCalendarTodoResponse(rsp)
 }
 
+// CreateCalendarTodoWithResponse performs a POST /calendar/todos.json (the `CreateCalendarTodo` operationId) request.
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Create a calendar todo.
 func (c *ClientWithResponses) CreateCalendarTodoWithResponse(ctx context.Context, body CreateCalendarTodoJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateCalendarTodoResponse, error) {
 	rsp, err := c.CreateCalendarTodo(ctx, body, reqEditors...)
 	if err != nil {
@@ -5944,7 +7997,11 @@ func (c *ClientWithResponses) CreateCalendarTodoWithResponse(ctx context.Context
 	return ParseCreateCalendarTodoResponse(rsp)
 }
 
-// DeleteCalendarTodoWithResponse request returning *DeleteCalendarTodoResponse
+// DeleteCalendarTodoWithResponse performs a DELETE /calendar/todos/{todoId} (the `DeleteCalendarTodo` operationId) request.
+//
+// Delete a calendar todo.
+//
+// Returns a wrapper object for the known response body format(s).
 func (c *ClientWithResponses) DeleteCalendarTodoWithResponse(ctx context.Context, todoId int64, reqEditors ...RequestEditorFn) (*DeleteCalendarTodoResponse, error) {
 	rsp, err := c.DeleteCalendarTodo(ctx, todoId, reqEditors...)
 	if err != nil {
@@ -5953,7 +8010,11 @@ func (c *ClientWithResponses) DeleteCalendarTodoWithResponse(ctx context.Context
 	return ParseDeleteCalendarTodoResponse(rsp)
 }
 
-// UncompleteCalendarTodoWithResponse request returning *UncompleteCalendarTodoResponse
+// UncompleteCalendarTodoWithResponse performs a DELETE /calendar/todos/{todoId}/completions (the `UncompleteCalendarTodo` operationId) request.
+//
+// Uncomplete a calendar todo.
+//
+// Returns a wrapper object for the known response body format(s).
 func (c *ClientWithResponses) UncompleteCalendarTodoWithResponse(ctx context.Context, todoId int64, reqEditors ...RequestEditorFn) (*UncompleteCalendarTodoResponse, error) {
 	rsp, err := c.UncompleteCalendarTodo(ctx, todoId, reqEditors...)
 	if err != nil {
@@ -5962,7 +8023,11 @@ func (c *ClientWithResponses) UncompleteCalendarTodoWithResponse(ctx context.Con
 	return ParseUncompleteCalendarTodoResponse(rsp)
 }
 
-// CompleteCalendarTodoWithResponse request returning *CompleteCalendarTodoResponse
+// CompleteCalendarTodoWithResponse performs a POST /calendar/todos/{todoId}/completions (the `CompleteCalendarTodo` operationId) request.
+//
+// Complete a calendar todo.
+//
+// Returns a wrapper object for the known response body format(s).
 func (c *ClientWithResponses) CompleteCalendarTodoWithResponse(ctx context.Context, todoId int64, reqEditors ...RequestEditorFn) (*CompleteCalendarTodoResponse, error) {
 	rsp, err := c.CompleteCalendarTodo(ctx, todoId, reqEditors...)
 	if err != nil {
@@ -5971,7 +8036,11 @@ func (c *ClientWithResponses) CompleteCalendarTodoWithResponse(ctx context.Conte
 	return ParseCompleteCalendarTodoResponse(rsp)
 }
 
-// ListCalendarsWithResponse request returning *ListCalendarsResponse
+// ListCalendarsWithResponse performs a GET /calendars.json (the `ListCalendars` operationId) request.
+//
+// List calendars.
+//
+// Returns a wrapper object for the known response body format(s).
 func (c *ClientWithResponses) ListCalendarsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListCalendarsResponse, error) {
 	rsp, err := c.ListCalendars(ctx, reqEditors...)
 	if err != nil {
@@ -5980,7 +8049,11 @@ func (c *ClientWithResponses) ListCalendarsWithResponse(ctx context.Context, req
 	return ParseListCalendarsResponse(rsp)
 }
 
-// GetCalendarRecordingsWithResponse request returning *GetCalendarRecordingsResponse
+// GetCalendarRecordingsWithResponse performs a GET /calendars/{calendarId}/recordings (the `GetCalendarRecordings` operationId) request.
+//
+// Get recordings for a calendar.
+//
+// Returns a wrapper object for the known response body format(s).
 func (c *ClientWithResponses) GetCalendarRecordingsWithResponse(ctx context.Context, calendarId int64, params *GetCalendarRecordingsParams, reqEditors ...RequestEditorFn) (*GetCalendarRecordingsResponse, error) {
 	rsp, err := c.GetCalendarRecordings(ctx, calendarId, params, reqEditors...)
 	if err != nil {
@@ -5989,7 +8062,11 @@ func (c *ClientWithResponses) GetCalendarRecordingsWithResponse(ctx context.Cont
 	return ParseGetCalendarRecordingsResponse(rsp)
 }
 
-// ListContactsWithResponse request returning *ListContactsResponse
+// ListContactsWithResponse performs a GET /contacts.json (the `ListContacts` operationId) request.
+//
+// List contacts.
+//
+// Returns a wrapper object for the known response body format(s).
 func (c *ClientWithResponses) ListContactsWithResponse(ctx context.Context, params *ListContactsParams, reqEditors ...RequestEditorFn) (*ListContactsResponse, error) {
 	rsp, err := c.ListContacts(ctx, params, reqEditors...)
 	if err != nil {
@@ -5998,7 +8075,11 @@ func (c *ClientWithResponses) ListContactsWithResponse(ctx context.Context, para
 	return ParseListContactsResponse(rsp)
 }
 
-// GetContactWithResponse request returning *GetContactResponse
+// GetContactWithResponse performs a GET /contacts/{contactId} (the `GetContact` operationId) request.
+//
+// Get a contact.
+//
+// Returns a wrapper object for the known response body format(s).
 func (c *ClientWithResponses) GetContactWithResponse(ctx context.Context, contactId int64, reqEditors ...RequestEditorFn) (*GetContactResponse, error) {
 	rsp, err := c.GetContact(ctx, contactId, reqEditors...)
 	if err != nil {
@@ -6007,7 +8088,11 @@ func (c *ClientWithResponses) GetContactWithResponse(ctx context.Context, contac
 	return ParseGetContactResponse(rsp)
 }
 
-// ListDraftsWithResponse request returning *ListDraftsResponse
+// ListDraftsWithResponse performs a GET /entries/drafts.json (the `ListDrafts` operationId) request.
+//
+// List draft messages.
+//
+// Returns a wrapper object for the known response body format(s).
 func (c *ClientWithResponses) ListDraftsWithResponse(ctx context.Context, params *ListDraftsParams, reqEditors ...RequestEditorFn) (*ListDraftsResponse, error) {
 	rsp, err := c.ListDrafts(ctx, params, reqEditors...)
 	if err != nil {
@@ -6016,7 +8101,12 @@ func (c *ClientWithResponses) ListDraftsWithResponse(ctx context.Context, params
 	return ParseListDraftsResponse(rsp)
 }
 
-// CreateReplyWithBodyWithResponse request with arbitrary body returning *CreateReplyResponse
+// CreateReplyWithBodyWithResponse performs a POST /entries/{entryId}/replies.json (the `CreateReply` operationId) request,
+// with any type of body and a specified content type.
+//
+// Reply to an entry.
+//
+// Returns a wrapper object for the known response body format(s).
 func (c *ClientWithResponses) CreateReplyWithBodyWithResponse(ctx context.Context, entryId int64, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateReplyResponse, error) {
 	rsp, err := c.CreateReplyWithBody(ctx, entryId, contentType, body, reqEditors...)
 	if err != nil {
@@ -6025,6 +8115,10 @@ func (c *ClientWithResponses) CreateReplyWithBodyWithResponse(ctx context.Contex
 	return ParseCreateReplyResponse(rsp)
 }
 
+// CreateReplyWithResponse performs a POST /entries/{entryId}/replies.json (the `CreateReply` operationId) request.
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Reply to an entry.
 func (c *ClientWithResponses) CreateReplyWithResponse(ctx context.Context, entryId int64, body CreateReplyJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateReplyResponse, error) {
 	rsp, err := c.CreateReply(ctx, entryId, body, reqEditors...)
 	if err != nil {
@@ -6033,7 +8127,11 @@ func (c *ClientWithResponses) CreateReplyWithResponse(ctx context.Context, entry
 	return ParseCreateReplyResponse(rsp)
 }
 
-// GetFeedboxWithResponse request returning *GetFeedboxResponse
+// GetFeedboxWithResponse performs a GET /feedbox.json (the `GetFeedbox` operationId) request.
+//
+// Get the Feed.
+//
+// Returns a wrapper object for the known response body format(s).
 func (c *ClientWithResponses) GetFeedboxWithResponse(ctx context.Context, params *GetFeedboxParams, reqEditors ...RequestEditorFn) (*GetFeedboxResponse, error) {
 	rsp, err := c.GetFeedbox(ctx, params, reqEditors...)
 	if err != nil {
@@ -6042,7 +8140,11 @@ func (c *ClientWithResponses) GetFeedboxWithResponse(ctx context.Context, params
 	return ParseGetFeedboxResponse(rsp)
 }
 
-// GetIdentityWithResponse request returning *GetIdentityResponse
+// GetIdentityWithResponse performs a GET /identity.json (the `GetIdentity` operationId) request.
+//
+// Get the current identity (authenticated user profile).
+//
+// Returns a wrapper object for the known response body format(s).
 func (c *ClientWithResponses) GetIdentityWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetIdentityResponse, error) {
 	rsp, err := c.GetIdentity(ctx, reqEditors...)
 	if err != nil {
@@ -6051,7 +8153,11 @@ func (c *ClientWithResponses) GetIdentityWithResponse(ctx context.Context, reqEd
 	return ParseGetIdentityResponse(rsp)
 }
 
-// GetImboxWithResponse request returning *GetImboxResponse
+// GetImboxWithResponse performs a GET /imbox.json (the `GetImbox` operationId) request.
+//
+// Get the Imbox.
+//
+// Returns a wrapper object for the known response body format(s).
 func (c *ClientWithResponses) GetImboxWithResponse(ctx context.Context, params *GetImboxParams, reqEditors ...RequestEditorFn) (*GetImboxResponse, error) {
 	rsp, err := c.GetImbox(ctx, params, reqEditors...)
 	if err != nil {
@@ -6060,7 +8166,13 @@ func (c *ClientWithResponses) GetImboxWithResponse(ctx context.Context, params *
 	return ParseGetImboxResponse(rsp)
 }
 
-// CreateMessageWithBodyWithResponse request with arbitrary body returning *CreateMessageResponse
+// CreateMessageWithBodyWithResponse performs a POST /messages.json (the `CreateMessage` operationId) request,
+// with any type of body and a specified content type.
+//
+// Create a new message (start a new topic).
+// The acting sender ID must be included; the Go SDK resolves this automatically.
+//
+// Returns a wrapper object for the known response body format(s).
 func (c *ClientWithResponses) CreateMessageWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateMessageResponse, error) {
 	rsp, err := c.CreateMessageWithBody(ctx, contentType, body, reqEditors...)
 	if err != nil {
@@ -6069,6 +8181,11 @@ func (c *ClientWithResponses) CreateMessageWithBodyWithResponse(ctx context.Cont
 	return ParseCreateMessageResponse(rsp)
 }
 
+// CreateMessageWithResponse performs a POST /messages.json (the `CreateMessage` operationId) request.
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Create a new message (start a new topic).
+// The acting sender ID must be included; the Go SDK resolves this automatically.
 func (c *ClientWithResponses) CreateMessageWithResponse(ctx context.Context, body CreateMessageJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateMessageResponse, error) {
 	rsp, err := c.CreateMessage(ctx, body, reqEditors...)
 	if err != nil {
@@ -6077,7 +8194,11 @@ func (c *ClientWithResponses) CreateMessageWithResponse(ctx context.Context, bod
 	return ParseCreateMessageResponse(rsp)
 }
 
-// GetMessageWithResponse request returning *GetMessageResponse
+// GetMessageWithResponse performs a GET /messages/{messageId} (the `GetMessage` operationId) request.
+//
+// Get a message.
+//
+// Returns a wrapper object for the known response body format(s).
 func (c *ClientWithResponses) GetMessageWithResponse(ctx context.Context, messageId int64, reqEditors ...RequestEditorFn) (*GetMessageResponse, error) {
 	rsp, err := c.GetMessage(ctx, messageId, reqEditors...)
 	if err != nil {
@@ -6086,7 +8207,11 @@ func (c *ClientWithResponses) GetMessageWithResponse(ctx context.Context, messag
 	return ParseGetMessageResponse(rsp)
 }
 
-// GetNavigationWithResponse request returning *GetNavigationResponse
+// GetNavigationWithResponse performs a GET /my/navigation.json (the `GetNavigation` operationId) request.
+//
+// Get navigation items.
+//
+// Returns a wrapper object for the known response body format(s).
 func (c *ClientWithResponses) GetNavigationWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetNavigationResponse, error) {
 	rsp, err := c.GetNavigation(ctx, reqEditors...)
 	if err != nil {
@@ -6095,7 +8220,11 @@ func (c *ClientWithResponses) GetNavigationWithResponse(ctx context.Context, req
 	return ParseGetNavigationResponse(rsp)
 }
 
-// GetTrailboxWithResponse request returning *GetTrailboxResponse
+// GetTrailboxWithResponse performs a GET /paper_trail.json (the `GetTrailbox` operationId) request.
+//
+// Get the Paper Trail.
+//
+// Returns a wrapper object for the known response body format(s).
 func (c *ClientWithResponses) GetTrailboxWithResponse(ctx context.Context, params *GetTrailboxParams, reqEditors ...RequestEditorFn) (*GetTrailboxResponse, error) {
 	rsp, err := c.GetTrailbox(ctx, params, reqEditors...)
 	if err != nil {
@@ -6104,7 +8233,12 @@ func (c *ClientWithResponses) GetTrailboxWithResponse(ctx context.Context, param
 	return ParseGetTrailboxResponse(rsp)
 }
 
-// MarkPostingsSeenWithBodyWithResponse request with arbitrary body returning *MarkPostingsSeenResponse
+// MarkPostingsSeenWithBodyWithResponse performs a POST /postings/seen.json (the `MarkPostingsSeen` operationId) request,
+// with any type of body and a specified content type.
+//
+// Mark postings as seen.
+//
+// Returns a wrapper object for the known response body format(s).
 func (c *ClientWithResponses) MarkPostingsSeenWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*MarkPostingsSeenResponse, error) {
 	rsp, err := c.MarkPostingsSeenWithBody(ctx, contentType, body, reqEditors...)
 	if err != nil {
@@ -6113,6 +8247,10 @@ func (c *ClientWithResponses) MarkPostingsSeenWithBodyWithResponse(ctx context.C
 	return ParseMarkPostingsSeenResponse(rsp)
 }
 
+// MarkPostingsSeenWithResponse performs a POST /postings/seen.json (the `MarkPostingsSeen` operationId) request.
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Mark postings as seen.
 func (c *ClientWithResponses) MarkPostingsSeenWithResponse(ctx context.Context, body MarkPostingsSeenJSONRequestBody, reqEditors ...RequestEditorFn) (*MarkPostingsSeenResponse, error) {
 	rsp, err := c.MarkPostingsSeen(ctx, body, reqEditors...)
 	if err != nil {
@@ -6121,7 +8259,12 @@ func (c *ClientWithResponses) MarkPostingsSeenWithResponse(ctx context.Context, 
 	return ParseMarkPostingsSeenResponse(rsp)
 }
 
-// MarkPostingsUnseenWithBodyWithResponse request with arbitrary body returning *MarkPostingsUnseenResponse
+// MarkPostingsUnseenWithBodyWithResponse performs a POST /postings/unseen.json (the `MarkPostingsUnseen` operationId) request,
+// with any type of body and a specified content type.
+//
+// Mark postings as unseen.
+//
+// Returns a wrapper object for the known response body format(s).
 func (c *ClientWithResponses) MarkPostingsUnseenWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*MarkPostingsUnseenResponse, error) {
 	rsp, err := c.MarkPostingsUnseenWithBody(ctx, contentType, body, reqEditors...)
 	if err != nil {
@@ -6130,6 +8273,10 @@ func (c *ClientWithResponses) MarkPostingsUnseenWithBodyWithResponse(ctx context
 	return ParseMarkPostingsUnseenResponse(rsp)
 }
 
+// MarkPostingsUnseenWithResponse performs a POST /postings/unseen.json (the `MarkPostingsUnseen` operationId) request.
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Mark postings as unseen.
 func (c *ClientWithResponses) MarkPostingsUnseenWithResponse(ctx context.Context, body MarkPostingsUnseenJSONRequestBody, reqEditors ...RequestEditorFn) (*MarkPostingsUnseenResponse, error) {
 	rsp, err := c.MarkPostingsUnseen(ctx, body, reqEditors...)
 	if err != nil {
@@ -6138,7 +8285,11 @@ func (c *ClientWithResponses) MarkPostingsUnseenWithResponse(ctx context.Context
 	return ParseMarkPostingsUnseenResponse(rsp)
 }
 
-// IgnorePostingWithResponse request returning *IgnorePostingResponse
+// IgnorePostingWithResponse performs a POST /postings/{postingId}/ignore.json (the `IgnorePosting` operationId) request.
+//
+// Ignore a posting (stop notifications).
+//
+// Returns a wrapper object for the known response body format(s).
 func (c *ClientWithResponses) IgnorePostingWithResponse(ctx context.Context, postingId int64, reqEditors ...RequestEditorFn) (*IgnorePostingResponse, error) {
 	rsp, err := c.IgnorePosting(ctx, postingId, reqEditors...)
 	if err != nil {
@@ -6147,7 +8298,11 @@ func (c *ClientWithResponses) IgnorePostingWithResponse(ctx context.Context, pos
 	return ParseIgnorePostingResponse(rsp)
 }
 
-// MovePostingToSetAsideWithResponse request returning *MovePostingToSetAsideResponse
+// MovePostingToSetAsideWithResponse performs a POST /postings/{postingId}/move/asidebox.json (the `MovePostingToSetAside` operationId) request.
+//
+// Move posting to Set Aside.
+//
+// Returns a wrapper object for the known response body format(s).
 func (c *ClientWithResponses) MovePostingToSetAsideWithResponse(ctx context.Context, postingId int64, reqEditors ...RequestEditorFn) (*MovePostingToSetAsideResponse, error) {
 	rsp, err := c.MovePostingToSetAside(ctx, postingId, reqEditors...)
 	if err != nil {
@@ -6156,7 +8311,11 @@ func (c *ClientWithResponses) MovePostingToSetAsideWithResponse(ctx context.Cont
 	return ParseMovePostingToSetAsideResponse(rsp)
 }
 
-// MovePostingToFeedWithResponse request returning *MovePostingToFeedResponse
+// MovePostingToFeedWithResponse performs a POST /postings/{postingId}/move/feedbox.json (the `MovePostingToFeed` operationId) request.
+//
+// Move posting to The Feed.
+//
+// Returns a wrapper object for the known response body format(s).
 func (c *ClientWithResponses) MovePostingToFeedWithResponse(ctx context.Context, postingId int64, reqEditors ...RequestEditorFn) (*MovePostingToFeedResponse, error) {
 	rsp, err := c.MovePostingToFeed(ctx, postingId, reqEditors...)
 	if err != nil {
@@ -6165,7 +8324,11 @@ func (c *ClientWithResponses) MovePostingToFeedWithResponse(ctx context.Context,
 	return ParseMovePostingToFeedResponse(rsp)
 }
 
-// MovePostingToReplyLaterWithResponse request returning *MovePostingToReplyLaterResponse
+// MovePostingToReplyLaterWithResponse performs a POST /postings/{postingId}/move/laterbox.json (the `MovePostingToReplyLater` operationId) request.
+//
+// Move posting to Reply Later.
+//
+// Returns a wrapper object for the known response body format(s).
 func (c *ClientWithResponses) MovePostingToReplyLaterWithResponse(ctx context.Context, postingId int64, reqEditors ...RequestEditorFn) (*MovePostingToReplyLaterResponse, error) {
 	rsp, err := c.MovePostingToReplyLater(ctx, postingId, reqEditors...)
 	if err != nil {
@@ -6174,7 +8337,11 @@ func (c *ClientWithResponses) MovePostingToReplyLaterWithResponse(ctx context.Co
 	return ParseMovePostingToReplyLaterResponse(rsp)
 }
 
-// MovePostingToPaperTrailWithResponse request returning *MovePostingToPaperTrailResponse
+// MovePostingToPaperTrailWithResponse performs a POST /postings/{postingId}/move/trailbox.json (the `MovePostingToPaperTrail` operationId) request.
+//
+// Move posting to Paper Trail.
+//
+// Returns a wrapper object for the known response body format(s).
 func (c *ClientWithResponses) MovePostingToPaperTrailWithResponse(ctx context.Context, postingId int64, reqEditors ...RequestEditorFn) (*MovePostingToPaperTrailResponse, error) {
 	rsp, err := c.MovePostingToPaperTrail(ctx, postingId, reqEditors...)
 	if err != nil {
@@ -6183,7 +8350,11 @@ func (c *ClientWithResponses) MovePostingToPaperTrailWithResponse(ctx context.Co
 	return ParseMovePostingToPaperTrailResponse(rsp)
 }
 
-// MovePostingToTrashWithResponse request returning *MovePostingToTrashResponse
+// MovePostingToTrashWithResponse performs a POST /postings/{postingId}/trash.json (the `MovePostingToTrash` operationId) request.
+//
+// Move posting to trash.
+//
+// Returns a wrapper object for the known response body format(s).
 func (c *ClientWithResponses) MovePostingToTrashWithResponse(ctx context.Context, postingId int64, reqEditors ...RequestEditorFn) (*MovePostingToTrashResponse, error) {
 	rsp, err := c.MovePostingToTrash(ctx, postingId, reqEditors...)
 	if err != nil {
@@ -6192,7 +8363,11 @@ func (c *ClientWithResponses) MovePostingToTrashWithResponse(ctx context.Context
 	return ParseMovePostingToTrashResponse(rsp)
 }
 
-// GetLaterboxWithResponse request returning *GetLaterboxResponse
+// GetLaterboxWithResponse performs a GET /reply_later.json (the `GetLaterbox` operationId) request.
+//
+// Get the Reply Later box.
+//
+// Returns a wrapper object for the known response body format(s).
 func (c *ClientWithResponses) GetLaterboxWithResponse(ctx context.Context, params *GetLaterboxParams, reqEditors ...RequestEditorFn) (*GetLaterboxResponse, error) {
 	rsp, err := c.GetLaterbox(ctx, params, reqEditors...)
 	if err != nil {
@@ -6201,7 +8376,11 @@ func (c *ClientWithResponses) GetLaterboxWithResponse(ctx context.Context, param
 	return ParseGetLaterboxResponse(rsp)
 }
 
-// SearchWithResponse request returning *SearchResponse
+// SearchWithResponse performs a GET /search.json (the `Search` operationId) request.
+//
+// Search topics.
+//
+// Returns a wrapper object for the known response body format(s).
 func (c *ClientWithResponses) SearchWithResponse(ctx context.Context, params *SearchParams, reqEditors ...RequestEditorFn) (*SearchResponse, error) {
 	rsp, err := c.Search(ctx, params, reqEditors...)
 	if err != nil {
@@ -6210,7 +8389,11 @@ func (c *ClientWithResponses) SearchWithResponse(ctx context.Context, params *Se
 	return ParseSearchResponse(rsp)
 }
 
-// GetAsideboxWithResponse request returning *GetAsideboxResponse
+// GetAsideboxWithResponse performs a GET /set_aside.json (the `GetAsidebox` operationId) request.
+//
+// Get the Set Aside box.
+//
+// Returns a wrapper object for the known response body format(s).
 func (c *ClientWithResponses) GetAsideboxWithResponse(ctx context.Context, params *GetAsideboxParams, reqEditors ...RequestEditorFn) (*GetAsideboxResponse, error) {
 	rsp, err := c.GetAsidebox(ctx, params, reqEditors...)
 	if err != nil {
@@ -6219,7 +8402,11 @@ func (c *ClientWithResponses) GetAsideboxWithResponse(ctx context.Context, param
 	return ParseGetAsideboxResponse(rsp)
 }
 
-// GetEverythingTopicsWithResponse request returning *GetEverythingTopicsResponse
+// GetEverythingTopicsWithResponse performs a GET /topics/everything.json (the `GetEverythingTopics` operationId) request.
+//
+// Get all topics (everything view).
+//
+// Returns a wrapper object for the known response body format(s).
 func (c *ClientWithResponses) GetEverythingTopicsWithResponse(ctx context.Context, params *GetEverythingTopicsParams, reqEditors ...RequestEditorFn) (*GetEverythingTopicsResponse, error) {
 	rsp, err := c.GetEverythingTopics(ctx, params, reqEditors...)
 	if err != nil {
@@ -6228,7 +8415,11 @@ func (c *ClientWithResponses) GetEverythingTopicsWithResponse(ctx context.Contex
 	return ParseGetEverythingTopicsResponse(rsp)
 }
 
-// GetSentTopicsWithResponse request returning *GetSentTopicsResponse
+// GetSentTopicsWithResponse performs a GET /topics/sent.json (the `GetSentTopics` operationId) request.
+//
+// Get sent topics.
+//
+// Returns a wrapper object for the known response body format(s).
 func (c *ClientWithResponses) GetSentTopicsWithResponse(ctx context.Context, params *GetSentTopicsParams, reqEditors ...RequestEditorFn) (*GetSentTopicsResponse, error) {
 	rsp, err := c.GetSentTopics(ctx, params, reqEditors...)
 	if err != nil {
@@ -6237,7 +8428,11 @@ func (c *ClientWithResponses) GetSentTopicsWithResponse(ctx context.Context, par
 	return ParseGetSentTopicsResponse(rsp)
 }
 
-// GetSpamTopicsWithResponse request returning *GetSpamTopicsResponse
+// GetSpamTopicsWithResponse performs a GET /topics/spam.json (the `GetSpamTopics` operationId) request.
+//
+// Get spam topics.
+//
+// Returns a wrapper object for the known response body format(s).
 func (c *ClientWithResponses) GetSpamTopicsWithResponse(ctx context.Context, params *GetSpamTopicsParams, reqEditors ...RequestEditorFn) (*GetSpamTopicsResponse, error) {
 	rsp, err := c.GetSpamTopics(ctx, params, reqEditors...)
 	if err != nil {
@@ -6246,7 +8441,11 @@ func (c *ClientWithResponses) GetSpamTopicsWithResponse(ctx context.Context, par
 	return ParseGetSpamTopicsResponse(rsp)
 }
 
-// GetTrashTopicsWithResponse request returning *GetTrashTopicsResponse
+// GetTrashTopicsWithResponse performs a GET /topics/trash.json (the `GetTrashTopics` operationId) request.
+//
+// Get trash topics.
+//
+// Returns a wrapper object for the known response body format(s).
 func (c *ClientWithResponses) GetTrashTopicsWithResponse(ctx context.Context, params *GetTrashTopicsParams, reqEditors ...RequestEditorFn) (*GetTrashTopicsResponse, error) {
 	rsp, err := c.GetTrashTopics(ctx, params, reqEditors...)
 	if err != nil {
@@ -6255,7 +8454,11 @@ func (c *ClientWithResponses) GetTrashTopicsWithResponse(ctx context.Context, pa
 	return ParseGetTrashTopicsResponse(rsp)
 }
 
-// GetTopicWithResponse request returning *GetTopicResponse
+// GetTopicWithResponse performs a GET /topics/{topicId} (the `GetTopic` operationId) request.
+//
+// Get a topic.
+//
+// Returns a wrapper object for the known response body format(s).
 func (c *ClientWithResponses) GetTopicWithResponse(ctx context.Context, topicId int64, reqEditors ...RequestEditorFn) (*GetTopicResponse, error) {
 	rsp, err := c.GetTopic(ctx, topicId, reqEditors...)
 	if err != nil {
@@ -6264,7 +8467,11 @@ func (c *ClientWithResponses) GetTopicWithResponse(ctx context.Context, topicId 
 	return ParseGetTopicResponse(rsp)
 }
 
-// GetTopicEntriesWithResponse request returning *GetTopicEntriesResponse
+// GetTopicEntriesWithResponse performs a GET /topics/{topicId}/entries (the `GetTopicEntries` operationId) request.
+//
+// Get entries for a topic.
+//
+// Returns a wrapper object for the known response body format(s).
 func (c *ClientWithResponses) GetTopicEntriesWithResponse(ctx context.Context, topicId int64, params *GetTopicEntriesParams, reqEditors ...RequestEditorFn) (*GetTopicEntriesResponse, error) {
 	rsp, err := c.GetTopicEntries(ctx, topicId, params, reqEditors...)
 	if err != nil {
@@ -6273,7 +8480,12 @@ func (c *ClientWithResponses) GetTopicEntriesWithResponse(ctx context.Context, t
 	return ParseGetTopicEntriesResponse(rsp)
 }
 
-// CreateTopicMessageWithBodyWithResponse request with arbitrary body returning *CreateTopicMessageResponse
+// CreateTopicMessageWithBodyWithResponse performs a POST /topics/{topicId}/entries.json (the `CreateTopicMessage` operationId) request,
+// with any type of body and a specified content type.
+//
+// Reply to an existing topic.
+//
+// Returns a wrapper object for the known response body format(s).
 func (c *ClientWithResponses) CreateTopicMessageWithBodyWithResponse(ctx context.Context, topicId int64, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateTopicMessageResponse, error) {
 	rsp, err := c.CreateTopicMessageWithBody(ctx, topicId, contentType, body, reqEditors...)
 	if err != nil {
@@ -6282,6 +8494,10 @@ func (c *ClientWithResponses) CreateTopicMessageWithBodyWithResponse(ctx context
 	return ParseCreateTopicMessageResponse(rsp)
 }
 
+// CreateTopicMessageWithResponse performs a POST /topics/{topicId}/entries.json (the `CreateTopicMessage` operationId) request.
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Reply to an existing topic.
 func (c *ClientWithResponses) CreateTopicMessageWithResponse(ctx context.Context, topicId int64, body CreateTopicMessageJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateTopicMessageResponse, error) {
 	rsp, err := c.CreateTopicMessage(ctx, topicId, body, reqEditors...)
 	if err != nil {
@@ -6614,6 +8830,9 @@ func ParseUpdateJournalEntryResponse(rsp *http.Response) (*UpdateJournalEntryRes
 	}
 
 	switch {
+	case rsp.StatusCode == 200:
+		break // No content-type
+
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
 		var dest UnauthorizedErrorResponseContent
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
@@ -6884,6 +9103,9 @@ func ParseDeleteCalendarTodoResponse(rsp *http.Response) (*DeleteCalendarTodoRes
 	}
 
 	switch {
+	case rsp.StatusCode == 200:
+		break // No content-type
+
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
 		var dest UnauthorizedErrorResponseContent
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
@@ -7288,6 +9510,9 @@ func ParseCreateReplyResponse(rsp *http.Response) (*CreateReplyResponse, error) 
 	}
 
 	switch {
+	case rsp.StatusCode == 200:
+		break // No content-type
+
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
 		var dest UnauthorizedErrorResponseContent
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
@@ -7483,6 +9708,9 @@ func ParseCreateMessageResponse(rsp *http.Response) (*CreateMessageResponse, err
 	}
 
 	switch {
+	case rsp.StatusCode == 200:
+		break // No content-type
+
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
 		var dest UnauthorizedErrorResponseContent
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
@@ -7678,6 +9906,9 @@ func ParseMarkPostingsSeenResponse(rsp *http.Response) (*MarkPostingsSeenRespons
 	}
 
 	switch {
+	case rsp.StatusCode == 200:
+		break // No content-type
+
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
 		var dest UnauthorizedErrorResponseContent
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
@@ -7718,6 +9949,9 @@ func ParseMarkPostingsUnseenResponse(rsp *http.Response) (*MarkPostingsUnseenRes
 	}
 
 	switch {
+	case rsp.StatusCode == 200:
+		break // No content-type
+
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
 		var dest UnauthorizedErrorResponseContent
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
@@ -7758,6 +9992,9 @@ func ParseIgnorePostingResponse(rsp *http.Response) (*IgnorePostingResponse, err
 	}
 
 	switch {
+	case rsp.StatusCode == 200:
+		break // No content-type
+
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
 		var dest UnauthorizedErrorResponseContent
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
@@ -7805,6 +10042,9 @@ func ParseMovePostingToSetAsideResponse(rsp *http.Response) (*MovePostingToSetAs
 	}
 
 	switch {
+	case rsp.StatusCode == 200:
+		break // No content-type
+
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
 		var dest UnauthorizedErrorResponseContent
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
@@ -7852,6 +10092,9 @@ func ParseMovePostingToFeedResponse(rsp *http.Response) (*MovePostingToFeedRespo
 	}
 
 	switch {
+	case rsp.StatusCode == 200:
+		break // No content-type
+
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
 		var dest UnauthorizedErrorResponseContent
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
@@ -7899,6 +10142,9 @@ func ParseMovePostingToReplyLaterResponse(rsp *http.Response) (*MovePostingToRep
 	}
 
 	switch {
+	case rsp.StatusCode == 200:
+		break // No content-type
+
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
 		var dest UnauthorizedErrorResponseContent
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
@@ -7946,6 +10192,9 @@ func ParseMovePostingToPaperTrailResponse(rsp *http.Response) (*MovePostingToPap
 	}
 
 	switch {
+	case rsp.StatusCode == 200:
+		break // No content-type
+
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
 		var dest UnauthorizedErrorResponseContent
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
@@ -7993,6 +10242,9 @@ func ParseMovePostingToTrashResponse(rsp *http.Response) (*MovePostingToTrashRes
 	}
 
 	switch {
+	case rsp.StatusCode == 200:
+		break // No content-type
+
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
 		var dest UnauthorizedErrorResponseContent
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
@@ -8477,6 +10729,9 @@ func ParseCreateTopicMessageResponse(rsp *http.Response) (*CreateTopicMessageRes
 	}
 
 	switch {
+	case rsp.StatusCode == 200:
+		break // No content-type
+
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
 		var dest UnauthorizedErrorResponseContent
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
