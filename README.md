@@ -4,9 +4,11 @@ The Go SDK for the [HEY](https://www.hey.com) API. It is the library behind
 [hey-cli](https://github.com/basecamp/hey-cli), and it is generated from a Smithy model of
 the API in `spec/`, so what the SDK offers is what HEY actually serves.
 
-**Go only.** This repository ships a single Go module, `github.com/basecamp/hey-sdk/go`.
-The Makefile still carries `ts-`, `rb-`, `swift-` and `kt-` targets inherited from a shared
-SDK template; there are no such SDKs here and those targets fail immediately.
+Today the repository ships a single Go module, `github.com/basecamp/hey-sdk/go`.
+
+TypeScript, Ruby, Swift and Kotlin SDKs will be added in future updates, generated from the
+same Smithy model; the Makefile already reserves targets for them (`ts-`, `rb-`, `swift-`,
+`kt-`), which fail until those SDKs exist.
 
 ## Install
 
