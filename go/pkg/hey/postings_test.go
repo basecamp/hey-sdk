@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -243,5 +244,109 @@ func TestTimeTracksService_StartConflict(t *testing.T) {
 	e := AsError(err)
 	if e == nil || e.Code != CodeConflict || e.HTTPStatus != 409 || e.Message != "Ongoing time track already in progress" {
 		t.Fatalf("expected a conflict error carrying the server message, got %#v", err)
+	}
+}
+
+// --- Behaviour fixes from the #64 review ---
+
+func TestContactsService_UpdateMergesUnsetFields(t *testing.T) {
+	var form url.Values
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.Method == http.MethodGet && r.URL.Path == "/contacts/7.json":
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"id":7,"name":"Jane Dawson","email_address":"jane@x.com","aliases":[{"id":8,"email_address":"jd@x.com"},{"id":9,"email_address":"jane.d@x.com"}]}`))
+		case r.Method == http.MethodPatch && r.URL.Path == "/contacts/7":
+			_ = r.ParseForm()
+			form = r.PostForm
+			w.Header().Set("Location", srv0URL(r)+"/contacts/7")
+			w.WriteHeader(http.StatusFound)
+		default:
+			w.WriteHeader(404)
+		}
+	}))
+	t.Cleanup(srv.Close)
+	c := NewClient(&Config{BaseURL: srv.URL}, &StaticTokenProvider{Token: "t"}, WithMaxRetries(0))
+
+	// Only the email changes: name and both aliases must be carried over.
+	if err := c.Contacts().Update(context.Background(), 7, ContactParams{EmailAddress: "new@x.com"}); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got := form.Get("contact[name]"); got != "Jane Dawson" {
+		t.Errorf("name should be preserved, got %q", got)
+	}
+	if got := form.Get("contact[email_address]"); got != "new@x.com" {
+		t.Errorf("email should be updated, got %q", got)
+	}
+	if got := form["contact[alias_email_addresses][]"]; len(got) != 2 || got[0] != "jd@x.com" {
+		t.Errorf("aliases should be preserved, got %v", got)
+	}
+
+	// An explicit empty alias list clears them.
+	if err := c.Contacts().Update(context.Background(), 7, ContactParams{AliasEmailAddresses: []string{}}); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got := form["contact[alias_email_addresses][]"]; len(got) != 0 {
+		t.Errorf("explicit empty aliases should clear them, got %v", got)
+	}
+	if got := form.Get("contact[name]"); got != "Jane Dawson" {
+		t.Errorf("name should still be preserved, got %q", got)
+	}
+}
+
+func srv0URL(r *http.Request) string { return "http://" + r.Host }
+
+func TestPublicationsService_CreateIsOneOperation(t *testing.T) {
+	page := `<turbo-frame id="edit_topic_publication">
+		<span class="copy-to-clipboard__text" data-copy-to-clipboard-target="copyable">https://public.hey.com/p/abc123</span>
+	</turbo-frame>`
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.Method == http.MethodPost && r.URL.Path == "/topics/5/publication":
+			w.Header().Set("Location", "http://"+r.Host+"/topics/5")
+			w.WriteHeader(http.StatusFound)
+		case r.Method == http.MethodGet && r.URL.Path == "/topics/5/publication/edit":
+			w.Header().Set("Content-Type", "text/html")
+			_, _ = w.Write([]byte(page))
+		default:
+			w.WriteHeader(404)
+		}
+	}))
+	t.Cleanup(srv.Close)
+	rec := &opRecorder{}
+	c := NewClient(&Config{BaseURL: srv.URL}, &StaticTokenProvider{Token: "t"}, WithMaxRetries(0), WithHooks(rec))
+
+	pub, err := c.Publications().Create(context.Background(), 5)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !pub.Published || pub.URL != "https://public.hey.com/p/abc123" {
+		t.Errorf("expected the public link back, got %#v", pub)
+	}
+	if len(rec.ops) != 1 || rec.ops[0] != "CreateTopicPublication" {
+		t.Errorf("hooks saw %v, want exactly [CreateTopicPublication] — Get must not be a nested operation", rec.ops)
+	}
+}
+
+func TestTopicsService_TrashSharedTopicNeedsConfirmation(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.Method == http.MethodPut && r.URL.Path == "/topics/9/status/trashed.json":
+			// A shared topic without confirm_destroy: HEY redirects to the confirmation page.
+			w.Header().Set("Location", "http://"+r.Host+"/topics/9/removal/new")
+			w.WriteHeader(http.StatusFound)
+		case r.URL.Path == "/topics/9/removal/new":
+			w.WriteHeader(http.StatusNotAcceptable) // HTML page asked for as JSON
+		default:
+			w.WriteHeader(404)
+		}
+	}))
+	t.Cleanup(srv.Close)
+	c := NewClient(&Config{BaseURL: srv.URL}, &StaticTokenProvider{Token: "t"}, WithMaxRetries(0))
+
+	err := c.Topics().Trash(context.Background(), 9, false)
+	e := AsError(err)
+	if e == nil || e.Code != CodeUsage || e.Hint == "" {
+		t.Fatalf("expected a usage error telling the caller to confirm, got %#v", err)
 	}
 }

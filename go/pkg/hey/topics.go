@@ -2,6 +2,9 @@ package hey
 
 import (
 	"context"
+	"fmt"
+	"net/http"
+	"strings"
 	"time"
 
 	"github.com/basecamp/hey-sdk/go/pkg/generated"
@@ -197,8 +200,24 @@ func (s *TopicsService) Trash(ctx context.Context, topicID int64, confirmDestroy
 		if err != nil {
 			return err
 		}
+		if awaitingRemovalConfirmation(resp.HTTPResponse) {
+			return ErrUsageHint(
+				fmt.Sprintf("topic %d is shared; HEY wants confirmation before trashing it", topicID),
+				"Call Trash with confirmDestroy=true to trash it and remove your access")
+		}
 		return CheckResponse(resp.HTTPResponse)
 	})
+}
+
+// awaitingRemovalConfirmation reports whether HEY answered a trash request by
+// redirecting to the shared-topic removal confirmation page (/topics/:id/removal/new).
+// The client follows the redirect, so it shows up as a non-2xx response whose final
+// request URL is that page.
+func awaitingRemovalConfirmation(resp *http.Response) bool {
+	if resp == nil || resp.Request == nil || resp.Request.URL == nil {
+		return false
+	}
+	return resp.StatusCode >= 300 && strings.HasSuffix(resp.Request.URL.Path, "/removal/new")
 }
 
 // Restore brings a topic back from the trash or the catch-all.

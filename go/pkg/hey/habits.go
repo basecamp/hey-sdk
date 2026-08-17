@@ -71,9 +71,10 @@ func (s *HabitsService) Uncomplete(ctx context.Context, day string, habitID int6
 
 // --- Habit CRUD ---
 //
-// Create and Update answer the written habit as a recording on servers that carry the JSON
-// branches. Servers that don't redirect to the habits page instead; the write still reads as
-// a success here, just without a recording to hand back.
+// Create and Update answer the written habit as a recording (HEY renders it as JSON on
+// create and update; verified against production 2026-08-17). There is no redirect
+// fallback: a non-2xx answer is an error, so a caller never sees a "success" that
+// wrote nothing.
 
 // HabitParams describes a habit. Days are 0 for Sunday through 6 for Saturday.
 type HabitParams struct {

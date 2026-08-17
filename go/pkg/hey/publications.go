@@ -36,16 +36,20 @@ func (s *PublicationsService) Get(ctx context.Context, topicID int64) (result *P
 	}
 
 	err = s.client.instrument(ctx, op, func(ctx context.Context) error {
-		resp, rerr := s.client.GetHTML(ctx, fmt.Sprintf("/topics/%d/publication/edit", topicID))
-		if rerr != nil {
-			return rerr
-		}
-
-		publicURL := parsePublicationURLHTML(string(resp.Data))
-		result = &Publication{Published: publicURL != "", URL: publicURL}
-		return nil
+		result, err = s.get(ctx, topicID)
+		return err
 	})
 	return result, err
+}
+
+// get is the un-instrumented read shared by Get and Create.
+func (s *PublicationsService) get(ctx context.Context, topicID int64) (*Publication, error) {
+	resp, err := s.client.GetHTML(ctx, fmt.Sprintf("/topics/%d/publication/edit", topicID))
+	if err != nil {
+		return nil, err
+	}
+	publicURL := parsePublicationURLHTML(string(resp.Data))
+	return &Publication{Published: publicURL != "", URL: publicURL}, nil
 }
 
 // Create publishes a thread and returns its public link.
@@ -62,8 +66,9 @@ func (s *PublicationsService) Create(ctx context.Context, topicID int64) (result
 			return perr
 		}
 
-		// The redirect lands on the sharing panel rather than carrying the link, so read it back.
-		publication, gerr := s.Get(ctx, topicID)
+		// The redirect lands on the sharing panel rather than carrying the link, so read it
+		// back — inside this same operation, not as a second instrumented Get.
+		publication, gerr := s.get(ctx, topicID)
 		if gerr != nil {
 			return gerr
 		}
