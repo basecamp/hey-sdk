@@ -71,8 +71,8 @@ func (s *HabitsService) Uncomplete(ctx context.Context, day string, habitID int6
 
 // --- Habit CRUD ---
 //
-// Create and Update answer the written habit as a recording (HEY renders it as JSON on
-// create and update; verified against production 2026-08-17). There is no redirect
+// Create and Update answer the written habit as a recording: HEY renders it as JSON on
+// create and update (the JSON branches added in haystack #8623). There is no redirect
 // fallback: a non-2xx answer is an error, so a caller never sees a "success" that
 // wrote nothing.
 

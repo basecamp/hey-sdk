@@ -189,7 +189,9 @@ func (s *ContactsService) Create(ctx context.Context, params ContactParams) (id 
 //
 // HEY's update is a full replacement (Contact::Ingress::Revise rewrites name, email and
 // removes any alias not submitted), so the current contact is read first and unset
-// fields are filled in from it before the form is sent.
+// fields are filled in from it before the form is sent. That read-then-write is not
+// atomic: a change made to the contact between the two requests is overwritten with
+// what was read. Pass every field explicitly when that matters.
 func (s *ContactsService) Update(ctx context.Context, contactID int64, params ContactParams) error {
 	op := OperationInfo{
 		Service: "Contacts", Operation: "UpdateContact",
