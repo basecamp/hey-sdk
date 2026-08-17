@@ -271,6 +271,23 @@ func (c *Client) GetHTML(ctx context.Context, path string) (*Response, error) {
 	return c.doRequest(contextWithAccept(ctx, "text/html"), "GET", path, nil)
 }
 
+// GetBlob performs a same-origin GET request for binary content and bypasses
+// the response cache. Redirects may leave the HEY origin, but the HTTP client
+// strips authorization before following them.
+func (c *Client) GetBlob(ctx context.Context, path string) (*Response, error) {
+	resolvedURL, err := c.buildURL(path)
+	if err != nil {
+		return nil, err
+	}
+	if !isSameOrigin(c.cfg.BaseURL, resolvedURL) {
+		return nil, fmt.Errorf("blob URL points to different origin: %s", resolvedURL)
+	}
+
+	ctx = contextWithAccept(ctx, "*/*")
+	ctx = contextWithoutCache(ctx)
+	return c.doRequestURL(ctx, "GET", resolvedURL, nil)
+}
+
 // GetCSV performs a GET request with Accept: text/csv, returning the raw CSV bytes.
 // Use this for the export endpoints, which stream a file rather than a document.
 func (c *Client) GetCSV(ctx context.Context, path string) (*Response, error) {
@@ -452,6 +469,17 @@ func acceptFromContext(ctx context.Context) string {
 	return "application/json"
 }
 
+type contextKeyNoCache struct{}
+
+func contextWithoutCache(ctx context.Context) context.Context {
+	return context.WithValue(ctx, contextKeyNoCache{}, true)
+}
+
+func noCacheFromContext(ctx context.Context) bool {
+	v, _ := ctx.Value(contextKeyNoCache{}).(bool)
+	return v
+}
+
 func (c *Client) doRequest(ctx context.Context, method, path string, body any) (*Response, error) {
 	url, err := c.buildURL(path)
 	if err != nil {
@@ -546,7 +574,7 @@ func (c *Client) singleRequest(ctx context.Context, method, url string, body any
 	req.Header.Set("Accept", acceptFromContext(ctx))
 
 	var cacheKey string
-	if method == "GET" && c.cache != nil {
+	if method == "GET" && c.cache != nil && !noCacheFromContext(ctx) {
 		cacheKey = c.cache.Key(url, req.Header.Get("Authorization"))
 		if etag := c.cache.GetETag(cacheKey); etag != "" {
 			req.Header.Set("If-None-Match", etag)
