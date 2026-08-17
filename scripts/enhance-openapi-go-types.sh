@@ -38,26 +38,42 @@ jq '
 
 # Pass 2: Optional booleans and timestamps in RequestContent schemas → pointers
 # Without this, Go's JSON encoder sends zero-valued time.Time as "0001-01-01T00:00:00Z"
-# and false booleans even when the caller didn't set them.
+# and false booleans even when the caller didn't set them — `omitempty` does not omit a
+# struct or a false bool. That is how a partial update (e.g. stopping a time track by
+# sending only ends_at) ends up rewriting starts_at on the server.
+#
+# Applies to every schema reachable from a request body (RequestContent, nested
+# *Payload, and anything they reference), for every property that pass 1 or the
+# format turns into time.Time / types.Date, plus booleans.
 jq '
-  (.components.schemas // {}) |= with_entries(
-    if (.key | test("RequestContent$")) then
-      .value |= (
-        if .properties then
-          .properties |= with_entries(
-            if .value.type == "boolean" then
-              .value += {"x-go-type-skip-optional-pointer": false}
-            elif (.value.type == "string" and .value.format == "date-time") then
-              .value += {"x-go-type-skip-optional-pointer": false}
-            else .
-            end
-          )
-        else .
-        end
-      )
-    else .
-    end
-  )
+  def refname: sub("^#/components/schemas/"; "");
+  . as $root
+  | [ .paths[] | .[] | objects | .requestBody? // empty | .. | .["$ref"]? // empty | refname ] | unique as $seeds
+  | def expand($set):
+      ($set + [ $set[] | $root.components.schemas[.] | .. | .["$ref"]? // empty | refname ] | unique) as $n
+      | if ($n | length) == ($set | length) then $set else expand($n) end;
+    expand($seeds) as $request_schemas
+  | $root
+  | (.components.schemas // {}) |= with_entries(
+      if (.key as $k | $request_schemas | index($k)) then
+        .value |= (
+          if .properties then
+            .properties |= with_entries(
+              if .value.type == "boolean" then
+                .value += {"x-go-type-skip-optional-pointer": false}
+              elif (.value.type == "string" and (.value.format == "date-time" or .value.format == "date")) then
+                .value += {"x-go-type-skip-optional-pointer": false}
+              elif (.value.type == "string" and (.key | test("_at$|_on$"))) then
+                .value += {"x-go-type-skip-optional-pointer": false}
+              else .
+              end
+            )
+          else .
+          end
+        )
+      else .
+      end
+    )
 ' "$OPENAPI_FILE" > "${OPENAPI_FILE}.tmp" && mv "${OPENAPI_FILE}.tmp" "$OPENAPI_FILE"
 
 # Pass 3: Nothing here — self-referential types are fixed via post-codegen sed

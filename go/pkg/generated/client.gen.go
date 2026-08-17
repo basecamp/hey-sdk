@@ -164,8 +164,8 @@ type CalendarRecordingsResponse map[string][]Recording
 // CalendarTodoPayload defines model for CalendarTodoPayload.
 type CalendarTodoPayload struct {
 	// StartsAt Date string (YYYY-MM-DD). Defaults to today if omitted.
-	StartsAt time.Time `json:"starts_at,omitempty"`
-	Title    string    `json:"title"`
+	StartsAt *time.Time `json:"starts_at,omitempty"`
+	Title    string     `json:"title"`
 }
 
 // CalendarWithRecordingChangesUrl CalendarWithRecordingChangesUrl — wraps calendar with sync URL
@@ -1022,12 +1022,12 @@ type UpdateTimeTrackPayload struct {
 	Category string `json:"category,omitempty"`
 
 	// EndsAt ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)
-	EndsAt time.Time `json:"ends_at,omitempty"`
-	Notes  string    `json:"notes,omitempty"`
+	EndsAt *time.Time `json:"ends_at,omitempty"`
+	Notes  string     `json:"notes,omitempty"`
 
 	// StartsAt ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)
-	StartsAt time.Time `json:"starts_at,omitempty"`
-	Title    string    `json:"title,omitempty"`
+	StartsAt *time.Time `json:"starts_at,omitempty"`
+	Title    string     `json:"title,omitempty"`
 }
 
 // UpdateTimeTrackRequestContent Wire format: {calendar_time_track: {title, notes, category, starts_at, ends_at}}

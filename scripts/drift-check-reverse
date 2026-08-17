@@ -59,16 +59,33 @@ normalize() {
 # ---- Build lookup sets from coverage + excluded ----
 
 declare -A accounted_set
+declare -A coverage_set
 
 while IFS=$'\t' read -r method path; do
   key=$(normalize "$method" "$path")
   accounted_set["$key"]=1
+  coverage_set["$key"]=1
 done < <(jq -r '.[] | [.method, .path] | @tsv' "$COVERAGE_FILE")
 
-while IFS=$'\t' read -r method path; do
+# A route that is both modelled and excluded is a contradiction: the exclusion
+# reason is stale, and worse, if the operation is later removed or its URI
+# mistyped, the stale exclusion keeps this check green. Refuse the overlap.
+overlap=0
+while IFS=$'\t' read -r method path reason; do
   key=$(normalize "$method" "$path")
+  if [ -n "${coverage_set[$key]:-}" ]; then
+    echo "OVERLAP: $method $path is modelled in route-coverage.json but still excluded (\"$reason\")"
+    overlap=$((overlap + 1))
+  fi
   accounted_set["$key"]=1
-done < <(jq -r '.[] | [.method, .path] | @tsv' "$EXCLUDED_FILE")
+done < <(jq -r '.[] | [.method, .path, (.reason // "")] | @tsv' "$EXCLUDED_FILE")
+
+if [ "$overlap" -gt 0 ]; then
+  echo ""
+  echo "$overlap route(s) are in both route-coverage.json and excluded-routes.json."
+  echo "Remove them from spec/excluded-routes.json — modelled routes need no exclusion."
+  exit 1
+fi
 
 # ---- Filter snapshot to JSON-capable routes ----
 #

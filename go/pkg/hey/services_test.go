@@ -854,6 +854,13 @@ func TestTimeTracksService_Stop(t *testing.T) {
 			if _, ok := tt["ends_at"]; !ok {
 				t.Error("missing ends_at in stop body")
 			}
+			// Stop must not touch the start: a zero-valued starts_at would be
+			// applied by the server and rewrite the track to year 0001.
+			for _, k := range []string{"starts_at", "category", "notes", "title"} {
+				if v, present := tt[k]; present {
+					t.Errorf("stop body must only carry ends_at; got %s=%v", k, v)
+				}
+			}
 		},
 		`{"id":1,"type":"TimeTrack"}`,
 	)

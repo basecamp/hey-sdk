@@ -595,32 +595,7 @@
     "reason": "phase-2: calendar habit management"
   },
   {
-    "method": "POST",
-    "path": "/calendar/habits",
-    "reason": "phase-2: calendar habit management"
-  },
-  {
-    "method": "DELETE",
-    "path": "/calendar/habits/{habit_id}/stop",
-    "reason": "phase-2: calendar habit management"
-  },
-  {
-    "method": "POST",
-    "path": "/calendar/habits/{habit_id}/stop",
-    "reason": "phase-2: calendar habit management"
-  },
-  {
-    "method": "DELETE",
-    "path": "/calendar/habits/{id}",
-    "reason": "phase-2: calendar habit management"
-  },
-  {
     "method": "GET",
-    "path": "/calendar/habits/{id}",
-    "reason": "phase-2: calendar habit management"
-  },
-  {
-    "method": "PATCH",
     "path": "/calendar/habits/{id}",
     "reason": "phase-2: calendar habit management"
   },
@@ -1000,11 +975,6 @@
     "reason": "phase-2: calendar search"
   },
   {
-    "method": "POST",
-    "path": "/calendar/time_tracks",
-    "reason": "phase-2: calendar time tracking"
-  },
-  {
     "method": "GET",
     "path": "/calendar/time_tracks/categories",
     "reason": "phase-2: calendar time tracking"
@@ -1062,11 +1032,6 @@
   {
     "method": "GET",
     "path": "/calendar/time_tracks/exports",
-    "reason": "phase-2: calendar time tracking"
-  },
-  {
-    "method": "DELETE",
-    "path": "/calendar/time_tracks/{id}",
     "reason": "phase-2: calendar time tracking"
   },
   {
@@ -1350,11 +1315,6 @@
     "reason": "phase-2: clip management"
   },
   {
-    "method": "GET",
-    "path": "/collections",
-    "reason": "phase-2: collections"
-  },
-  {
     "method": "POST",
     "path": "/collections",
     "reason": "phase-2: collections"
@@ -1406,11 +1366,6 @@
   },
   {
     "method": "GET",
-    "path": "/collections/{id}",
-    "reason": "phase-2: collections"
-  },
-  {
-    "method": "PATCH",
     "path": "/collections/{id}",
     "reason": "phase-2: collections"
   },
@@ -1481,26 +1436,11 @@
   },
   {
     "method": "DELETE",
-    "path": "/contacts/{contact_id}/bundle",
-    "reason": "phase-2: contact bundling"
-  },
-  {
-    "method": "POST",
-    "path": "/contacts/{contact_id}/bundle",
-    "reason": "phase-2: contact bundling"
-  },
-  {
-    "method": "DELETE",
     "path": "/contacts/{contact_id}/clearance",
     "reason": "phase-2: contact clearance"
   },
   {
     "method": "GET",
-    "path": "/contacts/{contact_id}/clearance",
-    "reason": "phase-2: contact clearance"
-  },
-  {
-    "method": "PATCH",
     "path": "/contacts/{contact_id}/clearance",
     "reason": "phase-2: contact clearance"
   },
@@ -1825,11 +1765,6 @@
     "reason": "phase-2: entry spam reports"
   },
   {
-    "method": "PUT",
-    "path": "/entries/{entry_id}/status/spam",
-    "reason": "phase-2: entry spam reports"
-  },
-  {
     "method": "GET",
     "path": "/folders",
     "reason": "phase-2: folder management"
@@ -1851,11 +1786,6 @@
   },
   {
     "method": "DELETE",
-    "path": "/folders/{id}",
-    "reason": "phase-2: folder management"
-  },
-  {
-    "method": "GET",
     "path": "/folders/{id}",
     "reason": "phase-2: folder management"
   },
@@ -1995,16 +1925,6 @@
     "reason": "phase-2: mobile triage surface"
   },
   {
-    "method": "POST",
-    "path": "/boxes/{box_id}/designations",
-    "reason": "phase-2: mobile triage surface"
-  },
-  {
-    "method": "DELETE",
-    "path": "/boxes/{box_id}/designations/{id}",
-    "reason": "phase-2: mobile triage surface"
-  },
-  {
     "method": "DELETE",
     "path": "/boxes/{box_id}/glance",
     "reason": "phase-2: mobile triage surface"
@@ -2027,21 +1947,6 @@
   {
     "method": "PUT",
     "path": "/boxes/{box_id}/glance",
-    "reason": "phase-2: mobile triage surface"
-  },
-  {
-    "method": "GET",
-    "path": "/boxes/{box_id}/groups",
-    "reason": "phase-2: mobile triage surface"
-  },
-  {
-    "method": "POST",
-    "path": "/boxes/{box_id}/groups",
-    "reason": "phase-2: mobile triage surface"
-  },
-  {
-    "method": "DELETE",
-    "path": "/boxes/{box_id}/groups/{id}",
     "reason": "phase-2: mobile triage surface"
   },
   {
@@ -2081,11 +1986,6 @@
   },
   {
     "method": "PATCH",
-    "path": "/boxes/{box_id}/observation",
-    "reason": "phase-2: mobile triage surface"
-  },
-  {
-    "method": "POST",
     "path": "/boxes/{box_id}/observation",
     "reason": "phase-2: mobile triage surface"
   },
@@ -2865,21 +2765,6 @@
     "reason": "phase-2: personal settings and preferences"
   },
   {
-    "method": "DELETE",
-    "path": "/postings/box_groups",
-    "reason": "phase-2: posting box groups"
-  },
-  {
-    "method": "POST",
-    "path": "/postings/box_groups",
-    "reason": "phase-2: posting box groups"
-  },
-  {
-    "method": "DELETE",
-    "path": "/postings/bubble_up",
-    "reason": "phase-2: posting bubble up"
-  },
-  {
     "method": "POST",
     "path": "/postings/bubble_up",
     "reason": "phase-2: posting bubble up"
@@ -2915,11 +2800,6 @@
     "reason": "phase-2: posting bulk bubble up"
   },
   {
-    "method": "POST",
-    "path": "/postings/bulk_bubble_up_now",
-    "reason": "phase-2: posting bulk bubble up"
-  },
-  {
     "method": "PUT",
     "path": "/postings/bulk_bubble_up_now",
     "reason": "phase-2: posting bulk bubble up"
@@ -2945,31 +2825,11 @@
     "reason": "phase-2: posting collections"
   },
   {
-    "method": "DELETE",
-    "path": "/postings/filings",
-    "reason": "phase-2: posting filings"
-  },
-  {
-    "method": "POST",
-    "path": "/postings/filings",
-    "reason": "phase-2: posting filings"
-  },
-  {
-    "method": "POST",
-    "path": "/postings/folders",
-    "reason": "phase-2: posting folders"
-  },
-  {
     "method": "POST",
     "path": "/postings/{posting_id}/bundles/seen",
     "reason": "phase-2: posting management"
   },
   {
-    "method": "POST",
-    "path": "/postings/moves",
-    "reason": "phase-2: posting moves"
-  },
-  {
     "method": "DELETE",
     "path": "/postings/{posting_id}/muting",
     "reason": "phase-2: posting muting"
@@ -2978,16 +2838,6 @@
     "method": "POST",
     "path": "/postings/{posting_id}/muting",
     "reason": "phase-2: posting muting"
-  },
-  {
-    "method": "DELETE",
-    "path": "/postings/mutings",
-    "reason": "phase-2: posting mutings"
-  },
-  {
-    "method": "POST",
-    "path": "/postings/mutings",
-    "reason": "phase-2: posting mutings"
   },
   {
     "method": "DELETE",
@@ -3013,26 +2863,6 @@
     "method": "GET",
     "path": "/postings/readings/all",
     "reason": "phase-2: posting readings"
-  },
-  {
-    "method": "POST",
-    "path": "/postings/seen",
-    "reason": "phase-2: posting seen tracking"
-  },
-  {
-    "method": "POST",
-    "path": "/postings/spam",
-    "reason": "phase-2: posting spam actions"
-  },
-  {
-    "method": "POST",
-    "path": "/postings/trash",
-    "reason": "phase-2: posting trash actions"
-  },
-  {
-    "method": "POST",
-    "path": "/postings/unseen",
-    "reason": "phase-2: posting unseen tracking"
   },
   {
     "method": "POST",
@@ -3103,11 +2933,6 @@
     "method": "PUT",
     "path": "/recent_searches",
     "reason": "phase-2: recent search history"
-  },
-  {
-    "method": "GET",
-    "path": "/clearances",
-    "reason": "phase-2: screener clearances"
   },
   {
     "method": "POST",
@@ -3415,37 +3240,7 @@
     "reason": "phase-2: shared calendar toggle"
   },
   {
-    "method": "DELETE",
-    "path": "/topics/spam/all",
-    "reason": "phase-2: spam bulk actions"
-  },
-  {
     "method": "GET",
-    "path": "/stickies",
-    "reason": "phase-2: stickies"
-  },
-  {
-    "method": "POST",
-    "path": "/stickies",
-    "reason": "phase-2: stickies"
-  },
-  {
-    "method": "POST",
-    "path": "/stickies/moves",
-    "reason": "phase-2: stickies"
-  },
-  {
-    "method": "DELETE",
-    "path": "/stickies/{id}",
-    "reason": "phase-2: stickies"
-  },
-  {
-    "method": "GET",
-    "path": "/stickies/{id}",
-    "reason": "phase-2: stickies"
-  },
-  {
-    "method": "PATCH",
     "path": "/stickies/{id}",
     "reason": "phase-2: stickies"
   },
@@ -3755,11 +3550,6 @@
     "reason": "phase-2: topic metadata"
   },
   {
-    "method": "POST",
-    "path": "/topics/{topic_id}/moves",
-    "reason": "phase-2: topic moves"
-  },
-  {
     "method": "GET",
     "path": "/topics/{topic_id}/muting",
     "reason": "phase-2: topic muting"
@@ -3830,21 +3620,6 @@
     "reason": "phase-2: topic roster"
   },
   {
-    "method": "PUT",
-    "path": "/topics/{topic_id}/status/active",
-    "reason": "phase-2: topic status changes"
-  },
-  {
-    "method": "PUT",
-    "path": "/topics/{topic_id}/status/ham",
-    "reason": "phase-2: topic status changes"
-  },
-  {
-    "method": "PUT",
-    "path": "/topics/{topic_id}/status/trashed",
-    "reason": "phase-2: topic status changes"
-  },
-  {
     "method": "POST",
     "path": "/topics/{topic_id}/undo_send",
     "reason": "phase-2: topic undo send"
@@ -3888,11 +3663,6 @@
     "method": "PUT",
     "path": "/topics/{topic_id}/workflows/{workflow_id}/stagings",
     "reason": "phase-2: topic workflows"
-  },
-  {
-    "method": "DELETE",
-    "path": "/topics/trash/all",
-    "reason": "phase-2: trash bulk actions"
   },
   {
     "method": "DELETE",
@@ -3977,11 +3747,6 @@
   {
     "method": "GET",
     "path": "/advanced_search",
-    "reason": "web-ui: advanced search form"
-  },
-  {
-    "method": "GET",
-    "path": "/advanced_search_filters",
     "reason": "web-ui: advanced search form"
   },
   {

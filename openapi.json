@@ -6795,7 +6795,8 @@
             "x-go-type": "time.Time",
             "x-go-type-import": {
               "path": "time"
-            }
+            },
+            "x-go-type-skip-optional-pointer": false
           }
         },
         "required": [
@@ -8640,14 +8641,16 @@
             "x-go-type": "time.Time",
             "x-go-type-import": {
               "path": "time"
-            }
+            },
+            "x-go-type-skip-optional-pointer": false
           },
           "ends_at": {
             "type": "string",
             "x-go-type": "time.Time",
             "x-go-type-import": {
               "path": "time"
-            }
+            },
+            "x-go-type-skip-optional-pointer": false
           },
           "category_title": {
             "type": "string"
@@ -8864,7 +8867,8 @@
             "x-go-type": "time.Time",
             "x-go-type-import": {
               "path": "time"
-            }
+            },
+            "x-go-type-skip-optional-pointer": false
           },
           "ends_at": {
             "type": "string",
@@ -8873,7 +8877,8 @@
             "x-go-type": "time.Time",
             "x-go-type-import": {
               "path": "time"
-            }
+            },
+            "x-go-type-skip-optional-pointer": false
           }
         }
       },

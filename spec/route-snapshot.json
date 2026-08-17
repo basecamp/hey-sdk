@@ -385,38 +385,6 @@
   },
   {
     "method": "GET",
-    "path": "/accounts/{account_id}/extenzions"
-  },
-  {
-    "method": "POST",
-    "path": "/accounts/{account_id}/extenzions"
-  },
-  {
-    "method": "GET",
-    "path": "/accounts/{account_id}/extenzions/new"
-  },
-  {
-    "method": "DELETE",
-    "path": "/accounts/{account_id}/extenzions/{id}"
-  },
-  {
-    "method": "GET",
-    "path": "/accounts/{account_id}/extenzions/{id}"
-  },
-  {
-    "method": "PATCH",
-    "path": "/accounts/{account_id}/extenzions/{id}"
-  },
-  {
-    "method": "PUT",
-    "path": "/accounts/{account_id}/extenzions/{id}"
-  },
-  {
-    "method": "GET",
-    "path": "/accounts/{account_id}/extenzions/{id}/edit"
-  },
-  {
-    "method": "GET",
     "path": "/accounts/{account_id}/families"
   },
   {

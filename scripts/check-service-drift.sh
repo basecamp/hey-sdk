@@ -40,8 +40,10 @@ for f in "$SERVICE_DIR"/*.go; do
   case "$f" in
     *_test.go) continue ;;
   esac
-  grep "\.gen\.[A-Za-z]*WithResponse" "$f" 2>/dev/null || true
-done | sed 's/.*\.gen\.\([A-Za-z]*\)WithResponse.*/\1/' \
+  # Wrappers reach the generated client either as c.gen.Xxx or via the
+  # genClient() accessor; match both.
+  grep -oE "(\.gen|genClient\(\))\.[A-Za-z]*WithResponse" "$f" 2>/dev/null || true
+done | sed -E 's/.*\.([A-Za-z]*)WithResponse.*/\1/' \
   | sed 's/WithBody$//' \
   | sort -u > "$SVC_OPS"
 

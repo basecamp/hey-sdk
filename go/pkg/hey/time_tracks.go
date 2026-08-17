@@ -112,8 +112,9 @@ func (s *TimeTracksService) Update(ctx context.Context, timeTrackID int64, body 
 
 // Stop stops an ongoing time track by setting ends_at to the current time.
 func (s *TimeTracksService) Stop(ctx context.Context, timeTrackID int64) error {
+	now := time.Now().UTC()
 	_, err := s.Update(ctx, timeTrackID, generated.UpdateTimeTrackJSONRequestBody{
-		CalendarTimeTrack: generated.UpdateTimeTrackPayload{EndsAt: time.Now().UTC()},
+		CalendarTimeTrack: generated.UpdateTimeTrackPayload{EndsAt: &now},
 	})
 	return err
 }
