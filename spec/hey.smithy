@@ -602,6 +602,10 @@ structure Topic {
     collections: CollectionList
     is_forged_sender: Boolean
     latest_entry: Entry
+
+    /// The topic's first page of entries (summaries, no bodies). Present on GetTopic; use
+    /// GetTopicEntries for the rest and GetMessage for a body.
+    entries: EntryList
 }
 
 list TopicList {
@@ -839,6 +843,9 @@ structure Recording {
 
     // CalendarJournalEntry fields
     content: String
+    /// Full rich-text HTML of a journal entry (GetJournalEntry / UpdateJournalEntry only;
+    /// listings carry a truncated plain-text `content` instead).
+    content_html: String
 
     // CalendarHabit fields
     color: String
@@ -1733,13 +1740,20 @@ structure GetJournalEntryOutput {
     recording: Recording
 }
 
-/// Update journal entry for a day
+/// Update the journal entry for a day: writes (or creates) it and answers the entry as a
+/// recording, or 204 when empty content removes it.
 @http(method: "PATCH", uri: "/calendar/days/{day}/journal_entry")
 @tags(["Calendar Journal"])
 @heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
 operation UpdateJournalEntry {
     input: UpdateJournalEntryInput
+    output: UpdateJournalEntryOutput
     errors: [UnauthorizedError, NotFoundError, UnprocessableEntityError, InternalServerError, ServiceUnavailableError]
+}
+
+structure UpdateJournalEntryOutput {
+    @required
+    recording: Recording
 }
 
 structure UpdateJournalEntryInput {

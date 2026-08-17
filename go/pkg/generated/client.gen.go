@@ -790,6 +790,10 @@ type Recording struct {
 	CompletedAt time.Time `json:"completed_at,omitempty"`
 	Content     string    `json:"content,omitempty"`
 
+	// ContentHtml Full rich-text HTML of a journal entry (GetJournalEntry / UpdateJournalEntry only;
+	// listings carry a truncated plain-text `content` instead).
+	ContentHtml string `json:"content_html,omitempty"`
+
 	// CreatedAt ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)
 	CreatedAt   time.Time `json:"created_at,omitempty"`
 	Days        []int32   `json:"days,omitempty"`
@@ -950,7 +954,11 @@ type Topic struct {
 	CreatedAt time.Time `json:"created_at,omitempty"`
 
 	// Creator Contact — the identity of someone in HEY
-	Creator        Contact     `json:"creator,omitempty"`
+	Creator Contact `json:"creator,omitempty"`
+
+	// Entries The topic's first page of entries (summaries, no bodies). Present on GetTopic; use
+	// GetTopicEntries for the rest and GetMessage for a body.
+	Entries        []Entry     `json:"entries,omitempty"`
 	Extenzions     []Extenzion `json:"extenzions,omitempty"`
 	Id             int64       `json:"id"`
 	IsForgedSender bool        `json:"is_forged_sender,omitempty"`
@@ -1013,6 +1021,9 @@ type UpdateHabitResponseContent = Recording
 type UpdateJournalEntryRequestContent struct {
 	CalendarJournalEntry JournalEntryPayload `json:"calendar_journal_entry"`
 }
+
+// UpdateJournalEntryResponseContent Recording — polymorphic by `type` (CalendarEvent, CalendarTodo, etc.)
+type UpdateJournalEntryResponseContent = Recording
 
 // UpdateStickyResponseContent Sticky — a note on the stickies board
 type UpdateStickyResponseContent = Sticky
@@ -7403,7 +7414,8 @@ type ClientWithResponsesInterface interface {
 	// UpdateJournalEntryWithBodyWithResponse performs a PATCH /calendar/days/{day}/journal_entry (the `UpdateJournalEntry` operationId) request,
 	// with any type of body and a specified content type.
 	//
-	// Update journal entry for a day.
+	// Update the journal entry for a day: writes (or creates) it and answers the entry as a
+	// recording, or 204 when empty content removes it.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	UpdateJournalEntryWithBodyWithResponse(ctx context.Context, day string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateJournalEntryResponse, error)
@@ -7411,7 +7423,8 @@ type ClientWithResponsesInterface interface {
 	// UpdateJournalEntryWithResponse performs a PATCH /calendar/days/{day}/journal_entry (the `UpdateJournalEntry` operationId) request.
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
-	// Update journal entry for a day.
+	// Update the journal entry for a day: writes (or creates) it and answers the entry as a
+	// recording, or 204 when empty content removes it.
 	UpdateJournalEntryWithResponse(ctx context.Context, day string, body UpdateJournalEntryJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateJournalEntryResponse, error)
 
 	// CreateHabitWithBodyWithResponse performs a POST /calendar/habits.json (the `CreateHabit` operationId) request,
@@ -8955,6 +8968,8 @@ func (r GetJournalEntryResponse) ContentType() string {
 type UpdateJournalEntryResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *UpdateJournalEntryResponseContent
 	// JSON401 the response for an HTTP 401 `application/json` response
 	JSON401 *UnauthorizedErrorResponseContent
 	// JSON404 the response for an HTTP 404 `application/json` response
@@ -8965,6 +8980,11 @@ type UpdateJournalEntryResponse struct {
 	JSON500 *InternalServerErrorResponseContent
 	// JSON503 the response for an HTTP 503 `application/json` response
 	JSON503 *ServiceUnavailableErrorResponseContent
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r UpdateJournalEntryResponse) GetJSON200() *UpdateJournalEntryResponseContent {
+	return r.JSON200
 }
 
 // GetJSON401 returns the response for an HTTP 401 `application/json` response
@@ -13658,7 +13678,8 @@ func (c *ClientWithResponses) GetJournalEntryWithResponse(ctx context.Context, d
 // UpdateJournalEntryWithBodyWithResponse performs a PATCH /calendar/days/{day}/journal_entry (the `UpdateJournalEntry` operationId) request,
 // with any type of body and a specified content type.
 //
-// Update journal entry for a day.
+// Update the journal entry for a day: writes (or creates) it and answers the entry as a
+// recording, or 204 when empty content removes it.
 //
 // Returns a wrapper object for the known response body format(s).
 func (c *ClientWithResponses) UpdateJournalEntryWithBodyWithResponse(ctx context.Context, day string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateJournalEntryResponse, error) {
@@ -13672,7 +13693,8 @@ func (c *ClientWithResponses) UpdateJournalEntryWithBodyWithResponse(ctx context
 // UpdateJournalEntryWithResponse performs a PATCH /calendar/days/{day}/journal_entry (the `UpdateJournalEntry` operationId) request.
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
-// Update journal entry for a day.
+// Update the journal entry for a day: writes (or creates) it and answers the entry as a
+// recording, or 204 when empty content removes it.
 func (c *ClientWithResponses) UpdateJournalEntryWithResponse(ctx context.Context, day string, body UpdateJournalEntryJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateJournalEntryResponse, error) {
 	rsp, err := c.UpdateJournalEntry(ctx, day, body, reqEditors...)
 	if err != nil {
@@ -15601,8 +15623,12 @@ func ParseUpdateJournalEntryResponse(rsp *http.Response) (*UpdateJournalEntryRes
 	}
 
 	switch {
-	case rsp.StatusCode == 200:
-		break // No content-type
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest UpdateJournalEntryResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
 		var dest UnauthorizedErrorResponseContent

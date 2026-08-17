@@ -1027,6 +1027,16 @@
       },
       {
         "type": "noError"
+      },
+      {
+        "type": "requestMethod",
+        "expected": "PATCH"
+      },
+      {
+        "type": "requestBody",
+        "expected": {
+          "calendar_journal_entry.content": "Updated content"
+        }
       }
     ],
     "tags": [

@@ -882,7 +882,7 @@ func TestJournalService_Get(t *testing.T) {
 }
 
 func TestJournalService_Update(t *testing.T) {
-	client := newMutationTestClientWithValidation(t, "PATCH", "/calendar/days/%s/journal_entry",
+	client := newMutationTestClientWithValidation(t, "PATCH", "/calendar/days/%s/journal_entry.json",
 		func(t *testing.T, body map[string]any) {
 			t.Helper()
 			entry, ok := body["calendar_journal_entry"].(map[string]any)
@@ -893,12 +893,63 @@ func TestJournalService_Update(t *testing.T) {
 				t.Errorf("expected content 'Today was great', got %v", entry["content"])
 			}
 		},
-		`{"id":1,"type":"JournalEntry"}`,
+		`{"id":1,"type":"Calendar::JournalEntry","content":"Today was great","content_html":"<div class=\"trix-content\">Today was great</div>"}`,
 	)
 
-	err := client.Journal().Update(context.Background(), "2026-03-09", "Today was great")
+	recording, err := client.Journal().Update(context.Background(), "2026-03-09", "Today was great")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
+	}
+	if recording == nil || recording.Content != "Today was great" || recording.ContentHtml == "" {
+		t.Fatalf("expected the written entry back, got %#v", recording)
+	}
+}
+
+func TestJournalService_UpdateEmptyContentRemovesEntry(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	t.Cleanup(srv.Close)
+	client := NewClient(&Config{BaseURL: srv.URL}, &StaticTokenProvider{Token: "t"}, WithMaxRetries(0))
+
+	recording, err := client.Journal().Update(context.Background(), "2026-03-09", "")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if recording != nil {
+		t.Errorf("expected nil when the entry was removed, got %#v", recording)
+	}
+}
+
+func TestJournalService_GetContentPrefersHTMLAndNoLongerScrapes(t *testing.T) {
+	var paths []string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		paths = append(paths, r.URL.Path)
+		switch r.URL.Path {
+		case "/calendar/days/2026-03-09/journal_entry.json":
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"id":1,"type":"Calendar::JournalEntry","content":"plain","content_html":"<div class=\"trix-content\"><strong>rich</strong></div>"}`))
+		case "/calendar/days/2026-03-10/journal_entry.json":
+			w.WriteHeader(http.StatusNoContent)
+		default:
+			w.WriteHeader(404)
+		}
+	}))
+	t.Cleanup(srv.Close)
+	client := NewClient(&Config{BaseURL: srv.URL}, &StaticTokenProvider{Token: "t"}, WithMaxRetries(0))
+
+	content, err := client.Journal().GetContent(context.Background(), "2026-03-09")
+	if err != nil || !strings.Contains(content, "<strong>rich</strong>") {
+		t.Fatalf("expected the HTML content, got %q err=%v", content, err)
+	}
+	content, err = client.Journal().GetContent(context.Background(), "2026-03-10")
+	if err != nil || content != "" {
+		t.Fatalf("expected empty content for a day without an entry, got %q err=%v", content, err)
+	}
+	for _, p := range paths {
+		if strings.HasSuffix(p, "/edit") {
+			t.Errorf("edit page must not be fetched any more, got %s", p)
+		}
 	}
 }
 

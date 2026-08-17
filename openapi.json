@@ -1060,7 +1060,7 @@
         }
       },
       "patch": {
-        "description": "Update journal entry for a day",
+        "description": "Update the journal entry for a day: writes (or creates) it and answers the entry as a\nrecording, or 204 when empty content removes it.",
         "operationId": "UpdateJournalEntry",
         "requestBody": {
           "content": {
@@ -1084,7 +1084,14 @@
         ],
         "responses": {
           "200": {
-            "description": "UpdateJournalEntry 200 response"
+            "description": "UpdateJournalEntry 200 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UpdateJournalEntryResponseContent"
+                }
+              }
+            }
           },
           "401": {
             "description": "UnauthorizedError 401 response",
@@ -8354,6 +8361,10 @@
           "content": {
             "type": "string"
           },
+          "content_html": {
+            "type": "string",
+            "description": "Full rich-text HTML of a journal entry (GetJournalEntry / UpdateJournalEntry only;\nlistings carry a truncated plain-text `content` instead)."
+          },
           "color": {
             "type": "string"
           },
@@ -8759,6 +8770,13 @@
           },
           "latest_entry": {
             "$ref": "#/components/schemas/Entry"
+          },
+          "entries": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Entry"
+            },
+            "description": "The topic's first page of entries (summaries, no bodies). Present on GetTopic; use\nGetTopicEntries for the rest and GetMessage for a body."
           }
         },
         "required": [
@@ -8868,6 +8886,9 @@
         "required": [
           "calendar_journal_entry"
         ]
+      },
+      "UpdateJournalEntryResponseContent": {
+        "$ref": "#/components/schemas/Recording"
       },
       "UpdateStickyResponseContent": {
         "$ref": "#/components/schemas/Sticky"
