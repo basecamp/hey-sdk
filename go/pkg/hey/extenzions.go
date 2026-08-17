@@ -2,20 +2,22 @@ package hey
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/url"
 	"regexp"
-	"strings"
+	"strconv"
 	"time"
 
-	"golang.org/x/net/html"
+	"github.com/basecamp/hey-sdk/go/pkg/generated"
 )
 
 // ExtenzionsService handles email extenzion operations.
 //
 // Extenzions allow custom email addresses on custom-domain HEY accounts
-// (e.g., sales@yourdomain.com). The API uses form-encoded requests and
-// HTML responses because there are no JSON endpoints for extenzions.
+// (e.g., sales@yourdomain.com). The endpoints take form-encoded requests. Create and Update
+// post to the .json path, so a current server answers the written extenzion; a server
+// without the JSON branch redirects instead and hands nothing back.
 type ExtenzionsService struct {
 	client *Client
 }
@@ -26,11 +28,12 @@ func NewExtenzionsService(client *Client) *ExtenzionsService {
 }
 
 // Extenzion represents an email extenzion.
+//
+// The id is the extenzion's contact id — the same id the write endpoints take.
 type Extenzion struct {
-	ID      int64
-	Name    string
-	Email   string
-	Members []string
+	ID     int64
+	Name   string
+	AppURL string
 }
 
 // CreateExtenzionParams contains the parameters for creating an extenzion.
@@ -50,33 +53,30 @@ type UpdateExtenzionParams struct {
 	Members []string
 }
 
-// List returns all extenzions for the given account.
-// The list is parsed from HTML because there is no JSON endpoint.
-func (s *ExtenzionsService) List(ctx context.Context, accountID int64) (result []Extenzion, err error) {
+// List returns the extenzions on the account.
+//
+// This reads the navigation payload rather than scraping the extenzions page, so it carries
+// only what navigation carries: each extenzion's name and its contact URL.
+func (s *ExtenzionsService) List(ctx context.Context) (result []Extenzion, err error) {
 	op := OperationInfo{
 		Service: "Extenzions", Operation: "ListExtenzions",
 		ResourceType: "extenzion", IsMutation: false,
 	}
-	if gater, ok := s.client.hooks.(GatingHooks); ok {
-		if ctx, err = gater.OnOperationGate(ctx, op); err != nil {
-			return
+
+	err = s.client.instrument(ctx, op, func(ctx context.Context) error {
+		navigation, nerr := s.client.Identity().GetNavigation(ctx)
+		if nerr != nil {
+			return nerr
 		}
-	}
-	start := time.Now()
-	ctx = s.client.hooks.OnOperationStart(ctx, op)
-	defer func() { s.client.hooks.OnOperationEnd(ctx, op, err, time.Since(start)) }()
-
-	resp, err := s.client.GetHTML(ctx, fmt.Sprintf("/accounts/%d/domains/extenzions", accountID))
-	if err != nil {
-		return nil, err
-	}
-
-	return parseExtenzionsHTML(string(resp.Data))
+		result = extenzionsFromNavigation(navigation)
+		return nil
+	})
+	return result, err
 }
 
-// Create creates a new extenzion.
-// Returns the ID of the created extenzion.
-func (s *ExtenzionsService) Create(ctx context.Context, accountID int64, params CreateExtenzionParams) (id int64, err error) {
+// Create creates a new extenzion and returns it. A server without the JSON create branch
+// hands nothing back, and the result is then nil.
+func (s *ExtenzionsService) Create(ctx context.Context, accountID int64, params CreateExtenzionParams) (extenzion *Extenzion, err error) {
 	op := OperationInfo{
 		Service: "Extenzions", Operation: "CreateExtenzion",
 		ResourceType: "extenzion", IsMutation: true,
@@ -96,15 +96,16 @@ func (s *ExtenzionsService) Create(ctx context.Context, accountID int64, params 
 		values.Add("extenzion[members][]", m)
 	}
 
-	resp, err := s.client.PostForm(ctx, fmt.Sprintf("/accounts/%d/domains/extenzions", accountID), values)
+	resp, err := s.client.PostForm(ctx, fmt.Sprintf("/accounts/%d/domains/extenzions.json", accountID), values)
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
-	return resp.ExtractID()
+	return extenzionFromFormResponse(resp)
 }
 
-// Update updates an existing extenzion.
-func (s *ExtenzionsService) Update(ctx context.Context, accountID int64, extID int64, params UpdateExtenzionParams) (err error) {
+// Update updates an existing extenzion and returns it. A server without the JSON update
+// branch hands nothing back, and the result is then nil.
+func (s *ExtenzionsService) Update(ctx context.Context, accountID int64, extID int64, params UpdateExtenzionParams) (extenzion *Extenzion, err error) {
 	op := OperationInfo{
 		Service: "Extenzions", Operation: "UpdateExtenzion",
 		ResourceType: "extenzion", IsMutation: true, ResourceID: extID,
@@ -128,8 +129,11 @@ func (s *ExtenzionsService) Update(ctx context.Context, accountID int64, extID i
 		}
 	}
 
-	_, err = s.client.PatchForm(ctx, fmt.Sprintf("/accounts/%d/domains/extenzions/%d", accountID, extID), values)
-	return err
+	resp, err := s.client.PatchForm(ctx, fmt.Sprintf("/accounts/%d/domains/extenzions/%d.json", accountID, extID), values)
+	if err != nil {
+		return nil, err
+	}
+	return extenzionFromFormResponse(resp)
 }
 
 // Delete deletes an extenzion.
@@ -151,90 +155,70 @@ func (s *ExtenzionsService) Delete(ctx context.Context, accountID int64, extID i
 	return err
 }
 
-// extEditLinkRe matches edit links like /accounts/123/domains/extenzions/456/edit
-var extEditLinkRe = regexp.MustCompile(`/accounts/\d+/domains/extenzions/(\d+)/edit`)
+// extenzionFromFormResponse reads the extenzion a JSON write answers with. A server without
+// the JSON branch redirects to the extenzions page instead, which leaves nothing to read.
+//
+// The payload's own id is the Extenzion record's, while every write endpoint takes the
+// contact's — so the id comes out of app_url, the way List reads it out of navigation.
+func extenzionFromFormResponse(resp *FormResponse) (*Extenzion, error) {
+	if len(resp.Body) == 0 {
+		return nil, nil
+	}
 
-// parseExtenzionsHTML parses the extenzions list page HTML and extracts extenzions.
-func parseExtenzionsHTML(htmlContent string) ([]Extenzion, error) {
-	doc, err := html.Parse(strings.NewReader(htmlContent))
+	var payload struct {
+		Name   string `json:"name"`
+		AppURL string `json:"app_url"`
+	}
+	if err := json.Unmarshal([]byte(resp.Body), &payload); err != nil {
+		return nil, fmt.Errorf("failed to decode the extension: %w", err)
+	}
+
+	id, err := contactIDFromURL(payload.AppURL)
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse extenzions HTML: %w", err)
+		return nil, err
+	}
+	return &Extenzion{ID: id, Name: payload.Name, AppURL: payload.AppURL}, nil
+}
+
+// contactIDFromURL pulls the contact id out of a contact URL, e.g. /contacts/4821.
+func contactIDFromURL(contactURL string) (int64, error) {
+	match := contactPathRe.FindStringSubmatch(contactURL)
+	if match == nil {
+		return 0, fmt.Errorf("no contact id in %q", contactURL)
+	}
+	return strconv.ParseInt(match[1], 10, 64)
+}
+
+// contactPathRe matches the contact URLs navigation gives each extenzion, e.g. /contacts/4821
+var contactPathRe = regexp.MustCompile(`/contacts/(\d+)`)
+
+// extenzionsFromNavigation pulls the extenzions out of the "Extensions" navigation group.
+// The group's first entry is the "All Extensions"/"Manage Extensions" link, which has no
+// contact URL and so falls out on its own.
+func extenzionsFromNavigation(navigation *generated.NavigationResponse) []Extenzion {
+	if navigation == nil {
+		return nil
 	}
 
 	var extenzions []Extenzion
-	var walk func(*html.Node)
-	walk = func(n *html.Node) {
-		// Look for edit links to discover extenzions and their IDs
-		if n.Type == html.ElementNode && n.Data == "a" {
-			href := getAttr(n, "href")
-			matches := extEditLinkRe.FindStringSubmatch(href)
-			if matches != nil {
-				var extID int64
-				if _, err := fmt.Sscanf(matches[1], "%d", &extID); err == nil {
-					ext := Extenzion{ID: extID}
-
-					// Walk up to find the containing element for this extenzion's info
-					// Look for sibling/parent text content for name, email, members
-					parent := n.Parent
-					if parent != nil {
-						ext.Name, ext.Email, ext.Members = extractExtenzionInfo(parent)
-					}
-
-					extenzions = append(extenzions, ext)
-				}
-			}
-		}
-		for c := n.FirstChild; c != nil; c = c.NextSibling {
-			walk(c)
-		}
-	}
-	walk(doc)
-
-	return extenzions, nil
-}
-
-// extractExtenzionInfo extracts extenzion details from a container node.
-func extractExtenzionInfo(n *html.Node) (name, email string, members []string) {
-	texts := collectTexts(n)
-	for _, t := range texts {
-		t = strings.TrimSpace(t)
-		if t == "" {
+	for _, item := range navigation.Items {
+		if item.Title != navigationExtenzionsTitle {
 			continue
 		}
-		if strings.Contains(t, "@") {
-			if email == "" {
-				email = t
-				// Derive name from email (part before @)
-				if name == "" {
-					parts := strings.SplitN(t, "@", 2)
-					name = parts[0]
-				}
-			} else {
-				members = append(members, t)
+		for _, entry := range item.MenuItems {
+			match := contactPathRe.FindStringSubmatch(entry.AppUrl)
+			if match == nil {
+				continue
 			}
+			id, err := strconv.ParseInt(match[1], 10, 64)
+			if err != nil {
+				continue
+			}
+			extenzions = append(extenzions, Extenzion{ID: id, Name: entry.Title, AppURL: entry.AppUrl})
 		}
 	}
-	return
+	return extenzions
 }
 
-// collectTexts collects all text content from a node tree.
-func collectTexts(n *html.Node) []string {
-	var texts []string
-	if n.Type == html.TextNode {
-		texts = append(texts, n.Data)
-	}
-	for c := n.FirstChild; c != nil; c = c.NextSibling {
-		texts = append(texts, collectTexts(c)...)
-	}
-	return texts
-}
-
-// getAttr returns the value of the named attribute on the node.
-func getAttr(n *html.Node, key string) string {
-	for _, a := range n.Attr {
-		if a.Key == key {
-			return a.Val
-		}
-	}
-	return ""
-}
+// navigationExtenzionsTitle is the title HEY gives the extensions group in the navigation payload.
+const navigationExtenzionsTitle = "Extensions"

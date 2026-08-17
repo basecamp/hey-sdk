@@ -14,6 +14,66 @@
     }
   },
   "paths": {
+    "/advanced_search_filters.json": {
+      "get": {
+        "description": "Get the options the advanced search refine form offers.\n\nSearch itself has no JSON surface — /search and /advanced_search render HTML only — so the\nSDK reads results off the advanced search page. This endpoint is the one part that is JSON.",
+        "operationId": "GetAdvancedSearchFilters",
+        "responses": {
+          "200": {
+            "description": "GetAdvancedSearchFilters 200 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetAdvancedSearchFiltersResponseContent"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UnauthorizedError 401 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnauthorizedErrorResponseContent"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "InternalServerError 500 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorResponseContent"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ServiceUnavailableError 503 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceUnavailableErrorResponseContent"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Search"
+        ],
+        "x-hey-retry": {
+          "maxAttempts": 3,
+          "baseDelayMs": 1000,
+          "backoff": "exponential",
+          "retryOn": [
+            429,
+            503
+          ]
+        }
+      }
+    },
     "/boxes.json": {
       "get": {
         "description": "List all boxes",
@@ -157,6 +217,510 @@
         ],
         "x-hey-retry": {
           "maxAttempts": 3,
+          "baseDelayMs": 1000,
+          "backoff": "exponential",
+          "retryOn": [
+            429,
+            503
+          ]
+        }
+      }
+    },
+    "/boxes/{boxId}/designations.json": {
+      "post": {
+        "description": "Designate a contact to a box, so everything they send lands there",
+        "operationId": "CreateBoxDesignation",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateBoxDesignationRequestContent"
+              }
+            }
+          },
+          "required": true
+        },
+        "parameters": [
+          {
+            "name": "boxId",
+            "in": "path",
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "CreateBoxDesignation 200 response"
+          },
+          "401": {
+            "description": "UnauthorizedError 401 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnauthorizedErrorResponseContent"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ForbiddenError 403 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ForbiddenErrorResponseContent"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError 404 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundErrorResponseContent"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "InternalServerError 500 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorResponseContent"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ServiceUnavailableError 503 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceUnavailableErrorResponseContent"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Boxes"
+        ],
+        "x-hey-retry": {
+          "maxAttempts": 2,
+          "baseDelayMs": 1000,
+          "backoff": "exponential",
+          "retryOn": [
+            429,
+            503
+          ]
+        }
+      }
+    },
+    "/boxes/{boxId}/designations/{designationId}": {
+      "delete": {
+        "description": "Remove a designation from a box. The id is the designation's, not the contact's.",
+        "operationId": "DeleteBoxDesignation",
+        "parameters": [
+          {
+            "name": "boxId",
+            "in": "path",
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "required": true
+          },
+          {
+            "name": "designationId",
+            "in": "path",
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "DeleteBoxDesignation 200 response"
+          },
+          "401": {
+            "description": "UnauthorizedError 401 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnauthorizedErrorResponseContent"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError 404 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundErrorResponseContent"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "InternalServerError 500 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorResponseContent"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ServiceUnavailableError 503 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceUnavailableErrorResponseContent"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Boxes"
+        ],
+        "x-hey-retry": {
+          "maxAttempts": 2,
+          "baseDelayMs": 1000,
+          "backoff": "exponential",
+          "retryOn": [
+            429,
+            503
+          ]
+        }
+      }
+    },
+    "/boxes/{boxId}/groups.json": {
+      "get": {
+        "description": "List the Set Aside groups in a box",
+        "operationId": "ListBoxGroups",
+        "parameters": [
+          {
+            "name": "boxId",
+            "in": "path",
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ListBoxGroups 200 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListBoxGroupsResponseContent"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UnauthorizedError 401 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnauthorizedErrorResponseContent"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError 404 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundErrorResponseContent"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "InternalServerError 500 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorResponseContent"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ServiceUnavailableError 503 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceUnavailableErrorResponseContent"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Boxes"
+        ],
+        "x-hey-retry": {
+          "maxAttempts": 3,
+          "baseDelayMs": 1000,
+          "backoff": "exponential",
+          "retryOn": [
+            429,
+            503
+          ]
+        }
+      },
+      "post": {
+        "description": "Create a Set Aside group out of a selection of postings.\n\nThis endpoint does not split a comma-joined posting_ids string — send an array.",
+        "operationId": "CreateBoxGroup",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateBoxGroupRequestContent"
+              }
+            }
+          },
+          "required": true
+        },
+        "parameters": [
+          {
+            "name": "boxId",
+            "in": "path",
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "CreateBoxGroup 200 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateBoxGroupResponseContent"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UnauthorizedError 401 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnauthorizedErrorResponseContent"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError 404 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundErrorResponseContent"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "InternalServerError 500 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorResponseContent"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ServiceUnavailableError 503 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceUnavailableErrorResponseContent"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Boxes"
+        ],
+        "x-hey-retry": {
+          "maxAttempts": 2,
+          "baseDelayMs": 1000,
+          "backoff": "exponential",
+          "retryOn": [
+            429,
+            503
+          ]
+        }
+      }
+    },
+    "/boxes/{boxId}/groups/{groupId}": {
+      "delete": {
+        "description": "Break up a Set Aside group, moving its postings back to Previously Seen",
+        "operationId": "DeleteBoxGroup",
+        "parameters": [
+          {
+            "name": "boxId",
+            "in": "path",
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "required": true
+          },
+          {
+            "name": "groupId",
+            "in": "path",
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "DeleteBoxGroup 200 response"
+          },
+          "401": {
+            "description": "UnauthorizedError 401 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnauthorizedErrorResponseContent"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError 404 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundErrorResponseContent"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "InternalServerError 500 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorResponseContent"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ServiceUnavailableError 503 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceUnavailableErrorResponseContent"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Boxes"
+        ],
+        "x-hey-retry": {
+          "maxAttempts": 2,
+          "baseDelayMs": 1000,
+          "backoff": "exponential",
+          "retryOn": [
+            429,
+            503
+          ]
+        }
+      }
+    },
+    "/boxes/{boxId}/observation.json": {
+      "post": {
+        "description": "Mark everything in a box as seen. The work is queued, so the effect is eventually consistent.",
+        "operationId": "MarkBoxSeen",
+        "parameters": [
+          {
+            "name": "boxId",
+            "in": "path",
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "MarkBoxSeen 200 response"
+          },
+          "401": {
+            "description": "UnauthorizedError 401 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnauthorizedErrorResponseContent"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError 404 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundErrorResponseContent"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "InternalServerError 500 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorResponseContent"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ServiceUnavailableError 503 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceUnavailableErrorResponseContent"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Boxes"
+        ],
+        "x-hey-retry": {
+          "maxAttempts": 2,
           "baseDelayMs": 1000,
           "backoff": "exponential",
           "retryOn": [
@@ -585,6 +1149,398 @@
         }
       }
     },
+    "/calendar/habits.json": {
+      "post": {
+        "description": "Start a new habit. Answers the created habit as a recording.",
+        "operationId": "CreateHabit",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HabitRequestContent"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "CreateHabit 201 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateHabitResponseContent"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UnauthorizedError 401 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnauthorizedErrorResponseContent"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "UnprocessableEntityError 422 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnprocessableEntityErrorResponseContent"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "InternalServerError 500 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorResponseContent"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ServiceUnavailableError 503 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceUnavailableErrorResponseContent"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Calendar Habits"
+        ],
+        "x-hey-retry": {
+          "maxAttempts": 2,
+          "baseDelayMs": 1000,
+          "backoff": "exponential",
+          "retryOn": [
+            429,
+            503
+          ]
+        }
+      }
+    },
+    "/calendar/habits/{habitId}": {
+      "delete": {
+        "description": "Delete a habit. habitId is the recording's id.",
+        "operationId": "DeleteHabit",
+        "parameters": [
+          {
+            "name": "habitId",
+            "in": "path",
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "DeleteHabit 200 response"
+          },
+          "401": {
+            "description": "UnauthorizedError 401 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnauthorizedErrorResponseContent"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError 404 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundErrorResponseContent"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "InternalServerError 500 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorResponseContent"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ServiceUnavailableError 503 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceUnavailableErrorResponseContent"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Calendar Habits"
+        ],
+        "x-hey-retry": {
+          "maxAttempts": 2,
+          "baseDelayMs": 1000,
+          "backoff": "exponential",
+          "retryOn": [
+            429,
+            503
+          ]
+        }
+      },
+      "patch": {
+        "description": "Edit a habit. habitId is the recording's id.",
+        "operationId": "UpdateHabit",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HabitRequestContent"
+              }
+            }
+          },
+          "required": true
+        },
+        "parameters": [
+          {
+            "name": "habitId",
+            "in": "path",
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "UpdateHabit 200 response"
+          },
+          "401": {
+            "description": "UnauthorizedError 401 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnauthorizedErrorResponseContent"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError 404 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundErrorResponseContent"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "UnprocessableEntityError 422 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnprocessableEntityErrorResponseContent"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "InternalServerError 500 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorResponseContent"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ServiceUnavailableError 503 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceUnavailableErrorResponseContent"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Calendar Habits"
+        ],
+        "x-hey-retry": {
+          "maxAttempts": 2,
+          "baseDelayMs": 1000,
+          "backoff": "exponential",
+          "retryOn": [
+            429,
+            503
+          ]
+        }
+      }
+    },
+    "/calendar/habits/{habitId}/stop.json": {
+      "delete": {
+        "description": "Resume a paused habit",
+        "operationId": "ResumeHabit",
+        "parameters": [
+          {
+            "name": "habitId",
+            "in": "path",
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ResumeHabit 200 response"
+          },
+          "401": {
+            "description": "UnauthorizedError 401 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnauthorizedErrorResponseContent"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError 404 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundErrorResponseContent"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "InternalServerError 500 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorResponseContent"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ServiceUnavailableError 503 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceUnavailableErrorResponseContent"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Calendar Habits"
+        ],
+        "x-hey-retry": {
+          "maxAttempts": 2,
+          "baseDelayMs": 1000,
+          "backoff": "exponential",
+          "retryOn": [
+            429,
+            503
+          ]
+        }
+      },
+      "post": {
+        "description": "Pause a habit, so it stops appearing on the calendar",
+        "operationId": "StopHabit",
+        "parameters": [
+          {
+            "name": "habitId",
+            "in": "path",
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "StopHabit 200 response"
+          },
+          "401": {
+            "description": "UnauthorizedError 401 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnauthorizedErrorResponseContent"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError 404 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundErrorResponseContent"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "InternalServerError 500 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorResponseContent"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ServiceUnavailableError 503 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceUnavailableErrorResponseContent"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Calendar Habits"
+        ],
+        "x-hey-retry": {
+          "maxAttempts": 2,
+          "baseDelayMs": 1000,
+          "backoff": "exponential",
+          "retryOn": [
+            429,
+            503
+          ]
+        }
+      }
+    },
     "/calendar/ongoing_time_track.json": {
       "get": {
         "description": "Get the ongoing time track (404 = no active track; see ADR-004)",
@@ -727,7 +1683,169 @@
         }
       }
     },
+    "/calendar/time_tracks.json": {
+      "post": {
+        "description": "Record a finished stretch of time.\n\nJSON callers send the fields flat; Rails wraps them into calendar_time_track itself.",
+        "operationId": "CreateTimeTrack",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TimeTrackRequestContent"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "CreateTimeTrack 200 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateTimeTrackResponseContent"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "BadRequestError 400 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BadRequestErrorResponseContent"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UnauthorizedError 401 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnauthorizedErrorResponseContent"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "UnprocessableEntityError 422 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnprocessableEntityErrorResponseContent"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "InternalServerError 500 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorResponseContent"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ServiceUnavailableError 503 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceUnavailableErrorResponseContent"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Calendar Time Tracks"
+        ],
+        "x-hey-retry": {
+          "maxAttempts": 2,
+          "baseDelayMs": 1000,
+          "backoff": "exponential",
+          "retryOn": [
+            429,
+            503
+          ]
+        }
+      }
+    },
     "/calendar/time_tracks/{timeTrackId}": {
+      "delete": {
+        "description": "Delete a time track. The id is the recording's.",
+        "operationId": "DeleteTimeTrack",
+        "parameters": [
+          {
+            "name": "timeTrackId",
+            "in": "path",
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "DeleteTimeTrack 200 response"
+          },
+          "401": {
+            "description": "UnauthorizedError 401 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnauthorizedErrorResponseContent"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError 404 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundErrorResponseContent"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "InternalServerError 500 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorResponseContent"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ServiceUnavailableError 503 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceUnavailableErrorResponseContent"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Calendar Time Tracks"
+        ],
+        "x-hey-retry": {
+          "maxAttempts": 2,
+          "baseDelayMs": 1000,
+          "backoff": "exponential",
+          "retryOn": [
+            429,
+            503
+          ]
+        }
+      },
       "put": {
         "description": "Update a time track (stop by setting ends_at to current time)",
         "operationId": "UpdateTimeTrack",
@@ -1303,6 +2421,220 @@
         }
       }
     },
+    "/clearances.json": {
+      "get": {
+        "description": "Get the screener summary — how many senders are waiting to be screened",
+        "operationId": "GetClearances",
+        "responses": {
+          "200": {
+            "description": "GetClearances 200 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetClearancesResponseContent"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UnauthorizedError 401 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnauthorizedErrorResponseContent"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "InternalServerError 500 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorResponseContent"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ServiceUnavailableError 503 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceUnavailableErrorResponseContent"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Contacts"
+        ],
+        "x-hey-retry": {
+          "maxAttempts": 3,
+          "baseDelayMs": 1000,
+          "backoff": "exponential",
+          "retryOn": [
+            429,
+            503
+          ]
+        }
+      }
+    },
+    "/collections.json": {
+      "get": {
+        "description": "List collections",
+        "operationId": "ListCollections",
+        "responses": {
+          "200": {
+            "description": "ListCollections 200 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListCollectionsResponseContent"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UnauthorizedError 401 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnauthorizedErrorResponseContent"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "InternalServerError 500 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorResponseContent"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ServiceUnavailableError 503 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceUnavailableErrorResponseContent"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Collections"
+        ],
+        "x-hey-retry": {
+          "maxAttempts": 3,
+          "baseDelayMs": 1000,
+          "backoff": "exponential",
+          "retryOn": [
+            429,
+            503
+          ]
+        }
+      }
+    },
+    "/collections/{collectionId}": {
+      "patch": {
+        "description": "Rename a collection or change its summary",
+        "operationId": "UpdateCollection",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateCollectionRequestContent"
+              }
+            }
+          },
+          "required": true
+        },
+        "parameters": [
+          {
+            "name": "collectionId",
+            "in": "path",
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "UpdateCollection 200 response"
+          },
+          "401": {
+            "description": "UnauthorizedError 401 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnauthorizedErrorResponseContent"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError 404 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundErrorResponseContent"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "UnprocessableEntityError 422 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnprocessableEntityErrorResponseContent"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "InternalServerError 500 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorResponseContent"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ServiceUnavailableError 503 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceUnavailableErrorResponseContent"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Collections"
+        ],
+        "x-hey-retry": {
+          "maxAttempts": 2,
+          "baseDelayMs": 1000,
+          "backoff": "exponential",
+          "retryOn": [
+            429,
+            503
+          ]
+        }
+      }
+    },
     "/contacts.json": {
       "get": {
         "description": "List contacts",
@@ -1464,6 +2796,256 @@
         }
       }
     },
+    "/contacts/{contactId}/bundle.json": {
+      "delete": {
+        "description": "Stop bundling a contact's mail",
+        "operationId": "UnbundleContact",
+        "parameters": [
+          {
+            "name": "contactId",
+            "in": "path",
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "UnbundleContact 200 response"
+          },
+          "401": {
+            "description": "UnauthorizedError 401 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnauthorizedErrorResponseContent"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError 404 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundErrorResponseContent"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "InternalServerError 500 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorResponseContent"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ServiceUnavailableError 503 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceUnavailableErrorResponseContent"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Contacts"
+        ],
+        "x-hey-retry": {
+          "maxAttempts": 2,
+          "baseDelayMs": 1000,
+          "backoff": "exponential",
+          "retryOn": [
+            429,
+            503
+          ]
+        }
+      },
+      "post": {
+        "description": "Bundle a contact so their mail arrives grouped",
+        "operationId": "BundleContact",
+        "parameters": [
+          {
+            "name": "contactId",
+            "in": "path",
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "BundleContact 200 response"
+          },
+          "401": {
+            "description": "UnauthorizedError 401 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnauthorizedErrorResponseContent"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ForbiddenError 403 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ForbiddenErrorResponseContent"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError 404 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundErrorResponseContent"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "InternalServerError 500 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorResponseContent"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ServiceUnavailableError 503 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceUnavailableErrorResponseContent"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Contacts"
+        ],
+        "x-hey-retry": {
+          "maxAttempts": 2,
+          "baseDelayMs": 1000,
+          "backoff": "exponential",
+          "retryOn": [
+            429,
+            503
+          ]
+        }
+      }
+    },
+    "/contacts/{contactId}/clearance.json": {
+      "patch": {
+        "description": "Screen a contact in or out. Status is \"approved\" or \"denied\".",
+        "operationId": "UpdateContactClearance",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateContactClearanceRequestContent"
+              }
+            }
+          },
+          "required": true
+        },
+        "parameters": [
+          {
+            "name": "contactId",
+            "in": "path",
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "UpdateContactClearance 200 response"
+          },
+          "401": {
+            "description": "UnauthorizedError 401 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnauthorizedErrorResponseContent"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError 404 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundErrorResponseContent"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "UnprocessableEntityError 422 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnprocessableEntityErrorResponseContent"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "InternalServerError 500 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorResponseContent"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ServiceUnavailableError 503 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceUnavailableErrorResponseContent"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Contacts"
+        ],
+        "x-hey-retry": {
+          "maxAttempts": 2,
+          "baseDelayMs": 1000,
+          "backoff": "exponential",
+          "retryOn": [
+            429,
+            503
+          ]
+        }
+      }
+    },
     "/entries/drafts.json": {
       "get": {
         "description": "List draft messages",
@@ -1526,6 +3108,87 @@
           "style": "link",
           "totalCountHeader": "X-Total-Count"
         },
+        "x-hey-retry": {
+          "maxAttempts": 3,
+          "baseDelayMs": 1000,
+          "backoff": "exponential",
+          "retryOn": [
+            429,
+            503
+          ]
+        }
+      }
+    },
+    "/entries/{entryId}/forwards/new.json": {
+      "get": {
+        "description": "Get a prefilled forward of an entry: subject, quoted body and blank recipients.\nSend it with CreateMessage once the recipients are filled in.",
+        "operationId": "NewEntryForward",
+        "parameters": [
+          {
+            "name": "entryId",
+            "in": "path",
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "NewEntryForward 200 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NewEntryForwardResponseContent"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UnauthorizedError 401 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnauthorizedErrorResponseContent"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError 404 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundErrorResponseContent"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "InternalServerError 500 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorResponseContent"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ServiceUnavailableError 503 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceUnavailableErrorResponseContent"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Entries"
+        ],
         "x-hey-retry": {
           "maxAttempts": 3,
           "baseDelayMs": 1000,
@@ -1631,6 +3294,80 @@
         }
       }
     },
+    "/entries/{entryId}/status/spam.json": {
+      "put": {
+        "description": "Mark an entry as spam. Denies the sender when every thread from them is already spam.",
+        "operationId": "MarkEntrySpam",
+        "parameters": [
+          {
+            "name": "entryId",
+            "in": "path",
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "MarkEntrySpam 200 response"
+          },
+          "401": {
+            "description": "UnauthorizedError 401 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnauthorizedErrorResponseContent"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError 404 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundErrorResponseContent"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "InternalServerError 500 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorResponseContent"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ServiceUnavailableError 503 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceUnavailableErrorResponseContent"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Entries"
+        ],
+        "x-hey-retry": {
+          "maxAttempts": 2,
+          "baseDelayMs": 1000,
+          "backoff": "exponential",
+          "retryOn": [
+            429,
+            503
+          ]
+        }
+      }
+    },
     "/feedbox.json": {
       "get": {
         "description": "Get the Feed",
@@ -1689,6 +3426,98 @@
         "tags": [
           "Boxes"
         ],
+        "x-hey-retry": {
+          "maxAttempts": 3,
+          "baseDelayMs": 1000,
+          "backoff": "exponential",
+          "retryOn": [
+            429,
+            503
+          ]
+        }
+      }
+    },
+    "/folders/{folderId}": {
+      "get": {
+        "description": "Get a folder (label) and the postings filed in it",
+        "operationId": "GetFolder",
+        "parameters": [
+          {
+            "name": "folderId",
+            "in": "path",
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "required": true
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "GetFolder 200 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetFolderResponseContent"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UnauthorizedError 401 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnauthorizedErrorResponseContent"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError 404 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundErrorResponseContent"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "InternalServerError 500 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorResponseContent"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ServiceUnavailableError 503 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceUnavailableErrorResponseContent"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Folders"
+        ],
+        "x-hey-pagination": {
+          "style": "link",
+          "totalCountHeader": "X-Total-Count"
+        },
         "x-hey-retry": {
           "maxAttempts": 3,
           "baseDelayMs": 1000,
@@ -2112,6 +3941,527 @@
         }
       }
     },
+    "/postings/box_groups.json": {
+      "delete": {
+        "description": "Remove a selection of postings from their Set Aside group",
+        "operationId": "RemovePostingsFromBoxGroup",
+        "parameters": [
+          {
+            "name": "posting_ids",
+            "in": "query",
+            "description": "Posting ids as a comma-joined string, for verbs that carry no body",
+            "schema": {
+              "type": "string",
+              "description": "Posting ids as a comma-joined string, for verbs that carry no body"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "RemovePostingsFromBoxGroup 200 response"
+          },
+          "401": {
+            "description": "UnauthorizedError 401 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnauthorizedErrorResponseContent"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "InternalServerError 500 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorResponseContent"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ServiceUnavailableError 503 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceUnavailableErrorResponseContent"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Postings"
+        ],
+        "x-hey-retry": {
+          "maxAttempts": 2,
+          "baseDelayMs": 1000,
+          "backoff": "exponential",
+          "retryOn": [
+            429,
+            503
+          ]
+        }
+      },
+      "post": {
+        "description": "Add a selection of postings to a Set Aside group",
+        "operationId": "AddPostingsToBoxGroup",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddPostingsToBoxGroupRequestContent"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "AddPostingsToBoxGroup 200 response"
+          },
+          "401": {
+            "description": "UnauthorizedError 401 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnauthorizedErrorResponseContent"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError 404 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundErrorResponseContent"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "InternalServerError 500 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorResponseContent"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ServiceUnavailableError 503 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceUnavailableErrorResponseContent"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Postings"
+        ],
+        "x-hey-retry": {
+          "maxAttempts": 2,
+          "baseDelayMs": 1000,
+          "backoff": "exponential",
+          "retryOn": [
+            429,
+            503
+          ]
+        }
+      }
+    },
+    "/postings/bubble_up.json": {
+      "delete": {
+        "description": "Cancel a scheduled bubble up for a selection of postings",
+        "operationId": "CancelPostingsBubbleUp",
+        "parameters": [
+          {
+            "name": "posting_ids",
+            "in": "query",
+            "description": "Posting ids as a comma-joined string, for verbs that carry no body",
+            "schema": {
+              "type": "string",
+              "description": "Posting ids as a comma-joined string, for verbs that carry no body"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "CancelPostingsBubbleUp 200 response"
+          },
+          "401": {
+            "description": "UnauthorizedError 401 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnauthorizedErrorResponseContent"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError 404 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundErrorResponseContent"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "InternalServerError 500 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorResponseContent"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ServiceUnavailableError 503 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceUnavailableErrorResponseContent"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Postings"
+        ],
+        "x-hey-retry": {
+          "maxAttempts": 2,
+          "baseDelayMs": 1000,
+          "backoff": "exponential",
+          "retryOn": [
+            429,
+            503
+          ]
+        }
+      }
+    },
+    "/postings/bulk_bubble_up_now.json": {
+      "post": {
+        "description": "Bubble a selection of postings up right now",
+        "operationId": "BubbleUpPostingsNow",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MarkPostingsRequestContent"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "BubbleUpPostingsNow 200 response"
+          },
+          "401": {
+            "description": "UnauthorizedError 401 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnauthorizedErrorResponseContent"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError 404 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundErrorResponseContent"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "InternalServerError 500 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorResponseContent"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ServiceUnavailableError 503 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceUnavailableErrorResponseContent"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Postings"
+        ],
+        "x-hey-retry": {
+          "maxAttempts": 2,
+          "baseDelayMs": 1000,
+          "backoff": "exponential",
+          "retryOn": [
+            429,
+            503
+          ]
+        }
+      }
+    },
+    "/postings/filings.json": {
+      "delete": {
+        "description": "Remove a selection of postings from a folder, or from every folder when folder_id is omitted",
+        "operationId": "UnfilePostings",
+        "parameters": [
+          {
+            "name": "posting_ids",
+            "in": "query",
+            "description": "Posting ids as a comma-joined string, for verbs that carry no body",
+            "schema": {
+              "type": "string",
+              "description": "Posting ids as a comma-joined string, for verbs that carry no body"
+            },
+            "required": true
+          },
+          {
+            "name": "folder_id",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "UnfilePostings 200 response"
+          },
+          "401": {
+            "description": "UnauthorizedError 401 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnauthorizedErrorResponseContent"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError 404 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundErrorResponseContent"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "InternalServerError 500 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorResponseContent"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ServiceUnavailableError 503 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceUnavailableErrorResponseContent"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Postings"
+        ],
+        "x-hey-retry": {
+          "maxAttempts": 2,
+          "baseDelayMs": 1000,
+          "backoff": "exponential",
+          "retryOn": [
+            429,
+            503
+          ]
+        }
+      },
+      "post": {
+        "description": "File a selection of postings into an existing folder (label)",
+        "operationId": "FilePostings",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FilePostingsRequestContent"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "FilePostings 200 response"
+          },
+          "401": {
+            "description": "UnauthorizedError 401 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnauthorizedErrorResponseContent"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError 404 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundErrorResponseContent"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "InternalServerError 500 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorResponseContent"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ServiceUnavailableError 503 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceUnavailableErrorResponseContent"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Postings"
+        ],
+        "x-hey-retry": {
+          "maxAttempts": 2,
+          "baseDelayMs": 1000,
+          "backoff": "exponential",
+          "retryOn": [
+            429,
+            503
+          ]
+        }
+      }
+    },
+    "/postings/folders.json": {
+      "post": {
+        "description": "Create a folder (label) and file a selection of postings into it",
+        "operationId": "CreateFolderForPostings",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateFolderForPostingsRequestContent"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "CreateFolderForPostings 200 response"
+          },
+          "401": {
+            "description": "UnauthorizedError 401 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnauthorizedErrorResponseContent"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError 404 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundErrorResponseContent"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "UnprocessableEntityError 422 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnprocessableEntityErrorResponseContent"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "InternalServerError 500 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorResponseContent"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ServiceUnavailableError 503 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceUnavailableErrorResponseContent"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Postings"
+        ],
+        "x-hey-retry": {
+          "maxAttempts": 2,
+          "baseDelayMs": 1000,
+          "backoff": "exponential",
+          "retryOn": [
+            429,
+            503
+          ]
+        }
+      }
+    },
     "/postings/moves.json": {
       "post": {
         "description": "Move postings to a box (bulk).\nMirrors HEY's Postings::MovesController: `posting_ids` plus the target `box_id`\n(an ID from ListBoxes; the box `kind` field identifies imbox, feedbox, asidebox,\nlaterbox, trailbox). Responds 204 No Content.",
@@ -2394,6 +4744,79 @@
         }
       }
     },
+    "/postings/spam.json": {
+      "post": {
+        "description": "Mark a selection of postings as spam.\n\nOver ten postings the server hands the work to a background job, so the effect is\neventually consistent.",
+        "operationId": "MarkPostingsSpam",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MarkPostingsRequestContent"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "MarkPostingsSpam 200 response"
+          },
+          "401": {
+            "description": "UnauthorizedError 401 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnauthorizedErrorResponseContent"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError 404 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundErrorResponseContent"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "InternalServerError 500 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorResponseContent"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ServiceUnavailableError 503 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceUnavailableErrorResponseContent"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Postings"
+        ],
+        "x-hey-retry": {
+          "maxAttempts": 2,
+          "baseDelayMs": 1000,
+          "backoff": "exponential",
+          "retryOn": [
+            429,
+            503
+          ]
+        }
+      }
+    },
     "/postings/trash.json": {
       "post": {
         "description": "Move postings to the trash (bulk).\nMirrors HEY's Postings::TrashController. For JSON requests the server treats\nthe removal decision as made (shared topics: your access is removed).\nResponds 204 No Content.",
@@ -2402,7 +4825,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/MarkPostingsRequestContent"
+                "$ref": "#/components/schemas/TrashPostingsRequestContent"
               }
             }
           },
@@ -2599,87 +5022,6 @@
         }
       }
     },
-    "/search.json": {
-      "get": {
-        "description": "Search topics",
-        "operationId": "Search",
-        "parameters": [
-          {
-            "name": "q",
-            "in": "query",
-            "schema": {
-              "type": "string"
-            },
-            "required": true
-          },
-          {
-            "name": "page",
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Search 200 response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SearchResponseContent"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "UnauthorizedError 401 response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/UnauthorizedErrorResponseContent"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "InternalServerError 500 response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/InternalServerErrorResponseContent"
-                }
-              }
-            }
-          },
-          "503": {
-            "description": "ServiceUnavailableError 503 response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ServiceUnavailableErrorResponseContent"
-                }
-              }
-            }
-          }
-        },
-        "tags": [
-          "Search"
-        ],
-        "x-hey-pagination": {
-          "style": "link",
-          "totalCountHeader": "X-Total-Count"
-        },
-        "x-hey-retry": {
-          "maxAttempts": 3,
-          "baseDelayMs": 1000,
-          "backoff": "exponential",
-          "retryOn": [
-            429,
-            503
-          ]
-        }
-      }
-    },
     "/set_aside.json": {
       "get": {
         "description": "Get the Set Aside box",
@@ -2740,6 +5082,402 @@
         ],
         "x-hey-retry": {
           "maxAttempts": 3,
+          "baseDelayMs": 1000,
+          "backoff": "exponential",
+          "retryOn": [
+            429,
+            503
+          ]
+        }
+      }
+    },
+    "/stickies.json": {
+      "get": {
+        "description": "List stickies, newest position first",
+        "operationId": "ListStickies",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Clamped server-side to 1..100",
+            "schema": {
+              "type": "integer",
+              "description": "Clamped server-side to 1..100",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ListStickies 200 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListStickiesResponseContent"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UnauthorizedError 401 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnauthorizedErrorResponseContent"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "InternalServerError 500 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorResponseContent"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ServiceUnavailableError 503 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceUnavailableErrorResponseContent"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Stickies"
+        ],
+        "x-hey-retry": {
+          "maxAttempts": 3,
+          "baseDelayMs": 1000,
+          "backoff": "exponential",
+          "retryOn": [
+            429,
+            503
+          ]
+        }
+      },
+      "post": {
+        "description": "Write a new sticky",
+        "operationId": "CreateSticky",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StickyRequestContent"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "CreateSticky 200 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateStickyResponseContent"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UnauthorizedError 401 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnauthorizedErrorResponseContent"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "UnprocessableEntityError 422 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnprocessableEntityErrorResponseContent"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "InternalServerError 500 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorResponseContent"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ServiceUnavailableError 503 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceUnavailableErrorResponseContent"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Stickies"
+        ],
+        "x-hey-retry": {
+          "maxAttempts": 2,
+          "baseDelayMs": 1000,
+          "backoff": "exponential",
+          "retryOn": [
+            429,
+            503
+          ]
+        }
+      }
+    },
+    "/stickies/moves.json": {
+      "post": {
+        "description": "Reposition a sticky on the board",
+        "operationId": "MoveSticky",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MoveStickyRequestContent"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "MoveSticky 200 response"
+          },
+          "401": {
+            "description": "UnauthorizedError 401 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnauthorizedErrorResponseContent"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError 404 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundErrorResponseContent"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "InternalServerError 500 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorResponseContent"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ServiceUnavailableError 503 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceUnavailableErrorResponseContent"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Stickies"
+        ],
+        "x-hey-retry": {
+          "maxAttempts": 2,
+          "baseDelayMs": 1000,
+          "backoff": "exponential",
+          "retryOn": [
+            429,
+            503
+          ]
+        }
+      }
+    },
+    "/stickies/{stickyId}": {
+      "delete": {
+        "description": "Throw a sticky away",
+        "operationId": "DeleteSticky",
+        "parameters": [
+          {
+            "name": "stickyId",
+            "in": "path",
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "DeleteSticky 200 response"
+          },
+          "401": {
+            "description": "UnauthorizedError 401 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnauthorizedErrorResponseContent"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError 404 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundErrorResponseContent"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "InternalServerError 500 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorResponseContent"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ServiceUnavailableError 503 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceUnavailableErrorResponseContent"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Stickies"
+        ],
+        "x-hey-retry": {
+          "maxAttempts": 2,
+          "baseDelayMs": 1000,
+          "backoff": "exponential",
+          "retryOn": [
+            429,
+            503
+          ]
+        }
+      },
+      "patch": {
+        "description": "Edit a sticky",
+        "operationId": "UpdateSticky",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StickyRequestContent"
+              }
+            }
+          },
+          "required": true
+        },
+        "parameters": [
+          {
+            "name": "stickyId",
+            "in": "path",
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "UpdateSticky 200 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UpdateStickyResponseContent"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UnauthorizedError 401 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnauthorizedErrorResponseContent"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError 404 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundErrorResponseContent"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "UnprocessableEntityError 422 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnprocessableEntityErrorResponseContent"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "InternalServerError 500 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorResponseContent"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ServiceUnavailableError 503 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceUnavailableErrorResponseContent"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Stickies"
+        ],
+        "x-hey-retry": {
+          "maxAttempts": 2,
           "baseDelayMs": 1000,
           "backoff": "exponential",
           "retryOn": [
@@ -2968,6 +5706,59 @@
         }
       }
     },
+    "/topics/spam/all.json": {
+      "delete": {
+        "description": "Empty the spam box. Runs synchronously, so it can take a while on a large mailbox.",
+        "operationId": "EmptySpam",
+        "responses": {
+          "200": {
+            "description": "EmptySpam 200 response"
+          },
+          "401": {
+            "description": "UnauthorizedError 401 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnauthorizedErrorResponseContent"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "InternalServerError 500 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorResponseContent"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ServiceUnavailableError 503 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceUnavailableErrorResponseContent"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Topics"
+        ],
+        "x-hey-retry": {
+          "maxAttempts": 2,
+          "baseDelayMs": 1000,
+          "backoff": "exponential",
+          "retryOn": [
+            429,
+            503
+          ]
+        }
+      }
+    },
     "/topics/trash.json": {
       "get": {
         "description": "Get trash topics",
@@ -3032,6 +5823,59 @@
         },
         "x-hey-retry": {
           "maxAttempts": 3,
+          "baseDelayMs": 1000,
+          "backoff": "exponential",
+          "retryOn": [
+            429,
+            503
+          ]
+        }
+      }
+    },
+    "/topics/trash/all.json": {
+      "delete": {
+        "description": "Empty the trash. Runs synchronously, so it can take a while on a large mailbox.",
+        "operationId": "EmptyTrash",
+        "responses": {
+          "200": {
+            "description": "EmptyTrash 200 response"
+          },
+          "401": {
+            "description": "UnauthorizedError 401 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnauthorizedErrorResponseContent"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "InternalServerError 500 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorResponseContent"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ServiceUnavailableError 503 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceUnavailableErrorResponseContent"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Topics"
+        ],
+        "x-hey-retry": {
+          "maxAttempts": 2,
           "baseDelayMs": 1000,
           "backoff": "exponential",
           "retryOn": [
@@ -3213,6 +6057,319 @@
           ]
         }
       }
+    },
+    "/topics/{topicId}/moves.json": {
+      "post": {
+        "description": "Move a topic to another box.\n\nAnswers 204 without moving anything when the acting user has no posting for the topic.",
+        "operationId": "MoveTopic",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MoveTopicRequestContent"
+              }
+            }
+          },
+          "required": true
+        },
+        "parameters": [
+          {
+            "name": "topicId",
+            "in": "path",
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "MoveTopic 200 response"
+          },
+          "401": {
+            "description": "UnauthorizedError 401 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnauthorizedErrorResponseContent"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError 404 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundErrorResponseContent"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "InternalServerError 500 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorResponseContent"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ServiceUnavailableError 503 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceUnavailableErrorResponseContent"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Topics"
+        ],
+        "x-hey-retry": {
+          "maxAttempts": 2,
+          "baseDelayMs": 1000,
+          "backoff": "exponential",
+          "retryOn": [
+            429,
+            503
+          ]
+        }
+      }
+    },
+    "/topics/{topicId}/status/active.json": {
+      "put": {
+        "description": "Restore a topic from the trash or the catch-all",
+        "operationId": "RestoreTopic",
+        "parameters": [
+          {
+            "name": "topicId",
+            "in": "path",
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "RestoreTopic 200 response"
+          },
+          "401": {
+            "description": "UnauthorizedError 401 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnauthorizedErrorResponseContent"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError 404 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundErrorResponseContent"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "InternalServerError 500 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorResponseContent"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ServiceUnavailableError 503 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceUnavailableErrorResponseContent"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Topics"
+        ],
+        "x-hey-retry": {
+          "maxAttempts": 2,
+          "baseDelayMs": 1000,
+          "backoff": "exponential",
+          "retryOn": [
+            429,
+            503
+          ]
+        }
+      }
+    },
+    "/topics/{topicId}/status/ham.json": {
+      "put": {
+        "description": "Mark a spam topic as ham. Every other spam topic from the same sender is hammed too.",
+        "operationId": "MarkTopicHam",
+        "parameters": [
+          {
+            "name": "topicId",
+            "in": "path",
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "MarkTopicHam 200 response"
+          },
+          "401": {
+            "description": "UnauthorizedError 401 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnauthorizedErrorResponseContent"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError 404 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundErrorResponseContent"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "InternalServerError 500 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorResponseContent"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ServiceUnavailableError 503 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceUnavailableErrorResponseContent"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Topics"
+        ],
+        "x-hey-retry": {
+          "maxAttempts": 2,
+          "baseDelayMs": 1000,
+          "backoff": "exponential",
+          "retryOn": [
+            429,
+            503
+          ]
+        }
+      }
+    },
+    "/topics/{topicId}/status/trashed.json": {
+      "put": {
+        "description": "Trash a topic.\n\nA shared topic redirects to the removal confirmation page unless confirm_destroy is set,\nso always pass it when trashing something that might be shared.",
+        "operationId": "TrashTopic",
+        "parameters": [
+          {
+            "name": "topicId",
+            "in": "path",
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "required": true
+          },
+          {
+            "name": "confirm_destroy",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "TrashTopic 200 response"
+          },
+          "401": {
+            "description": "UnauthorizedError 401 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnauthorizedErrorResponseContent"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError 404 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundErrorResponseContent"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "InternalServerError 500 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorResponseContent"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ServiceUnavailableError 503 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceUnavailableErrorResponseContent"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Topics"
+        ],
+        "x-hey-retry": {
+          "maxAttempts": 2,
+          "baseDelayMs": 1000,
+          "backoff": "exponential",
+          "retryOn": [
+            429,
+            503
+          ]
+        }
+      }
     }
   },
   "components": {
@@ -3258,6 +6415,31 @@
           "id"
         ]
       },
+      "AddPostingsToBoxGroupRequestContent": {
+        "type": "object",
+        "properties": {
+          "posting_ids": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          "box_id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "box_group_id": {
+            "type": "integer",
+            "format": "int64"
+          }
+        },
+        "required": [
+          "box_group_id",
+          "box_id",
+          "posting_ids"
+        ]
+      },
       "Addressed": {
         "type": "object",
         "description": "Addressed recipients",
@@ -3290,6 +6472,36 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/Contact"
+            }
+          }
+        }
+      },
+      "AdvancedSearchFilters": {
+        "type": "object",
+        "description": "AdvancedSearchFilters — the options the advanced search refine form offers",
+        "properties": {
+          "refine_in": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SearchFilterItem"
+            }
+          },
+          "refine_dates": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SearchFilterItem"
+            }
+          },
+          "refine_labels": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SearchFilterItem"
+            }
+          },
+          "refine_attachments": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SearchFilterItem"
             }
           }
         }
@@ -3338,6 +6550,17 @@
           "id"
         ]
       },
+      "BadRequestErrorResponseContent": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "message"
+        ]
+      },
       "Box": {
         "type": "object",
         "description": "Box — a HEY mailbox",
@@ -3376,6 +6599,31 @@
           "kind",
           "name"
         ]
+      },
+      "BoxGroup": {
+        "type": "object",
+        "description": "BoxGroup — a Set Aside group. The API only ever returns the id.",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          }
+        },
+        "required": [
+          "id"
+        ]
+      },
+      "BoxGroupsResponse": {
+        "type": "object",
+        "description": "BoxGroupsResponse — the wrapper the groups index answers with",
+        "properties": {
+          "box_groups": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BoxGroup"
+            }
+          }
+        }
       },
       "BoxShowResponse": {
         "type": "object",
@@ -3582,6 +6830,19 @@
           "id"
         ]
       },
+      "ClearanceSummary": {
+        "type": "object",
+        "description": "ClearanceSummary — the screener's pending count, not the clearances themselves",
+        "properties": {
+          "pending_clearances_count": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "signed_stream_name": {
+            "type": "string"
+          }
+        }
+      },
       "Collection": {
         "type": "object",
         "description": "Collection — email collection/label",
@@ -3618,6 +6879,17 @@
         "required": [
           "id"
         ]
+      },
+      "CollectionPayload": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "summary": {
+            "type": "string"
+          }
+        }
       },
       "CompleteCalendarTodoResponseContent": {
         "$ref": "#/components/schemas/Recording"
@@ -3740,6 +7012,36 @@
           "id"
         ]
       },
+      "CreateBoxDesignationRequestContent": {
+        "type": "object",
+        "properties": {
+          "contact_id": {
+            "type": "integer",
+            "format": "int64"
+          }
+        },
+        "required": [
+          "contact_id"
+        ]
+      },
+      "CreateBoxGroupRequestContent": {
+        "type": "object",
+        "properties": {
+          "posting_ids": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        },
+        "required": [
+          "posting_ids"
+        ]
+      },
+      "CreateBoxGroupResponseContent": {
+        "$ref": "#/components/schemas/BoxGroup"
+      },
       "CreateCalendarTodoRequestContent": {
         "type": "object",
         "description": "Wire format: {calendar_todo: {title, starts_at}}",
@@ -3753,6 +7055,29 @@
         ]
       },
       "CreateCalendarTodoResponseContent": {
+        "$ref": "#/components/schemas/Recording"
+      },
+      "CreateFolderForPostingsRequestContent": {
+        "type": "object",
+        "description": "Wire format: {posting_ids: [...], folder: {name, status}}",
+        "properties": {
+          "posting_ids": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          "folder": {
+            "$ref": "#/components/schemas/FolderPayload"
+          }
+        },
+        "required": [
+          "folder",
+          "posting_ids"
+        ]
+      },
+      "CreateHabitResponseContent": {
         "$ref": "#/components/schemas/Recording"
       },
       "CreateMessageRequestContent": {
@@ -3794,6 +7119,12 @@
           "acting_sender_id",
           "message"
         ]
+      },
+      "CreateStickyResponseContent": {
+        "$ref": "#/components/schemas/Sticky"
+      },
+      "CreateTimeTrackResponseContent": {
+        "$ref": "#/components/schemas/Recording"
       },
       "Domain": {
         "type": "object",
@@ -3956,6 +7287,26 @@
           "id"
         ]
       },
+      "FilePostingsRequestContent": {
+        "type": "object",
+        "properties": {
+          "posting_ids": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          "folder_id": {
+            "type": "integer",
+            "format": "int64"
+          }
+        },
+        "required": [
+          "folder_id",
+          "posting_ids"
+        ]
+      },
       "Folder": {
         "type": "object",
         "description": "Folder — email folder",
@@ -3993,6 +7344,77 @@
           "id"
         ]
       },
+      "FolderPayload": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ]
+      },
+      "FolderWithPostings": {
+        "type": "object",
+        "description": "FolderWithPostings — folder detail with the postings filed in it",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "name": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string",
+            "description": "ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)",
+            "format": "date-time",
+            "x-go-type": "time.Time",
+            "x-go-type-import": {
+              "path": "time"
+            }
+          },
+          "updated_at": {
+            "type": "string",
+            "description": "ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)",
+            "format": "date-time",
+            "x-go-type": "time.Time",
+            "x-go-type-import": {
+              "path": "time"
+            }
+          },
+          "app_url": {
+            "type": "string"
+          },
+          "postings": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Posting"
+            }
+          }
+        },
+        "required": [
+          "id"
+        ]
+      },
+      "ForbiddenErrorResponseContent": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "message"
+        ]
+      },
+      "GetAdvancedSearchFiltersResponseContent": {
+        "$ref": "#/components/schemas/AdvancedSearchFilters"
+      },
       "GetAsideboxResponseContent": {
         "$ref": "#/components/schemas/BoxShowResponse"
       },
@@ -4005,6 +7427,9 @@
       "GetCalendarRecordingsResponseContent": {
         "$ref": "#/components/schemas/CalendarRecordingsResponse"
       },
+      "GetClearancesResponseContent": {
+        "$ref": "#/components/schemas/ClearanceSummary"
+      },
       "GetContactResponseContent": {
         "$ref": "#/components/schemas/ContactDetail"
       },
@@ -4013,6 +7438,9 @@
       },
       "GetFeedboxResponseContent": {
         "$ref": "#/components/schemas/BoxShowResponse"
+      },
+      "GetFolderResponseContent": {
+        "$ref": "#/components/schemas/FolderWithPostings"
       },
       "GetIdentityResponseContent": {
         "$ref": "#/components/schemas/Identity"
@@ -4055,6 +7483,40 @@
       },
       "GetTrashTopicsResponseContent": {
         "$ref": "#/components/schemas/TopicListResponse"
+      },
+      "HabitPayload": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "icon": {
+            "type": "string"
+          },
+          "color": {
+            "type": "string"
+          },
+          "days": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int32"
+            },
+            "description": "Days of the week the habit runs on, 0 for Sunday through 6 for Saturday"
+          }
+        }
+      },
+      "HabitRequestContent": {
+        "type": "object",
+        "description": "Wire format: {calendar_habit: {name, icon, color, days: [0..6]}}",
+        "properties": {
+          "calendar_habit": {
+            "$ref": "#/components/schemas/HabitPayload"
+          }
+        },
+        "required": [
+          "calendar_habit"
+        ]
       },
       "Identity": {
         "type": "object",
@@ -4152,6 +7614,9 @@
           "content"
         ]
       },
+      "ListBoxGroupsResponseContent": {
+        "$ref": "#/components/schemas/BoxGroupsResponse"
+      },
       "ListBoxesResponseContent": {
         "type": "array",
         "items": {
@@ -4160,6 +7625,12 @@
       },
       "ListCalendarsResponseContent": {
         "$ref": "#/components/schemas/CalendarListPayload"
+      },
+      "ListCollectionsResponseContent": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/Collection"
+        }
       },
       "ListContactsResponseContent": {
         "type": "array",
@@ -4171,6 +7642,12 @@
         "type": "array",
         "items": {
           "$ref": "#/components/schemas/DraftMessage"
+        }
+      },
+      "ListStickiesResponseContent": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/Sticky"
         }
       },
       "MarkPostingsRequestContent": {
@@ -4282,6 +7759,36 @@
           }
         }
       },
+      "MessageDraft": {
+        "type": "object",
+        "description": "MessageDraft — a prefilled compose payload (forward, reply). Unsent, so it has no id.",
+        "properties": {
+          "url": {
+            "type": "string"
+          },
+          "creator": {
+            "$ref": "#/components/schemas/Contact"
+          },
+          "sender": {
+            "$ref": "#/components/schemas/Contact"
+          },
+          "is_reply": {
+            "type": "boolean"
+          },
+          "subject": {
+            "type": "string"
+          },
+          "content": {
+            "type": "string"
+          },
+          "addressed": {
+            "$ref": "#/components/schemas/Addressed"
+          },
+          "show_addressed_selector": {
+            "type": "boolean"
+          }
+        }
+      },
       "MessageEntryPayload": {
         "type": "object",
         "properties": {
@@ -4332,6 +7839,36 @@
         "required": [
           "box_id",
           "posting_ids"
+        ]
+      },
+      "MoveStickyRequestContent": {
+        "type": "object",
+        "description": "Wire format: {id, position} — both at the top level.",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "position": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "required": [
+          "id",
+          "position"
+        ]
+      },
+      "MoveTopicRequestContent": {
+        "type": "object",
+        "properties": {
+          "box_id": {
+            "type": "integer",
+            "format": "int64"
+          }
+        },
+        "required": [
+          "box_id"
         ]
       },
       "NavigationIcon": {
@@ -4396,6 +7933,9 @@
             }
           }
         }
+      },
+      "NewEntryForwardResponseContent": {
+        "$ref": "#/components/schemas/MessageDraft"
       },
       "NotFoundErrorResponseContent": {
         "type": "object",
@@ -4939,18 +8479,15 @@
           "content"
         ]
       },
-      "SearchResponseContent": {
-        "$ref": "#/components/schemas/SearchResult"
-      },
-      "SearchResult": {
+      "SearchFilterItem": {
         "type": "object",
-        "description": "SearchResult — topics from search",
+        "description": "SearchFilterItem — one option offered by the advanced search refine form",
         "properties": {
-          "topics": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/Topic"
-            }
+          "title": {
+            "type": "string"
+          },
+          "value": {
+            "type": "string"
           }
         }
       },
@@ -5034,6 +8571,95 @@
       },
       "StartTimeTrackResponseContent": {
         "$ref": "#/components/schemas/Recording"
+      },
+      "Sticky": {
+        "type": "object",
+        "description": "Sticky — a note on the stickies board",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "body": {
+            "type": "string"
+          },
+          "size": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string",
+            "description": "ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)",
+            "format": "date-time",
+            "x-go-type": "time.Time",
+            "x-go-type-import": {
+              "path": "time"
+            }
+          },
+          "updated_at": {
+            "type": "string",
+            "description": "ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)",
+            "format": "date-time",
+            "x-go-type": "time.Time",
+            "x-go-type-import": {
+              "path": "time"
+            }
+          }
+        },
+        "required": [
+          "id"
+        ]
+      },
+      "StickyPayload": {
+        "type": "object",
+        "properties": {
+          "body": {
+            "type": "string"
+          },
+          "size": {
+            "type": "string"
+          }
+        }
+      },
+      "StickyRequestContent": {
+        "type": "object",
+        "description": "Wire format: {sticky: {body, size}}. Size is \"small\", \"medium\" or \"large\".",
+        "properties": {
+          "sticky": {
+            "$ref": "#/components/schemas/StickyPayload"
+          }
+        },
+        "required": [
+          "sticky"
+        ]
+      },
+      "TimeTrackRequestContent": {
+        "type": "object",
+        "properties": {
+          "starts_at": {
+            "type": "string",
+            "x-go-type": "time.Time",
+            "x-go-type-import": {
+              "path": "time"
+            }
+          },
+          "ends_at": {
+            "type": "string",
+            "x-go-type": "time.Time",
+            "x-go-type-import": {
+              "path": "time"
+            }
+          },
+          "category_title": {
+            "type": "string"
+          },
+          "notes": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "ends_at",
+          "starts_at"
+        ]
       },
       "Topic": {
         "type": "object",
@@ -5133,6 +8759,25 @@
           }
         }
       },
+      "TrashPostingsRequestContent": {
+        "type": "object",
+        "properties": {
+          "posting_ids": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          "remove_access": {
+            "type": "string",
+            "description": "Omitted, JSON requests default to removing only your own access from shared topics.\n\"false\" trashes them for everyone instead."
+          }
+        },
+        "required": [
+          "posting_ids"
+        ]
+      },
       "UnauthorizedErrorResponseContent": {
         "type": "object",
         "properties": {
@@ -5161,6 +8806,30 @@
           "message"
         ]
       },
+      "UpdateCollectionRequestContent": {
+        "type": "object",
+        "description": "Wire format: {collection: {name, summary}}",
+        "properties": {
+          "collection": {
+            "$ref": "#/components/schemas/CollectionPayload"
+          }
+        },
+        "required": [
+          "collection"
+        ]
+      },
+      "UpdateContactClearanceRequestContent": {
+        "type": "object",
+        "description": "Wire format: {status: \"approved\"|\"denied\"} — top level, not nested under a clearance key.",
+        "properties": {
+          "status": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "status"
+        ]
+      },
       "UpdateJournalEntryRequestContent": {
         "type": "object",
         "description": "Wire format: {calendar_journal_entry: {content}}",
@@ -5172,6 +8841,9 @@
         "required": [
           "calendar_journal_entry"
         ]
+      },
+      "UpdateStickyResponseContent": {
+        "$ref": "#/components/schemas/Sticky"
       },
       "UpdateTimeTrackPayload": {
         "type": "object",

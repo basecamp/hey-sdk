@@ -3,10 +3,11 @@ package hey
 import (
 	"context"
 	"fmt"
-	"time"
+
+	"github.com/basecamp/hey-sdk/go/pkg/generated"
 )
 
-// DesignationsService handles moving contacts between mailboxes.
+// DesignationsService screens a contact into a box, so everything they send lands there.
 type DesignationsService struct {
 	client *Client
 }
@@ -16,48 +17,35 @@ func NewDesignationsService(client *Client) *DesignationsService {
 	return &DesignationsService{client: client}
 }
 
-// Create moves a contact to the specified box.
-// boxID is the ID of the target box (imbox, feedbox, trailbox, etc.).
-// contactID is the ID of the contact to move.
-func (s *DesignationsService) Create(ctx context.Context, boxID int64, contactID int64) (err error) {
+// Create designates a contact to a box.
+//
+// The server designates the contact's primary, so alias contacts fold into one designation
+// whose id you cannot derive from contactID — read the box back if you need it.
+func (s *DesignationsService) Create(ctx context.Context, boxID int64, contactID int64) error {
 	op := OperationInfo{
-		Service: "Designations", Operation: "CreateDesignation",
+		Service: "Designations", Operation: "CreateBoxDesignation",
 		ResourceType: "designation", IsMutation: true, ResourceID: boxID,
 	}
-	if gater, ok := s.client.hooks.(GatingHooks); ok {
-		if ctx, err = gater.OnOperationGate(ctx, op); err != nil {
-			return
+
+	return s.client.instrument(ctx, op, func(ctx context.Context) error {
+		resp, err := s.client.genClient().CreateBoxDesignationWithResponse(ctx, boxID, generated.CreateBoxDesignationRequestContent{ContactId: contactID})
+		if err != nil {
+			return err
 		}
-	}
-	start := time.Now()
-	ctx = s.client.hooks.OnOperationStart(ctx, op)
-	defer func() { s.client.hooks.OnOperationEnd(ctx, op, err, time.Since(start)) }()
-
-	body := map[string]any{
-		"contact_id": contactID,
-	}
-
-	_, err = s.client.PostMutation(ctx, fmt.Sprintf("/boxes/%d/designations.json", boxID), body)
-	return err
+		return CheckResponse(resp.HTTPResponse)
+	})
 }
 
-// Destroy removes a contact's designation from a box.
-// boxID is the ID of the box to remove the contact from.
-// designationID is the ID of the designation to remove.
-func (s *DesignationsService) Destroy(ctx context.Context, boxID int64, designationID int64) (err error) {
+// Destroy removes a designation from a box. designationID is the designation's own id, not
+// the contact's.
+func (s *DesignationsService) Destroy(ctx context.Context, boxID int64, designationID int64) error {
 	op := OperationInfo{
-		Service: "Designations", Operation: "DestroyDesignation",
+		Service: "Designations", Operation: "DeleteBoxDesignation",
 		ResourceType: "designation", IsMutation: true, ResourceID: designationID,
 	}
-	if gater, ok := s.client.hooks.(GatingHooks); ok {
-		if ctx, err = gater.OnOperationGate(ctx, op); err != nil {
-			return
-		}
-	}
-	start := time.Now()
-	ctx = s.client.hooks.OnOperationStart(ctx, op)
-	defer func() { s.client.hooks.OnOperationEnd(ctx, op, err, time.Since(start)) }()
 
-	_, err = s.client.Delete(ctx, fmt.Sprintf("/boxes/%d/designations/%d.json", boxID, designationID))
-	return err
+	return s.client.instrument(ctx, op, func(ctx context.Context) error {
+		_, err := s.client.Delete(ctx, fmt.Sprintf("/boxes/%d/designations/%d.json", boxID, designationID))
+		return err
+	})
 }

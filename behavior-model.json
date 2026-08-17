@@ -2,6 +2,58 @@
   "$schema": "https://hey.com/schemas/behavior-model.json",
   "generated": true,
   "operations": {
+    "AddPostingsToBoxGroup": {
+      "idempotent": false,
+      "readonly": false,
+      "retry": {
+        "backoff": "exponential",
+        "base_delay_ms": 1000,
+        "max": 2,
+        "retry_on": [
+          429,
+          503
+        ]
+      }
+    },
+    "BubbleUpPostingsNow": {
+      "idempotent": false,
+      "readonly": false,
+      "retry": {
+        "backoff": "exponential",
+        "base_delay_ms": 1000,
+        "max": 2,
+        "retry_on": [
+          429,
+          503
+        ]
+      }
+    },
+    "BundleContact": {
+      "idempotent": false,
+      "readonly": false,
+      "retry": {
+        "backoff": "exponential",
+        "base_delay_ms": 1000,
+        "max": 2,
+        "retry_on": [
+          429,
+          503
+        ]
+      }
+    },
+    "CancelPostingsBubbleUp": {
+      "idempotent": true,
+      "readonly": false,
+      "retry": {
+        "backoff": "exponential",
+        "base_delay_ms": 1000,
+        "max": 2,
+        "retry_on": [
+          429,
+          503
+        ]
+      }
+    },
     "CompleteCalendarTodo": {
       "idempotent": true,
       "readonly": false,
@@ -28,7 +80,59 @@
         ]
       }
     },
+    "CreateBoxDesignation": {
+      "idempotent": false,
+      "readonly": false,
+      "retry": {
+        "backoff": "exponential",
+        "base_delay_ms": 1000,
+        "max": 2,
+        "retry_on": [
+          429,
+          503
+        ]
+      }
+    },
+    "CreateBoxGroup": {
+      "idempotent": false,
+      "readonly": false,
+      "retry": {
+        "backoff": "exponential",
+        "base_delay_ms": 1000,
+        "max": 2,
+        "retry_on": [
+          429,
+          503
+        ]
+      }
+    },
     "CreateCalendarTodo": {
+      "idempotent": false,
+      "readonly": false,
+      "retry": {
+        "backoff": "exponential",
+        "base_delay_ms": 1000,
+        "max": 2,
+        "retry_on": [
+          429,
+          503
+        ]
+      }
+    },
+    "CreateFolderForPostings": {
+      "idempotent": false,
+      "readonly": false,
+      "retry": {
+        "backoff": "exponential",
+        "base_delay_ms": 1000,
+        "max": 2,
+        "retry_on": [
+          429,
+          503
+        ]
+      }
+    },
+    "CreateHabit": {
       "idempotent": false,
       "readonly": false,
       "retry": {
@@ -67,9 +171,152 @@
         ]
       }
     },
+    "CreateSticky": {
+      "idempotent": false,
+      "readonly": false,
+      "retry": {
+        "backoff": "exponential",
+        "base_delay_ms": 1000,
+        "max": 2,
+        "retry_on": [
+          429,
+          503
+        ]
+      }
+    },
+    "CreateTimeTrack": {
+      "idempotent": false,
+      "readonly": false,
+      "retry": {
+        "backoff": "exponential",
+        "base_delay_ms": 1000,
+        "max": 2,
+        "retry_on": [
+          429,
+          503
+        ]
+      }
+    },
+    "DeleteBoxDesignation": {
+      "idempotent": true,
+      "readonly": false,
+      "retry": {
+        "backoff": "exponential",
+        "base_delay_ms": 1000,
+        "max": 2,
+        "retry_on": [
+          429,
+          503
+        ]
+      }
+    },
+    "DeleteBoxGroup": {
+      "idempotent": true,
+      "readonly": false,
+      "retry": {
+        "backoff": "exponential",
+        "base_delay_ms": 1000,
+        "max": 2,
+        "retry_on": [
+          429,
+          503
+        ]
+      }
+    },
     "DeleteCalendarTodo": {
       "idempotent": true,
       "readonly": false,
+      "retry": {
+        "backoff": "exponential",
+        "base_delay_ms": 1000,
+        "max": 3,
+        "retry_on": [
+          429,
+          503
+        ]
+      }
+    },
+    "DeleteHabit": {
+      "idempotent": true,
+      "readonly": false,
+      "retry": {
+        "backoff": "exponential",
+        "base_delay_ms": 1000,
+        "max": 2,
+        "retry_on": [
+          429,
+          503
+        ]
+      }
+    },
+    "DeleteSticky": {
+      "idempotent": true,
+      "readonly": false,
+      "retry": {
+        "backoff": "exponential",
+        "base_delay_ms": 1000,
+        "max": 2,
+        "retry_on": [
+          429,
+          503
+        ]
+      }
+    },
+    "DeleteTimeTrack": {
+      "idempotent": true,
+      "readonly": false,
+      "retry": {
+        "backoff": "exponential",
+        "base_delay_ms": 1000,
+        "max": 2,
+        "retry_on": [
+          429,
+          503
+        ]
+      }
+    },
+    "EmptySpam": {
+      "idempotent": true,
+      "readonly": false,
+      "retry": {
+        "backoff": "exponential",
+        "base_delay_ms": 1000,
+        "max": 2,
+        "retry_on": [
+          429,
+          503
+        ]
+      }
+    },
+    "EmptyTrash": {
+      "idempotent": true,
+      "readonly": false,
+      "retry": {
+        "backoff": "exponential",
+        "base_delay_ms": 1000,
+        "max": 2,
+        "retry_on": [
+          429,
+          503
+        ]
+      }
+    },
+    "FilePostings": {
+      "idempotent": false,
+      "readonly": false,
+      "retry": {
+        "backoff": "exponential",
+        "base_delay_ms": 1000,
+        "max": 2,
+        "retry_on": [
+          429,
+          503
+        ]
+      }
+    },
+    "GetAdvancedSearchFilters": {
+      "idempotent": false,
+      "readonly": true,
       "retry": {
         "backoff": "exponential",
         "base_delay_ms": 1000,
@@ -135,6 +382,19 @@
         ]
       }
     },
+    "GetClearances": {
+      "idempotent": false,
+      "readonly": true,
+      "retry": {
+        "backoff": "exponential",
+        "base_delay_ms": 1000,
+        "max": 3,
+        "retry_on": [
+          429,
+          503
+        ]
+      }
+    },
     "GetContact": {
       "idempotent": false,
       "readonly": true,
@@ -167,6 +427,23 @@
     },
     "GetFeedbox": {
       "idempotent": false,
+      "readonly": true,
+      "retry": {
+        "backoff": "exponential",
+        "base_delay_ms": 1000,
+        "max": 3,
+        "retry_on": [
+          429,
+          503
+        ]
+      }
+    },
+    "GetFolder": {
+      "idempotent": false,
+      "pagination": {
+        "style": "link",
+        "totalCountHeader": "X-Total-Count"
+      },
       "readonly": true,
       "retry": {
         "backoff": "exponential",
@@ -366,6 +643,19 @@
         ]
       }
     },
+    "ListBoxGroups": {
+      "idempotent": false,
+      "readonly": true,
+      "retry": {
+        "backoff": "exponential",
+        "base_delay_ms": 1000,
+        "max": 3,
+        "retry_on": [
+          429,
+          503
+        ]
+      }
+    },
     "ListBoxes": {
       "idempotent": false,
       "pagination": {
@@ -384,6 +674,19 @@
       }
     },
     "ListCalendars": {
+      "idempotent": false,
+      "readonly": true,
+      "retry": {
+        "backoff": "exponential",
+        "base_delay_ms": 1000,
+        "max": 3,
+        "retry_on": [
+          429,
+          503
+        ]
+      }
+    },
+    "ListCollections": {
       "idempotent": false,
       "readonly": true,
       "retry": {
@@ -430,7 +733,59 @@
         ]
       }
     },
+    "ListStickies": {
+      "idempotent": false,
+      "readonly": true,
+      "retry": {
+        "backoff": "exponential",
+        "base_delay_ms": 1000,
+        "max": 3,
+        "retry_on": [
+          429,
+          503
+        ]
+      }
+    },
+    "MarkBoxSeen": {
+      "idempotent": false,
+      "readonly": false,
+      "retry": {
+        "backoff": "exponential",
+        "base_delay_ms": 1000,
+        "max": 2,
+        "retry_on": [
+          429,
+          503
+        ]
+      }
+    },
+    "MarkEntrySpam": {
+      "idempotent": true,
+      "readonly": false,
+      "retry": {
+        "backoff": "exponential",
+        "base_delay_ms": 1000,
+        "max": 2,
+        "retry_on": [
+          429,
+          503
+        ]
+      }
+    },
     "MarkPostingsSeen": {
+      "idempotent": false,
+      "readonly": false,
+      "retry": {
+        "backoff": "exponential",
+        "base_delay_ms": 1000,
+        "max": 2,
+        "retry_on": [
+          429,
+          503
+        ]
+      }
+    },
+    "MarkPostingsSpam": {
       "idempotent": false,
       "readonly": false,
       "retry": {
@@ -456,7 +811,46 @@
         ]
       }
     },
+    "MarkTopicHam": {
+      "idempotent": true,
+      "readonly": false,
+      "retry": {
+        "backoff": "exponential",
+        "base_delay_ms": 1000,
+        "max": 2,
+        "retry_on": [
+          429,
+          503
+        ]
+      }
+    },
     "MovePostings": {
+      "idempotent": false,
+      "readonly": false,
+      "retry": {
+        "backoff": "exponential",
+        "base_delay_ms": 1000,
+        "max": 2,
+        "retry_on": [
+          429,
+          503
+        ]
+      }
+    },
+    "MoveSticky": {
+      "idempotent": false,
+      "readonly": false,
+      "retry": {
+        "backoff": "exponential",
+        "base_delay_ms": 1000,
+        "max": 2,
+        "retry_on": [
+          429,
+          503
+        ]
+      }
+    },
+    "MoveTopic": {
       "idempotent": false,
       "readonly": false,
       "retry": {
@@ -482,17 +876,52 @@
         ]
       }
     },
-    "Search": {
+    "NewEntryForward": {
       "idempotent": false,
-      "pagination": {
-        "style": "link",
-        "totalCountHeader": "X-Total-Count"
-      },
       "readonly": true,
       "retry": {
         "backoff": "exponential",
         "base_delay_ms": 1000,
         "max": 3,
+        "retry_on": [
+          429,
+          503
+        ]
+      }
+    },
+    "RemovePostingsFromBoxGroup": {
+      "idempotent": true,
+      "readonly": false,
+      "retry": {
+        "backoff": "exponential",
+        "base_delay_ms": 1000,
+        "max": 2,
+        "retry_on": [
+          429,
+          503
+        ]
+      }
+    },
+    "RestoreTopic": {
+      "idempotent": true,
+      "readonly": false,
+      "retry": {
+        "backoff": "exponential",
+        "base_delay_ms": 1000,
+        "max": 2,
+        "retry_on": [
+          429,
+          503
+        ]
+      }
+    },
+    "ResumeHabit": {
+      "idempotent": true,
+      "readonly": false,
+      "retry": {
+        "backoff": "exponential",
+        "base_delay_ms": 1000,
+        "max": 2,
         "retry_on": [
           429,
           503
@@ -512,8 +941,47 @@
         ]
       }
     },
+    "StopHabit": {
+      "idempotent": false,
+      "readonly": false,
+      "retry": {
+        "backoff": "exponential",
+        "base_delay_ms": 1000,
+        "max": 2,
+        "retry_on": [
+          429,
+          503
+        ]
+      }
+    },
     "TrashPostings": {
       "idempotent": false,
+      "readonly": false,
+      "retry": {
+        "backoff": "exponential",
+        "base_delay_ms": 1000,
+        "max": 2,
+        "retry_on": [
+          429,
+          503
+        ]
+      }
+    },
+    "TrashTopic": {
+      "idempotent": true,
+      "readonly": false,
+      "retry": {
+        "backoff": "exponential",
+        "base_delay_ms": 1000,
+        "max": 2,
+        "retry_on": [
+          429,
+          503
+        ]
+      }
+    },
+    "UnbundleContact": {
+      "idempotent": true,
       "readonly": false,
       "retry": {
         "backoff": "exponential",
@@ -551,7 +1019,59 @@
         ]
       }
     },
+    "UnfilePostings": {
+      "idempotent": true,
+      "readonly": false,
+      "retry": {
+        "backoff": "exponential",
+        "base_delay_ms": 1000,
+        "max": 2,
+        "retry_on": [
+          429,
+          503
+        ]
+      }
+    },
     "UnmutePostings": {
+      "idempotent": true,
+      "readonly": false,
+      "retry": {
+        "backoff": "exponential",
+        "base_delay_ms": 1000,
+        "max": 2,
+        "retry_on": [
+          429,
+          503
+        ]
+      }
+    },
+    "UpdateCollection": {
+      "idempotent": true,
+      "readonly": false,
+      "retry": {
+        "backoff": "exponential",
+        "base_delay_ms": 1000,
+        "max": 2,
+        "retry_on": [
+          429,
+          503
+        ]
+      }
+    },
+    "UpdateContactClearance": {
+      "idempotent": true,
+      "readonly": false,
+      "retry": {
+        "backoff": "exponential",
+        "base_delay_ms": 1000,
+        "max": 2,
+        "retry_on": [
+          429,
+          503
+        ]
+      }
+    },
+    "UpdateHabit": {
       "idempotent": true,
       "readonly": false,
       "retry": {
@@ -566,6 +1086,19 @@
     },
     "UpdateJournalEntry": {
       "idempotent": false,
+      "readonly": false,
+      "retry": {
+        "backoff": "exponential",
+        "base_delay_ms": 1000,
+        "max": 2,
+        "retry_on": [
+          429,
+          503
+        ]
+      }
+    },
+    "UpdateSticky": {
+      "idempotent": true,
       "readonly": false,
       "retry": {
         "backoff": "exponential",

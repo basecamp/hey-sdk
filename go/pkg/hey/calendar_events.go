@@ -2,16 +2,20 @@ package hey
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/url"
 	"time"
+
+	"github.com/basecamp/hey-sdk/go/pkg/generated"
 )
 
 // CalendarEventsService handles calendar event operations.
 //
-// Calendar events use form-encoded requests because the HEY API does not
-// expose JSON endpoints for event mutations (POST /calendar/events.json
-// returns 404). Listing events is done through CalendarsService.GetRecordings.
+// Calendar events take form-encoded bodies because that is the shape the HEY endpoints
+// parse. Create posts to the .json path, so a current server answers the created recording;
+// a server without the JSON branch redirects instead and only the id comes back.
+// Listing events is done through CalendarsService.GetRecordings.
 type CalendarEventsService struct {
 	client *Client
 }
@@ -58,9 +62,11 @@ type UpdateCalendarEventParams struct {
 	Reminders []time.Duration
 }
 
-// Create creates a new calendar event.
-// Returns the ID of the created event.
-func (s *CalendarEventsService) Create(ctx context.Context, params CreateCalendarEventParams) (id int64, err error) {
+// Create creates a new calendar event and returns it as a recording.
+//
+// A server carrying the JSON create branch answers 201 with the whole recording. An older
+// one redirects to the event instead, and the result then carries only the id.
+func (s *CalendarEventsService) Create(ctx context.Context, params CreateCalendarEventParams) (recording *generated.Recording, err error) {
 	op := OperationInfo{
 		Service: "CalendarEvents", Operation: "CreateCalendarEvent",
 		ResourceType: "calendar_event", IsMutation: true,
@@ -100,15 +106,46 @@ func (s *CalendarEventsService) Create(ctx context.Context, params CreateCalenda
 		}
 	}
 
-	resp, err := s.client.PostForm(ctx, "/calendar/events", values)
+	resp, err := s.client.PostForm(ctx, "/calendar/events.json", values)
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
-	return resp.ExtractID()
+	return recordingFromFormResponse(resp)
 }
 
-// Update updates an existing calendar event.
-func (s *CalendarEventsService) Update(ctx context.Context, eventID int64, params UpdateCalendarEventParams) (err error) {
+// recordingFromFormResponse reads the recording a JSON write answers with, falling back to
+// the redirect an older server sends, whose URL still carries the recording's id.
+func recordingFromFormResponse(resp *FormResponse) (*generated.Recording, error) {
+	if len(resp.Body) > 0 {
+		recording := &generated.Recording{}
+		if err := json.Unmarshal([]byte(resp.Body), recording); err != nil {
+			return nil, fmt.Errorf("failed to decode the recording: %w", err)
+		}
+		return recording, nil
+	}
+
+	id, err := resp.ExtractID()
+	if err != nil {
+		return nil, err
+	}
+	return &generated.Recording{Id: id}, nil
+}
+
+// recordingFromData reads the recording a JSON write answers with. A server without the JSON
+// branch redirects to an HTML page instead, which leaves nothing to hand back.
+func recordingFromData(data []byte) *generated.Recording {
+	recording := &generated.Recording{}
+	if err := json.Unmarshal(data, recording); err != nil || recording.Id == 0 {
+		return nil
+	}
+	return recording
+}
+
+// Update updates an existing calendar event and returns it as a recording.
+//
+// A server carrying the JSON update branch answers 200 with the whole recording. An older
+// one redirects to the event instead, and the result then carries only the id.
+func (s *CalendarEventsService) Update(ctx context.Context, eventID int64, params UpdateCalendarEventParams) (recording *generated.Recording, err error) {
 	op := OperationInfo{
 		Service: "CalendarEvents", Operation: "UpdateCalendarEvent",
 		ResourceType: "calendar_event", IsMutation: true, ResourceID: eventID,
@@ -160,8 +197,11 @@ func (s *CalendarEventsService) Update(ctx context.Context, eventID int64, param
 		}
 	}
 
-	_, err = s.client.PatchForm(ctx, fmt.Sprintf("/calendar/events/%d", eventID), values)
-	return err
+	resp, err := s.client.PatchForm(ctx, fmt.Sprintf("/calendar/events/%d.json", eventID), values)
+	if err != nil {
+		return nil, err
+	}
+	return recordingFromFormResponse(resp)
 }
 
 // Delete deletes a calendar event.

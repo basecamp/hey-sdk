@@ -109,6 +109,13 @@ service HEY {
         CompleteHabit
         UncompleteHabit
 
+        // Calendar Habits — CRUD
+        CreateHabit
+        UpdateHabit
+        DeleteHabit
+        StopHabit
+        ResumeHabit
+
         // Calendar Time Tracks (3 MVP)
         GetOngoingTimeTrack
         StartTimeTrack
@@ -118,8 +125,8 @@ service HEY {
         GetJournalEntry
         UpdateJournalEntry
 
-        // Search (1 MVP)
-        Search
+        // Search
+        GetAdvancedSearchFilters
 
         // Postings (6 MVP)
         MarkPostingsSeen
@@ -128,6 +135,60 @@ service HEY {
         TrashPostings
         MutePostings
         UnmutePostings
+
+        // Postings — bulk
+        MarkPostingsSpam
+        AddPostingsToBoxGroup
+        RemovePostingsFromBoxGroup
+        FilePostings
+        UnfilePostings
+        CreateFolderForPostings
+        CancelPostingsBubbleUp
+        BubbleUpPostingsNow
+
+        // Topics — status and moves
+        TrashTopic
+        RestoreTopic
+        MarkTopicHam
+        EmptyTrash
+        EmptySpam
+        MoveTopic
+
+        // Entries
+        MarkEntrySpam
+        NewEntryForward
+
+        // Contacts — bundles and screening
+        BundleContact
+        UnbundleContact
+        UpdateContactClearance
+        GetClearances
+
+        // Boxes — designations, groups, observation
+        CreateBoxDesignation
+        DeleteBoxDesignation
+        ListBoxGroups
+        CreateBoxGroup
+        DeleteBoxGroup
+        MarkBoxSeen
+
+        // Folders
+        GetFolder
+
+        // Collections
+        ListCollections
+        UpdateCollection
+
+        // Stickies
+        ListStickies
+        CreateSticky
+        UpdateSticky
+        DeleteSticky
+        MoveSticky
+
+        // Calendar Time Tracks — write
+        CreateTimeTrack
+        DeleteTimeTrack
     ]
 }
 
@@ -830,9 +891,22 @@ structure NavigationResponse {
     hotkeys: NavigationItemList
 }
 
-/// SearchResult — topics from search
-structure SearchResult {
-    topics: TopicList
+/// SearchFilterItem — one option offered by the advanced search refine form
+structure SearchFilterItem {
+    title: String
+    value: String
+}
+
+list SearchFilterItemList {
+    member: SearchFilterItem
+}
+
+/// AdvancedSearchFilters — the options the advanced search refine form offers
+structure AdvancedSearchFilters {
+    refine_in: SearchFilterItemList
+    refine_dates: SearchFilterItemList
+    refine_labels: SearchFilterItemList
+    refine_attachments: SearchFilterItemList
 }
 
 // =============================================================================
@@ -1695,30 +1769,22 @@ structure JournalEntryPayload {
 // SEARCH OPERATIONS
 // =============================================================================
 
-/// Search topics
+/// Get the options the advanced search refine form offers.
+///
+/// Search itself has no JSON surface — /search and /advanced_search render HTML only — so the
+/// SDK reads results off the advanced search page. This endpoint is the one part that is JSON.
 @readonly
-@http(method: "GET", uri: "/search.json")
+@http(method: "GET", uri: "/advanced_search_filters.json")
 @tags(["Search"])
 @heyRetry(maxAttempts: 3, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
-@heyPagination(style: "link", totalCountHeader: "X-Total-Count")
-operation Search {
-    input: SearchInput
-    output: SearchOutput
+operation GetAdvancedSearchFilters {
+    output: GetAdvancedSearchFiltersOutput
     errors: [UnauthorizedError, InternalServerError, ServiceUnavailableError]
 }
 
-structure SearchInput {
-    @httpQuery("q")
+structure GetAdvancedSearchFiltersOutput {
     @required
-    q: String
-
-    @httpQuery("page")
-    page: String
-}
-
-structure SearchOutput {
-    @required
-    result: SearchResult
+    filters: AdvancedSearchFilters
 }
 
 // =============================================================================
@@ -1788,8 +1854,23 @@ structure MovePostingsRequestContent {
 @tags(["Postings"])
 @heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
 operation TrashPostings {
-    input: MarkPostingsInput
+    input: TrashPostingsInput
     errors: [UnauthorizedError, NotFoundError, InternalServerError, ServiceUnavailableError]
+}
+
+structure TrashPostingsInput {
+    @httpPayload
+    @required
+    body: TrashPostingsRequestContent
+}
+
+structure TrashPostingsRequestContent {
+    @required
+    posting_ids: PostingIdList
+
+    /// Omitted, JSON requests default to removing only your own access from shared topics.
+    /// "false" trashes them for everyone instead.
+    remove_access: String
 }
 
 /// Mute postings (bulk) — stop notifications for their threads.
@@ -1819,4 +1900,910 @@ structure UnmutePostingsInput {
     @httpQuery("posting_ids")
     @required
     posting_ids: String
+}
+
+// =============================================================================
+// SHARED SHAPES — added for the 1.0 coverage pass
+// =============================================================================
+
+/// Sticky — a note on the stickies board
+structure Sticky {
+    @required
+    id: Long
+
+    body: String
+    size: String
+    created_at: DateTime
+    updated_at: DateTime
+}
+
+list StickyList {
+    member: Sticky
+}
+
+/// BoxGroup — a Set Aside group. The API only ever returns the id.
+structure BoxGroup {
+    @required
+    id: Long
+}
+
+list BoxGroupList {
+    member: BoxGroup
+}
+
+/// BoxGroupsResponse — the wrapper the groups index answers with
+structure BoxGroupsResponse {
+    box_groups: BoxGroupList
+}
+
+/// FolderWithPostings — folder detail with the postings filed in it
+structure FolderWithPostings {
+    @required
+    id: Long
+
+    name: String
+    created_at: DateTime
+    updated_at: DateTime
+    app_url: String
+    postings: PostingList
+}
+
+/// ClearanceSummary — the screener's pending count, not the clearances themselves
+structure ClearanceSummary {
+    pending_clearances_count: Integer
+    signed_stream_name: String
+}
+
+/// MessageDraft — a prefilled compose payload (forward, reply). Unsent, so it has no id.
+structure MessageDraft {
+    url: String
+    creator: Contact
+    sender: Contact
+    is_reply: Boolean
+    subject: String
+    content: String
+    addressed: Addressed
+    show_addressed_selector: Boolean
+}
+
+/// Posting ids as a comma-joined string, for verbs that carry no body
+string PostingIdsParam
+
+// =============================================================================
+// POSTINGS — bulk actions across a selection
+// =============================================================================
+
+/// Mark a selection of postings as spam.
+///
+/// Over ten postings the server hands the work to a background job, so the effect is
+/// eventually consistent.
+@http(method: "POST", uri: "/postings/spam.json")
+@tags(["Postings"])
+@heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+operation MarkPostingsSpam {
+    input: MarkPostingsInput
+    errors: [UnauthorizedError, NotFoundError, InternalServerError, ServiceUnavailableError]
+}
+
+/// A posting selection carried in the query string, for verbs that send no body
+structure PostingSelectionInput {
+    @httpQuery("posting_ids")
+    @required
+    posting_ids: PostingIdsParam
+}
+
+/// Add a selection of postings to a Set Aside group
+@http(method: "POST", uri: "/postings/box_groups.json")
+@tags(["Postings"])
+@heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+operation AddPostingsToBoxGroup {
+    input: AddPostingsToBoxGroupInput
+    errors: [UnauthorizedError, NotFoundError, InternalServerError, ServiceUnavailableError]
+}
+
+structure AddPostingsToBoxGroupInput {
+    @httpPayload
+    @required
+    body: AddPostingsToBoxGroupRequestContent
+}
+
+structure AddPostingsToBoxGroupRequestContent {
+    @required
+    posting_ids: PostingIdList
+
+    @required
+    box_id: Long
+
+    @required
+    box_group_id: Long
+}
+
+/// Remove a selection of postings from their Set Aside group
+@idempotent
+@http(method: "DELETE", uri: "/postings/box_groups.json")
+@tags(["Postings"])
+@heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+operation RemovePostingsFromBoxGroup {
+    input: PostingSelectionInput
+    errors: [UnauthorizedError, InternalServerError, ServiceUnavailableError]
+}
+
+/// File a selection of postings into an existing folder (label)
+@http(method: "POST", uri: "/postings/filings.json")
+@tags(["Postings"])
+@heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+operation FilePostings {
+    input: FilePostingsInput
+    errors: [UnauthorizedError, NotFoundError, InternalServerError, ServiceUnavailableError]
+}
+
+structure FilePostingsInput {
+    @httpPayload
+    @required
+    body: FilePostingsRequestContent
+}
+
+structure FilePostingsRequestContent {
+    @required
+    posting_ids: PostingIdList
+
+    @required
+    folder_id: Long
+}
+
+/// Remove a selection of postings from a folder, or from every folder when folder_id is omitted
+@idempotent
+@http(method: "DELETE", uri: "/postings/filings.json")
+@tags(["Postings"])
+@heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+operation UnfilePostings {
+    input: UnfilePostingsInput
+    errors: [UnauthorizedError, NotFoundError, InternalServerError, ServiceUnavailableError]
+}
+
+structure UnfilePostingsInput {
+    @httpQuery("posting_ids")
+    @required
+    posting_ids: PostingIdsParam
+
+    @httpQuery("folder_id")
+    folder_id: Long
+}
+
+/// Create a folder (label) and file a selection of postings into it
+@http(method: "POST", uri: "/postings/folders.json")
+@tags(["Postings"])
+@heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+operation CreateFolderForPostings {
+    input: CreateFolderForPostingsInput
+    errors: [UnauthorizedError, NotFoundError, UnprocessableEntityError, InternalServerError, ServiceUnavailableError]
+}
+
+structure CreateFolderForPostingsInput {
+    @httpPayload
+    @required
+    body: CreateFolderForPostingsRequestContent
+}
+
+/// Wire format: {posting_ids: [...], folder: {name, status}}
+structure CreateFolderForPostingsRequestContent {
+    @required
+    posting_ids: PostingIdList
+
+    @required
+    folder: FolderPayload
+}
+
+structure FolderPayload {
+    @required
+    name: String
+
+    status: String
+}
+
+/// Cancel a scheduled bubble up for a selection of postings
+@idempotent
+@http(method: "DELETE", uri: "/postings/bubble_up.json")
+@tags(["Postings"])
+@heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+operation CancelPostingsBubbleUp {
+    input: PostingSelectionInput
+    errors: [UnauthorizedError, NotFoundError, InternalServerError, ServiceUnavailableError]
+}
+
+/// Bubble a selection of postings up right now
+@http(method: "POST", uri: "/postings/bulk_bubble_up_now.json")
+@tags(["Postings"])
+@heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+operation BubbleUpPostingsNow {
+    input: MarkPostingsInput
+    errors: [UnauthorizedError, NotFoundError, InternalServerError, ServiceUnavailableError]
+}
+
+// =============================================================================
+// TOPIC STATUS AND MOVES
+// =============================================================================
+
+/// Trash a topic.
+///
+/// A shared topic redirects to the removal confirmation page unless confirm_destroy is set,
+/// so always pass it when trashing something that might be shared.
+@idempotent
+@http(method: "PUT", uri: "/topics/{topicId}/status/trashed.json")
+@tags(["Topics"])
+@heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+operation TrashTopic {
+    input: TrashTopicInput
+    errors: [UnauthorizedError, NotFoundError, InternalServerError, ServiceUnavailableError]
+}
+
+structure TrashTopicInput {
+    @httpLabel
+    @required
+    topicId: Long
+
+    @httpQuery("confirm_destroy")
+    confirm_destroy: String
+}
+
+/// Restore a topic from the trash or the catch-all
+@idempotent
+@http(method: "PUT", uri: "/topics/{topicId}/status/active.json")
+@tags(["Topics"])
+@heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+operation RestoreTopic {
+    input: TopicStatusInput
+    errors: [UnauthorizedError, NotFoundError, InternalServerError, ServiceUnavailableError]
+}
+
+/// Mark a spam topic as ham. Every other spam topic from the same sender is hammed too.
+@idempotent
+@http(method: "PUT", uri: "/topics/{topicId}/status/ham.json")
+@tags(["Topics"])
+@heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+operation MarkTopicHam {
+    input: TopicStatusInput
+    errors: [UnauthorizedError, NotFoundError, InternalServerError, ServiceUnavailableError]
+}
+
+structure TopicStatusInput {
+    @httpLabel
+    @required
+    topicId: Long
+}
+
+/// Empty the trash. Runs synchronously, so it can take a while on a large mailbox.
+@idempotent
+@http(method: "DELETE", uri: "/topics/trash/all.json")
+@tags(["Topics"])
+@heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+operation EmptyTrash {
+    errors: [UnauthorizedError, InternalServerError, ServiceUnavailableError]
+}
+
+/// Empty the spam box. Runs synchronously, so it can take a while on a large mailbox.
+@idempotent
+@http(method: "DELETE", uri: "/topics/spam/all.json")
+@tags(["Topics"])
+@heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+operation EmptySpam {
+    errors: [UnauthorizedError, InternalServerError, ServiceUnavailableError]
+}
+
+/// Move a topic to another box.
+///
+/// Answers 204 without moving anything when the acting user has no posting for the topic.
+@http(method: "POST", uri: "/topics/{topicId}/moves.json")
+@tags(["Topics"])
+@heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+operation MoveTopic {
+    input: MoveTopicInput
+    errors: [UnauthorizedError, NotFoundError, InternalServerError, ServiceUnavailableError]
+}
+
+structure MoveTopicInput {
+    @httpLabel
+    @required
+    topicId: Long
+
+    @httpPayload
+    @required
+    body: MoveTopicRequestContent
+}
+
+structure MoveTopicRequestContent {
+    @required
+    box_id: Long
+}
+
+// =============================================================================
+// ENTRY STATUS AND FORWARDS
+// =============================================================================
+
+/// Mark an entry as spam. Denies the sender when every thread from them is already spam.
+@idempotent
+@http(method: "PUT", uri: "/entries/{entryId}/status/spam.json")
+@tags(["Entries"])
+@heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+operation MarkEntrySpam {
+    input: EntryStatusInput
+    errors: [UnauthorizedError, NotFoundError, InternalServerError, ServiceUnavailableError]
+}
+
+structure EntryStatusInput {
+    @httpLabel
+    @required
+    entryId: Long
+}
+
+/// Get a prefilled forward of an entry: subject, quoted body and blank recipients.
+/// Send it with CreateMessage once the recipients are filled in.
+@readonly
+@http(method: "GET", uri: "/entries/{entryId}/forwards/new.json")
+@tags(["Entries"])
+@heyRetry(maxAttempts: 3, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+operation NewEntryForward {
+    input: EntryStatusInput
+    output: NewEntryForwardOutput
+    errors: [UnauthorizedError, NotFoundError, InternalServerError, ServiceUnavailableError]
+}
+
+structure NewEntryForwardOutput {
+    @required
+    forward: MessageDraft
+}
+
+// =============================================================================
+// CONTACT BUNDLES AND SCREENING
+// =============================================================================
+
+/// Bundle a contact so their mail arrives grouped
+@http(method: "POST", uri: "/contacts/{contactId}/bundle.json")
+@tags(["Contacts"])
+@heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+operation BundleContact {
+    input: ContactActionInput
+    errors: [UnauthorizedError, ForbiddenError, NotFoundError, InternalServerError, ServiceUnavailableError]
+}
+
+/// Stop bundling a contact's mail
+@idempotent
+@http(method: "DELETE", uri: "/contacts/{contactId}/bundle.json")
+@tags(["Contacts"])
+@heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+operation UnbundleContact {
+    input: ContactActionInput
+    errors: [UnauthorizedError, NotFoundError, InternalServerError, ServiceUnavailableError]
+}
+
+structure ContactActionInput {
+    @httpLabel
+    @required
+    contactId: Long
+}
+
+/// Screen a contact in or out. Status is "approved" or "denied".
+@idempotent
+@http(method: "PATCH", uri: "/contacts/{contactId}/clearance.json")
+@tags(["Contacts"])
+@heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+operation UpdateContactClearance {
+    input: UpdateContactClearanceInput
+    errors: [UnauthorizedError, NotFoundError, UnprocessableEntityError, InternalServerError, ServiceUnavailableError]
+}
+
+structure UpdateContactClearanceInput {
+    @httpLabel
+    @required
+    contactId: Long
+
+    @httpPayload
+    @required
+    body: UpdateContactClearanceRequestContent
+}
+
+/// Wire format: {status: "approved"|"denied"} — top level, not nested under a clearance key.
+structure UpdateContactClearanceRequestContent {
+    @required
+    status: String
+}
+
+/// Get the screener summary — how many senders are waiting to be screened
+@readonly
+@http(method: "GET", uri: "/clearances.json")
+@tags(["Contacts"])
+@heyRetry(maxAttempts: 3, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+operation GetClearances {
+    output: GetClearancesOutput
+    errors: [UnauthorizedError, InternalServerError, ServiceUnavailableError]
+}
+
+structure GetClearancesOutput {
+    @required
+    summary: ClearanceSummary
+}
+
+// =============================================================================
+// BOX DESIGNATIONS, GROUPS AND OBSERVATION
+// =============================================================================
+
+/// Designate a contact to a box, so everything they send lands there
+@http(method: "POST", uri: "/boxes/{boxId}/designations.json")
+@tags(["Boxes"])
+@heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+operation CreateBoxDesignation {
+    input: CreateBoxDesignationInput
+    errors: [UnauthorizedError, ForbiddenError, NotFoundError, InternalServerError, ServiceUnavailableError]
+}
+
+structure CreateBoxDesignationInput {
+    @httpLabel
+    @required
+    boxId: Long
+
+    @httpPayload
+    @required
+    body: CreateBoxDesignationRequestContent
+}
+
+structure CreateBoxDesignationRequestContent {
+    @required
+    contact_id: Long
+}
+
+/// Remove a designation from a box. The id is the designation's, not the contact's.
+@idempotent
+@http(method: "DELETE", uri: "/boxes/{boxId}/designations/{designationId}")
+@tags(["Boxes"])
+@heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+operation DeleteBoxDesignation {
+    input: DeleteBoxDesignationInput
+    errors: [UnauthorizedError, NotFoundError, InternalServerError, ServiceUnavailableError]
+}
+
+structure DeleteBoxDesignationInput {
+    @httpLabel
+    @required
+    boxId: Long
+
+    @httpLabel
+    @required
+    designationId: Long
+}
+
+/// List the Set Aside groups in a box
+@readonly
+@http(method: "GET", uri: "/boxes/{boxId}/groups.json")
+@tags(["Boxes"])
+@heyRetry(maxAttempts: 3, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+operation ListBoxGroups {
+    input: BoxGroupsInput
+    output: ListBoxGroupsOutput
+    errors: [UnauthorizedError, NotFoundError, InternalServerError, ServiceUnavailableError]
+}
+
+structure BoxGroupsInput {
+    @httpLabel
+    @required
+    boxId: Long
+}
+
+structure ListBoxGroupsOutput {
+    @required
+    response: BoxGroupsResponse
+}
+
+/// Create a Set Aside group out of a selection of postings.
+///
+/// This endpoint does not split a comma-joined posting_ids string — send an array.
+@http(method: "POST", uri: "/boxes/{boxId}/groups.json")
+@tags(["Boxes"])
+@heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+operation CreateBoxGroup {
+    input: CreateBoxGroupInput
+    output: CreateBoxGroupOutput
+    errors: [UnauthorizedError, NotFoundError, InternalServerError, ServiceUnavailableError]
+}
+
+structure CreateBoxGroupInput {
+    @httpLabel
+    @required
+    boxId: Long
+
+    @httpPayload
+    @required
+    body: CreateBoxGroupRequestContent
+}
+
+structure CreateBoxGroupRequestContent {
+    @required
+    posting_ids: PostingIdList
+}
+
+structure CreateBoxGroupOutput {
+    @required
+    group: BoxGroup
+}
+
+/// Break up a Set Aside group, moving its postings back to Previously Seen
+@idempotent
+@http(method: "DELETE", uri: "/boxes/{boxId}/groups/{groupId}")
+@tags(["Boxes"])
+@heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+operation DeleteBoxGroup {
+    input: DeleteBoxGroupInput
+    errors: [UnauthorizedError, NotFoundError, InternalServerError, ServiceUnavailableError]
+}
+
+structure DeleteBoxGroupInput {
+    @httpLabel
+    @required
+    boxId: Long
+
+    @httpLabel
+    @required
+    groupId: Long
+}
+
+/// Mark everything in a box as seen. The work is queued, so the effect is eventually consistent.
+@http(method: "POST", uri: "/boxes/{boxId}/observation.json")
+@tags(["Boxes"])
+@heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+operation MarkBoxSeen {
+    input: MarkBoxSeenInput
+    errors: [UnauthorizedError, NotFoundError, InternalServerError, ServiceUnavailableError]
+}
+
+structure MarkBoxSeenInput {
+    @httpLabel
+    @required
+    boxId: Long
+}
+
+// =============================================================================
+// FOLDERS
+// =============================================================================
+
+/// Get a folder (label) and the postings filed in it
+@readonly
+@http(method: "GET", uri: "/folders/{folderId}")
+@tags(["Folders"])
+@heyRetry(maxAttempts: 3, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+@heyPagination(style: "link", totalCountHeader: "X-Total-Count")
+operation GetFolder {
+    input: GetFolderInput
+    output: GetFolderOutput
+    errors: [UnauthorizedError, NotFoundError, InternalServerError, ServiceUnavailableError]
+}
+
+structure GetFolderInput {
+    @httpLabel
+    @required
+    folderId: Long
+
+    @httpQuery("page")
+    page: String
+}
+
+structure GetFolderOutput {
+    @required
+    folder: FolderWithPostings
+}
+
+// =============================================================================
+// COLLECTIONS
+// =============================================================================
+
+/// List collections
+@readonly
+@http(method: "GET", uri: "/collections.json")
+@tags(["Collections"])
+@heyRetry(maxAttempts: 3, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+operation ListCollections {
+    output: ListCollectionsOutput
+    errors: [UnauthorizedError, InternalServerError, ServiceUnavailableError]
+}
+
+structure ListCollectionsOutput {
+    @required
+    collections: CollectionList
+}
+
+/// Rename a collection or change its summary
+@idempotent
+@http(method: "PATCH", uri: "/collections/{collectionId}")
+@tags(["Collections"])
+@heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+operation UpdateCollection {
+    input: UpdateCollectionInput
+    errors: [UnauthorizedError, NotFoundError, UnprocessableEntityError, InternalServerError, ServiceUnavailableError]
+}
+
+structure UpdateCollectionInput {
+    @httpLabel
+    @required
+    collectionId: Long
+
+    @httpPayload
+    @required
+    body: UpdateCollectionRequestContent
+}
+
+/// Wire format: {collection: {name, summary}}
+structure UpdateCollectionRequestContent {
+    @required
+    collection: CollectionPayload
+}
+
+structure CollectionPayload {
+    name: String
+    summary: String
+}
+
+// =============================================================================
+// STICKIES
+// =============================================================================
+
+/// List stickies, newest position first
+@readonly
+@http(method: "GET", uri: "/stickies.json")
+@tags(["Stickies"])
+@heyRetry(maxAttempts: 3, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+operation ListStickies {
+    input: ListStickiesInput
+    output: ListStickiesOutput
+    errors: [UnauthorizedError, InternalServerError, ServiceUnavailableError]
+}
+
+structure ListStickiesInput {
+    /// Clamped server-side to 1..100
+    @httpQuery("limit")
+    limit: Integer
+}
+
+structure ListStickiesOutput {
+    @required
+    stickies: StickyList
+}
+
+/// Write a new sticky
+@http(method: "POST", uri: "/stickies.json")
+@tags(["Stickies"])
+@heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+operation CreateSticky {
+    input: CreateStickyInput
+    output: StickyOutput
+    errors: [UnauthorizedError, UnprocessableEntityError, InternalServerError, ServiceUnavailableError]
+}
+
+structure CreateStickyInput {
+    @httpPayload
+    @required
+    body: StickyRequestContent
+}
+
+/// Wire format: {sticky: {body, size}}. Size is "small", "medium" or "large".
+structure StickyRequestContent {
+    @required
+    sticky: StickyPayload
+}
+
+structure StickyPayload {
+    body: String
+    size: String
+}
+
+structure StickyOutput {
+    @required
+    sticky: Sticky
+}
+
+/// Edit a sticky
+@idempotent
+@http(method: "PATCH", uri: "/stickies/{stickyId}")
+@tags(["Stickies"])
+@heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+operation UpdateSticky {
+    input: UpdateStickyInput
+    output: StickyOutput
+    errors: [UnauthorizedError, NotFoundError, UnprocessableEntityError, InternalServerError, ServiceUnavailableError]
+}
+
+structure UpdateStickyInput {
+    @httpLabel
+    @required
+    stickyId: Long
+
+    @httpPayload
+    @required
+    body: StickyRequestContent
+}
+
+/// Throw a sticky away
+@idempotent
+@http(method: "DELETE", uri: "/stickies/{stickyId}")
+@tags(["Stickies"])
+@heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+operation DeleteSticky {
+    input: DeleteStickyInput
+    errors: [UnauthorizedError, NotFoundError, InternalServerError, ServiceUnavailableError]
+}
+
+structure DeleteStickyInput {
+    @httpLabel
+    @required
+    stickyId: Long
+}
+
+/// Reposition a sticky on the board
+@http(method: "POST", uri: "/stickies/moves.json")
+@tags(["Stickies"])
+@heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+operation MoveSticky {
+    input: MoveStickyInput
+    errors: [UnauthorizedError, NotFoundError, InternalServerError, ServiceUnavailableError]
+}
+
+structure MoveStickyInput {
+    @httpPayload
+    @required
+    body: MoveStickyRequestContent
+}
+
+/// Wire format: {id, position} — both at the top level.
+structure MoveStickyRequestContent {
+    @required
+    id: Long
+
+    @required
+    position: Integer
+}
+
+// =============================================================================
+// CALENDAR TIME TRACK WRITES
+// =============================================================================
+
+/// Record a finished stretch of time.
+///
+/// JSON callers send the fields flat; Rails wraps them into calendar_time_track itself.
+@http(method: "POST", uri: "/calendar/time_tracks.json")
+@tags(["Calendar Time Tracks"])
+@heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+operation CreateTimeTrack {
+    input: CreateTimeTrackInput
+    output: CreateTimeTrackOutput
+    errors: [UnauthorizedError, BadRequestError, UnprocessableEntityError, InternalServerError, ServiceUnavailableError]
+}
+
+structure CreateTimeTrackInput {
+    @httpPayload
+    @required
+    body: TimeTrackRequestContent
+}
+
+structure TimeTrackRequestContent {
+    @required
+    starts_at: String
+
+    @required
+    ends_at: String
+
+    category_title: String
+    notes: String
+}
+
+structure CreateTimeTrackOutput {
+    @required
+    recording: Recording
+}
+
+/// Delete a time track. The id is the recording's.
+@idempotent
+@http(method: "DELETE", uri: "/calendar/time_tracks/{timeTrackId}")
+@tags(["Calendar Time Tracks"])
+@heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+operation DeleteTimeTrack {
+    input: DeleteTimeTrackInput
+    errors: [UnauthorizedError, NotFoundError, InternalServerError, ServiceUnavailableError]
+}
+
+structure DeleteTimeTrackInput {
+    @httpLabel
+    @required
+    timeTrackId: Long
+}
+
+// =============================================================================
+// CALENDAR HABIT CRUD
+// =============================================================================
+
+/// Start a new habit. Answers the created habit as a recording.
+@http(method: "POST", uri: "/calendar/habits.json", code: 201)
+@tags(["Calendar Habits"])
+@heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+operation CreateHabit {
+    input: CreateHabitInput
+    output: CreateHabitOutput
+    errors: [UnauthorizedError, UnprocessableEntityError, InternalServerError, ServiceUnavailableError]
+}
+
+structure CreateHabitInput {
+    @httpPayload
+    @required
+    body: HabitRequestContent
+}
+
+structure CreateHabitOutput {
+    @required
+    recording: Recording
+}
+
+/// Wire format: {calendar_habit: {name, icon, color, days: [0..6]}}
+structure HabitRequestContent {
+    @required
+    calendar_habit: HabitPayload
+}
+
+structure HabitPayload {
+    name: String
+    icon: String
+    color: String
+
+    /// Days of the week the habit runs on, 0 for Sunday through 6 for Saturday
+    days: DaysList
+}
+
+/// Edit a habit. habitId is the recording's id.
+@idempotent
+@http(method: "PATCH", uri: "/calendar/habits/{habitId}")
+@tags(["Calendar Habits"])
+@heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+operation UpdateHabit {
+    input: UpdateHabitInput
+    errors: [UnauthorizedError, NotFoundError, UnprocessableEntityError, InternalServerError, ServiceUnavailableError]
+}
+
+structure UpdateHabitInput {
+    @httpLabel
+    @required
+    habitId: Long
+
+    @httpPayload
+    @required
+    body: HabitRequestContent
+}
+
+/// Delete a habit. habitId is the recording's id.
+@idempotent
+@http(method: "DELETE", uri: "/calendar/habits/{habitId}")
+@tags(["Calendar Habits"])
+@heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+operation DeleteHabit {
+    input: HabitInput
+    errors: [UnauthorizedError, NotFoundError, InternalServerError, ServiceUnavailableError]
+}
+
+structure HabitInput {
+    @httpLabel
+    @required
+    habitId: Long
+}
+
+/// Pause a habit, so it stops appearing on the calendar
+@http(method: "POST", uri: "/calendar/habits/{habitId}/stop.json")
+@tags(["Calendar Habits"])
+@heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+operation StopHabit {
+    input: HabitInput
+    errors: [UnauthorizedError, NotFoundError, InternalServerError, ServiceUnavailableError]
+}
+
+/// Resume a paused habit
+@idempotent
+@http(method: "DELETE", uri: "/calendar/habits/{habitId}/stop.json")
+@tags(["Calendar Habits"])
+@heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+operation ResumeHabit {
+    input: HabitInput
+    errors: [UnauthorizedError, NotFoundError, InternalServerError, ServiceUnavailableError]
 }

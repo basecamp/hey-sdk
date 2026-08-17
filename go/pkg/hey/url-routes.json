@@ -4,6 +4,14 @@
   "generated": true,
   "routes": [
     {
+      "pattern": "/advanced_search_filters",
+      "resource": "Search",
+      "operations": {
+        "GET": "GetAdvancedSearchFilters"
+      },
+      "params": {}
+    },
+    {
       "pattern": "/boxes",
       "resource": "Boxes",
       "operations": {
@@ -20,6 +28,80 @@
       "params": {
         "boxId": {
           "role": "recording",
+          "type": "int64"
+        }
+      }
+    },
+    {
+      "pattern": "/boxes/{boxId}/designations",
+      "resource": "Boxes",
+      "operations": {
+        "POST": "CreateBoxDesignation"
+      },
+      "params": {
+        "boxId": {
+          "role": "parent",
+          "type": "int64"
+        }
+      }
+    },
+    {
+      "pattern": "/boxes/{boxId}/designations/{designationId}",
+      "resource": "Boxes",
+      "operations": {
+        "DELETE": "DeleteBoxDesignation"
+      },
+      "params": {
+        "boxId": {
+          "role": "parent",
+          "type": "int64"
+        },
+        "designationId": {
+          "role": "recording",
+          "type": "int64"
+        }
+      }
+    },
+    {
+      "pattern": "/boxes/{boxId}/groups",
+      "resource": "Boxes",
+      "operations": {
+        "GET": "ListBoxGroups",
+        "POST": "CreateBoxGroup"
+      },
+      "params": {
+        "boxId": {
+          "role": "parent",
+          "type": "int64"
+        }
+      }
+    },
+    {
+      "pattern": "/boxes/{boxId}/groups/{groupId}",
+      "resource": "Boxes",
+      "operations": {
+        "DELETE": "DeleteBoxGroup"
+      },
+      "params": {
+        "boxId": {
+          "role": "parent",
+          "type": "int64"
+        },
+        "groupId": {
+          "role": "recording",
+          "type": "int64"
+        }
+      }
+    },
+    {
+      "pattern": "/boxes/{boxId}/observation",
+      "resource": "Boxes",
+      "operations": {
+        "POST": "MarkBoxSeen"
+      },
+      "params": {
+        "boxId": {
+          "role": "parent",
           "type": "int64"
         }
       }
@@ -65,6 +147,42 @@
       }
     },
     {
+      "pattern": "/calendar/habits",
+      "resource": "Calendar Habits",
+      "operations": {
+        "POST": "CreateHabit"
+      },
+      "params": {}
+    },
+    {
+      "pattern": "/calendar/habits/{habitId}",
+      "resource": "Calendar Habits",
+      "operations": {
+        "DELETE": "DeleteHabit",
+        "PATCH": "UpdateHabit"
+      },
+      "params": {
+        "habitId": {
+          "role": "recording",
+          "type": "int64"
+        }
+      }
+    },
+    {
+      "pattern": "/calendar/habits/{habitId}/stop",
+      "resource": "Calendar Habits",
+      "operations": {
+        "DELETE": "ResumeHabit",
+        "POST": "StopHabit"
+      },
+      "params": {
+        "habitId": {
+          "role": "parent",
+          "type": "int64"
+        }
+      }
+    },
+    {
       "pattern": "/calendar/ongoing_time_track",
       "resource": "Calendar Time Tracks",
       "operations": {
@@ -74,9 +192,18 @@
       "params": {}
     },
     {
+      "pattern": "/calendar/time_tracks",
+      "resource": "Calendar Time Tracks",
+      "operations": {
+        "POST": "CreateTimeTrack"
+      },
+      "params": {}
+    },
+    {
       "pattern": "/calendar/time_tracks/{timeTrackId}",
       "resource": "Calendar Time Tracks",
       "operations": {
+        "DELETE": "DeleteTimeTrack",
         "PUT": "UpdateTimeTrack"
       },
       "params": {
@@ -143,6 +270,35 @@
       }
     },
     {
+      "pattern": "/clearances",
+      "resource": "Contacts",
+      "operations": {
+        "GET": "GetClearances"
+      },
+      "params": {}
+    },
+    {
+      "pattern": "/collections",
+      "resource": "Collections",
+      "operations": {
+        "GET": "ListCollections"
+      },
+      "params": {}
+    },
+    {
+      "pattern": "/collections/{collectionId}",
+      "resource": "Collections",
+      "operations": {
+        "PATCH": "UpdateCollection"
+      },
+      "params": {
+        "collectionId": {
+          "role": "recording",
+          "type": "int64"
+        }
+      }
+    },
+    {
       "pattern": "/contacts",
       "resource": "Contacts",
       "operations": {
@@ -164,12 +320,52 @@
       }
     },
     {
+      "pattern": "/contacts/{contactId}/bundle",
+      "resource": "Contacts",
+      "operations": {
+        "DELETE": "UnbundleContact",
+        "POST": "BundleContact"
+      },
+      "params": {
+        "contactId": {
+          "role": "parent",
+          "type": "int64"
+        }
+      }
+    },
+    {
+      "pattern": "/contacts/{contactId}/clearance",
+      "resource": "Contacts",
+      "operations": {
+        "PATCH": "UpdateContactClearance"
+      },
+      "params": {
+        "contactId": {
+          "role": "parent",
+          "type": "int64"
+        }
+      }
+    },
+    {
       "pattern": "/entries/drafts",
       "resource": "Entries",
       "operations": {
         "GET": "ListDrafts"
       },
       "params": {}
+    },
+    {
+      "pattern": "/entries/{entryId}/forwards/new",
+      "resource": "Entries",
+      "operations": {
+        "GET": "NewEntryForward"
+      },
+      "params": {
+        "entryId": {
+          "role": "parent",
+          "type": "int64"
+        }
+      }
     },
     {
       "pattern": "/entries/{entryId}/replies",
@@ -185,12 +381,38 @@
       }
     },
     {
+      "pattern": "/entries/{entryId}/status/spam",
+      "resource": "Entries",
+      "operations": {
+        "PUT": "MarkEntrySpam"
+      },
+      "params": {
+        "entryId": {
+          "role": "parent",
+          "type": "int64"
+        }
+      }
+    },
+    {
       "pattern": "/feedbox",
       "resource": "Boxes",
       "operations": {
         "GET": "GetFeedbox"
       },
       "params": {}
+    },
+    {
+      "pattern": "/folders/{folderId}",
+      "resource": "Folders",
+      "operations": {
+        "GET": "GetFolder"
+      },
+      "params": {
+        "folderId": {
+          "role": "recording",
+          "type": "int64"
+        }
+      }
     },
     {
       "pattern": "/identity",
@@ -246,6 +468,48 @@
       "params": {}
     },
     {
+      "pattern": "/postings/box_groups",
+      "resource": "Postings",
+      "operations": {
+        "DELETE": "RemovePostingsFromBoxGroup",
+        "POST": "AddPostingsToBoxGroup"
+      },
+      "params": {}
+    },
+    {
+      "pattern": "/postings/bubble_up",
+      "resource": "Postings",
+      "operations": {
+        "DELETE": "CancelPostingsBubbleUp"
+      },
+      "params": {}
+    },
+    {
+      "pattern": "/postings/bulk_bubble_up_now",
+      "resource": "Postings",
+      "operations": {
+        "POST": "BubbleUpPostingsNow"
+      },
+      "params": {}
+    },
+    {
+      "pattern": "/postings/filings",
+      "resource": "Postings",
+      "operations": {
+        "DELETE": "UnfilePostings",
+        "POST": "FilePostings"
+      },
+      "params": {}
+    },
+    {
+      "pattern": "/postings/folders",
+      "resource": "Postings",
+      "operations": {
+        "POST": "CreateFolderForPostings"
+      },
+      "params": {}
+    },
+    {
       "pattern": "/postings/moves",
       "resource": "Postings",
       "operations": {
@@ -267,6 +531,14 @@
       "resource": "Postings",
       "operations": {
         "POST": "MarkPostingsSeen"
+      },
+      "params": {}
+    },
+    {
+      "pattern": "/postings/spam",
+      "resource": "Postings",
+      "operations": {
+        "POST": "MarkPostingsSpam"
       },
       "params": {}
     },
@@ -295,20 +567,43 @@
       "params": {}
     },
     {
-      "pattern": "/search",
-      "resource": "Search",
-      "operations": {
-        "GET": "Search"
-      },
-      "params": {}
-    },
-    {
       "pattern": "/set_aside",
       "resource": "Boxes",
       "operations": {
         "GET": "GetAsidebox"
       },
       "params": {}
+    },
+    {
+      "pattern": "/stickies",
+      "resource": "Stickies",
+      "operations": {
+        "GET": "ListStickies",
+        "POST": "CreateSticky"
+      },
+      "params": {}
+    },
+    {
+      "pattern": "/stickies/moves",
+      "resource": "Stickies",
+      "operations": {
+        "POST": "MoveSticky"
+      },
+      "params": {}
+    },
+    {
+      "pattern": "/stickies/{stickyId}",
+      "resource": "Stickies",
+      "operations": {
+        "DELETE": "DeleteSticky",
+        "PATCH": "UpdateSticky"
+      },
+      "params": {
+        "stickyId": {
+          "role": "recording",
+          "type": "int64"
+        }
+      }
     },
     {
       "pattern": "/topics/everything",
@@ -335,10 +630,26 @@
       "params": {}
     },
     {
+      "pattern": "/topics/spam/all",
+      "resource": "Topics",
+      "operations": {
+        "DELETE": "EmptySpam"
+      },
+      "params": {}
+    },
+    {
       "pattern": "/topics/trash",
       "resource": "Topics",
       "operations": {
         "GET": "GetTrashTopics"
+      },
+      "params": {}
+    },
+    {
+      "pattern": "/topics/trash/all",
+      "resource": "Topics",
+      "operations": {
+        "DELETE": "EmptyTrash"
       },
       "params": {}
     },
@@ -360,6 +671,58 @@
       "resource": "Topics",
       "operations": {
         "GET": "GetTopicEntries"
+      },
+      "params": {
+        "topicId": {
+          "role": "parent",
+          "type": "int64"
+        }
+      }
+    },
+    {
+      "pattern": "/topics/{topicId}/moves",
+      "resource": "Topics",
+      "operations": {
+        "POST": "MoveTopic"
+      },
+      "params": {
+        "topicId": {
+          "role": "parent",
+          "type": "int64"
+        }
+      }
+    },
+    {
+      "pattern": "/topics/{topicId}/status/active",
+      "resource": "Topics",
+      "operations": {
+        "PUT": "RestoreTopic"
+      },
+      "params": {
+        "topicId": {
+          "role": "parent",
+          "type": "int64"
+        }
+      }
+    },
+    {
+      "pattern": "/topics/{topicId}/status/ham",
+      "resource": "Topics",
+      "operations": {
+        "PUT": "MarkTopicHam"
+      },
+      "params": {
+        "topicId": {
+          "role": "parent",
+          "type": "int64"
+        }
+      }
+    },
+    {
+      "pattern": "/topics/{topicId}/status/trashed",
+      "resource": "Topics",
+      "operations": {
+        "PUT": "TrashTopic"
       },
       "params": {
         "topicId": {

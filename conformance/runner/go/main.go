@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"math"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -865,10 +866,8 @@ func executeOperation(client *generated.Client, ctx context.Context, tc TestCase
 		return client.UpdateJournalEntry(ctx, day, body)
 
 	// Search
-	case "Search":
-		q := getStringParam(tc.QueryParams, "q")
-		params := &generated.SearchParams{Q: q}
-		return client.Search(ctx, params)
+	case "GetAdvancedSearchFilters":
+		return client.GetAdvancedSearchFilters(ctx)
 
 	// Postings
 	case "MarkPostingsSeen":
@@ -900,6 +899,181 @@ func executeOperation(client *generated.Client, ctx context.Context, tc TestCase
 	case "UnmutePostings":
 		params := &generated.UnmutePostingsParams{PostingIds: getStringParam(tc.QueryParams, "posting_ids")}
 		return client.UnmutePostings(ctx, params)
+	case "MarkPostingsSpam":
+		body := generated.MarkPostingsSpamJSONRequestBody{
+			PostingIds: getInt64SliceParam(tc.RequestBody, "posting_ids"),
+		}
+		return client.MarkPostingsSpam(ctx, body)
+	case "AddPostingsToBoxGroup":
+		body := generated.AddPostingsToBoxGroupJSONRequestBody{
+			PostingIds: getInt64SliceParam(tc.RequestBody, "posting_ids"),
+			BoxId:      getInt64Param(tc.RequestBody, "box_id"),
+			BoxGroupId: getInt64Param(tc.RequestBody, "box_group_id"),
+		}
+		return client.AddPostingsToBoxGroup(ctx, body)
+	case "RemovePostingsFromBoxGroup":
+		params := &generated.RemovePostingsFromBoxGroupParams{PostingIds: getStringParam(tc.QueryParams, "posting_ids")}
+		return client.RemovePostingsFromBoxGroup(ctx, params)
+	case "FilePostings":
+		body := generated.FilePostingsJSONRequestBody{
+			PostingIds: getInt64SliceParam(tc.RequestBody, "posting_ids"),
+			FolderId:   getInt64Param(tc.RequestBody, "folder_id"),
+		}
+		return client.FilePostings(ctx, body)
+	case "UnfilePostings":
+		params := &generated.UnfilePostingsParams{
+			PostingIds: getStringParam(tc.QueryParams, "posting_ids"),
+			FolderId:   getInt64Param(tc.QueryParams, "folder_id"),
+		}
+		return client.UnfilePostings(ctx, params)
+	case "CreateFolderForPostings":
+		body := generated.CreateFolderForPostingsJSONRequestBody{
+			PostingIds: getInt64SliceParam(tc.RequestBody, "posting_ids"),
+			Folder:     generated.FolderPayload{Name: getStringParam(tc.RequestBody, "name")},
+		}
+		return client.CreateFolderForPostings(ctx, body)
+	case "CancelPostingsBubbleUp":
+		params := &generated.CancelPostingsBubbleUpParams{PostingIds: getStringParam(tc.QueryParams, "posting_ids")}
+		return client.CancelPostingsBubbleUp(ctx, params)
+	case "BubbleUpPostingsNow":
+		body := generated.BubbleUpPostingsNowJSONRequestBody{
+			PostingIds: getInt64SliceParam(tc.RequestBody, "posting_ids"),
+		}
+		return client.BubbleUpPostingsNow(ctx, body)
+
+	// Topic status and moves
+	case "TrashTopic":
+		topicId := getInt64Param(tc.PathParams, "topicId")
+		params := &generated.TrashTopicParams{ConfirmDestroy: getStringParam(tc.QueryParams, "confirm_destroy")}
+		return client.TrashTopic(ctx, topicId, params)
+	case "RestoreTopic":
+		topicId := getInt64Param(tc.PathParams, "topicId")
+		return client.RestoreTopic(ctx, topicId)
+	case "MarkTopicHam":
+		topicId := getInt64Param(tc.PathParams, "topicId")
+		return client.MarkTopicHam(ctx, topicId)
+	case "EmptyTrash":
+		return client.EmptyTrash(ctx)
+	case "EmptySpam":
+		return client.EmptySpam(ctx)
+	case "MoveTopic":
+		topicId := getInt64Param(tc.PathParams, "topicId")
+		body := generated.MoveTopicJSONRequestBody{BoxId: getInt64Param(tc.RequestBody, "box_id")}
+		return client.MoveTopic(ctx, topicId, body)
+
+	// Entry status and forwards
+	case "MarkEntrySpam":
+		entryId := getInt64Param(tc.PathParams, "entryId")
+		return client.MarkEntrySpam(ctx, entryId)
+	case "NewEntryForward":
+		entryId := getInt64Param(tc.PathParams, "entryId")
+		return client.NewEntryForward(ctx, entryId)
+
+	// Contact bundles and screening
+	case "BundleContact":
+		contactId := getInt64Param(tc.PathParams, "contactId")
+		return client.BundleContact(ctx, contactId)
+	case "UnbundleContact":
+		contactId := getInt64Param(tc.PathParams, "contactId")
+		return client.UnbundleContact(ctx, contactId)
+	case "UpdateContactClearance":
+		contactId := getInt64Param(tc.PathParams, "contactId")
+		body := generated.UpdateContactClearanceJSONRequestBody{Status: getStringParam(tc.RequestBody, "status")}
+		return client.UpdateContactClearance(ctx, contactId, body)
+	case "GetClearances":
+		return client.GetClearances(ctx)
+
+	// Box designations, groups and observation
+	case "CreateBoxDesignation":
+		boxId := getInt64Param(tc.PathParams, "boxId")
+		body := generated.CreateBoxDesignationJSONRequestBody{ContactId: getInt64Param(tc.RequestBody, "contact_id")}
+		return client.CreateBoxDesignation(ctx, boxId, body)
+	case "DeleteBoxDesignation":
+		boxId := getInt64Param(tc.PathParams, "boxId")
+		designationId := getInt64Param(tc.PathParams, "designationId")
+		return client.DeleteBoxDesignation(ctx, boxId, designationId)
+	case "ListBoxGroups":
+		boxId := getInt64Param(tc.PathParams, "boxId")
+		return client.ListBoxGroups(ctx, boxId)
+	case "CreateBoxGroup":
+		boxId := getInt64Param(tc.PathParams, "boxId")
+		body := generated.CreateBoxGroupJSONRequestBody{
+			PostingIds: getInt64SliceParam(tc.RequestBody, "posting_ids"),
+		}
+		return client.CreateBoxGroup(ctx, boxId, body)
+	case "DeleteBoxGroup":
+		boxId := getInt64Param(tc.PathParams, "boxId")
+		groupId := getInt64Param(tc.PathParams, "groupId")
+		return client.DeleteBoxGroup(ctx, boxId, groupId)
+	case "MarkBoxSeen":
+		boxId := getInt64Param(tc.PathParams, "boxId")
+		return client.MarkBoxSeen(ctx, boxId)
+
+	// Folders
+	case "GetFolder":
+		folderId := getInt64Param(tc.PathParams, "folderId")
+		return client.GetFolder(ctx, folderId, nil)
+
+	// Collections
+	case "ListCollections":
+		return client.ListCollections(ctx)
+	case "UpdateCollection":
+		collectionId := getInt64Param(tc.PathParams, "collectionId")
+		body := generated.UpdateCollectionJSONRequestBody{
+			Collection: generated.CollectionPayload{
+				Name:    getStringParam(tc.RequestBody, "name"),
+				Summary: getStringParam(tc.RequestBody, "summary"),
+			},
+		}
+		return client.UpdateCollection(ctx, collectionId, body)
+
+	// Stickies
+	case "ListStickies":
+		params := &generated.ListStickiesParams{Limit: getInt32Param(tc.QueryParams, "limit")}
+		return client.ListStickies(ctx, params)
+	case "CreateSticky":
+		return client.CreateSticky(ctx, stickyBody(tc))
+	case "UpdateSticky":
+		stickyId := getInt64Param(tc.PathParams, "stickyId")
+		return client.UpdateSticky(ctx, stickyId, stickyBody(tc))
+	case "DeleteSticky":
+		stickyId := getInt64Param(tc.PathParams, "stickyId")
+		return client.DeleteSticky(ctx, stickyId)
+	case "MoveSticky":
+		body := generated.MoveStickyJSONRequestBody{
+			Id:       getInt64Param(tc.RequestBody, "id"),
+			Position: getInt32Param(tc.RequestBody, "position"),
+		}
+		return client.MoveSticky(ctx, body)
+
+	// Time track writes
+	case "CreateTimeTrack":
+		body := generated.CreateTimeTrackJSONRequestBody{
+			StartsAt:      getTimeParam(tc.RequestBody, "starts_at"),
+			EndsAt:        getTimeParam(tc.RequestBody, "ends_at"),
+			CategoryTitle: getStringParam(tc.RequestBody, "category_title"),
+			Notes:         getStringParam(tc.RequestBody, "notes"),
+		}
+		return client.CreateTimeTrack(ctx, body)
+	case "DeleteTimeTrack":
+		timeTrackId := getInt64Param(tc.PathParams, "timeTrackId")
+		return client.DeleteTimeTrack(ctx, timeTrackId)
+
+	// Habit CRUD
+	case "CreateHabit":
+		return client.CreateHabit(ctx, habitBody(tc))
+	case "UpdateHabit":
+		habitId := getInt64Param(tc.PathParams, "habitId")
+		return client.UpdateHabit(ctx, habitId, habitBody(tc))
+	case "DeleteHabit":
+		habitId := getInt64Param(tc.PathParams, "habitId")
+		return client.DeleteHabit(ctx, habitId)
+	case "StopHabit":
+		habitId := getInt64Param(tc.PathParams, "habitId")
+		return client.StopHabit(ctx, habitId)
+	case "ResumeHabit":
+		habitId := getInt64Param(tc.PathParams, "habitId")
+		return client.ResumeHabit(ctx, habitId)
 
 	default:
 		return nil, fmt.Errorf("unknown operation: %s", tc.Operation)
@@ -944,6 +1118,63 @@ func getInt64SliceParam(params map[string]interface{}, key string) []int64 {
 		}
 	}
 	return result
+}
+
+// getInt32Param extracts an int32 parameter from a map, for the wire fields the API
+// carries as 32-bit integers.
+func getInt32Param(params map[string]interface{}, key string) int32 {
+	value := getInt64Param(params, key)
+	if value < math.MinInt32 || value > math.MaxInt32 {
+		return 0
+	}
+	return int32(value)
+}
+
+// getInt32SliceParam extracts a []int32 parameter from a map.
+func getInt32SliceParam(params map[string]interface{}, key string) []int32 {
+	values := getInt64SliceParam(params, key)
+	if values == nil {
+		return nil
+	}
+	result := make([]int32, 0, len(values))
+	for _, v := range values {
+		if v < math.MinInt32 || v > math.MaxInt32 {
+			continue
+		}
+		result = append(result, int32(v))
+	}
+	return result
+}
+
+// getTimeParam extracts an RFC 3339 timestamp from a map.
+func getTimeParam(params map[string]interface{}, key string) time.Time {
+	parsed, err := time.Parse(time.RFC3339, getStringParam(params, key))
+	if err != nil {
+		return time.Time{}
+	}
+	return parsed
+}
+
+// stickyBody builds the {sticky: {body, size}} wire payload the stickies writes share.
+func stickyBody(tc TestCase) generated.StickyRequestContent {
+	return generated.StickyRequestContent{
+		Sticky: generated.StickyPayload{
+			Body: getStringParam(tc.RequestBody, "body"),
+			Size: getStringParam(tc.RequestBody, "size"),
+		},
+	}
+}
+
+// habitBody builds the {calendar_habit: {...}} wire payload the habit writes share.
+func habitBody(tc TestCase) generated.HabitRequestContent {
+	return generated.HabitRequestContent{
+		CalendarHabit: generated.HabitPayload{
+			Name:  getStringParam(tc.RequestBody, "name"),
+			Icon:  getStringParam(tc.RequestBody, "icon"),
+			Color: getStringParam(tc.RequestBody, "color"),
+			Days:  getInt32SliceParam(tc.RequestBody, "days"),
+		},
+	}
 }
 
 // getStringParam extracts a string parameter from a map.

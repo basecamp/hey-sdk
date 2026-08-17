@@ -849,24 +849,21 @@
     ]
   },
   {
-    "name": "Search uses /search.json path",
-    "description": "Verifies that Search constructs the URL path /search.json",
-    "operation": "Search",
+    "name": "GetAdvancedSearchFilters uses /advanced_search_filters.json path",
+    "description": "Verifies that GetAdvancedSearchFilters constructs the URL path /advanced_search_filters.json",
+    "operation": "GetAdvancedSearchFilters",
     "method": "GET",
-    "path": "/search.json",
-    "queryParams": {
-      "q": "test query"
-    },
+    "path": "/advanced_search_filters.json",
     "mockResponses": [
       {
         "status": 200,
-        "body": []
+        "body": {}
       }
     ],
     "assertions": [
       {
         "type": "requestPath",
-        "expected": "/search.json"
+        "expected": "/advanced_search_filters.json"
       },
       {
         "type": "noError"
@@ -1222,6 +1219,1271 @@
     "tags": [
       "path",
       "postings"
+    ]
+  },
+  {
+    "name": "MarkPostingsSpam uses /postings/spam.json path",
+    "description": "Verifies that MarkPostingsSpam constructs the URL path /postings/spam.json",
+    "operation": "MarkPostingsSpam",
+    "method": "POST",
+    "path": "/postings/spam.json",
+    "requestBody": {
+      "posting_ids": [
+        1,
+        2
+      ]
+    },
+    "mockResponses": [
+      {
+        "status": 204,
+        "body": {}
+      }
+    ],
+    "assertions": [
+      {
+        "type": "requestPath",
+        "expected": "/postings/spam.json"
+      },
+      {
+        "type": "noError"
+      }
+    ],
+    "tags": [
+      "path",
+      "postings"
+    ]
+  },
+  {
+    "name": "AddPostingsToBoxGroup uses /postings/box_groups.json path",
+    "description": "Verifies that AddPostingsToBoxGroup constructs the URL path /postings/box_groups.json",
+    "operation": "AddPostingsToBoxGroup",
+    "method": "POST",
+    "path": "/postings/box_groups.json",
+    "requestBody": {
+      "posting_ids": [
+        1,
+        2
+      ],
+      "box_id": 24090,
+      "box_group_id": 9
+    },
+    "mockResponses": [
+      {
+        "status": 201,
+        "body": {}
+      }
+    ],
+    "assertions": [
+      {
+        "type": "requestPath",
+        "expected": "/postings/box_groups.json"
+      },
+      {
+        "type": "noError"
+      }
+    ],
+    "tags": [
+      "path",
+      "postings"
+    ]
+  },
+  {
+    "name": "RemovePostingsFromBoxGroup uses /postings/box_groups.json path",
+    "description": "Verifies that RemovePostingsFromBoxGroup constructs the URL path /postings/box_groups.json",
+    "operation": "RemovePostingsFromBoxGroup",
+    "method": "DELETE",
+    "path": "/postings/box_groups.json",
+    "queryParams": {
+      "posting_ids": "1,2"
+    },
+    "mockResponses": [
+      {
+        "status": 204,
+        "body": {}
+      }
+    ],
+    "assertions": [
+      {
+        "type": "requestPath",
+        "expected": "/postings/box_groups.json"
+      },
+      {
+        "type": "noError"
+      }
+    ],
+    "tags": [
+      "path",
+      "postings"
+    ]
+  },
+  {
+    "name": "FilePostings uses /postings/filings.json path",
+    "description": "Verifies that FilePostings constructs the URL path /postings/filings.json",
+    "operation": "FilePostings",
+    "method": "POST",
+    "path": "/postings/filings.json",
+    "requestBody": {
+      "posting_ids": [
+        1,
+        2
+      ],
+      "folder_id": 12
+    },
+    "mockResponses": [
+      {
+        "status": 201,
+        "body": {}
+      }
+    ],
+    "assertions": [
+      {
+        "type": "requestPath",
+        "expected": "/postings/filings.json"
+      },
+      {
+        "type": "noError"
+      }
+    ],
+    "tags": [
+      "path",
+      "postings"
+    ]
+  },
+  {
+    "name": "UnfilePostings uses /postings/filings.json path",
+    "description": "Verifies that UnfilePostings constructs the URL path /postings/filings.json",
+    "operation": "UnfilePostings",
+    "method": "DELETE",
+    "path": "/postings/filings.json",
+    "queryParams": {
+      "posting_ids": "1,2",
+      "folder_id": 12
+    },
+    "mockResponses": [
+      {
+        "status": 204,
+        "body": {}
+      }
+    ],
+    "assertions": [
+      {
+        "type": "requestPath",
+        "expected": "/postings/filings.json"
+      },
+      {
+        "type": "noError"
+      }
+    ],
+    "tags": [
+      "path",
+      "postings"
+    ]
+  },
+  {
+    "name": "CreateFolderForPostings uses /postings/folders.json path",
+    "description": "Verifies that CreateFolderForPostings constructs the URL path /postings/folders.json",
+    "operation": "CreateFolderForPostings",
+    "method": "POST",
+    "path": "/postings/folders.json",
+    "requestBody": {
+      "posting_ids": [
+        1,
+        2
+      ],
+      "name": "Receipts"
+    },
+    "mockResponses": [
+      {
+        "status": 201,
+        "body": {}
+      }
+    ],
+    "assertions": [
+      {
+        "type": "requestPath",
+        "expected": "/postings/folders.json"
+      },
+      {
+        "type": "noError"
+      }
+    ],
+    "tags": [
+      "path",
+      "postings"
+    ]
+  },
+  {
+    "name": "CancelPostingsBubbleUp uses /postings/bubble_up.json path",
+    "description": "Verifies that CancelPostingsBubbleUp constructs the URL path /postings/bubble_up.json",
+    "operation": "CancelPostingsBubbleUp",
+    "method": "DELETE",
+    "path": "/postings/bubble_up.json",
+    "queryParams": {
+      "posting_ids": "1,2"
+    },
+    "mockResponses": [
+      {
+        "status": 204,
+        "body": {}
+      }
+    ],
+    "assertions": [
+      {
+        "type": "requestPath",
+        "expected": "/postings/bubble_up.json"
+      },
+      {
+        "type": "noError"
+      }
+    ],
+    "tags": [
+      "path",
+      "postings"
+    ]
+  },
+  {
+    "name": "BubbleUpPostingsNow uses /postings/bulk_bubble_up_now.json path",
+    "description": "Verifies that BubbleUpPostingsNow constructs the URL path /postings/bulk_bubble_up_now.json",
+    "operation": "BubbleUpPostingsNow",
+    "method": "POST",
+    "path": "/postings/bulk_bubble_up_now.json",
+    "requestBody": {
+      "posting_ids": [
+        1,
+        2
+      ]
+    },
+    "mockResponses": [
+      {
+        "status": 204,
+        "body": {}
+      }
+    ],
+    "assertions": [
+      {
+        "type": "requestPath",
+        "expected": "/postings/bulk_bubble_up_now.json"
+      },
+      {
+        "type": "noError"
+      }
+    ],
+    "tags": [
+      "path",
+      "postings"
+    ]
+  },
+  {
+    "name": "TrashTopic uses /topics/{topicId}/status/trashed.json path",
+    "description": "Verifies that TrashTopic constructs the URL path /topics/{topicId}/status/trashed.json",
+    "operation": "TrashTopic",
+    "method": "PUT",
+    "path": "/topics/{topicId}/status/trashed.json",
+    "pathParams": {
+      "topicId": 456
+    },
+    "queryParams": {
+      "confirm_destroy": "true"
+    },
+    "mockResponses": [
+      {
+        "status": 204,
+        "body": {}
+      }
+    ],
+    "assertions": [
+      {
+        "type": "requestPath",
+        "expected": "/topics/456/status/trashed.json"
+      },
+      {
+        "type": "noError"
+      }
+    ],
+    "tags": [
+      "path",
+      "topics"
+    ]
+  },
+  {
+    "name": "RestoreTopic uses /topics/{topicId}/status/active.json path",
+    "description": "Verifies that RestoreTopic constructs the URL path /topics/{topicId}/status/active.json",
+    "operation": "RestoreTopic",
+    "method": "PUT",
+    "path": "/topics/{topicId}/status/active.json",
+    "pathParams": {
+      "topicId": 456
+    },
+    "mockResponses": [
+      {
+        "status": 204,
+        "body": {}
+      }
+    ],
+    "assertions": [
+      {
+        "type": "requestPath",
+        "expected": "/topics/456/status/active.json"
+      },
+      {
+        "type": "noError"
+      }
+    ],
+    "tags": [
+      "path",
+      "topics"
+    ]
+  },
+  {
+    "name": "MarkTopicHam uses /topics/{topicId}/status/ham.json path",
+    "description": "Verifies that MarkTopicHam constructs the URL path /topics/{topicId}/status/ham.json",
+    "operation": "MarkTopicHam",
+    "method": "PUT",
+    "path": "/topics/{topicId}/status/ham.json",
+    "pathParams": {
+      "topicId": 456
+    },
+    "mockResponses": [
+      {
+        "status": 204,
+        "body": {}
+      }
+    ],
+    "assertions": [
+      {
+        "type": "requestPath",
+        "expected": "/topics/456/status/ham.json"
+      },
+      {
+        "type": "noError"
+      }
+    ],
+    "tags": [
+      "path",
+      "topics"
+    ]
+  },
+  {
+    "name": "EmptyTrash uses /topics/trash/all.json path",
+    "description": "Verifies that EmptyTrash constructs the URL path /topics/trash/all.json",
+    "operation": "EmptyTrash",
+    "method": "DELETE",
+    "path": "/topics/trash/all.json",
+    "mockResponses": [
+      {
+        "status": 204,
+        "body": {}
+      }
+    ],
+    "assertions": [
+      {
+        "type": "requestPath",
+        "expected": "/topics/trash/all.json"
+      },
+      {
+        "type": "noError"
+      }
+    ],
+    "tags": [
+      "path",
+      "topics"
+    ]
+  },
+  {
+    "name": "EmptySpam uses /topics/spam/all.json path",
+    "description": "Verifies that EmptySpam constructs the URL path /topics/spam/all.json",
+    "operation": "EmptySpam",
+    "method": "DELETE",
+    "path": "/topics/spam/all.json",
+    "mockResponses": [
+      {
+        "status": 204,
+        "body": {}
+      }
+    ],
+    "assertions": [
+      {
+        "type": "requestPath",
+        "expected": "/topics/spam/all.json"
+      },
+      {
+        "type": "noError"
+      }
+    ],
+    "tags": [
+      "path",
+      "topics"
+    ]
+  },
+  {
+    "name": "MoveTopic uses /topics/{topicId}/moves.json path",
+    "description": "Verifies that MoveTopic constructs the URL path /topics/{topicId}/moves.json",
+    "operation": "MoveTopic",
+    "method": "POST",
+    "path": "/topics/{topicId}/moves.json",
+    "pathParams": {
+      "topicId": 456
+    },
+    "requestBody": {
+      "box_id": 24089
+    },
+    "mockResponses": [
+      {
+        "status": 204,
+        "body": {}
+      }
+    ],
+    "assertions": [
+      {
+        "type": "requestPath",
+        "expected": "/topics/456/moves.json"
+      },
+      {
+        "type": "noError"
+      }
+    ],
+    "tags": [
+      "path",
+      "topics"
+    ]
+  },
+  {
+    "name": "MarkEntrySpam uses /entries/{entryId}/status/spam.json path",
+    "description": "Verifies that MarkEntrySpam constructs the URL path /entries/{entryId}/status/spam.json",
+    "operation": "MarkEntrySpam",
+    "method": "PUT",
+    "path": "/entries/{entryId}/status/spam.json",
+    "pathParams": {
+      "entryId": 5512
+    },
+    "mockResponses": [
+      {
+        "status": 204,
+        "body": {}
+      }
+    ],
+    "assertions": [
+      {
+        "type": "requestPath",
+        "expected": "/entries/5512/status/spam.json"
+      },
+      {
+        "type": "noError"
+      }
+    ],
+    "tags": [
+      "path",
+      "entries"
+    ]
+  },
+  {
+    "name": "NewEntryForward uses /entries/{entryId}/forwards/new.json path",
+    "description": "Verifies that NewEntryForward constructs the URL path /entries/{entryId}/forwards/new.json",
+    "operation": "NewEntryForward",
+    "method": "GET",
+    "path": "/entries/{entryId}/forwards/new.json",
+    "pathParams": {
+      "entryId": 5512
+    },
+    "mockResponses": [
+      {
+        "status": 200,
+        "body": {
+          "url": "https://app.hey.com/topics/456",
+          "subject": "Fwd: Kitchen remodel"
+        }
+      }
+    ],
+    "assertions": [
+      {
+        "type": "requestPath",
+        "expected": "/entries/5512/forwards/new.json"
+      },
+      {
+        "type": "noError"
+      }
+    ],
+    "tags": [
+      "path",
+      "entries"
+    ]
+  },
+  {
+    "name": "BundleContact uses /contacts/{contactId}/bundle.json path",
+    "description": "Verifies that BundleContact constructs the URL path /contacts/{contactId}/bundle.json",
+    "operation": "BundleContact",
+    "method": "POST",
+    "path": "/contacts/{contactId}/bundle.json",
+    "pathParams": {
+      "contactId": 91824
+    },
+    "mockResponses": [
+      {
+        "status": 201,
+        "body": {}
+      }
+    ],
+    "assertions": [
+      {
+        "type": "requestPath",
+        "expected": "/contacts/91824/bundle.json"
+      },
+      {
+        "type": "noError"
+      }
+    ],
+    "tags": [
+      "path",
+      "contacts"
+    ]
+  },
+  {
+    "name": "UnbundleContact uses /contacts/{contactId}/bundle.json path",
+    "description": "Verifies that UnbundleContact constructs the URL path /contacts/{contactId}/bundle.json",
+    "operation": "UnbundleContact",
+    "method": "DELETE",
+    "path": "/contacts/{contactId}/bundle.json",
+    "pathParams": {
+      "contactId": 91824
+    },
+    "mockResponses": [
+      {
+        "status": 204,
+        "body": {}
+      }
+    ],
+    "assertions": [
+      {
+        "type": "requestPath",
+        "expected": "/contacts/91824/bundle.json"
+      },
+      {
+        "type": "noError"
+      }
+    ],
+    "tags": [
+      "path",
+      "contacts"
+    ]
+  },
+  {
+    "name": "UpdateContactClearance uses /contacts/{contactId}/clearance.json path",
+    "description": "Verifies that UpdateContactClearance constructs the URL path /contacts/{contactId}/clearance.json",
+    "operation": "UpdateContactClearance",
+    "method": "PATCH",
+    "path": "/contacts/{contactId}/clearance.json",
+    "pathParams": {
+      "contactId": 91824
+    },
+    "requestBody": {
+      "status": "approved"
+    },
+    "mockResponses": [
+      {
+        "status": 204,
+        "body": {}
+      }
+    ],
+    "assertions": [
+      {
+        "type": "requestPath",
+        "expected": "/contacts/91824/clearance.json"
+      },
+      {
+        "type": "noError"
+      }
+    ],
+    "tags": [
+      "path",
+      "contacts"
+    ]
+  },
+  {
+    "name": "GetClearances uses /clearances.json path",
+    "description": "Verifies that GetClearances constructs the URL path /clearances.json",
+    "operation": "GetClearances",
+    "method": "GET",
+    "path": "/clearances.json",
+    "mockResponses": [
+      {
+        "status": 200,
+        "body": {
+          "pending_clearances_count": 3
+        }
+      }
+    ],
+    "assertions": [
+      {
+        "type": "requestPath",
+        "expected": "/clearances.json"
+      },
+      {
+        "type": "noError"
+      }
+    ],
+    "tags": [
+      "path",
+      "contacts"
+    ]
+  },
+  {
+    "name": "CreateBoxDesignation uses /boxes/{boxId}/designations.json path",
+    "description": "Verifies that CreateBoxDesignation constructs the URL path /boxes/{boxId}/designations.json",
+    "operation": "CreateBoxDesignation",
+    "method": "POST",
+    "path": "/boxes/{boxId}/designations.json",
+    "pathParams": {
+      "boxId": 24089
+    },
+    "requestBody": {
+      "contact_id": 91824
+    },
+    "mockResponses": [
+      {
+        "status": 201,
+        "body": {}
+      }
+    ],
+    "assertions": [
+      {
+        "type": "requestPath",
+        "expected": "/boxes/24089/designations.json"
+      },
+      {
+        "type": "noError"
+      }
+    ],
+    "tags": [
+      "path",
+      "boxes"
+    ]
+  },
+  {
+    "name": "DeleteBoxDesignation uses /boxes/{boxId}/designations/{designationId} path",
+    "description": "Verifies that DeleteBoxDesignation constructs the URL path /boxes/{boxId}/designations/{designationId}",
+    "operation": "DeleteBoxDesignation",
+    "method": "DELETE",
+    "path": "/boxes/{boxId}/designations/{designationId}",
+    "pathParams": {
+      "boxId": 24089,
+      "designationId": 771
+    },
+    "mockResponses": [
+      {
+        "status": 204,
+        "body": {}
+      }
+    ],
+    "assertions": [
+      {
+        "type": "requestPath",
+        "expected": "/boxes/24089/designations/771"
+      },
+      {
+        "type": "noError"
+      }
+    ],
+    "tags": [
+      "path",
+      "boxes"
+    ]
+  },
+  {
+    "name": "ListBoxGroups uses /boxes/{boxId}/groups.json path",
+    "description": "Verifies that ListBoxGroups constructs the URL path /boxes/{boxId}/groups.json",
+    "operation": "ListBoxGroups",
+    "method": "GET",
+    "path": "/boxes/{boxId}/groups.json",
+    "pathParams": {
+      "boxId": 24090
+    },
+    "mockResponses": [
+      {
+        "status": 200,
+        "body": {
+          "box_groups": []
+        }
+      }
+    ],
+    "assertions": [
+      {
+        "type": "requestPath",
+        "expected": "/boxes/24090/groups.json"
+      },
+      {
+        "type": "noError"
+      }
+    ],
+    "tags": [
+      "path",
+      "boxes"
+    ]
+  },
+  {
+    "name": "CreateBoxGroup uses /boxes/{boxId}/groups.json path",
+    "description": "Verifies that CreateBoxGroup constructs the URL path /boxes/{boxId}/groups.json",
+    "operation": "CreateBoxGroup",
+    "method": "POST",
+    "path": "/boxes/{boxId}/groups.json",
+    "pathParams": {
+      "boxId": 24090
+    },
+    "requestBody": {
+      "posting_ids": [
+        1,
+        2
+      ]
+    },
+    "mockResponses": [
+      {
+        "status": 201,
+        "body": {
+          "id": 9
+        }
+      }
+    ],
+    "assertions": [
+      {
+        "type": "requestPath",
+        "expected": "/boxes/24090/groups.json"
+      },
+      {
+        "type": "noError"
+      }
+    ],
+    "tags": [
+      "path",
+      "boxes"
+    ]
+  },
+  {
+    "name": "DeleteBoxGroup uses /boxes/{boxId}/groups/{groupId} path",
+    "description": "Verifies that DeleteBoxGroup constructs the URL path /boxes/{boxId}/groups/{groupId}",
+    "operation": "DeleteBoxGroup",
+    "method": "DELETE",
+    "path": "/boxes/{boxId}/groups/{groupId}",
+    "pathParams": {
+      "boxId": 24090,
+      "groupId": 9
+    },
+    "mockResponses": [
+      {
+        "status": 204,
+        "body": {}
+      }
+    ],
+    "assertions": [
+      {
+        "type": "requestPath",
+        "expected": "/boxes/24090/groups/9"
+      },
+      {
+        "type": "noError"
+      }
+    ],
+    "tags": [
+      "path",
+      "boxes"
+    ]
+  },
+  {
+    "name": "MarkBoxSeen uses /boxes/{boxId}/observation.json path",
+    "description": "Verifies that MarkBoxSeen constructs the URL path /boxes/{boxId}/observation.json",
+    "operation": "MarkBoxSeen",
+    "method": "POST",
+    "path": "/boxes/{boxId}/observation.json",
+    "pathParams": {
+      "boxId": 24088
+    },
+    "mockResponses": [
+      {
+        "status": 204,
+        "body": {}
+      }
+    ],
+    "assertions": [
+      {
+        "type": "requestPath",
+        "expected": "/boxes/24088/observation.json"
+      },
+      {
+        "type": "noError"
+      }
+    ],
+    "tags": [
+      "path",
+      "boxes"
+    ]
+  },
+  {
+    "name": "GetFolder uses /folders/{folderId} path",
+    "description": "Verifies that GetFolder constructs the URL path /folders/{folderId}",
+    "operation": "GetFolder",
+    "method": "GET",
+    "path": "/folders/{folderId}",
+    "pathParams": {
+      "folderId": 12
+    },
+    "mockResponses": [
+      {
+        "status": 200,
+        "body": {
+          "id": 12,
+          "name": "Receipts"
+        }
+      }
+    ],
+    "assertions": [
+      {
+        "type": "requestPath",
+        "expected": "/folders/12"
+      },
+      {
+        "type": "noError"
+      }
+    ],
+    "tags": [
+      "path",
+      "folders"
+    ]
+  },
+  {
+    "name": "ListCollections uses /collections.json path",
+    "description": "Verifies that ListCollections constructs the URL path /collections.json",
+    "operation": "ListCollections",
+    "method": "GET",
+    "path": "/collections.json",
+    "mockResponses": [
+      {
+        "status": 200,
+        "body": []
+      }
+    ],
+    "assertions": [
+      {
+        "type": "requestPath",
+        "expected": "/collections.json"
+      },
+      {
+        "type": "noError"
+      }
+    ],
+    "tags": [
+      "path",
+      "collections"
+    ]
+  },
+  {
+    "name": "UpdateCollection uses /collections/{collectionId} path",
+    "description": "Verifies that UpdateCollection constructs the URL path /collections/{collectionId}",
+    "operation": "UpdateCollection",
+    "method": "PATCH",
+    "path": "/collections/{collectionId}",
+    "pathParams": {
+      "collectionId": 33
+    },
+    "requestBody": {
+      "name": "Kitchen remodel",
+      "summary": "Quotes and invoices"
+    },
+    "mockResponses": [
+      {
+        "status": 204,
+        "body": {}
+      }
+    ],
+    "assertions": [
+      {
+        "type": "requestPath",
+        "expected": "/collections/33"
+      },
+      {
+        "type": "noError"
+      }
+    ],
+    "tags": [
+      "path",
+      "collections"
+    ]
+  },
+  {
+    "name": "ListStickies uses /stickies.json path",
+    "description": "Verifies that ListStickies constructs the URL path /stickies.json",
+    "operation": "ListStickies",
+    "method": "GET",
+    "path": "/stickies.json",
+    "queryParams": {
+      "limit": 25
+    },
+    "mockResponses": [
+      {
+        "status": 200,
+        "body": []
+      }
+    ],
+    "assertions": [
+      {
+        "type": "requestPath",
+        "expected": "/stickies.json"
+      },
+      {
+        "type": "noError"
+      }
+    ],
+    "tags": [
+      "path",
+      "stickies"
+    ]
+  },
+  {
+    "name": "CreateSticky uses /stickies.json path",
+    "description": "Verifies that CreateSticky constructs the URL path /stickies.json",
+    "operation": "CreateSticky",
+    "method": "POST",
+    "path": "/stickies.json",
+    "requestBody": {
+      "body": "Call the plumber",
+      "size": "medium"
+    },
+    "mockResponses": [
+      {
+        "status": 200,
+        "body": {
+          "id": 1,
+          "body": "Call the plumber",
+          "size": "medium"
+        }
+      }
+    ],
+    "assertions": [
+      {
+        "type": "requestPath",
+        "expected": "/stickies.json"
+      },
+      {
+        "type": "noError"
+      }
+    ],
+    "tags": [
+      "path",
+      "stickies"
+    ]
+  },
+  {
+    "name": "UpdateSticky uses /stickies/{stickyId} path",
+    "description": "Verifies that UpdateSticky constructs the URL path /stickies/{stickyId}",
+    "operation": "UpdateSticky",
+    "method": "PATCH",
+    "path": "/stickies/{stickyId}",
+    "pathParams": {
+      "stickyId": 1
+    },
+    "requestBody": {
+      "body": "Call the electrician",
+      "size": "large"
+    },
+    "mockResponses": [
+      {
+        "status": 200,
+        "body": {
+          "id": 1,
+          "body": "Call the electrician",
+          "size": "large"
+        }
+      }
+    ],
+    "assertions": [
+      {
+        "type": "requestPath",
+        "expected": "/stickies/1"
+      },
+      {
+        "type": "noError"
+      }
+    ],
+    "tags": [
+      "path",
+      "stickies"
+    ]
+  },
+  {
+    "name": "DeleteSticky uses /stickies/{stickyId} path",
+    "description": "Verifies that DeleteSticky constructs the URL path /stickies/{stickyId}",
+    "operation": "DeleteSticky",
+    "method": "DELETE",
+    "path": "/stickies/{stickyId}",
+    "pathParams": {
+      "stickyId": 1
+    },
+    "mockResponses": [
+      {
+        "status": 204,
+        "body": {}
+      }
+    ],
+    "assertions": [
+      {
+        "type": "requestPath",
+        "expected": "/stickies/1"
+      },
+      {
+        "type": "noError"
+      }
+    ],
+    "tags": [
+      "path",
+      "stickies"
+    ]
+  },
+  {
+    "name": "MoveSticky uses /stickies/moves.json path",
+    "description": "Verifies that MoveSticky constructs the URL path /stickies/moves.json",
+    "operation": "MoveSticky",
+    "method": "POST",
+    "path": "/stickies/moves.json",
+    "requestBody": {
+      "id": 1,
+      "position": 2
+    },
+    "mockResponses": [
+      {
+        "status": 204,
+        "body": {}
+      }
+    ],
+    "assertions": [
+      {
+        "type": "requestPath",
+        "expected": "/stickies/moves.json"
+      },
+      {
+        "type": "noError"
+      }
+    ],
+    "tags": [
+      "path",
+      "stickies"
+    ]
+  },
+  {
+    "name": "CreateTimeTrack uses /calendar/time_tracks.json path",
+    "description": "Verifies that CreateTimeTrack constructs the URL path /calendar/time_tracks.json",
+    "operation": "CreateTimeTrack",
+    "method": "POST",
+    "path": "/calendar/time_tracks.json",
+    "requestBody": {
+      "starts_at": "2026-03-04T10:00:00Z",
+      "ends_at": "2026-03-04T11:30:00Z",
+      "category_title": "Kitchen remodel",
+      "notes": "Called the plumber"
+    },
+    "mockResponses": [
+      {
+        "status": 200,
+        "body": {
+          "id": 123
+        }
+      }
+    ],
+    "assertions": [
+      {
+        "type": "requestPath",
+        "expected": "/calendar/time_tracks.json"
+      },
+      {
+        "type": "noError"
+      }
+    ],
+    "tags": [
+      "path",
+      "calendar-time-tracks"
+    ]
+  },
+  {
+    "name": "DeleteTimeTrack uses /calendar/time_tracks/{timeTrackId} path",
+    "description": "Verifies that DeleteTimeTrack constructs the URL path /calendar/time_tracks/{timeTrackId}",
+    "operation": "DeleteTimeTrack",
+    "method": "DELETE",
+    "path": "/calendar/time_tracks/{timeTrackId}",
+    "pathParams": {
+      "timeTrackId": 123
+    },
+    "mockResponses": [
+      {
+        "status": 204,
+        "body": {}
+      }
+    ],
+    "assertions": [
+      {
+        "type": "requestPath",
+        "expected": "/calendar/time_tracks/123"
+      },
+      {
+        "type": "noError"
+      }
+    ],
+    "tags": [
+      "path",
+      "calendar-time-tracks"
+    ]
+  },
+  {
+    "name": "CreateHabit uses /calendar/habits.json path",
+    "description": "Verifies that CreateHabit constructs the URL path /calendar/habits.json",
+    "operation": "CreateHabit",
+    "method": "POST",
+    "path": "/calendar/habits.json",
+    "requestBody": {
+      "name": "Morning run",
+      "icon": "run",
+      "color": "green",
+      "days": [
+        1,
+        3,
+        5
+      ]
+    },
+    "mockResponses": [
+      {
+        "status": 201,
+        "body": {
+          "id": 789,
+          "title": "Morning run"
+        }
+      }
+    ],
+    "assertions": [
+      {
+        "type": "requestPath",
+        "expected": "/calendar/habits.json"
+      },
+      {
+        "type": "noError"
+      }
+    ],
+    "tags": [
+      "path",
+      "calendar-habits"
+    ]
+  },
+  {
+    "name": "UpdateHabit uses /calendar/habits/{habitId} path",
+    "description": "Verifies that UpdateHabit constructs the URL path /calendar/habits/{habitId}",
+    "operation": "UpdateHabit",
+    "method": "PATCH",
+    "path": "/calendar/habits/{habitId}",
+    "pathParams": {
+      "habitId": 789
+    },
+    "requestBody": {
+      "name": "Evening run"
+    },
+    "mockResponses": [
+      {
+        "status": 204,
+        "body": {}
+      }
+    ],
+    "assertions": [
+      {
+        "type": "requestPath",
+        "expected": "/calendar/habits/789"
+      },
+      {
+        "type": "noError"
+      }
+    ],
+    "tags": [
+      "path",
+      "calendar-habits"
+    ]
+  },
+  {
+    "name": "DeleteHabit uses /calendar/habits/{habitId} path",
+    "description": "Verifies that DeleteHabit constructs the URL path /calendar/habits/{habitId}",
+    "operation": "DeleteHabit",
+    "method": "DELETE",
+    "path": "/calendar/habits/{habitId}",
+    "pathParams": {
+      "habitId": 789
+    },
+    "mockResponses": [
+      {
+        "status": 204,
+        "body": {}
+      }
+    ],
+    "assertions": [
+      {
+        "type": "requestPath",
+        "expected": "/calendar/habits/789"
+      },
+      {
+        "type": "noError"
+      }
+    ],
+    "tags": [
+      "path",
+      "calendar-habits"
+    ]
+  },
+  {
+    "name": "StopHabit uses /calendar/habits/{habitId}/stop.json path",
+    "description": "Verifies that StopHabit constructs the URL path /calendar/habits/{habitId}/stop.json",
+    "operation": "StopHabit",
+    "method": "POST",
+    "path": "/calendar/habits/{habitId}/stop.json",
+    "pathParams": {
+      "habitId": 789
+    },
+    "mockResponses": [
+      {
+        "status": 204,
+        "body": {}
+      }
+    ],
+    "assertions": [
+      {
+        "type": "requestPath",
+        "expected": "/calendar/habits/789/stop.json"
+      },
+      {
+        "type": "noError"
+      }
+    ],
+    "tags": [
+      "path",
+      "calendar-habits"
+    ]
+  },
+  {
+    "name": "ResumeHabit uses /calendar/habits/{habitId}/stop.json path",
+    "description": "Verifies that ResumeHabit constructs the URL path /calendar/habits/{habitId}/stop.json",
+    "operation": "ResumeHabit",
+    "method": "DELETE",
+    "path": "/calendar/habits/{habitId}/stop.json",
+    "pathParams": {
+      "habitId": 789
+    },
+    "mockResponses": [
+      {
+        "status": 204,
+        "body": {}
+      }
+    ],
+    "assertions": [
+      {
+        "type": "requestPath",
+        "expected": "/calendar/habits/789/stop.json"
+      },
+      {
+        "type": "noError"
+      }
+    ],
+    "tags": [
+      "path",
+      "calendar-habits"
     ]
   }
 ]

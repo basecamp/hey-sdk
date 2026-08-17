@@ -1,6 +1,26 @@
 [
   {
     "method": "POST",
+    "operationId": "AddPostingsToBoxGroup",
+    "path": "/postings/box_groups.json"
+  },
+  {
+    "method": "POST",
+    "operationId": "BubbleUpPostingsNow",
+    "path": "/postings/bulk_bubble_up_now.json"
+  },
+  {
+    "method": "POST",
+    "operationId": "BundleContact",
+    "path": "/contacts/{contactId}/bundle.json"
+  },
+  {
+    "method": "DELETE",
+    "operationId": "CancelPostingsBubbleUp",
+    "path": "/postings/bubble_up.json"
+  },
+  {
+    "method": "POST",
     "operationId": "CompleteCalendarTodo",
     "path": "/calendar/todos/{todoId}/completions"
   },
@@ -11,8 +31,28 @@
   },
   {
     "method": "POST",
+    "operationId": "CreateBoxDesignation",
+    "path": "/boxes/{boxId}/designations.json"
+  },
+  {
+    "method": "POST",
+    "operationId": "CreateBoxGroup",
+    "path": "/boxes/{boxId}/groups.json"
+  },
+  {
+    "method": "POST",
     "operationId": "CreateCalendarTodo",
     "path": "/calendar/todos.json"
+  },
+  {
+    "method": "POST",
+    "operationId": "CreateFolderForPostings",
+    "path": "/postings/folders.json"
+  },
+  {
+    "method": "POST",
+    "operationId": "CreateHabit",
+    "path": "/calendar/habits.json"
   },
   {
     "method": "POST",
@@ -25,9 +65,64 @@
     "path": "/entries/{entryId}/replies.json"
   },
   {
+    "method": "POST",
+    "operationId": "CreateSticky",
+    "path": "/stickies.json"
+  },
+  {
+    "method": "POST",
+    "operationId": "CreateTimeTrack",
+    "path": "/calendar/time_tracks.json"
+  },
+  {
+    "method": "DELETE",
+    "operationId": "DeleteBoxDesignation",
+    "path": "/boxes/{boxId}/designations/{designationId}"
+  },
+  {
+    "method": "DELETE",
+    "operationId": "DeleteBoxGroup",
+    "path": "/boxes/{boxId}/groups/{groupId}"
+  },
+  {
     "method": "DELETE",
     "operationId": "DeleteCalendarTodo",
     "path": "/calendar/todos/{todoId}"
+  },
+  {
+    "method": "DELETE",
+    "operationId": "DeleteHabit",
+    "path": "/calendar/habits/{habitId}"
+  },
+  {
+    "method": "DELETE",
+    "operationId": "DeleteSticky",
+    "path": "/stickies/{stickyId}"
+  },
+  {
+    "method": "DELETE",
+    "operationId": "DeleteTimeTrack",
+    "path": "/calendar/time_tracks/{timeTrackId}"
+  },
+  {
+    "method": "DELETE",
+    "operationId": "EmptySpam",
+    "path": "/topics/spam/all.json"
+  },
+  {
+    "method": "DELETE",
+    "operationId": "EmptyTrash",
+    "path": "/topics/trash/all.json"
+  },
+  {
+    "method": "POST",
+    "operationId": "FilePostings",
+    "path": "/postings/filings.json"
+  },
+  {
+    "method": "GET",
+    "operationId": "GetAdvancedSearchFilters",
+    "path": "/advanced_search_filters.json"
   },
   {
     "method": "GET",
@@ -51,6 +146,11 @@
   },
   {
     "method": "GET",
+    "operationId": "GetClearances",
+    "path": "/clearances.json"
+  },
+  {
+    "method": "GET",
     "operationId": "GetContact",
     "path": "/contacts/{contactId}"
   },
@@ -63,6 +163,11 @@
     "method": "GET",
     "operationId": "GetFeedbox",
     "path": "/feedbox.json"
+  },
+  {
+    "method": "GET",
+    "operationId": "GetFolder",
+    "path": "/folders/{folderId}"
   },
   {
     "method": "GET",
@@ -131,6 +236,11 @@
   },
   {
     "method": "GET",
+    "operationId": "ListBoxGroups",
+    "path": "/boxes/{boxId}/groups.json"
+  },
+  {
+    "method": "GET",
     "operationId": "ListBoxes",
     "path": "/boxes.json"
   },
@@ -138,6 +248,11 @@
     "method": "GET",
     "operationId": "ListCalendars",
     "path": "/calendars.json"
+  },
+  {
+    "method": "GET",
+    "operationId": "ListCollections",
+    "path": "/collections.json"
   },
   {
     "method": "GET",
@@ -150,14 +265,39 @@
     "path": "/entries/drafts.json"
   },
   {
+    "method": "GET",
+    "operationId": "ListStickies",
+    "path": "/stickies.json"
+  },
+  {
+    "method": "POST",
+    "operationId": "MarkBoxSeen",
+    "path": "/boxes/{boxId}/observation.json"
+  },
+  {
+    "method": "PUT",
+    "operationId": "MarkEntrySpam",
+    "path": "/entries/{entryId}/status/spam.json"
+  },
+  {
     "method": "POST",
     "operationId": "MarkPostingsSeen",
     "path": "/postings/seen.json"
   },
   {
     "method": "POST",
+    "operationId": "MarkPostingsSpam",
+    "path": "/postings/spam.json"
+  },
+  {
+    "method": "POST",
     "operationId": "MarkPostingsUnseen",
     "path": "/postings/unseen.json"
+  },
+  {
+    "method": "PUT",
+    "operationId": "MarkTopicHam",
+    "path": "/topics/{topicId}/status/ham.json"
   },
   {
     "method": "POST",
@@ -166,13 +306,38 @@
   },
   {
     "method": "POST",
+    "operationId": "MoveSticky",
+    "path": "/stickies/moves.json"
+  },
+  {
+    "method": "POST",
+    "operationId": "MoveTopic",
+    "path": "/topics/{topicId}/moves.json"
+  },
+  {
+    "method": "POST",
     "operationId": "MutePostings",
     "path": "/postings/mutings.json"
   },
   {
     "method": "GET",
-    "operationId": "Search",
-    "path": "/search.json"
+    "operationId": "NewEntryForward",
+    "path": "/entries/{entryId}/forwards/new.json"
+  },
+  {
+    "method": "DELETE",
+    "operationId": "RemovePostingsFromBoxGroup",
+    "path": "/postings/box_groups.json"
+  },
+  {
+    "method": "PUT",
+    "operationId": "RestoreTopic",
+    "path": "/topics/{topicId}/status/active.json"
+  },
+  {
+    "method": "DELETE",
+    "operationId": "ResumeHabit",
+    "path": "/calendar/habits/{habitId}/stop.json"
   },
   {
     "method": "POST",
@@ -181,8 +346,23 @@
   },
   {
     "method": "POST",
+    "operationId": "StopHabit",
+    "path": "/calendar/habits/{habitId}/stop.json"
+  },
+  {
+    "method": "POST",
     "operationId": "TrashPostings",
     "path": "/postings/trash.json"
+  },
+  {
+    "method": "PUT",
+    "operationId": "TrashTopic",
+    "path": "/topics/{topicId}/status/trashed.json"
+  },
+  {
+    "method": "DELETE",
+    "operationId": "UnbundleContact",
+    "path": "/contacts/{contactId}/bundle.json"
   },
   {
     "method": "DELETE",
@@ -196,13 +376,38 @@
   },
   {
     "method": "DELETE",
+    "operationId": "UnfilePostings",
+    "path": "/postings/filings.json"
+  },
+  {
+    "method": "DELETE",
     "operationId": "UnmutePostings",
     "path": "/postings/mutings.json"
   },
   {
     "method": "PATCH",
+    "operationId": "UpdateCollection",
+    "path": "/collections/{collectionId}"
+  },
+  {
+    "method": "PATCH",
+    "operationId": "UpdateContactClearance",
+    "path": "/contacts/{contactId}/clearance.json"
+  },
+  {
+    "method": "PATCH",
+    "operationId": "UpdateHabit",
+    "path": "/calendar/habits/{habitId}"
+  },
+  {
+    "method": "PATCH",
     "operationId": "UpdateJournalEntry",
     "path": "/calendar/days/{day}/journal_entry"
+  },
+  {
+    "method": "PATCH",
+    "operationId": "UpdateSticky",
+    "path": "/stickies/{stickyId}"
   },
   {
     "method": "PUT",

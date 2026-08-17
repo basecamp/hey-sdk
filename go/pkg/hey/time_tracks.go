@@ -4,6 +4,10 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/url"
+	"regexp"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/basecamp/hey-sdk/go/pkg/generated"
@@ -52,7 +56,7 @@ func (s *TimeTracksService) GetOngoing(ctx context.Context) (result *generated.R
 
 // Start starts a new time track.
 //
-// The HEY API expects the body wrapped as {calendar_time_track: {...}}.
+// The body already carries the {calendar_time_track: {...}} wrapper the API expects.
 func (s *TimeTracksService) Start(ctx context.Context, body generated.StartTimeTrackJSONRequestBody) (result *generated.Recording, err error) {
 	op := OperationInfo{
 		Service: "TimeTracks", Operation: "StartTimeTrack",
@@ -67,11 +71,7 @@ func (s *TimeTracksService) Start(ctx context.Context, body generated.StartTimeT
 	ctx = s.client.hooks.OnOperationStart(ctx, op)
 	defer func() { s.client.hooks.OnOperationEnd(ctx, op, err, time.Since(start)) }()
 
-	wrapped := map[string]any{
-		"calendar_time_track": body,
-	}
-
-	resp, err := s.client.Post(ctx, "/calendar/ongoing_time_track.json", wrapped)
+	resp, err := s.client.Post(ctx, "/calendar/ongoing_time_track.json", body)
 	if err != nil {
 		return nil, err
 	}
@@ -84,7 +84,7 @@ func (s *TimeTracksService) Start(ctx context.Context, body generated.StartTimeT
 
 // Update updates an existing time track.
 //
-// The HEY API expects the body wrapped as {calendar_time_track: {...}}.
+// The body already carries the {calendar_time_track: {...}} wrapper the API expects.
 func (s *TimeTracksService) Update(ctx context.Context, timeTrackID int64, body generated.UpdateTimeTrackJSONRequestBody) (result *generated.Recording, err error) {
 	op := OperationInfo{
 		Service: "TimeTracks", Operation: "UpdateTimeTrack",
@@ -99,11 +99,7 @@ func (s *TimeTracksService) Update(ctx context.Context, timeTrackID int64, body 
 	ctx = s.client.hooks.OnOperationStart(ctx, op)
 	defer func() { s.client.hooks.OnOperationEnd(ctx, op, err, time.Since(start)) }()
 
-	wrapped := map[string]any{
-		"calendar_time_track": body,
-	}
-
-	resp, err := s.client.Put(ctx, fmt.Sprintf("/calendar/time_tracks/%d.json", timeTrackID), wrapped)
+	resp, err := s.client.Put(ctx, fmt.Sprintf("/calendar/time_tracks/%d.json", timeTrackID), body)
 	if err != nil {
 		return nil, err
 	}
@@ -115,26 +111,150 @@ func (s *TimeTracksService) Update(ctx context.Context, timeTrackID int64, body 
 }
 
 // Stop stops an ongoing time track by setting ends_at to the current time.
-func (s *TimeTracksService) Stop(ctx context.Context, timeTrackID int64) (err error) {
+func (s *TimeTracksService) Stop(ctx context.Context, timeTrackID int64) error {
+	_, err := s.Update(ctx, timeTrackID, generated.UpdateTimeTrackJSONRequestBody{
+		CalendarTimeTrack: generated.UpdateTimeTrackPayload{EndsAt: time.Now().UTC()},
+	})
+	return err
+}
+
+// Create records a stretch of time that has already finished.
+//
+// JSON callers send the fields flat; the server wraps them itself.
+func (s *TimeTracksService) Create(ctx context.Context, body generated.CreateTimeTrackJSONRequestBody) (result *generated.Recording, err error) {
 	op := OperationInfo{
-		Service: "TimeTracks", Operation: "StopTimeTrack",
+		Service: "TimeTracks", Operation: "CreateTimeTrack",
+		ResourceType: "time_track", IsMutation: true,
+	}
+
+	err = s.client.instrument(ctx, op, func(ctx context.Context) error {
+		resp, rerr := s.client.genClient().CreateTimeTrackWithResponse(ctx, body)
+		if rerr != nil {
+			return rerr
+		}
+		if cerr := CheckResponse(resp.HTTPResponse); cerr != nil {
+			return cerr
+		}
+		result = resp.JSON200
+		return nil
+	})
+	return result, err
+}
+
+// Delete throws a time track away. timeTrackID is the recording's id.
+func (s *TimeTracksService) Delete(ctx context.Context, timeTrackID int64) error {
+	op := OperationInfo{
+		Service: "TimeTracks", Operation: "DeleteTimeTrack",
 		ResourceType: "time_track", IsMutation: true, ResourceID: timeTrackID,
 	}
-	if gater, ok := s.client.hooks.(GatingHooks); ok {
-		if ctx, err = gater.OnOperationGate(ctx, op); err != nil {
-			return
+
+	return s.client.instrument(ctx, op, func(ctx context.Context) error {
+		_, err := s.client.Delete(ctx, fmt.Sprintf("/calendar/time_tracks/%d.json", timeTrackID))
+		return err
+	})
+}
+
+// --- Categories and exports ---
+
+// TimeTrackCategory is one of the labels you can file a time track under.
+type TimeTrackCategory struct {
+	ID    int64
+	Title string
+}
+
+// categoryEditLinkRe matches the edit links on the categories page, which is the only place
+// the ids appear — the page has no JSON representation.
+var categoryEditLinkRe = regexp.MustCompile(`href="[^"]*/calendar/time_tracks/categories/(\d+)/edit"[^>]*>([^<]*)<`)
+
+// Categories returns the time track categories with their ids.
+//
+// Read from the categories page: the autocomplete endpoint answers JSON but carries titles
+// only, and the write endpoints need ids.
+func (s *TimeTracksService) Categories(ctx context.Context) (result []TimeTrackCategory, err error) {
+	op := OperationInfo{
+		Service: "TimeTracks", Operation: "ListTimeTrackCategories",
+		ResourceType: "category", IsMutation: false,
+	}
+
+	err = s.client.instrument(ctx, op, func(ctx context.Context) error {
+		resp, rerr := s.client.GetHTML(ctx, "/calendar/time_tracks/categories")
+		if rerr != nil {
+			return rerr
 		}
-	}
-	start := time.Now()
-	ctx = s.client.hooks.OnOperationStart(ctx, op)
-	defer func() { s.client.hooks.OnOperationEnd(ctx, op, err, time.Since(start)) }()
 
-	body := map[string]any{
-		"calendar_time_track": map[string]any{
-			"ends_at": time.Now().UTC().Format(time.RFC3339),
-		},
+		for _, match := range categoryEditLinkRe.FindAllStringSubmatch(string(resp.Data), -1) {
+			id, perr := strconv.ParseInt(match[1], 10, 64)
+			if perr != nil {
+				continue
+			}
+			result = append(result, TimeTrackCategory{ID: id, Title: strings.TrimSpace(match[2])})
+		}
+		return nil
+	})
+	return result, err
+}
+
+// CreateCategory adds a time track category.
+func (s *TimeTracksService) CreateCategory(ctx context.Context, title string) error {
+	op := OperationInfo{
+		Service: "TimeTracks", Operation: "CreateTimeTrackCategory",
+		ResourceType: "category", IsMutation: true,
 	}
 
-	_, err = s.client.Put(ctx, fmt.Sprintf("/calendar/time_tracks/%d.json", timeTrackID), body)
-	return err
+	return s.client.instrument(ctx, op, func(ctx context.Context) error {
+		_, err := s.client.PostForm(ctx, "/calendar/time_tracks/categories", categoryForm(title))
+		return err
+	})
+}
+
+// UpdateCategory renames a time track category.
+func (s *TimeTracksService) UpdateCategory(ctx context.Context, categoryID int64, title string) error {
+	op := OperationInfo{
+		Service: "TimeTracks", Operation: "UpdateTimeTrackCategory",
+		ResourceType: "category", IsMutation: true, ResourceID: categoryID,
+	}
+
+	return s.client.instrument(ctx, op, func(ctx context.Context) error {
+		_, err := s.client.PatchForm(ctx, fmt.Sprintf("/calendar/time_tracks/categories/%d", categoryID), categoryForm(title))
+		return err
+	})
+}
+
+// DeleteCategory removes a time track category. The tracks filed under it stay, uncategorized.
+func (s *TimeTracksService) DeleteCategory(ctx context.Context, categoryID int64) error {
+	op := OperationInfo{
+		Service: "TimeTracks", Operation: "DeleteTimeTrackCategory",
+		ResourceType: "category", IsMutation: true, ResourceID: categoryID,
+	}
+
+	return s.client.instrument(ctx, op, func(ctx context.Context) error {
+		_, err := s.client.DeleteForm(ctx, fmt.Sprintf("/calendar/time_tracks/categories/%d", categoryID))
+		return err
+	})
+}
+
+// Export returns every completed time track as CSV, newest first, with the columns
+// Start, End, Duration, Category and Notes.
+func (s *TimeTracksService) Export(ctx context.Context) (result []byte, err error) {
+	op := OperationInfo{
+		Service: "TimeTracks", Operation: "ExportTimeTracks",
+		ResourceType: "time_track", IsMutation: false,
+	}
+
+	err = s.client.instrument(ctx, op, func(ctx context.Context) error {
+		resp, rerr := s.client.GetCSV(ctx, "/calendar/time_tracks/exports")
+		if rerr != nil {
+			return rerr
+		}
+		result = resp.Data
+		return nil
+	})
+	return result, err
+}
+
+// categoryForm renders a category title as the nested form the server expects.
+func categoryForm(title string) url.Values {
+	values := url.Values{}
+	values.Set("category[title]", title)
+	return values
 }

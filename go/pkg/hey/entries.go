@@ -91,3 +91,42 @@ func (s *EntriesService) CreateReply(ctx context.Context, entryID int64, content
 	}
 	return CheckResponse(resp.HTTPResponse)
 }
+
+// MarkSpam marks an entry as spam. The server denies the sender outright when every thread
+// from them is already spam.
+func (s *EntriesService) MarkSpam(ctx context.Context, entryID int64) error {
+	op := OperationInfo{
+		Service: "Entries", Operation: "MarkEntrySpam",
+		ResourceType: "entry", IsMutation: true, ResourceID: entryID,
+	}
+
+	return s.client.instrument(ctx, op, func(ctx context.Context) error {
+		resp, err := s.client.genClient().MarkEntrySpamWithResponse(ctx, entryID)
+		if err != nil {
+			return err
+		}
+		return CheckResponse(resp.HTTPResponse)
+	})
+}
+
+// NewForward returns a prefilled forward of an entry: the "Fwd:" subject, the quoted body and
+// blank recipients. Fill in the recipients and send it with MessagesService.Create.
+func (s *EntriesService) NewForward(ctx context.Context, entryID int64) (result *generated.MessageDraft, err error) {
+	op := OperationInfo{
+		Service: "Entries", Operation: "NewEntryForward",
+		ResourceType: "entry", IsMutation: false, ResourceID: entryID,
+	}
+
+	err = s.client.instrument(ctx, op, func(ctx context.Context) error {
+		resp, rerr := s.client.genClient().NewEntryForwardWithResponse(ctx, entryID)
+		if rerr != nil {
+			return rerr
+		}
+		if cerr := CheckResponse(resp.HTTPResponse); cerr != nil {
+			return cerr
+		}
+		result = resp.JSON200
+		return nil
+	})
+	return result, err
+}

@@ -1,8 +1,14 @@
 package hey
 
 import (
+	"context"
 	"fmt"
 	"net/http"
+	"strconv"
+	"strings"
+	"time"
+
+	"github.com/basecamp/hey-sdk/go/pkg/generated"
 )
 
 // CheckResponse converts HTTP response errors to SDK errors for non-2xx responses.
@@ -55,4 +61,35 @@ type ListMeta struct {
 	// TotalCount is the total number of items available (from X-Total-Count header).
 	// Zero if the header was not present or could not be parsed.
 	TotalCount int
+}
+
+// instrument runs a service call inside the gating and hook lifecycle every operation shares,
+// so wrappers only have to say what they do.
+func (c *Client) instrument(ctx context.Context, op OperationInfo, fn func(context.Context) error) (err error) {
+	if gater, ok := c.hooks.(GatingHooks); ok {
+		if ctx, err = gater.OnOperationGate(ctx, op); err != nil {
+			return err
+		}
+	}
+
+	start := time.Now()
+	ctx = c.hooks.OnOperationStart(ctx, op)
+	defer func() { c.hooks.OnOperationEnd(ctx, op, err, time.Since(start)) }()
+
+	return fn(ctx)
+}
+
+// gen returns the shared generated client, initializing it on first use.
+func (c *Client) genClient() *generated.ClientWithResponses {
+	c.initGeneratedClient()
+	return c.gen
+}
+
+// joinIDs renders ids for endpoints that take posting_ids as a comma-joined query parameter.
+func joinIDs(ids []int64) string {
+	parts := make([]string, 0, len(ids))
+	for _, id := range ids {
+		parts = append(parts, strconv.FormatInt(id, 10))
+	}
+	return strings.Join(parts, ",")
 }

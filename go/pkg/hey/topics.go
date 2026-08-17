@@ -2,6 +2,7 @@ package hey
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/basecamp/hey-sdk/go/pkg/generated"
@@ -171,4 +172,114 @@ func (s *TopicsService) GetEverything(ctx context.Context, params *generated.Get
 		return nil, err
 	}
 	return resp.JSON200, nil
+}
+
+// --- Status and moves ---
+
+// Trash moves a topic to the trash.
+//
+// Shared topics redirect to a confirmation page unless confirmDestroy is set, so pass it
+// whenever the topic might be shared.
+func (s *TopicsService) Trash(ctx context.Context, topicID int64, confirmDestroy bool) error {
+	op := OperationInfo{
+		Service: "Topics", Operation: "TrashTopic",
+		ResourceType: "topic", IsMutation: true, ResourceID: topicID,
+	}
+
+	return s.client.instrument(ctx, op, func(ctx context.Context) error {
+		// Hand-rolled rather than generated: the generated client always writes
+		// confirm_destroy into the query, and an empty value reads as truthy on the server.
+		path := fmt.Sprintf("/topics/%d/status/trashed.json", topicID)
+		if confirmDestroy {
+			path += "?confirm_destroy=1"
+		}
+
+		_, err := s.client.Put(ctx, path, map[string]any{})
+		return err
+	})
+}
+
+// Restore brings a topic back from the trash or the catch-all.
+func (s *TopicsService) Restore(ctx context.Context, topicID int64) error {
+	op := OperationInfo{
+		Service: "Topics", Operation: "RestoreTopic",
+		ResourceType: "topic", IsMutation: true, ResourceID: topicID,
+	}
+
+	return s.client.instrument(ctx, op, func(ctx context.Context) error {
+		resp, err := s.client.genClient().RestoreTopicWithResponse(ctx, topicID)
+		if err != nil {
+			return err
+		}
+		return CheckResponse(resp.HTTPResponse)
+	})
+}
+
+// MarkHam rescues a topic from spam. Every other spam topic from the same sender comes with it.
+func (s *TopicsService) MarkHam(ctx context.Context, topicID int64) error {
+	op := OperationInfo{
+		Service: "Topics", Operation: "MarkTopicHam",
+		ResourceType: "topic", IsMutation: true, ResourceID: topicID,
+	}
+
+	return s.client.instrument(ctx, op, func(ctx context.Context) error {
+		resp, err := s.client.genClient().MarkTopicHamWithResponse(ctx, topicID)
+		if err != nil {
+			return err
+		}
+		return CheckResponse(resp.HTTPResponse)
+	})
+}
+
+// EmptyTrash deletes everything in the trash. The server does this synchronously, so a large
+// trash can take a while.
+func (s *TopicsService) EmptyTrash(ctx context.Context) error {
+	op := OperationInfo{
+		Service: "Topics", Operation: "EmptyTrash",
+		ResourceType: "topic", IsMutation: true,
+	}
+
+	return s.client.instrument(ctx, op, func(ctx context.Context) error {
+		resp, err := s.client.genClient().EmptyTrashWithResponse(ctx)
+		if err != nil {
+			return err
+		}
+		return CheckResponse(resp.HTTPResponse)
+	})
+}
+
+// EmptySpam deletes everything in the spam box. The server does this synchronously, so a large
+// spam box can take a while.
+func (s *TopicsService) EmptySpam(ctx context.Context) error {
+	op := OperationInfo{
+		Service: "Topics", Operation: "EmptySpam",
+		ResourceType: "topic", IsMutation: true,
+	}
+
+	return s.client.instrument(ctx, op, func(ctx context.Context) error {
+		resp, err := s.client.genClient().EmptySpamWithResponse(ctx)
+		if err != nil {
+			return err
+		}
+		return CheckResponse(resp.HTTPResponse)
+	})
+}
+
+// Move moves a topic to another box.
+//
+// The server answers 204 without moving anything when the acting user has no posting for
+// the topic, so a success here is not proof the topic moved.
+func (s *TopicsService) Move(ctx context.Context, topicID int64, boxID int64) error {
+	op := OperationInfo{
+		Service: "Topics", Operation: "MoveTopic",
+		ResourceType: "topic", IsMutation: true, ResourceID: topicID,
+	}
+
+	return s.client.instrument(ctx, op, func(ctx context.Context) error {
+		resp, err := s.client.genClient().MoveTopicWithResponse(ctx, topicID, generated.MoveTopicRequestContent{BoxId: boxID})
+		if err != nil {
+			return err
+		}
+		return CheckResponse(resp.HTTPResponse)
+	})
 }

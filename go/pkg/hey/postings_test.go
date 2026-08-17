@@ -160,6 +160,26 @@ func TestPostingsService_RequiresIDs(t *testing.T) {
 	}
 }
 
+func TestPostingsService_TrashRemoveAccess(t *testing.T) {
+	ctx := context.Background()
+
+	mine, reqs, _ := newPostingsTestClient(t, 204)
+	if err := mine.Postings().MoveToTrash(ctx, 1); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if _, ok := (*reqs)[0].Body["remove_access"]; ok {
+		t.Error("remove_access should be left out so the server keeps its default")
+	}
+
+	everyone, sharedReqs, _ := newPostingsTestClient(t, 204)
+	if err := everyone.Postings().TrashForEveryone(ctx, 1); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got := (*sharedReqs)[0].Body["remove_access"]; got != "false" {
+		t.Errorf(`remove_access = %v, want "false"`, got)
+	}
+}
+
 func TestPostingsService_ServerErrorSurfaced(t *testing.T) {
 	c, _, _ := newPostingsTestClient(t, 500)
 	if err := c.Postings().Mute(context.Background(), 1); err == nil {

@@ -3,8 +3,8 @@ package hey
 import (
 	"context"
 	"fmt"
+	"net/url"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/basecamp/hey-sdk/go/pkg/generated"
@@ -106,8 +106,23 @@ func (s *PostingsService) MoveToPaperTrail(ctx context.Context, postingIDs ...in
 // MoveToTrash moves one or more postings to the trash (POST /postings/trash).
 // For shared topics HEY removes your access rather than trashing for everyone.
 func (s *PostingsService) MoveToTrash(ctx context.Context, postingIDs ...int64) (err error) {
+	return s.trash(ctx, "", postingIDs)
+}
+
+// TrashForEveryone moves one or more postings to the trash, and on shared topics trashes the
+// thread for everyone on it instead of only dropping your own access.
+func (s *PostingsService) TrashForEveryone(ctx context.Context, postingIDs ...int64) (err error) {
+	return s.trash(ctx, "false", postingIDs)
+}
+
+// trash posts the bulk trash request. An empty removeAccess leaves the field out, which the
+// server reads as "remove my access".
+func (s *PostingsService) trash(ctx context.Context, removeAccess string, postingIDs []int64) error {
 	return s.bulkAction(ctx, "TrashPostings", postingIDs, func(ctx context.Context, ids []int64) error {
-		resp, err := s.genClient().TrashPostingsWithResponse(ctx, generated.MarkPostingsRequestContent{PostingIds: ids})
+		resp, err := s.genClient().TrashPostingsWithResponse(ctx, generated.TrashPostingsRequestContent{
+			PostingIds:   ids,
+			RemoveAccess: removeAccess,
+		})
 		if err != nil {
 			return err
 		}
@@ -132,6 +147,113 @@ func (s *PostingsService) Unmute(ctx context.Context, postingIDs ...int64) (err 
 	return s.bulkAction(ctx, "UnmutePostings", postingIDs, func(ctx context.Context, ids []int64) error {
 		params := &generated.UnmutePostingsParams{PostingIds: joinIDs(ids)}
 		resp, err := s.genClient().UnmutePostingsWithResponse(ctx, params)
+		if err != nil {
+			return err
+		}
+		return CheckResponse(resp.HTTPResponse)
+	})
+}
+
+// MarkSpam marks one or more postings as spam (POST /postings/spam).
+//
+// Past ten postings the server hands the work to a background job, so the call returns
+// before the postings have actually moved.
+func (s *PostingsService) MarkSpam(ctx context.Context, postingIDs ...int64) (err error) {
+	return s.bulkAction(ctx, "MarkPostingsSpam", postingIDs, func(ctx context.Context, ids []int64) error {
+		resp, err := s.genClient().MarkPostingsSpamWithResponse(ctx, generated.MarkPostingsRequestContent{PostingIds: ids})
+		if err != nil {
+			return err
+		}
+		return CheckResponse(resp.HTTPResponse)
+	})
+}
+
+// AddToBoxGroup files one or more postings into an existing Set Aside group.
+func (s *PostingsService) AddToBoxGroup(ctx context.Context, boxID, boxGroupID int64, postingIDs ...int64) (err error) {
+	return s.bulkAction(ctx, "AddPostingsToBoxGroup", postingIDs, func(ctx context.Context, ids []int64) error {
+		resp, err := s.genClient().AddPostingsToBoxGroupWithResponse(ctx, generated.AddPostingsToBoxGroupRequestContent{
+			PostingIds: ids,
+			BoxId:      boxID,
+			BoxGroupId: boxGroupID,
+		})
+		if err != nil {
+			return err
+		}
+		return CheckResponse(resp.HTTPResponse)
+	})
+}
+
+// RemoveFromBoxGroup takes one or more postings out of whatever Set Aside group they are in.
+func (s *PostingsService) RemoveFromBoxGroup(ctx context.Context, postingIDs ...int64) (err error) {
+	return s.bulkAction(ctx, "RemovePostingsFromBoxGroup", postingIDs, func(ctx context.Context, ids []int64) error {
+		params := &generated.RemovePostingsFromBoxGroupParams{PostingIds: joinIDs(ids)}
+		resp, err := s.genClient().RemovePostingsFromBoxGroupWithResponse(ctx, params)
+		if err != nil {
+			return err
+		}
+		return CheckResponse(resp.HTTPResponse)
+	})
+}
+
+// File labels one or more postings with an existing folder.
+func (s *PostingsService) File(ctx context.Context, folderID int64, postingIDs ...int64) (err error) {
+	return s.bulkAction(ctx, "FilePostings", postingIDs, func(ctx context.Context, ids []int64) error {
+		resp, err := s.genClient().FilePostingsWithResponse(ctx, generated.FilePostingsRequestContent{
+			PostingIds: ids,
+			FolderId:   folderID,
+		})
+		if err != nil {
+			return err
+		}
+		return CheckResponse(resp.HTTPResponse)
+	})
+}
+
+// Unfile removes a label from one or more postings. A folderID of 0 removes every label.
+func (s *PostingsService) Unfile(ctx context.Context, folderID int64, postingIDs ...int64) (err error) {
+	return s.bulkAction(ctx, "UnfilePostings", postingIDs, func(ctx context.Context, ids []int64) error {
+		// Hand-rolled rather than generated: the generated client always writes folder_id
+		// into the query, and folder_id=0 is a lookup for a folder that does not exist.
+		query := url.Values{"posting_ids": {joinIDs(ids)}}
+		if folderID != 0 {
+			query.Set("folder_id", strconv.FormatInt(folderID, 10))
+		}
+
+		_, err := s.client.Delete(ctx, "/postings/filings.json?"+query.Encode())
+		return err
+	})
+}
+
+// CreateFolder creates a folder (label) and files one or more postings into it.
+func (s *PostingsService) CreateFolder(ctx context.Context, name string, postingIDs ...int64) (err error) {
+	return s.bulkAction(ctx, "CreateFolderForPostings", postingIDs, func(ctx context.Context, ids []int64) error {
+		resp, err := s.genClient().CreateFolderForPostingsWithResponse(ctx, generated.CreateFolderForPostingsRequestContent{
+			PostingIds: ids,
+			Folder:     generated.FolderPayload{Name: name},
+		})
+		if err != nil {
+			return err
+		}
+		return CheckResponse(resp.HTTPResponse)
+	})
+}
+
+// CancelBubbleUp drops the scheduled bubble up on one or more postings.
+func (s *PostingsService) CancelBubbleUp(ctx context.Context, postingIDs ...int64) (err error) {
+	return s.bulkAction(ctx, "CancelPostingsBubbleUp", postingIDs, func(ctx context.Context, ids []int64) error {
+		params := &generated.CancelPostingsBubbleUpParams{PostingIds: joinIDs(ids)}
+		resp, err := s.genClient().CancelPostingsBubbleUpWithResponse(ctx, params)
+		if err != nil {
+			return err
+		}
+		return CheckResponse(resp.HTTPResponse)
+	})
+}
+
+// BubbleUpNow bubbles one or more postings up right away.
+func (s *PostingsService) BubbleUpNow(ctx context.Context, postingIDs ...int64) (err error) {
+	return s.bulkAction(ctx, "BubbleUpPostingsNow", postingIDs, func(ctx context.Context, ids []int64) error {
+		resp, err := s.genClient().BubbleUpPostingsNowWithResponse(ctx, generated.MarkPostingsRequestContent{PostingIds: ids})
 		if err != nil {
 			return err
 		}
@@ -198,12 +320,4 @@ func (s *PostingsService) bulkAction(ctx context.Context, operation string, ids 
 	defer func() { s.client.hooks.OnOperationEnd(ctx, op, err, time.Since(start)) }()
 
 	return fn(ctx, ids)
-}
-
-func joinIDs(ids []int64) string {
-	parts := make([]string, len(ids))
-	for i, id := range ids {
-		parts[i] = strconv.FormatInt(id, 10)
-	}
-	return strings.Join(parts, ",")
 }

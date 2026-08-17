@@ -81,15 +81,17 @@ func TestRouterMatchPath(t *testing.T) {
 			wantRsrc: "Calendar Journal",
 		},
 		{
-			name:     "time track update",
+			// The pattern carries no GET, so the router falls back to the first operation
+			// alphabetically — DELETE beats PUT here.
+			name:     "time track by id",
 			input:    "/calendar/time_tracks/999",
-			wantOp:   "UpdateTimeTrack",
+			wantOp:   "DeleteTimeTrack",
 			wantRsrc: "Calendar Time Tracks",
 		},
 		{
-			name:     "search",
-			input:    "/search",
-			wantOp:   "Search",
+			name:     "advanced search filters",
+			input:    "/advanced_search_filters",
+			wantOp:   "GetAdvancedSearchFilters",
 			wantRsrc: "Search",
 		},
 		{

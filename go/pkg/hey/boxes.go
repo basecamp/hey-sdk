@@ -2,6 +2,7 @@ package hey
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/basecamp/hey-sdk/go/pkg/generated"
@@ -223,4 +224,78 @@ func (s *BoxesService) GetBubblebox(ctx context.Context, params *generated.GetBu
 		return nil, err
 	}
 	return resp.JSON200, nil
+}
+
+// --- Set Aside groups and observation ---
+
+// ListGroups returns the Set Aside groups in a box. The API answers with ids only.
+func (s *BoxesService) ListGroups(ctx context.Context, boxID int64) (result *generated.BoxGroupsResponse, err error) {
+	op := OperationInfo{
+		Service: "Boxes", Operation: "ListBoxGroups",
+		ResourceType: "box_group", IsMutation: false, ResourceID: boxID,
+	}
+
+	err = s.client.instrument(ctx, op, func(ctx context.Context) error {
+		resp, rerr := s.client.genClient().ListBoxGroupsWithResponse(ctx, boxID)
+		if rerr != nil {
+			return rerr
+		}
+		if cerr := CheckResponse(resp.HTTPResponse); cerr != nil {
+			return cerr
+		}
+		result = resp.JSON200
+		return nil
+	})
+	return result, err
+}
+
+// CreateGroup gathers a selection of postings into a new Set Aside group.
+func (s *BoxesService) CreateGroup(ctx context.Context, boxID int64, postingIDs []int64) (result *generated.BoxGroup, err error) {
+	op := OperationInfo{
+		Service: "Boxes", Operation: "CreateBoxGroup",
+		ResourceType: "box_group", IsMutation: true, ResourceID: boxID,
+	}
+
+	err = s.client.instrument(ctx, op, func(ctx context.Context) error {
+		resp, rerr := s.client.genClient().CreateBoxGroupWithResponse(ctx, boxID, generated.CreateBoxGroupRequestContent{PostingIds: postingIDs})
+		if rerr != nil {
+			return rerr
+		}
+		if cerr := CheckResponse(resp.HTTPResponse); cerr != nil {
+			return cerr
+		}
+		result = resp.JSON200
+		return nil
+	})
+	return result, err
+}
+
+// DeleteGroup breaks up a Set Aside group, sending its postings back to Previously Seen.
+func (s *BoxesService) DeleteGroup(ctx context.Context, boxID int64, groupID int64) error {
+	op := OperationInfo{
+		Service: "Boxes", Operation: "DeleteBoxGroup",
+		ResourceType: "box_group", IsMutation: true, ResourceID: groupID,
+	}
+
+	return s.client.instrument(ctx, op, func(ctx context.Context) error {
+		_, err := s.client.Delete(ctx, fmt.Sprintf("/boxes/%d/groups/%d.json", boxID, groupID))
+		return err
+	})
+}
+
+// MarkSeen marks everything in a box as seen. The server queues the work, so postings can
+// still read as unseen right after this returns.
+func (s *BoxesService) MarkSeen(ctx context.Context, boxID int64) error {
+	op := OperationInfo{
+		Service: "Boxes", Operation: "MarkBoxSeen",
+		ResourceType: "box", IsMutation: true, ResourceID: boxID,
+	}
+
+	return s.client.instrument(ctx, op, func(ctx context.Context) error {
+		resp, err := s.client.genClient().MarkBoxSeenWithResponse(ctx, boxID)
+		if err != nil {
+			return err
+		}
+		return CheckResponse(resp.HTTPResponse)
+	})
 }

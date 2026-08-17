@@ -2,6 +2,7 @@ package hey
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/basecamp/hey-sdk/go/pkg/generated"
@@ -67,4 +68,115 @@ func (s *HabitsService) Uncomplete(ctx context.Context, day string, habitID int6
 		return nil, err
 	}
 	return resp.JSON200, nil
+}
+
+// --- Habit CRUD ---
+//
+// Create and Update answer the written habit as a recording on servers that carry the JSON
+// branches. Servers that don't redirect to the habits page instead; the write still reads as
+// a success here, just without a recording to hand back.
+
+// HabitParams describes a habit. Days are 0 for Sunday through 6 for Saturday.
+type HabitParams struct {
+	Name  string
+	Icon  string
+	Color string
+	Days  []int32
+}
+
+// Create starts a new habit and returns it as a recording.
+func (s *HabitsService) Create(ctx context.Context, params HabitParams) (recording *generated.Recording, err error) {
+	op := OperationInfo{
+		Service: "Habits", Operation: "CreateHabit",
+		ResourceType: "habit", IsMutation: true,
+	}
+
+	err = s.client.instrument(ctx, op, func(ctx context.Context) error {
+		resp, rerr := s.client.genClient().CreateHabitWithResponse(ctx, habitBody(params))
+		if rerr != nil {
+			return rerr
+		}
+		if cerr := CheckResponse(resp.HTTPResponse); cerr != nil {
+			return cerr
+		}
+		recording = resp.JSON201
+		return nil
+	})
+	return recording, err
+}
+
+// Update edits a habit and returns it as a recording. habitID is the recording's id.
+// Empty fields are left alone.
+func (s *HabitsService) Update(ctx context.Context, habitID int64, params HabitParams) (recording *generated.Recording, err error) {
+	op := OperationInfo{
+		Service: "Habits", Operation: "UpdateHabit",
+		ResourceType: "habit", IsMutation: true, ResourceID: habitID,
+	}
+
+	err = s.client.instrument(ctx, op, func(ctx context.Context) error {
+		resp, rerr := s.client.Patch(ctx, fmt.Sprintf("/calendar/habits/%d.json", habitID), habitBody(params))
+		if rerr != nil {
+			return rerr
+		}
+		recording = recordingFromData(resp.Data)
+		return nil
+	})
+	return recording, err
+}
+
+// Delete throws a habit away, along with its history. habitID is the recording's id.
+func (s *HabitsService) Delete(ctx context.Context, habitID int64) error {
+	op := OperationInfo{
+		Service: "Habits", Operation: "DeleteHabit",
+		ResourceType: "habit", IsMutation: true, ResourceID: habitID,
+	}
+
+	return s.client.instrument(ctx, op, func(ctx context.Context) error {
+		_, err := s.client.Delete(ctx, fmt.Sprintf("/calendar/habits/%d.json", habitID))
+		return err
+	})
+}
+
+// Stop pauses a habit, keeping its history but taking it off the calendar.
+func (s *HabitsService) Stop(ctx context.Context, habitID int64) error {
+	op := OperationInfo{
+		Service: "Habits", Operation: "StopHabit",
+		ResourceType: "habit", IsMutation: true, ResourceID: habitID,
+	}
+
+	return s.client.instrument(ctx, op, func(ctx context.Context) error {
+		resp, err := s.client.genClient().StopHabitWithResponse(ctx, habitID)
+		if err != nil {
+			return err
+		}
+		return CheckResponse(resp.HTTPResponse)
+	})
+}
+
+// Resume puts a paused habit back on the calendar.
+func (s *HabitsService) Resume(ctx context.Context, habitID int64) error {
+	op := OperationInfo{
+		Service: "Habits", Operation: "ResumeHabit",
+		ResourceType: "habit", IsMutation: true, ResourceID: habitID,
+	}
+
+	return s.client.instrument(ctx, op, func(ctx context.Context) error {
+		resp, err := s.client.genClient().ResumeHabitWithResponse(ctx, habitID)
+		if err != nil {
+			return err
+		}
+		return CheckResponse(resp.HTTPResponse)
+	})
+}
+
+// habitBody builds the {calendar_habit: {...}} wrapper, leaving out what wasn't set.
+func habitBody(params HabitParams) generated.HabitRequestContent {
+	return generated.HabitRequestContent{
+		CalendarHabit: generated.HabitPayload{
+			Name:  params.Name,
+			Icon:  params.Icon,
+			Color: params.Color,
+			Days:  params.Days,
+		},
+	}
 }

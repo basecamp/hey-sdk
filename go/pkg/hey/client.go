@@ -1,6 +1,7 @@
 package hey
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -67,6 +68,14 @@ type Client struct {
 	search         *SearchService
 	designations   *DesignationsService
 	extenzions     *ExtenzionsService
+	folders        *FoldersService
+	collections    *CollectionsService
+	stickies       *StickiesService
+	clips          *ClipsService
+	snippets       *SnippetsService
+	workflows      *WorkflowsService
+	publications   *PublicationsService
+	world          *WorldService
 }
 
 // Response wraps an API response.
@@ -83,6 +92,10 @@ type FormResponse struct {
 	Location string
 	// StatusCode is the HTTP status code (typically 302 or 303).
 	StatusCode int
+	// Body is the response body, which a redirect leaves empty. Endpoints reached with a
+	// .json path answer the created resource here instead of redirecting. It is a string
+	// rather than a byte slice so a FormResponse stays comparable.
+	Body string
 }
 
 // UnmarshalData unmarshals the response data into the given value.
@@ -239,6 +252,12 @@ func (c *Client) GetHTML(ctx context.Context, path string) (*Response, error) {
 	return c.doRequest(contextWithAccept(ctx, "text/html"), "GET", path, nil)
 }
 
+// GetCSV performs a GET request with Accept: text/csv, returning the raw CSV bytes.
+// Use this for the export endpoints, which stream a file rather than a document.
+func (c *Client) GetCSV(ctx context.Context, path string) (*Response, error) {
+	return c.doRequest(contextWithAccept(ctx, "text/csv"), "GET", path, nil)
+}
+
 // Post performs a POST request with a JSON body.
 func (c *Client) Post(ctx context.Context, path string, body any) (*Response, error) {
 	return c.doRequest(ctx, "POST", path, body)
@@ -289,17 +308,33 @@ func (c *Client) DeleteForm(ctx context.Context, path string) (*FormResponse, er
 	return c.doFormRequest(ctx, "DELETE", path, nil)
 }
 
+// PostMultipart performs a POST request with a multipart body, for the endpoints that take a
+// file upload. The server is expected to respond with a redirect (302/303).
+func (c *Client) PostMultipart(ctx context.Context, path, contentType string, body []byte) (*FormResponse, error) {
+	return c.doBodyRequest(ctx, "POST", path, contentType, body)
+}
+
 // doFormRequest executes a form-encoded request and captures the redirect response
 // instead of following it. It handles authentication, logging, and hooks.
 func (c *Client) doFormRequest(ctx context.Context, method, path string, values url.Values) (*FormResponse, error) {
+	if values == nil {
+		return c.doBodyRequest(ctx, method, path, "", nil)
+	}
+	return c.doBodyRequest(ctx, method, path, "application/x-www-form-urlencoded", []byte(values.Encode()))
+}
+
+// doBodyRequest executes a request whose response is a redirect rather than a document, and
+// captures that redirect instead of following it. The body is held as bytes so a retry after
+// a token refresh can send it again.
+func (c *Client) doBodyRequest(ctx context.Context, method, path, contentType string, body []byte) (*FormResponse, error) {
 	reqURL, err := c.buildURL(path)
 	if err != nil {
 		return nil, err
 	}
 
 	var bodyReader io.Reader
-	if values != nil {
-		bodyReader = strings.NewReader(values.Encode())
+	if body != nil {
+		bodyReader = bytes.NewReader(body)
 	}
 
 	req, err := http.NewRequestWithContext(ctx, method, reqURL, bodyReader)
@@ -311,8 +346,8 @@ func (c *Client) doFormRequest(ctx context.Context, method, path string, values 
 		return nil, err
 	}
 	req.Header.Set("User-Agent", c.userAgent)
-	if values != nil {
-		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	if contentType != "" {
+		req.Header.Set("Content-Type", contentType)
 	}
 	req.Header.Set("Accept", "*/*")
 
@@ -345,13 +380,17 @@ func (c *Client) doFormRequest(ctx context.Context, method, path string, values 
 		}, nil
 
 	case resp.StatusCode >= 200 && resp.StatusCode < 300:
-		return &FormResponse{StatusCode: resp.StatusCode}, nil
+		responseBody, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return nil, ErrNetwork(err)
+		}
+		return &FormResponse{StatusCode: resp.StatusCode, Body: string(responseBody)}, nil
 
 	case resp.StatusCode == http.StatusUnauthorized:
 		// Try token refresh and retry once
 		if authMgr, ok := c.tokenProvider.(*AuthManager); ok {
 			if refreshErr := authMgr.Refresh(ctx); refreshErr == nil {
-				return c.doFormRequest(ctx, method, path, values)
+				return c.doBodyRequest(ctx, method, path, contentType, body)
 			}
 		}
 		return nil, ErrAuth("Authentication failed")
@@ -844,6 +883,86 @@ func (c *Client) Search() *SearchService {
 		c.search = NewSearchService(c)
 	}
 	return c.search
+}
+
+// Folders returns the FoldersService.
+func (c *Client) Folders() *FoldersService {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.folders == nil {
+		c.folders = NewFoldersService(c)
+	}
+	return c.folders
+}
+
+// Collections returns the CollectionsService.
+func (c *Client) Collections() *CollectionsService {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.collections == nil {
+		c.collections = NewCollectionsService(c)
+	}
+	return c.collections
+}
+
+// Stickies returns the StickiesService.
+func (c *Client) Stickies() *StickiesService {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.stickies == nil {
+		c.stickies = NewStickiesService(c)
+	}
+	return c.stickies
+}
+
+// Clips returns the ClipsService.
+func (c *Client) Clips() *ClipsService {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.clips == nil {
+		c.clips = NewClipsService(c)
+	}
+	return c.clips
+}
+
+// Snippets returns the SnippetsService.
+func (c *Client) Snippets() *SnippetsService {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.snippets == nil {
+		c.snippets = NewSnippetsService(c)
+	}
+	return c.snippets
+}
+
+// Workflows returns the WorkflowsService.
+func (c *Client) Workflows() *WorkflowsService {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.workflows == nil {
+		c.workflows = NewWorkflowsService(c)
+	}
+	return c.workflows
+}
+
+// Publications returns the PublicationsService.
+func (c *Client) Publications() *PublicationsService {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.publications == nil {
+		c.publications = NewPublicationsService(c)
+	}
+	return c.publications
+}
+
+// World returns the WorldService.
+func (c *Client) World() *WorldService {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.world == nil {
+		c.world = NewWorldService(c)
+	}
+	return c.world
 }
 
 // DefaultSenderID returns the current user's default sender contact ID.

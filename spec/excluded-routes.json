@@ -3971,6 +3971,11 @@
   },
   {
     "method": "GET",
+    "path": "/search",
+    "reason": "web-ui: html-only results page. SearchService scrapes it; /advanced_search_filters.json is the JSON part"
+  },
+  {
+    "method": "GET",
     "path": "/advanced_search",
     "reason": "web-ui: advanced search form"
   },
