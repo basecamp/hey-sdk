@@ -87,6 +87,9 @@ service HEY {
         GetMessage
         CreateMessage
 
+        // Attachments
+        CreateDirectUpload
+
         // Entries (2 MVP)
         ListDrafts
         CreateReply
@@ -1363,6 +1366,73 @@ structure MessagePayload {
 
     @required
     content: String
+}
+
+// =============================================================================
+// ATTACHMENT OPERATIONS
+// =============================================================================
+
+/// Create an Active Storage direct upload for an outgoing attachment.
+/// The returned URL is self-authenticating and accepts the raw file bytes via PUT.
+@http(method: "POST", uri: "/rails/active_storage/direct_uploads.json")
+@tags(["Attachments"])
+operation CreateDirectUpload {
+    input: CreateDirectUploadInput
+    output: CreateDirectUploadOutput
+    errors: [UnauthorizedError, UnprocessableEntityError, InternalServerError, ServiceUnavailableError]
+}
+
+structure CreateDirectUploadInput {
+    @httpPayload
+    @required
+    body: CreateDirectUploadRequestContent
+}
+
+structure CreateDirectUploadRequestContent {
+    @required
+    blob: DirectUploadBlob
+}
+
+structure DirectUploadBlob {
+    @required
+    filename: String
+
+    @required
+    byte_size: Long
+
+    @required
+    checksum: String
+
+    @required
+    content_type: String
+}
+
+map DirectUploadHeaders {
+    key: String
+    value: String
+}
+
+structure DirectUploadTarget {
+    @required
+    url: String
+
+    headers: DirectUploadHeaders
+}
+
+structure DirectUpload {
+    @required
+    signed_id: String
+
+    @required
+    attachable_sgid: String
+
+    @required
+    direct_upload: DirectUploadTarget
+}
+
+structure CreateDirectUploadOutput {
+    @required
+    upload: DirectUpload
 }
 
 structure MessageEntryPayload {

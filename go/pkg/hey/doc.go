@@ -34,6 +34,7 @@
 //   - [Client.Postings] - Bulk posting actions: seen, move, trash, spam, mute, file, bubble up
 //   - [Client.Topics] - Topics and views (sent, spam, trash, everything), status and moves
 //   - [Client.Messages] - Individual messages
+//   - [Client.Attachments] - Active Storage direct uploads for outgoing attachments
 //   - [Client.Entries] - Drafts, replies and forwards
 //   - [Client.Contacts] - Contacts, notes, screening and bundling
 //   - [Client.Calendars] - Calendar views and recordings

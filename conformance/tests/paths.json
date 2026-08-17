@@ -91,6 +91,60 @@
     ]
   },
   {
+    "name": "CreateDirectUpload uses /rails/active_storage/direct_uploads.json path",
+    "description": "Verifies that CreateDirectUpload sends Active Storage blob metadata to the direct upload endpoint",
+    "operation": "CreateDirectUpload",
+    "method": "POST",
+    "path": "/rails/active_storage/direct_uploads.json",
+    "requestBody": {
+      "filename": "quarterly-report.pdf",
+      "byte_size": 128,
+      "checksum": "YWJjZA==",
+      "content_type": "application/pdf"
+    },
+    "mockResponses": [
+      {
+        "status": 200,
+        "body": {
+          "signed_id": "signed-123",
+          "attachable_sgid": "sgid-456",
+          "direct_upload": {
+            "url": "https://uploads.example.com/blob",
+            "headers": {
+              "Content-Type": "application/pdf"
+            }
+          }
+        }
+      }
+    ],
+    "assertions": [
+      {
+        "type": "requestPath",
+        "expected": "/rails/active_storage/direct_uploads.json"
+      },
+      {
+        "type": "requestMethod",
+        "expected": "POST"
+      },
+      {
+        "type": "requestBody",
+        "expected": {
+          "blob.filename": "quarterly-report.pdf",
+          "blob.byte_size": 128,
+          "blob.checksum": "YWJjZA==",
+          "blob.content_type": "application/pdf"
+        }
+      },
+      {
+        "type": "noError"
+      }
+    ],
+    "tags": [
+      "path",
+      "attachments"
+    ]
+  },
+  {
     "name": "CreateMessage uses /messages.json path",
     "description": "Verifies that CreateMessage constructs the URL path /messages.json",
     "operation": "CreateMessage",

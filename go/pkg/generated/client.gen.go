@@ -403,6 +403,14 @@ type CreateContactRequestContent struct {
 // CreateContactResponseContent Contact — the identity of someone in HEY
 type CreateContactResponseContent = Contact
 
+// CreateDirectUploadRequestContent defines model for CreateDirectUploadRequestContent.
+type CreateDirectUploadRequestContent struct {
+	Blob DirectUploadBlob `json:"blob"`
+}
+
+// CreateDirectUploadResponseContent defines model for CreateDirectUploadResponseContent.
+type CreateDirectUploadResponseContent = DirectUpload
+
 // CreateFolderForPostingsRequestContent Wire format: {posting_ids: [...], folder: {name, status}}
 type CreateFolderForPostingsRequestContent struct {
 	Folder     FolderPayload `json:"folder"`
@@ -434,6 +442,30 @@ type CreateStickyResponseContent = Sticky
 
 // CreateTimeTrackResponseContent Recording — polymorphic by `type` (CalendarEvent, CalendarTodo, etc.)
 type CreateTimeTrackResponseContent = Recording
+
+// DirectUpload defines model for DirectUpload.
+type DirectUpload struct {
+	AttachableSgid string             `json:"attachable_sgid"`
+	DirectUpload   DirectUploadTarget `json:"direct_upload"`
+	SignedId       string             `json:"signed_id"`
+}
+
+// DirectUploadBlob defines model for DirectUploadBlob.
+type DirectUploadBlob struct {
+	ByteSize    int64  `json:"byte_size"`
+	Checksum    string `json:"checksum"`
+	ContentType string `json:"content_type"`
+	Filename    string `json:"filename"`
+}
+
+// DirectUploadHeaders defines model for DirectUploadHeaders.
+type DirectUploadHeaders map[string]string
+
+// DirectUploadTarget defines model for DirectUploadTarget.
+type DirectUploadTarget struct {
+	Headers DirectUploadHeaders `json:"headers,omitempty"`
+	Url     string              `json:"url"`
+}
 
 // Domain Domain — email domain
 type Domain struct {
@@ -1540,6 +1572,9 @@ type TrashPostingsJSONRequestBody = TrashPostingsRequestContent
 // MarkPostingsUnseenJSONRequestBody defines body for MarkPostingsUnseen for application/json ContentType.
 type MarkPostingsUnseenJSONRequestBody = MarkPostingsRequestContent
 
+// CreateDirectUploadJSONRequestBody defines body for CreateDirectUpload for application/json ContentType.
+type CreateDirectUploadJSONRequestBody = CreateDirectUploadRequestContent
+
 // CreateStickyJSONRequestBody defines body for CreateSticky for application/json ContentType.
 type CreateStickyJSONRequestBody = StickyRequestContent
 
@@ -2059,6 +2094,11 @@ type ClientInterface interface {
 	MarkPostingsUnseenWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	MarkPostingsUnseen(ctx context.Context, body MarkPostingsUnseenJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CreateDirectUploadWithBody request with any body
+	CreateDirectUploadWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	CreateDirectUpload(ctx context.Context, body CreateDirectUploadJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// GetLaterbox request
 	GetLaterbox(ctx context.Context, params *GetLaterboxParams, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -3422,6 +3462,36 @@ func (c *Client) MarkPostingsUnseenWithBody(ctx context.Context, contentType str
 func (c *Client) MarkPostingsUnseen(ctx context.Context, body MarkPostingsUnseenJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 
 	req, err := NewMarkPostingsUnseenRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+
+}
+
+// CreateDirectUploadWithBody executes the CreateDirectUpload operation.
+
+func (c *Client) CreateDirectUploadWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+
+	req, err := NewCreateDirectUploadRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+
+}
+
+func (c *Client) CreateDirectUpload(ctx context.Context, body CreateDirectUploadJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+
+	req, err := NewCreateDirectUploadRequest(c.Server, body)
 	if err != nil {
 		return nil, err
 	}
@@ -6982,6 +7052,46 @@ func NewMarkPostingsUnseenRequestWithBody(server string, contentType string, bod
 	return req, nil
 }
 
+// NewCreateDirectUploadRequest calls the generic CreateDirectUpload builder with application/json body
+func NewCreateDirectUploadRequest(server string, body CreateDirectUploadJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewCreateDirectUploadRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewCreateDirectUploadRequestWithBody generates requests for CreateDirectUpload with any type of body
+func NewCreateDirectUploadRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/rails/active_storage/direct_uploads.json")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
 // NewGetLaterboxRequest generates requests for GetLaterbox
 func NewGetLaterboxRequest(server string, params *GetLaterboxParams) (*http.Request, error) {
 	var err error
@@ -7998,6 +8108,7 @@ var operationMetadata = map[string]OperationMetadata{
 	"MarkPostingsSpam":           {Idempotent: false, HasSensitiveParams: false},
 	"TrashPostings":              {Idempotent: false, HasSensitiveParams: false},
 	"MarkPostingsUnseen":         {Idempotent: false, HasSensitiveParams: false},
+	"CreateDirectUpload":         {Idempotent: false, HasSensitiveParams: false},
 	"GetLaterbox":                {Idempotent: true, HasSensitiveParams: false},
 	"GetAsidebox":                {Idempotent: true, HasSensitiveParams: false},
 	"ListSnippets":               {Idempotent: true, HasSensitiveParams: false},
@@ -9388,6 +9499,22 @@ type ClientWithResponsesInterface interface {
 	//
 	// Mark postings as unseen.
 	MarkPostingsUnseenWithResponse(ctx context.Context, body MarkPostingsUnseenJSONRequestBody, reqEditors ...RequestEditorFn) (*MarkPostingsUnseenResponse, error)
+
+	// CreateDirectUploadWithBodyWithResponse performs a POST /rails/active_storage/direct_uploads.json (the `CreateDirectUpload` operationId) request,
+	// with any type of body and a specified content type.
+	//
+	// Create an Active Storage direct upload for an outgoing attachment.
+	// The returned URL is self-authenticating and accepts the raw file bytes via PUT.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	CreateDirectUploadWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateDirectUploadResponse, error)
+
+	// CreateDirectUploadWithResponse performs a POST /rails/active_storage/direct_uploads.json (the `CreateDirectUpload` operationId) request.
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Create an Active Storage direct upload for an outgoing attachment.
+	// The returned URL is self-authenticating and accepts the raw file bytes via PUT.
+	CreateDirectUploadWithResponse(ctx context.Context, body CreateDirectUploadJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateDirectUploadResponse, error)
 
 	// GetLaterboxWithResponse performs a GET /reply_later.json (the `GetLaterbox` operationId) request.
 	//
@@ -14564,6 +14691,75 @@ func (r MarkPostingsUnseenResponse) ContentType() string {
 	return ""
 }
 
+type CreateDirectUploadResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *CreateDirectUploadResponseContent
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *UnauthorizedErrorResponseContent
+	// JSON422 the response for an HTTP 422 `application/json` response
+	JSON422 *UnprocessableEntityErrorResponseContent
+	// JSON500 the response for an HTTP 500 `application/json` response
+	JSON500 *InternalServerErrorResponseContent
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *ServiceUnavailableErrorResponseContent
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r CreateDirectUploadResponse) GetJSON200() *CreateDirectUploadResponseContent {
+	return r.JSON200
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r CreateDirectUploadResponse) GetJSON401() *UnauthorizedErrorResponseContent {
+	return r.JSON401
+}
+
+// GetJSON422 returns the response for an HTTP 422 `application/json` response
+func (r CreateDirectUploadResponse) GetJSON422() *UnprocessableEntityErrorResponseContent {
+	return r.JSON422
+}
+
+// GetJSON500 returns the response for an HTTP 500 `application/json` response
+func (r CreateDirectUploadResponse) GetJSON500() *InternalServerErrorResponseContent {
+	return r.JSON500
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r CreateDirectUploadResponse) GetJSON503() *ServiceUnavailableErrorResponseContent {
+	return r.JSON503
+}
+
+// GetBody returns the raw response body bytes
+func (r CreateDirectUploadResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r CreateDirectUploadResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r CreateDirectUploadResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r CreateDirectUploadResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type GetLaterboxResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -17344,6 +17540,34 @@ func (c *ClientWithResponses) MarkPostingsUnseenWithResponse(ctx context.Context
 		return nil, err
 	}
 	return ParseMarkPostingsUnseenResponse(rsp)
+}
+
+// CreateDirectUploadWithBodyWithResponse performs a POST /rails/active_storage/direct_uploads.json (the `CreateDirectUpload` operationId) request,
+// with any type of body and a specified content type.
+//
+// Create an Active Storage direct upload for an outgoing attachment.
+// The returned URL is self-authenticating and accepts the raw file bytes via PUT.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) CreateDirectUploadWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateDirectUploadResponse, error) {
+	rsp, err := c.CreateDirectUploadWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateDirectUploadResponse(rsp)
+}
+
+// CreateDirectUploadWithResponse performs a POST /rails/active_storage/direct_uploads.json (the `CreateDirectUpload` operationId) request.
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Create an Active Storage direct upload for an outgoing attachment.
+// The returned URL is self-authenticating and accepts the raw file bytes via PUT.
+func (c *ClientWithResponses) CreateDirectUploadWithResponse(ctx context.Context, body CreateDirectUploadJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateDirectUploadResponse, error) {
+	rsp, err := c.CreateDirectUpload(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateDirectUploadResponse(rsp)
 }
 
 // GetLaterboxWithResponse performs a GET /reply_later.json (the `GetLaterbox` operationId) request.
@@ -21612,6 +21836,60 @@ func ParseMarkPostingsUnseenResponse(rsp *http.Response) (*MarkPostingsUnseenRes
 			return nil, err
 		}
 		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest InternalServerErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+		var dest ServiceUnavailableErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON503 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseCreateDirectUploadResponse parses an HTTP response from a CreateDirectUploadWithResponse call
+func ParseCreateDirectUploadResponse(rsp *http.Response) (*CreateDirectUploadResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &CreateDirectUploadResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest CreateDirectUploadResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest UnauthorizedErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 422:
+		var dest UnprocessableEntityErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON422 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
 		var dest InternalServerErrorResponseContent
