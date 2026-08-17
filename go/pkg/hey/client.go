@@ -222,7 +222,9 @@ func (c *Client) initGeneratedClient() {
 			}
 			req.Header.Set("Accept", "application/json")
 			req.URL.Path = withJSONExtension(req.URL.Path)
-			req.URL.RawPath = ""
+			if req.URL.RawPath != "" {
+				req.URL.RawPath = withJSONExtension(req.URL.RawPath)
+			}
 			return nil
 		}
 		gen, err := generated.NewClientWithResponses(serverURL,

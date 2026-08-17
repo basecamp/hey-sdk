@@ -34,7 +34,7 @@ func NewPostingsService(client *Client) *PostingsService {
 // MarkSeen marks one or more postings as seen/read.
 func (s *PostingsService) MarkSeen(ctx context.Context, postingIDs []int64) (err error) {
 	return s.bulkAction(ctx, "MarkPostingsSeen", postingIDs, func(ctx context.Context, ids []int64) error {
-		resp, err := s.genClient().MarkPostingsSeenWithResponse(ctx, generated.MarkPostingsRequestContent{PostingIds: ids})
+		resp, err := s.client.genClient().MarkPostingsSeenWithResponse(ctx, generated.MarkPostingsRequestContent{PostingIds: ids})
 		if err != nil {
 			return err
 		}
@@ -45,7 +45,7 @@ func (s *PostingsService) MarkSeen(ctx context.Context, postingIDs []int64) (err
 // MarkUnseen marks one or more postings as unseen/unread.
 func (s *PostingsService) MarkUnseen(ctx context.Context, postingIDs []int64) (err error) {
 	return s.bulkAction(ctx, "MarkPostingsUnseen", postingIDs, func(ctx context.Context, ids []int64) error {
-		resp, err := s.genClient().MarkPostingsUnseenWithResponse(ctx, generated.MarkPostingsRequestContent{PostingIds: ids})
+		resp, err := s.client.genClient().MarkPostingsUnseenWithResponse(ctx, generated.MarkPostingsRequestContent{PostingIds: ids})
 		if err != nil {
 			return err
 		}
@@ -57,7 +57,7 @@ func (s *PostingsService) MarkUnseen(ctx context.Context, postingIDs []int64) (e
 // (POST /postings/moves). Box IDs come from Boxes().List.
 func (s *PostingsService) Move(ctx context.Context, boxID int64, postingIDs ...int64) (err error) {
 	return s.bulkAction(ctx, "MovePostings", postingIDs, func(ctx context.Context, ids []int64) error {
-		resp, err := s.genClient().MovePostingsWithResponse(ctx, generated.MovePostingsRequestContent{PostingIds: ids, BoxId: boxID})
+		resp, err := s.client.genClient().MovePostingsWithResponse(ctx, generated.MovePostingsRequestContent{PostingIds: ids, BoxId: boxID})
 		if err != nil {
 			return err
 		}
@@ -117,7 +117,7 @@ func (s *PostingsService) TrashForEveryone(ctx context.Context, postingIDs ...in
 // server reads as "remove my access".
 func (s *PostingsService) trash(ctx context.Context, removeAccess string, postingIDs []int64) error {
 	return s.bulkAction(ctx, "TrashPostings", postingIDs, func(ctx context.Context, ids []int64) error {
-		resp, err := s.genClient().TrashPostingsWithResponse(ctx, generated.TrashPostingsRequestContent{
+		resp, err := s.client.genClient().TrashPostingsWithResponse(ctx, generated.TrashPostingsRequestContent{
 			PostingIds:   ids,
 			RemoveAccess: removeAccess,
 		})
@@ -132,7 +132,7 @@ func (s *PostingsService) trash(ctx context.Context, removeAccess string, postin
 // (POST /postings/mutings).
 func (s *PostingsService) Mute(ctx context.Context, postingIDs ...int64) (err error) {
 	return s.bulkAction(ctx, "MutePostings", postingIDs, func(ctx context.Context, ids []int64) error {
-		resp, err := s.genClient().MutePostingsWithResponse(ctx, generated.MarkPostingsRequestContent{PostingIds: ids})
+		resp, err := s.client.genClient().MutePostingsWithResponse(ctx, generated.MarkPostingsRequestContent{PostingIds: ids})
 		if err != nil {
 			return err
 		}
@@ -144,7 +144,7 @@ func (s *PostingsService) Mute(ctx context.Context, postingIDs ...int64) (err er
 func (s *PostingsService) Unmute(ctx context.Context, postingIDs ...int64) (err error) {
 	return s.bulkAction(ctx, "UnmutePostings", postingIDs, func(ctx context.Context, ids []int64) error {
 		params := &generated.UnmutePostingsParams{PostingIds: joinIDs(ids)}
-		resp, err := s.genClient().UnmutePostingsWithResponse(ctx, params)
+		resp, err := s.client.genClient().UnmutePostingsWithResponse(ctx, params)
 		if err != nil {
 			return err
 		}
@@ -158,7 +158,7 @@ func (s *PostingsService) Unmute(ctx context.Context, postingIDs ...int64) (err 
 // before the postings have actually moved.
 func (s *PostingsService) MarkSpam(ctx context.Context, postingIDs ...int64) (err error) {
 	return s.bulkAction(ctx, "MarkPostingsSpam", postingIDs, func(ctx context.Context, ids []int64) error {
-		resp, err := s.genClient().MarkPostingsSpamWithResponse(ctx, generated.MarkPostingsRequestContent{PostingIds: ids})
+		resp, err := s.client.genClient().MarkPostingsSpamWithResponse(ctx, generated.MarkPostingsRequestContent{PostingIds: ids})
 		if err != nil {
 			return err
 		}
@@ -169,7 +169,7 @@ func (s *PostingsService) MarkSpam(ctx context.Context, postingIDs ...int64) (er
 // AddToBoxGroup files one or more postings into an existing Set Aside group.
 func (s *PostingsService) AddToBoxGroup(ctx context.Context, boxID, boxGroupID int64, postingIDs ...int64) (err error) {
 	return s.bulkAction(ctx, "AddPostingsToBoxGroup", postingIDs, func(ctx context.Context, ids []int64) error {
-		resp, err := s.genClient().AddPostingsToBoxGroupWithResponse(ctx, generated.AddPostingsToBoxGroupRequestContent{
+		resp, err := s.client.genClient().AddPostingsToBoxGroupWithResponse(ctx, generated.AddPostingsToBoxGroupRequestContent{
 			PostingIds: ids,
 			BoxId:      boxID,
 			BoxGroupId: boxGroupID,
@@ -185,7 +185,7 @@ func (s *PostingsService) AddToBoxGroup(ctx context.Context, boxID, boxGroupID i
 func (s *PostingsService) RemoveFromBoxGroup(ctx context.Context, postingIDs ...int64) (err error) {
 	return s.bulkAction(ctx, "RemovePostingsFromBoxGroup", postingIDs, func(ctx context.Context, ids []int64) error {
 		params := &generated.RemovePostingsFromBoxGroupParams{PostingIds: joinIDs(ids)}
-		resp, err := s.genClient().RemovePostingsFromBoxGroupWithResponse(ctx, params)
+		resp, err := s.client.genClient().RemovePostingsFromBoxGroupWithResponse(ctx, params)
 		if err != nil {
 			return err
 		}
@@ -196,7 +196,7 @@ func (s *PostingsService) RemoveFromBoxGroup(ctx context.Context, postingIDs ...
 // File labels one or more postings with an existing folder.
 func (s *PostingsService) File(ctx context.Context, folderID int64, postingIDs ...int64) (err error) {
 	return s.bulkAction(ctx, "FilePostings", postingIDs, func(ctx context.Context, ids []int64) error {
-		resp, err := s.genClient().FilePostingsWithResponse(ctx, generated.FilePostingsRequestContent{
+		resp, err := s.client.genClient().FilePostingsWithResponse(ctx, generated.FilePostingsRequestContent{
 			PostingIds: ids,
 			FolderId:   folderID,
 		})
@@ -216,7 +216,7 @@ func (s *PostingsService) Unfile(ctx context.Context, folderID int64, postingIDs
 		if folderID != 0 {
 			params.FolderId = &folderID
 		}
-		resp, err := s.genClient().UnfilePostingsWithResponse(ctx, &params)
+		resp, err := s.client.genClient().UnfilePostingsWithResponse(ctx, &params)
 		if err != nil {
 			return err
 		}
@@ -227,7 +227,7 @@ func (s *PostingsService) Unfile(ctx context.Context, folderID int64, postingIDs
 // CreateFolder creates a folder (label) and files one or more postings into it.
 func (s *PostingsService) CreateFolder(ctx context.Context, name string, postingIDs ...int64) (err error) {
 	return s.bulkAction(ctx, "CreateFolderForPostings", postingIDs, func(ctx context.Context, ids []int64) error {
-		resp, err := s.genClient().CreateFolderForPostingsWithResponse(ctx, generated.CreateFolderForPostingsRequestContent{
+		resp, err := s.client.genClient().CreateFolderForPostingsWithResponse(ctx, generated.CreateFolderForPostingsRequestContent{
 			PostingIds: ids,
 			Folder:     generated.FolderPayload{Name: name},
 		})
@@ -242,7 +242,7 @@ func (s *PostingsService) CreateFolder(ctx context.Context, name string, posting
 func (s *PostingsService) CancelBubbleUp(ctx context.Context, postingIDs ...int64) (err error) {
 	return s.bulkAction(ctx, "CancelPostingsBubbleUp", postingIDs, func(ctx context.Context, ids []int64) error {
 		params := &generated.CancelPostingsBubbleUpParams{PostingIds: joinIDs(ids)}
-		resp, err := s.genClient().CancelPostingsBubbleUpWithResponse(ctx, params)
+		resp, err := s.client.genClient().CancelPostingsBubbleUpWithResponse(ctx, params)
 		if err != nil {
 			return err
 		}
@@ -253,7 +253,7 @@ func (s *PostingsService) CancelBubbleUp(ctx context.Context, postingIDs ...int6
 // BubbleUpNow bubbles one or more postings up right away.
 func (s *PostingsService) BubbleUpNow(ctx context.Context, postingIDs ...int64) (err error) {
 	return s.bulkAction(ctx, "BubbleUpPostingsNow", postingIDs, func(ctx context.Context, ids []int64) error {
-		resp, err := s.genClient().BubbleUpPostingsNowWithResponse(ctx, generated.MarkPostingsRequestContent{PostingIds: ids})
+		resp, err := s.client.genClient().BubbleUpPostingsNowWithResponse(ctx, generated.MarkPostingsRequestContent{PostingIds: ids})
 		if err != nil {
 			return err
 		}
@@ -292,11 +292,6 @@ func (c *Client) BoxIDByKind(ctx context.Context, kind string) (int64, error) {
 		return 0, ErrAPI(0, fmt.Sprintf("no box of kind %q", kind))
 	}
 	return id, nil
-}
-
-func (s *PostingsService) genClient() *generated.ClientWithResponses {
-	s.client.initGeneratedClient()
-	return s.client.gen
 }
 
 func (s *PostingsService) bulkAction(ctx context.Context, operation string, ids []int64, fn func(context.Context, []int64) error) (err error) {
