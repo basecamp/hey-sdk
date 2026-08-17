@@ -144,6 +144,7 @@ func runTest(tc TestCase) TestResult {
 	var requestMethods []string
 	var requestQueries []url.Values
 	var requestBodies [][]byte
+	var requestReadErr error
 	var requestHeaders []http.Header
 	var responseStatuses []int
 
@@ -156,7 +157,10 @@ func runTest(tc TestCase) TestResult {
 		requestPaths = append(requestPaths, r.URL.Path)
 		requestMethods = append(requestMethods, r.Method)
 		requestQueries = append(requestQueries, r.URL.Query())
-		body, _ := io.ReadAll(r.Body)
+		body, readErr := io.ReadAll(r.Body)
+		if readErr != nil && requestReadErr == nil {
+			requestReadErr = fmt.Errorf("reading request body: %w", readErr)
+		}
 		requestBodies = append(requestBodies, body)
 		requestHeaders = append(requestHeaders, r.Header.Clone())
 		idx := responseIndex
@@ -263,6 +267,14 @@ func runTest(tc TestCase) TestResult {
 	// If we have a successful response, use its status
 	if sdkResp != nil && sdkResp.StatusCode > 0 {
 		lastStatus = sdkResp.StatusCode
+	}
+
+	// A request body that failed to read would make body assertions lie, so fail
+	// the case outright rather than assert against a partial body.
+	if requestReadErr != nil {
+		result := fail(tc.Name, "%v", requestReadErr)
+		fmt.Printf("  FAIL: %s\n        %s\n", tc.Name, result.Message)
+		return result
 	}
 
 	// Run assertions
@@ -744,7 +756,6 @@ func fail(testName, format string, args ...interface{}) TestResult {
 	}
 }
 
-// toInt safely converts an interface{} (typically from JSON) to int.
 // lookupJSONPath walks a decoded JSON value by a dot-separated path, using
 // integer segments as array indexes. It reports whether the path resolved.
 func lookupJSONPath(v interface{}, path string) (interface{}, bool) {
@@ -770,6 +781,7 @@ func lookupJSONPath(v interface{}, path string) (interface{}, bool) {
 	return cur, true
 }
 
+// toInt safely converts an interface{} (typically from JSON) to int.
 func toInt(v interface{}) (int, error) {
 	switch n := v.(type) {
 	case float64:
