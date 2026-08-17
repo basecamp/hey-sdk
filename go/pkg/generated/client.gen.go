@@ -737,6 +737,9 @@ type ListBoxesResponseContent = []Box
 // ListCalendarsResponseContent CalendarListPayload
 type ListCalendarsResponseContent = CalendarListPayload
 
+// ListClearancesOutputPayload defines model for ListClearancesOutputPayload.
+type ListClearancesOutputPayload = string
+
 // ListClipsResponseContent defines model for ListClipsResponseContent.
 type ListClipsResponseContent = []Clip
 
@@ -1244,6 +1247,9 @@ type UnprocessableEntityErrorResponseContent struct {
 	Message string   `json:"message,omitempty"`
 }
 
+// UpdateClearanceInputPayload defines model for UpdateClearanceInputPayload.
+type UpdateClearanceInputPayload = string
+
 // UpdateCollectionRequestContent Wire format: {collection: {name, summary}}
 type UpdateCollectionRequestContent struct {
 	Collection CollectionPayload `json:"collection"`
@@ -1541,6 +1547,9 @@ type UpdateTimeTrackJSONRequestBody = UpdateTimeTrackRequestContent
 
 // CreateCalendarTodoJSONRequestBody defines body for CreateCalendarTodo for application/json ContentType.
 type CreateCalendarTodoJSONRequestBody = CreateCalendarTodoRequestContent
+
+// UpdateClearanceFormdataRequestBody defines body for UpdateClearance for application/x-www-form-urlencoded ContentType.
+type UpdateClearanceFormdataRequestBody = UpdateClearanceInputPayload
 
 // UpdateCollectionJSONRequestBody defines body for UpdateCollection for application/json ContentType.
 type UpdateCollectionJSONRequestBody = UpdateCollectionRequestContent
@@ -1959,8 +1968,16 @@ type ClientInterface interface {
 	// GetCalendarRecordings request
 	GetCalendarRecordings(ctx context.Context, calendarId int64, params *GetCalendarRecordingsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// ListClearances request
+	ListClearances(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// GetClearances request
 	GetClearances(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// UpdateClearanceWithBody request with any body
+	UpdateClearanceWithBody(ctx context.Context, clearanceId int64, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	UpdateClearanceWithFormdataBody(ctx context.Context, clearanceId int64, body UpdateClearanceFormdataRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ListClips request
 	ListClips(ctx context.Context, params *ListClipsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -2641,8 +2658,16 @@ func (c *Client) DeleteTimeTrack(ctx context.Context, timeTrackId int64, reqEdit
 
 func (c *Client) UpdateTimeTrackWithBody(ctx context.Context, timeTrackId int64, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
 
+	var bodyBytes []byte
+	if body != nil {
+		var err error
+		bodyBytes, err = io.ReadAll(body)
+		if err != nil {
+			return nil, err
+		}
+	}
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
-		return NewUpdateTimeTrackRequestWithBody(c.Server, timeTrackId, contentType, body)
+		return NewUpdateTimeTrackRequestWithBody(c.Server, timeTrackId, contentType, bytes.NewReader(bodyBytes))
 	}, true, "UpdateTimeTrack", reqEditors...)
 
 }
@@ -2735,6 +2760,16 @@ func (c *Client) GetCalendarRecordings(ctx context.Context, calendarId int64, pa
 
 }
 
+// ListClearances is marked as idempotent and will be retried on transient failures.
+
+func (c *Client) ListClearances(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+
+	return c.doWithRetry(ctx, func() (*http.Request, error) {
+		return NewListClearancesRequest(c.Server)
+	}, true, "ListClearances", reqEditors...)
+
+}
+
 // GetClearances is marked as idempotent and will be retried on transient failures.
 
 func (c *Client) GetClearances(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -2742,6 +2777,32 @@ func (c *Client) GetClearances(ctx context.Context, reqEditors ...RequestEditorF
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
 		return NewGetClearancesRequest(c.Server)
 	}, true, "GetClearances", reqEditors...)
+
+}
+
+// UpdateClearanceWithBody is marked as idempotent and will be retried on transient failures.
+
+func (c *Client) UpdateClearanceWithBody(ctx context.Context, clearanceId int64, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+
+	var bodyBytes []byte
+	if body != nil {
+		var err error
+		bodyBytes, err = io.ReadAll(body)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return c.doWithRetry(ctx, func() (*http.Request, error) {
+		return NewUpdateClearanceRequestWithBody(c.Server, clearanceId, contentType, bytes.NewReader(bodyBytes))
+	}, true, "UpdateClearance", reqEditors...)
+
+}
+
+func (c *Client) UpdateClearanceWithFormdataBody(ctx context.Context, clearanceId int64, body UpdateClearanceFormdataRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+
+	return c.doWithRetry(ctx, func() (*http.Request, error) {
+		return NewUpdateClearanceRequestWithFormdataBody(c.Server, clearanceId, body)
+	}, true, "UpdateClearance", reqEditors...)
 
 }
 
@@ -5461,6 +5522,33 @@ func NewGetCalendarRecordingsRequest(server string, calendarId int64, params *Ge
 	return req, nil
 }
 
+// NewListClearancesRequest generates requests for ListClearances
+func NewListClearancesRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/clearances")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewGetClearancesRequest generates requests for GetClearances
 func NewGetClearancesRequest(server string) (*http.Request, error) {
 	var err error
@@ -5484,6 +5572,53 @@ func NewGetClearancesRequest(server string) (*http.Request, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	return req, nil
+}
+
+// NewUpdateClearanceRequestWithFormdataBody calls the generic UpdateClearance builder with application/x-www-form-urlencoded body
+func NewUpdateClearanceRequestWithFormdataBody(server string, clearanceId int64, body UpdateClearanceFormdataRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	bodyStr, err := runtime.MarshalForm(body, nil)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = strings.NewReader(bodyStr.Encode())
+	return NewUpdateClearanceRequestWithBody(server, clearanceId, "application/x-www-form-urlencoded", bodyReader)
+}
+
+// NewUpdateClearanceRequestWithBody generates requests for UpdateClearance with any type of body
+func NewUpdateClearanceRequestWithBody(server string, clearanceId int64, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "clearanceId", runtime.ParamLocationPath, clearanceId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/clearances/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("PATCH", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
 
 	return req, nil
 }
@@ -8201,7 +8336,9 @@ var operationMetadata = map[string]OperationMetadata{
 	"CompleteCalendarTodo":       {Idempotent: true, HasSensitiveParams: false},
 	"ListCalendars":              {Idempotent: true, HasSensitiveParams: false},
 	"GetCalendarRecordings":      {Idempotent: true, HasSensitiveParams: false},
+	"ListClearances":             {Idempotent: true, HasSensitiveParams: false},
 	"GetClearances":              {Idempotent: true, HasSensitiveParams: false},
+	"UpdateClearance":            {Idempotent: true, HasSensitiveParams: false},
 	"ListClips":                  {Idempotent: true, HasSensitiveParams: false},
 	"ListCollections":            {Idempotent: true, HasSensitiveParams: false},
 	"UpdateCollection":           {Idempotent: false, HasSensitiveParams: false},
@@ -9208,12 +9345,33 @@ type ClientWithResponsesInterface interface {
 	// Returns a wrapper object for the known response body format(s).
 	GetCalendarRecordingsWithResponse(ctx context.Context, calendarId int64, params *GetCalendarRecordingsParams, reqEditors ...RequestEditorFn) (*GetCalendarRecordingsResponse, error)
 
+	// ListClearancesWithResponse performs a GET /clearances (the `ListClearances` operationId) request.
+	//
+	// List the senders waiting in the Screener. HEY serves this collection as HTML.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	ListClearancesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListClearancesResponse, error)
+
 	// GetClearancesWithResponse performs a GET /clearances.json (the `GetClearances` operationId) request.
 	//
 	// Get the screener summary — how many senders are waiting to be screened.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	GetClearancesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetClearancesResponse, error)
+
+	// UpdateClearanceWithBodyWithResponse performs a PATCH /clearances/{clearanceId} (the `UpdateClearance` operationId) request,
+	// with any type of body and a specified content type.
+	//
+	// Approve or deny a pending Screener clearance.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	UpdateClearanceWithBodyWithResponse(ctx context.Context, clearanceId int64, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateClearanceResponse, error)
+
+	// UpdateClearanceWithFormdataBodyWithResponse performs a PATCH /clearances/{clearanceId} (the `UpdateClearance` operationId) request.
+	// Takes a body of the `application/x-www-form-urlencoded` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Approve or deny a pending Screener clearance.
+	UpdateClearanceWithFormdataBodyWithResponse(ctx context.Context, clearanceId int64, body UpdateClearanceFormdataRequestBody, reqEditors ...RequestEditorFn) (*UpdateClearanceResponse, error)
 
 	// ListClipsWithResponse performs a GET /clips.json (the `ListClips` operationId) request.
 	//
@@ -12208,6 +12366,61 @@ func (r GetCalendarRecordingsResponse) ContentType() string {
 	return ""
 }
 
+type ListClearancesResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *UnauthorizedErrorResponseContent
+	// JSON500 the response for an HTTP 500 `application/json` response
+	JSON500 *InternalServerErrorResponseContent
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *ServiceUnavailableErrorResponseContent
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r ListClearancesResponse) GetJSON401() *UnauthorizedErrorResponseContent {
+	return r.JSON401
+}
+
+// GetJSON500 returns the response for an HTTP 500 `application/json` response
+func (r ListClearancesResponse) GetJSON500() *InternalServerErrorResponseContent {
+	return r.JSON500
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r ListClearancesResponse) GetJSON503() *ServiceUnavailableErrorResponseContent {
+	return r.JSON503
+}
+
+// GetBody returns the raw response body bytes
+func (r ListClearancesResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListClearancesResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListClearancesResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListClearancesResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type GetClearancesResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -12264,6 +12477,75 @@ func (r GetClearancesResponse) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r GetClearancesResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type UpdateClearanceResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *UnauthorizedErrorResponseContent
+	// JSON404 the response for an HTTP 404 `application/json` response
+	JSON404 *NotFoundErrorResponseContent
+	// JSON422 the response for an HTTP 422 `application/json` response
+	JSON422 *UnprocessableEntityErrorResponseContent
+	// JSON500 the response for an HTTP 500 `application/json` response
+	JSON500 *InternalServerErrorResponseContent
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *ServiceUnavailableErrorResponseContent
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r UpdateClearanceResponse) GetJSON401() *UnauthorizedErrorResponseContent {
+	return r.JSON401
+}
+
+// GetJSON404 returns the response for an HTTP 404 `application/json` response
+func (r UpdateClearanceResponse) GetJSON404() *NotFoundErrorResponseContent {
+	return r.JSON404
+}
+
+// GetJSON422 returns the response for an HTTP 422 `application/json` response
+func (r UpdateClearanceResponse) GetJSON422() *UnprocessableEntityErrorResponseContent {
+	return r.JSON422
+}
+
+// GetJSON500 returns the response for an HTTP 500 `application/json` response
+func (r UpdateClearanceResponse) GetJSON500() *InternalServerErrorResponseContent {
+	return r.JSON500
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r UpdateClearanceResponse) GetJSON503() *ServiceUnavailableErrorResponseContent {
+	return r.JSON503
+}
+
+// GetBody returns the raw response body bytes
+func (r UpdateClearanceResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r UpdateClearanceResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r UpdateClearanceResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r UpdateClearanceResponse) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -16993,6 +17275,19 @@ func (c *ClientWithResponses) GetCalendarRecordingsWithResponse(ctx context.Cont
 	return ParseGetCalendarRecordingsResponse(rsp)
 }
 
+// ListClearancesWithResponse performs a GET /clearances (the `ListClearances` operationId) request.
+//
+// List the senders waiting in the Screener. HEY serves this collection as HTML.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) ListClearancesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListClearancesResponse, error) {
+	rsp, err := c.ListClearances(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListClearancesResponse(rsp)
+}
+
 // GetClearancesWithResponse performs a GET /clearances.json (the `GetClearances` operationId) request.
 //
 // Get the screener summary — how many senders are waiting to be screened.
@@ -17004,6 +17299,32 @@ func (c *ClientWithResponses) GetClearancesWithResponse(ctx context.Context, req
 		return nil, err
 	}
 	return ParseGetClearancesResponse(rsp)
+}
+
+// UpdateClearanceWithBodyWithResponse performs a PATCH /clearances/{clearanceId} (the `UpdateClearance` operationId) request,
+// with any type of body and a specified content type.
+//
+// Approve or deny a pending Screener clearance.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) UpdateClearanceWithBodyWithResponse(ctx context.Context, clearanceId int64, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateClearanceResponse, error) {
+	rsp, err := c.UpdateClearanceWithBody(ctx, clearanceId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpdateClearanceResponse(rsp)
+}
+
+// UpdateClearanceWithFormdataBodyWithResponse performs a PATCH /clearances/{clearanceId} (the `UpdateClearance` operationId) request.
+// Takes a body of the `application/x-www-form-urlencoded` content type, and returns a wrapper object for the known response body format(s).
+//
+// Approve or deny a pending Screener clearance.
+func (c *ClientWithResponses) UpdateClearanceWithFormdataBodyWithResponse(ctx context.Context, clearanceId int64, body UpdateClearanceFormdataRequestBody, reqEditors ...RequestEditorFn) (*UpdateClearanceResponse, error) {
+	rsp, err := c.UpdateClearanceWithFormdataBody(ctx, clearanceId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpdateClearanceResponse(rsp)
 }
 
 // ListClipsWithResponse performs a GET /clips.json (the `ListClips` operationId) request.
@@ -20016,6 +20337,46 @@ func ParseGetCalendarRecordingsResponse(rsp *http.Response) (*GetCalendarRecordi
 	return response, nil
 }
 
+// ParseListClearancesResponse parses an HTTP response from a ListClearancesWithResponse call
+func ParseListClearancesResponse(rsp *http.Response) (*ListClearancesResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListClearancesResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest UnauthorizedErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest InternalServerErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+		var dest ServiceUnavailableErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON503 = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseGetClearancesResponse parses an HTTP response from a GetClearancesWithResponse call
 func ParseGetClearancesResponse(rsp *http.Response) (*GetClearancesResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -20043,6 +20404,63 @@ func ParseGetClearancesResponse(rsp *http.Response) (*GetClearancesResponse, err
 			return nil, err
 		}
 		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest InternalServerErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+		var dest ServiceUnavailableErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON503 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseUpdateClearanceResponse parses an HTTP response from a UpdateClearanceWithResponse call
+func ParseUpdateClearanceResponse(rsp *http.Response) (*UpdateClearanceResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &UpdateClearanceResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 200:
+		break // No content-type
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest UnauthorizedErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFoundErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 422:
+		var dest UnprocessableEntityErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON422 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
 		var dest InternalServerErrorResponseContent

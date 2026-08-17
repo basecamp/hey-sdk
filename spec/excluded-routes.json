@@ -2950,11 +2950,6 @@
     "reason": "phase-2: screener clearances"
   },
   {
-    "method": "PATCH",
-    "path": "/clearances/{id}",
-    "reason": "phase-2: screener clearances"
-  },
-  {
     "method": "PUT",
     "path": "/clearances/{id}",
     "reason": "phase-2: screener clearances"

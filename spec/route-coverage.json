@@ -301,6 +301,11 @@
   },
   {
     "method": "GET",
+    "operationId": "ListClearances",
+    "path": "/clearances"
+  },
+  {
+    "method": "GET",
     "operationId": "ListClips",
     "path": "/clips.json"
   },
@@ -458,6 +463,11 @@
     "method": "DELETE",
     "operationId": "UnmutePostings",
     "path": "/postings/mutings.json"
+  },
+  {
+    "method": "PATCH",
+    "operationId": "UpdateClearance",
+    "path": "/clearances/{clearanceId}"
   },
   {
     "method": "PATCH",

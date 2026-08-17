@@ -316,11 +316,32 @@
     },
     {
       "pattern": "/clearances",
+      "resource": "Clearances",
+      "operations": {
+        "GET": "ListClearances"
+      },
+      "params": {}
+    },
+    {
+      "pattern": "/clearances",
       "resource": "Contacts",
       "operations": {
         "GET": "GetClearances"
       },
       "params": {}
+    },
+    {
+      "pattern": "/clearances/{clearanceId}",
+      "resource": "Clearances",
+      "operations": {
+        "PATCH": "UpdateClearance"
+      },
+      "params": {
+        "clearanceId": {
+          "role": "recording",
+          "type": "int64"
+        }
+      }
     },
     {
       "pattern": "/clips",

@@ -20,7 +20,7 @@ type HTTPOptions struct {
 	// Timeout is the request timeout (default: 30s).
 	Timeout time.Duration
 
-	// MaxRetries is the maximum retry attempts for GET requests (default: 3).
+	// MaxRetries is the maximum retry attempts for idempotent requests (default: 3).
 	MaxRetries int
 
 	// BaseDelay is the initial backoff delay (default: 1s).
@@ -55,7 +55,7 @@ func WithTimeout(d time.Duration) ClientOption {
 	}
 }
 
-// WithMaxRetries sets the maximum number of retry attempts for GET requests.
+// WithMaxRetries sets the maximum number of retry attempts for idempotent requests.
 func WithMaxRetries(n int) ClientOption {
 	return func(c *Client) {
 		c.httpOpts.MaxRetries = n

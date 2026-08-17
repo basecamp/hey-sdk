@@ -2474,6 +2474,76 @@
     ]
   },
   {
+    "name": "ListClearances uses /clearances path",
+    "description": "Verifies that ListClearances constructs the URL path /clearances",
+    "operation": "ListClearances",
+    "method": "GET",
+    "path": "/clearances",
+    "mockResponses": [
+      {
+        "status": 200,
+        "headers": {
+          "Content-Type": "text/html"
+        },
+        "body": "<html></html>"
+      }
+    ],
+    "assertions": [
+      {
+        "type": "requestPath",
+        "expected": "/clearances"
+      },
+      {
+        "type": "noError"
+      },
+      {
+        "type": "requestMethod",
+        "expected": "GET"
+      }
+    ],
+    "tags": [
+      "path",
+      "clearances"
+    ]
+  },
+  {
+    "name": "UpdateClearance uses /clearances/{clearanceId} path",
+    "description": "Verifies that UpdateClearance constructs the URL path /clearances/{clearanceId}",
+    "operation": "UpdateClearance",
+    "method": "PATCH",
+    "path": "/clearances/{clearanceId}",
+    "pathParams": {
+      "clearanceId": 789
+    },
+    "requestBody": {
+      "status": "approved",
+      "designation_box_id": 456
+    },
+    "mockResponses": [
+      {
+        "status": 204,
+        "body": null
+      }
+    ],
+    "assertions": [
+      {
+        "type": "requestPath",
+        "expected": "/clearances/789"
+      },
+      {
+        "type": "noError"
+      },
+      {
+        "type": "requestMethod",
+        "expected": "PATCH"
+      }
+    ],
+    "tags": [
+      "path",
+      "clearances"
+    ]
+  },
+  {
     "name": "CreateBoxDesignation uses /boxes/{boxId}/designations.json path",
     "description": "Verifies that CreateBoxDesignation constructs the URL path /boxes/{boxId}/designations.json",
     "operation": "CreateBoxDesignation",

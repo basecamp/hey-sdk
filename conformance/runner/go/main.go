@@ -993,6 +993,17 @@ func executeOperation(client *generated.Client, ctx context.Context, tc TestCase
 		contactId := getInt64Param(tc.PathParams, "contactId")
 		return client.GetContact(ctx, contactId)
 
+	// Clearances
+	case "ListClearances":
+		return client.ListClearances(ctx)
+	case "UpdateClearance":
+		clearanceId := getInt64Param(tc.PathParams, "clearanceId")
+		values := url.Values{"status": {getStringParam(tc.RequestBody, "status")}}
+		if designationBoxID := getInt64Param(tc.RequestBody, "designation_box_id"); designationBoxID > 0 {
+			values.Set("designation_box_id", strconv.FormatInt(designationBoxID, 10))
+		}
+		return client.UpdateClearanceWithBody(ctx, clearanceId, "application/x-www-form-urlencoded", strings.NewReader(values.Encode()))
+
 	// Calendars
 	case "ListCalendars":
 		return client.ListCalendars(ctx)

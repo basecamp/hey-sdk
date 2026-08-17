@@ -73,6 +73,7 @@ type Client struct {
 	entries        *EntriesService
 	bulkReplies    *BulkRepliesService
 	contacts       *ContactsService
+	clearances     *ClearancesService
 	calendars      *CalendarsService
 	calendarTodos  *CalendarTodosService
 	calendarEvents *CalendarEventsService
@@ -227,22 +228,29 @@ func NewClient(cfg *Config, tokenProvider TokenProvider, opts ...ClientOption) *
 func (c *Client) initGeneratedClient() {
 	c.genOnce.Do(func() {
 		serverURL := strings.TrimSuffix(c.cfg.BaseURL, "/")
+		retryConfig := generated.DefaultRetryConfig()
+		retryConfig.MaxRetries = c.httpOpts.MaxRetries
+		retryConfig.BaseDelay = c.httpOpts.BaseDelay
 		authEditor := func(ctx context.Context, req *http.Request) error {
-			req.URL.Path = withJSONExtension(req.URL.Path)
-			if req.URL.RawPath != "" {
-				req.URL.RawPath = withJSONExtension(req.URL.RawPath)
+			accept := acceptFromContext(ctx)
+			if accept == "application/json" {
+				req.URL.Path = withJSONExtension(req.URL.Path)
+				if req.URL.RawPath != "" {
+					req.URL.RawPath = withJSONExtension(req.URL.RawPath)
+				}
 			}
 			if err := c.prepareAPIRequest(ctx, req); err != nil {
 				return err
 			}
-			if req.Header.Get("Content-Type") == "" {
+			if req.Header.Get("Content-Type") == "" && accept == "application/json" {
 				req.Header.Set("Content-Type", "application/json")
 			}
-			req.Header.Set("Accept", "application/json")
+			req.Header.Set("Accept", accept)
 			return nil
 		}
 		gen, err := generated.NewClientWithResponses(serverURL,
 			generated.WithHTTPClient(c.httpClient),
+			generated.WithRetryConfig(retryConfig),
 			generated.WithRequestEditorFn(authEditor))
 		if err != nil {
 			panic(fmt.Sprintf("hey: failed to create generated client: %v", err))
@@ -948,6 +956,16 @@ func (c *Client) Contacts() *ContactsService {
 		c.contacts = NewContactsService(c)
 	}
 	return c.contacts
+}
+
+// Clearances returns the ClearancesService.
+func (c *Client) Clearances() *ClearancesService {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.clearances == nil {
+		c.clearances = NewClearancesService(c)
+	}
+	return c.clearances
 }
 
 // Calendars returns the CalendarsService.

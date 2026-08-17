@@ -267,8 +267,18 @@ type ClientInterface interface {
 {{end}}
 func (c *{{ $clientTypeName }}) {{$opid}}{{if .HasBody}}WithBody{{end}}(ctx context.Context{{genParamArgs $pathParams}}{{if $hasParams}}, params *{{$opid}}Params{{end}}{{if .HasBody}}, contentType string, body io.Reader{{end}}, reqEditors... RequestEditorFn) (*http.Response, error) {
 {{if $isIdempotent}}
+    {{if .HasBody -}}
+    var bodyBytes []byte
+    if body != nil {
+        var err error
+        bodyBytes, err = io.ReadAll(body)
+        if err != nil {
+            return nil, err
+        }
+    }
+    {{end -}}
     return c.doWithRetry(ctx, func() (*http.Request, error) {
-        return New{{$opid}}Request{{if .HasBody}}WithBody{{end}}(c.Server{{genParamNames .PathParams}}{{if $hasParams}}, params{{end}}{{if .HasBody}}, contentType, body{{end}})
+        return New{{$opid}}Request{{if .HasBody}}WithBody{{end}}(c.Server{{genParamNames .PathParams}}{{if $hasParams}}, params{{end}}{{if .HasBody}}, contentType, bytes.NewReader(bodyBytes){{end}})
     }, true, "{{$opid}}", reqEditors...)
 {{else}}
     req, err := New{{$opid}}Request{{if .HasBody}}WithBody{{end}}(c.Server{{genParamNames .PathParams}}{{if $hasParams}}, params{{end}}{{if .HasBody}}, contentType, body{{end}})

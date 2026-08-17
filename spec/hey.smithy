@@ -36,6 +36,7 @@ use smithy.api#httpQuery
 use smithy.api#httpPayload
 use smithy.api#required
 use smithy.api#readonly
+use smithy.api#mediaType
 use smithy.api#idempotent
 use smithy.api#error
 use smithy.api#httpError
@@ -183,6 +184,10 @@ service HEY {
 
         // Boxes — posting sync
         GetBoxPostingChanges
+
+        // Clearances — pending Screener senders
+        ListClearances
+        UpdateClearance
 
         // Boxes — designations, groups, observation
         CreateBoxDesignation
@@ -431,6 +436,12 @@ structure Clearance {
     id: Long
     status: String
 }
+
+@mediaType("text/html")
+string HTMLDocument
+
+@mediaType("application/x-www-form-urlencoded")
+string FormURLEncodedDocument
 
 /// Account — a HEY account
 structure Account {
@@ -2815,6 +2826,42 @@ operation GetClearances {
 structure GetClearancesOutput {
     @required
     summary: ClearanceSummary
+}
+
+/// List the senders waiting in the Screener. HEY serves this collection as HTML.
+@readonly
+@http(method: "GET", uri: "/clearances")
+@tags(["Clearances"])
+@heyRetry(maxAttempts: 3, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+operation ListClearances {
+    output: ListClearancesOutput
+    errors: [UnauthorizedError, InternalServerError, ServiceUnavailableError]
+}
+
+structure ListClearancesOutput {
+    @httpPayload
+    @required
+    body: HTMLDocument
+}
+
+/// Approve or deny a pending Screener clearance.
+@heyIdempotent(natural: true)
+@http(method: "PATCH", uri: "/clearances/{clearanceId}")
+@tags(["Clearances"])
+@heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+operation UpdateClearance {
+    input: UpdateClearanceInput
+    errors: [UnauthorizedError, NotFoundError, UnprocessableEntityError, InternalServerError, ServiceUnavailableError]
+}
+
+structure UpdateClearanceInput {
+    @httpLabel
+    @required
+    clearanceId: Long
+
+    @httpPayload
+    @required
+    body: FormURLEncodedDocument
 }
 
 // =============================================================================
