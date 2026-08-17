@@ -36,15 +36,17 @@ jq '
   )
 ' "$OPENAPI_FILE" > "${OPENAPI_FILE}.tmp" && mv "${OPENAPI_FILE}.tmp" "$OPENAPI_FILE"
 
-# Pass 2: Optional booleans and timestamps in RequestContent schemas → pointers
+# Pass 2: Optional booleans and timestamps in request schemas → pointers
 # Without this, Go's JSON encoder sends zero-valued time.Time as "0001-01-01T00:00:00Z"
 # and false booleans even when the caller didn't set them — `omitempty` does not omit a
 # struct or a false bool. That is how a partial update (e.g. stopping a time track by
 # sending only ends_at) ends up rewriting starts_at on the server.
 #
-# Applies to every schema reachable from a request body (RequestContent, nested
-# *Payload, and anything they reference), for every property that pass 1 or the
-# format turns into time.Time / types.Date, plus booleans.
+# Applies to every component schema reachable by $ref from a request body
+# (RequestContent, nested *Payload, and anything they reference), for every property
+# that pass 1 or the format turns into time.Time / types.Date, plus booleans.
+# Smithy always emits request bodies as $ref to a component schema, so inline
+# requestBody schemas do not occur here and are not walked.
 jq '
   def refname: sub("^#/components/schemas/"; "");
   . as $root
