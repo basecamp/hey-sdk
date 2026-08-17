@@ -2347,6 +2347,47 @@ func TestWorkflowsService_Writes(t *testing.T) {
 	}
 }
 
+func TestWorkflowsService_UpdateAndDelete(t *testing.T) {
+	renamer := newFormTestClient(t, "PATCH", "/workflows/%s", func(t *testing.T, values url.Values) {
+		t.Helper()
+		if values.Get("workflow[name]") != "Recruiting" {
+			t.Errorf("expected the workflow name, got %q", values.Get("workflow[name]"))
+		}
+	}, "/workflows/8801")
+	if err := renamer.Workflows().Update(context.Background(), 8801, "Recruiting"); err != nil {
+		t.Fatalf("unexpected error renaming: %v", err)
+	}
+
+	deleter := newFormTestClient(t, "DELETE", "/workflows/%s", nil, "/workflows")
+	if err := deleter.Workflows().Delete(context.Background(), 8801); err != nil {
+		t.Fatalf("unexpected error deleting: %v", err)
+	}
+
+	stageDeleter := newFormTestClient(t, "DELETE", "/workflows/%s/stages/%s", nil, "/workflows/8801")
+	if err := stageDeleter.Workflows().DeleteStage(context.Background(), 8801, 5512); err != nil {
+		t.Fatalf("unexpected error deleting a stage: %v", err)
+	}
+
+	unfiler := newFormTestClient(t, "DELETE", "/topics/%s/workflows/%s/stagings", nil, "/topics/4471829")
+	if err := unfiler.Workflows().UnstageTopic(context.Background(), 4471829, 8801); err != nil {
+		t.Fatalf("unexpected error unstaging a topic: %v", err)
+	}
+}
+
+func TestWorkflowsService_WriteErrorsSurface(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusForbidden)
+	}))
+	t.Cleanup(srv.Close)
+	c := NewClient(&Config{BaseURL: srv.URL}, &StaticTokenProvider{Token: "t"}, WithMaxRetries(0))
+	if err := c.Workflows().Delete(context.Background(), 8801); err == nil {
+		t.Fatal("expected a 403 to surface as an error")
+	}
+	if err := c.Workflows().UnstageTopic(context.Background(), 4471829, 8801); err == nil {
+		t.Fatal("expected a 403 to surface as an error")
+	}
+}
+
 // --- Publications ---
 
 func TestPublicationsService_GetPublished(t *testing.T) {

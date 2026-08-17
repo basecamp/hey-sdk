@@ -141,6 +141,9 @@ func runTest(tc TestCase) TestResult {
 	var requestCount int
 	var requestTimes []time.Time
 	var requestPaths []string
+	var requestMethods []string
+	var requestQueries []url.Values
+	var requestBodies [][]byte
 	var requestHeaders []http.Header
 	var responseStatuses []int
 
@@ -151,6 +154,10 @@ func runTest(tc TestCase) TestResult {
 		requestCount++
 		requestTimes = append(requestTimes, time.Now())
 		requestPaths = append(requestPaths, r.URL.Path)
+		requestMethods = append(requestMethods, r.Method)
+		requestQueries = append(requestQueries, r.URL.Query())
+		body, _ := io.ReadAll(r.Body)
+		requestBodies = append(requestBodies, body)
 		requestHeaders = append(requestHeaders, r.Header.Clone())
 		idx := responseIndex
 		responseIndex++
@@ -265,6 +272,9 @@ func runTest(tc TestCase) TestResult {
 			requestCount:      requestCount,
 			requestTimes:      requestTimes,
 			requestPaths:      requestPaths,
+			requestMethods:    requestMethods,
+			requestQueries:    requestQueries,
+			requestBodies:     requestBodies,
 			requestHeaders:    requestHeaders,
 			lastStatus:        lastStatus,
 			sdkErr:            sdkErr,
@@ -351,6 +361,9 @@ type checkState struct {
 	requestCount      int
 	requestTimes      []time.Time
 	requestPaths      []string
+	requestMethods    []string
+	requestQueries    []url.Values
+	requestBodies     [][]byte
 	requestHeaders    []http.Header
 	lastStatus        int
 	sdkErr            error
@@ -471,6 +484,73 @@ func checkAssertion(testName string, a Assertion, s checkState) TestResult {
 		}
 		if s.requestPaths[0] != expected {
 			return fail(testName, "Expected request path %q, got %q", expected, s.requestPaths[0])
+		}
+
+	case "requestMethod":
+		expected, ok := a.Expected.(string)
+		if !ok {
+			return fail(testName, "requestMethod: expected a string value, got %T", a.Expected)
+		}
+		if len(s.requestMethods) == 0 {
+			return fail(testName, "Expected a request, but none were recorded")
+		}
+		if s.requestMethods[0] != expected {
+			return fail(testName, "Expected request method %q, got %q", expected, s.requestMethods[0])
+		}
+
+	case "requestQuery":
+		// expected: {"param": "value", "absent": null} — a null value asserts the
+		// parameter is NOT sent (guards optional params that must be omitted).
+		expected, ok := a.Expected.(map[string]interface{})
+		if !ok {
+			return fail(testName, "requestQuery: expected an object, got %T", a.Expected)
+		}
+		if len(s.requestQueries) == 0 {
+			return fail(testName, "Expected a request, but none were recorded")
+		}
+		q := s.requestQueries[0]
+		for k, v := range expected {
+			if v == nil {
+				if q.Has(k) {
+					return fail(testName, "Expected query param %q to be absent, got %q", k, q.Get(k))
+				}
+				continue
+			}
+			if got := q.Get(k); got != fmt.Sprint(v) {
+				return fail(testName, "Expected query param %s=%v, got %q", k, v, got)
+			}
+		}
+
+	case "requestBody":
+		// expected: {"json.path": value, ...}; a null value asserts the key is absent.
+		// Paths are dot-separated; array elements by index (e.g. "posting_ids.0").
+		expected, ok := a.Expected.(map[string]interface{})
+		if !ok {
+			return fail(testName, "requestBody: expected an object, got %T", a.Expected)
+		}
+		if len(s.requestBodies) == 0 {
+			return fail(testName, "Expected a request, but none were recorded")
+		}
+		var body interface{}
+		if len(s.requestBodies[0]) > 0 {
+			if err := json.Unmarshal(s.requestBodies[0], &body); err != nil {
+				return fail(testName, "requestBody: request body is not JSON: %v", err)
+			}
+		}
+		for path, want := range expected {
+			got, present := lookupJSONPath(body, path)
+			if want == nil {
+				if present {
+					return fail(testName, "Expected body key %q to be absent, got %v", path, got)
+				}
+				continue
+			}
+			if !present {
+				return fail(testName, "Expected body key %q = %v, but it is absent", path, want)
+			}
+			if fmt.Sprint(got) != fmt.Sprint(want) {
+				return fail(testName, "Expected body key %q = %v, got %v", path, want, got)
+			}
 		}
 
 	case "headerPresent":
@@ -665,6 +745,31 @@ func fail(testName, format string, args ...interface{}) TestResult {
 }
 
 // toInt safely converts an interface{} (typically from JSON) to int.
+// lookupJSONPath walks a decoded JSON value by a dot-separated path, using
+// integer segments as array indexes. It reports whether the path resolved.
+func lookupJSONPath(v interface{}, path string) (interface{}, bool) {
+	cur := v
+	for _, seg := range strings.Split(path, ".") {
+		switch node := cur.(type) {
+		case map[string]interface{}:
+			next, ok := node[seg]
+			if !ok {
+				return nil, false
+			}
+			cur = next
+		case []interface{}:
+			idx, err := strconv.Atoi(seg)
+			if err != nil || idx < 0 || idx >= len(node) {
+				return nil, false
+			}
+			cur = node[idx]
+		default:
+			return nil, false
+		}
+	}
+	return cur, true
+}
+
 func toInt(v interface{}) (int, error) {
 	switch n := v.(type) {
 	case float64:

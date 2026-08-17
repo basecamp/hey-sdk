@@ -116,6 +116,17 @@
       },
       {
         "type": "noError"
+      },
+      {
+        "type": "requestMethod",
+        "expected": "POST"
+      },
+      {
+        "type": "requestBody",
+        "expected": {
+          "message.subject": "Test",
+          "message.content": "Hello"
+        }
       }
     ],
     "tags": [
@@ -151,6 +162,17 @@
       },
       {
         "type": "noError"
+      },
+      {
+        "type": "requestMethod",
+        "expected": "POST"
+      },
+      {
+        "type": "requestBody",
+        "expected": {
+          "message.content": "Reply text",
+          "entry": null
+        }
       }
     ],
     "tags": [
@@ -179,6 +201,10 @@
       },
       {
         "type": "noError"
+      },
+      {
+        "type": "requestMethod",
+        "expected": "DELETE"
       }
     ],
     "tags": [
@@ -896,6 +922,10 @@
       },
       {
         "type": "noError"
+      },
+      {
+        "type": "requestMethod",
+        "expected": "POST"
       }
     ],
     "tags": [
@@ -925,6 +955,10 @@
       },
       {
         "type": "noError"
+      },
+      {
+        "type": "requestMethod",
+        "expected": "DELETE"
       }
     ],
     "tags": [
@@ -955,6 +989,10 @@
       },
       {
         "type": "noError"
+      },
+      {
+        "type": "requestMethod",
+        "expected": "DELETE"
       }
     ],
     "tags": [
@@ -1024,6 +1062,10 @@
       },
       {
         "type": "noError"
+      },
+      {
+        "type": "requestMethod",
+        "expected": "PUT"
       }
     ],
     "tags": [
@@ -1056,6 +1098,17 @@
       },
       {
         "type": "noError"
+      },
+      {
+        "type": "requestMethod",
+        "expected": "POST"
+      },
+      {
+        "type": "requestBody",
+        "expected": {
+          "posting_ids.0": 1,
+          "posting_ids.1": 2
+        }
       }
     ],
     "tags": [
@@ -1088,6 +1141,17 @@
       },
       {
         "type": "noError"
+      },
+      {
+        "type": "requestMethod",
+        "expected": "POST"
+      },
+      {
+        "type": "requestBody",
+        "expected": {
+          "posting_ids.0": 1,
+          "posting_ids.1": 2
+        }
       }
     ],
     "tags": [
@@ -1121,6 +1185,18 @@
       },
       {
         "type": "noError"
+      },
+      {
+        "type": "requestMethod",
+        "expected": "POST"
+      },
+      {
+        "type": "requestBody",
+        "expected": {
+          "posting_ids.0": 1,
+          "posting_ids.1": 2,
+          "box_id": 24089
+        }
       }
     ],
     "tags": [
@@ -1153,6 +1229,17 @@
       },
       {
         "type": "noError"
+      },
+      {
+        "type": "requestMethod",
+        "expected": "POST"
+      },
+      {
+        "type": "requestBody",
+        "expected": {
+          "posting_ids.0": 1,
+          "posting_ids.1": 2
+        }
       }
     ],
     "tags": [
@@ -1185,6 +1272,17 @@
       },
       {
         "type": "noError"
+      },
+      {
+        "type": "requestMethod",
+        "expected": "POST"
+      },
+      {
+        "type": "requestBody",
+        "expected": {
+          "posting_ids.0": 1,
+          "posting_ids.1": 2
+        }
       }
     ],
     "tags": [
@@ -1214,6 +1312,16 @@
       },
       {
         "type": "noError"
+      },
+      {
+        "type": "requestMethod",
+        "expected": "DELETE"
+      },
+      {
+        "type": "requestQuery",
+        "expected": {
+          "posting_ids": "1,2"
+        }
       }
     ],
     "tags": [
@@ -1246,6 +1354,17 @@
       },
       {
         "type": "noError"
+      },
+      {
+        "type": "requestMethod",
+        "expected": "POST"
+      },
+      {
+        "type": "requestBody",
+        "expected": {
+          "posting_ids.0": 1,
+          "posting_ids.1": 2
+        }
       }
     ],
     "tags": [
@@ -1280,6 +1399,18 @@
       },
       {
         "type": "noError"
+      },
+      {
+        "type": "requestMethod",
+        "expected": "POST"
+      },
+      {
+        "type": "requestBody",
+        "expected": {
+          "posting_ids.0": 1,
+          "box_id": 24090,
+          "box_group_id": 9
+        }
       }
     ],
     "tags": [
@@ -1309,6 +1440,16 @@
       },
       {
         "type": "noError"
+      },
+      {
+        "type": "requestMethod",
+        "expected": "DELETE"
+      },
+      {
+        "type": "requestQuery",
+        "expected": {
+          "posting_ids": "1,2"
+        }
       }
     ],
     "tags": [
@@ -1342,6 +1483,17 @@
       },
       {
         "type": "noError"
+      },
+      {
+        "type": "requestMethod",
+        "expected": "POST"
+      },
+      {
+        "type": "requestBody",
+        "expected": {
+          "posting_ids.0": 1,
+          "folder_id": 12
+        }
       }
     ],
     "tags": [
@@ -1372,6 +1524,17 @@
       },
       {
         "type": "noError"
+      },
+      {
+        "type": "requestMethod",
+        "expected": "DELETE"
+      },
+      {
+        "type": "requestQuery",
+        "expected": {
+          "posting_ids": "1,2",
+          "folder_id": "12"
+        }
       }
     ],
     "tags": [
@@ -1405,6 +1568,17 @@
       },
       {
         "type": "noError"
+      },
+      {
+        "type": "requestMethod",
+        "expected": "POST"
+      },
+      {
+        "type": "requestBody",
+        "expected": {
+          "posting_ids.0": 1,
+          "folder.name": "Receipts"
+        }
       }
     ],
     "tags": [
@@ -1434,6 +1608,16 @@
       },
       {
         "type": "noError"
+      },
+      {
+        "type": "requestMethod",
+        "expected": "DELETE"
+      },
+      {
+        "type": "requestQuery",
+        "expected": {
+          "posting_ids": "1,2"
+        }
       }
     ],
     "tags": [
@@ -1466,6 +1650,17 @@
       },
       {
         "type": "noError"
+      },
+      {
+        "type": "requestMethod",
+        "expected": "POST"
+      },
+      {
+        "type": "requestBody",
+        "expected": {
+          "posting_ids.0": 1,
+          "posting_ids.1": 2
+        }
       }
     ],
     "tags": [
@@ -1498,6 +1693,16 @@
       },
       {
         "type": "noError"
+      },
+      {
+        "type": "requestMethod",
+        "expected": "PUT"
+      },
+      {
+        "type": "requestQuery",
+        "expected": {
+          "confirm_destroy": "true"
+        }
       }
     ],
     "tags": [
@@ -1640,6 +1845,16 @@
       },
       {
         "type": "noError"
+      },
+      {
+        "type": "requestMethod",
+        "expected": "POST"
+      },
+      {
+        "type": "requestBody",
+        "expected": {
+          "box_id": 24089
+        }
       }
     ],
     "tags": [
@@ -1979,6 +2194,10 @@
       },
       {
         "type": "noError"
+      },
+      {
+        "type": "requestMethod",
+        "expected": "DELETE"
       }
     ],
     "tags": [
@@ -2128,6 +2347,16 @@
       },
       {
         "type": "noError"
+      },
+      {
+        "type": "requestMethod",
+        "expected": "GET"
+      },
+      {
+        "type": "requestQuery",
+        "expected": {
+          "limit": "25"
+        }
       }
     ],
     "tags": [
@@ -2162,6 +2391,17 @@
       },
       {
         "type": "noError"
+      },
+      {
+        "type": "requestMethod",
+        "expected": "POST"
+      },
+      {
+        "type": "requestBody",
+        "expected": {
+          "sticky.body": "Call the plumber",
+          "sticky.size": "medium"
+        }
       }
     ],
     "tags": [
@@ -2199,6 +2439,17 @@
       },
       {
         "type": "noError"
+      },
+      {
+        "type": "requestMethod",
+        "expected": "PATCH"
+      },
+      {
+        "type": "requestBody",
+        "expected": {
+          "sticky.body": "Call the electrician",
+          "sticky.size": "large"
+        }
       }
     ],
     "tags": [
@@ -2228,6 +2479,10 @@
       },
       {
         "type": "noError"
+      },
+      {
+        "type": "requestMethod",
+        "expected": "DELETE"
       }
     ],
     "tags": [
@@ -2258,6 +2513,17 @@
       },
       {
         "type": "noError"
+      },
+      {
+        "type": "requestMethod",
+        "expected": "POST"
+      },
+      {
+        "type": "requestBody",
+        "expected": {
+          "id": 1,
+          "position": 2
+        }
       }
     ],
     "tags": [
@@ -2321,6 +2587,10 @@
       },
       {
         "type": "noError"
+      },
+      {
+        "type": "requestMethod",
+        "expected": "DELETE"
       }
     ],
     "tags": [
@@ -2360,6 +2630,17 @@
       },
       {
         "type": "noError"
+      },
+      {
+        "type": "requestMethod",
+        "expected": "POST"
+      },
+      {
+        "type": "requestBody",
+        "expected": {
+          "calendar_habit.name": "Morning run",
+          "calendar_habit.days.0": 1
+        }
       }
     ],
     "tags": [
