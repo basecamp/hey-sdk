@@ -50,3 +50,7 @@ jobs:
           fi
           rm -f openapi.generated.json
           echo "openapi.json is up to date"
+
+      - name: Verify behavior model is up to date
+        working-directory: .
+        run: make behavior-model-check

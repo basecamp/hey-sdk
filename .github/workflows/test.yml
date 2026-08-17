@@ -119,12 +119,13 @@ jobs:
         with:
           persist-credentials: false
 
-      # Everything here is derived from openapi.json with bash + jq: the behavior
-      # model, url-routes.json, route-coverage.json, the shape fingerprint, and the
-      # forward/reverse drift checks against the haystack route snapshot. These are
-      # what stop the SDK modelling routes HEY does not serve.
+      # Everything here is derived from openapi.json with bash + jq: url-routes.json,
+      # route-coverage.json, the shape fingerprint, and the forward/reverse drift
+      # checks against the haystack route snapshot. These are what stop the SDK
+      # modelling routes HEY does not serve. (behavior-model-check needs the Smithy
+      # AST, so it lives in the smithy-verify workflow.)
       - name: Check generated artifacts and route drift
-        run: make behavior-model-check url-routes-check drift-check-mvp
+        run: make url-routes-check drift-check-mvp
 
   api-compat:
     name: API Compatibility
