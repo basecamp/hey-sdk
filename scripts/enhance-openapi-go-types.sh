@@ -99,6 +99,43 @@ jq '
   )
 ' "$OPENAPI_FILE" > "${OPENAPI_FILE}.tmp" && mv "${OPENAPI_FILE}.tmp" "$OPENAPI_FILE"
 
+# Pass 4: Optional object references in request schemas → pointers
+# A value-typed struct field is never omitted by omitempty, so an optional nested
+# object the caller left unset still goes on the wire as {} — for
+# CreateReplyRequestContent.entry that is {"addressed":{}}, which the server reads as
+# an explicit empty recipient list and drops reply-all. Same request-reachable set as
+# pass 2; only non-required properties whose schema is a bare $ref to an object.
+jq '
+  def refname: sub("^#/components/schemas/"; "");
+  . as $root
+  | [ .paths[] | .[] | objects | .requestBody? // empty | .. | .["$ref"]? // empty | refname ] | unique as $seeds
+  | def expand($set):
+      ($set + [ $set[] | $root.components.schemas[.] | .. | .["$ref"]? // empty | refname ] | unique) as $n
+      | if ($n | length) == ($set | length) then $set else expand($n) end;
+    expand($seeds) as $request_schemas
+  | $root
+  | (.components.schemas // {}) |= with_entries(
+      if (.key as $k | $request_schemas | index($k)) then
+        .value |= (
+          if .properties then
+            (.required // []) as $req
+            | .properties |= with_entries(
+                if (.value["$ref"]? // "" | test("^#/components/schemas/"))
+                   and ((.key as $p | $req | index($p)) | not)
+                   and (($root.components.schemas[(.value["$ref"] | refname)].type // "object") == "object")
+                then
+                  .value += {"x-go-type-skip-optional-pointer": false}
+                else .
+                end
+              )
+          else .
+          end
+        )
+      else .
+      end
+    )
+' "$OPENAPI_FILE" > "${OPENAPI_FILE}.tmp" && mv "${OPENAPI_FILE}.tmp" "$OPENAPI_FILE"
+
 # Self-referential types are fixed via post-codegen sed in go/Makefile.
 
 echo "Enhanced $OPENAPI_FILE with Go type annotations"

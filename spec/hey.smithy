@@ -231,6 +231,15 @@ structure UnprocessableEntityError {
     message: String
 }
 
+/// The request conflicts with current state, e.g. starting a time track while one
+/// is already ongoing (haystack answers {"error": "..."} with 409).
+@error("client")
+@httpError(409)
+structure ConflictError {
+    @required
+    error: String
+}
+
 @error("client")
 @httpError(429)
 @retryable(throttling: true)
@@ -1352,6 +1361,9 @@ structure CreateReplyInput {
 }
 
 /// Wire format: {acting_sender_id, message: {content}, entry: {addressed: {directly: [...]}}}
+/// entry.addressed is optional on the wire but a reply posted without it is saved as a
+/// draft rather than delivered — HEY does not reply-all for the caller. Resolve the
+/// thread's recipients first and always send them.
 structure CreateReplyRequestContent {
     @required
     acting_sender_id: Long
@@ -1635,30 +1647,15 @@ structure GetOngoingTimeTrackOutput {
     recording: Recording
 }
 
-/// Start a new time track
+/// Start a new time track. Takes no body: haystack's
+/// Calendar::OngoingTimeTracksController#create ignores request parameters and
+/// starts a track with defaults; use UpdateTimeTrack to set title/notes/category.
 @http(method: "POST", uri: "/calendar/ongoing_time_track.json")
 @tags(["Calendar Time Tracks"])
 @heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
 operation StartTimeTrack {
-    input: StartTimeTrackInput
     output: StartTimeTrackOutput
-    errors: [UnauthorizedError, UnprocessableEntityError, InternalServerError, ServiceUnavailableError]
-}
-
-structure StartTimeTrackInput {
-    @httpPayload
-    body: StartTimeTrackRequestContent
-}
-
-/// Wire format: {calendar_time_track: {title, notes, category}}
-structure StartTimeTrackRequestContent {
-    calendar_time_track: StartTimeTrackPayload
-}
-
-structure StartTimeTrackPayload {
-    title: String
-    notes: String
-    category: String
+    errors: [UnauthorizedError, ConflictError, UnprocessableEntityError, InternalServerError, ServiceUnavailableError]
 }
 
 structure StartTimeTrackOutput {

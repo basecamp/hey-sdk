@@ -1,9 +1,7 @@
 package hey
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"time"
 
 	"github.com/basecamp/hey-sdk/go/pkg/generated"
@@ -48,10 +46,14 @@ func (s *EntriesService) ListDrafts(ctx context.Context, params *generated.ListD
 // CreateReply replies to an entry (POST /entries/{entryId}/replies.json) and delivers it.
 // The acting sender ID is automatically resolved.
 //
-// If to/cc/bcc are all empty the "entry" key is omitted so HEY falls back to the
-// thread's existing recipients (reply-all). Sending an empty addressed hash would
-// clear the recipient list, because Entry#enter_reply treats {} as an explicit choice.
+// Recipients are required. HEY does not reply-all on the caller's behalf: a reply
+// posted without entry.addressed is saved as a draft (the server answers with a
+// redirect to the thread with the draft expanded) rather than delivered. Callers
+// resolve the thread's recipients first — hey-cli reads them from the topic page.
 func (s *EntriesService) CreateReply(ctx context.Context, entryID int64, content string, to, cc, bcc []string) (err error) {
+	if len(to)+len(cc)+len(bcc) == 0 {
+		return ErrUsage("a reply needs at least one recipient (to, cc or bcc); HEY saves an unaddressed reply as a draft")
+	}
 	op := OperationInfo{
 		Service: "Entries", Operation: "CreateReply",
 		ResourceType: "reply", IsMutation: true, ResourceID: entryID,
@@ -70,22 +72,13 @@ func (s *EntriesService) CreateReply(ctx context.Context, entryID int64, content
 		return err
 	}
 
-	body := map[string]any{
-		"acting_sender_id": senderID,
-		"message": map[string]any{
-			"content": content,
-		},
-	}
-	if addressed := addressedPayload(to, cc, bcc); len(addressed) > 0 {
-		body["entry"] = map[string]any{"addressed": addressed}
-	}
-	payload, err := json.Marshal(body)
-	if err != nil {
-		return err
+	body := generated.CreateReplyRequestContent{
+		ActingSenderId: senderID,
+		Message:        generated.ReplyMessagePayload{Content: content},
+		Entry:          entryPayload(to, cc, bcc),
 	}
 
-	s.client.initGeneratedClient()
-	resp, err := s.client.gen.CreateReplyWithBodyWithResponse(ctx, entryID, "application/json", bytes.NewReader(payload))
+	resp, err := s.client.genClient().CreateReplyWithResponse(ctx, entryID, body)
 	if err != nil {
 		return err
 	}

@@ -54,10 +54,12 @@ func (s *TimeTracksService) GetOngoing(ctx context.Context) (result *generated.R
 	return resp.JSON200, nil
 }
 
-// Start starts a new time track.
+// Start starts a new time track and returns it as a recording.
 //
-// The body already carries the {calendar_time_track: {...}} wrapper the API expects.
-func (s *TimeTracksService) Start(ctx context.Context, body generated.StartTimeTrackJSONRequestBody) (result *generated.Recording, err error) {
+// It takes no parameters: haystack ignores the request body here and starts a
+// track with defaults. Set title/notes/category afterwards with Update. A 409
+// means a track is already ongoing.
+func (s *TimeTracksService) Start(ctx context.Context) (result *generated.Recording, err error) {
 	op := OperationInfo{
 		Service: "TimeTracks", Operation: "StartTimeTrack",
 		ResourceType: "time_track", IsMutation: true,
@@ -71,7 +73,7 @@ func (s *TimeTracksService) Start(ctx context.Context, body generated.StartTimeT
 	ctx = s.client.hooks.OnOperationStart(ctx, op)
 	defer func() { s.client.hooks.OnOperationEnd(ctx, op, err, time.Since(start)) }()
 
-	resp, err := s.client.genClient().StartTimeTrackWithResponse(ctx, body)
+	resp, err := s.client.genClient().StartTimeTrackWithResponse(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -109,12 +111,23 @@ func (s *TimeTracksService) Update(ctx context.Context, timeTrackID int64, body 
 }
 
 // Stop stops an ongoing time track by setting ends_at to the current time.
+// It reports itself to hooks as StopTimeTrack, distinct from UpdateTimeTrack,
+// so a gating policy can allow one without the other.
 func (s *TimeTracksService) Stop(ctx context.Context, timeTrackID int64) error {
-	now := time.Now().UTC()
-	_, err := s.Update(ctx, timeTrackID, generated.UpdateTimeTrackJSONRequestBody{
-		CalendarTimeTrack: generated.UpdateTimeTrackPayload{EndsAt: &now},
+	op := OperationInfo{
+		Service: "TimeTracks", Operation: "StopTimeTrack",
+		ResourceType: "time_track", IsMutation: true, ResourceID: timeTrackID,
+	}
+	return s.client.instrument(ctx, op, func(ctx context.Context) error {
+		now := time.Now().UTC()
+		resp, err := s.client.genClient().UpdateTimeTrackWithResponse(ctx, timeTrackID, generated.UpdateTimeTrackJSONRequestBody{
+			CalendarTimeTrack: generated.UpdateTimeTrackPayload{EndsAt: &now},
+		})
+		if err != nil {
+			return err
+		}
+		return CheckResponse(resp.HTTPResponse)
 	})
-	return err
 }
 
 // Create records a stretch of time that has already finished.

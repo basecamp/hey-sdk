@@ -1615,17 +1615,8 @@
         }
       },
       "post": {
-        "description": "Start a new time track",
+        "description": "Start a new time track. Takes no body: haystack's\nCalendar::OngoingTimeTracksController#create ignores request parameters and\nstarts a track with defaults; use UpdateTimeTrack to set title/notes/category.",
         "operationId": "StartTimeTrack",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/StartTimeTrackRequestContent"
-              }
-            }
-          }
-        },
         "responses": {
           "200": {
             "description": "StartTimeTrack 200 response",
@@ -1643,6 +1634,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/UnauthorizedErrorResponseContent"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "ConflictError 409 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConflictErrorResponseContent"
                 }
               }
             }
@@ -6926,6 +6927,18 @@
       "CompleteHabitResponseContent": {
         "$ref": "#/components/schemas/Recording"
       },
+      "ConflictErrorResponseContent": {
+        "type": "object",
+        "description": "The request conflicts with current state, e.g. starting a time track while one\nis already ongoing (haystack answers {\"error\": \"...\"} with 409).",
+        "properties": {
+          "error": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "error"
+        ]
+      },
       "Contact": {
         "type": "object",
         "description": "Contact — the identity of someone in HEY",
@@ -7121,7 +7134,8 @@
             "$ref": "#/components/schemas/MessagePayload"
           },
           "entry": {
-            "$ref": "#/components/schemas/MessageEntryPayload"
+            "$ref": "#/components/schemas/MessageEntryPayload",
+            "x-go-type-skip-optional-pointer": false
           }
         },
         "required": [
@@ -7131,7 +7145,7 @@
       },
       "CreateReplyRequestContent": {
         "type": "object",
-        "description": "Wire format: {acting_sender_id, message: {content}, entry: {addressed: {directly: [...]}}}",
+        "description": "Wire format: {acting_sender_id, message: {content}, entry: {addressed: {directly: [...]}}}\nentry.addressed is optional on the wire but a reply posted without it is saved as a\ndraft rather than delivered — HEY does not reply-all for the caller. Resolve the\nthread's recipients first and always send them.",
         "properties": {
           "acting_sender_id": {
             "type": "integer",
@@ -7141,7 +7155,8 @@
             "$ref": "#/components/schemas/ReplyMessagePayload"
           },
           "entry": {
-            "$ref": "#/components/schemas/MessageEntryPayload"
+            "$ref": "#/components/schemas/MessageEntryPayload",
+            "x-go-type-skip-optional-pointer": false
           }
         },
         "required": [
@@ -7822,7 +7837,8 @@
         "type": "object",
         "properties": {
           "addressed": {
-            "$ref": "#/components/schemas/MessageAddressed"
+            "$ref": "#/components/schemas/MessageAddressed",
+            "x-go-type-skip-optional-pointer": false
           }
         }
       },
@@ -8574,29 +8590,6 @@
         "required": [
           "message"
         ]
-      },
-      "StartTimeTrackPayload": {
-        "type": "object",
-        "properties": {
-          "title": {
-            "type": "string"
-          },
-          "notes": {
-            "type": "string"
-          },
-          "category": {
-            "type": "string"
-          }
-        }
-      },
-      "StartTimeTrackRequestContent": {
-        "type": "object",
-        "description": "Wire format: {calendar_time_track: {title, notes, category}}",
-        "properties": {
-          "calendar_time_track": {
-            "$ref": "#/components/schemas/StartTimeTrackPayload"
-          }
-        }
       },
       "StartTimeTrackResponseContent": {
         "$ref": "#/components/schemas/Recording"

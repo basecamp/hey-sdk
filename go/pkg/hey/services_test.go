@@ -538,21 +538,20 @@ func TestEntriesService_CreateReply(t *testing.T) {
 	}
 }
 
-func TestEntriesService_CreateReply_OmitsEntryWithoutRecipients(t *testing.T) {
+func TestEntriesService_CreateReply_RequiresRecipients(t *testing.T) {
+	// HEY saves an unaddressed reply as a draft instead of delivering it, so the
+	// SDK refuses before making a request.
 	client := newMutationTestClientWithValidation(t, "POST", "/entries/%s/replies.json",
-		func(t *testing.T, body map[string]any) {
-			t.Helper()
-			// An empty entry.addressed would clear the recipient list server-side
-			// (Entry#enter_reply treats {} as explicit), so it must be omitted.
-			if _, present := body["entry"]; present {
-				t.Errorf("entry must be omitted when no recipients are given, got %v", body["entry"])
-			}
-		},
+		func(t *testing.T, _ map[string]any) { t.Helper(); t.Error("no request should be sent") },
 		`{"notice":"sent"}`,
 	)
-
-	if err := client.Entries().CreateReply(context.Background(), 10, "Reply-all", nil, nil, nil); err != nil {
-		t.Fatalf("unexpected error: %v", err)
+	err := client.Entries().CreateReply(context.Background(), 10, "hello", nil, nil, nil)
+	if e := AsError(err); e == nil || e.Code != CodeUsage {
+		t.Fatalf("expected a usage error, got %#v", err)
+	}
+	err = client.Messages().Create(context.Background(), "s", "b", nil, nil, nil)
+	if e := AsError(err); e == nil || e.Code != CodeUsage {
+		t.Fatalf("expected a usage error for a message with no recipients, got %#v", err)
 	}
 }
 
@@ -802,18 +801,13 @@ func TestTimeTracksService_GetOngoing_NotFound(t *testing.T) {
 }
 
 func TestTimeTracksService_Start(t *testing.T) {
+	// The server ignores any body on start, so the SDK sends none.
 	client := newMutationTestClientWithValidation(t, "POST", "/calendar/ongoing_time_track.json",
-		func(t *testing.T, body map[string]any) {
-			t.Helper()
-			if _, ok := body["calendar_time_track"]; !ok {
-				t.Fatal("missing calendar_time_track wrapper")
-			}
-		},
+		nil,
 		`{"id":1,"type":"TimeTrack"}`,
 	)
 
-	body := generated.StartTimeTrackJSONRequestBody{}
-	result, err := client.TimeTracks().Start(context.Background(), body)
+	result, err := client.TimeTracks().Start(context.Background())
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

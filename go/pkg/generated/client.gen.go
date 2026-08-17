@@ -212,6 +212,12 @@ type CompleteCalendarTodoResponseContent = Recording
 // CompleteHabitResponseContent Recording — polymorphic by `type` (CalendarEvent, CalendarTodo, etc.)
 type CompleteHabitResponseContent = Recording
 
+// ConflictErrorResponseContent The request conflicts with current state, e.g. starting a time track while one
+// is already ongoing (haystack answers {"error": "..."} with 409).
+type ConflictErrorResponseContent struct {
+	Error string `json:"error"`
+}
+
 // Contact Contact — the identity of someone in HEY
 type Contact struct {
 	AccountId             int64  `json:"account_id,omitempty"`
@@ -284,16 +290,19 @@ type CreateHabitResponseContent = Recording
 
 // CreateMessageRequestContent Wire format: {acting_sender_id, message: {subject, content}, entry: {addressed: {directly: "..."}}}
 type CreateMessageRequestContent struct {
-	ActingSenderId int64               `json:"acting_sender_id"`
-	Entry          MessageEntryPayload `json:"entry,omitempty"`
-	Message        MessagePayload      `json:"message"`
+	ActingSenderId int64                `json:"acting_sender_id"`
+	Entry          *MessageEntryPayload `json:"entry,omitempty"`
+	Message        MessagePayload       `json:"message"`
 }
 
 // CreateReplyRequestContent Wire format: {acting_sender_id, message: {content}, entry: {addressed: {directly: [...]}}}
+// entry.addressed is optional on the wire but a reply posted without it is saved as a
+// draft rather than delivered — HEY does not reply-all for the caller. Resolve the
+// thread's recipients first and always send them.
 type CreateReplyRequestContent struct {
-	ActingSenderId int64               `json:"acting_sender_id"`
-	Entry          MessageEntryPayload `json:"entry,omitempty"`
-	Message        ReplyMessagePayload `json:"message"`
+	ActingSenderId int64                `json:"acting_sender_id"`
+	Entry          *MessageEntryPayload `json:"entry,omitempty"`
+	Message        ReplyMessagePayload  `json:"message"`
 }
 
 // CreateStickyResponseContent Sticky — a note on the stickies board
@@ -631,7 +640,7 @@ type MessageEntryPayload struct {
 	// Addressed Recipients per kind, each a list of email addresses.
 	// haystack applies Array() to each kind, so a JSON array is the correct wire format
 	// (a bare string would be treated as a single address, not split on commas).
-	Addressed MessageAddressed `json:"addressed,omitempty"`
+	Addressed *MessageAddressed `json:"addressed,omitempty"`
 }
 
 // MessagePayload defines model for MessagePayload.
@@ -890,18 +899,6 @@ type Sender struct {
 // ServiceUnavailableErrorResponseContent defines model for ServiceUnavailableErrorResponseContent.
 type ServiceUnavailableErrorResponseContent struct {
 	Message string `json:"message"`
-}
-
-// StartTimeTrackPayload defines model for StartTimeTrackPayload.
-type StartTimeTrackPayload struct {
-	Category string `json:"category,omitempty"`
-	Notes    string `json:"notes,omitempty"`
-	Title    string `json:"title,omitempty"`
-}
-
-// StartTimeTrackRequestContent Wire format: {calendar_time_track: {title, notes, category}}
-type StartTimeTrackRequestContent struct {
-	CalendarTimeTrack StartTimeTrackPayload `json:"calendar_time_track,omitempty"`
 }
 
 // StartTimeTrackResponseContent Recording — polymorphic by `type` (CalendarEvent, CalendarTodo, etc.)
@@ -1225,9 +1222,6 @@ type CreateHabitJSONRequestBody = HabitRequestContent
 
 // UpdateHabitJSONRequestBody defines body for UpdateHabit for application/json ContentType.
 type UpdateHabitJSONRequestBody = HabitRequestContent
-
-// StartTimeTrackJSONRequestBody defines body for StartTimeTrack for application/json ContentType.
-type StartTimeTrackJSONRequestBody = StartTimeTrackRequestContent
 
 // CreateTimeTrackJSONRequestBody defines body for CreateTimeTrack for application/json ContentType.
 type CreateTimeTrackJSONRequestBody = TimeTrackRequestContent
@@ -1590,10 +1584,8 @@ type ClientInterface interface {
 	// GetOngoingTimeTrack request
 	GetOngoingTimeTrack(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// StartTimeTrackWithBody request with any body
-	StartTimeTrackWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
-
-	StartTimeTrack(ctx context.Context, body StartTimeTrackJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+	// StartTimeTrack request
+	StartTimeTrack(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// CreateTimeTrackWithBody request with any body
 	CreateTimeTrackWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -2136,25 +2128,11 @@ func (c *Client) GetOngoingTimeTrack(ctx context.Context, reqEditors ...RequestE
 
 }
 
-// StartTimeTrackWithBody executes the StartTimeTrack operation.
+// StartTimeTrack executes the StartTimeTrack operation.
 
-func (c *Client) StartTimeTrackWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+func (c *Client) StartTimeTrack(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
 
-	req, err := NewStartTimeTrackRequestWithBody(c.Server, contentType, body)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
-
-}
-
-func (c *Client) StartTimeTrack(ctx context.Context, body StartTimeTrackJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
-	req, err := NewStartTimeTrackRequest(c.Server, body)
+	req, err := NewStartTimeTrackRequest(c.Server)
 	if err != nil {
 		return nil, err
 	}
@@ -3982,19 +3960,8 @@ func NewGetOngoingTimeTrackRequest(server string) (*http.Request, error) {
 	return req, nil
 }
 
-// NewStartTimeTrackRequest calls the generic StartTimeTrack builder with application/json body
-func NewStartTimeTrackRequest(server string, body StartTimeTrackJSONRequestBody) (*http.Request, error) {
-	var bodyReader io.Reader
-	buf, err := json.Marshal(body)
-	if err != nil {
-		return nil, err
-	}
-	bodyReader = bytes.NewReader(buf)
-	return NewStartTimeTrackRequestWithBody(server, "application/json", bodyReader)
-}
-
-// NewStartTimeTrackRequestWithBody generates requests for StartTimeTrack with any type of body
-func NewStartTimeTrackRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+// NewStartTimeTrackRequest generates requests for StartTimeTrack
+func NewStartTimeTrackRequest(server string) (*http.Request, error) {
 	var err error
 
 	serverURL, err := url.Parse(server)
@@ -4012,12 +3979,10 @@ func NewStartTimeTrackRequestWithBody(server string, contentType string, body io
 		return nil, err
 	}
 
-	req, err := http.NewRequest("POST", queryURL.String(), body)
+	req, err := http.NewRequest("POST", queryURL.String(), nil)
 	if err != nil {
 		return nil, err
 	}
-
-	req.Header.Add("Content-Type", contentType)
 
 	return req, nil
 }
@@ -7505,19 +7470,14 @@ type ClientWithResponsesInterface interface {
 	// Returns a wrapper object for the known response body format(s).
 	GetOngoingTimeTrackWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetOngoingTimeTrackResponse, error)
 
-	// StartTimeTrackWithBodyWithResponse performs a POST /calendar/ongoing_time_track.json (the `StartTimeTrack` operationId) request,
-	// with any type of body and a specified content type.
+	// StartTimeTrackWithResponse performs a POST /calendar/ongoing_time_track.json (the `StartTimeTrack` operationId) request.
 	//
-	// Start a new time track.
+	// Start a new time track. Takes no body: haystack's
+	// Calendar::OngoingTimeTracksController#create ignores request parameters and
+	// starts a track with defaults; use UpdateTimeTrack to set title/notes/category.
 	//
 	// Returns a wrapper object for the known response body format(s).
-	StartTimeTrackWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*StartTimeTrackResponse, error)
-
-	// StartTimeTrackWithResponse performs a POST /calendar/ongoing_time_track.json (the `StartTimeTrack` operationId) request.
-	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
-	//
-	// Start a new time track.
-	StartTimeTrackWithResponse(ctx context.Context, body StartTimeTrackJSONRequestBody, reqEditors ...RequestEditorFn) (*StartTimeTrackResponse, error)
+	StartTimeTrackWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*StartTimeTrackResponse, error)
 
 	// CreateTimeTrackWithBodyWithResponse performs a POST /calendar/time_tracks.json (the `CreateTimeTrack` operationId) request,
 	// with any type of body and a specified content type.
@@ -9461,6 +9421,8 @@ type StartTimeTrackResponse struct {
 	JSON200 *StartTimeTrackResponseContent
 	// JSON401 the response for an HTTP 401 `application/json` response
 	JSON401 *UnauthorizedErrorResponseContent
+	// JSON409 the response for an HTTP 409 `application/json` response
+	JSON409 *ConflictErrorResponseContent
 	// JSON422 the response for an HTTP 422 `application/json` response
 	JSON422 *UnprocessableEntityErrorResponseContent
 	// JSON500 the response for an HTTP 500 `application/json` response
@@ -9477,6 +9439,11 @@ func (r StartTimeTrackResponse) GetJSON200() *StartTimeTrackResponseContent {
 // GetJSON401 returns the response for an HTTP 401 `application/json` response
 func (r StartTimeTrackResponse) GetJSON401() *UnauthorizedErrorResponseContent {
 	return r.JSON401
+}
+
+// GetJSON409 returns the response for an HTTP 409 `application/json` response
+func (r StartTimeTrackResponse) GetJSON409() *ConflictErrorResponseContent {
+	return r.JSON409
 }
 
 // GetJSON422 returns the response for an HTTP 422 `application/json` response
@@ -13818,26 +13785,15 @@ func (c *ClientWithResponses) GetOngoingTimeTrackWithResponse(ctx context.Contex
 	return ParseGetOngoingTimeTrackResponse(rsp)
 }
 
-// StartTimeTrackWithBodyWithResponse performs a POST /calendar/ongoing_time_track.json (the `StartTimeTrack` operationId) request,
-// with any type of body and a specified content type.
+// StartTimeTrackWithResponse performs a POST /calendar/ongoing_time_track.json (the `StartTimeTrack` operationId) request.
 //
-// Start a new time track.
+// Start a new time track. Takes no body: haystack's
+// Calendar::OngoingTimeTracksController#create ignores request parameters and
+// starts a track with defaults; use UpdateTimeTrack to set title/notes/category.
 //
 // Returns a wrapper object for the known response body format(s).
-func (c *ClientWithResponses) StartTimeTrackWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*StartTimeTrackResponse, error) {
-	rsp, err := c.StartTimeTrackWithBody(ctx, contentType, body, reqEditors...)
-	if err != nil {
-		return nil, err
-	}
-	return ParseStartTimeTrackResponse(rsp)
-}
-
-// StartTimeTrackWithResponse performs a POST /calendar/ongoing_time_track.json (the `StartTimeTrack` operationId) request.
-// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
-//
-// Start a new time track.
-func (c *ClientWithResponses) StartTimeTrackWithResponse(ctx context.Context, body StartTimeTrackJSONRequestBody, reqEditors ...RequestEditorFn) (*StartTimeTrackResponse, error) {
-	rsp, err := c.StartTimeTrack(ctx, body, reqEditors...)
+func (c *ClientWithResponses) StartTimeTrackWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*StartTimeTrackResponse, error) {
+	rsp, err := c.StartTimeTrack(ctx, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
@@ -16027,6 +15983,13 @@ func ParseStartTimeTrackResponse(rsp *http.Response) (*StartTimeTrackResponse, e
 			return nil, err
 		}
 		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
+		var dest ConflictErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON409 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 422:
 		var dest UnprocessableEntityErrorResponseContent

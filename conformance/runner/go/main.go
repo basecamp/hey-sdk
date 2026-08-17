@@ -843,8 +843,7 @@ func executeOperation(client *generated.Client, ctx context.Context, tc TestCase
 	case "GetOngoingTimeTrack":
 		return client.GetOngoingTimeTrack(ctx)
 	case "StartTimeTrack":
-		body := generated.StartTimeTrackJSONRequestBody{}
-		return client.StartTimeTrack(ctx, body)
+		return client.StartTimeTrack(ctx)
 	case "UpdateTimeTrack":
 		timeTrackId := getInt64Param(tc.PathParams, "timeTrackId")
 		body := generated.UpdateTimeTrackJSONRequestBody{

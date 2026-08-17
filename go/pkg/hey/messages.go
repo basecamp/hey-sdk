@@ -1,9 +1,7 @@
 package hey
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"time"
 
 	"github.com/basecamp/hey-sdk/go/pkg/generated"
@@ -52,6 +50,9 @@ func (s *MessagesService) Get(ctx context.Context, messageID int64) (result *gen
 // entry: {addressed: {directly: [...], copied: [...], blindcopied: [...]}}}.
 // Recipient lists are JSON arrays; haystack applies Array() to each kind.
 func (s *MessagesService) Create(ctx context.Context, subject, content string, to, cc, bcc []string) (err error) {
+	if len(to)+len(cc)+len(bcc) == 0 {
+		return ErrUsage("a message needs at least one recipient (to, cc or bcc)")
+	}
 	op := OperationInfo{
 		Service: "Messages", Operation: "CreateMessage",
 		ResourceType: "message", IsMutation: true,
@@ -70,40 +71,27 @@ func (s *MessagesService) Create(ctx context.Context, subject, content string, t
 		return err
 	}
 
-	body := map[string]any{
-		"acting_sender_id": senderID,
-		"message": map[string]any{
-			"subject": subject,
-			"content": content,
-		},
-		"entry": map[string]any{
-			"addressed": addressedPayload(to, cc, bcc),
-		},
-	}
-	payload, err := json.Marshal(body)
-	if err != nil {
-		return err
+	body := generated.CreateMessageRequestContent{
+		ActingSenderId: senderID,
+		Message:        generated.MessagePayload{Subject: subject, Content: content},
+		Entry:          entryPayload(to, cc, bcc),
 	}
 
-	s.client.initGeneratedClient()
-	resp, err := s.client.gen.CreateMessageWithBodyWithResponse(ctx, "application/json", bytes.NewReader(payload))
+	resp, err := s.client.genClient().CreateMessageWithResponse(ctx, body)
 	if err != nil {
 		return err
 	}
 	return CheckResponse(resp.HTTPResponse)
 }
 
-// addressedPayload builds the entry.addressed map, omitting empty kinds.
-func addressedPayload(to, cc, bcc []string) map[string]any {
-	addressed := map[string]any{}
-	if len(to) > 0 {
-		addressed["directly"] = to
+// entryPayload builds entry.addressed for a message or reply. Callers guarantee at
+// least one recipient; it still returns nil for none so the "entry" key is omitted
+// rather than sent as an empty hash.
+func entryPayload(to, cc, bcc []string) *generated.MessageEntryPayload {
+	if len(to)+len(cc)+len(bcc) == 0 {
+		return nil
 	}
-	if len(cc) > 0 {
-		addressed["copied"] = cc
+	return &generated.MessageEntryPayload{
+		Addressed: &generated.MessageAddressed{Directly: to, Copied: cc, Blindcopied: bcc},
 	}
-	if len(bcc) > 0 {
-		addressed["blindcopied"] = bcc
-	}
-	return addressed
 }

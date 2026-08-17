@@ -27,6 +27,13 @@ func CheckResponse(resp *http.Response) error {
 	case http.StatusUnauthorized:
 		return &Error{Code: CodeAuth, Message: "authentication required", HTTPStatus: 401, RequestID: requestID}
 	case http.StatusForbidden:
+		// A read-only OAuth token can GET but not mutate: tell the caller why,
+		// the same way the raw request path does (see doRequest).
+		if resp.Request != nil && resp.Request.Method != http.MethodGet {
+			e := ErrForbiddenScope()
+			e.RequestID = requestID
+			return e
+		}
 		return &Error{Code: CodeForbidden, Message: "access denied", HTTPStatus: 403, RequestID: requestID}
 	case http.StatusNotFound:
 		return &Error{Code: CodeNotFound, Message: "resource not found", HTTPStatus: 404, RequestID: requestID}
