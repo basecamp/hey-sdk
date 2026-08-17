@@ -1,8 +1,9 @@
 package hey
 
 import (
+	"bytes"
 	"context"
-	"fmt"
+	"encoding/json"
 	"time"
 
 	"github.com/basecamp/hey-sdk/go/pkg/generated"
@@ -40,22 +41,29 @@ func (s *CalendarTodosService) Create(ctx context.Context, title string, startsA
 		startsAt = time.Now().Format("2006-01-02")
 	}
 
+	// starts_at goes on the wire as a bare date (YYYY-MM-DD): the server casts it
+	// in the user's time zone, whereas an RFC 3339 instant at UTC midnight could
+	// land on the previous day. The generated payload types it as time.Time, so
+	// send the exact body through the generated route instead.
 	body := map[string]any{
 		"calendar_todo": map[string]any{
 			"title":     title,
 			"starts_at": startsAt,
 		},
 	}
-
-	resp, err := s.client.Post(ctx, "/calendar/todos.json", body)
+	payload, err := json.Marshal(body)
 	if err != nil {
 		return nil, err
 	}
-	var recording generated.Recording
-	if err = resp.UnmarshalData(&recording); err != nil {
-		return nil, fmt.Errorf("failed to decode todo response: %w", err)
+
+	resp, err := s.client.genClient().CreateCalendarTodoWithBodyWithResponse(ctx, "application/json", bytes.NewReader(payload))
+	if err != nil {
+		return nil, err
 	}
-	return &recording, nil
+	if err = CheckResponse(resp.HTTPResponse); err != nil {
+		return nil, err
+	}
+	return resp.JSON200, nil
 }
 
 // Complete marks a calendar todo as complete.

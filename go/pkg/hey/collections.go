@@ -64,17 +64,15 @@ func (s *CollectionsService) Update(ctx context.Context, collectionID int64, par
 	}
 
 	return s.client.instrument(ctx, op, func(ctx context.Context) error {
-		body := map[string]any{"collection": map[string]any{}}
-		collection := body["collection"].(map[string]any)
-		if params.Name != "" {
-			collection["name"] = params.Name
+		// Empty strings are omitted by the payload's omitempty tags, so unset
+		// fields are left alone server-side.
+		resp, err := s.client.genClient().UpdateCollectionWithResponse(ctx, collectionID, generated.UpdateCollectionRequestContent{
+			Collection: generated.CollectionPayload{Name: params.Name, Summary: params.Summary},
+		})
+		if err != nil {
+			return err
 		}
-		if params.Summary != "" {
-			collection["summary"] = params.Summary
-		}
-
-		_, err := s.client.PatchMutation(ctx, fmt.Sprintf("/collections/%d.json", collectionID), body)
-		return err
+		return CheckResponse(resp.HTTPResponse)
 	})
 }
 

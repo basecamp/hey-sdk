@@ -1668,9 +1668,10 @@ structure StartTimeTrackOutput {
 
 /// Update a time track (stop by setting ends_at to current time)
 @idempotent
-// NOTE: Live API path is /calendar/time_tracks/{id}.json but Smithy
-// forbids literals after labels in URI segments. The Go SDK uses a
-// hardcoded path; generated clients append .json via middleware.
+// NOTE: The live path is /calendar/time_tracks/{id}.json, but Smithy forbids a
+// literal after a label inside one segment. The generated client appends .json to
+// extension-less paths at request time (see initGeneratedClient), so URIs that end
+// in a label are written without it here.
 @http(method: "PUT", uri: "/calendar/time_tracks/{timeTrackId}")
 @tags(["Calendar Time Tracks"])
 @heyRetry(maxAttempts: 3, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
@@ -2760,7 +2761,14 @@ structure HabitPayload {
 @heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
 operation UpdateHabit {
     input: UpdateHabitInput
+    output: UpdateHabitOutput
     errors: [UnauthorizedError, NotFoundError, UnprocessableEntityError, InternalServerError, ServiceUnavailableError]
+}
+
+/// The edited habit as a recording (haystack renders calendar/recordings/_recording).
+structure UpdateHabitOutput {
+    @required
+    recording: Recording
 }
 
 structure UpdateHabitInput {

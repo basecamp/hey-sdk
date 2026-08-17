@@ -131,16 +131,6 @@ func recordingFromFormResponse(resp *FormResponse) (*generated.Recording, error)
 	return &generated.Recording{Id: id}, nil
 }
 
-// recordingFromData reads the recording a JSON write answers with. A server without the JSON
-// branch redirects to an HTML page instead, which leaves nothing to hand back.
-func recordingFromData(data []byte) *generated.Recording {
-	recording := &generated.Recording{}
-	if err := json.Unmarshal(data, recording); err != nil || recording.Id == 0 {
-		return nil
-	}
-	return recording
-}
-
 // Update updates an existing calendar event and returns it as a recording.
 //
 // A server carrying the JSON update branch answers 200 with the whole recording. An older

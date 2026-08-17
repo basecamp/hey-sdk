@@ -3,8 +3,6 @@ package hey
 import (
 	"context"
 	"fmt"
-	"net/url"
-	"strconv"
 	"time"
 
 	"github.com/basecamp/hey-sdk/go/pkg/generated"
@@ -212,15 +210,17 @@ func (s *PostingsService) File(ctx context.Context, folderID int64, postingIDs .
 // Unfile removes a label from one or more postings. A folderID of 0 removes every label.
 func (s *PostingsService) Unfile(ctx context.Context, folderID int64, postingIDs ...int64) (err error) {
 	return s.bulkAction(ctx, "UnfilePostings", postingIDs, func(ctx context.Context, ids []int64) error {
-		// Hand-rolled rather than generated: the generated client always writes folder_id
-		// into the query, and folder_id=0 is a lookup for a folder that does not exist.
-		query := url.Values{"posting_ids": {joinIDs(ids)}}
+		// folder_id is only sent when set: 0 is not "all folders" to the server,
+		// it is a lookup for a folder that does not exist.
+		params := generated.UnfilePostingsParams{PostingIds: joinIDs(ids)}
 		if folderID != 0 {
-			query.Set("folder_id", strconv.FormatInt(folderID, 10))
+			params.FolderId = &folderID
 		}
-
-		_, err := s.client.Delete(ctx, "/postings/filings.json?"+query.Encode())
-		return err
+		resp, err := s.genClient().UnfilePostingsWithResponse(ctx, &params)
+		if err != nil {
+			return err
+		}
+		return CheckResponse(resp.HTTPResponse)
 	})
 }
 

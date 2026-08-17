@@ -71,15 +71,14 @@ func (s *TimeTracksService) Start(ctx context.Context, body generated.StartTimeT
 	ctx = s.client.hooks.OnOperationStart(ctx, op)
 	defer func() { s.client.hooks.OnOperationEnd(ctx, op, err, time.Since(start)) }()
 
-	resp, err := s.client.Post(ctx, "/calendar/ongoing_time_track.json", body)
+	resp, err := s.client.genClient().StartTimeTrackWithResponse(ctx, body)
 	if err != nil {
 		return nil, err
 	}
-	var recording generated.Recording
-	if err = resp.UnmarshalData(&recording); err != nil {
-		return nil, fmt.Errorf("failed to decode time track response: %w", err)
+	if err = CheckResponse(resp.HTTPResponse); err != nil {
+		return nil, err
 	}
-	return &recording, nil
+	return resp.JSON200, nil
 }
 
 // Update updates an existing time track.
@@ -99,15 +98,14 @@ func (s *TimeTracksService) Update(ctx context.Context, timeTrackID int64, body 
 	ctx = s.client.hooks.OnOperationStart(ctx, op)
 	defer func() { s.client.hooks.OnOperationEnd(ctx, op, err, time.Since(start)) }()
 
-	resp, err := s.client.Put(ctx, fmt.Sprintf("/calendar/time_tracks/%d.json", timeTrackID), body)
+	resp, err := s.client.genClient().UpdateTimeTrackWithResponse(ctx, timeTrackID, body)
 	if err != nil {
 		return nil, err
 	}
-	var recording generated.Recording
-	if err = resp.UnmarshalData(&recording); err != nil {
-		return nil, fmt.Errorf("failed to decode time track response: %w", err)
+	if err = CheckResponse(resp.HTTPResponse); err != nil {
+		return nil, err
 	}
-	return &recording, nil
+	return resp.JSON200, nil
 }
 
 // Stop stops an ongoing time track by setting ends_at to the current time.
@@ -150,8 +148,11 @@ func (s *TimeTracksService) Delete(ctx context.Context, timeTrackID int64) error
 	}
 
 	return s.client.instrument(ctx, op, func(ctx context.Context) error {
-		_, err := s.client.Delete(ctx, fmt.Sprintf("/calendar/time_tracks/%d.json", timeTrackID))
-		return err
+		resp, err := s.client.genClient().DeleteTimeTrackWithResponse(ctx, timeTrackID)
+		if err != nil {
+			return err
+		}
+		return CheckResponse(resp.HTTPResponse)
 	})
 }
 

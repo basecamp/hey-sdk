@@ -78,6 +78,27 @@ jq '
     )
 ' "$OPENAPI_FILE" > "${OPENAPI_FILE}.tmp" && mv "${OPENAPI_FILE}.tmp" "$OPENAPI_FILE"
 
+# Pass 4: Optional query parameters → pointers
+# oapi-codegen emits every non-pointer query field unconditionally, so an optional
+# param the caller did not set still goes on the wire as its zero value: page=,
+# limit=0, folder_id=0, confirm_destroy=. The last two are not harmless (unfile from
+# folder 0; skip the shared-topic trash confirmation). Pointers are omitted when nil.
+jq '
+  .paths |= with_entries(
+    .value |= with_entries(
+      if (.key | test("^(get|post|put|patch|delete)$")) and (((.value.parameters // []) | length) > 0) then
+        .value.parameters |= map(
+          if .in == "query" and ((.required // false) | not) then
+            .schema += {"x-go-type-skip-optional-pointer": false}
+          else .
+          end
+        )
+      else .
+      end
+    )
+  )
+' "$OPENAPI_FILE" > "${OPENAPI_FILE}.tmp" && mv "${OPENAPI_FILE}.tmp" "$OPENAPI_FILE"
+
 # Pass 3: Nothing here — self-referential types are fixed via post-codegen sed
 # in go/Makefile (oapi-codegen ignores type overrides on bare $ref properties).
 
