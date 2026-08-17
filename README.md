@@ -1,42 +1,112 @@
 # HEY SDK
 
-Official SDK for the HEY API. Multi-language support for Go, TypeScript, Ruby, Swift, and Kotlin.
+The Go SDK for the [HEY](https://www.hey.com) API. It is the library behind
+[hey-cli](https://github.com/basecamp/hey-cli), and it is generated from a Smithy model of
+the API in `spec/`, so what the SDK offers is what HEY actually serves.
 
-## Quick Start
+**Go only.** This repository ships a single Go module, `github.com/basecamp/hey-sdk/go`.
+The Makefile still carries `ts-`, `rb-`, `swift-` and `kt-` targets inherited from a shared
+SDK template; there are no such SDKs here and those targets fail immediately.
 
-### Go
-
-```go
-import "github.com/basecamp/hey-sdk/go/pkg/hey"
-
-client := hey.NewClient(&hey.Config{}, &hey.StaticTokenProvider{Token: "your-token"})
-boxes, err := client.Boxes().List(ctx)
-```
-
-### TypeScript
-
-```typescript
-import { HEYClient } from '@basecamp/hey-sdk'
-
-const client = new HEYClient({ token: 'your-token' })
-const boxes = await client.boxes.list()
-```
-
-### Ruby
-
-```ruby
-require 'hey-sdk'
-
-client = HEY::Client.new(token: 'your-token')
-boxes = client.boxes.list
-```
-
-## Development
+## Install
 
 ```bash
-make check          # Run all checks
-make {lang}-test    # Run tests for one language
-make conformance    # Run cross-language conformance tests
+go get github.com/basecamp/hey-sdk/go@latest
 ```
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for full development workflow.
+Requires Go 1.26 or newer.
+
+## Authenticate
+
+Static token (scripts, agents, anything that already holds a token):
+
+```go
+import hey "github.com/basecamp/hey-sdk/go/pkg/hey"
+
+cfg := hey.DefaultConfig() // https://app.hey.com
+client := hey.NewClient(cfg, &hey.StaticTokenProvider{Token: os.Getenv("HEY_TOKEN")})
+```
+
+OAuth 2.0 with PKCE (user-facing apps): `hey.NewAuthManager` handles the token lifecycle
+and refresh, and the `oauth` subpackage provides discovery, PKCE and the code exchange.
+Anything else can plug in with `hey.WithAuthStrategy`, which sets headers on each request —
+hey-cli uses this to bridge its own credential store.
+
+## Use it
+
+```go
+ctx := context.Background()
+
+boxes, _ := client.Boxes().List(ctx)          // Imbox, The Feed, Paper Trail, ...
+imbox, _ := client.Boxes().GetImbox(ctx, nil)   // postings in the Imbox
+
+// Sending: recipients are required — HEY saves an unaddressed reply as a draft.
+_ = client.Messages().Create(ctx, "Subject", "Body", []string{"someone@example.com"}, nil, nil)
+_ = client.Entries().CreateReply(ctx, entryID, "Reply body", []string{"someone@example.com"}, nil, nil)
+
+// Postings are bulk operations, as they are in HEY.
+_ = client.Postings().MoveToSetAside(ctx, postingID)
+_ = client.Postings().MarkSeen(ctx, []int64{a, b})
+
+// Calendar
+rec, _ := client.TimeTracks().Start(ctx)
+_ = client.TimeTracks().Stop(ctx, rec.Id)
+```
+
+Services on the client: `Identity`, `Boxes`, `Postings`, `Topics`, `Messages`, `Entries`,
+`Contacts`, `Calendars`, `CalendarTodos`, `CalendarEvents`, `Habits`, `TimeTracks`,
+`Journal`, `Search`, `Folders`, `Collections`, `Stickies`, `Clips`, `Snippets`, `Workflows`,
+`Publications`, `Designations`, `Extenzions`, `World`.
+
+Every call reports itself to the client's `Hooks` (`hey.WithHooks`) as a named operation —
+`Postings.MovePostings`, `TimeTracks.StopTimeTrack` — and a `GatingHooks` implementation
+can refuse an operation before it runs. Retries, circuit breaking, bulkheads and rate limits
+are configured with `WithResilience`, `WithCircuitBreaker`, `WithBulkhead` and
+`WithRateLimit`; HTTP caching with `WithCache`.
+
+### Errors
+
+Calls return `*hey.Error` with a stable `Code` (`hey.CodeNotFound`, `hey.CodeAuth`,
+`hey.CodeForbidden`, `hey.CodeRateLimit`, `hey.CodeConflict`, `hey.CodeUsage`, ...), the
+HTTP status, and — for auth and scope problems — a hint. `hey.AsError(err)` unwraps it.
+
+### Pagination
+
+Paged reads follow HEY's `Link` headers automatically, up to `WithMaxPages`.
+
+## How the SDK is built
+
+```
+spec/hey.smithy ──► openapi.json ──► oapi-codegen ──► go/pkg/generated/client.gen.go
+                                                                │
+                              hand-written services in go/pkg/hey call into it
+```
+
+The Smithy model is the source of truth for routes and payloads. `openapi.json`,
+`behavior-model.json`, `client.gen.go`, `go/pkg/hey/url-routes.json` and the files under
+`spec/` that describe coverage are all regenerated from it — editing them by hand is lost on
+the next build. The services in `go/pkg/hey` are written by hand and add the things a
+generated client cannot know: which recipients a reply needs, that HEY answers a shared
+topic's trash request with a confirmation page, that starting a time track takes no body.
+
+`make check` verifies the model against a snapshot of HEY's own routes
+(`spec/route-snapshot.json`, pinned in `spec/api-provenance.json`): every modelled route
+must exist in HEY, and every JSON-capable HEY route must be either modelled or listed in
+`spec/excluded-routes.json` with a reason. Generated ops that HEY does not serve cannot get
+in unnoticed.
+
+A handful of services (`Clips`, `Snippets`, `Workflows`, `Publications`, `World`,
+`Extenzions`, `CalendarEvents`, and parts of `Contacts` and `Search`) still talk to HEY the
+way the web UI does — form posts, and for a few reads, the HTML page — because those
+endpoints have no JSON yet. They are marked as such in the code and are being replaced as
+HEY grows JSON for them.
+
+## Develop
+
+```bash
+make check      # Smithy validate/build, drift gates, Go vet/lint/tests, conformance
+```
+
+`make check` is the gate; see [AGENTS.md](AGENTS.md) for the pipeline, the exact steps for
+adding an operation, and the hard rules (never hand-write an API path; every operation needs
+tests). [CONTRIBUTING.md](CONTRIBUTING.md) covers the workflow and releases.

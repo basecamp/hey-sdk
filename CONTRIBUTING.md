@@ -4,9 +4,8 @@
 
 - Smithy CLI
 - Go 1.26+
-- Node.js 20+
-- Ruby 3.2+
 - Make
+- jq
 
 ## Development Workflow
 
@@ -20,11 +19,15 @@
 ## Adding a New API Operation
 
 1. Add the operation to the Smithy spec in `spec/`
-2. Run `make smithy-build` to regenerate OpenAPI
-3. Run `make {lang}-generate-services` for each language
+2. Run `make smithy-build` to regenerate OpenAPI, then refresh the derived files
+   (`make url-routes`, `./scripts/generate-shape-fingerprint`, `./scripts/generate-route-coverage`)
+3. Run `make go-generate` to regenerate the Go client, then add or update the hand-written
+   service in `go/pkg/hey`
 4. Add unit tests
 5. Add conformance tests if the operation has behavioral requirements
 6. Run `make check`
+
+The full step-by-step, including how the drift gates work, is in [AGENTS.md](AGENTS.md).
 
 ## Release Process
 
