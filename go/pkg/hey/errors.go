@@ -26,6 +26,7 @@ const (
 	CodeAPI        = "api_error"
 	CodeValidation = "validation"
 	CodeAmbiguous  = "ambiguous"
+	CodeConflict   = "conflict"
 )
 
 // Exit codes for CLI tools.
@@ -92,6 +93,8 @@ func ExitCodeFor(code string) int {
 		return ExitValidation
 	case CodeAmbiguous:
 		return ExitAmbiguous
+	case CodeConflict:
+		return ExitValidation
 	default:
 		return ExitAPI
 	}
@@ -183,6 +186,16 @@ func ErrAPI(status int, msg string) *Error {
 		Code:       CodeAPI,
 		Message:    msg,
 		HTTPStatus: status,
+	}
+}
+
+// ErrConflict signals that the request conflicts with current server state
+// (HTTP 409), carrying the server's own message.
+func ErrConflict(msg string) *Error {
+	return &Error{
+		Code:       CodeConflict,
+		Message:    msg,
+		HTTPStatus: 409,
 	}
 }
 

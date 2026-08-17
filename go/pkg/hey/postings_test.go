@@ -230,3 +230,18 @@ func TestCheckResponse_ForbiddenMutationIsScopeError(t *testing.T) {
 		t.Errorf("read 403 should be a plain forbidden, got %#v", err)
 	}
 }
+
+func TestTimeTracksService_StartConflict(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusConflict)
+		_, _ = w.Write([]byte(`{"error":"Ongoing time track already in progress"}`))
+	}))
+	t.Cleanup(srv.Close)
+	c := NewClient(&Config{BaseURL: srv.URL}, &StaticTokenProvider{Token: "t"}, WithMaxRetries(0))
+	_, err := c.TimeTracks().Start(context.Background())
+	e := AsError(err)
+	if e == nil || e.Code != CodeConflict || e.HTTPStatus != 409 || e.Message != "Ongoing time track already in progress" {
+		t.Fatalf("expected a conflict error carrying the server message, got %#v", err)
+	}
+}
