@@ -119,6 +119,13 @@
         ]
       }
     },
+    "CreateDirectUpload": {
+      "idempotent": false,
+      "readonly": false,
+      "retry": {
+        "max": 0
+      }
+    },
     "CreateFolderForPostings": {
       "idempotent": false,
       "readonly": false,

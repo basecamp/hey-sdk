@@ -903,6 +903,16 @@ func executeOperation(client *generated.Client, ctx context.Context, tc TestCase
 			},
 		}
 		return client.CreateMessage(ctx, body)
+	case "CreateDirectUpload":
+		body := generated.CreateDirectUploadJSONRequestBody{
+			Blob: generated.DirectUploadBlob{
+				Filename:    getStringParam(tc.RequestBody, "filename"),
+				ByteSize:    getInt64Param(tc.RequestBody, "byte_size"),
+				Checksum:    getStringParam(tc.RequestBody, "checksum"),
+				ContentType: getStringParam(tc.RequestBody, "content_type"),
+			},
+		}
+		return client.CreateDirectUpload(ctx, body)
 	case "ListDrafts":
 		return client.ListDrafts(ctx, nil)
 	case "CreateReply":

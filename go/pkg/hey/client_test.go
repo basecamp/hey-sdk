@@ -267,6 +267,9 @@ func TestClient_ServiceAccessors(t *testing.T) {
 	if c.Messages() == nil {
 		t.Fatal("expected non-nil MessagesService")
 	}
+	if c.Attachments() == nil {
+		t.Fatal("expected non-nil AttachmentsService")
+	}
 	if c.Entries() == nil {
 		t.Fatal("expected non-nil EntriesService")
 	}

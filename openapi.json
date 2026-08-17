@@ -4973,6 +4973,77 @@
         }
       }
     },
+    "/rails/active_storage/direct_uploads.json": {
+      "post": {
+        "description": "Create an Active Storage direct upload for an outgoing attachment.\nThe returned URL is self-authenticating and accepts the raw file bytes via PUT.",
+        "operationId": "CreateDirectUpload",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateDirectUploadRequestContent"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "CreateDirectUpload 200 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateDirectUploadResponseContent"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UnauthorizedError 401 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnauthorizedErrorResponseContent"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "UnprocessableEntityError 422 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnprocessableEntityErrorResponseContent"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "InternalServerError 500 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorResponseContent"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ServiceUnavailableError 503 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceUnavailableErrorResponseContent"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Attachments"
+        ]
+      }
+    },
     "/reply_later.json": {
       "get": {
         "description": "Get the Reply Later box",
@@ -7099,6 +7170,20 @@
       "CreateCalendarTodoResponseContent": {
         "$ref": "#/components/schemas/Recording"
       },
+      "CreateDirectUploadRequestContent": {
+        "type": "object",
+        "properties": {
+          "blob": {
+            "$ref": "#/components/schemas/DirectUploadBlob"
+          }
+        },
+        "required": [
+          "blob"
+        ]
+      },
+      "CreateDirectUploadResponseContent": {
+        "$ref": "#/components/schemas/DirectUpload"
+      },
       "CreateFolderForPostingsRequestContent": {
         "type": "object",
         "description": "Wire format: {posting_ids: [...], folder: {name, status}}",
@@ -7169,6 +7254,72 @@
       },
       "CreateTimeTrackResponseContent": {
         "$ref": "#/components/schemas/Recording"
+      },
+      "DirectUpload": {
+        "type": "object",
+        "properties": {
+          "signed_id": {
+            "type": "string"
+          },
+          "attachable_sgid": {
+            "type": "string"
+          },
+          "direct_upload": {
+            "$ref": "#/components/schemas/DirectUploadTarget"
+          }
+        },
+        "required": [
+          "attachable_sgid",
+          "direct_upload",
+          "signed_id"
+        ]
+      },
+      "DirectUploadBlob": {
+        "type": "object",
+        "properties": {
+          "filename": {
+            "type": "string"
+          },
+          "byte_size": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "checksum": {
+            "type": "string"
+          },
+          "content_type": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "byte_size",
+          "checksum",
+          "content_type",
+          "filename"
+        ]
+      },
+      "DirectUploadHeaders": {
+        "type": "object",
+        "additionalProperties": {
+          "type": "string"
+        },
+        "propertyNames": {
+          "type": "string"
+        }
+      },
+      "DirectUploadTarget": {
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string"
+          },
+          "headers": {
+            "$ref": "#/components/schemas/DirectUploadHeaders"
+          }
+        },
+        "required": [
+          "url"
+        ]
       },
       "Domain": {
         "type": "object",

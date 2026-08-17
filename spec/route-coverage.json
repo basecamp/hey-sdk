@@ -46,6 +46,11 @@
   },
   {
     "method": "POST",
+    "operationId": "CreateDirectUpload",
+    "path": "/rails/active_storage/direct_uploads.json"
+  },
+  {
+    "method": "POST",
     "operationId": "CreateFolderForPostings",
     "path": "/postings/folders.json"
   },

@@ -33,6 +33,7 @@
 //   - [Client.Boxes] - Mailboxes (imbox, feedbox, etc.)
 //   - [Client.Topics] - Email topics and views (sent, spam, trash, everything)
 //   - [Client.Messages] - Individual messages
+//   - [Client.Attachments] - Active Storage direct uploads for outgoing attachments
 //   - [Client.Entries] - Drafts and replies
 //   - [Client.Contacts] - Contact management
 //   - [Client.Calendars] - Calendar views and recordings

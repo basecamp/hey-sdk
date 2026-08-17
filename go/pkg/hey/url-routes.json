@@ -559,6 +559,14 @@
       "params": {}
     },
     {
+      "pattern": "/rails/active_storage/direct_uploads",
+      "resource": "Attachments",
+      "operations": {
+        "POST": "CreateDirectUpload"
+      },
+      "params": {}
+    },
+    {
       "pattern": "/reply_later",
       "resource": "Boxes",
       "operations": {

@@ -57,6 +57,7 @@ type Client struct {
 	postings       *PostingsService
 	topics         *TopicsService
 	messages       *MessagesService
+	attachments    *AttachmentsService
 	entries        *EntriesService
 	contacts       *ContactsService
 	calendars      *CalendarsService
@@ -792,6 +793,16 @@ func (c *Client) Messages() *MessagesService {
 		c.messages = NewMessagesService(c)
 	}
 	return c.messages
+}
+
+// Attachments returns the attachment service.
+func (c *Client) Attachments() *AttachmentsService {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.attachments == nil {
+		c.attachments = NewAttachmentsService(c)
+	}
+	return c.attachments
 }
 
 // Entries returns the EntriesService.
