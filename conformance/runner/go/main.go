@@ -923,7 +923,10 @@ func executeOperation(client *generated.Client, ctx context.Context, tc TestCase
 	case "UnfilePostings":
 		params := &generated.UnfilePostingsParams{
 			PostingIds: getStringParam(tc.QueryParams, "posting_ids"),
-			FolderId:   getInt64Param(tc.QueryParams, "folder_id"),
+		}
+		if _, ok := tc.QueryParams["folder_id"]; ok {
+			folderID := getInt64Param(tc.QueryParams, "folder_id")
+			params.FolderId = &folderID
 		}
 		return client.UnfilePostings(ctx, params)
 	case "CreateFolderForPostings":
@@ -944,7 +947,11 @@ func executeOperation(client *generated.Client, ctx context.Context, tc TestCase
 	// Topic status and moves
 	case "TrashTopic":
 		topicId := getInt64Param(tc.PathParams, "topicId")
-		params := &generated.TrashTopicParams{ConfirmDestroy: getStringParam(tc.QueryParams, "confirm_destroy")}
+		params := &generated.TrashTopicParams{}
+		if _, ok := tc.QueryParams["confirm_destroy"]; ok {
+			confirm := getStringParam(tc.QueryParams, "confirm_destroy")
+			params.ConfirmDestroy = &confirm
+		}
 		return client.TrashTopic(ctx, topicId, params)
 	case "RestoreTopic":
 		topicId := getInt64Param(tc.PathParams, "topicId")
@@ -1029,7 +1036,11 @@ func executeOperation(client *generated.Client, ctx context.Context, tc TestCase
 
 	// Stickies
 	case "ListStickies":
-		params := &generated.ListStickiesParams{Limit: getInt32Param(tc.QueryParams, "limit")}
+		params := &generated.ListStickiesParams{}
+		if _, ok := tc.QueryParams["limit"]; ok {
+			limit := getInt32Param(tc.QueryParams, "limit")
+			params.Limit = &limit
+		}
 		return client.ListStickies(ctx, params)
 	case "CreateSticky":
 		return client.CreateSticky(ctx, stickyBody(tc))

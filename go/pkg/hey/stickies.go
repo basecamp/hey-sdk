@@ -49,7 +49,8 @@ func (s *StickiesService) List(ctx context.Context, limit int) (result *generate
 			if limit > MaxStickiesLimit {
 				limit = MaxStickiesLimit
 			}
-			params = &generated.ListStickiesParams{Limit: int32(limit)}
+			l := int32(limit)
+			params = &generated.ListStickiesParams{Limit: &l}
 		}
 
 		resp, rerr := s.client.genClient().ListStickiesWithResponse(ctx, params)
@@ -96,24 +97,18 @@ func (s *StickiesService) Update(ctx context.Context, stickyID int64, body strin
 	}
 
 	err = s.client.instrument(ctx, op, func(ctx context.Context) error {
-		payload := map[string]any{}
-		if body != "" {
-			payload["body"] = body
-		}
-		if size != "" {
-			payload["size"] = size
-		}
-
-		resp, rerr := s.client.Patch(ctx, stickyPath(stickyID), map[string]any{"sticky": payload})
+		// Empty strings are omitted by the payload's omitempty tags, so unset
+		// fields are left alone server-side.
+		resp, rerr := s.client.genClient().UpdateStickyWithResponse(ctx, stickyID, generated.StickyRequestContent{
+			Sticky: generated.StickyPayload{Body: body, Size: size},
+		})
 		if rerr != nil {
 			return rerr
 		}
-
-		var sticky generated.Sticky
-		if derr := resp.UnmarshalData(&sticky); derr != nil {
-			return derr
+		if cerr := CheckResponse(resp.HTTPResponse); cerr != nil {
+			return cerr
 		}
-		result = &sticky
+		result = resp.JSON200
 		return nil
 	})
 	return result, err
@@ -127,8 +122,11 @@ func (s *StickiesService) Delete(ctx context.Context, stickyID int64) error {
 	}
 
 	return s.client.instrument(ctx, op, func(ctx context.Context) error {
-		_, err := s.client.Delete(ctx, stickyPath(stickyID))
-		return err
+		resp, err := s.client.genClient().DeleteStickyWithResponse(ctx, stickyID)
+		if err != nil {
+			return err
+		}
+		return CheckResponse(resp.HTTPResponse)
 	})
 }
 
@@ -154,10 +152,4 @@ func (s *StickiesService) Move(ctx context.Context, stickyID int64, position int
 		}
 		return CheckResponse(resp.HTTPResponse)
 	})
-}
-
-// stickyPath builds the .json path Smithy cannot model, because a URI label may not carry a
-// literal suffix.
-func stickyPath(stickyID int64) string {
-	return fmt.Sprintf("/stickies/%d.json", stickyID)
 }

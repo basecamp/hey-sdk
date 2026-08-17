@@ -2,7 +2,6 @@ package hey
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"github.com/basecamp/hey-sdk/go/pkg/generated"
@@ -114,11 +113,14 @@ func (s *HabitsService) Update(ctx context.Context, habitID int64, params HabitP
 	}
 
 	err = s.client.instrument(ctx, op, func(ctx context.Context) error {
-		resp, rerr := s.client.Patch(ctx, fmt.Sprintf("/calendar/habits/%d.json", habitID), habitBody(params))
+		resp, rerr := s.client.genClient().UpdateHabitWithResponse(ctx, habitID, habitBody(params))
 		if rerr != nil {
 			return rerr
 		}
-		recording = recordingFromData(resp.Data)
+		if cerr := CheckResponse(resp.HTTPResponse); cerr != nil {
+			return cerr
+		}
+		recording = resp.JSON200
 		return nil
 	})
 	return recording, err
@@ -132,8 +134,11 @@ func (s *HabitsService) Delete(ctx context.Context, habitID int64) error {
 	}
 
 	return s.client.instrument(ctx, op, func(ctx context.Context) error {
-		_, err := s.client.Delete(ctx, fmt.Sprintf("/calendar/habits/%d.json", habitID))
-		return err
+		resp, err := s.client.genClient().DeleteHabitWithResponse(ctx, habitID)
+		if err != nil {
+			return err
+		}
+		return CheckResponse(resp.HTTPResponse)
 	})
 }
 

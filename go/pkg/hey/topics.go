@@ -2,7 +2,6 @@ package hey
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"github.com/basecamp/hey-sdk/go/pkg/generated"
@@ -187,15 +186,18 @@ func (s *TopicsService) Trash(ctx context.Context, topicID int64, confirmDestroy
 	}
 
 	return s.client.instrument(ctx, op, func(ctx context.Context) error {
-		// Hand-rolled rather than generated: the generated client always writes
-		// confirm_destroy into the query, and an empty value reads as truthy on the server.
-		path := fmt.Sprintf("/topics/%d/status/trashed.json", topicID)
+		// confirm_destroy is only sent when set: an empty value would read as
+		// truthy on the server and skip the shared-topic confirmation.
+		var params generated.TrashTopicParams
 		if confirmDestroy {
-			path += "?confirm_destroy=1"
+			one := "1"
+			params.ConfirmDestroy = &one
 		}
-
-		_, err := s.client.Put(ctx, path, map[string]any{})
-		return err
+		resp, err := s.client.genClient().TrashTopicWithResponse(ctx, topicID, &params)
+		if err != nil {
+			return err
+		}
+		return CheckResponse(resp.HTTPResponse)
 	})
 }
 

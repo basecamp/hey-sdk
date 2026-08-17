@@ -2,7 +2,6 @@ package hey
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"github.com/basecamp/hey-sdk/go/pkg/generated"
@@ -278,8 +277,11 @@ func (s *BoxesService) DeleteGroup(ctx context.Context, boxID int64, groupID int
 	}
 
 	return s.client.instrument(ctx, op, func(ctx context.Context) error {
-		_, err := s.client.Delete(ctx, fmt.Sprintf("/boxes/%d/groups/%d.json", boxID, groupID))
-		return err
+		resp, err := s.client.genClient().DeleteBoxGroupWithResponse(ctx, boxID, groupID)
+		if err != nil {
+			return err
+		}
+		return CheckResponse(resp.HTTPResponse)
 	})
 }
 

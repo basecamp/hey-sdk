@@ -2,7 +2,6 @@ package hey
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/basecamp/hey-sdk/go/pkg/generated"
 )
@@ -45,7 +44,10 @@ func (s *DesignationsService) Destroy(ctx context.Context, boxID int64, designat
 	}
 
 	return s.client.instrument(ctx, op, func(ctx context.Context) error {
-		_, err := s.client.Delete(ctx, fmt.Sprintf("/boxes/%d/designations/%d.json", boxID, designationID))
-		return err
+		resp, err := s.client.genClient().DeleteBoxDesignationWithResponse(ctx, boxID, designationID)
+		if err != nil {
+			return err
+		}
+		return CheckResponse(resp.HTTPResponse)
 	})
 }

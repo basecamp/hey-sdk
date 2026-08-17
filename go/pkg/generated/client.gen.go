@@ -1009,6 +1009,9 @@ type UpdateContactClearanceRequestContent struct {
 	Status string `json:"status"`
 }
 
+// UpdateHabitResponseContent Recording — polymorphic by `type` (CalendarEvent, CalendarTodo, etc.)
+type UpdateHabitResponseContent = Recording
+
 // UpdateJournalEntryRequestContent Wire format: {calendar_journal_entry: {content}}
 type UpdateJournalEntryRequestContent struct {
 	CalendarJournalEntry JournalEntryPayload `json:"calendar_journal_entry"`
@@ -1092,49 +1095,49 @@ func (s SensitiveString) Value() string {
 
 // GetBoxParams defines parameters for GetBox.
 type GetBoxParams struct {
-	Page string `form:"page,omitempty" json:"page,omitempty"`
+	Page *string `form:"page,omitempty" json:"page,omitempty"`
 }
 
 // GetBubbleboxParams defines parameters for GetBubblebox.
 type GetBubbleboxParams struct {
-	Page string `form:"page,omitempty" json:"page,omitempty"`
+	Page *string `form:"page,omitempty" json:"page,omitempty"`
 }
 
 // GetCalendarRecordingsParams defines parameters for GetCalendarRecordings.
 type GetCalendarRecordingsParams struct {
-	StartsOn string `form:"starts_on,omitempty" json:"starts_on,omitempty"`
-	EndsOn   string `form:"ends_on,omitempty" json:"ends_on,omitempty"`
+	StartsOn *string `form:"starts_on,omitempty" json:"starts_on,omitempty"`
+	EndsOn   *string `form:"ends_on,omitempty" json:"ends_on,omitempty"`
 }
 
 // ListContactsParams defines parameters for ListContacts.
 type ListContactsParams struct {
-	Page string `form:"page,omitempty" json:"page,omitempty"`
-	Q    string `form:"q,omitempty" json:"q,omitempty"`
+	Page *string `form:"page,omitempty" json:"page,omitempty"`
+	Q    *string `form:"q,omitempty" json:"q,omitempty"`
 }
 
 // ListDraftsParams defines parameters for ListDrafts.
 type ListDraftsParams struct {
-	Page string `form:"page,omitempty" json:"page,omitempty"`
+	Page *string `form:"page,omitempty" json:"page,omitempty"`
 }
 
 // GetFeedboxParams defines parameters for GetFeedbox.
 type GetFeedboxParams struct {
-	Page string `form:"page,omitempty" json:"page,omitempty"`
+	Page *string `form:"page,omitempty" json:"page,omitempty"`
 }
 
 // GetFolderParams defines parameters for GetFolder.
 type GetFolderParams struct {
-	Page string `form:"page,omitempty" json:"page,omitempty"`
+	Page *string `form:"page,omitempty" json:"page,omitempty"`
 }
 
 // GetImboxParams defines parameters for GetImbox.
 type GetImboxParams struct {
-	Page string `form:"page,omitempty" json:"page,omitempty"`
+	Page *string `form:"page,omitempty" json:"page,omitempty"`
 }
 
 // GetTrailboxParams defines parameters for GetTrailbox.
 type GetTrailboxParams struct {
-	Page string `form:"page,omitempty" json:"page,omitempty"`
+	Page *string `form:"page,omitempty" json:"page,omitempty"`
 }
 
 // RemovePostingsFromBoxGroupParams defines parameters for RemovePostingsFromBoxGroup.
@@ -1153,7 +1156,7 @@ type CancelPostingsBubbleUpParams struct {
 type UnfilePostingsParams struct {
 	// PostingIds Posting ids as a comma-joined string, for verbs that carry no body
 	PostingIds string `form:"posting_ids" json:"posting_ids"`
-	FolderId   int64  `form:"folder_id,omitempty" json:"folder_id,omitempty"`
+	FolderId   *int64 `form:"folder_id,omitempty" json:"folder_id,omitempty"`
 }
 
 // UnmutePostingsParams defines parameters for UnmutePostings.
@@ -1164,48 +1167,48 @@ type UnmutePostingsParams struct {
 
 // GetLaterboxParams defines parameters for GetLaterbox.
 type GetLaterboxParams struct {
-	Page string `form:"page,omitempty" json:"page,omitempty"`
+	Page *string `form:"page,omitempty" json:"page,omitempty"`
 }
 
 // GetAsideboxParams defines parameters for GetAsidebox.
 type GetAsideboxParams struct {
-	Page string `form:"page,omitempty" json:"page,omitempty"`
+	Page *string `form:"page,omitempty" json:"page,omitempty"`
 }
 
 // ListStickiesParams defines parameters for ListStickies.
 type ListStickiesParams struct {
 	// Limit Clamped server-side to 1..100
-	Limit int32 `form:"limit,omitempty" json:"limit,omitempty"`
+	Limit *int32 `form:"limit,omitempty" json:"limit,omitempty"`
 }
 
 // GetEverythingTopicsParams defines parameters for GetEverythingTopics.
 type GetEverythingTopicsParams struct {
-	Page string `form:"page,omitempty" json:"page,omitempty"`
+	Page *string `form:"page,omitempty" json:"page,omitempty"`
 }
 
 // GetSentTopicsParams defines parameters for GetSentTopics.
 type GetSentTopicsParams struct {
-	Page string `form:"page,omitempty" json:"page,omitempty"`
+	Page *string `form:"page,omitempty" json:"page,omitempty"`
 }
 
 // GetSpamTopicsParams defines parameters for GetSpamTopics.
 type GetSpamTopicsParams struct {
-	Page string `form:"page,omitempty" json:"page,omitempty"`
+	Page *string `form:"page,omitempty" json:"page,omitempty"`
 }
 
 // GetTrashTopicsParams defines parameters for GetTrashTopics.
 type GetTrashTopicsParams struct {
-	Page string `form:"page,omitempty" json:"page,omitempty"`
+	Page *string `form:"page,omitempty" json:"page,omitempty"`
 }
 
 // GetTopicEntriesParams defines parameters for GetTopicEntries.
 type GetTopicEntriesParams struct {
-	Page string `form:"page,omitempty" json:"page,omitempty"`
+	Page *string `form:"page,omitempty" json:"page,omitempty"`
 }
 
 // TrashTopicParams defines parameters for TrashTopic.
 type TrashTopicParams struct {
-	ConfirmDestroy string `form:"confirm_destroy,omitempty" json:"confirm_destroy,omitempty"`
+	ConfirmDestroy *string `form:"confirm_destroy,omitempty" json:"confirm_destroy,omitempty"`
 }
 
 // CreateBoxDesignationJSONRequestBody defines body for CreateBoxDesignation for application/json ContentType.
@@ -3280,16 +3283,20 @@ func NewGetBoxRequest(server string, boxId int64, params *GetBoxParams) (*http.R
 	if params != nil {
 		queryValues := queryURL.Query()
 
-		if queryFrag, err := runtime.StyleParamWithLocation("form", true, "page", runtime.ParamLocationQuery, params.Page); err != nil {
-			return nil, err
-		} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
-			return nil, err
-		} else {
-			for k, v := range parsed {
-				for _, v2 := range v {
-					queryValues.Add(k, v2)
+		if params.Page != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "page", runtime.ParamLocationQuery, *params.Page); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
 				}
 			}
+
 		}
 
 		queryURL.RawQuery = queryValues.Encode()
@@ -3569,16 +3576,20 @@ func NewGetBubbleboxRequest(server string, params *GetBubbleboxParams) (*http.Re
 	if params != nil {
 		queryValues := queryURL.Query()
 
-		if queryFrag, err := runtime.StyleParamWithLocation("form", true, "page", runtime.ParamLocationQuery, params.Page); err != nil {
-			return nil, err
-		} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
-			return nil, err
-		} else {
-			for k, v := range parsed {
-				for _, v2 := range v {
-					queryValues.Add(k, v2)
+		if params.Page != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "page", runtime.ParamLocationQuery, *params.Page); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
 				}
 			}
+
 		}
 
 		queryURL.RawQuery = queryValues.Encode()
@@ -4330,28 +4341,36 @@ func NewGetCalendarRecordingsRequest(server string, calendarId int64, params *Ge
 	if params != nil {
 		queryValues := queryURL.Query()
 
-		if queryFrag, err := runtime.StyleParamWithLocation("form", true, "starts_on", runtime.ParamLocationQuery, params.StartsOn); err != nil {
-			return nil, err
-		} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
-			return nil, err
-		} else {
-			for k, v := range parsed {
-				for _, v2 := range v {
-					queryValues.Add(k, v2)
+		if params.StartsOn != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "starts_on", runtime.ParamLocationQuery, *params.StartsOn); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
 				}
 			}
+
 		}
 
-		if queryFrag, err := runtime.StyleParamWithLocation("form", true, "ends_on", runtime.ParamLocationQuery, params.EndsOn); err != nil {
-			return nil, err
-		} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
-			return nil, err
-		} else {
-			for k, v := range parsed {
-				for _, v2 := range v {
-					queryValues.Add(k, v2)
+		if params.EndsOn != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "ends_on", runtime.ParamLocationQuery, *params.EndsOn); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
 				}
 			}
+
 		}
 
 		queryURL.RawQuery = queryValues.Encode()
@@ -4488,28 +4507,36 @@ func NewListContactsRequest(server string, params *ListContactsParams) (*http.Re
 	if params != nil {
 		queryValues := queryURL.Query()
 
-		if queryFrag, err := runtime.StyleParamWithLocation("form", true, "page", runtime.ParamLocationQuery, params.Page); err != nil {
-			return nil, err
-		} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
-			return nil, err
-		} else {
-			for k, v := range parsed {
-				for _, v2 := range v {
-					queryValues.Add(k, v2)
+		if params.Page != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "page", runtime.ParamLocationQuery, *params.Page); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
 				}
 			}
+
 		}
 
-		if queryFrag, err := runtime.StyleParamWithLocation("form", true, "q", runtime.ParamLocationQuery, params.Q); err != nil {
-			return nil, err
-		} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
-			return nil, err
-		} else {
-			for k, v := range parsed {
-				for _, v2 := range v {
-					queryValues.Add(k, v2)
+		if params.Q != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "q", runtime.ParamLocationQuery, *params.Q); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
 				}
 			}
+
 		}
 
 		queryURL.RawQuery = queryValues.Encode()
@@ -4694,16 +4721,20 @@ func NewListDraftsRequest(server string, params *ListDraftsParams) (*http.Reques
 	if params != nil {
 		queryValues := queryURL.Query()
 
-		if queryFrag, err := runtime.StyleParamWithLocation("form", true, "page", runtime.ParamLocationQuery, params.Page); err != nil {
-			return nil, err
-		} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
-			return nil, err
-		} else {
-			for k, v := range parsed {
-				for _, v2 := range v {
-					queryValues.Add(k, v2)
+		if params.Page != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "page", runtime.ParamLocationQuery, *params.Page); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
 				}
 			}
+
 		}
 
 		queryURL.RawQuery = queryValues.Encode()
@@ -4854,16 +4885,20 @@ func NewGetFeedboxRequest(server string, params *GetFeedboxParams) (*http.Reques
 	if params != nil {
 		queryValues := queryURL.Query()
 
-		if queryFrag, err := runtime.StyleParamWithLocation("form", true, "page", runtime.ParamLocationQuery, params.Page); err != nil {
-			return nil, err
-		} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
-			return nil, err
-		} else {
-			for k, v := range parsed {
-				for _, v2 := range v {
-					queryValues.Add(k, v2)
+		if params.Page != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "page", runtime.ParamLocationQuery, *params.Page); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
 				}
 			}
+
 		}
 
 		queryURL.RawQuery = queryValues.Encode()
@@ -4906,16 +4941,20 @@ func NewGetFolderRequest(server string, folderId int64, params *GetFolderParams)
 	if params != nil {
 		queryValues := queryURL.Query()
 
-		if queryFrag, err := runtime.StyleParamWithLocation("form", true, "page", runtime.ParamLocationQuery, params.Page); err != nil {
-			return nil, err
-		} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
-			return nil, err
-		} else {
-			for k, v := range parsed {
-				for _, v2 := range v {
-					queryValues.Add(k, v2)
+		if params.Page != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "page", runtime.ParamLocationQuery, *params.Page); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
 				}
 			}
+
 		}
 
 		queryURL.RawQuery = queryValues.Encode()
@@ -4978,16 +5017,20 @@ func NewGetImboxRequest(server string, params *GetImboxParams) (*http.Request, e
 	if params != nil {
 		queryValues := queryURL.Query()
 
-		if queryFrag, err := runtime.StyleParamWithLocation("form", true, "page", runtime.ParamLocationQuery, params.Page); err != nil {
-			return nil, err
-		} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
-			return nil, err
-		} else {
-			for k, v := range parsed {
-				for _, v2 := range v {
-					queryValues.Add(k, v2)
+		if params.Page != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "page", runtime.ParamLocationQuery, *params.Page); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
 				}
 			}
+
 		}
 
 		queryURL.RawQuery = queryValues.Encode()
@@ -5124,16 +5167,20 @@ func NewGetTrailboxRequest(server string, params *GetTrailboxParams) (*http.Requ
 	if params != nil {
 		queryValues := queryURL.Query()
 
-		if queryFrag, err := runtime.StyleParamWithLocation("form", true, "page", runtime.ParamLocationQuery, params.Page); err != nil {
-			return nil, err
-		} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
-			return nil, err
-		} else {
-			for k, v := range parsed {
-				for _, v2 := range v {
-					queryValues.Add(k, v2)
+		if params.Page != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "page", runtime.ParamLocationQuery, *params.Page); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
 				}
 			}
+
 		}
 
 		queryURL.RawQuery = queryValues.Encode()
@@ -5351,16 +5398,20 @@ func NewUnfilePostingsRequest(server string, params *UnfilePostingsParams) (*htt
 			}
 		}
 
-		if queryFrag, err := runtime.StyleParamWithLocation("form", true, "folder_id", runtime.ParamLocationQuery, params.FolderId); err != nil {
-			return nil, err
-		} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
-			return nil, err
-		} else {
-			for k, v := range parsed {
-				for _, v2 := range v {
-					queryValues.Add(k, v2)
+		if params.FolderId != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "folder_id", runtime.ParamLocationQuery, *params.FolderId); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
 				}
 			}
+
 		}
 
 		queryURL.RawQuery = queryValues.Encode()
@@ -5761,16 +5812,20 @@ func NewGetLaterboxRequest(server string, params *GetLaterboxParams) (*http.Requ
 	if params != nil {
 		queryValues := queryURL.Query()
 
-		if queryFrag, err := runtime.StyleParamWithLocation("form", true, "page", runtime.ParamLocationQuery, params.Page); err != nil {
-			return nil, err
-		} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
-			return nil, err
-		} else {
-			for k, v := range parsed {
-				for _, v2 := range v {
-					queryValues.Add(k, v2)
+		if params.Page != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "page", runtime.ParamLocationQuery, *params.Page); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
 				}
 			}
+
 		}
 
 		queryURL.RawQuery = queryValues.Encode()
@@ -5806,16 +5861,20 @@ func NewGetAsideboxRequest(server string, params *GetAsideboxParams) (*http.Requ
 	if params != nil {
 		queryValues := queryURL.Query()
 
-		if queryFrag, err := runtime.StyleParamWithLocation("form", true, "page", runtime.ParamLocationQuery, params.Page); err != nil {
-			return nil, err
-		} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
-			return nil, err
-		} else {
-			for k, v := range parsed {
-				for _, v2 := range v {
-					queryValues.Add(k, v2)
+		if params.Page != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "page", runtime.ParamLocationQuery, *params.Page); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
 				}
 			}
+
 		}
 
 		queryURL.RawQuery = queryValues.Encode()
@@ -5851,16 +5910,20 @@ func NewListStickiesRequest(server string, params *ListStickiesParams) (*http.Re
 	if params != nil {
 		queryValues := queryURL.Query()
 
-		if queryFrag, err := runtime.StyleParamWithLocation("form", true, "limit", runtime.ParamLocationQuery, params.Limit); err != nil {
-			return nil, err
-		} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
-			return nil, err
-		} else {
-			for k, v := range parsed {
-				for _, v2 := range v {
-					queryValues.Add(k, v2)
+		if params.Limit != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "limit", runtime.ParamLocationQuery, *params.Limit); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
 				}
 			}
+
 		}
 
 		queryURL.RawQuery = queryValues.Encode()
@@ -6057,16 +6120,20 @@ func NewGetEverythingTopicsRequest(server string, params *GetEverythingTopicsPar
 	if params != nil {
 		queryValues := queryURL.Query()
 
-		if queryFrag, err := runtime.StyleParamWithLocation("form", true, "page", runtime.ParamLocationQuery, params.Page); err != nil {
-			return nil, err
-		} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
-			return nil, err
-		} else {
-			for k, v := range parsed {
-				for _, v2 := range v {
-					queryValues.Add(k, v2)
+		if params.Page != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "page", runtime.ParamLocationQuery, *params.Page); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
 				}
 			}
+
 		}
 
 		queryURL.RawQuery = queryValues.Encode()
@@ -6102,16 +6169,20 @@ func NewGetSentTopicsRequest(server string, params *GetSentTopicsParams) (*http.
 	if params != nil {
 		queryValues := queryURL.Query()
 
-		if queryFrag, err := runtime.StyleParamWithLocation("form", true, "page", runtime.ParamLocationQuery, params.Page); err != nil {
-			return nil, err
-		} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
-			return nil, err
-		} else {
-			for k, v := range parsed {
-				for _, v2 := range v {
-					queryValues.Add(k, v2)
+		if params.Page != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "page", runtime.ParamLocationQuery, *params.Page); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
 				}
 			}
+
 		}
 
 		queryURL.RawQuery = queryValues.Encode()
@@ -6147,16 +6218,20 @@ func NewGetSpamTopicsRequest(server string, params *GetSpamTopicsParams) (*http.
 	if params != nil {
 		queryValues := queryURL.Query()
 
-		if queryFrag, err := runtime.StyleParamWithLocation("form", true, "page", runtime.ParamLocationQuery, params.Page); err != nil {
-			return nil, err
-		} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
-			return nil, err
-		} else {
-			for k, v := range parsed {
-				for _, v2 := range v {
-					queryValues.Add(k, v2)
+		if params.Page != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "page", runtime.ParamLocationQuery, *params.Page); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
 				}
 			}
+
 		}
 
 		queryURL.RawQuery = queryValues.Encode()
@@ -6219,16 +6294,20 @@ func NewGetTrashTopicsRequest(server string, params *GetTrashTopicsParams) (*htt
 	if params != nil {
 		queryValues := queryURL.Query()
 
-		if queryFrag, err := runtime.StyleParamWithLocation("form", true, "page", runtime.ParamLocationQuery, params.Page); err != nil {
-			return nil, err
-		} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
-			return nil, err
-		} else {
-			for k, v := range parsed {
-				for _, v2 := range v {
-					queryValues.Add(k, v2)
+		if params.Page != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "page", runtime.ParamLocationQuery, *params.Page); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
 				}
 			}
+
 		}
 
 		queryURL.RawQuery = queryValues.Encode()
@@ -6332,16 +6411,20 @@ func NewGetTopicEntriesRequest(server string, topicId int64, params *GetTopicEnt
 	if params != nil {
 		queryValues := queryURL.Query()
 
-		if queryFrag, err := runtime.StyleParamWithLocation("form", true, "page", runtime.ParamLocationQuery, params.Page); err != nil {
-			return nil, err
-		} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
-			return nil, err
-		} else {
-			for k, v := range parsed {
-				for _, v2 := range v {
-					queryValues.Add(k, v2)
+		if params.Page != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "page", runtime.ParamLocationQuery, *params.Page); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
 				}
 			}
+
 		}
 
 		queryURL.RawQuery = queryValues.Encode()
@@ -6499,16 +6582,20 @@ func NewTrashTopicRequest(server string, topicId int64, params *TrashTopicParams
 	if params != nil {
 		queryValues := queryURL.Query()
 
-		if queryFrag, err := runtime.StyleParamWithLocation("form", true, "confirm_destroy", runtime.ParamLocationQuery, params.ConfirmDestroy); err != nil {
-			return nil, err
-		} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
-			return nil, err
-		} else {
-			for k, v := range parsed {
-				for _, v2 := range v {
-					queryValues.Add(k, v2)
+		if params.ConfirmDestroy != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "confirm_destroy", runtime.ParamLocationQuery, *params.ConfirmDestroy); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
 				}
 			}
+
 		}
 
 		queryURL.RawQuery = queryValues.Encode()
@@ -9108,6 +9195,8 @@ func (r DeleteHabitResponse) ContentType() string {
 type UpdateHabitResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *UpdateHabitResponseContent
 	// JSON401 the response for an HTTP 401 `application/json` response
 	JSON401 *UnauthorizedErrorResponseContent
 	// JSON404 the response for an HTTP 404 `application/json` response
@@ -9118,6 +9207,11 @@ type UpdateHabitResponse struct {
 	JSON500 *InternalServerErrorResponseContent
 	// JSON503 the response for an HTTP 503 `application/json` response
 	JSON503 *ServiceUnavailableErrorResponseContent
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r UpdateHabitResponse) GetJSON200() *UpdateHabitResponseContent {
+	return r.JSON200
 }
 
 // GetJSON401 returns the response for an HTTP 401 `application/json` response
@@ -15712,8 +15806,12 @@ func ParseUpdateHabitResponse(rsp *http.Response) (*UpdateHabitResponse, error) 
 	}
 
 	switch {
-	case rsp.StatusCode == 200:
-		break // No content-type
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest UpdateHabitResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
 		var dest UnauthorizedErrorResponseContent

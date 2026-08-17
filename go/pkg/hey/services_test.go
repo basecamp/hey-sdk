@@ -368,7 +368,7 @@ func TestTopicsService_Get(t *testing.T) {
 
 func TestTopicsService_GetEntries(t *testing.T) {
 	client := newServiceTestClient(t, map[string]string{
-		"/topics/%s/entries": `[{"id":1}]`,
+		"/topics/%s/entries.json": `[{"id":1}]`,
 	})
 
 	result, err := client.Topics().GetEntries(context.Background(), 42, nil)
@@ -629,7 +629,7 @@ func TestCalendarsService_List(t *testing.T) {
 
 func TestCalendarsService_GetRecordings(t *testing.T) {
 	client := newServiceTestClient(t, map[string]string{
-		"/calendars/%s/recordings": `{"events":[{"id":1}]}`,
+		"/calendars/%s/recordings.json": `{"events":[{"id":1}]}`,
 	})
 
 	result, err := client.Calendars().GetRecordings(context.Background(), 1, nil)
@@ -875,7 +875,7 @@ func TestTimeTracksService_Stop(t *testing.T) {
 
 func TestJournalService_Get(t *testing.T) {
 	client := newServiceTestClient(t, map[string]string{
-		"/calendar/days/%s/journal_entry": `{"id":1,"type":"JournalEntry"}`,
+		"/calendar/days/%s/journal_entry.json": `{"id":1,"type":"JournalEntry"}`,
 	})
 
 	result, err := client.Journal().Get(context.Background(), "2026-03-09")

@@ -469,3 +469,20 @@ func TestClient_GatewayErrors(t *testing.T) {
 		})
 	}
 }
+
+func TestWithJSONExtension(t *testing.T) {
+	cases := map[string]string{
+		"/boxes.json":                        "/boxes.json",
+		"/stickies/12":                       "/stickies/12.json",
+		"/calendar/days/2026-08-16/habits/7": "/calendar/days/2026-08-16/habits/7.json",
+		"/topics/1/status/trashed.json":      "/topics/1/status/trashed.json",
+		"/world/lists/a@b.com":               "/world/lists/a@b.com", // has a dot: left alone
+		"/":                                  "/",
+		"":                                   "",
+	}
+	for in, want := range cases {
+		if got := withJSONExtension(in); got != want {
+			t.Errorf("withJSONExtension(%q) = %q, want %q", in, got, want)
+		}
+	}
+}
