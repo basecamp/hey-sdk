@@ -565,6 +565,34 @@ func checkAssertion(testName string, a Assertion, s checkState) TestResult {
 			}
 		}
 
+	case "requestForm":
+		// expected: {"field": value, "absent": null}. Validate every recorded
+		// request so retry cases also prove that the form body was rebuilt.
+		expected, ok := a.Expected.(map[string]interface{})
+		if !ok {
+			return fail(testName, "requestForm: expected an object, got %T", a.Expected)
+		}
+		if len(s.requestBodies) == 0 {
+			return fail(testName, "Expected a request, but none were recorded")
+		}
+		for attempt, rawBody := range s.requestBodies {
+			form, err := url.ParseQuery(string(rawBody))
+			if err != nil {
+				return fail(testName, "requestForm: attempt %d is not valid URL-encoded form data: %v", attempt+1, err)
+			}
+			for key, want := range expected {
+				if want == nil {
+					if form.Has(key) {
+						return fail(testName, "Expected form field %q to be absent on attempt %d, got %q", key, attempt+1, form.Get(key))
+					}
+					continue
+				}
+				if got := form.Get(key); got != fmt.Sprint(want) {
+					return fail(testName, "Expected form field %s=%v on attempt %d, got %q", key, want, attempt+1, got)
+				}
+			}
+		}
+
 	case "headerPresent":
 		headerName := a.Path
 		if len(s.requestHeaders) == 0 {
@@ -1113,6 +1141,28 @@ func executeOperation(client *generated.Client, ctx context.Context, tc TestCase
 	case "RestoreTopic":
 		topicId := getInt64Param(tc.PathParams, "topicId")
 		return client.RestoreTopic(ctx, topicId)
+	case "ScheduleTopicBubbleUp":
+		topicId := getInt64Param(tc.PathParams, "topicId")
+		params := &generated.ScheduleTopicBubbleUpParams{
+			Slot: getStringParam(tc.QueryParams, "slot"),
+		}
+		if waitingOn, ok := tc.QueryParams["waiting_on"].(bool); ok {
+			params.WaitingOn = &waitingOn
+		}
+		form := url.Values{"date": {getStringParam(tc.RequestBody, "date")}}
+		return client.ScheduleTopicBubbleUpWithBody(
+			ctx,
+			topicId,
+			params,
+			"application/x-www-form-urlencoded",
+			strings.NewReader(form.Encode()),
+		)
+	case "CancelTopicBubbleUp":
+		topicId := getInt64Param(tc.PathParams, "topicId")
+		return client.CancelTopicBubbleUp(ctx, topicId)
+	case "BubbleUpTopicNow":
+		topicId := getInt64Param(tc.PathParams, "topicId")
+		return client.BubbleUpTopicNow(ctx, topicId)
 	case "MarkTopicHam":
 		topicId := getInt64Param(tc.PathParams, "topicId")
 		return client.MarkTopicHam(ctx, topicId)

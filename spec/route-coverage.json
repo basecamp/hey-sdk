@@ -16,6 +16,11 @@
   },
   {
     "method": "POST",
+    "operationId": "BubbleUpTopicNow",
+    "path": "/topics/{topicId}/bubble_up_now"
+  },
+  {
+    "method": "POST",
     "operationId": "BundleContact",
     "path": "/contacts/{contactId}/bundle.json"
   },
@@ -23,6 +28,11 @@
     "method": "DELETE",
     "operationId": "CancelPostingsBubbleUp",
     "path": "/postings/bubble_up.json"
+  },
+  {
+    "method": "DELETE",
+    "operationId": "CancelTopicBubbleUp",
+    "path": "/topics/{topicId}/bubble_up"
   },
   {
     "method": "POST",
@@ -413,6 +423,11 @@
     "method": "POST",
     "operationId": "RevealContact",
     "path": "/contacts/{contactId}/reveal.json"
+  },
+  {
+    "method": "POST",
+    "operationId": "ScheduleTopicBubbleUp",
+    "path": "/topics/{topicId}/bubble_up"
   },
   {
     "method": "POST",

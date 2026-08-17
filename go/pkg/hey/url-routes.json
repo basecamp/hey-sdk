@@ -767,6 +767,33 @@
       }
     },
     {
+      "pattern": "/topics/{topicId}/bubble_up",
+      "resource": "Topics",
+      "operations": {
+        "DELETE": "CancelTopicBubbleUp",
+        "POST": "ScheduleTopicBubbleUp"
+      },
+      "params": {
+        "topicId": {
+          "role": "parent",
+          "type": "int64"
+        }
+      }
+    },
+    {
+      "pattern": "/topics/{topicId}/bubble_up_now",
+      "resource": "Topics",
+      "operations": {
+        "POST": "BubbleUpTopicNow"
+      },
+      "params": {
+        "topicId": {
+          "role": "parent",
+          "type": "int64"
+        }
+      }
+    },
+    {
       "pattern": "/topics/{topicId}/entries",
       "resource": "Topics",
       "operations": {
