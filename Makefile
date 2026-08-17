@@ -74,7 +74,13 @@ url-routes-check:
 # Drift detection
 #------------------------------------------------------------------------------
 
-.PHONY: drift-check drift-check-mvp drift-check-full drift-regen
+.PHONY: drift-check drift-check-mvp drift-check-full drift-check-coverage drift-check-forward drift-check-reverse drift-check-shape drift-regen
+
+# route-coverage.json is derived from openapi.json and read by both drift checks;
+# a stale file means the gate never sees new operations. Refuse that.
+drift-check-coverage:
+	@echo "==> Drift check (route coverage freshness)..."
+	@./scripts/generate-route-coverage --check
 
 # Forward-only: every modeled operation has a matching route
 drift-check-forward:
@@ -95,11 +101,11 @@ drift-check-reverse:
 	@echo "==> Drift check (reverse)..."
 	@./scripts/drift-check-reverse
 
-# MVP: forward + shape only
-drift-check-mvp: drift-check-forward drift-check-shape
+# MVP: coverage freshness + forward + reverse + shape
+drift-check-mvp: drift-check-coverage drift-check-forward drift-check-reverse drift-check-shape
 
-# Full: forward + reverse + shape
-drift-check-full: drift-check-forward drift-check-reverse drift-check-shape
+# Full: same as MVP (kept as an alias for check-full)
+drift-check-full: drift-check-mvp
 
 # Convenience alias
 drift-check: drift-check-mvp

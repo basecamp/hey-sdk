@@ -72,6 +72,10 @@
     "path": "/accounts"
   },
   {
+    "method": "POST",
+    "path": "/accounts/bulk_spam_cancellation"
+  },
+  {
     "method": "GET",
     "path": "/accounts/{account_id}/billing"
   },
@@ -3510,10 +3514,6 @@
   {
     "method": "PUT",
     "path": "/entries/{entry_id}/status/trashed"
-  },
-  {
-    "method": "GET",
-    "path": "/entries/{id}"
   },
   {
     "method": "GET",

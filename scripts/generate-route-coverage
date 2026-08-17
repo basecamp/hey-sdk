@@ -3,24 +3,58 @@
 #
 # Reads: openapi.json
 # Writes: spec/route-coverage.json
+#
+# Usage:
+#   ./scripts/generate-route-coverage           # regenerate
+#   ./scripts/generate-route-coverage --check   # fail if the checked-in file is stale
+#
+# route-coverage.json is what the forward/reverse drift checks read, so a stale
+# file means the drift gate silently ignores new or renamed operations. The
+# --check mode exists so `make check` can refuse that.
 set -euo pipefail
 
-OPENAPI_FILE="${1:-openapi.json}"
-OUTPUT_FILE="spec/route-coverage.json"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT_DIR="$(dirname "$SCRIPT_DIR")"
+
+CHECK_MODE=false
+if [ "${1:-}" = "--check" ]; then
+  CHECK_MODE=true
+  shift
+fi
+
+OPENAPI_FILE="${1:-$ROOT_DIR/openapi.json}"
+OUTPUT_FILE="$ROOT_DIR/spec/route-coverage.json"
 
 if [[ ! -f "$OPENAPI_FILE" ]]; then
     echo "ERROR: $OPENAPI_FILE not found. Run 'make smithy-build' first."
     exit 1
 fi
 
-jq -S '[
-  .paths | to_entries[] | .key as $path |
-  .value | to_entries[] | select(.key != "parameters") |
-  {
-    operationId: .value.operationId,
-    method: (.key | ascii_upcase),
-    path: $path
-  }
-] | sort_by(.operationId)' "$OPENAPI_FILE" > "$OUTPUT_FILE"
+generate() {
+  jq -S '[
+    .paths | to_entries[] | .key as $path |
+    .value | to_entries[] | select(.key != "parameters") |
+    {
+      operationId: .value.operationId,
+      method: (.key | ascii_upcase),
+      path: $path
+    }
+  ] | sort_by(.operationId)' "$OPENAPI_FILE"
+}
 
+if [ "$CHECK_MODE" = true ]; then
+  if [ ! -f "$OUTPUT_FILE" ]; then
+    echo "ERROR: $OUTPUT_FILE not found. Run './scripts/generate-route-coverage'."
+    exit 1
+  fi
+  if ! diff -q <(generate) "$OUTPUT_FILE" > /dev/null; then
+    echo "ERROR: spec/route-coverage.json is out of date. Run './scripts/generate-route-coverage'."
+    diff <(generate) "$OUTPUT_FILE" | head -20 || true
+    exit 1
+  fi
+  echo "route-coverage.json is up to date."
+  exit 0
+fi
+
+generate > "$OUTPUT_FILE"
 echo "Generated $OUTPUT_FILE with $(jq length "$OUTPUT_FILE") operations"

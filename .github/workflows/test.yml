@@ -109,6 +109,23 @@ jobs:
       - name: Run conformance tests
         run: go run .
 
+  spec-drift:
+    name: Spec Drift
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      # Everything here is derived from openapi.json with bash + jq: the behavior
+      # model, url-routes.json, route-coverage.json, the shape fingerprint, and the
+      # forward/reverse drift checks against the haystack route snapshot. These are
+      # what stop the SDK modelling routes HEY does not serve.
+      - name: Check generated artifacts and route drift
+        run: make behavior-model-check url-routes-check drift-check-mvp
+
   api-compat:
     name: API Compatibility
     if: github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'breaking')

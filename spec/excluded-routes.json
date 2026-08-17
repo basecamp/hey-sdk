@@ -4043,5 +4043,10 @@
     "method": "GET",
     "path": "/workflows/{workflow_id}/toolbar",
     "reason": "web-ui: workflow toolbar"
+  },
+  {
+    "method": "POST",
+    "path": "/topics/{topic_id}/messages",
+    "reason": "html-only: responds with a redirect even for JSON; thread replies use POST /entries/{entry_id}/replies (CreateReply)"
   }
 ]

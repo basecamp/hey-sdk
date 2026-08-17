@@ -45,15 +45,9 @@ So it catches wrappers left behind by a regenerate, not spec-vs-OpenAPI drift.
    ./scripts/generate-route-coverage    # spec/route-coverage.json
    ```
 
-   Only the first has a make target; the other two are standalone scripts. They differ in
-   how `make check` treats them, which matters more:
-
-   - `url-routes-check` and `drift-check-shape` **do** verify freshness and fail on a
-     stale file, so forgetting those two is loud.
-   - Nothing verifies `spec/route-coverage.json`. `drift-check-forward` just consumes the
-     checked-in file and compares it against `spec/route-snapshot.json`, so a stale
-     coverage file does not fail the build — the gate passes while never looking at your
-     new endpoint. That one is on you to regenerate.
+   Only the first has a make target; the other two are standalone scripts. All three
+   are verified by `make check` (`url-routes-check`, `drift-check-shape` and
+   `drift-check-coverage`), so forgetting any of them fails the build loudly.
 4. `make go-generate` -- regenerates `go/pkg/generated/client.gen.go` via oapi-codegen.
    Note the name: this repo has no `go-generate-services` target, unlike the seed's
    vocabulary, and this step does not touch `go/pkg/hey`.
@@ -64,4 +58,12 @@ So it catches wrappers left behind by a regenerate, not spec-vs-OpenAPI drift.
 
 `make check` resolves to `check-mvp`: `smithy-check`, `behavior-model-check`,
 `drift-check-mvp`, `url-routes-check`, `go-check`, `go-check-drift` and
-`conformance-mvp`.
+`conformance-mvp`. `drift-check-mvp` is coverage freshness + forward (every modelled
+route exists in `spec/route-snapshot.json`) + reverse (every JSON-capable snapshot
+route is modelled or listed in `spec/excluded-routes.json` with a reason) + shape
+fingerprint. Adding an operation for a route that haystack does not serve, or
+forgetting to regenerate coverage, fails the gate.
+
+The snapshot comes from a haystack checkout: `make drift-regen HAYSTACK_DIR=…` then
+`./scripts/sync-provenance HAYSTACK_DIR` to record the pinned SHA in
+`spec/api-provenance.json`.
