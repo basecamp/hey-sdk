@@ -541,6 +541,21 @@ func TestEntriesService_CreateReply_RecipientsAreArrays(t *testing.T) {
 	}
 }
 
+func TestEntriesService_Trash(t *testing.T) {
+	client := newMutationTestClientWithValidation(
+		t,
+		"PUT",
+		"/entries/%s/status/trashed",
+		nil,
+		`{}`,
+	)
+
+	err := client.Entries().Trash(context.Background(), 10)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
 // --- Contacts ---
 
 func TestContactsService_List(t *testing.T) {

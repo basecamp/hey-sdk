@@ -1293,6 +1293,9 @@ type ClientInterface interface {
 
 	CreateReply(ctx context.Context, entryId int64, body CreateReplyJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// TrashEntry request
+	TrashEntry(ctx context.Context, entryId int64, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// GetFeedbox request
 	GetFeedbox(ctx context.Context, params *GetFeedboxParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
@@ -1657,6 +1660,16 @@ func (c *Client) CreateReply(ctx context.Context, entryId int64, body CreateRepl
 		return nil, err
 	}
 	return c.Client.Do(req)
+
+}
+
+// TrashEntry is marked as idempotent and will be retried on transient failures.
+
+func (c *Client) TrashEntry(ctx context.Context, entryId int64, reqEditors ...RequestEditorFn) (*http.Response, error) {
+
+	return c.doWithRetry(ctx, func() (*http.Request, error) {
+		return NewTrashEntryRequest(c.Server, entryId)
+	}, true, "TrashEntry", reqEditors...)
 
 }
 
@@ -2817,6 +2830,40 @@ func NewCreateReplyRequestWithBody(server string, entryId int64, contentType str
 	return req, nil
 }
 
+// NewTrashEntryRequest generates requests for TrashEntry
+func NewTrashEntryRequest(server string, entryId int64) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "entryId", runtime.ParamLocationPath, entryId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/entries/%s/status/trashed", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("PUT", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewGetFeedboxRequest generates requests for GetFeedbox
 func NewGetFeedboxRequest(server string, params *GetFeedboxParams) (*http.Request, error) {
 	var err error
@@ -3784,6 +3831,7 @@ var operationMetadata = map[string]OperationMetadata{
 	"GetContact":             {Idempotent: true, HasSensitiveParams: false},
 	"ListDrafts":             {Idempotent: true, HasSensitiveParams: false},
 	"CreateReply":            {Idempotent: false, HasSensitiveParams: false},
+	"TrashEntry":             {Idempotent: true, HasSensitiveParams: false},
 	"GetFeedbox":             {Idempotent: true, HasSensitiveParams: false},
 	"GetIdentity":            {Idempotent: true, HasSensitiveParams: false},
 	"GetImbox":               {Idempotent: true, HasSensitiveParams: false},
@@ -4585,6 +4633,13 @@ type ClientWithResponsesInterface interface {
 	//
 	// Reply to an entry.
 	CreateReplyWithResponse(ctx context.Context, entryId int64, body CreateReplyJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateReplyResponse, error)
+
+	// TrashEntryWithResponse performs a PUT /entries/{entryId}/status/trashed (the `TrashEntry` operationId) request.
+	//
+	// Move an entry to Trash.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	TrashEntryWithResponse(ctx context.Context, entryId int64, reqEditors ...RequestEditorFn) (*TrashEntryResponse, error)
 
 	// GetFeedboxWithResponse performs a GET /feedbox.json (the `GetFeedbox` operationId) request.
 	//
@@ -6133,6 +6188,68 @@ func (r CreateReplyResponse) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r CreateReplyResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type TrashEntryResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *UnauthorizedErrorResponseContent
+	// JSON404 the response for an HTTP 404 `application/json` response
+	JSON404 *NotFoundErrorResponseContent
+	// JSON500 the response for an HTTP 500 `application/json` response
+	JSON500 *InternalServerErrorResponseContent
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *ServiceUnavailableErrorResponseContent
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r TrashEntryResponse) GetJSON401() *UnauthorizedErrorResponseContent {
+	return r.JSON401
+}
+
+// GetJSON404 returns the response for an HTTP 404 `application/json` response
+func (r TrashEntryResponse) GetJSON404() *NotFoundErrorResponseContent {
+	return r.JSON404
+}
+
+// GetJSON500 returns the response for an HTTP 500 `application/json` response
+func (r TrashEntryResponse) GetJSON500() *InternalServerErrorResponseContent {
+	return r.JSON500
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r TrashEntryResponse) GetJSON503() *ServiceUnavailableErrorResponseContent {
+	return r.JSON503
+}
+
+// GetBody returns the raw response body bytes
+func (r TrashEntryResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r TrashEntryResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r TrashEntryResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r TrashEntryResponse) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -7835,6 +7952,19 @@ func (c *ClientWithResponses) CreateReplyWithResponse(ctx context.Context, entry
 	return ParseCreateReplyResponse(rsp)
 }
 
+// TrashEntryWithResponse performs a PUT /entries/{entryId}/status/trashed (the `TrashEntry` operationId) request.
+//
+// Move an entry to Trash.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) TrashEntryWithResponse(ctx context.Context, entryId int64, reqEditors ...RequestEditorFn) (*TrashEntryResponse, error) {
+	rsp, err := c.TrashEntry(ctx, entryId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseTrashEntryResponse(rsp)
+}
+
 // GetFeedboxWithResponse performs a GET /feedbox.json (the `GetFeedbox` operationId) request.
 //
 // Get the Feed.
@@ -9244,6 +9374,56 @@ func ParseCreateReplyResponse(rsp *http.Response) (*CreateReplyResponse, error) 
 			return nil, err
 		}
 		response.JSON422 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest InternalServerErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+		var dest ServiceUnavailableErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON503 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseTrashEntryResponse parses an HTTP response from a TrashEntryWithResponse call
+func ParseTrashEntryResponse(rsp *http.Response) (*TrashEntryResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &TrashEntryResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 200:
+		break // No content-type
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest UnauthorizedErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFoundErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
 		var dest InternalServerErrorResponseContent

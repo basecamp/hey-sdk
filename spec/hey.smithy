@@ -87,9 +87,10 @@ service HEY {
         GetMessage
         CreateMessage
 
-        // Entries (2 MVP)
+        // Entries (3 MVP)
         ListDrafts
         CreateReply
+        TrashEntry
 
         // Contacts (2 MVP)
         ListContacts
@@ -1291,6 +1292,22 @@ structure CreateReplyRequestContent {
 structure ReplyMessagePayload {
     @required
     content: String
+}
+
+/// Move an entry to Trash
+@idempotent
+@http(method: "PUT", uri: "/entries/{entryId}/status/trashed")
+@tags(["Entries"])
+@heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+operation TrashEntry {
+    input: TrashEntryInput
+    errors: [UnauthorizedError, NotFoundError, InternalServerError, ServiceUnavailableError]
+}
+
+structure TrashEntryInput {
+    @httpLabel
+    @required
+    entryId: Long
 }
 
 // =============================================================================

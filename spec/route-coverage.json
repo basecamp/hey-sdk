@@ -180,6 +180,11 @@
     "path": "/calendar/ongoing_time_track.json"
   },
   {
+    "method": "PUT",
+    "operationId": "TrashEntry",
+    "path": "/entries/{entryId}/status/trashed"
+  },
+  {
     "method": "POST",
     "operationId": "TrashPostings",
     "path": "/postings/trash.json"

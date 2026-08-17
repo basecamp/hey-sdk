@@ -185,6 +185,19 @@
       }
     },
     {
+      "pattern": "/entries/{entryId}/status/trashed",
+      "resource": "Entries",
+      "operations": {
+        "PUT": "TrashEntry"
+      },
+      "params": {
+        "entryId": {
+          "role": "parent",
+          "type": "int64"
+        }
+      }
+    },
+    {
       "pattern": "/feedbox",
       "resource": "Boxes",
       "operations": {

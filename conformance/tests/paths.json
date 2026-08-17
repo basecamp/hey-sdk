@@ -159,6 +159,35 @@
     ]
   },
   {
+    "name": "TrashEntry uses /entries/{entryId}/status/trashed path",
+    "description": "Verifies that TrashEntry constructs the URL path /entries/{entryId}/status/trashed",
+    "operation": "TrashEntry",
+    "method": "PUT",
+    "path": "/entries/{entryId}/status/trashed",
+    "pathParams": {
+      "entryId": 456
+    },
+    "mockResponses": [
+      {
+        "status": 200,
+        "body": {}
+      }
+    ],
+    "assertions": [
+      {
+        "type": "requestPath",
+        "expected": "/entries/456/status/trashed"
+      },
+      {
+        "type": "noError"
+      }
+    ],
+    "tags": [
+      "path",
+      "entries"
+    ]
+  },
+  {
     "name": "DeleteCalendarTodo uses /calendar/todos/{todoId} path",
     "description": "Verifies that DeleteCalendarTodo constructs the URL path /calendar/todos/{todoId}",
     "operation": "DeleteCalendarTodo",

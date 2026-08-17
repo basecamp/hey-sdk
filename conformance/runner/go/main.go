@@ -795,6 +795,9 @@ func executeOperation(client *generated.Client, ctx context.Context, tc TestCase
 			},
 		}
 		return client.CreateReply(ctx, entryId, body)
+	case "TrashEntry":
+		entryId := getInt64Param(tc.PathParams, "entryId")
+		return client.TrashEntry(ctx, entryId)
 
 	// Contacts
 	case "ListContacts":

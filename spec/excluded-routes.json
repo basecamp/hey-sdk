@@ -1710,11 +1710,6 @@
     "reason": "phase-2: entry CRUD"
   },
   {
-    "method": "PUT",
-    "path": "/entries/{entry_id}/status/trashed",
-    "reason": "phase-2: entry CRUD"
-  },
-  {
     "method": "GET",
     "path": "/entries/{id}",
     "reason": "phase-2: entry CRUD"
