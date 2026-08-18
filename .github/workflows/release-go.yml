@@ -55,9 +55,9 @@ jobs:
 
           # Verify version.go matches the tag
           VERSION="${GITHUB_REF#refs/tags/v}"
-          if ! grep -Fq "Version = \"${VERSION}\"" pkg/hey/version.go; then
+          if ! grep -Fxq "const Version = \"${VERSION}\"" pkg/hey/version.go; then
             echo "::error::version.go does not match tag v${VERSION}"
-            echo "Expected: Version = \"${VERSION}\""
+            echo "Expected: const Version = \"${VERSION}\""
             echo "Found:    $(grep 'Version =' pkg/hey/version.go)"
             exit 1
           fi

@@ -40,12 +40,13 @@ make release VERSION=0.4.0  # runs the gate, then tags v0.4.0 and go/v0.4.0
 ```
 
 The bump has to land on main *before* the tag, because the release workflow checks that
-`version.go` matches the tag it was pushed for and refuses to publish otherwise. `make
-release` now checks the same thing up front, so a forgotten bump fails locally in a second
-rather than on GitHub after the tags are already pushed.
+`version.go` matches the tag it was pushed for and refuses to publish otherwise.
+`make release` now checks the same thing up front, so a forgotten bump fails locally
+in a second rather than on GitHub after the tags are already pushed.
 
-Both tags matter: `v0.4.0` triggers the release, and `go/v0.4.0` is what `go get
-github.com/basecamp/hey-sdk/go@v0.4.0` resolves, since the module lives in a subdirectory.
+Both tags matter: `v0.4.0` triggers the release, and `go/v0.4.0` is what
+`go get github.com/basecamp/hey-sdk/go@v0.4.0` resolves, since the module lives in a
+subdirectory.
 
 `Version` is not decorative — it goes out on every request as part of the User-Agent
 (`hey-sdk-go/0.4.0 (api:...)`), which is how HEY sees SDK traffic.
