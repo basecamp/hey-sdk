@@ -2146,8 +2146,8 @@ func TestContactsService_CreateConflict(t *testing.T) {
 func TestContactsService_UpdatePromotesAnAlias(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		switch {
-		case r.Method == http.MethodGet:
+		switch r.Method {
+		case http.MethodGet:
 			_, _ = w.Write([]byte(`{"id":7,"name":"Jane","email_address":"jane@x.com","aliases":[{"id":8,"email_address":"jd@x.com"}]}`))
 		default:
 			_, _ = w.Write([]byte(`{"id":8,"name":"Jane","email_address":"jd@x.com"}`))
