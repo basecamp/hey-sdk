@@ -974,6 +974,159 @@
         }
       }
     },
+    "/bulk_replies": {
+      "post": {
+        "description": "Send one reply to every entry. Answers what was sent, not the replies themselves:\ndelivery is queued, and delayed while undo is still possible.",
+        "operationId": "CreateBulkReply",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BulkReplyRequestContent"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "CreateBulkReply 201 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateBulkReplyResponseContent"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UnauthorizedError 401 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnauthorizedErrorResponseContent"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "UnprocessableEntityError 422 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnprocessableEntityErrorResponseContent"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "InternalServerError 500 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorResponseContent"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ServiceUnavailableError 503 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceUnavailableErrorResponseContent"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Bulk Reply"
+        ]
+      }
+    },
+    "/bulk_replies/new": {
+      "get": {
+        "description": "Work out which entries a bulk reply would answer. HEY replies to the last replyable\nentry of each thread, skipping threads with no reply address, so the postings you hold\nare not the entries you send to — this resolves them.",
+        "operationId": "NewBulkReply",
+        "parameters": [
+          {
+            "name": "posting_ids",
+            "in": "query",
+            "description": "The postings to reply to, comma separated.",
+            "schema": {
+              "type": "string",
+              "description": "The postings to reply to, comma separated."
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "NewBulkReply 200 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NewBulkReplyResponseContent"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UnauthorizedError 401 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnauthorizedErrorResponseContent"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError 404 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundErrorResponseContent"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "InternalServerError 500 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorResponseContent"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ServiceUnavailableError 503 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceUnavailableErrorResponseContent"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Bulk Reply"
+        ],
+        "x-hey-retry": {
+          "maxAttempts": 3,
+          "baseDelayMs": 1000,
+          "backoff": "exponential",
+          "retryOn": [
+            429,
+            503
+          ]
+        }
+      }
+    },
     "/calendar/days/{day}/habits/{habitId}/completions": {
       "delete": {
         "description": "Uncomplete a habit for a day",
@@ -7888,6 +8041,109 @@
           }
         }
       },
+      "BulkReplyDelivery": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "entries_count": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "delayed": {
+            "type": "boolean",
+            "description": "True while the send is held open for undo."
+          },
+          "undo_send_url": {
+            "type": "string",
+            "description": "Where to POST to call the replies back, present only while delayed."
+          }
+        },
+        "required": [
+          "delayed",
+          "entries_count",
+          "id"
+        ]
+      },
+      "BulkReplyDraft": {
+        "type": "object",
+        "description": "The reply as HEY would send it: the prefilled content and the entries it goes to.",
+        "properties": {
+          "content": {
+            "type": "string",
+            "description": "The prefilled body — the name tag when every thread is on the same account."
+          },
+          "entries": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BulkReplyEntry"
+            }
+          }
+        },
+        "required": [
+          "content",
+          "entries"
+        ]
+      },
+      "BulkReplyEntry": {
+        "type": "object",
+        "description": "One thread a bulk reply answers, with the recipients that thread's reply goes to.",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "topic_id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "topic_name": {
+            "type": "string"
+          },
+          "addressed": {
+            "$ref": "#/components/schemas/Addressed"
+          }
+        },
+        "required": [
+          "addressed",
+          "id",
+          "topic_id",
+          "topic_name"
+        ]
+      },
+      "BulkReplyMessagePayload": {
+        "type": "object",
+        "properties": {
+          "content": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "content"
+        ]
+      },
+      "BulkReplyRequestContent": {
+        "type": "object",
+        "description": "Wire format: {entry_ids: [...], message: {content}}",
+        "properties": {
+          "entry_ids": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          "message": {
+            "$ref": "#/components/schemas/BulkReplyMessagePayload"
+          }
+        },
+        "required": [
+          "entry_ids",
+          "message"
+        ]
+      },
       "Calendar": {
         "type": "object",
         "description": "Calendar",
@@ -8403,6 +8659,9 @@
       },
       "CreateBoxGroupResponseContent": {
         "$ref": "#/components/schemas/BoxGroup"
+      },
+      "CreateBulkReplyResponseContent": {
+        "$ref": "#/components/schemas/BulkReplyDelivery"
       },
       "CreateCalendarTodoRequestContent": {
         "type": "object",
@@ -9345,6 +9604,9 @@
             }
           }
         }
+      },
+      "NewBulkReplyResponseContent": {
+        "$ref": "#/components/schemas/BulkReplyDraft"
       },
       "NewEntryForwardResponseContent": {
         "$ref": "#/components/schemas/MessageDraft"

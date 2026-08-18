@@ -122,6 +122,13 @@
         ]
       }
     },
+    "CreateBulkReply": {
+      "idempotent": false,
+      "readonly": false,
+      "retry": {
+        "max": 0
+      }
+    },
     "CreateCalendarTodo": {
       "idempotent": false,
       "readonly": false,
@@ -1007,6 +1014,19 @@
         "backoff": "exponential",
         "base_delay_ms": 1000,
         "max": 2,
+        "retry_on": [
+          429,
+          503
+        ]
+      }
+    },
+    "NewBulkReply": {
+      "idempotent": false,
+      "readonly": true,
+      "retry": {
+        "backoff": "exponential",
+        "base_delay_ms": 1000,
+        "max": 3,
         "retry_on": [
           429,
           503

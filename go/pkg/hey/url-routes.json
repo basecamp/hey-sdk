@@ -123,6 +123,22 @@
       "params": {}
     },
     {
+      "pattern": "/bulk_replies",
+      "resource": "Bulk Reply",
+      "operations": {
+        "POST": "CreateBulkReply"
+      },
+      "params": {}
+    },
+    {
+      "pattern": "/bulk_replies/new",
+      "resource": "Bulk Reply",
+      "operations": {
+        "GET": "NewBulkReply"
+      },
+      "params": {}
+    },
+    {
       "pattern": "/calendar/days/{day}/habits/{habitId}/completions",
       "resource": "Calendar Habits",
       "operations": {

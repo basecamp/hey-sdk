@@ -46,6 +46,11 @@
   },
   {
     "method": "POST",
+    "operationId": "CreateBulkReply",
+    "path": "/bulk_replies"
+  },
+  {
+    "method": "POST",
     "operationId": "CreateCalendarTodo",
     "path": "/calendar/todos.json"
   },
@@ -368,6 +373,11 @@
     "method": "POST",
     "operationId": "MutePostings",
     "path": "/postings/mutings.json"
+  },
+  {
+    "method": "GET",
+    "operationId": "NewBulkReply",
+    "path": "/bulk_replies/new"
   },
   {
     "method": "GET",

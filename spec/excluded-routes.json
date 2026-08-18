@@ -116,11 +116,6 @@
   },
   {
     "method": "POST",
-    "path": "/bulk_replies",
-    "reason": "phase-2: bulk reply"
-  },
-  {
-    "method": "POST",
     "path": "/bulk_replies/{bulk_reply_id}/undo_send",
     "reason": "phase-2: bulk reply"
   },

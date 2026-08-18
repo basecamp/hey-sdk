@@ -1934,6 +1934,96 @@
     ]
   },
   {
+    "name": "NewBulkReply uses /bulk_replies/new path",
+    "description": "Verifies that NewBulkReply constructs the URL path /bulk_replies/new",
+    "operation": "NewBulkReply",
+    "method": "GET",
+    "path": "/bulk_replies/new",
+    "queryParams": {
+      "posting_ids": "101,102"
+    },
+    "mockResponses": [
+      {
+        "status": 200,
+        "body": {
+          "content": "",
+          "entries": []
+        }
+      }
+    ],
+    "assertions": [
+      {
+        "type": "requestPath",
+        "expected": "/bulk_replies/new"
+      },
+      {
+        "type": "requestMethod",
+        "expected": "GET"
+      },
+      {
+        "type": "requestQuery",
+        "expected": {
+          "posting_ids": "101,102"
+        }
+      },
+      {
+        "type": "noError"
+      }
+    ],
+    "tags": [
+      "path",
+      "bulk-reply"
+    ]
+  },
+  {
+    "name": "CreateBulkReply uses /bulk_replies path",
+    "description": "Verifies that CreateBulkReply constructs the URL path /bulk_replies",
+    "operation": "CreateBulkReply",
+    "method": "POST",
+    "path": "/bulk_replies",
+    "requestBody": {
+      "entry_ids": [
+        11,
+        12
+      ],
+      "content": "<div>On my way</div>"
+    },
+    "mockResponses": [
+      {
+        "status": 201,
+        "body": {
+          "id": 9,
+          "entries_count": 2,
+          "delayed": false
+        }
+      }
+    ],
+    "assertions": [
+      {
+        "type": "requestPath",
+        "expected": "/bulk_replies"
+      },
+      {
+        "type": "requestMethod",
+        "expected": "POST"
+      },
+      {
+        "type": "requestBody",
+        "expected": {
+          "entry_ids.0": 11,
+          "message.content": "<div>On my way</div>"
+        }
+      },
+      {
+        "type": "noError"
+      }
+    ],
+    "tags": [
+      "path",
+      "bulk-reply"
+    ]
+  },
+  {
     "name": "BundleContact uses /contacts/{contactId}/bundle.json path",
     "description": "Verifies that BundleContact constructs the URL path /contacts/{contactId}/bundle.json",
     "operation": "BundleContact",

@@ -58,6 +58,7 @@ type Client struct {
 	topics         *TopicsService
 	messages       *MessagesService
 	entries        *EntriesService
+	bulkReplies    *BulkRepliesService
 	contacts       *ContactsService
 	calendars      *CalendarsService
 	calendarTodos  *CalendarTodosService
@@ -792,6 +793,16 @@ func (c *Client) Messages() *MessagesService {
 		c.messages = NewMessagesService(c)
 	}
 	return c.messages
+}
+
+// BulkReplies returns the bulk reply service, for answering many threads at once.
+func (c *Client) BulkReplies() *BulkRepliesService {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.bulkReplies == nil {
+		c.bulkReplies = NewBulkRepliesService(c)
+	}
+	return c.bulkReplies
 }
 
 // Entries returns the EntriesService.

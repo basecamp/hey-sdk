@@ -159,6 +159,10 @@ service HEY {
         MarkEntrySpam
         NewEntryForward
 
+        // Bulk reply
+        NewBulkReply
+        CreateBulkReply
+
         // Contacts — bundles and screening
         BundleContact
         UnbundleContact
@@ -2559,6 +2563,114 @@ operation NewEntryForward {
 structure NewEntryForwardOutput {
     @required
     forward: MessageDraft
+}
+
+// =============================================================================
+// BULK REPLY
+// =============================================================================
+
+/// Work out which entries a bulk reply would answer. HEY replies to the last replyable
+/// entry of each thread, skipping threads with no reply address, so the postings you hold
+/// are not the entries you send to — this resolves them.
+@readonly
+@http(method: "GET", uri: "/bulk_replies/new")
+@tags(["Bulk Reply"])
+@heyRetry(maxAttempts: 3, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+operation NewBulkReply {
+    input: NewBulkReplyInput
+    output: NewBulkReplyOutput
+    errors: [UnauthorizedError, NotFoundError, InternalServerError, ServiceUnavailableError]
+}
+
+structure NewBulkReplyInput {
+    /// The postings to reply to, comma separated.
+    @httpQuery("posting_ids")
+    @required
+    posting_ids: String
+}
+
+structure NewBulkReplyOutput {
+    @required
+    draft: BulkReplyDraft
+}
+
+/// The reply as HEY would send it: the prefilled content and the entries it goes to.
+structure BulkReplyDraft {
+    /// The prefilled body — the name tag when every thread is on the same account.
+    @required
+    content: String
+
+    @required
+    entries: BulkReplyEntryList
+}
+
+list BulkReplyEntryList {
+    member: BulkReplyEntry
+}
+
+/// One thread a bulk reply answers, with the recipients that thread's reply goes to.
+structure BulkReplyEntry {
+    @required
+    id: Long
+
+    @required
+    topic_id: Long
+
+    @required
+    topic_name: String
+
+    @required
+    addressed: Addressed
+}
+
+/// Send one reply to every entry. Answers what was sent, not the replies themselves:
+/// delivery is queued, and delayed while undo is still possible.
+@http(method: "POST", uri: "/bulk_replies", code: 201)
+@tags(["Bulk Reply"])
+operation CreateBulkReply {
+    input: CreateBulkReplyInput
+    output: CreateBulkReplyOutput
+    errors: [UnauthorizedError, UnprocessableEntityError, InternalServerError, ServiceUnavailableError]
+}
+
+structure CreateBulkReplyInput {
+    @httpPayload
+    @required
+    body: BulkReplyRequestContent
+}
+
+/// Wire format: {entry_ids: [...], message: {content}}
+structure BulkReplyRequestContent {
+    @required
+    entry_ids: PostingIdList
+
+    @required
+    message: BulkReplyMessagePayload
+}
+
+structure BulkReplyMessagePayload {
+    @required
+    content: String
+}
+
+structure CreateBulkReplyOutput {
+    @required
+    delivery: BulkReplyDelivery
+}
+
+structure BulkReplyDelivery {
+    @required
+    id: Long
+
+    @required
+    entries_count: Integer
+
+    /// True while the send is held open for undo.
+    @required
+    delayed: Boolean
+
+    /// Where to POST to call the replies back, present only while delayed.
+    undo_send_url: String
 }
 
 // =============================================================================

@@ -1113,6 +1113,18 @@ func executeOperation(client *generated.Client, ctx context.Context, tc TestCase
 		entryId := getInt64Param(tc.PathParams, "entryId")
 		return client.NewEntryForward(ctx, entryId)
 
+	// Bulk reply
+	case "NewBulkReply":
+		return client.NewBulkReply(ctx, &generated.NewBulkReplyParams{
+			PostingIds: getStringParam(tc.QueryParams, "posting_ids"),
+		})
+	case "CreateBulkReply":
+		body := generated.CreateBulkReplyJSONRequestBody{
+			EntryIds: getInt64SliceParam(tc.RequestBody, "entry_ids"),
+			Message:  generated.BulkReplyMessagePayload{Content: getStringParam(tc.RequestBody, "content")},
+		}
+		return client.CreateBulkReply(ctx, body)
+
 	// Contact bundles and screening
 	case "BundleContact":
 		contactId := getInt64Param(tc.PathParams, "contactId")

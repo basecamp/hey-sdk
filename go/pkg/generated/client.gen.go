@@ -139,6 +139,44 @@ type BubbleUpSchedule struct {
 	SurpriseMe bool      `json:"surprise_me,omitempty"`
 }
 
+// BulkReplyDelivery defines model for BulkReplyDelivery.
+type BulkReplyDelivery struct {
+	// Delayed True while the send is held open for undo.
+	Delayed      bool  `json:"delayed"`
+	EntriesCount int32 `json:"entries_count"`
+	Id           int64 `json:"id"`
+
+	// UndoSendUrl Where to POST to call the replies back, present only while delayed.
+	UndoSendUrl string `json:"undo_send_url,omitempty"`
+}
+
+// BulkReplyDraft The reply as HEY would send it: the prefilled content and the entries it goes to.
+type BulkReplyDraft struct {
+	// Content The prefilled body — the name tag when every thread is on the same account.
+	Content string           `json:"content"`
+	Entries []BulkReplyEntry `json:"entries"`
+}
+
+// BulkReplyEntry One thread a bulk reply answers, with the recipients that thread's reply goes to.
+type BulkReplyEntry struct {
+	// Addressed Addressed recipients
+	Addressed Addressed `json:"addressed"`
+	Id        int64     `json:"id"`
+	TopicId   int64     `json:"topic_id"`
+	TopicName string    `json:"topic_name"`
+}
+
+// BulkReplyMessagePayload defines model for BulkReplyMessagePayload.
+type BulkReplyMessagePayload struct {
+	Content string `json:"content"`
+}
+
+// BulkReplyRequestContent Wire format: {entry_ids: [...], message: {content}}
+type BulkReplyRequestContent struct {
+	EntryIds []int64                 `json:"entry_ids"`
+	Message  BulkReplyMessagePayload `json:"message"`
+}
+
 // Calendar Calendar
 type Calendar struct {
 	Color string `json:"color,omitempty"`
@@ -341,6 +379,9 @@ type CreateBoxGroupRequestContent struct {
 
 // CreateBoxGroupResponseContent BoxGroup — a Set Aside group. The API only ever returns the id.
 type CreateBoxGroupResponseContent = BoxGroup
+
+// CreateBulkReplyResponseContent defines model for CreateBulkReplyResponseContent.
+type CreateBulkReplyResponseContent = BulkReplyDelivery
 
 // CreateCalendarTodoRequestContent Wire format: {calendar_todo: {title, starts_at}}
 type CreateCalendarTodoRequestContent struct {
@@ -797,6 +838,9 @@ type NavigationResponse struct {
 	Hotkeys []NavigationItem `json:"hotkeys,omitempty"`
 	Items   []NavigationItem `json:"items,omitempty"`
 }
+
+// NewBulkReplyResponseContent The reply as HEY would send it: the prefilled content and the entries it goes to.
+type NewBulkReplyResponseContent = BulkReplyDraft
 
 // NewEntryForwardResponseContent MessageDraft — a prefilled compose payload (forward, reply). Unsent, so it has no id.
 type NewEntryForwardResponseContent = MessageDraft
@@ -1299,6 +1343,12 @@ type GetBubbleboxParams struct {
 	Page *string `form:"page,omitempty" json:"page,omitempty"`
 }
 
+// NewBulkReplyParams defines parameters for NewBulkReply.
+type NewBulkReplyParams struct {
+	// PostingIds The postings to reply to, comma separated.
+	PostingIds string `form:"posting_ids" json:"posting_ids"`
+}
+
 // GetCalendarRecordingsParams defines parameters for GetCalendarRecordings.
 type GetCalendarRecordingsParams struct {
 	StartsOn *string `form:"starts_on,omitempty" json:"starts_on,omitempty"`
@@ -1417,6 +1467,9 @@ type CreateBoxDesignationJSONRequestBody = CreateBoxDesignationRequestContent
 
 // CreateBoxGroupJSONRequestBody defines body for CreateBoxGroup for application/json ContentType.
 type CreateBoxGroupJSONRequestBody = CreateBoxGroupRequestContent
+
+// CreateBulkReplyJSONRequestBody defines body for CreateBulkReply for application/json ContentType.
+type CreateBulkReplyJSONRequestBody = BulkReplyRequestContent
 
 // UpdateJournalEntryJSONRequestBody defines body for UpdateJournalEntry for application/json ContentType.
 type UpdateJournalEntryJSONRequestBody = UpdateJournalEntryRequestContent
@@ -1763,6 +1816,14 @@ type ClientInterface interface {
 
 	// GetBubblebox request
 	GetBubblebox(ctx context.Context, params *GetBubbleboxParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CreateBulkReplyWithBody request with any body
+	CreateBulkReplyWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	CreateBulkReply(ctx context.Context, body CreateBulkReplyJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// NewBulkReply request
+	NewBulkReply(ctx context.Context, params *NewBulkReplyParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// UncompleteHabit request
 	UncompleteHabit(ctx context.Context, day string, habitId int64, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -2227,6 +2288,46 @@ func (c *Client) GetBubblebox(ctx context.Context, params *GetBubbleboxParams, r
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
 		return NewGetBubbleboxRequest(c.Server, params)
 	}, true, "GetBubblebox", reqEditors...)
+
+}
+
+// CreateBulkReplyWithBody executes the CreateBulkReply operation.
+
+func (c *Client) CreateBulkReplyWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+
+	req, err := NewCreateBulkReplyRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+
+}
+
+func (c *Client) CreateBulkReply(ctx context.Context, body CreateBulkReplyJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+
+	req, err := NewCreateBulkReplyRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+
+}
+
+// NewBulkReply is marked as idempotent and will be retried on transient failures.
+
+func (c *Client) NewBulkReply(ctx context.Context, params *NewBulkReplyParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+
+	return c.doWithRetry(ctx, func() (*http.Request, error) {
+		return NewNewBulkReplyRequest(c.Server, params)
+	}, true, "NewBulkReply", reqEditors...)
 
 }
 
@@ -4263,6 +4364,91 @@ func NewGetBubbleboxRequest(server string, params *GetBubbleboxParams) (*http.Re
 				}
 			}
 
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewCreateBulkReplyRequest calls the generic CreateBulkReply builder with application/json body
+func NewCreateBulkReplyRequest(server string, body CreateBulkReplyJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewCreateBulkReplyRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewCreateBulkReplyRequestWithBody generates requests for CreateBulkReply with any type of body
+func NewCreateBulkReplyRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/bulk_replies")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewNewBulkReplyRequest generates requests for NewBulkReply
+func NewNewBulkReplyRequest(server string, params *NewBulkReplyParams) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/bulk_replies/new")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if queryFrag, err := runtime.StyleParamWithLocation("form", true, "posting_ids", runtime.ParamLocationQuery, params.PostingIds); err != nil {
+			return nil, err
+		} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+			return nil, err
+		} else {
+			for k, v := range parsed {
+				for _, v2 := range v {
+					queryValues.Add(k, v2)
+				}
+			}
 		}
 
 		queryURL.RawQuery = queryValues.Encode()
@@ -7747,6 +7933,8 @@ var operationMetadata = map[string]OperationMetadata{
 	"DeleteBoxGroup":             {Idempotent: true, HasSensitiveParams: false},
 	"MarkBoxSeen":                {Idempotent: false, HasSensitiveParams: false},
 	"GetBubblebox":               {Idempotent: true, HasSensitiveParams: false},
+	"CreateBulkReply":            {Idempotent: false, HasSensitiveParams: false},
+	"NewBulkReply":               {Idempotent: true, HasSensitiveParams: false},
 	"UncompleteHabit":            {Idempotent: true, HasSensitiveParams: false},
 	"CompleteHabit":              {Idempotent: true, HasSensitiveParams: false},
 	"GetJournalEntry":            {Idempotent: true, HasSensitiveParams: false},
@@ -8536,6 +8724,31 @@ type ClientWithResponsesInterface interface {
 	//
 	// Returns a wrapper object for the known response body format(s).
 	GetBubbleboxWithResponse(ctx context.Context, params *GetBubbleboxParams, reqEditors ...RequestEditorFn) (*GetBubbleboxResponse, error)
+
+	// CreateBulkReplyWithBodyWithResponse performs a POST /bulk_replies (the `CreateBulkReply` operationId) request,
+	// with any type of body and a specified content type.
+	//
+	// Send one reply to every entry. Answers what was sent, not the replies themselves:
+	// delivery is queued, and delayed while undo is still possible.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	CreateBulkReplyWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateBulkReplyResponse, error)
+
+	// CreateBulkReplyWithResponse performs a POST /bulk_replies (the `CreateBulkReply` operationId) request.
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Send one reply to every entry. Answers what was sent, not the replies themselves:
+	// delivery is queued, and delayed while undo is still possible.
+	CreateBulkReplyWithResponse(ctx context.Context, body CreateBulkReplyJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateBulkReplyResponse, error)
+
+	// NewBulkReplyWithResponse performs a GET /bulk_replies/new (the `NewBulkReply` operationId) request.
+	//
+	// Work out which entries a bulk reply would answer. HEY replies to the last replyable
+	// entry of each thread, skipping threads with no reply address, so the postings you hold
+	// are not the entries you send to — this resolves them.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	NewBulkReplyWithResponse(ctx context.Context, params *NewBulkReplyParams, reqEditors ...RequestEditorFn) (*NewBulkReplyResponse, error)
 
 	// UncompleteHabitWithResponse performs a DELETE /calendar/days/{day}/habits/{habitId}/completions (the `UncompleteHabit` operationId) request.
 	//
@@ -10070,6 +10283,144 @@ func (r GetBubbleboxResponse) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r GetBubbleboxResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type CreateBulkReplyResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON201 the response for an HTTP 201 `application/json` response
+	JSON201 *CreateBulkReplyResponseContent
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *UnauthorizedErrorResponseContent
+	// JSON422 the response for an HTTP 422 `application/json` response
+	JSON422 *UnprocessableEntityErrorResponseContent
+	// JSON500 the response for an HTTP 500 `application/json` response
+	JSON500 *InternalServerErrorResponseContent
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *ServiceUnavailableErrorResponseContent
+}
+
+// GetJSON201 returns the response for an HTTP 201 `application/json` response
+func (r CreateBulkReplyResponse) GetJSON201() *CreateBulkReplyResponseContent {
+	return r.JSON201
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r CreateBulkReplyResponse) GetJSON401() *UnauthorizedErrorResponseContent {
+	return r.JSON401
+}
+
+// GetJSON422 returns the response for an HTTP 422 `application/json` response
+func (r CreateBulkReplyResponse) GetJSON422() *UnprocessableEntityErrorResponseContent {
+	return r.JSON422
+}
+
+// GetJSON500 returns the response for an HTTP 500 `application/json` response
+func (r CreateBulkReplyResponse) GetJSON500() *InternalServerErrorResponseContent {
+	return r.JSON500
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r CreateBulkReplyResponse) GetJSON503() *ServiceUnavailableErrorResponseContent {
+	return r.JSON503
+}
+
+// GetBody returns the raw response body bytes
+func (r CreateBulkReplyResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r CreateBulkReplyResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r CreateBulkReplyResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r CreateBulkReplyResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type NewBulkReplyResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *NewBulkReplyResponseContent
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *UnauthorizedErrorResponseContent
+	// JSON404 the response for an HTTP 404 `application/json` response
+	JSON404 *NotFoundErrorResponseContent
+	// JSON500 the response for an HTTP 500 `application/json` response
+	JSON500 *InternalServerErrorResponseContent
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *ServiceUnavailableErrorResponseContent
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r NewBulkReplyResponse) GetJSON200() *NewBulkReplyResponseContent {
+	return r.JSON200
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r NewBulkReplyResponse) GetJSON401() *UnauthorizedErrorResponseContent {
+	return r.JSON401
+}
+
+// GetJSON404 returns the response for an HTTP 404 `application/json` response
+func (r NewBulkReplyResponse) GetJSON404() *NotFoundErrorResponseContent {
+	return r.JSON404
+}
+
+// GetJSON500 returns the response for an HTTP 500 `application/json` response
+func (r NewBulkReplyResponse) GetJSON500() *InternalServerErrorResponseContent {
+	return r.JSON500
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r NewBulkReplyResponse) GetJSON503() *ServiceUnavailableErrorResponseContent {
+	return r.JSON503
+}
+
+// GetBody returns the raw response body bytes
+func (r NewBulkReplyResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r NewBulkReplyResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r NewBulkReplyResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r NewBulkReplyResponse) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -15797,6 +16148,49 @@ func (c *ClientWithResponses) GetBubbleboxWithResponse(ctx context.Context, para
 	return ParseGetBubbleboxResponse(rsp)
 }
 
+// CreateBulkReplyWithBodyWithResponse performs a POST /bulk_replies (the `CreateBulkReply` operationId) request,
+// with any type of body and a specified content type.
+//
+// Send one reply to every entry. Answers what was sent, not the replies themselves:
+// delivery is queued, and delayed while undo is still possible.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) CreateBulkReplyWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateBulkReplyResponse, error) {
+	rsp, err := c.CreateBulkReplyWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateBulkReplyResponse(rsp)
+}
+
+// CreateBulkReplyWithResponse performs a POST /bulk_replies (the `CreateBulkReply` operationId) request.
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Send one reply to every entry. Answers what was sent, not the replies themselves:
+// delivery is queued, and delayed while undo is still possible.
+func (c *ClientWithResponses) CreateBulkReplyWithResponse(ctx context.Context, body CreateBulkReplyJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateBulkReplyResponse, error) {
+	rsp, err := c.CreateBulkReply(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateBulkReplyResponse(rsp)
+}
+
+// NewBulkReplyWithResponse performs a GET /bulk_replies/new (the `NewBulkReply` operationId) request.
+//
+// Work out which entries a bulk reply would answer. HEY replies to the last replyable
+// entry of each thread, skipping threads with no reply address, so the postings you hold
+// are not the entries you send to — this resolves them.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) NewBulkReplyWithResponse(ctx context.Context, params *NewBulkReplyParams, reqEditors ...RequestEditorFn) (*NewBulkReplyResponse, error) {
+	rsp, err := c.NewBulkReply(ctx, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseNewBulkReplyResponse(rsp)
+}
+
 // UncompleteHabitWithResponse performs a DELETE /calendar/days/{day}/habits/{habitId}/completions (the `UncompleteHabit` operationId) request.
 //
 // Uncomplete a habit for a day.
@@ -17834,6 +18228,114 @@ func ParseGetBubbleboxResponse(rsp *http.Response) (*GetBubbleboxResponse, error
 			return nil, err
 		}
 		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest InternalServerErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+		var dest ServiceUnavailableErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON503 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseCreateBulkReplyResponse parses an HTTP response from a CreateBulkReplyWithResponse call
+func ParseCreateBulkReplyResponse(rsp *http.Response) (*CreateBulkReplyResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &CreateBulkReplyResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest CreateBulkReplyResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest UnauthorizedErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 422:
+		var dest UnprocessableEntityErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON422 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest InternalServerErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+		var dest ServiceUnavailableErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON503 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseNewBulkReplyResponse parses an HTTP response from a NewBulkReplyWithResponse call
+func ParseNewBulkReplyResponse(rsp *http.Response) (*NewBulkReplyResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &NewBulkReplyResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest NewBulkReplyResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest UnauthorizedErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFoundErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
 		var dest InternalServerErrorResponseContent
