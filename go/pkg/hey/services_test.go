@@ -2140,6 +2140,46 @@ func TestContactsService_CreateConflict(t *testing.T) {
 	}
 }
 
+// HEY can answer a write with a different contact than the one addressed: giving a
+// contact one of its own aliases as the main address promotes the alias, and the alias
+// becomes the primary. Callers have to read the id back rather than assume it.
+func TestContactsService_UpdatePromotesAnAlias(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch {
+		case r.Method == http.MethodGet:
+			_, _ = w.Write([]byte(`{"id":7,"name":"Jane","email_address":"jane@x.com","aliases":[{"id":8,"email_address":"jd@x.com"}]}`))
+		default:
+			_, _ = w.Write([]byte(`{"id":8,"name":"Jane","email_address":"jd@x.com"}`))
+		}
+	}))
+	t.Cleanup(srv.Close)
+	client := NewClient(&Config{BaseURL: srv.URL}, &StaticTokenProvider{Token: "t"}, WithMaxRetries(0))
+
+	contact, err := client.Contacts().Update(context.Background(), 7, ContactParams{EmailAddress: "jd@x.com"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if contact == nil || contact.Id != 8 {
+		t.Fatalf("expected the promoted alias, got %+v", contact)
+	}
+}
+
+// A 409 the SDK cannot read still has to produce a usable error.
+func TestContactsService_CreateConflictWithoutAMessage(t *testing.T) {
+	client := newJSONStatusTestClient(t, http.StatusConflict, `{"conflicting_contact_ids":[4]}`)
+
+	_, err := client.Contacts().Create(context.Background(), ContactParams{Name: "Jane", EmailAddress: "jane@example.com"})
+
+	var conflict *ContactConflictError
+	if !errors.As(err, &conflict) {
+		t.Fatalf("expected a contact conflict, got %v", err)
+	}
+	if conflict.Error() == "" {
+		t.Error("a conflict with no message should still say something")
+	}
+}
+
 func TestContactsService_CreateInvalid(t *testing.T) {
 	client := newJSONStatusTestClient(t, http.StatusUnprocessableEntity,
 		`{"errors":["Email address is already in use for another contact"]}`)

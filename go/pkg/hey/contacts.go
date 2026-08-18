@@ -375,7 +375,11 @@ func conflictMessage(conflict *generated.ConflictErrorResponseContent) string {
 	if len(conflict.Errors) > 0 {
 		return strings.Join(conflict.Errors, "; ")
 	}
-	return conflict.Error
+	if conflict.Error != "" {
+		return conflict.Error
+	}
+	// A 409 whose body we do not recognise still has to read as something.
+	return "the contact conflicts with one that already exists"
 }
 
 // contactWriteError turns the two refusals a contact write can answer with into typed
