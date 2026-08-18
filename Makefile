@@ -162,6 +162,12 @@ endif
 	@echo "Releasing v$(VERSION)..."
 	@git diff --quiet && git diff --cached --quiet || \
 		{ echo "ERROR: Working tree has uncommitted changes."; exit 1; }
+	@grep -Fq 'const Version = "$(VERSION)"' go/pkg/hey/version.go || \
+		{ echo "ERROR: go/pkg/hey/version.go does not say $(VERSION):"; \
+		  grep 'const Version' go/pkg/hey/version.go; \
+		  echo "       The release workflow checks this, so the tag would fail to publish."; \
+		  echo "       Run: make bump VERSION=$(VERSION) — then commit and merge that first."; \
+		  exit 1; }
 	@$(MAKE) check-mvp
 	git tag "v$(VERSION)"
 	git tag "go/v$(VERSION)"
