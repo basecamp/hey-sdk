@@ -2116,7 +2116,7 @@ func TestContactsService_Create(t *testing.T) {
 // sending the web to a merge form. The SDK hands back the contacts to merge with.
 func TestContactsService_CreateConflict(t *testing.T) {
 	client := newJSONStatusTestClient(t, http.StatusConflict,
-		`{"error":"Some email addresses are already in use for other contacts","conflicting_contact_ids":[4,5]}`)
+		`{"error":"Some email addresses are already in use for other contacts","contact_id":9,"conflicting_contact_ids":[4,5]}`)
 
 	_, err := client.Contacts().Create(context.Background(), ContactParams{Name: "Jane", EmailAddress: "jane@example.com"})
 
@@ -2126,6 +2126,9 @@ func TestContactsService_CreateConflict(t *testing.T) {
 	}
 	if len(conflict.ConflictingContactIDs) != 2 || conflict.ConflictingContactIDs[0] != 4 {
 		t.Errorf("expected the contacts to merge with, got %v", conflict.ConflictingContactIDs)
+	}
+	if conflict.ContactID != 9 {
+		t.Errorf("expected the contact that was written, got %d", conflict.ContactID)
 	}
 
 	var heyErr *Error

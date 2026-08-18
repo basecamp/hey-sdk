@@ -246,10 +246,13 @@ type CompleteHabitResponseContent = Recording
 // ConflictErrorResponseContent The request conflicts with current state, e.g. starting a time track while one
 // is already ongoing (haystack answers {"error": "..."} with 409).
 type ConflictErrorResponseContent struct {
-	// ConflictingContactIds Contact writes only: the contacts already holding the email addresses that
-	// were sent, so a client can offer the merge the web offers.
 	ConflictingContactIds []int64 `json:"conflicting_contact_ids,omitempty"`
-	Error                 string  `json:"error"`
+
+	// ContactId Contact writes only: the contact that was written -- a create that clashes
+	// still creates the contact -- and the contacts already holding the email
+	// addresses that were sent, so a client can offer the merge the web offers.
+	ContactId int64  `json:"contact_id,omitempty"`
+	Error     string `json:"error"`
 }
 
 // Contact Contact — the identity of someone in HEY

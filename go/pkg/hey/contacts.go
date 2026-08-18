@@ -158,9 +158,13 @@ func (s *ContactsService) Clearances(ctx context.Context) (result *generated.Cle
 // already belongs to another contact. HEY's web sends you to a merge form at that point;
 // ConflictingContactIDs are the contacts it would have offered to merge with.
 //
+// A create that clashes still creates the contact — the merge happens afterwards — so
+// ContactID is the contact that was written, not a contact that failed to be.
+//
 // It wraps the SDK's conflict error, so errors.As still finds a *hey.Error with
 // CodeConflict for callers that only care that the write was refused.
 type ContactConflictError struct {
+	ContactID             int64
 	ConflictingContactIDs []int64
 
 	err *Error
@@ -370,6 +374,7 @@ func contactBody(params ContactParams) generated.ContactRequestContent {
 func contactWriteError(conflict *generated.ConflictErrorResponseContent, invalid *generated.UnprocessableEntityErrorResponseContent, resp *http.Response) error {
 	if conflict != nil {
 		return &ContactConflictError{
+			ContactID:             conflict.ContactId,
 			ConflictingContactIDs: conflict.ConflictingContactIds,
 			err:                   ErrConflict(conflict.Error),
 		}

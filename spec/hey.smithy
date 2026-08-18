@@ -265,8 +265,11 @@ structure ConflictError {
     @required
     error: String
 
-    /// Contact writes only: the contacts already holding the email addresses that
-    /// were sent, so a client can offer the merge the web offers.
+    /// Contact writes only: the contact that was written -- a create that clashes
+    /// still creates the contact -- and the contacts already holding the email
+    /// addresses that were sent, so a client can offer the merge the web offers.
+    contact_id: Long
+
     conflicting_contact_ids: ContactIdList
 }
 

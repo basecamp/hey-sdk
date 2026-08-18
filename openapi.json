@@ -8160,13 +8160,17 @@
           "error": {
             "type": "string"
           },
+          "contact_id": {
+            "type": "integer",
+            "description": "Contact writes only: the contact that was written -- a create that clashes\nstill creates the contact -- and the contacts already holding the email\naddresses that were sent, so a client can offer the merge the web offers.",
+            "format": "int64"
+          },
           "conflicting_contact_ids": {
             "type": "array",
             "items": {
               "type": "integer",
               "format": "int64"
-            },
-            "description": "Contact writes only: the contacts already holding the email addresses that\nwere sent, so a client can offer the merge the web offers."
+            }
           }
         },
         "required": [
