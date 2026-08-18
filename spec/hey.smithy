@@ -126,6 +126,7 @@ service HEY {
         UpdateJournalEntry
 
         // Search
+        AdvancedSearch
         GetAdvancedSearchFilters
 
         // Postings (6 MVP)
@@ -189,6 +190,15 @@ service HEY {
         // Calendar Time Tracks — write
         CreateTimeTrack
         DeleteTimeTrack
+
+        // Calendar Time Track categories
+        ListTimeTrackCategories
+
+        // Clips, Snippets, Workflows, Publications — reads
+        ListClips
+        ListSnippets
+        GetWorkflow
+        GetTopicPublication
     ]
 }
 
@@ -345,6 +355,18 @@ structure Workflow {
     created_at: DateTime
     updated_at: DateTime
     app_url: String
+    /// The workflow's stages in position order. Present on GetWorkflow.
+    stages: WorkflowStageList
+}
+
+structure WorkflowStage {
+    @required
+    id: Long
+    name: String
+}
+
+list WorkflowStageList {
+    member: WorkflowStage
 }
 
 list WorkflowList {
@@ -1783,8 +1805,89 @@ structure JournalEntryPayload {
 
 /// Get the options the advanced search refine form offers.
 ///
-/// Search itself has no JSON surface — /search and /advanced_search render HTML only — so the
-/// SDK reads results off the advanced search page. This endpoint is the one part that is JSON.
+/// Advanced search: message matches grouped by topic as the search page shows them —
+/// the topic, its posting id, and the matching entries as summaries (no bodies; read a
+/// message with GetMessage). Refinements are the same query parameters the page uses.
+/// The next page, if any, is a Link header.
+@readonly
+@http(method: "GET", uri: "/advanced_search.json")
+@tags(["Search"])
+@heyRetry(maxAttempts: 3, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+@heyPagination(style: "link")
+operation AdvancedSearch {
+    input: AdvancedSearchInput
+    output: AdvancedSearchOutput
+    errors: [UnauthorizedError, InternalServerError, ServiceUnavailableError]
+}
+
+structure AdvancedSearchInput {
+    /// The words to search for
+    @httpQuery("q")
+    q: String
+
+    @httpQuery("page")
+    page: String
+
+    /// Refinements, e.g. refine[from], refine[to], refine[subject], refine[exact_phrase],
+    /// refine[required], refine[any], refine[none], refine[date], refine[in], refine[label],
+    /// refine[attachment] — passed through as the page sends them.
+    @httpQuery("refine[from]")
+    from: String
+
+    @httpQuery("refine[to]")
+    to: String
+
+    @httpQuery("refine[subject]")
+    subject: String
+
+    @httpQuery("refine[exact_phrase]")
+    exact_phrase: String
+
+    @httpQuery("refine[required]")
+    required: String
+
+    @httpQuery("refine[any]")
+    any: String
+
+    @httpQuery("refine[none]")
+    none: String
+
+    @httpQuery("refine[date]")
+    date: String
+
+    @httpQuery("refine[in]")
+    in: String
+
+    @httpQuery("refine[label]")
+    label: String
+
+    @httpQuery("refine[attachment]")
+    attachment: String
+}
+
+structure AdvancedSearchOutput {
+    @required
+    result: AdvancedSearchResult
+}
+
+structure AdvancedSearchResult {
+    @required
+    matches: SearchMatchList
+}
+
+/// One matching topic: the topic, your posting of it (if any), and the entries that matched.
+structure SearchMatch {
+    @required
+    topic: Topic
+    posting_id: Long
+    entries: EntryList
+}
+
+list SearchMatchList {
+    member: SearchMatch
+}
+
+/// The advanced search refine form's options: boxes, date ranges, labels and attachment kinds.
 @readonly
 @http(method: "GET", uri: "/advanced_search_filters.json")
 @tags(["Search"])
@@ -2825,4 +2928,156 @@ operation StopHabit {
 operation ResumeHabit {
     input: HabitInput
     errors: [UnauthorizedError, NotFoundError, InternalServerError, ServiceUnavailableError]
+}
+
+// =============================================================================
+// TIME TRACK CATEGORIES, CLIPS, SNIPPETS, WORKFLOWS, PUBLICATIONS — reads
+// =============================================================================
+
+/// List the calendar's time track categories, alphabetically
+@readonly
+@http(method: "GET", uri: "/calendar/time_tracks/categories.json")
+@tags(["Calendar Time Tracks"])
+@heyRetry(maxAttempts: 3, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+operation ListTimeTrackCategories {
+    output: ListTimeTrackCategoriesOutput
+    errors: [UnauthorizedError, InternalServerError, ServiceUnavailableError]
+}
+
+structure ListTimeTrackCategoriesOutput {
+    @required
+    categories: TimeTrackCategoryList
+}
+
+structure TimeTrackCategory {
+    @required
+    id: Long
+    title: String
+    created_at: DateTime
+    updated_at: DateTime
+}
+
+list TimeTrackCategoryList {
+    member: TimeTrackCategory
+}
+
+/// List clips, newest first
+@readonly
+@http(method: "GET", uri: "/clips.json")
+@tags(["Clips"])
+@heyRetry(maxAttempts: 3, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+@heyPagination(style: "link", totalCountHeader: "X-Total-Count")
+operation ListClips {
+    input: PagedInput
+    output: ListClipsOutput
+    errors: [UnauthorizedError, InternalServerError, ServiceUnavailableError]
+}
+
+structure ListClipsOutput {
+    @required
+    clips: ClipList
+}
+
+structure Clip {
+    @required
+    id: Long
+    content: String
+    created_at: DateTime
+    updated_at: DateTime
+    entry_id: Long
+    topic: ClipTopic
+}
+
+/// The topic a clip was taken from
+structure ClipTopic {
+    @required
+    id: Long
+    name: String
+    app_url: String
+}
+
+list ClipList {
+    member: Clip
+}
+
+/// List snippets, alphabetically
+@readonly
+@http(method: "GET", uri: "/snippets.json")
+@tags(["Snippets"])
+@heyRetry(maxAttempts: 3, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+operation ListSnippets {
+    output: ListSnippetsOutput
+    errors: [UnauthorizedError, InternalServerError, ServiceUnavailableError]
+}
+
+structure ListSnippetsOutput {
+    @required
+    snippets: SnippetList
+}
+
+structure Snippet {
+    @required
+    id: Long
+    name: String
+    /// Plain text
+    content: String
+    /// Rich-text HTML
+    content_html: String
+    created_at: DateTime
+    updated_at: DateTime
+}
+
+list SnippetList {
+    member: Snippet
+}
+
+/// A workflow with its stages
+@readonly
+@http(method: "GET", uri: "/workflows/{workflowId}")
+@tags(["Workflows"])
+@heyRetry(maxAttempts: 3, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+operation GetWorkflow {
+    input: GetWorkflowInput
+    output: GetWorkflowOutput
+    errors: [UnauthorizedError, NotFoundError, InternalServerError, ServiceUnavailableError]
+}
+
+structure GetWorkflowInput {
+    @httpLabel
+    @required
+    workflowId: Long
+}
+
+structure GetWorkflowOutput {
+    @required
+    workflow: Workflow
+}
+
+/// Whether a thread is shared with a public link, and the link
+@readonly
+@http(method: "GET", uri: "/topics/{topicId}/publication.json")
+@tags(["Publications"])
+@heyRetry(maxAttempts: 3, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+operation GetTopicPublication {
+    input: GetTopicPublicationInput
+    output: GetTopicPublicationOutput
+    errors: [UnauthorizedError, ForbiddenError, NotFoundError, InternalServerError, ServiceUnavailableError]
+}
+
+structure GetTopicPublicationInput {
+    @httpLabel
+    @required
+    topicId: Long
+}
+
+structure GetTopicPublicationOutput {
+    @required
+    publication: TopicPublication
+}
+
+structure TopicPublication {
+    @required
+    published: Boolean
+    /// The public link, when published
+    url: String
 }

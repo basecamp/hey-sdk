@@ -4,9 +4,8 @@ import (
 	"context"
 	"fmt"
 	"net/url"
-	"strings"
 
-	"golang.org/x/net/html"
+	"github.com/basecamp/hey-sdk/go/pkg/generated"
 )
 
 // PublicationsService turns a thread into a public web page.
@@ -22,14 +21,8 @@ func NewPublicationsService(client *Client) *PublicationsService {
 	return &PublicationsService{client: client}
 }
 
-// Publication is a thread's public link.
-type Publication struct {
-	Published bool
-	URL       string
-}
-
 // Get reports whether a thread is published and, if it is, its public link.
-func (s *PublicationsService) Get(ctx context.Context, topicID int64) (result *Publication, err error) {
+func (s *PublicationsService) Get(ctx context.Context, topicID int64) (result *generated.TopicPublication, err error) {
 	op := OperationInfo{
 		Service: "Publications", Operation: "GetTopicPublication",
 		ResourceType: "publication", IsMutation: false, ResourceID: topicID,
@@ -43,19 +36,21 @@ func (s *PublicationsService) Get(ctx context.Context, topicID int64) (result *P
 }
 
 // get is the un-instrumented read shared by Get and Create.
-func (s *PublicationsService) get(ctx context.Context, topicID int64) (*Publication, error) {
-	resp, err := s.client.GetHTML(ctx, fmt.Sprintf("/topics/%d/publication/edit", topicID))
+func (s *PublicationsService) get(ctx context.Context, topicID int64) (*generated.TopicPublication, error) {
+	resp, err := s.client.genClient().GetTopicPublicationWithResponse(ctx, topicID)
 	if err != nil {
 		return nil, err
 	}
-	publicURL := parsePublicationURLHTML(string(resp.Data))
-	return &Publication{Published: publicURL != "", URL: publicURL}, nil
+	if err = CheckResponse(resp.HTTPResponse); err != nil {
+		return nil, err
+	}
+	return resp.JSON200, nil
 }
 
 // Create publishes a thread and returns its public link.
 //
 // Answers a forbidden error on accounts that aren't eligible to publish.
-func (s *PublicationsService) Create(ctx context.Context, topicID int64) (result *Publication, err error) {
+func (s *PublicationsService) Create(ctx context.Context, topicID int64) (result *generated.TopicPublication, err error) {
 	op := OperationInfo{
 		Service: "Publications", Operation: "CreateTopicPublication",
 		ResourceType: "publication", IsMutation: true, ResourceID: topicID,
@@ -93,27 +88,3 @@ func (s *PublicationsService) Delete(ctx context.Context, topicID int64) error {
 
 // parsePublicationURLHTML reads the public link off the sharing panel. The panel only renders
 // the copyable link once the thread is published, so an empty answer means unpublished.
-func parsePublicationURLHTML(page string) string {
-	doc, err := html.Parse(strings.NewReader(page))
-	if err != nil {
-		return ""
-	}
-
-	var found string
-	var walk func(*html.Node)
-	walk = func(node *html.Node) {
-		if found != "" {
-			return
-		}
-		if node.Type == html.ElementNode && nodeAttr(node, "data-copy-to-clipboard-target") == "copyable" {
-			found = nodeText(node)
-			return
-		}
-		for child := node.FirstChild; child != nil; child = child.NextSibling {
-			walk(child)
-		}
-	}
-	walk(doc)
-
-	return found
-}

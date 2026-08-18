@@ -297,17 +297,14 @@ func TestContactsService_UpdateMergesUnsetFields(t *testing.T) {
 func srv0URL(r *http.Request) string { return "http://" + r.Host }
 
 func TestPublicationsService_CreateIsOneOperation(t *testing.T) {
-	page := `<turbo-frame id="edit_topic_publication">
-		<span class="copy-to-clipboard__text" data-copy-to-clipboard-target="copyable">https://public.hey.com/p/abc123</span>
-	</turbo-frame>`
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch {
 		case r.Method == http.MethodPost && r.URL.Path == "/topics/5/publication":
 			w.Header().Set("Location", "http://"+r.Host+"/topics/5")
 			w.WriteHeader(http.StatusFound)
-		case r.Method == http.MethodGet && r.URL.Path == "/topics/5/publication/edit":
-			w.Header().Set("Content-Type", "text/html")
-			_, _ = w.Write([]byte(page))
+		case r.Method == http.MethodGet && r.URL.Path == "/topics/5/publication.json":
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"published":true,"url":"https://public.hey.com/p/abc123"}`))
 		default:
 			w.WriteHeader(404)
 		}
@@ -320,7 +317,7 @@ func TestPublicationsService_CreateIsOneOperation(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if !pub.Published || pub.URL != "https://public.hey.com/p/abc123" {
+	if !pub.Published || pub.Url != "https://public.hey.com/p/abc123" {
 		t.Errorf("expected the public link back, got %#v", pub)
 	}
 	if len(rec.ops) != 1 || rec.ops[0] != "CreateTopicPublication" {

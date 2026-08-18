@@ -2776,5 +2776,210 @@
       "path",
       "calendar-habits"
     ]
+  },
+  {
+    "name": "AdvancedSearch uses /advanced_search.json path",
+    "description": "Verifies that AdvancedSearch constructs the URL path /advanced_search.json",
+    "operation": "AdvancedSearch",
+    "method": "GET",
+    "path": "/advanced_search.json",
+    "queryParams": {
+      "q": "wire",
+      "refine[from]": "LaRowe"
+    },
+    "mockResponses": [
+      {
+        "status": 200,
+        "body": {
+          "matches": []
+        }
+      }
+    ],
+    "assertions": [
+      {
+        "type": "requestPath",
+        "expected": "/advanced_search.json"
+      },
+      {
+        "type": "requestMethod",
+        "expected": "GET"
+      },
+      {
+        "type": "noError"
+      },
+      {
+        "type": "requestQuery",
+        "expected": {
+          "q": "wire",
+          "refine[from]": "LaRowe"
+        }
+      }
+    ],
+    "tags": [
+      "path",
+      "reads"
+    ]
+  },
+  {
+    "name": "ListClips uses /clips.json path",
+    "description": "Verifies that ListClips constructs the URL path /clips.json",
+    "operation": "ListClips",
+    "method": "GET",
+    "path": "/clips.json",
+    "mockResponses": [
+      {
+        "status": 200,
+        "body": []
+      }
+    ],
+    "assertions": [
+      {
+        "type": "requestPath",
+        "expected": "/clips.json"
+      },
+      {
+        "type": "requestMethod",
+        "expected": "GET"
+      },
+      {
+        "type": "noError"
+      }
+    ],
+    "tags": [
+      "path",
+      "reads"
+    ]
+  },
+  {
+    "name": "ListSnippets uses /snippets.json path",
+    "description": "Verifies that ListSnippets constructs the URL path /snippets.json",
+    "operation": "ListSnippets",
+    "method": "GET",
+    "path": "/snippets.json",
+    "mockResponses": [
+      {
+        "status": 200,
+        "body": []
+      }
+    ],
+    "assertions": [
+      {
+        "type": "requestPath",
+        "expected": "/snippets.json"
+      },
+      {
+        "type": "requestMethod",
+        "expected": "GET"
+      },
+      {
+        "type": "noError"
+      }
+    ],
+    "tags": [
+      "path",
+      "reads"
+    ]
+  },
+  {
+    "name": "GetWorkflow uses /workflows/{workflowId} path",
+    "description": "Verifies that GetWorkflow constructs the URL path /workflows/{workflowId}",
+    "operation": "GetWorkflow",
+    "method": "GET",
+    "path": "/workflows/{workflowId}",
+    "pathParams": {
+      "workflowId": 8801
+    },
+    "mockResponses": [
+      {
+        "status": 200,
+        "body": {
+          "id": 8801,
+          "name": "Hiring",
+          "stages": []
+        }
+      }
+    ],
+    "assertions": [
+      {
+        "type": "requestPath",
+        "expected": "/workflows/8801"
+      },
+      {
+        "type": "requestMethod",
+        "expected": "GET"
+      },
+      {
+        "type": "noError"
+      }
+    ],
+    "tags": [
+      "path",
+      "reads"
+    ]
+  },
+  {
+    "name": "ListTimeTrackCategories uses /calendar/time_tracks/categories.json path",
+    "description": "Verifies that ListTimeTrackCategories constructs the URL path /calendar/time_tracks/categories.json",
+    "operation": "ListTimeTrackCategories",
+    "method": "GET",
+    "path": "/calendar/time_tracks/categories.json",
+    "mockResponses": [
+      {
+        "status": 200,
+        "body": []
+      }
+    ],
+    "assertions": [
+      {
+        "type": "requestPath",
+        "expected": "/calendar/time_tracks/categories.json"
+      },
+      {
+        "type": "requestMethod",
+        "expected": "GET"
+      },
+      {
+        "type": "noError"
+      }
+    ],
+    "tags": [
+      "path",
+      "reads"
+    ]
+  },
+  {
+    "name": "GetTopicPublication uses /topics/{topicId}/publication.json path",
+    "description": "Verifies that GetTopicPublication constructs the URL path /topics/{topicId}/publication.json",
+    "operation": "GetTopicPublication",
+    "method": "GET",
+    "path": "/topics/{topicId}/publication.json",
+    "pathParams": {
+      "topicId": 5
+    },
+    "mockResponses": [
+      {
+        "status": 200,
+        "body": {
+          "published": false
+        }
+      }
+    ],
+    "assertions": [
+      {
+        "type": "requestPath",
+        "expected": "/topics/5/publication.json"
+      },
+      {
+        "type": "requestMethod",
+        "expected": "GET"
+      },
+      {
+        "type": "noError"
+      }
+    ],
+    "tags": [
+      "path",
+      "reads"
+    ]
   }
 ]

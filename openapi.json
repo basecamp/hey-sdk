@@ -14,9 +14,182 @@
     }
   },
   "paths": {
+    "/advanced_search.json": {
+      "get": {
+        "description": "Get the options the advanced search refine form offers.\n\nAdvanced search: message matches grouped by topic as the search page shows them —\nthe topic, its posting id, and the matching entries as summaries (no bodies; read a\nmessage with GetMessage). Refinements are the same query parameters the page uses.\nThe next page, if any, is a Link header.",
+        "operationId": "AdvancedSearch",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "description": "The words to search for",
+            "schema": {
+              "type": "string",
+              "description": "The words to search for",
+              "x-go-type-skip-optional-pointer": false
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "x-go-type-skip-optional-pointer": false
+            }
+          },
+          {
+            "name": "refine[from]",
+            "in": "query",
+            "description": "Refinements, e.g. refine[from], refine[to], refine[subject], refine[exact_phrase],\nrefine[required], refine[any], refine[none], refine[date], refine[in], refine[label],\nrefine[attachment] — passed through as the page sends them.",
+            "schema": {
+              "type": "string",
+              "description": "Refinements, e.g. refine[from], refine[to], refine[subject], refine[exact_phrase],\nrefine[required], refine[any], refine[none], refine[date], refine[in], refine[label],\nrefine[attachment] — passed through as the page sends them.",
+              "x-go-type-skip-optional-pointer": false
+            }
+          },
+          {
+            "name": "refine[to]",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "x-go-type-skip-optional-pointer": false
+            }
+          },
+          {
+            "name": "refine[subject]",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "x-go-type-skip-optional-pointer": false
+            }
+          },
+          {
+            "name": "refine[exact_phrase]",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "x-go-type-skip-optional-pointer": false
+            }
+          },
+          {
+            "name": "refine[required]",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "x-go-type-skip-optional-pointer": false
+            }
+          },
+          {
+            "name": "refine[any]",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "x-go-type-skip-optional-pointer": false
+            }
+          },
+          {
+            "name": "refine[none]",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "x-go-type-skip-optional-pointer": false
+            }
+          },
+          {
+            "name": "refine[date]",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "x-go-type-skip-optional-pointer": false
+            }
+          },
+          {
+            "name": "refine[in]",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "x-go-type-skip-optional-pointer": false
+            }
+          },
+          {
+            "name": "refine[label]",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "x-go-type-skip-optional-pointer": false
+            }
+          },
+          {
+            "name": "refine[attachment]",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "x-go-type-skip-optional-pointer": false
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "AdvancedSearch 200 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdvancedSearchResponseContent"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UnauthorizedError 401 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnauthorizedErrorResponseContent"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "InternalServerError 500 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorResponseContent"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ServiceUnavailableError 503 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceUnavailableErrorResponseContent"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Search"
+        ],
+        "x-hey-pagination": {
+          "style": "link"
+        },
+        "x-hey-retry": {
+          "maxAttempts": 3,
+          "baseDelayMs": 1000,
+          "backoff": "exponential",
+          "retryOn": [
+            429,
+            503
+          ]
+        }
+      }
+    },
     "/advanced_search_filters.json": {
       "get": {
-        "description": "Get the options the advanced search refine form offers.\n\nSearch itself has no JSON surface — /search and /advanced_search render HTML only — so the\nSDK reads results off the advanced search page. This endpoint is the one part that is JSON.",
+        "description": "The advanced search refine form's options: boxes, date ranges, labels and attachment kinds.",
         "operationId": "GetAdvancedSearchFilters",
         "responses": {
           "200": {
@@ -1790,6 +1963,66 @@
         }
       }
     },
+    "/calendar/time_tracks/categories.json": {
+      "get": {
+        "description": "List the calendar's time track categories, alphabetically",
+        "operationId": "ListTimeTrackCategories",
+        "responses": {
+          "200": {
+            "description": "ListTimeTrackCategories 200 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListTimeTrackCategoriesResponseContent"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UnauthorizedError 401 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnauthorizedErrorResponseContent"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "InternalServerError 500 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorResponseContent"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ServiceUnavailableError 503 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceUnavailableErrorResponseContent"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Calendar Time Tracks"
+        ],
+        "x-hey-retry": {
+          "maxAttempts": 3,
+          "baseDelayMs": 1000,
+          "backoff": "exponential",
+          "retryOn": [
+            429,
+            503
+          ]
+        }
+      }
+    },
     "/calendar/time_tracks/{timeTrackId}": {
       "delete": {
         "description": "Delete a time track. The id is the recording's.",
@@ -2489,6 +2722,80 @@
         "tags": [
           "Contacts"
         ],
+        "x-hey-retry": {
+          "maxAttempts": 3,
+          "baseDelayMs": 1000,
+          "backoff": "exponential",
+          "retryOn": [
+            429,
+            503
+          ]
+        }
+      }
+    },
+    "/clips.json": {
+      "get": {
+        "description": "List clips, newest first",
+        "operationId": "ListClips",
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "x-go-type-skip-optional-pointer": false
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ListClips 200 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListClipsResponseContent"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UnauthorizedError 401 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnauthorizedErrorResponseContent"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "InternalServerError 500 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorResponseContent"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ServiceUnavailableError 503 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceUnavailableErrorResponseContent"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Clips"
+        ],
+        "x-hey-pagination": {
+          "style": "link",
+          "totalCountHeader": "X-Total-Count"
+        },
         "x-hey-retry": {
           "maxAttempts": 3,
           "baseDelayMs": 1000,
@@ -5120,6 +5427,66 @@
         }
       }
     },
+    "/snippets.json": {
+      "get": {
+        "description": "List snippets, alphabetically",
+        "operationId": "ListSnippets",
+        "responses": {
+          "200": {
+            "description": "ListSnippets 200 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListSnippetsResponseContent"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UnauthorizedError 401 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnauthorizedErrorResponseContent"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "InternalServerError 500 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorResponseContent"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ServiceUnavailableError 503 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceUnavailableErrorResponseContent"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Snippets"
+        ],
+        "x-hey-retry": {
+          "maxAttempts": 3,
+          "baseDelayMs": 1000,
+          "backoff": "exponential",
+          "retryOn": [
+            429,
+            503
+          ]
+        }
+      }
+    },
     "/stickies.json": {
       "get": {
         "description": "List stickies, newest position first",
@@ -6177,6 +6544,97 @@
         }
       }
     },
+    "/topics/{topicId}/publication.json": {
+      "get": {
+        "description": "Whether a thread is shared with a public link, and the link",
+        "operationId": "GetTopicPublication",
+        "parameters": [
+          {
+            "name": "topicId",
+            "in": "path",
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "GetTopicPublication 200 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetTopicPublicationResponseContent"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UnauthorizedError 401 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnauthorizedErrorResponseContent"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ForbiddenError 403 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ForbiddenErrorResponseContent"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError 404 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundErrorResponseContent"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "InternalServerError 500 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorResponseContent"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ServiceUnavailableError 503 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceUnavailableErrorResponseContent"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Publications"
+        ],
+        "x-hey-retry": {
+          "maxAttempts": 3,
+          "baseDelayMs": 1000,
+          "backoff": "exponential",
+          "retryOn": [
+            429,
+            503
+          ]
+        }
+      }
+    },
     "/topics/{topicId}/status/active.json": {
       "put": {
         "description": "Restore a topic from the trash or the catch-all",
@@ -6406,6 +6864,87 @@
           ]
         }
       }
+    },
+    "/workflows/{workflowId}": {
+      "get": {
+        "description": "A workflow with its stages",
+        "operationId": "GetWorkflow",
+        "parameters": [
+          {
+            "name": "workflowId",
+            "in": "path",
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "GetWorkflow 200 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetWorkflowResponseContent"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UnauthorizedError 401 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnauthorizedErrorResponseContent"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError 404 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundErrorResponseContent"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "InternalServerError 500 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorResponseContent"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ServiceUnavailableError 503 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceUnavailableErrorResponseContent"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Workflows"
+        ],
+        "x-hey-retry": {
+          "maxAttempts": 3,
+          "baseDelayMs": 1000,
+          "backoff": "exponential",
+          "retryOn": [
+            429,
+            503
+          ]
+        }
+      }
     }
   },
   "components": {
@@ -6541,6 +7080,23 @@
             }
           }
         }
+      },
+      "AdvancedSearchResponseContent": {
+        "$ref": "#/components/schemas/AdvancedSearchResult"
+      },
+      "AdvancedSearchResult": {
+        "type": "object",
+        "properties": {
+          "matches": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SearchMatch"
+            }
+          }
+        },
+        "required": [
+          "matches"
+        ]
       },
       "AttachedEntry": {
         "type": "object",
@@ -6879,6 +7435,65 @@
             "type": "string"
           }
         }
+      },
+      "Clip": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "content": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string",
+            "description": "ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)",
+            "format": "date-time",
+            "x-go-type": "time.Time",
+            "x-go-type-import": {
+              "path": "time"
+            }
+          },
+          "updated_at": {
+            "type": "string",
+            "description": "ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)",
+            "format": "date-time",
+            "x-go-type": "time.Time",
+            "x-go-type-import": {
+              "path": "time"
+            }
+          },
+          "entry_id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "topic": {
+            "$ref": "#/components/schemas/ClipTopic"
+          }
+        },
+        "required": [
+          "id"
+        ]
+      },
+      "ClipTopic": {
+        "type": "object",
+        "description": "The topic a clip was taken from",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "name": {
+            "type": "string"
+          },
+          "app_url": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ]
       },
       "Collection": {
         "type": "object",
@@ -7526,6 +8141,9 @@
           "$ref": "#/components/schemas/Entry"
         }
       },
+      "GetTopicPublicationResponseContent": {
+        "$ref": "#/components/schemas/TopicPublication"
+      },
       "GetTopicResponseContent": {
         "$ref": "#/components/schemas/Topic"
       },
@@ -7534,6 +8152,9 @@
       },
       "GetTrashTopicsResponseContent": {
         "$ref": "#/components/schemas/TopicListResponse"
+      },
+      "GetWorkflowResponseContent": {
+        "$ref": "#/components/schemas/Workflow"
       },
       "HabitPayload": {
         "type": "object",
@@ -7677,6 +8298,12 @@
       "ListCalendarsResponseContent": {
         "$ref": "#/components/schemas/CalendarListPayload"
       },
+      "ListClipsResponseContent": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/Clip"
+        }
+      },
       "ListCollectionsResponseContent": {
         "type": "array",
         "items": {
@@ -7695,10 +8322,22 @@
           "$ref": "#/components/schemas/DraftMessage"
         }
       },
+      "ListSnippetsResponseContent": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/Snippet"
+        }
+      },
       "ListStickiesResponseContent": {
         "type": "array",
         "items": {
           "$ref": "#/components/schemas/Sticky"
+        }
+      },
+      "ListTimeTrackCategoriesResponseContent": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/TimeTrackCategory"
         }
       },
       "MarkPostingsRequestContent": {
@@ -8547,6 +9186,28 @@
           }
         }
       },
+      "SearchMatch": {
+        "type": "object",
+        "description": "One matching topic: the topic, your posting of it (if any), and the entries that matched.",
+        "properties": {
+          "topic": {
+            "$ref": "#/components/schemas/Topic"
+          },
+          "posting_id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "entries": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Entry"
+            }
+          }
+        },
+        "required": [
+          "topic"
+        ]
+      },
       "Sender": {
         "type": "object",
         "description": "Sender — a contact with default flag",
@@ -8600,6 +9261,47 @@
         },
         "required": [
           "message"
+        ]
+      },
+      "Snippet": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "name": {
+            "type": "string"
+          },
+          "content": {
+            "type": "string",
+            "description": "Plain text"
+          },
+          "content_html": {
+            "type": "string",
+            "description": "Rich-text HTML"
+          },
+          "created_at": {
+            "type": "string",
+            "description": "ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)",
+            "format": "date-time",
+            "x-go-type": "time.Time",
+            "x-go-type-import": {
+              "path": "time"
+            }
+          },
+          "updated_at": {
+            "type": "string",
+            "description": "ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)",
+            "format": "date-time",
+            "x-go-type": "time.Time",
+            "x-go-type-import": {
+              "path": "time"
+            }
+          }
+        },
+        "required": [
+          "id"
         ]
       },
       "StartTimeTrackResponseContent": {
@@ -8663,6 +9365,39 @@
         },
         "required": [
           "sticky"
+        ]
+      },
+      "TimeTrackCategory": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "title": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string",
+            "description": "ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)",
+            "format": "date-time",
+            "x-go-type": "time.Time",
+            "x-go-type-import": {
+              "path": "time"
+            }
+          },
+          "updated_at": {
+            "type": "string",
+            "description": "ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)",
+            "format": "date-time",
+            "x-go-type": "time.Time",
+            "x-go-type-import": {
+              "path": "time"
+            }
+          }
+        },
+        "required": [
+          "id"
         ]
       },
       "TimeTrackRequestContent": {
@@ -8800,6 +9535,21 @@
             }
           }
         }
+      },
+      "TopicPublication": {
+        "type": "object",
+        "properties": {
+          "published": {
+            "type": "boolean"
+          },
+          "url": {
+            "type": "string",
+            "description": "The public link, when published"
+          }
+        },
+        "required": [
+          "published"
+        ]
       },
       "TrashPostingsRequestContent": {
         "type": "object",
@@ -9013,6 +9763,28 @@
             }
           },
           "app_url": {
+            "type": "string"
+          },
+          "stages": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WorkflowStage"
+            },
+            "description": "The workflow's stages in position order. Present on GetWorkflow."
+          }
+        },
+        "required": [
+          "id"
+        ]
+      },
+      "WorkflowStage": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "name": {
             "type": "string"
           }
         },

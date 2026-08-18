@@ -5,11 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/url"
-	"regexp"
 	"strconv"
-	"strings"
 
-	"golang.org/x/net/html"
+	"github.com/basecamp/hey-sdk/go/pkg/generated"
 )
 
 // WorkflowsService handles workflows — kanban-style boards of threads.
@@ -30,12 +28,6 @@ type Workflow struct {
 	ID          int64
 	Name        string
 	AccountName string
-}
-
-// WorkflowStage is one column of a workflow.
-type WorkflowStage struct {
-	ID   int64
-	Name string
 }
 
 // List returns the workflows on an account.
@@ -78,23 +70,33 @@ func (s *WorkflowsService) List(ctx context.Context, accountID int64) (result []
 	return result, err
 }
 
-// Stages returns a workflow's columns, in board order.
-func (s *WorkflowsService) Stages(ctx context.Context, workflowID int64) (result []WorkflowStage, err error) {
+// Get returns a workflow with its stages in position order.
+func (s *WorkflowsService) Get(ctx context.Context, workflowID int64) (result *generated.Workflow, err error) {
 	op := OperationInfo{
-		Service: "Workflows", Operation: "ListWorkflowStages",
-		ResourceType: "workflow_stage", IsMutation: false, ResourceID: workflowID,
+		Service: "Workflows", Operation: "GetWorkflow",
+		ResourceType: "workflow", IsMutation: false, ResourceID: workflowID,
 	}
-
 	err = s.client.instrument(ctx, op, func(ctx context.Context) error {
-		resp, rerr := s.client.GetHTML(ctx, fmt.Sprintf("/workflows/%d", workflowID))
+		resp, rerr := s.client.genClient().GetWorkflowWithResponse(ctx, workflowID)
 		if rerr != nil {
 			return rerr
 		}
-
-		result = parseWorkflowStagesHTML(string(resp.Data))
+		if cerr := CheckResponse(resp.HTTPResponse); cerr != nil {
+			return cerr
+		}
+		result = resp.JSON200
 		return nil
 	})
 	return result, err
+}
+
+// Stages returns a workflow's stages in position order.
+func (s *WorkflowsService) Stages(ctx context.Context, workflowID int64) ([]generated.WorkflowStage, error) {
+	workflow, err := s.Get(ctx, workflowID)
+	if err != nil || workflow == nil {
+		return nil, err
+	}
+	return workflow.Stages, nil
 }
 
 // Create adds a workflow. accountID of zero leaves the server to pick your first account.
@@ -219,50 +221,3 @@ func (s *WorkflowsService) UnstageTopic(ctx context.Context, topicID, workflowID
 
 // workflowStageIDRe pulls the stage id out of the heading id a workflow page stamps, e.g.
 // name_workflow_stage_5512.
-var workflowStageIDRe = regexp.MustCompile(`^name_workflow_stage_(\d+)$`)
-
-// parseWorkflowStagesHTML reads the stage names off a workflow page. Each heading pairs the
-// visible name, in an aria-hidden span, with a screen-reader annotation; only the first is
-// the name.
-func parseWorkflowStagesHTML(page string) []WorkflowStage {
-	doc, err := html.Parse(strings.NewReader(page))
-	if err != nil {
-		return nil
-	}
-
-	var stages []WorkflowStage
-	var walk func(*html.Node)
-	walk = func(node *html.Node) {
-		if node.Type == html.ElementNode {
-			if parts := workflowStageIDRe.FindStringSubmatch(nodeAttr(node, "id")); parts != nil {
-				id, perr := strconv.ParseInt(parts[1], 10, 64)
-				if perr == nil {
-					stages = append(stages, WorkflowStage{ID: id, Name: visibleText(node)})
-				}
-			}
-		}
-		for child := node.FirstChild; child != nil; child = child.NextSibling {
-			walk(child)
-		}
-	}
-	walk(doc)
-
-	return stages
-}
-
-// visibleText returns the text of the first aria-hidden span under a node — where the app puts
-// the visible label when it also renders a screen-reader annotation — or the node's own text.
-func visibleText(node *html.Node) string {
-	if node.Type == html.ElementNode && node.Data == "span" && nodeAttr(node, "aria-hidden") == "true" {
-		return nodeText(node)
-	}
-	for child := node.FirstChild; child != nil; child = child.NextSibling {
-		if text := visibleText(child); text != "" {
-			return text
-		}
-	}
-	if node.Type == html.ElementNode {
-		return nodeText(node)
-	}
-	return ""
-}

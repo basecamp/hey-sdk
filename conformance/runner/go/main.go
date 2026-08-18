@@ -984,6 +984,27 @@ func executeOperation(client *generated.Client, ctx context.Context, tc TestCase
 	// Search
 	case "GetAdvancedSearchFilters":
 		return client.GetAdvancedSearchFilters(ctx)
+	case "AdvancedSearch":
+		params := &generated.AdvancedSearchParams{}
+		if q := getStringParam(tc.QueryParams, "q"); q != "" {
+			params.Q = &q
+		}
+		if from := getStringParam(tc.QueryParams, "refine[from]"); from != "" {
+			params.RefineFrom = &from
+		}
+		return client.AdvancedSearch(ctx, params)
+
+	// Reads that used to be scraped
+	case "ListClips":
+		return client.ListClips(ctx, nil)
+	case "ListSnippets":
+		return client.ListSnippets(ctx)
+	case "GetWorkflow":
+		return client.GetWorkflow(ctx, getInt64Param(tc.PathParams, "workflowId"))
+	case "ListTimeTrackCategories":
+		return client.ListTimeTrackCategories(ctx)
+	case "GetTopicPublication":
+		return client.GetTopicPublication(ctx, getInt64Param(tc.PathParams, "topicId"))
 
 	// Postings
 	case "MarkPostingsSeen":

@@ -64,6 +64,14 @@ type AdvancedSearchFilters struct {
 	RefineLabels      []SearchFilterItem `json:"refine_labels,omitempty"`
 }
 
+// AdvancedSearchResponseContent defines model for AdvancedSearchResponseContent.
+type AdvancedSearchResponseContent = AdvancedSearchResult
+
+// AdvancedSearchResult defines model for AdvancedSearchResult.
+type AdvancedSearchResult struct {
+	Matches []SearchMatch `json:"matches"`
+}
+
 // AttachedEntry AttachedEntry — entry reference on a calendar event
 type AttachedEntry struct {
 	AppUrl string `json:"app_url,omitempty"`
@@ -185,6 +193,29 @@ type Clearance struct {
 type ClearanceSummary struct {
 	PendingClearancesCount int32  `json:"pending_clearances_count,omitempty"`
 	SignedStreamName       string `json:"signed_stream_name,omitempty"`
+}
+
+// Clip defines model for Clip.
+type Clip struct {
+	Content string `json:"content,omitempty"`
+
+	// CreatedAt ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)
+	CreatedAt time.Time `json:"created_at,omitempty"`
+	EntryId   int64     `json:"entry_id,omitempty"`
+	Id        int64     `json:"id"`
+
+	// Topic The topic a clip was taken from
+	Topic ClipTopic `json:"topic,omitempty"`
+
+	// UpdatedAt ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)
+	UpdatedAt time.Time `json:"updated_at,omitempty"`
+}
+
+// ClipTopic The topic a clip was taken from
+type ClipTopic struct {
+	AppUrl string `json:"app_url,omitempty"`
+	Id     int64  `json:"id"`
+	Name   string `json:"name,omitempty"`
 }
 
 // Collection Collection — email collection/label
@@ -488,6 +519,9 @@ type GetSpamTopicsResponseContent = TopicListResponse
 // GetTopicEntriesResponseContent defines model for GetTopicEntriesResponseContent.
 type GetTopicEntriesResponseContent = []Entry
 
+// GetTopicPublicationResponseContent defines model for GetTopicPublicationResponseContent.
+type GetTopicPublicationResponseContent = TopicPublication
+
 // GetTopicResponseContent Topic detail
 type GetTopicResponseContent = Topic
 
@@ -498,6 +532,9 @@ type GetTrailboxResponseContent = BoxShowResponse
 
 // GetTrashTopicsResponseContent TopicListResponse — wrapped topic list (sent, spam, trash, everything)
 type GetTrashTopicsResponseContent = TopicListResponse
+
+// GetWorkflowResponseContent Workflow — email workflow/label
+type GetWorkflowResponseContent = Workflow
 
 // HabitPayload defines model for HabitPayload.
 type HabitPayload struct {
@@ -559,6 +596,9 @@ type ListBoxesResponseContent = []Box
 // ListCalendarsResponseContent CalendarListPayload
 type ListCalendarsResponseContent = CalendarListPayload
 
+// ListClipsResponseContent defines model for ListClipsResponseContent.
+type ListClipsResponseContent = []Clip
+
 // ListCollectionsResponseContent defines model for ListCollectionsResponseContent.
 type ListCollectionsResponseContent = []Collection
 
@@ -568,8 +608,14 @@ type ListContactsResponseContent = []Contact
 // ListDraftsResponseContent defines model for ListDraftsResponseContent.
 type ListDraftsResponseContent = []DraftMessage
 
+// ListSnippetsResponseContent defines model for ListSnippetsResponseContent.
+type ListSnippetsResponseContent = []Snippet
+
 // ListStickiesResponseContent defines model for ListStickiesResponseContent.
 type ListStickiesResponseContent = []Sticky
+
+// ListTimeTrackCategoriesResponseContent defines model for ListTimeTrackCategoriesResponseContent.
+type ListTimeTrackCategoriesResponseContent = []TimeTrackCategory
 
 // MarkPostingsRequestContent defines model for MarkPostingsRequestContent.
 type MarkPostingsRequestContent struct {
@@ -886,6 +932,15 @@ type SearchFilterItem struct {
 	Value string `json:"value,omitempty"`
 }
 
+// SearchMatch One matching topic: the topic, your posting of it (if any), and the entries that matched.
+type SearchMatch struct {
+	Entries   []Entry `json:"entries,omitempty"`
+	PostingId int64   `json:"posting_id,omitempty"`
+
+	// Topic Topic detail
+	Topic Topic `json:"topic"`
+}
+
 // Sender Sender — a contact with default flag
 type Sender struct {
 	AccountId             int64  `json:"account_id,omitempty"`
@@ -903,6 +958,23 @@ type Sender struct {
 // ServiceUnavailableErrorResponseContent defines model for ServiceUnavailableErrorResponseContent.
 type ServiceUnavailableErrorResponseContent struct {
 	Message string `json:"message"`
+}
+
+// Snippet defines model for Snippet.
+type Snippet struct {
+	// Content Plain text
+	Content string `json:"content,omitempty"`
+
+	// ContentHtml Rich-text HTML
+	ContentHtml string `json:"content_html,omitempty"`
+
+	// CreatedAt ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)
+	CreatedAt time.Time `json:"created_at,omitempty"`
+	Id        int64     `json:"id"`
+	Name      string    `json:"name,omitempty"`
+
+	// UpdatedAt ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)
+	UpdatedAt time.Time `json:"updated_at,omitempty"`
 }
 
 // StartTimeTrackResponseContent Recording — polymorphic by `type` (CalendarEvent, CalendarTodo, etc.)
@@ -930,6 +1002,17 @@ type StickyPayload struct {
 // StickyRequestContent Wire format: {sticky: {body, size}}. Size is "small", "medium" or "large".
 type StickyRequestContent struct {
 	Sticky StickyPayload `json:"sticky"`
+}
+
+// TimeTrackCategory defines model for TimeTrackCategory.
+type TimeTrackCategory struct {
+	// CreatedAt ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)
+	CreatedAt time.Time `json:"created_at,omitempty"`
+	Id        int64     `json:"id"`
+	Title     string    `json:"title,omitempty"`
+
+	// UpdatedAt ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)
+	UpdatedAt time.Time `json:"updated_at,omitempty"`
 }
 
 // TimeTrackRequestContent defines model for TimeTrackRequestContent.
@@ -977,6 +1060,14 @@ type TopicListResponse struct {
 	Description string  `json:"description,omitempty"`
 	Title       string  `json:"title,omitempty"`
 	Topics      []Topic `json:"topics,omitempty"`
+}
+
+// TopicPublication defines model for TopicPublication.
+type TopicPublication struct {
+	Published bool `json:"published"`
+
+	// Url The public link, when published
+	Url string `json:"url,omitempty"`
 }
 
 // TrashPostingsRequestContent defines model for TrashPostingsRequestContent.
@@ -1075,8 +1166,17 @@ type Workflow struct {
 	Id        int64     `json:"id"`
 	Name      string    `json:"name,omitempty"`
 
+	// Stages The workflow's stages in position order. Present on GetWorkflow.
+	Stages []WorkflowStage `json:"stages,omitempty"`
+
 	// UpdatedAt ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)
 	UpdatedAt time.Time `json:"updated_at,omitempty"`
+}
+
+// WorkflowStage defines model for WorkflowStage.
+type WorkflowStage struct {
+	Id   int64  `json:"id"`
+	Name string `json:"name,omitempty"`
 }
 
 // SensitiveString is a string type that redacts its value in logs.
@@ -1101,6 +1201,28 @@ func (s SensitiveString) Value() string {
 	return string(s)
 }
 
+// AdvancedSearchParams defines parameters for AdvancedSearch.
+type AdvancedSearchParams struct {
+	// Q The words to search for
+	Q    *string `form:"q,omitempty" json:"q,omitempty"`
+	Page *string `form:"page,omitempty" json:"page,omitempty"`
+
+	// RefineFrom Refinements, e.g. refine[from], refine[to], refine[subject], refine[exact_phrase],
+	// refine[required], refine[any], refine[none], refine[date], refine[in], refine[label],
+	// refine[attachment] — passed through as the page sends them.
+	RefineFrom        *string `form:"refine[from],omitempty" json:"refine[from],omitempty"`
+	RefineTo          *string `form:"refine[to],omitempty" json:"refine[to],omitempty"`
+	RefineSubject     *string `form:"refine[subject],omitempty" json:"refine[subject],omitempty"`
+	RefineExactPhrase *string `form:"refine[exact_phrase],omitempty" json:"refine[exact_phrase],omitempty"`
+	RefineRequired    *string `form:"refine[required],omitempty" json:"refine[required],omitempty"`
+	RefineAny         *string `form:"refine[any],omitempty" json:"refine[any],omitempty"`
+	RefineNone        *string `form:"refine[none],omitempty" json:"refine[none],omitempty"`
+	RefineDate        *string `form:"refine[date],omitempty" json:"refine[date],omitempty"`
+	RefineIn          *string `form:"refine[in],omitempty" json:"refine[in],omitempty"`
+	RefineLabel       *string `form:"refine[label],omitempty" json:"refine[label],omitempty"`
+	RefineAttachment  *string `form:"refine[attachment],omitempty" json:"refine[attachment],omitempty"`
+}
+
 // GetBoxParams defines parameters for GetBox.
 type GetBoxParams struct {
 	Page *string `form:"page,omitempty" json:"page,omitempty"`
@@ -1115,6 +1237,11 @@ type GetBubbleboxParams struct {
 type GetCalendarRecordingsParams struct {
 	StartsOn *string `form:"starts_on,omitempty" json:"starts_on,omitempty"`
 	EndsOn   *string `form:"ends_on,omitempty" json:"ends_on,omitempty"`
+}
+
+// ListClipsParams defines parameters for ListClips.
+type ListClipsParams struct {
+	Page *string `form:"page,omitempty" json:"page,omitempty"`
 }
 
 // ListContactsParams defines parameters for ListContacts.
@@ -1525,6 +1652,9 @@ func (c *Client) doWithRetry(ctx context.Context, buildRequest func() (*http.Req
 
 // The interface specification for the client above.
 type ClientInterface interface {
+	// AdvancedSearch request
+	AdvancedSearch(ctx context.Context, params *AdvancedSearchParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// GetAdvancedSearchFilters request
 	GetAdvancedSearchFilters(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 
@@ -1603,6 +1733,9 @@ type ClientInterface interface {
 
 	CreateTimeTrack(ctx context.Context, body CreateTimeTrackJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// ListTimeTrackCategories request
+	ListTimeTrackCategories(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// DeleteTimeTrack request
 	DeleteTimeTrack(ctx context.Context, timeTrackId int64, reqEditors ...RequestEditorFn) (*http.Response, error)
 
@@ -1633,6 +1766,9 @@ type ClientInterface interface {
 
 	// GetClearances request
 	GetClearances(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListClips request
+	ListClips(ctx context.Context, params *ListClipsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ListCollections request
 	ListCollections(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -1767,6 +1903,9 @@ type ClientInterface interface {
 	// GetAsidebox request
 	GetAsidebox(ctx context.Context, params *GetAsideboxParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// ListSnippets request
+	ListSnippets(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// ListStickies request
 	ListStickies(ctx context.Context, params *ListStickiesParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
@@ -1817,6 +1956,9 @@ type ClientInterface interface {
 
 	MoveTopic(ctx context.Context, topicId int64, body MoveTopicJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// GetTopicPublication request
+	GetTopicPublication(ctx context.Context, topicId int64, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// RestoreTopic request
 	RestoreTopic(ctx context.Context, topicId int64, reqEditors ...RequestEditorFn) (*http.Response, error)
 
@@ -1825,6 +1967,19 @@ type ClientInterface interface {
 
 	// TrashTopic request
 	TrashTopic(ctx context.Context, topicId int64, params *TrashTopicParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetWorkflow request
+	GetWorkflow(ctx context.Context, workflowId int64, reqEditors ...RequestEditorFn) (*http.Response, error)
+}
+
+// AdvancedSearch is marked as idempotent and will be retried on transient failures.
+
+func (c *Client) AdvancedSearch(ctx context.Context, params *AdvancedSearchParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+
+	return c.doWithRetry(ctx, func() (*http.Request, error) {
+		return NewAdvancedSearchRequest(c.Server, params)
+	}, true, "AdvancedSearch", reqEditors...)
+
 }
 
 // GetAdvancedSearchFilters is marked as idempotent and will be retried on transient failures.
@@ -2185,6 +2340,16 @@ func (c *Client) CreateTimeTrack(ctx context.Context, body CreateTimeTrackJSONRe
 
 }
 
+// ListTimeTrackCategories is marked as idempotent and will be retried on transient failures.
+
+func (c *Client) ListTimeTrackCategories(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+
+	return c.doWithRetry(ctx, func() (*http.Request, error) {
+		return NewListTimeTrackCategoriesRequest(c.Server)
+	}, true, "ListTimeTrackCategories", reqEditors...)
+
+}
+
 // DeleteTimeTrack is marked as idempotent and will be retried on transient failures.
 
 func (c *Client) DeleteTimeTrack(ctx context.Context, timeTrackId int64, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -2300,6 +2465,16 @@ func (c *Client) GetClearances(ctx context.Context, reqEditors ...RequestEditorF
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
 		return NewGetClearancesRequest(c.Server)
 	}, true, "GetClearances", reqEditors...)
+
+}
+
+// ListClips is marked as idempotent and will be retried on transient failures.
+
+func (c *Client) ListClips(ctx context.Context, params *ListClipsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+
+	return c.doWithRetry(ctx, func() (*http.Request, error) {
+		return NewListClipsRequest(c.Server, params)
+	}, true, "ListClips", reqEditors...)
 
 }
 
@@ -2939,6 +3114,16 @@ func (c *Client) GetAsidebox(ctx context.Context, params *GetAsideboxParams, req
 
 }
 
+// ListSnippets is marked as idempotent and will be retried on transient failures.
+
+func (c *Client) ListSnippets(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+
+	return c.doWithRetry(ctx, func() (*http.Request, error) {
+		return NewListSnippetsRequest(c.Server)
+	}, true, "ListSnippets", reqEditors...)
+
+}
+
 // ListStickies is marked as idempotent and will be retried on transient failures.
 
 func (c *Client) ListStickies(ctx context.Context, params *ListStickiesParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -3159,6 +3344,16 @@ func (c *Client) MoveTopic(ctx context.Context, topicId int64, body MoveTopicJSO
 
 }
 
+// GetTopicPublication is marked as idempotent and will be retried on transient failures.
+
+func (c *Client) GetTopicPublication(ctx context.Context, topicId int64, reqEditors ...RequestEditorFn) (*http.Response, error) {
+
+	return c.doWithRetry(ctx, func() (*http.Request, error) {
+		return NewGetTopicPublicationRequest(c.Server, topicId)
+	}, true, "GetTopicPublication", reqEditors...)
+
+}
+
 // RestoreTopic is marked as idempotent and will be retried on transient failures.
 
 func (c *Client) RestoreTopic(ctx context.Context, topicId int64, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -3187,6 +3382,257 @@ func (c *Client) TrashTopic(ctx context.Context, topicId int64, params *TrashTop
 		return NewTrashTopicRequest(c.Server, topicId, params)
 	}, true, "TrashTopic", reqEditors...)
 
+}
+
+// GetWorkflow is marked as idempotent and will be retried on transient failures.
+
+func (c *Client) GetWorkflow(ctx context.Context, workflowId int64, reqEditors ...RequestEditorFn) (*http.Response, error) {
+
+	return c.doWithRetry(ctx, func() (*http.Request, error) {
+		return NewGetWorkflowRequest(c.Server, workflowId)
+	}, true, "GetWorkflow", reqEditors...)
+
+}
+
+// NewAdvancedSearchRequest generates requests for AdvancedSearch
+func NewAdvancedSearchRequest(server string, params *AdvancedSearchParams) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/advanced_search.json")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if params.Q != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "q", runtime.ParamLocationQuery, *params.Q); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Page != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "page", runtime.ParamLocationQuery, *params.Page); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.RefineFrom != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "refine[from]", runtime.ParamLocationQuery, *params.RefineFrom); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.RefineTo != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "refine[to]", runtime.ParamLocationQuery, *params.RefineTo); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.RefineSubject != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "refine[subject]", runtime.ParamLocationQuery, *params.RefineSubject); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.RefineExactPhrase != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "refine[exact_phrase]", runtime.ParamLocationQuery, *params.RefineExactPhrase); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.RefineRequired != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "refine[required]", runtime.ParamLocationQuery, *params.RefineRequired); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.RefineAny != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "refine[any]", runtime.ParamLocationQuery, *params.RefineAny); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.RefineNone != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "refine[none]", runtime.ParamLocationQuery, *params.RefineNone); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.RefineDate != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "refine[date]", runtime.ParamLocationQuery, *params.RefineDate); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.RefineIn != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "refine[in]", runtime.ParamLocationQuery, *params.RefineIn); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.RefineLabel != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "refine[label]", runtime.ParamLocationQuery, *params.RefineLabel); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.RefineAttachment != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "refine[attachment]", runtime.ParamLocationQuery, *params.RefineAttachment); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
 }
 
 // NewGetAdvancedSearchFiltersRequest generates requests for GetAdvancedSearchFilters
@@ -4038,6 +4484,33 @@ func NewCreateTimeTrackRequestWithBody(server string, contentType string, body i
 	return req, nil
 }
 
+// NewListTimeTrackCategoriesRequest generates requests for ListTimeTrackCategories
+func NewListTimeTrackCategoriesRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/calendar/time_tracks/categories.json")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewDeleteTimeTrackRequest generates requests for DeleteTimeTrack
 func NewDeleteTimeTrackRequest(server string, timeTrackId int64) (*http.Request, error) {
 	var err error
@@ -4377,6 +4850,55 @@ func NewGetClearancesRequest(server string) (*http.Request, error) {
 	queryURL, err := serverURL.Parse(operationPath)
 	if err != nil {
 		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewListClipsRequest generates requests for ListClips
+func NewListClipsRequest(server string, params *ListClipsParams) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/clips.json")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if params.Page != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "page", runtime.ParamLocationQuery, *params.Page); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
 	}
 
 	req, err := http.NewRequest("GET", queryURL.String(), nil)
@@ -5864,6 +6386,33 @@ func NewGetAsideboxRequest(server string, params *GetAsideboxParams) (*http.Requ
 	return req, nil
 }
 
+// NewListSnippetsRequest generates requests for ListSnippets
+func NewListSnippetsRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/snippets.json")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewListStickiesRequest generates requests for ListStickies
 func NewListStickiesRequest(server string, params *ListStickiesParams) (*http.Request, error) {
 	var err error
@@ -6461,6 +7010,40 @@ func NewMoveTopicRequestWithBody(server string, topicId int64, contentType strin
 	return req, nil
 }
 
+// NewGetTopicPublicationRequest generates requests for GetTopicPublication
+func NewGetTopicPublicationRequest(server string, topicId int64) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "topicId", runtime.ParamLocationPath, topicId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/topics/%s/publication.json", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewRestoreTopicRequest generates requests for RestoreTopic
 func NewRestoreTopicRequest(server string, topicId int64) (*http.Request, error) {
 	var err error
@@ -6585,6 +7168,40 @@ func NewTrashTopicRequest(server string, topicId int64, params *TrashTopicParams
 	return req, nil
 }
 
+// NewGetWorkflowRequest generates requests for GetWorkflow
+func NewGetWorkflowRequest(server string, workflowId int64) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "workflowId", runtime.ParamLocationPath, workflowId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/workflows/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 func (c *Client) applyEditors(ctx context.Context, req *http.Request, additionalEditors []RequestEditorFn) error {
 	for _, r := range c.RequestEditors {
 		if err := r(ctx, req); err != nil {
@@ -6611,6 +7228,7 @@ type OperationMetadata struct {
 // This is generated from x-hey-* extensions in the OpenAPI spec.
 // GET/HEAD/PUT/DELETE operations are always considered idempotent for retry purposes.
 var operationMetadata = map[string]OperationMetadata{
+	"AdvancedSearch":             {Idempotent: true, HasSensitiveParams: false},
 	"GetAdvancedSearchFilters":   {Idempotent: true, HasSensitiveParams: false},
 	"ListBoxes":                  {Idempotent: true, HasSensitiveParams: false},
 	"GetBox":                     {Idempotent: true, HasSensitiveParams: false},
@@ -6633,6 +7251,7 @@ var operationMetadata = map[string]OperationMetadata{
 	"GetOngoingTimeTrack":        {Idempotent: true, HasSensitiveParams: false},
 	"StartTimeTrack":             {Idempotent: false, HasSensitiveParams: false},
 	"CreateTimeTrack":            {Idempotent: false, HasSensitiveParams: false},
+	"ListTimeTrackCategories":    {Idempotent: true, HasSensitiveParams: false},
 	"DeleteTimeTrack":            {Idempotent: true, HasSensitiveParams: false},
 	"UpdateTimeTrack":            {Idempotent: true, HasSensitiveParams: false},
 	"CreateCalendarTodo":         {Idempotent: false, HasSensitiveParams: false},
@@ -6642,6 +7261,7 @@ var operationMetadata = map[string]OperationMetadata{
 	"ListCalendars":              {Idempotent: true, HasSensitiveParams: false},
 	"GetCalendarRecordings":      {Idempotent: true, HasSensitiveParams: false},
 	"GetClearances":              {Idempotent: true, HasSensitiveParams: false},
+	"ListClips":                  {Idempotent: true, HasSensitiveParams: false},
 	"ListCollections":            {Idempotent: true, HasSensitiveParams: false},
 	"UpdateCollection":           {Idempotent: false, HasSensitiveParams: false},
 	"ListContacts":               {Idempotent: true, HasSensitiveParams: false},
@@ -6677,6 +7297,7 @@ var operationMetadata = map[string]OperationMetadata{
 	"MarkPostingsUnseen":         {Idempotent: false, HasSensitiveParams: false},
 	"GetLaterbox":                {Idempotent: true, HasSensitiveParams: false},
 	"GetAsidebox":                {Idempotent: true, HasSensitiveParams: false},
+	"ListSnippets":               {Idempotent: true, HasSensitiveParams: false},
 	"ListStickies":               {Idempotent: true, HasSensitiveParams: false},
 	"CreateSticky":               {Idempotent: false, HasSensitiveParams: false},
 	"MoveSticky":                 {Idempotent: false, HasSensitiveParams: false},
@@ -6691,9 +7312,11 @@ var operationMetadata = map[string]OperationMetadata{
 	"GetTopic":                   {Idempotent: true, HasSensitiveParams: false},
 	"GetTopicEntries":            {Idempotent: true, HasSensitiveParams: false},
 	"MoveTopic":                  {Idempotent: false, HasSensitiveParams: false},
+	"GetTopicPublication":        {Idempotent: true, HasSensitiveParams: false},
 	"RestoreTopic":               {Idempotent: true, HasSensitiveParams: false},
 	"MarkTopicHam":               {Idempotent: true, HasSensitiveParams: false},
 	"TrashTopic":                 {Idempotent: true, HasSensitiveParams: false},
+	"GetWorkflow":                {Idempotent: true, HasSensitiveParams: false},
 }
 
 // GetOperationMetadata returns metadata for the given operation ID.
@@ -7299,12 +7922,21 @@ func WithBaseURL(baseURL string) ClientOption {
 // ClientWithResponsesInterface is the interface specification for the client with responses above.
 type ClientWithResponsesInterface interface {
 
-	// GetAdvancedSearchFiltersWithResponse performs a GET /advanced_search_filters.json (the `GetAdvancedSearchFilters` operationId) request.
+	// AdvancedSearchWithResponse performs a GET /advanced_search.json (the `AdvancedSearch` operationId) request.
 	//
 	// Get the options the advanced search refine form offers.
 	//
-	// Search itself has no JSON surface — /search and /advanced_search render HTML only — so the
-	// SDK reads results off the advanced search page. This endpoint is the one part that is JSON.
+	// Advanced search: message matches grouped by topic as the search page shows them —
+	// the topic, its posting id, and the matching entries as summaries (no bodies; read a
+	// message with GetMessage). Refinements are the same query parameters the page uses.
+	// The next page, if any, is a Link header.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	AdvancedSearchWithResponse(ctx context.Context, params *AdvancedSearchParams, reqEditors ...RequestEditorFn) (*AdvancedSearchResponse, error)
+
+	// GetAdvancedSearchFiltersWithResponse performs a GET /advanced_search_filters.json (the `GetAdvancedSearchFilters` operationId) request.
+	//
+	// The advanced search refine form's options: boxes, date ranges, labels and attachment kinds.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	GetAdvancedSearchFiltersWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetAdvancedSearchFiltersResponse, error)
@@ -7510,6 +8142,13 @@ type ClientWithResponsesInterface interface {
 	// JSON callers send the fields flat; Rails wraps them into calendar_time_track itself.
 	CreateTimeTrackWithResponse(ctx context.Context, body CreateTimeTrackJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateTimeTrackResponse, error)
 
+	// ListTimeTrackCategoriesWithResponse performs a GET /calendar/time_tracks/categories.json (the `ListTimeTrackCategories` operationId) request.
+	//
+	// List the calendar's time track categories, alphabetically
+	//
+	// Returns a wrapper object for the known response body format(s).
+	ListTimeTrackCategoriesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListTimeTrackCategoriesResponse, error)
+
 	// DeleteTimeTrackWithResponse performs a DELETE /calendar/time_tracks/{timeTrackId} (the `DeleteTimeTrack` operationId) request.
 	//
 	// Delete a time track. The id is the recording's.
@@ -7586,6 +8225,13 @@ type ClientWithResponsesInterface interface {
 	//
 	// Returns a wrapper object for the known response body format(s).
 	GetClearancesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetClearancesResponse, error)
+
+	// ListClipsWithResponse performs a GET /clips.json (the `ListClips` operationId) request.
+	//
+	// List clips, newest first
+	//
+	// Returns a wrapper object for the known response body format(s).
+	ListClipsWithResponse(ctx context.Context, params *ListClipsParams, reqEditors ...RequestEditorFn) (*ListClipsResponse, error)
 
 	// ListCollectionsWithResponse performs a GET /collections.json (the `ListCollections` operationId) request.
 	//
@@ -7955,6 +8601,13 @@ type ClientWithResponsesInterface interface {
 	// Returns a wrapper object for the known response body format(s).
 	GetAsideboxWithResponse(ctx context.Context, params *GetAsideboxParams, reqEditors ...RequestEditorFn) (*GetAsideboxResponse, error)
 
+	// ListSnippetsWithResponse performs a GET /snippets.json (the `ListSnippets` operationId) request.
+	//
+	// List snippets, alphabetically
+	//
+	// Returns a wrapper object for the known response body format(s).
+	ListSnippetsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListSnippetsResponse, error)
+
 	// ListStickiesWithResponse performs a GET /stickies.json (the `ListStickies` operationId) request.
 	//
 	// List stickies, newest position first
@@ -8085,6 +8738,13 @@ type ClientWithResponsesInterface interface {
 	// Answers 204 without moving anything when the acting user has no posting for the topic.
 	MoveTopicWithResponse(ctx context.Context, topicId int64, body MoveTopicJSONRequestBody, reqEditors ...RequestEditorFn) (*MoveTopicResponse, error)
 
+	// GetTopicPublicationWithResponse performs a GET /topics/{topicId}/publication.json (the `GetTopicPublication` operationId) request.
+	//
+	// Whether a thread is shared with a public link, and the link
+	//
+	// Returns a wrapper object for the known response body format(s).
+	GetTopicPublicationWithResponse(ctx context.Context, topicId int64, reqEditors ...RequestEditorFn) (*GetTopicPublicationResponse, error)
+
 	// RestoreTopicWithResponse performs a PUT /topics/{topicId}/status/active.json (the `RestoreTopic` operationId) request.
 	//
 	// Restore a topic from the trash or the catch-all.
@@ -8108,6 +8768,75 @@ type ClientWithResponsesInterface interface {
 	//
 	// Returns a wrapper object for the known response body format(s).
 	TrashTopicWithResponse(ctx context.Context, topicId int64, params *TrashTopicParams, reqEditors ...RequestEditorFn) (*TrashTopicResponse, error)
+
+	// GetWorkflowWithResponse performs a GET /workflows/{workflowId} (the `GetWorkflow` operationId) request.
+	//
+	// A workflow with its stages.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	GetWorkflowWithResponse(ctx context.Context, workflowId int64, reqEditors ...RequestEditorFn) (*GetWorkflowResponse, error)
+}
+
+type AdvancedSearchResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *AdvancedSearchResponseContent
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *UnauthorizedErrorResponseContent
+	// JSON500 the response for an HTTP 500 `application/json` response
+	JSON500 *InternalServerErrorResponseContent
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *ServiceUnavailableErrorResponseContent
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r AdvancedSearchResponse) GetJSON200() *AdvancedSearchResponseContent {
+	return r.JSON200
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r AdvancedSearchResponse) GetJSON401() *UnauthorizedErrorResponseContent {
+	return r.JSON401
+}
+
+// GetJSON500 returns the response for an HTTP 500 `application/json` response
+func (r AdvancedSearchResponse) GetJSON500() *InternalServerErrorResponseContent {
+	return r.JSON500
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r AdvancedSearchResponse) GetJSON503() *ServiceUnavailableErrorResponseContent {
+	return r.JSON503
+}
+
+// GetBody returns the raw response body bytes
+func (r AdvancedSearchResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r AdvancedSearchResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r AdvancedSearchResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r AdvancedSearchResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
 }
 
 type GetAdvancedSearchFiltersResponse struct {
@@ -9586,6 +10315,68 @@ func (r CreateTimeTrackResponse) ContentType() string {
 	return ""
 }
 
+type ListTimeTrackCategoriesResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *ListTimeTrackCategoriesResponseContent
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *UnauthorizedErrorResponseContent
+	// JSON500 the response for an HTTP 500 `application/json` response
+	JSON500 *InternalServerErrorResponseContent
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *ServiceUnavailableErrorResponseContent
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListTimeTrackCategoriesResponse) GetJSON200() *ListTimeTrackCategoriesResponseContent {
+	return r.JSON200
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r ListTimeTrackCategoriesResponse) GetJSON401() *UnauthorizedErrorResponseContent {
+	return r.JSON401
+}
+
+// GetJSON500 returns the response for an HTTP 500 `application/json` response
+func (r ListTimeTrackCategoriesResponse) GetJSON500() *InternalServerErrorResponseContent {
+	return r.JSON500
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r ListTimeTrackCategoriesResponse) GetJSON503() *ServiceUnavailableErrorResponseContent {
+	return r.JSON503
+}
+
+// GetBody returns the raw response body bytes
+func (r ListTimeTrackCategoriesResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListTimeTrackCategoriesResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListTimeTrackCategoriesResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListTimeTrackCategoriesResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type DeleteTimeTrackResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -10180,6 +10971,68 @@ func (r GetClearancesResponse) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r GetClearancesResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ListClipsResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *ListClipsResponseContent
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *UnauthorizedErrorResponseContent
+	// JSON500 the response for an HTTP 500 `application/json` response
+	JSON500 *InternalServerErrorResponseContent
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *ServiceUnavailableErrorResponseContent
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListClipsResponse) GetJSON200() *ListClipsResponseContent {
+	return r.JSON200
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r ListClipsResponse) GetJSON401() *UnauthorizedErrorResponseContent {
+	return r.JSON401
+}
+
+// GetJSON500 returns the response for an HTTP 500 `application/json` response
+func (r ListClipsResponse) GetJSON500() *InternalServerErrorResponseContent {
+	return r.JSON500
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r ListClipsResponse) GetJSON503() *ServiceUnavailableErrorResponseContent {
+	return r.JSON503
+}
+
+// GetBody returns the raw response body bytes
+func (r ListClipsResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListClipsResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListClipsResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListClipsResponse) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -12398,6 +13251,68 @@ func (r GetAsideboxResponse) ContentType() string {
 	return ""
 }
 
+type ListSnippetsResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *ListSnippetsResponseContent
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *UnauthorizedErrorResponseContent
+	// JSON500 the response for an HTTP 500 `application/json` response
+	JSON500 *InternalServerErrorResponseContent
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *ServiceUnavailableErrorResponseContent
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListSnippetsResponse) GetJSON200() *ListSnippetsResponseContent {
+	return r.JSON200
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r ListSnippetsResponse) GetJSON401() *UnauthorizedErrorResponseContent {
+	return r.JSON401
+}
+
+// GetJSON500 returns the response for an HTTP 500 `application/json` response
+func (r ListSnippetsResponse) GetJSON500() *InternalServerErrorResponseContent {
+	return r.JSON500
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r ListSnippetsResponse) GetJSON503() *ServiceUnavailableErrorResponseContent {
+	return r.JSON503
+}
+
+// GetBody returns the raw response body bytes
+func (r ListSnippetsResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListSnippetsResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListSnippetsResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListSnippetsResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type ListStickiesResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -13287,6 +14202,82 @@ func (r MoveTopicResponse) ContentType() string {
 	return ""
 }
 
+type GetTopicPublicationResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *GetTopicPublicationResponseContent
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *UnauthorizedErrorResponseContent
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *ForbiddenErrorResponseContent
+	// JSON404 the response for an HTTP 404 `application/json` response
+	JSON404 *NotFoundErrorResponseContent
+	// JSON500 the response for an HTTP 500 `application/json` response
+	JSON500 *InternalServerErrorResponseContent
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *ServiceUnavailableErrorResponseContent
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r GetTopicPublicationResponse) GetJSON200() *GetTopicPublicationResponseContent {
+	return r.JSON200
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r GetTopicPublicationResponse) GetJSON401() *UnauthorizedErrorResponseContent {
+	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r GetTopicPublicationResponse) GetJSON403() *ForbiddenErrorResponseContent {
+	return r.JSON403
+}
+
+// GetJSON404 returns the response for an HTTP 404 `application/json` response
+func (r GetTopicPublicationResponse) GetJSON404() *NotFoundErrorResponseContent {
+	return r.JSON404
+}
+
+// GetJSON500 returns the response for an HTTP 500 `application/json` response
+func (r GetTopicPublicationResponse) GetJSON500() *InternalServerErrorResponseContent {
+	return r.JSON500
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r GetTopicPublicationResponse) GetJSON503() *ServiceUnavailableErrorResponseContent {
+	return r.JSON503
+}
+
+// GetBody returns the raw response body bytes
+func (r GetTopicPublicationResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r GetTopicPublicationResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetTopicPublicationResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r GetTopicPublicationResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type RestoreTopicResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -13473,12 +14464,96 @@ func (r TrashTopicResponse) ContentType() string {
 	return ""
 }
 
-// GetAdvancedSearchFiltersWithResponse performs a GET /advanced_search_filters.json (the `GetAdvancedSearchFilters` operationId) request.
+type GetWorkflowResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *GetWorkflowResponseContent
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *UnauthorizedErrorResponseContent
+	// JSON404 the response for an HTTP 404 `application/json` response
+	JSON404 *NotFoundErrorResponseContent
+	// JSON500 the response for an HTTP 500 `application/json` response
+	JSON500 *InternalServerErrorResponseContent
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *ServiceUnavailableErrorResponseContent
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r GetWorkflowResponse) GetJSON200() *GetWorkflowResponseContent {
+	return r.JSON200
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r GetWorkflowResponse) GetJSON401() *UnauthorizedErrorResponseContent {
+	return r.JSON401
+}
+
+// GetJSON404 returns the response for an HTTP 404 `application/json` response
+func (r GetWorkflowResponse) GetJSON404() *NotFoundErrorResponseContent {
+	return r.JSON404
+}
+
+// GetJSON500 returns the response for an HTTP 500 `application/json` response
+func (r GetWorkflowResponse) GetJSON500() *InternalServerErrorResponseContent {
+	return r.JSON500
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r GetWorkflowResponse) GetJSON503() *ServiceUnavailableErrorResponseContent {
+	return r.JSON503
+}
+
+// GetBody returns the raw response body bytes
+func (r GetWorkflowResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r GetWorkflowResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetWorkflowResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r GetWorkflowResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+// AdvancedSearchWithResponse performs a GET /advanced_search.json (the `AdvancedSearch` operationId) request.
 //
 // Get the options the advanced search refine form offers.
 //
-// Search itself has no JSON surface — /search and /advanced_search render HTML only — so the
-// SDK reads results off the advanced search page. This endpoint is the one part that is JSON.
+// Advanced search: message matches grouped by topic as the search page shows them —
+// the topic, its posting id, and the matching entries as summaries (no bodies; read a
+// message with GetMessage). Refinements are the same query parameters the page uses.
+// The next page, if any, is a Link header.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) AdvancedSearchWithResponse(ctx context.Context, params *AdvancedSearchParams, reqEditors ...RequestEditorFn) (*AdvancedSearchResponse, error) {
+	rsp, err := c.AdvancedSearch(ctx, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseAdvancedSearchResponse(rsp)
+}
+
+// GetAdvancedSearchFiltersWithResponse performs a GET /advanced_search_filters.json (the `GetAdvancedSearchFilters` operationId) request.
+//
+// The advanced search refine form's options: boxes, date ranges, labels and attachment kinds.
 //
 // Returns a wrapper object for the known response body format(s).
 func (c *ClientWithResponses) GetAdvancedSearchFiltersWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetAdvancedSearchFiltersResponse, error) {
@@ -13852,6 +14927,19 @@ func (c *ClientWithResponses) CreateTimeTrackWithResponse(ctx context.Context, b
 	return ParseCreateTimeTrackResponse(rsp)
 }
 
+// ListTimeTrackCategoriesWithResponse performs a GET /calendar/time_tracks/categories.json (the `ListTimeTrackCategories` operationId) request.
+//
+// # List the calendar's time track categories, alphabetically
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) ListTimeTrackCategoriesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListTimeTrackCategoriesResponse, error) {
+	rsp, err := c.ListTimeTrackCategories(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListTimeTrackCategoriesResponse(rsp)
+}
+
 // DeleteTimeTrackWithResponse performs a DELETE /calendar/time_tracks/{timeTrackId} (the `DeleteTimeTrack` operationId) request.
 //
 // Delete a time track. The id is the recording's.
@@ -13993,6 +15081,19 @@ func (c *ClientWithResponses) GetClearancesWithResponse(ctx context.Context, req
 		return nil, err
 	}
 	return ParseGetClearancesResponse(rsp)
+}
+
+// ListClipsWithResponse performs a GET /clips.json (the `ListClips` operationId) request.
+//
+// # List clips, newest first
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) ListClipsWithResponse(ctx context.Context, params *ListClipsParams, reqEditors ...RequestEditorFn) (*ListClipsResponse, error) {
+	rsp, err := c.ListClips(ctx, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListClipsResponse(rsp)
 }
 
 // ListCollectionsWithResponse performs a GET /collections.json (the `ListCollections` operationId) request.
@@ -14657,6 +15758,19 @@ func (c *ClientWithResponses) GetAsideboxWithResponse(ctx context.Context, param
 	return ParseGetAsideboxResponse(rsp)
 }
 
+// ListSnippetsWithResponse performs a GET /snippets.json (the `ListSnippets` operationId) request.
+//
+// # List snippets, alphabetically
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) ListSnippetsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListSnippetsResponse, error) {
+	rsp, err := c.ListSnippets(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListSnippetsResponse(rsp)
+}
+
 // ListStickiesWithResponse performs a GET /stickies.json (the `ListStickies` operationId) request.
 //
 // # List stickies, newest position first
@@ -14895,6 +16009,19 @@ func (c *ClientWithResponses) MoveTopicWithResponse(ctx context.Context, topicId
 	return ParseMoveTopicResponse(rsp)
 }
 
+// GetTopicPublicationWithResponse performs a GET /topics/{topicId}/publication.json (the `GetTopicPublication` operationId) request.
+//
+// # Whether a thread is shared with a public link, and the link
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) GetTopicPublicationWithResponse(ctx context.Context, topicId int64, reqEditors ...RequestEditorFn) (*GetTopicPublicationResponse, error) {
+	rsp, err := c.GetTopicPublication(ctx, topicId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetTopicPublicationResponse(rsp)
+}
+
 // RestoreTopicWithResponse performs a PUT /topics/{topicId}/status/active.json (the `RestoreTopic` operationId) request.
 //
 // Restore a topic from the trash or the catch-all.
@@ -14935,6 +16062,66 @@ func (c *ClientWithResponses) TrashTopicWithResponse(ctx context.Context, topicI
 		return nil, err
 	}
 	return ParseTrashTopicResponse(rsp)
+}
+
+// GetWorkflowWithResponse performs a GET /workflows/{workflowId} (the `GetWorkflow` operationId) request.
+//
+// A workflow with its stages.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) GetWorkflowWithResponse(ctx context.Context, workflowId int64, reqEditors ...RequestEditorFn) (*GetWorkflowResponse, error) {
+	rsp, err := c.GetWorkflow(ctx, workflowId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetWorkflowResponse(rsp)
+}
+
+// ParseAdvancedSearchResponse parses an HTTP response from a AdvancedSearchWithResponse call
+func ParseAdvancedSearchResponse(rsp *http.Response) (*AdvancedSearchResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &AdvancedSearchResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest AdvancedSearchResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest UnauthorizedErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest InternalServerErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+		var dest ServiceUnavailableErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON503 = &dest
+
+	}
+
+	return response, nil
 }
 
 // ParseGetAdvancedSearchFiltersResponse parses an HTTP response from a GetAdvancedSearchFiltersWithResponse call
@@ -16104,6 +17291,53 @@ func ParseCreateTimeTrackResponse(rsp *http.Response) (*CreateTimeTrackResponse,
 	return response, nil
 }
 
+// ParseListTimeTrackCategoriesResponse parses an HTTP response from a ListTimeTrackCategoriesWithResponse call
+func ParseListTimeTrackCategoriesResponse(rsp *http.Response) (*ListTimeTrackCategoriesResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListTimeTrackCategoriesResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ListTimeTrackCategoriesResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest UnauthorizedErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest InternalServerErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+		var dest ServiceUnavailableErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON503 = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseDeleteTimeTrackResponse parses an HTTP response from a DeleteTimeTrackWithResponse call
 func ParseDeleteTimeTrackResponse(rsp *http.Response) (*DeleteTimeTrackResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -16544,6 +17778,53 @@ func ParseGetClearancesResponse(rsp *http.Response) (*GetClearancesResponse, err
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest GetClearancesResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest UnauthorizedErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest InternalServerErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+		var dest ServiceUnavailableErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON503 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListClipsResponse parses an HTTP response from a ListClipsWithResponse call
+func ParseListClipsResponse(rsp *http.Response) (*ListClipsResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListClipsResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ListClipsResponseContent
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -18325,6 +19606,53 @@ func ParseGetAsideboxResponse(rsp *http.Response) (*GetAsideboxResponse, error) 
 	return response, nil
 }
 
+// ParseListSnippetsResponse parses an HTTP response from a ListSnippetsWithResponse call
+func ParseListSnippetsResponse(rsp *http.Response) (*ListSnippetsResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListSnippetsResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ListSnippetsResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest UnauthorizedErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest InternalServerErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+		var dest ServiceUnavailableErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON503 = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseListStickiesResponse parses an HTTP response from a ListStickiesWithResponse call
 func ParseListStickiesResponse(rsp *http.Response) (*ListStickiesResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -19019,6 +20347,67 @@ func ParseMoveTopicResponse(rsp *http.Response) (*MoveTopicResponse, error) {
 	return response, nil
 }
 
+// ParseGetTopicPublicationResponse parses an HTTP response from a GetTopicPublicationWithResponse call
+func ParseGetTopicPublicationResponse(rsp *http.Response) (*GetTopicPublicationResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetTopicPublicationResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest GetTopicPublicationResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest UnauthorizedErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest ForbiddenErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFoundErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest InternalServerErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+		var dest ServiceUnavailableErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON503 = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseRestoreTopicResponse parses an HTTP response from a RestoreTopicWithResponse call
 func ParseRestoreTopicResponse(rsp *http.Response) (*RestoreTopicResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -19135,6 +20524,60 @@ func ParseTrashTopicResponse(rsp *http.Response) (*TrashTopicResponse, error) {
 	switch {
 	case rsp.StatusCode == 200:
 		break // No content-type
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest UnauthorizedErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFoundErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest InternalServerErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+		var dest ServiceUnavailableErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON503 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetWorkflowResponse parses an HTTP response from a GetWorkflowWithResponse call
+func ParseGetWorkflowResponse(rsp *http.Response) (*GetWorkflowResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetWorkflowResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest GetWorkflowResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
 		var dest UnauthorizedErrorResponseContent

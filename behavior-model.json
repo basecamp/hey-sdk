@@ -15,6 +15,22 @@
         ]
       }
     },
+    "AdvancedSearch": {
+      "idempotent": false,
+      "pagination": {
+        "style": "link"
+      },
+      "readonly": true,
+      "retry": {
+        "backoff": "exponential",
+        "base_delay_ms": 1000,
+        "max": 3,
+        "retry_on": [
+          429,
+          503
+        ]
+      }
+    },
     "BubbleUpPostingsNow": {
       "idempotent": false,
       "readonly": false,
@@ -613,6 +629,19 @@
         ]
       }
     },
+    "GetTopicPublication": {
+      "idempotent": false,
+      "readonly": true,
+      "retry": {
+        "backoff": "exponential",
+        "base_delay_ms": 1000,
+        "max": 3,
+        "retry_on": [
+          429,
+          503
+        ]
+      }
+    },
     "GetTrailbox": {
       "idempotent": false,
       "readonly": true,
@@ -632,6 +661,19 @@
         "style": "link",
         "totalCountHeader": "X-Total-Count"
       },
+      "readonly": true,
+      "retry": {
+        "backoff": "exponential",
+        "base_delay_ms": 1000,
+        "max": 3,
+        "retry_on": [
+          429,
+          503
+        ]
+      }
+    },
+    "GetWorkflow": {
+      "idempotent": false,
       "readonly": true,
       "retry": {
         "backoff": "exponential",
@@ -675,6 +717,23 @@
     },
     "ListCalendars": {
       "idempotent": false,
+      "readonly": true,
+      "retry": {
+        "backoff": "exponential",
+        "base_delay_ms": 1000,
+        "max": 3,
+        "retry_on": [
+          429,
+          503
+        ]
+      }
+    },
+    "ListClips": {
+      "idempotent": false,
+      "pagination": {
+        "style": "link",
+        "totalCountHeader": "X-Total-Count"
+      },
       "readonly": true,
       "retry": {
         "backoff": "exponential",
@@ -733,7 +792,33 @@
         ]
       }
     },
+    "ListSnippets": {
+      "idempotent": false,
+      "readonly": true,
+      "retry": {
+        "backoff": "exponential",
+        "base_delay_ms": 1000,
+        "max": 3,
+        "retry_on": [
+          429,
+          503
+        ]
+      }
+    },
     "ListStickies": {
+      "idempotent": false,
+      "readonly": true,
+      "retry": {
+        "backoff": "exponential",
+        "base_delay_ms": 1000,
+        "max": 3,
+        "retry_on": [
+          429,
+          503
+        ]
+      }
+    },
+    "ListTimeTrackCategories": {
       "idempotent": false,
       "readonly": true,
       "retry": {

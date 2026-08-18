@@ -4,6 +4,14 @@
   "generated": true,
   "routes": [
     {
+      "pattern": "/advanced_search",
+      "resource": "Search",
+      "operations": {
+        "GET": "AdvancedSearch"
+      },
+      "params": {}
+    },
+    {
       "pattern": "/advanced_search_filters",
       "resource": "Search",
       "operations": {
@@ -200,6 +208,14 @@
       "params": {}
     },
     {
+      "pattern": "/calendar/time_tracks/categories",
+      "resource": "Calendar Time Tracks",
+      "operations": {
+        "GET": "ListTimeTrackCategories"
+      },
+      "params": {}
+    },
+    {
       "pattern": "/calendar/time_tracks/{timeTrackId}",
       "resource": "Calendar Time Tracks",
       "operations": {
@@ -274,6 +290,14 @@
       "resource": "Contacts",
       "operations": {
         "GET": "GetClearances"
+      },
+      "params": {}
+    },
+    {
+      "pattern": "/clips",
+      "resource": "Clips",
+      "operations": {
+        "GET": "ListClips"
       },
       "params": {}
     },
@@ -575,6 +599,14 @@
       "params": {}
     },
     {
+      "pattern": "/snippets",
+      "resource": "Snippets",
+      "operations": {
+        "GET": "ListSnippets"
+      },
+      "params": {}
+    },
+    {
       "pattern": "/stickies",
       "resource": "Stickies",
       "operations": {
@@ -693,6 +725,19 @@
       }
     },
     {
+      "pattern": "/topics/{topicId}/publication",
+      "resource": "Publications",
+      "operations": {
+        "GET": "GetTopicPublication"
+      },
+      "params": {
+        "topicId": {
+          "role": "parent",
+          "type": "int64"
+        }
+      }
+    },
+    {
       "pattern": "/topics/{topicId}/status/active",
       "resource": "Topics",
       "operations": {
@@ -727,6 +772,19 @@
       "params": {
         "topicId": {
           "role": "parent",
+          "type": "int64"
+        }
+      }
+    },
+    {
+      "pattern": "/workflows/{workflowId}",
+      "resource": "Workflows",
+      "operations": {
+        "GET": "GetWorkflow"
+      },
+      "params": {
+        "workflowId": {
+          "role": "recording",
           "type": "int64"
         }
       }

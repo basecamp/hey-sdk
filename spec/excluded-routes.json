@@ -975,11 +975,6 @@
     "reason": "phase-2: calendar search"
   },
   {
-    "method": "GET",
-    "path": "/calendar/time_tracks/categories",
-    "reason": "phase-2: calendar time tracking"
-  },
-  {
     "method": "POST",
     "path": "/calendar/time_tracks/categories",
     "reason": "phase-2: calendar time tracking"
@@ -1283,11 +1278,6 @@
     "method": "PUT",
     "path": "/calendar/years/{id}",
     "reason": "phase-2: calendar year view"
-  },
-  {
-    "method": "GET",
-    "path": "/clips",
-    "reason": "phase-2: clip management"
   },
   {
     "method": "POST",
@@ -3250,11 +3240,6 @@
     "reason": "phase-2: stickies"
   },
   {
-    "method": "GET",
-    "path": "/snippets",
-    "reason": "phase-2: text snippets"
-  },
-  {
     "method": "POST",
     "path": "/snippets",
     "reason": "phase-2: text snippets"
@@ -3575,11 +3560,6 @@
     "reason": "phase-2: topic publication"
   },
   {
-    "method": "GET",
-    "path": "/topics/{topic_id}/publication",
-    "reason": "phase-2: topic publication"
-  },
-  {
     "method": "PATCH",
     "path": "/topics/{topic_id}/publication",
     "reason": "phase-2: topic publication"
@@ -3670,11 +3650,6 @@
     "reason": "phase-2: workflow CRUD"
   },
   {
-    "method": "GET",
-    "path": "/workflows/{id}",
-    "reason": "phase-2: workflow CRUD"
-  },
-  {
     "method": "PATCH",
     "path": "/workflows/{id}",
     "reason": "phase-2: workflow CRUD"
@@ -3743,11 +3718,6 @@
     "method": "GET",
     "path": "/search",
     "reason": "web-ui: html-only results page. SearchService scrapes it; /advanced_search_filters.json is the JSON part"
-  },
-  {
-    "method": "GET",
-    "path": "/advanced_search",
-    "reason": "web-ui: advanced search form"
   },
   {
     "method": "GET",

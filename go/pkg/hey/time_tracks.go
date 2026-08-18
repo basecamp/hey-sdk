@@ -5,9 +5,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"regexp"
-	"strconv"
-	"strings"
 	"time"
 
 	"github.com/basecamp/hey-sdk/go/pkg/generated"
@@ -175,38 +172,22 @@ func (s *TimeTracksService) Delete(ctx context.Context, timeTrackID int64) error
 
 // --- Categories and exports ---
 
-// TimeTrackCategory is one of the labels you can file a time track under.
-type TimeTrackCategory struct {
-	ID    int64
-	Title string
-}
-
-// categoryEditLinkRe matches the edit links on the categories page, which is the only place
-// the ids appear — the page has no JSON representation.
-var categoryEditLinkRe = regexp.MustCompile(`href="[^"]*/calendar/time_tracks/categories/(\d+)/edit"[^>]*>([^<]*)<`)
-
-// Categories returns the time track categories with their ids.
-//
-// Read from the categories page: the autocomplete endpoint answers JSON but carries titles
-// only, and the write endpoints need ids.
-func (s *TimeTracksService) Categories(ctx context.Context) (result []TimeTrackCategory, err error) {
+// Categories returns the calendar's time track categories, alphabetically.
+func (s *TimeTracksService) Categories(ctx context.Context) (result []generated.TimeTrackCategory, err error) {
 	op := OperationInfo{
 		Service: "TimeTracks", Operation: "ListTimeTrackCategories",
 		ResourceType: "category", IsMutation: false,
 	}
-
 	err = s.client.instrument(ctx, op, func(ctx context.Context) error {
-		resp, rerr := s.client.GetHTML(ctx, "/calendar/time_tracks/categories")
+		resp, rerr := s.client.genClient().ListTimeTrackCategoriesWithResponse(ctx)
 		if rerr != nil {
 			return rerr
 		}
-
-		for _, match := range categoryEditLinkRe.FindAllStringSubmatch(string(resp.Data), -1) {
-			id, perr := strconv.ParseInt(match[1], 10, 64)
-			if perr != nil {
-				continue
-			}
-			result = append(result, TimeTrackCategory{ID: id, Title: strings.TrimSpace(match[2])})
+		if cerr := CheckResponse(resp.HTTPResponse); cerr != nil {
+			return cerr
+		}
+		if resp.JSON200 != nil {
+			result = *resp.JSON200
 		}
 		return nil
 	})

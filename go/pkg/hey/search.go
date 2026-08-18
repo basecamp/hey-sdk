@@ -2,13 +2,7 @@ package hey
 
 import (
 	"context"
-	"fmt"
-	"net/url"
-	"regexp"
 	"strconv"
-	"strings"
-
-	"golang.org/x/net/html"
 
 	"github.com/basecamp/hey-sdk/go/pkg/generated"
 )
@@ -56,31 +50,25 @@ type SearchParams struct {
 	Attachment string
 }
 
-// SearchMatch is one thread the search turned up.
-type SearchMatch struct {
-	PostingID int64
-	TopicID   int64
-	Title     string
-	Creator   string
-	Summary   string
-	AppURL    string
-}
-
-// Search runs an advanced search and returns the matching threads.
-func (s *SearchService) Search(ctx context.Context, params SearchParams) (result []SearchMatch, err error) {
+// Search runs an advanced search and returns the matching threads, grouped by topic as
+// the search page shows them: the topic, your posting of it, and the entries that matched
+// (summaries; read a message with Messages().Get). The next page, if any, is followed
+// by passing Page.
+func (s *SearchService) Search(ctx context.Context, params SearchParams) (result *generated.AdvancedSearchResult, err error) {
 	op := OperationInfo{
 		Service: "Search", Operation: "AdvancedSearch",
 		ResourceType: "search", IsMutation: false,
 	}
-
 	err = s.client.instrument(ctx, op, func(ctx context.Context) error {
-		resp, rerr := s.client.GetHTML(ctx, "/advanced_search?"+params.query().Encode())
+		resp, rerr := s.client.genClient().AdvancedSearchWithResponse(ctx, params.generated())
 		if rerr != nil {
 			return rerr
 		}
-
-		result, rerr = parseSearchMatchesHTML(string(resp.Data))
-		return rerr
+		if cerr := CheckResponse(resp.HTTPResponse); cerr != nil {
+			return cerr
+		}
+		result = resp.JSON200
+		return nil
 	})
 	return result, err
 }
@@ -107,135 +95,30 @@ func (s *SearchService) Filters(ctx context.Context) (result *generated.Advanced
 	return result, err
 }
 
-// query renders the params as the query string the advanced search page expects.
-func (p SearchParams) query() url.Values {
-	values := url.Values{}
-	if p.Query != "" {
-		values.Set("q", p.Query)
+// generated maps the params onto the generated request, sending only what is set.
+func (p SearchParams) generated() *generated.AdvancedSearchParams {
+	opt := func(v string) *string {
+		if v == "" {
+			return nil
+		}
+		return &v
+	}
+	gp := &generated.AdvancedSearchParams{
+		Q:                 opt(p.Query),
+		RefineFrom:        opt(p.From),
+		RefineTo:          opt(p.To),
+		RefineSubject:     opt(p.Subject),
+		RefineExactPhrase: opt(p.ExactPhrase),
+		RefineRequired:    opt(p.Required),
+		RefineAny:         opt(p.Any),
+		RefineNone:        opt(p.None),
+		RefineDate:        opt(p.Date),
+		RefineIn:          opt(p.In),
+		RefineLabel:       opt(p.Label),
+		RefineAttachment:  opt(p.Attachment),
 	}
 	if p.Page > 1 {
-		values.Set("page", strconv.Itoa(p.Page))
+		gp.Page = opt(strconv.Itoa(p.Page))
 	}
-
-	refinements := map[string]string{
-		"required":     p.Required,
-		"any":          p.Any,
-		"none":         p.None,
-		"exact_phrase": p.ExactPhrase,
-		"from":         p.From,
-		"to":           p.To,
-		"subject":      p.Subject,
-		"date":         p.Date,
-		"in":           p.In,
-		"label":        p.Label,
-		"attachment":   p.Attachment,
-	}
-	for name, value := range refinements {
-		if value != "" {
-			values.Set("refine["+name+"]", value)
-		}
-	}
-	return values
-}
-
-// searchResultIDRe pulls the posting id out of the per-result element ids the search page
-// stamps, e.g. topic_name_posting_4471829.
-var searchResultIDRe = regexp.MustCompile(`^(topic_name|creator|summary)_posting_(\d+)$`)
-
-// searchTopicPathRe pulls the topic id out of a result's link.
-var searchTopicPathRe = regexp.MustCompile(`/topics/(\d+)`)
-
-// parseSearchMatchesHTML reads the results off the advanced search page. Each result stamps
-// its posting id into the ids of its title, creator and summary elements, which is the most
-// stable handle the page offers.
-func parseSearchMatchesHTML(page string) ([]SearchMatch, error) {
-	doc, err := html.Parse(strings.NewReader(page))
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse the search results: %w", err)
-	}
-
-	matches := map[int64]*SearchMatch{}
-	var order []int64
-
-	var walk func(*html.Node)
-	walk = func(node *html.Node) {
-		if node.Type == html.ElementNode {
-			if parts := searchResultIDRe.FindStringSubmatch(nodeAttr(node, "id")); parts != nil {
-				postingID, perr := strconv.ParseInt(parts[2], 10, 64)
-				if perr == nil {
-					match, seen := matches[postingID]
-					if !seen {
-						match = &SearchMatch{PostingID: postingID}
-						matches[postingID] = match
-						order = append(order, postingID)
-					}
-					assignSearchField(match, parts[1], nodeText(node))
-					if match.AppURL == "" {
-						match.AppURL = enclosingLinkHref(node)
-						if topic := searchTopicPathRe.FindStringSubmatch(match.AppURL); topic != nil {
-							match.TopicID, _ = strconv.ParseInt(topic[1], 10, 64)
-						}
-					}
-				}
-			}
-		}
-		for child := node.FirstChild; child != nil; child = child.NextSibling {
-			walk(child)
-		}
-	}
-	walk(doc)
-
-	results := make([]SearchMatch, 0, len(order))
-	for _, postingID := range order {
-		results = append(results, *matches[postingID])
-	}
-	return results, nil
-}
-
-// assignSearchField puts a scraped value on the field its element id names.
-func assignSearchField(match *SearchMatch, field, value string) {
-	switch field {
-	case "topic_name":
-		match.Title = value
-	case "creator":
-		match.Creator = value
-	case "summary":
-		match.Summary = value
-	}
-}
-
-// enclosingLinkHref walks up to the nearest anchor and returns its href.
-func enclosingLinkHref(node *html.Node) string {
-	for parent := node.Parent; parent != nil; parent = parent.Parent {
-		if parent.Type == html.ElementNode && parent.Data == "a" {
-			return nodeAttr(parent, "href")
-		}
-	}
-	return ""
-}
-
-// nodeAttr returns a node's attribute value, or the empty string.
-func nodeAttr(node *html.Node, key string) string {
-	for _, attr := range node.Attr {
-		if attr.Key == key {
-			return attr.Val
-		}
-	}
-	return ""
-}
-
-// nodeText returns a node's collapsed text content.
-func nodeText(node *html.Node) string {
-	var builder strings.Builder
-	var walk func(*html.Node)
-	walk = func(n *html.Node) {
-		if n.Type == html.TextNode {
-			builder.WriteString(n.Data)
-		}
-		for child := n.FirstChild; child != nil; child = child.NextSibling {
-			walk(child)
-		}
-	}
-	walk(node)
-	return strings.Join(strings.Fields(builder.String()), " ")
+	return gp
 }

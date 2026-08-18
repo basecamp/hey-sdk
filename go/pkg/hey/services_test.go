@@ -956,49 +956,40 @@ func TestJournalService_GetContentPrefersHTMLAndNoLongerScrapes(t *testing.T) {
 // --- Search ---
 
 func TestSearchService_Search(t *testing.T) {
-	page := `<div id="fulltext_search_results">
-		<article class="search-result posting" id="posting_4471829">
-			<a href="/topics/331/entries/5512">
-				<h3><span id="topic_name_posting_4471829" class="posting__title">Kitchen remodel</span></h3>
-				<span id="creator_posting_4471829">Jane Dawson</span>
-				<span id="summary_posting_4471829">The cabinets arrive on Tuesday</span>
-			</a>
-		</article>
-	</div>`
-
-	var requestedURL string
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		requestedURL = r.URL.String()
-		w.Header().Set("Content-Type", "text/html")
-		w.Write([]byte(page)) //nolint:errcheck // test server
+	var gotQuery string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/advanced_search.json" {
+			w.WriteHeader(404)
+			return
+		}
+		gotQuery = r.URL.RawQuery
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"matches":[{"topic":{"id":331,"name":"Kitchen remodel"},"posting_id":4471829,"entries":[{"id":5512,"summary":"The cabinets arrive on Tuesday","kind":"message"}]}]}`))
 	}))
-	t.Cleanup(server.Close)
+	t.Cleanup(srv.Close)
+	client := NewClient(&Config{BaseURL: srv.URL}, &StaticTokenProvider{Token: "t"}, WithMaxRetries(0))
 
-	client := NewClient(&Config{BaseURL: server.URL}, &StaticTokenProvider{Token: "test-token"}, WithMaxRetries(0))
-
-	matches, err := client.Search().Search(context.Background(), SearchParams{Query: "cabinets", In: "imbox", Date: "last_30_days"})
+	result, err := client.Search().Search(context.Background(), SearchParams{Query: "cabinets", From: "Jane", Page: 2})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-
-	if !strings.Contains(requestedURL, "q=cabinets") {
-		t.Errorf("request %q should carry the query", requestedURL)
+	if len(result.Matches) != 1 {
+		t.Fatalf("expected one match, got %d", len(result.Matches))
 	}
-	if !strings.Contains(requestedURL, url.QueryEscape("refine[in]")+"=imbox") {
-		t.Errorf("request %q should carry the box refinement", requestedURL)
+	m := result.Matches[0]
+	if m.Topic.Id != 331 || m.Topic.Name != "Kitchen remodel" || m.PostingId != 4471829 {
+		t.Errorf("unexpected match %+v", m)
 	}
-
-	if len(matches) != 1 {
-		t.Fatalf("expected one match, got %d", len(matches))
+	if len(m.Entries) != 1 || m.Entries[0].Summary != "The cabinets arrive on Tuesday" {
+		t.Errorf("unexpected entries %+v", m.Entries)
 	}
-	if matches[0].PostingID != 4471829 || matches[0].TopicID != 331 {
-		t.Errorf("expected posting 4471829 on topic 331, got %+v", matches[0])
+	for _, want := range []string{"q=cabinets", "page=2", "refine%5Bfrom%5D=Jane"} {
+		if !strings.Contains(gotQuery, want) {
+			t.Errorf("query %q should contain %q", gotQuery, want)
+		}
 	}
-	if matches[0].Title != "Kitchen remodel" || matches[0].Creator != "Jane Dawson" {
-		t.Errorf("expected the title and creator, got %+v", matches[0])
-	}
-	if matches[0].Summary != "The cabinets arrive on Tuesday" {
-		t.Errorf("expected the summary, got %q", matches[0].Summary)
+	if strings.Contains(gotQuery, "refine%5Bto%5D") {
+		t.Errorf("unset refinements must not be sent, got %q", gotQuery)
 	}
 }
 
@@ -2152,26 +2143,16 @@ func TestContactsService_Notes(t *testing.T) {
 // --- Time track categories and exports ---
 
 func TestTimeTracksService_Categories(t *testing.T) {
-	page := `<div class="category">
-		<a href="/calendar/time_tracks/categories/31/edit" class="action-group__action">Client work</a>
-	</div>
-	<div class="category">
-		<a href="/calendar/time_tracks/categories/32/edit" class="action-group__action">Admin</a>
-	</div>`
-
 	client := newServiceTestClient(t, map[string]string{
-		"/calendar/time_tracks/categories": page,
+		"/calendar/time_tracks/categories.json": `[{"id":7,"title":"Consulting"},{"id":9,"title":"Writing"}]`,
 	})
 
 	categories, err := client.TimeTracks().Categories(context.Background())
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if len(categories) != 2 {
-		t.Fatalf("expected 2 categories, got %d", len(categories))
-	}
-	if categories[0].ID != 31 || categories[0].Title != "Client work" {
-		t.Errorf("expected Client work with id 31, got %+v", categories[0])
+	if len(categories) != 2 || categories[0].Id != 7 || categories[0].Title != "Consulting" {
+		t.Errorf("unexpected categories %+v", categories)
 	}
 }
 
@@ -2216,28 +2197,16 @@ func TestTimeTracksService_Export(t *testing.T) {
 // --- Clips ---
 
 func TestClipsService_List(t *testing.T) {
-	page := `<article id="clip_9182" class="clip-item">
-		<a href="/topics/331" class="clip-item__name"><h3>Jane Dawson in Kitchen remodel</h3></a>
-		<p class="clip-item__content"><span class="txt--highlight">The cabinets arrive on Tuesday</span></p>
-	</article>`
-
-	client := newServiceTestClient(t, map[string]string{"/clips": page})
+	client := newServiceTestClient(t, map[string]string{
+		"/clips.json": `[{"id":41,"content":"Remember the wire transfer","entry_id":5512,"topic":{"id":331,"name":"Wire transfer snafu","app_url":"https://app.hey.com/topics/331"}}]`,
+	})
 
 	clips, err := client.Clips().List(context.Background())
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if len(clips) != 1 {
-		t.Fatalf("expected one clip, got %d", len(clips))
-	}
-	if clips[0].ID != 9182 {
-		t.Errorf("expected clip 9182, got %d", clips[0].ID)
-	}
-	if clips[0].Content != "The cabinets arrive on Tuesday" {
-		t.Errorf("expected the clipped text, got %q", clips[0].Content)
-	}
-	if clips[0].Title != "Jane Dawson in Kitchen remodel" {
-		t.Errorf("expected the clip title, got %q", clips[0].Title)
+	if len(clips) != 1 || clips[0].Id != 41 || clips[0].Content != "Remember the wire transfer" || clips[0].Topic.Id != 331 {
+		t.Errorf("unexpected clips %+v", clips)
 	}
 }
 
@@ -2264,24 +2233,19 @@ func TestClipsService_CreateAndDelete(t *testing.T) {
 // --- Snippets ---
 
 func TestSnippetsService_List(t *testing.T) {
-	page := `<div class="action-group__item">
-		<a href="/snippets/44/edit" class="action-group__action">Scheduling reply</a>
-	</div>
-	<div class="action-group__item">
-		<a href="/snippets/45/edit" class="action-group__action">Invoice reminder</a>
-	</div>`
-
-	client := newServiceTestClient(t, map[string]string{"/snippets": page})
+	client := newServiceTestClient(t, map[string]string{
+		"/snippets.json": `[{"id":3,"name":"Rob's \"sig\" & co","content":"Cheers, Rob","content_html":"<div class=\"trix-content\">Cheers, Rob</div>"}]`,
+	})
 
 	snippets, err := client.Snippets().List(context.Background())
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if len(snippets) != 2 {
-		t.Fatalf("expected 2 snippets, got %d", len(snippets))
+	if len(snippets) != 1 || snippets[0].Id != 3 || snippets[0].Name != "Rob's \"sig\" & co" {
+		t.Errorf("unexpected snippets %+v", snippets)
 	}
-	if snippets[0].ID != 44 || snippets[0].Name != "Scheduling reply" {
-		t.Errorf("expected Scheduling reply with id 44, got %+v", snippets[0])
+	if snippets[0].Content != "Cheers, Rob" || !strings.Contains(snippets[0].ContentHtml, "trix-content") {
+		t.Errorf("expected text and HTML content, got %+v", snippets[0])
 	}
 }
 
@@ -2332,29 +2296,21 @@ func TestWorkflowsService_List(t *testing.T) {
 }
 
 func TestWorkflowsService_Stages(t *testing.T) {
-	page := `<section id="workflow_8801">
-		<section class="workflow__stage" id="container_workflow_stage_5512">
-			<h2 id="name_workflow_stage_5512"><div class="input"><span aria-hidden="true">Applied</span><span class="u-for-screen-reader">Applied stage</span></div></h2>
-		</section>
-		<section class="workflow__stage" id="container_workflow_stage_5513">
-			<h2 id="name_workflow_stage_5513"><div class="input"><span aria-hidden="true">Interviewing</span><span class="u-for-screen-reader">Interviewing stage</span></div></h2>
-		</section>
-	</section>`
-
-	client := newServiceTestClient(t, map[string]string{"/workflows/%s": page})
+	client := newServiceTestClient(t, map[string]string{
+		"/workflows/%s.json": `{"id":8801,"name":"Hiring","stages":[{"id":5512,"name":"Applied"},{"id":5513,"name":"Interviewing"}]}`,
+	})
 
 	stages, err := client.Workflows().Stages(context.Background(), 8801)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if len(stages) != 2 {
-		t.Fatalf("expected 2 stages, got %d", len(stages))
+	if len(stages) != 2 || stages[0].Id != 5512 || stages[0].Name != "Applied" || stages[1].Name != "Interviewing" {
+		t.Errorf("unexpected stages %+v", stages)
 	}
-	if stages[0].ID != 5512 || stages[0].Name != "Applied" {
-		t.Errorf("expected Applied with id 5512, got %+v", stages[0])
-	}
-	if stages[1].Name != "Interviewing" {
-		t.Errorf("expected Interviewing, got %q", stages[1].Name)
+
+	workflow, err := client.Workflows().Get(context.Background(), 8801)
+	if err != nil || workflow == nil || workflow.Name != "Hiring" || len(workflow.Stages) != 2 {
+		t.Errorf("unexpected workflow %+v err=%v", workflow, err)
 	}
 }
 
@@ -2442,38 +2398,30 @@ func TestWorkflowsService_WriteErrorsSurface(t *testing.T) {
 // --- Publications ---
 
 func TestPublicationsService_GetPublished(t *testing.T) {
-	page := `<turbo-frame id="edit_topic_publication">
-		<span class="copy-to-clipboard__text" data-copy-to-clipboard-target="copyable">https://public.hey.com/p/abc123</span>
-		<input type="submit" value="Turn off the sharing link">
-	</turbo-frame>`
-
-	client := newServiceTestClient(t, map[string]string{"/topics/%s/publication/edit": page})
+	client := newServiceTestClient(t, map[string]string{
+		"/topics/%s/publication.json": `{"published":true,"url":"https://public.hey.com/p/abc123"}`,
+	})
 
 	publication, err := client.Publications().Get(context.Background(), 4471829)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if !publication.Published {
-		t.Error("expected the thread to read as published")
-	}
-	if publication.URL != "https://public.hey.com/p/abc123" {
-		t.Errorf("expected the public link, got %q", publication.URL)
+	if !publication.Published || publication.Url != "https://public.hey.com/p/abc123" {
+		t.Errorf("expected a published thread with its link, got %+v", publication)
 	}
 }
 
 func TestPublicationsService_GetUnpublished(t *testing.T) {
-	page := `<turbo-frame id="edit_topic_publication">
-		<button>Get a link to share</button>
-	</turbo-frame>`
-
-	client := newServiceTestClient(t, map[string]string{"/topics/%s/publication/edit": page})
+	client := newServiceTestClient(t, map[string]string{
+		"/topics/%s/publication.json": `{"published":false}`,
+	})
 
 	publication, err := client.Publications().Get(context.Background(), 4471829)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if publication.Published {
-		t.Error("expected the thread to read as unpublished")
+	if publication.Published || publication.Url != "" {
+		t.Errorf("expected an unpublished thread, got %+v", publication)
 	}
 }
 

@@ -5,6 +5,11 @@
     "path": "/postings/box_groups.json"
   },
   {
+    "method": "GET",
+    "operationId": "AdvancedSearch",
+    "path": "/advanced_search.json"
+  },
+  {
     "method": "POST",
     "operationId": "BubbleUpPostingsNow",
     "path": "/postings/bulk_bubble_up_now.json"
@@ -226,6 +231,11 @@
   },
   {
     "method": "GET",
+    "operationId": "GetTopicPublication",
+    "path": "/topics/{topicId}/publication.json"
+  },
+  {
+    "method": "GET",
     "operationId": "GetTrailbox",
     "path": "/paper_trail.json"
   },
@@ -233,6 +243,11 @@
     "method": "GET",
     "operationId": "GetTrashTopics",
     "path": "/topics/trash.json"
+  },
+  {
+    "method": "GET",
+    "operationId": "GetWorkflow",
+    "path": "/workflows/{workflowId}"
   },
   {
     "method": "GET",
@@ -251,6 +266,11 @@
   },
   {
     "method": "GET",
+    "operationId": "ListClips",
+    "path": "/clips.json"
+  },
+  {
+    "method": "GET",
     "operationId": "ListCollections",
     "path": "/collections.json"
   },
@@ -266,8 +286,18 @@
   },
   {
     "method": "GET",
+    "operationId": "ListSnippets",
+    "path": "/snippets.json"
+  },
+  {
+    "method": "GET",
     "operationId": "ListStickies",
     "path": "/stickies.json"
+  },
+  {
+    "method": "GET",
+    "operationId": "ListTimeTrackCategories",
+    "path": "/calendar/time_tracks/categories.json"
   },
   {
     "method": "POST",
