@@ -3049,7 +3049,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/ContactRequestContent"
+                "$ref": "#/components/schemas/CreateContactRequestContent"
               }
             }
           },
@@ -8418,6 +8418,23 @@
       },
       "CreateCalendarTodoResponseContent": {
         "$ref": "#/components/schemas/Recording"
+      },
+      "CreateContactRequestContent": {
+        "type": "object",
+        "description": "Wire format: {acting_user_id, contact: {...}} — creating also has to say which account\nthe contact belongs to, since one identity can hold several.",
+        "properties": {
+          "acting_user_id": {
+            "type": "integer",
+            "description": "The identity's user on the account the contact should be filed under; Identity's\nall_users carries one per account. Left out, HEY files it under the first account.",
+            "format": "int64"
+          },
+          "contact": {
+            "$ref": "#/components/schemas/ContactPayload"
+          }
+        },
+        "required": [
+          "contact"
+        ]
       },
       "CreateContactResponseContent": {
         "$ref": "#/components/schemas/Contact"

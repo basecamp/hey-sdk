@@ -1521,7 +1521,7 @@ operation CreateContact {
 structure CreateContactInput {
     @httpPayload
     @required
-    body: ContactRequestContent
+    body: CreateContactRequestContent
 }
 
 /// Edit a contact. HEY rewrites the whole contact, so send every field: a name,
@@ -1569,6 +1569,17 @@ operation RevealContact {
 
 /// Wire format: {contact: {name, email_address, alias_email_addresses: [...]}}
 structure ContactRequestContent {
+    @required
+    contact: ContactPayload
+}
+
+/// Wire format: {acting_user_id, contact: {...}} — creating also has to say which account
+/// the contact belongs to, since one identity can hold several.
+structure CreateContactRequestContent {
+    /// The identity's user on the account the contact should be filed under; Identity's
+    /// all_users carries one per account. Left out, HEY files it under the first account.
+    acting_user_id: Long
+
     @required
     contact: ContactPayload
 }

@@ -185,6 +185,11 @@ type ContactParams struct {
 	EmailAddress string
 	// AliasEmailAddresses are other addresses that belong to the same person.
 	AliasEmailAddresses []string
+	// AccountUserID picks the account the contact belongs to, on Create. One identity can
+	// hold several accounts, each with its own contacts; this is the identity's user on
+	// the one you mean, which Identity returns in all_users alongside its account_id.
+	// Left zero, HEY files the contact under the first account. Update ignores it.
+	AccountUserID int64
 }
 
 // Create adds a contact and returns it.
@@ -195,7 +200,7 @@ func (s *ContactsService) Create(ctx context.Context, params ContactParams) (con
 	}
 
 	err = s.client.instrument(ctx, op, func(ctx context.Context) error {
-		resp, rerr := s.client.genClient().CreateContactWithResponse(ctx, contactBody(params))
+		resp, rerr := s.client.genClient().CreateContactWithResponse(ctx, createContactBody(params))
 		if rerr != nil {
 			return rerr
 		}
@@ -361,11 +366,23 @@ func (s *ContactsService) DeleteNote(ctx context.Context, contactID int64) error
 // contact key is always present because the server requires it, even on a partial write.
 func contactBody(params ContactParams) generated.ContactRequestContent {
 	return generated.ContactRequestContent{
-		Contact: generated.ContactPayload{
-			Name:                params.Name,
-			EmailAddress:        params.EmailAddress,
-			AliasEmailAddresses: params.AliasEmailAddresses,
-		},
+		Contact: contactPayload(params),
+	}
+}
+
+// createContactBody is contactBody plus the account to file the contact under.
+func createContactBody(params ContactParams) generated.CreateContactRequestContent {
+	return generated.CreateContactRequestContent{
+		ActingUserId: params.AccountUserID,
+		Contact:      contactPayload(params),
+	}
+}
+
+func contactPayload(params ContactParams) generated.ContactPayload {
+	return generated.ContactPayload{
+		Name:                params.Name,
+		EmailAddress:        params.EmailAddress,
+		AliasEmailAddresses: params.AliasEmailAddresses,
 	}
 }
 

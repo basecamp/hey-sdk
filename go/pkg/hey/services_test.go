@@ -2086,7 +2086,7 @@ func TestHabitsService_DeleteStopAndResume(t *testing.T) {
 // --- Contact CRUD and notes ---
 
 func TestContactsService_Create(t *testing.T) {
-	var sent generated.ContactRequestContent
+	var sent generated.CreateContactRequestContent
 	client := newJSONWriteTestClient(t, http.MethodPost, "/contacts.json", &sent, http.StatusCreated,
 		`{"id":91824,"name":"Jane Dawson","email_address":"jane.dawson@example.com"}`)
 
@@ -2109,6 +2109,30 @@ func TestContactsService_Create(t *testing.T) {
 	}
 	if aliases := sent.Contact.AliasEmailAddresses; len(aliases) != 1 {
 		t.Errorf("expected one alias, got %v", aliases)
+	}
+	if sent.ActingUserId != 0 {
+		t.Errorf("no account asked for, so none should be sent, got %d", sent.ActingUserId)
+	}
+}
+
+// One identity can hold several accounts, each with its own contacts. Without an account
+// the server files the contact under the first one, which is rarely what a two-account
+// user means.
+func TestContactsService_CreateOnAChosenAccount(t *testing.T) {
+	var sent generated.CreateContactRequestContent
+	client := newJSONWriteTestClient(t, http.MethodPost, "/contacts.json", &sent, http.StatusCreated,
+		`{"id":91824,"name":"Jane Dawson"}`)
+
+	_, err := client.Contacts().Create(context.Background(), ContactParams{
+		Name:          "Jane Dawson",
+		EmailAddress:  "jane.dawson@example.com",
+		AccountUserID: 4849,
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if sent.ActingUserId != 4849 {
+		t.Errorf("expected the account's user, got %d", sent.ActingUserId)
 	}
 }
 

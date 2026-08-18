@@ -1129,7 +1129,10 @@ func executeOperation(client *generated.Client, ctx context.Context, tc TestCase
 
 	// Contact writing and notes
 	case "CreateContact":
-		return client.CreateContact(ctx, contactBody(tc))
+		return client.CreateContact(ctx, generated.CreateContactRequestContent{
+			ActingUserId: getInt64Param(tc.RequestBody, "acting_user_id"),
+			Contact:      contactBody(tc).Contact,
+		})
 	case "UpdateContact":
 		contactId := getInt64Param(tc.PathParams, "contactId")
 		return client.UpdateContact(ctx, contactId, contactBody(tc))

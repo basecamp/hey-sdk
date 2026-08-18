@@ -350,6 +350,15 @@ type CreateCalendarTodoRequestContent struct {
 // CreateCalendarTodoResponseContent Recording — polymorphic by `type` (CalendarEvent, CalendarTodo, etc.)
 type CreateCalendarTodoResponseContent = Recording
 
+// CreateContactRequestContent Wire format: {acting_user_id, contact: {...}} — creating also has to say which account
+// the contact belongs to, since one identity can hold several.
+type CreateContactRequestContent struct {
+	// ActingUserId The identity's user on the account the contact should be filed under; Identity's
+	// all_users carries one per account. Left out, HEY files it under the first account.
+	ActingUserId int64          `json:"acting_user_id,omitempty"`
+	Contact      ContactPayload `json:"contact"`
+}
+
 // CreateContactResponseContent Contact — the identity of someone in HEY
 type CreateContactResponseContent = Contact
 
@@ -1431,7 +1440,7 @@ type CreateCalendarTodoJSONRequestBody = CreateCalendarTodoRequestContent
 type UpdateCollectionJSONRequestBody = UpdateCollectionRequestContent
 
 // CreateContactJSONRequestBody defines body for CreateContact for application/json ContentType.
-type CreateContactJSONRequestBody = ContactRequestContent
+type CreateContactJSONRequestBody = CreateContactRequestContent
 
 // UpdateContactJSONRequestBody defines body for UpdateContact for application/json ContentType.
 type UpdateContactJSONRequestBody = ContactRequestContent
