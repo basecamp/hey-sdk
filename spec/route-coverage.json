@@ -260,14 +260,14 @@
     "path": "/topics/trash.json"
   },
   {
-    "method": "DELETE",
-    "operationId": "HideContact",
-    "path": "/contacts/{contactId}"
-  },
-  {
     "method": "GET",
     "operationId": "GetWorkflow",
     "path": "/workflows/{workflowId}"
+  },
+  {
+    "method": "DELETE",
+    "operationId": "HideContact",
+    "path": "/contacts/{contactId}"
   },
   {
     "method": "GET",
