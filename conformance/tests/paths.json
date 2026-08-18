@@ -2052,11 +2052,11 @@
     ]
   },
   {
-    "name": "CreateContact uses /contacts path",
-    "description": "Verifies that CreateContact constructs the URL path /contacts",
+    "name": "CreateContact uses /contacts.json path",
+    "description": "Verifies that CreateContact constructs the URL path /contacts.json",
     "operation": "CreateContact",
     "method": "POST",
-    "path": "/contacts",
+    "path": "/contacts.json",
     "requestBody": {
       "name": "Jane Dawson",
       "email_address": "jane@example.com",
@@ -2076,7 +2076,7 @@
     "assertions": [
       {
         "type": "requestPath",
-        "expected": "/contacts"
+        "expected": "/contacts.json"
       },
       {
         "type": "requestMethod",
@@ -2178,11 +2178,11 @@
     ]
   },
   {
-    "name": "RevealContact uses /contacts/{contactId}/reveal path",
-    "description": "Verifies that RevealContact constructs the URL path /contacts/{contactId}/reveal",
+    "name": "RevealContact uses /contacts/{contactId}/reveal.json path",
+    "description": "Verifies that RevealContact constructs the URL path /contacts/{contactId}/reveal.json",
     "operation": "RevealContact",
     "method": "POST",
-    "path": "/contacts/{contactId}/reveal",
+    "path": "/contacts/{contactId}/reveal.json",
     "pathParams": {
       "contactId": 91824
     },
@@ -2198,7 +2198,7 @@
     "assertions": [
       {
         "type": "requestPath",
-        "expected": "/contacts/91824/reveal"
+        "expected": "/contacts/91824/reveal.json"
       },
       {
         "type": "requestMethod",
@@ -2214,11 +2214,11 @@
     ]
   },
   {
-    "name": "GetContactNote uses /contacts/{contactId}/note path",
-    "description": "Verifies that GetContactNote constructs the URL path /contacts/{contactId}/note",
+    "name": "GetContactNote uses /contacts/{contactId}/note.json path",
+    "description": "Verifies that GetContactNote constructs the URL path /contacts/{contactId}/note.json",
     "operation": "GetContactNote",
     "method": "GET",
-    "path": "/contacts/{contactId}/note",
+    "path": "/contacts/{contactId}/note.json",
     "pathParams": {
       "contactId": 91824
     },
@@ -2235,7 +2235,7 @@
     "assertions": [
       {
         "type": "requestPath",
-        "expected": "/contacts/91824/note"
+        "expected": "/contacts/91824/note.json"
       },
       {
         "type": "requestMethod",
@@ -2251,11 +2251,11 @@
     ]
   },
   {
-    "name": "UpdateContactNote uses /contacts/{contactId}/note path",
-    "description": "Verifies that UpdateContactNote constructs the URL path /contacts/{contactId}/note",
+    "name": "UpdateContactNote uses /contacts/{contactId}/note.json path",
+    "description": "Verifies that UpdateContactNote constructs the URL path /contacts/{contactId}/note.json",
     "operation": "UpdateContactNote",
     "method": "PATCH",
-    "path": "/contacts/{contactId}/note",
+    "path": "/contacts/{contactId}/note.json",
     "pathParams": {
       "contactId": 91824
     },
@@ -2275,7 +2275,7 @@
     "assertions": [
       {
         "type": "requestPath",
-        "expected": "/contacts/91824/note"
+        "expected": "/contacts/91824/note.json"
       },
       {
         "type": "requestMethod",
@@ -2297,11 +2297,11 @@
     ]
   },
   {
-    "name": "DeleteContactNote uses /contacts/{contactId}/note path",
-    "description": "Verifies that DeleteContactNote constructs the URL path /contacts/{contactId}/note",
+    "name": "DeleteContactNote uses /contacts/{contactId}/note.json path",
+    "description": "Verifies that DeleteContactNote constructs the URL path /contacts/{contactId}/note.json",
     "operation": "DeleteContactNote",
     "method": "DELETE",
-    "path": "/contacts/{contactId}/note",
+    "path": "/contacts/{contactId}/note.json",
     "pathParams": {
       "contactId": 91824
     },
@@ -2314,7 +2314,7 @@
     "assertions": [
       {
         "type": "requestPath",
-        "expected": "/contacts/91824/note"
+        "expected": "/contacts/91824/note.json"
       },
       {
         "type": "requestMethod",

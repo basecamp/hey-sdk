@@ -326,15 +326,8 @@
       "pattern": "/contacts",
       "resource": "Contacts",
       "operations": {
+        "GET": "ListContacts",
         "POST": "CreateContact"
-      },
-      "params": {}
-    },
-    {
-      "pattern": "/contacts",
-      "resource": "Contacts",
-      "operations": {
-        "GET": "ListContacts"
       },
       "params": {}
     },

@@ -2961,7 +2961,87 @@
         }
       }
     },
-    "/contacts": {
+    "/contacts.json": {
+      "get": {
+        "description": "List contacts",
+        "operationId": "ListContacts",
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "x-go-type-skip-optional-pointer": false
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "x-go-type-skip-optional-pointer": false
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ListContacts 200 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListContactsResponseContent"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UnauthorizedError 401 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnauthorizedErrorResponseContent"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "InternalServerError 500 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorResponseContent"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ServiceUnavailableError 503 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceUnavailableErrorResponseContent"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Contacts"
+        ],
+        "x-hey-pagination": {
+          "style": "link",
+          "totalCountHeader": "X-Total-Count"
+        },
+        "x-hey-retry": {
+          "maxAttempts": 3,
+          "baseDelayMs": 1000,
+          "backoff": "exponential",
+          "retryOn": [
+            429,
+            503
+          ]
+        }
+      },
       "post": {
         "description": "Add a contact. Answers the contact that was created.",
         "operationId": "CreateContact",
@@ -3042,88 +3122,6 @@
         ],
         "x-hey-retry": {
           "maxAttempts": 2,
-          "baseDelayMs": 1000,
-          "backoff": "exponential",
-          "retryOn": [
-            429,
-            503
-          ]
-        }
-      }
-    },
-    "/contacts.json": {
-      "get": {
-        "description": "List contacts",
-        "operationId": "ListContacts",
-        "parameters": [
-          {
-            "name": "page",
-            "in": "query",
-            "schema": {
-              "type": "string",
-              "x-go-type-skip-optional-pointer": false
-            }
-          },
-          {
-            "name": "q",
-            "in": "query",
-            "schema": {
-              "type": "string",
-              "x-go-type-skip-optional-pointer": false
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "ListContacts 200 response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ListContactsResponseContent"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "UnauthorizedError 401 response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/UnauthorizedErrorResponseContent"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "InternalServerError 500 response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/InternalServerErrorResponseContent"
-                }
-              }
-            }
-          },
-          "503": {
-            "description": "ServiceUnavailableError 503 response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ServiceUnavailableErrorResponseContent"
-                }
-              }
-            }
-          }
-        },
-        "tags": [
-          "Contacts"
-        ],
-        "x-hey-pagination": {
-          "style": "link",
-          "totalCountHeader": "X-Total-Count"
-        },
-        "x-hey-retry": {
-          "maxAttempts": 3,
           "baseDelayMs": 1000,
           "backoff": "exponential",
           "retryOn": [
@@ -3645,7 +3643,7 @@
         }
       }
     },
-    "/contacts/{contactId}/note": {
+    "/contacts/{contactId}/note.json": {
       "delete": {
         "description": "Clear the private note on a contact",
         "operationId": "DeleteContactNote",
@@ -3897,7 +3895,7 @@
         }
       }
     },
-    "/contacts/{contactId}/reveal": {
+    "/contacts/{contactId}/reveal.json": {
       "post": {
         "description": "Put a hidden contact back in the contact list",
         "operationId": "RevealContact",

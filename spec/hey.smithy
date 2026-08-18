@@ -1509,7 +1509,7 @@ structure GetContactOutput {
 }
 
 /// Add a contact. Answers the contact that was created.
-@http(method: "POST", uri: "/contacts", code: 201)
+@http(method: "POST", uri: "/contacts.json", code: 201)
 @tags(["Contacts"])
 @heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
 operation CreateContact {
@@ -1558,7 +1558,7 @@ operation HideContact {
 }
 
 /// Put a hidden contact back in the contact list
-@http(method: "POST", uri: "/contacts/{contactId}/reveal")
+@http(method: "POST", uri: "/contacts/{contactId}/reveal.json")
 @tags(["Contacts"])
 @heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
 operation RevealContact {
@@ -1592,7 +1592,7 @@ structure ContactWriteOutput {
 
 /// Read the private note kept on a contact
 @readonly
-@http(method: "GET", uri: "/contacts/{contactId}/note")
+@http(method: "GET", uri: "/contacts/{contactId}/note.json")
 @tags(["Contacts"])
 @heyRetry(maxAttempts: 3, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
 operation GetContactNote {
@@ -1621,7 +1621,7 @@ structure ContactNote {
 
 /// Write the private note on a contact, replacing whatever was there
 @idempotent
-@http(method: "PATCH", uri: "/contacts/{contactId}/note")
+@http(method: "PATCH", uri: "/contacts/{contactId}/note.json")
 @tags(["Contacts"])
 @heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
 operation UpdateContactNote {
@@ -1653,7 +1653,7 @@ structure ContactNotePayload {
 
 /// Clear the private note on a contact
 @idempotent
-@http(method: "DELETE", uri: "/contacts/{contactId}/note")
+@http(method: "DELETE", uri: "/contacts/{contactId}/note.json")
 @tags(["Contacts"])
 @heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
 operation DeleteContactNote {

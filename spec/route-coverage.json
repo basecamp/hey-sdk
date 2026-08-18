@@ -52,7 +52,7 @@
   {
     "method": "POST",
     "operationId": "CreateContact",
-    "path": "/contacts"
+    "path": "/contacts.json"
   },
   {
     "method": "POST",
@@ -102,7 +102,7 @@
   {
     "method": "DELETE",
     "operationId": "DeleteContactNote",
-    "path": "/contacts/{contactId}/note"
+    "path": "/contacts/{contactId}/note.json"
   },
   {
     "method": "DELETE",
@@ -172,7 +172,7 @@
   {
     "method": "GET",
     "operationId": "GetContactNote",
-    "path": "/contacts/{contactId}/note"
+    "path": "/contacts/{contactId}/note.json"
   },
   {
     "method": "GET",
@@ -392,7 +392,7 @@
   {
     "method": "POST",
     "operationId": "RevealContact",
-    "path": "/contacts/{contactId}/reveal"
+    "path": "/contacts/{contactId}/reveal.json"
   },
   {
     "method": "POST",
@@ -457,7 +457,7 @@
   {
     "method": "PATCH",
     "operationId": "UpdateContactNote",
-    "path": "/contacts/{contactId}/note"
+    "path": "/contacts/{contactId}/note.json"
   },
   {
     "method": "PATCH",
