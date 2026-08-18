@@ -34,19 +34,20 @@ The full step-by-step, including how the drift gates work, is in [AGENTS.md](AGE
 Two steps, in this order.
 
 ```bash
-make bump VERSION=0.4.0     # rewrites go/pkg/hey/version.go
+make bump VERSION=x.y.z     # rewrites go/pkg/hey/version.go
 # commit that, open a PR, merge it
-make release VERSION=0.4.0  # runs the gate, then tags v0.4.0 and go/v0.4.0
+make release VERSION=x.y.z  # runs the gate, then tags vx.y.z and go/vx.y.z
 ```
 
 The bump has to land on main *before* the tag, because the release workflow checks that
 `version.go` matches the tag it was pushed for and refuses to publish otherwise.
-`make release` now checks the same thing up front, so a forgotten bump fails locally
-in a second rather than on GitHub after the tags are already pushed.
+`make release` checks the same thing up front, so a forgotten bump fails locally in a
+second rather than on GitHub after the tags are already pushed.
 
-Both tags matter: `v0.4.0` triggers the release, and `go/v0.4.0` is what
-`go get github.com/basecamp/hey-sdk/go@v0.4.0` resolves, since the module lives in a
+Both tags matter: the plain one triggers the release, and the `go/` one is what
+`go get github.com/basecamp/hey-sdk/go` resolves, since the module lives in a
 subdirectory.
 
-`Version` is not decorative — it goes out on every request as part of the User-Agent
-(`hey-sdk-go/0.4.0 (api:...)`), which is how HEY sees SDK traffic.
+`Version` is not decorative — it goes out on every request as part of the User-Agent,
+alongside `APIVersion`, which is how HEY sees which SDK and which contract a client is
+working from.

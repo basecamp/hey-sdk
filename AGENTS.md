@@ -70,6 +70,6 @@ The snapshot comes from a haystack checkout: `make drift-regen HAYSTACK_DIR=…`
 
 Move the service's `version` in `spec/hey.smithy` to that same date when the snapshot
 moves, and run `./scripts/sync-api-version.sh` so `APIVersion` follows. It is the date of
-the API the SDK was built against, and it goes out in the User-Agent
-(`hey-sdk-go/0.4.0 (api:2026-08-18)`) — that string is how HEY sees which contract a
-client is working from, so a stale date misreports it.
+the API the SDK was built against, and it goes out in the User-Agent alongside the SDK's
+own version — that string is how HEY sees which contract a client is working from, so a
+stale date misreports it.
