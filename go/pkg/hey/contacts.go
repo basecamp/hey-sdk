@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/basecamp/hey-sdk/go/pkg/generated"
@@ -368,6 +369,15 @@ func contactBody(params ContactParams) generated.ContactRequestContent {
 	}
 }
 
+// conflictMessage reads the server's own words out of a 409. Contact writes answer the
+// {"errors": [...]} list the other error paths use; elsewhere a 409 is a single message.
+func conflictMessage(conflict *generated.ConflictErrorResponseContent) string {
+	if len(conflict.Errors) > 0 {
+		return strings.Join(conflict.Errors, "; ")
+	}
+	return conflict.Error
+}
+
 // contactWriteError turns the two refusals a contact write can answer with into typed
 // errors — an email address that belongs to someone else, and a contact the model itself
 // rejected — and falls back to the usual status handling.
@@ -376,7 +386,7 @@ func contactWriteError(conflict *generated.ConflictErrorResponseContent, invalid
 		return &ContactConflictError{
 			ContactID:             conflict.ContactId,
 			ConflictingContactIDs: conflict.ConflictingContactIds,
-			err:                   ErrConflict(conflict.Error),
+			err:                   ErrConflict(conflictMessage(conflict)),
 		}
 	}
 	if invalid != nil {

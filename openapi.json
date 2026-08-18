@@ -8155,10 +8155,16 @@
       },
       "ConflictErrorResponseContent": {
         "type": "object",
-        "description": "The request conflicts with current state, e.g. starting a time track while one\nis already ongoing (haystack answers {\"error\": \"...\"} with 409).",
+        "description": "The request conflicts with current state, e.g. starting a time track while one is\nalready ongoing. Time tracks answer {\"error\": \"...\"}; contact writes answer the\n{\"errors\": [...]} list every other error path uses.",
         "properties": {
           "error": {
             "type": "string"
+          },
+          "errors": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
           },
           "contact_id": {
             "type": "integer",
@@ -8172,10 +8178,7 @@
               "format": "int64"
             }
           }
-        },
-        "required": [
-          "error"
-        ]
+        }
       },
       "Contact": {
         "type": "object",

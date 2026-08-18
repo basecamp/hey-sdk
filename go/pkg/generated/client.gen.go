@@ -243,16 +243,18 @@ type CompleteCalendarTodoResponseContent = Recording
 // CompleteHabitResponseContent Recording — polymorphic by `type` (CalendarEvent, CalendarTodo, etc.)
 type CompleteHabitResponseContent = Recording
 
-// ConflictErrorResponseContent The request conflicts with current state, e.g. starting a time track while one
-// is already ongoing (haystack answers {"error": "..."} with 409).
+// ConflictErrorResponseContent The request conflicts with current state, e.g. starting a time track while one is
+// already ongoing. Time tracks answer {"error": "..."}; contact writes answer the
+// {"errors": [...]} list every other error path uses.
 type ConflictErrorResponseContent struct {
 	ConflictingContactIds []int64 `json:"conflicting_contact_ids,omitempty"`
 
 	// ContactId Contact writes only: the contact that was written -- a create that clashes
 	// still creates the contact -- and the contacts already holding the email
 	// addresses that were sent, so a client can offer the merge the web offers.
-	ContactId int64  `json:"contact_id,omitempty"`
-	Error     string `json:"error"`
+	ContactId int64    `json:"contact_id,omitempty"`
+	Error     string   `json:"error,omitempty"`
+	Errors    []string `json:"errors,omitempty"`
 }
 
 // Contact Contact — the identity of someone in HEY

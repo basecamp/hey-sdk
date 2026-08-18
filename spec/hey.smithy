@@ -257,13 +257,15 @@ list MessageList {
     member: String
 }
 
-/// The request conflicts with current state, e.g. starting a time track while one
-/// is already ongoing (haystack answers {"error": "..."} with 409).
+/// The request conflicts with current state, e.g. starting a time track while one is
+/// already ongoing. Time tracks answer {"error": "..."}; contact writes answer the
+/// {"errors": [...]} list every other error path uses.
 @error("client")
 @httpError(409)
 structure ConflictError {
-    @required
     error: String
+
+    errors: MessageList
 
     /// Contact writes only: the contact that was written -- a create that clashes
     /// still creates the contact -- and the contacts already holding the email
