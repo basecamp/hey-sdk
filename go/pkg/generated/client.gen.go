@@ -4397,7 +4397,7 @@ func NewCreateBulkReplyRequestWithBody(server string, contentType string, body i
 		return nil, err
 	}
 
-	operationPath := fmt.Sprintf("/bulk_replies")
+	operationPath := fmt.Sprintf("/bulk_replies.json")
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -4426,7 +4426,7 @@ func NewNewBulkReplyRequest(server string, params *NewBulkReplyParams) (*http.Re
 		return nil, err
 	}
 
-	operationPath := fmt.Sprintf("/bulk_replies/new")
+	operationPath := fmt.Sprintf("/bulk_replies/new.json")
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -8725,7 +8725,7 @@ type ClientWithResponsesInterface interface {
 	// Returns a wrapper object for the known response body format(s).
 	GetBubbleboxWithResponse(ctx context.Context, params *GetBubbleboxParams, reqEditors ...RequestEditorFn) (*GetBubbleboxResponse, error)
 
-	// CreateBulkReplyWithBodyWithResponse performs a POST /bulk_replies (the `CreateBulkReply` operationId) request,
+	// CreateBulkReplyWithBodyWithResponse performs a POST /bulk_replies.json (the `CreateBulkReply` operationId) request,
 	// with any type of body and a specified content type.
 	//
 	// Send one reply to every entry. Answers what was sent, not the replies themselves:
@@ -8734,14 +8734,14 @@ type ClientWithResponsesInterface interface {
 	// Returns a wrapper object for the known response body format(s).
 	CreateBulkReplyWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateBulkReplyResponse, error)
 
-	// CreateBulkReplyWithResponse performs a POST /bulk_replies (the `CreateBulkReply` operationId) request.
+	// CreateBulkReplyWithResponse performs a POST /bulk_replies.json (the `CreateBulkReply` operationId) request.
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
 	// Send one reply to every entry. Answers what was sent, not the replies themselves:
 	// delivery is queued, and delayed while undo is still possible.
 	CreateBulkReplyWithResponse(ctx context.Context, body CreateBulkReplyJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateBulkReplyResponse, error)
 
-	// NewBulkReplyWithResponse performs a GET /bulk_replies/new (the `NewBulkReply` operationId) request.
+	// NewBulkReplyWithResponse performs a GET /bulk_replies/new.json (the `NewBulkReply` operationId) request.
 	//
 	// Work out which entries a bulk reply would answer. HEY replies to the last replyable
 	// entry of each thread, skipping threads with no reply address, so the postings you hold
@@ -16148,7 +16148,7 @@ func (c *ClientWithResponses) GetBubbleboxWithResponse(ctx context.Context, para
 	return ParseGetBubbleboxResponse(rsp)
 }
 
-// CreateBulkReplyWithBodyWithResponse performs a POST /bulk_replies (the `CreateBulkReply` operationId) request,
+// CreateBulkReplyWithBodyWithResponse performs a POST /bulk_replies.json (the `CreateBulkReply` operationId) request,
 // with any type of body and a specified content type.
 //
 // Send one reply to every entry. Answers what was sent, not the replies themselves:
@@ -16163,7 +16163,7 @@ func (c *ClientWithResponses) CreateBulkReplyWithBodyWithResponse(ctx context.Co
 	return ParseCreateBulkReplyResponse(rsp)
 }
 
-// CreateBulkReplyWithResponse performs a POST /bulk_replies (the `CreateBulkReply` operationId) request.
+// CreateBulkReplyWithResponse performs a POST /bulk_replies.json (the `CreateBulkReply` operationId) request.
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
 // Send one reply to every entry. Answers what was sent, not the replies themselves:
@@ -16176,7 +16176,7 @@ func (c *ClientWithResponses) CreateBulkReplyWithResponse(ctx context.Context, b
 	return ParseCreateBulkReplyResponse(rsp)
 }
 
-// NewBulkReplyWithResponse performs a GET /bulk_replies/new (the `NewBulkReply` operationId) request.
+// NewBulkReplyWithResponse performs a GET /bulk_replies/new.json (the `NewBulkReply` operationId) request.
 //
 // Work out which entries a bulk reply would answer. HEY replies to the last replyable
 // entry of each thread, skipping threads with no reply address, so the postings you hold

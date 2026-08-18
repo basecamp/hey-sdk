@@ -108,7 +108,7 @@ func UndoSendID(undoSendURL string) (int64, error) {
 		return 0, ErrUsage(fmt.Sprintf("not a URL: %s", undoSendURL))
 	}
 	parts := strings.Split(strings.Trim(parsed.Path, "/"), "/")
-	if len(parts) < 2 || parts[0] != "bulk_replies" {
+	if len(parts) != 3 || parts[0] != "bulk_replies" || parts[2] != "undo_send" {
 		return 0, ErrUsage(fmt.Sprintf("not a bulk reply undo URL: %s", undoSendURL))
 	}
 	var id int64

@@ -47,7 +47,7 @@
   {
     "method": "POST",
     "operationId": "CreateBulkReply",
-    "path": "/bulk_replies"
+    "path": "/bulk_replies.json"
   },
   {
     "method": "POST",
@@ -377,7 +377,7 @@
   {
     "method": "GET",
     "operationId": "NewBulkReply",
-    "path": "/bulk_replies/new"
+    "path": "/bulk_replies/new.json"
   },
   {
     "method": "GET",

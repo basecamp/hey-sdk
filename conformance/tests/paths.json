@@ -1934,11 +1934,11 @@
     ]
   },
   {
-    "name": "NewBulkReply uses /bulk_replies/new path",
-    "description": "Verifies that NewBulkReply constructs the URL path /bulk_replies/new",
+    "name": "NewBulkReply uses /bulk_replies/new.json path",
+    "description": "Verifies that NewBulkReply constructs the URL path /bulk_replies/new.json",
     "operation": "NewBulkReply",
     "method": "GET",
-    "path": "/bulk_replies/new",
+    "path": "/bulk_replies/new.json",
     "queryParams": {
       "posting_ids": "101,102"
     },
@@ -1954,7 +1954,7 @@
     "assertions": [
       {
         "type": "requestPath",
-        "expected": "/bulk_replies/new"
+        "expected": "/bulk_replies/new.json"
       },
       {
         "type": "requestMethod",
@@ -1976,11 +1976,11 @@
     ]
   },
   {
-    "name": "CreateBulkReply uses /bulk_replies path",
-    "description": "Verifies that CreateBulkReply constructs the URL path /bulk_replies",
+    "name": "CreateBulkReply uses /bulk_replies.json path",
+    "description": "Verifies that CreateBulkReply constructs the URL path /bulk_replies.json",
     "operation": "CreateBulkReply",
     "method": "POST",
-    "path": "/bulk_replies",
+    "path": "/bulk_replies.json",
     "requestBody": {
       "entry_ids": [
         11,
@@ -2001,7 +2001,7 @@
     "assertions": [
       {
         "type": "requestPath",
-        "expected": "/bulk_replies"
+        "expected": "/bulk_replies.json"
       },
       {
         "type": "requestMethod",

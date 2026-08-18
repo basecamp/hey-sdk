@@ -2573,7 +2573,7 @@ structure NewEntryForwardOutput {
 /// entry of each thread, skipping threads with no reply address, so the postings you hold
 /// are not the entries you send to — this resolves them.
 @readonly
-@http(method: "GET", uri: "/bulk_replies/new")
+@http(method: "GET", uri: "/bulk_replies/new.json")
 @tags(["Bulk Reply"])
 @heyRetry(maxAttempts: 3, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
 operation NewBulkReply {
@@ -2625,7 +2625,7 @@ structure BulkReplyEntry {
 
 /// Send one reply to every entry. Answers what was sent, not the replies themselves:
 /// delivery is queued, and delayed while undo is still possible.
-@http(method: "POST", uri: "/bulk_replies", code: 201)
+@http(method: "POST", uri: "/bulk_replies.json", code: 201)
 @tags(["Bulk Reply"])
 operation CreateBulkReply {
     input: CreateBulkReplyInput

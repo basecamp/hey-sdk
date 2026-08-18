@@ -974,7 +974,7 @@
         }
       }
     },
-    "/bulk_replies": {
+    "/bulk_replies.json": {
       "post": {
         "description": "Send one reply to every entry. Answers what was sent, not the replies themselves:\ndelivery is queued, and delayed while undo is still possible.",
         "operationId": "CreateBulkReply",
@@ -1045,7 +1045,7 @@
         ]
       }
     },
-    "/bulk_replies/new": {
+    "/bulk_replies/new.json": {
       "get": {
         "description": "Work out which entries a bulk reply would answer. HEY replies to the last replyable\nentry of each thread, skipping threads with no reply address, so the postings you hold\nare not the entries you send to — this resolves them.",
         "operationId": "NewBulkReply",

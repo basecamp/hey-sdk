@@ -132,7 +132,13 @@ func TestBulkRepliesService_Undo(t *testing.T) {
 }
 
 func TestUndoSendIDRejectsOtherURLs(t *testing.T) {
-	for _, candidate := range []string{"https://app.hey.com/topics/9", "not a url at all: %", ""} {
+	for _, candidate := range []string{
+		"https://app.hey.com/topics/9",
+		"https://app.hey.com/bulk_replies/9",                // the bulk reply, not its undo
+		"https://app.hey.com/bulk_replies/9/something_else", // some other action on it
+		"not a url at all: %",
+		"",
+	} {
 		if _, err := UndoSendID(candidate); err == nil {
 			t.Errorf("expected %q to be rejected", candidate)
 		}
