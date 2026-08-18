@@ -171,11 +171,12 @@ jobs:
           fi
           rm -f /tmp/apidiff.stderr
 
-          # A release bumps Version, and DefaultUserAgent is built from it. apidiff counts
-          # a constant's new value as an incompatible change, which for these two is the
+          # A release bumps Version, APIVersion moves when the spec is rebuilt against a
+          # newer HEY, and DefaultUserAgent is built from both. apidiff counts a
+          # constant's new value as an incompatible change, which for these three is the
           # point of the release rather than a break -- and it is why version.go went
           # unbumped from v0.1.1 through v0.3.0.
-          CHANGES=$(printf '%s\n' "$CHANGES" | grep -Ev '^- (Version|DefaultUserAgent): value changed' || true)
+          CHANGES=$(printf '%s\n' "$CHANGES" | grep -Ev '^- (Version|APIVersion|DefaultUserAgent): value changed' || true)
           CHANGES=$(printf '%s' "$CHANGES" | sed '/^$/d')
 
           if [ -n "$CHANGES" ]; then
