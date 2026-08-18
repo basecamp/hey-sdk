@@ -59,7 +59,7 @@ timestamp DateTime
 /// HEY API
 @restJson1
 service HEY {
-    version: "2026-03-04"
+    version: "2026-08-18"
     operations: [
         // Identity (2 MVP)
         GetIdentity

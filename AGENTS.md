@@ -67,3 +67,9 @@ forgetting to regenerate coverage, fails the gate.
 The snapshot comes from a haystack checkout: `make drift-regen HAYSTACK_DIR=…` then
 `./scripts/sync-provenance HAYSTACK_DIR` to record the pinned SHA in
 `spec/api-provenance.json`.
+
+Move the service's `version` in `spec/hey.smithy` to that same date when the snapshot
+moves, and run `./scripts/sync-api-version.sh` so `APIVersion` follows. It is the date of
+the API the SDK was built against, and it goes out in the User-Agent
+(`hey-sdk-go/0.4.0 (api:2026-08-18)`) — that string is how HEY sees which contract a
+client is working from, so a stale date misreports it.
