@@ -3,6 +3,7 @@ package hey
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -2085,20 +2086,11 @@ func TestHabitsService_DeleteStopAndResume(t *testing.T) {
 // --- Contact CRUD and notes ---
 
 func TestContactsService_Create(t *testing.T) {
-	client := newFormTestClient(t, "POST", "/contacts", func(t *testing.T, values url.Values) {
-		t.Helper()
-		if values.Get("contact[name]") != "Jane Dawson" {
-			t.Errorf("expected the contact name, got %q", values.Get("contact[name]"))
-		}
-		if values.Get("contact[email_address]") != "jane.dawson@example.com" {
-			t.Errorf("expected the email address, got %q", values.Get("contact[email_address]"))
-		}
-		if aliases := values["contact[alias_email_addresses][]"]; len(aliases) != 1 {
-			t.Errorf("expected one alias, got %v", aliases)
-		}
-	}, "/contacts/91824")
+	var sent generated.ContactRequestContent
+	client := newJSONWriteTestClient(t, http.MethodPost, "/contacts.json", &sent, http.StatusCreated,
+		`{"id":91824,"name":"Jane Dawson","email_address":"jane.dawson@example.com"}`)
 
-	id, err := client.Contacts().Create(context.Background(), ContactParams{
+	contact, err := client.Contacts().Create(context.Background(), ContactParams{
 		Name:                "Jane Dawson",
 		EmailAddress:        "jane.dawson@example.com",
 		AliasEmailAddresses: []string{"j.dawson@example.org"},
@@ -2106,38 +2098,143 @@ func TestContactsService_Create(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if id != 91824 {
-		t.Errorf("expected contact 91824, got %d", id)
+	if contact == nil || contact.Id != 91824 {
+		t.Fatalf("expected contact 91824, got %+v", contact)
+	}
+	if sent.Contact.Name != "Jane Dawson" {
+		t.Errorf("expected the contact name, got %q", sent.Contact.Name)
+	}
+	if sent.Contact.EmailAddress != "jane.dawson@example.com" {
+		t.Errorf("expected the email address, got %q", sent.Contact.EmailAddress)
+	}
+	if aliases := sent.Contact.AliasEmailAddresses; len(aliases) != 1 {
+		t.Errorf("expected one alias, got %v", aliases)
+	}
+}
+
+// An email address that already belongs to someone else is the case HEY answers by
+// sending the web to a merge form. The SDK hands back the contacts to merge with.
+func TestContactsService_CreateConflict(t *testing.T) {
+	client := newJSONStatusTestClient(t, http.StatusConflict,
+		`{"error":"Some email addresses are already in use for other contacts","conflicting_contact_ids":[4,5]}`)
+
+	_, err := client.Contacts().Create(context.Background(), ContactParams{Name: "Jane", EmailAddress: "jane@example.com"})
+
+	var conflict *ContactConflictError
+	if !errors.As(err, &conflict) {
+		t.Fatalf("expected a contact conflict, got %v", err)
+	}
+	if len(conflict.ConflictingContactIDs) != 2 || conflict.ConflictingContactIDs[0] != 4 {
+		t.Errorf("expected the contacts to merge with, got %v", conflict.ConflictingContactIDs)
+	}
+
+	var heyErr *Error
+	if !errors.As(err, &heyErr) || heyErr.Code != CodeConflict {
+		t.Errorf("a conflict should still read as a hey conflict error, got %v", err)
+	}
+}
+
+func TestContactsService_CreateInvalid(t *testing.T) {
+	client := newJSONStatusTestClient(t, http.StatusUnprocessableEntity,
+		`{"errors":["Email address is already in use for another contact"]}`)
+
+	_, err := client.Contacts().Create(context.Background(), ContactParams{Name: "Jane"})
+
+	var heyErr *Error
+	if !errors.As(err, &heyErr) || heyErr.Code != CodeValidation {
+		t.Fatalf("expected a validation error, got %v", err)
+	}
+	if heyErr.Message != "Email address is already in use for another contact" {
+		t.Errorf("expected the server's own message, got %q", heyErr.Message)
 	}
 }
 
 func TestContactsService_HideAndReveal(t *testing.T) {
-	hider := newFormTestClient(t, "DELETE", "/contacts/%s", nil, "/contacts")
+	hider := newJSONWriteTestClient(t, http.MethodDelete, "/contacts/91824.json", nil, http.StatusNoContent, "")
 	if err := hider.Contacts().Hide(context.Background(), 91824); err != nil {
 		t.Fatalf("unexpected error hiding: %v", err)
 	}
 
-	revealer := newFormTestClient(t, "POST", "/contacts/%s/reveal", nil, "/contacts/91824")
-	if err := revealer.Contacts().Reveal(context.Background(), 91824); err != nil {
+	revealer := newJSONWriteTestClient(t, http.MethodPost, "/contacts/91824/reveal.json", nil, http.StatusOK,
+		`{"id":91824,"name":"Jane Dawson"}`)
+	contact, err := revealer.Contacts().Reveal(context.Background(), 91824)
+	if err != nil {
 		t.Fatalf("unexpected error revealing: %v", err)
+	}
+	if contact == nil || contact.Id != 91824 {
+		t.Errorf("expected the revealed contact, got %+v", contact)
 	}
 }
 
 func TestContactsService_Notes(t *testing.T) {
-	setter := newFormTestClient(t, "PATCH", "/contacts/%s/note", func(t *testing.T, values url.Values) {
-		t.Helper()
-		if values.Get("contact[note]") != "Prefers a call to an email" {
-			t.Errorf("expected the note, got %q", values.Get("contact[note]"))
-		}
-	}, "/contacts/91824/note")
-	if err := setter.Contacts().SetNote(context.Background(), 91824, "Prefers a call to an email"); err != nil {
-		t.Fatalf("unexpected error setting the note: %v", err)
+	reader := newServiceTestClient(t, map[string]string{
+		"/contacts/91824/note.json": `{"contact_id":91824,"note":"Prefers a call","note_html":"<div>Prefers a call</div>"}`,
+	})
+	note, err := reader.Contacts().Note(context.Background(), 91824)
+	if err != nil {
+		t.Fatalf("unexpected error reading the note: %v", err)
+	}
+	if note == nil || note.Note != "Prefers a call" {
+		t.Fatalf("expected the note, got %+v", note)
 	}
 
-	deleter := newFormTestClient(t, "DELETE", "/contacts/%s/note", nil, "/contacts/91824/note")
+	var sent generated.ContactNoteRequestContent
+	setter := newJSONWriteTestClient(t, http.MethodPatch, "/contacts/91824/note.json", &sent, http.StatusOK,
+		`{"contact_id":91824,"note":"Prefers a call to an email","note_html":"<div>Prefers a call to an email</div>"}`)
+	written, err := setter.Contacts().SetNote(context.Background(), 91824, "Prefers a call to an email")
+	if err != nil {
+		t.Fatalf("unexpected error setting the note: %v", err)
+	}
+	if sent.Contact.Note != "Prefers a call to an email" {
+		t.Errorf("expected the note, got %q", sent.Contact.Note)
+	}
+	if written == nil || written.Note != "Prefers a call to an email" {
+		t.Errorf("expected the note as written, got %+v", written)
+	}
+
+	deleter := newJSONWriteTestClient(t, http.MethodDelete, "/contacts/91824/note.json", nil, http.StatusNoContent, "")
 	if err := deleter.Contacts().DeleteNote(context.Background(), 91824); err != nil {
 		t.Fatalf("unexpected error deleting the note: %v", err)
 	}
+}
+
+// newJSONWriteTestClient answers a fixed body for one method and path, decoding the
+// request body into want when it is not nil.
+func newJSONWriteTestClient(t *testing.T, method, path string, want any, status int, body string) *Client {
+	t.Helper()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != method || r.URL.Path != path {
+			t.Errorf("expected %s %s, got %s %s", method, path, r.Method, r.URL.Path)
+			w.WriteHeader(404)
+			return
+		}
+		if want != nil {
+			if err := json.NewDecoder(r.Body).Decode(want); err != nil {
+				t.Errorf("decoding the request body: %v", err)
+			}
+		}
+		if body != "" {
+			w.Header().Set("Content-Type", "application/json")
+		}
+		w.WriteHeader(status)
+		_, _ = w.Write([]byte(body))
+	}))
+	t.Cleanup(server.Close)
+
+	return NewClient(&Config{BaseURL: server.URL}, &StaticTokenProvider{Token: "test-token"}, WithMaxRetries(0))
+}
+
+// newJSONStatusTestClient answers every request with the same status and body.
+func newJSONStatusTestClient(t *testing.T, status int, body string) *Client {
+	t.Helper()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(status)
+		_, _ = w.Write([]byte(body))
+	}))
+	t.Cleanup(server.Close)
+
+	return NewClient(&Config{BaseURL: server.URL}, &StaticTokenProvider{Token: "test-token"}, WithMaxRetries(0))
 }
 
 // --- Time track categories and exports ---

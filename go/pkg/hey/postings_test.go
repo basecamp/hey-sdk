@@ -6,10 +6,11 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
-	"net/url"
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/basecamp/hey-sdk/go/pkg/generated"
 )
 
 const boxesJSON = `[{"id":24088,"kind":"imbox","name":"Imbox"},{"id":24089,"kind":"feedbox","name":"The Feed"},{"id":24090,"kind":"asidebox","name":"Set Aside"},{"id":24091,"kind":"laterbox","name":"Reply Later"},{"id":24092,"kind":"trailbox","name":"Paper Trail"}]`
@@ -250,17 +251,19 @@ func TestTimeTracksService_StartConflict(t *testing.T) {
 // --- Behaviour fixes from the #64 review ---
 
 func TestContactsService_UpdateMergesUnsetFields(t *testing.T) {
-	var form url.Values
+	var sent generated.ContactRequestContent
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch {
 		case r.Method == http.MethodGet && r.URL.Path == "/contacts/7.json":
 			w.Header().Set("Content-Type", "application/json")
 			_, _ = w.Write([]byte(`{"id":7,"name":"Jane Dawson","email_address":"jane@x.com","aliases":[{"id":8,"email_address":"jd@x.com"},{"id":9,"email_address":"jane.d@x.com"}]}`))
-		case r.Method == http.MethodPatch && r.URL.Path == "/contacts/7":
-			_ = r.ParseForm()
-			form = r.PostForm
-			w.Header().Set("Location", srv0URL(r)+"/contacts/7")
-			w.WriteHeader(http.StatusFound)
+		case r.Method == http.MethodPatch && r.URL.Path == "/contacts/7.json":
+			sent = generated.ContactRequestContent{}
+			if err := json.NewDecoder(r.Body).Decode(&sent); err != nil {
+				t.Errorf("decoding the request body: %v", err)
+			}
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"id":7,"name":"Jane Dawson","email_address":"new@x.com"}`))
 		default:
 			w.WriteHeader(404)
 		}
@@ -269,32 +272,34 @@ func TestContactsService_UpdateMergesUnsetFields(t *testing.T) {
 	c := NewClient(&Config{BaseURL: srv.URL}, &StaticTokenProvider{Token: "t"}, WithMaxRetries(0))
 
 	// Only the email changes: name and both aliases must be carried over.
-	if err := c.Contacts().Update(context.Background(), 7, ContactParams{EmailAddress: "new@x.com"}); err != nil {
+	contact, err := c.Contacts().Update(context.Background(), 7, ContactParams{EmailAddress: "new@x.com"})
+	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if got := form.Get("contact[name]"); got != "Jane Dawson" {
-		t.Errorf("name should be preserved, got %q", got)
+	if contact == nil || contact.Id != 7 {
+		t.Errorf("expected the updated contact, got %+v", contact)
 	}
-	if got := form.Get("contact[email_address]"); got != "new@x.com" {
-		t.Errorf("email should be updated, got %q", got)
+	if sent.Contact.Name != "Jane Dawson" {
+		t.Errorf("name should be preserved, got %q", sent.Contact.Name)
 	}
-	if got := form["contact[alias_email_addresses][]"]; len(got) != 2 || got[0] != "jd@x.com" {
+	if sent.Contact.EmailAddress != "new@x.com" {
+		t.Errorf("email should be updated, got %q", sent.Contact.EmailAddress)
+	}
+	if got := sent.Contact.AliasEmailAddresses; len(got) != 2 || got[0] != "jd@x.com" {
 		t.Errorf("aliases should be preserved, got %v", got)
 	}
 
 	// An explicit empty alias list clears them.
-	if err := c.Contacts().Update(context.Background(), 7, ContactParams{AliasEmailAddresses: []string{}}); err != nil {
+	if _, err := c.Contacts().Update(context.Background(), 7, ContactParams{AliasEmailAddresses: []string{}}); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if got := form["contact[alias_email_addresses][]"]; len(got) != 0 {
+	if got := sent.Contact.AliasEmailAddresses; len(got) != 0 {
 		t.Errorf("explicit empty aliases should clear them, got %v", got)
 	}
-	if got := form.Get("contact[name]"); got != "Jane Dawson" {
-		t.Errorf("name should still be preserved, got %q", got)
+	if sent.Contact.Name != "Jane Dawson" {
+		t.Errorf("name should still be preserved, got %q", sent.Contact.Name)
 	}
 }
-
-func srv0URL(r *http.Request) string { return "http://" + r.Host }
 
 func TestPublicationsService_CreateIsOneOperation(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

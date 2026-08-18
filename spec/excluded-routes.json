@@ -1380,21 +1380,6 @@
     "reason": "phase-2: contact CRUD"
   },
   {
-    "method": "POST",
-    "path": "/contacts/{contact_id}/reveal",
-    "reason": "phase-2: contact CRUD"
-  },
-  {
-    "method": "DELETE",
-    "path": "/contacts/{id}",
-    "reason": "phase-2: contact CRUD"
-  },
-  {
-    "method": "PATCH",
-    "path": "/contacts/{id}",
-    "reason": "phase-2: contact CRUD"
-  },
-  {
     "method": "PUT",
     "path": "/contacts/{id}",
     "reason": "phase-2: contact CRUD"
@@ -1483,21 +1468,6 @@
     "method": "PUT",
     "path": "/contacts/imports/{id}",
     "reason": "phase-2: contact import"
-  },
-  {
-    "method": "DELETE",
-    "path": "/contacts/{contact_id}/note",
-    "reason": "phase-2: contact notes"
-  },
-  {
-    "method": "GET",
-    "path": "/contacts/{contact_id}/note",
-    "reason": "phase-2: contact notes"
-  },
-  {
-    "method": "PATCH",
-    "path": "/contacts/{contact_id}/note",
-    "reason": "phase-2: contact notes"
   },
   {
     "method": "POST",
@@ -2032,11 +2002,6 @@
   {
     "method": "POST",
     "path": "/calendars",
-    "reason": "phase-2: mobile triage surface"
-  },
-  {
-    "method": "POST",
-    "path": "/contacts",
     "reason": "phase-2: mobile triage surface"
   },
   {

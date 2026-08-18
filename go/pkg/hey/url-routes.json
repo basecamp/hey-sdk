@@ -326,6 +326,14 @@
       "pattern": "/contacts",
       "resource": "Contacts",
       "operations": {
+        "POST": "CreateContact"
+      },
+      "params": {}
+    },
+    {
+      "pattern": "/contacts",
+      "resource": "Contacts",
+      "operations": {
         "GET": "ListContacts"
       },
       "params": {}
@@ -334,7 +342,9 @@
       "pattern": "/contacts/{contactId}",
       "resource": "Contacts",
       "operations": {
-        "GET": "GetContact"
+        "DELETE": "HideContact",
+        "GET": "GetContact",
+        "PATCH": "UpdateContact"
       },
       "params": {
         "contactId": {
@@ -362,6 +372,34 @@
       "resource": "Contacts",
       "operations": {
         "PATCH": "UpdateContactClearance"
+      },
+      "params": {
+        "contactId": {
+          "role": "parent",
+          "type": "int64"
+        }
+      }
+    },
+    {
+      "pattern": "/contacts/{contactId}/note",
+      "resource": "Contacts",
+      "operations": {
+        "DELETE": "DeleteContactNote",
+        "GET": "GetContactNote",
+        "PATCH": "UpdateContactNote"
+      },
+      "params": {
+        "contactId": {
+          "role": "parent",
+          "type": "int64"
+        }
+      }
+    },
+    {
+      "pattern": "/contacts/{contactId}/reveal",
+      "resource": "Contacts",
+      "operations": {
+        "POST": "RevealContact"
       },
       "params": {
         "contactId": {

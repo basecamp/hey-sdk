@@ -135,6 +135,19 @@
         ]
       }
     },
+    "CreateContact": {
+      "idempotent": false,
+      "readonly": false,
+      "retry": {
+        "backoff": "exponential",
+        "base_delay_ms": 1000,
+        "max": 2,
+        "retry_on": [
+          429,
+          503
+        ]
+      }
+    },
     "CreateFolderForPostings": {
       "idempotent": false,
       "readonly": false,
@@ -246,6 +259,19 @@
         "backoff": "exponential",
         "base_delay_ms": 1000,
         "max": 3,
+        "retry_on": [
+          429,
+          503
+        ]
+      }
+    },
+    "DeleteContactNote": {
+      "idempotent": true,
+      "readonly": false,
+      "retry": {
+        "backoff": "exponential",
+        "base_delay_ms": 1000,
+        "max": 2,
         "retry_on": [
           429,
           503
@@ -412,6 +438,19 @@
       }
     },
     "GetContact": {
+      "idempotent": false,
+      "readonly": true,
+      "retry": {
+        "backoff": "exponential",
+        "base_delay_ms": 1000,
+        "max": 3,
+        "retry_on": [
+          429,
+          503
+        ]
+      }
+    },
+    "GetContactNote": {
       "idempotent": false,
       "readonly": true,
       "retry": {
@@ -679,6 +718,19 @@
         "backoff": "exponential",
         "base_delay_ms": 1000,
         "max": 3,
+        "retry_on": [
+          429,
+          503
+        ]
+      }
+    },
+    "HideContact": {
+      "idempotent": true,
+      "readonly": false,
+      "retry": {
+        "backoff": "exponential",
+        "base_delay_ms": 1000,
+        "max": 2,
         "retry_on": [
           429,
           503
@@ -1013,6 +1065,19 @@
         ]
       }
     },
+    "RevealContact": {
+      "idempotent": false,
+      "readonly": false,
+      "retry": {
+        "backoff": "exponential",
+        "base_delay_ms": 1000,
+        "max": 2,
+        "retry_on": [
+          429,
+          503
+        ]
+      }
+    },
     "StartTimeTrack": {
       "idempotent": false,
       "readonly": false,
@@ -1143,7 +1208,33 @@
         ]
       }
     },
+    "UpdateContact": {
+      "idempotent": true,
+      "readonly": false,
+      "retry": {
+        "backoff": "exponential",
+        "base_delay_ms": 1000,
+        "max": 2,
+        "retry_on": [
+          429,
+          503
+        ]
+      }
+    },
     "UpdateContactClearance": {
+      "idempotent": true,
+      "readonly": false,
+      "retry": {
+        "backoff": "exponential",
+        "base_delay_ms": 1000,
+        "max": 2,
+        "retry_on": [
+          429,
+          503
+        ]
+      }
+    },
+    "UpdateContactNote": {
       "idempotent": true,
       "readonly": false,
       "retry": {

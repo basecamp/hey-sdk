@@ -3,7 +3,7 @@ package hey
 import (
 	"context"
 	"fmt"
-	"net/url"
+	"net/http"
 	"time"
 
 	"github.com/basecamp/hey-sdk/go/pkg/generated"
@@ -153,8 +153,24 @@ func (s *ContactsService) Clearances(ctx context.Context) (result *generated.Cle
 }
 
 // --- Contact CRUD and notes ---
+
+// ContactConflictError is returned when a contact write submits an email address that
+// already belongs to another contact. HEY's web sends you to a merge form at that point;
+// ConflictingContactIDs are the contacts it would have offered to merge with.
 //
-// HEY has no JSON surface for writing contacts: each of these answers with a redirect.
+// It wraps the SDK's conflict error, so errors.As still finds a *hey.Error with
+// CodeConflict for callers that only care that the write was refused.
+type ContactConflictError struct {
+	ConflictingContactIDs []int64
+
+	err *Error
+}
+
+// Error implements the error interface.
+func (e *ContactConflictError) Error() string { return e.err.Error() }
+
+// Unwrap returns the underlying conflict error.
+func (e *ContactConflictError) Unwrap() error { return e.err }
 
 // ContactParams describes a contact.
 type ContactParams struct {
@@ -166,42 +182,48 @@ type ContactParams struct {
 	AliasEmailAddresses []string
 }
 
-// Create adds a contact and returns its id.
-func (s *ContactsService) Create(ctx context.Context, params ContactParams) (id int64, err error) {
+// Create adds a contact and returns it.
+func (s *ContactsService) Create(ctx context.Context, params ContactParams) (contact *generated.Contact, err error) {
 	op := OperationInfo{
 		Service: "Contacts", Operation: "CreateContact",
 		ResourceType: "contact", IsMutation: true,
 	}
 
 	err = s.client.instrument(ctx, op, func(ctx context.Context) error {
-		resp, rerr := s.client.PostForm(ctx, "/contacts", contactForm(params))
+		resp, rerr := s.client.genClient().CreateContactWithResponse(ctx, contactBody(params))
 		if rerr != nil {
 			return rerr
 		}
-		id, rerr = resp.ExtractID()
-		return rerr
+		if cerr := contactWriteError(resp.JSON409, resp.JSON422, resp.HTTPResponse); cerr != nil {
+			return cerr
+		}
+		contact = resp.JSON201
+		return nil
 	})
-	return id, err
+	return contact, err
 }
 
-// Update edits a contact. Empty fields are left alone, except AliasEmailAddresses, which
-// replaces the whole list when it is non-nil.
+// Update edits a contact and returns it. Empty fields are left alone, except
+// AliasEmailAddresses, which replaces the whole list when it is non-nil.
 //
 // HEY's update is a full replacement (Contact::Ingress::Revise rewrites name, email and
 // removes any alias not submitted), so the current contact is read first and unset
-// fields are filled in from it before the form is sent. That read-then-write is not
-// atomic: a change made to the contact between the two requests is overwritten with
-// what was read. Pass every field explicitly when that matters.
-func (s *ContactsService) Update(ctx context.Context, contactID int64, params ContactParams) error {
+// fields are filled in from it before the write. That read-then-write is not atomic: a
+// change made to the contact in between is overwritten with what was read. Pass every
+// field explicitly when that matters.
+//
+// The contact that comes back is not always the one addressed: promoting an alias to the
+// main address makes the alias the primary contact, and that is the one returned.
+func (s *ContactsService) Update(ctx context.Context, contactID int64, params ContactParams) (contact *generated.Contact, err error) {
 	op := OperationInfo{
 		Service: "Contacts", Operation: "UpdateContact",
 		ResourceType: "contact", IsMutation: true, ResourceID: contactID,
 	}
 
-	return s.client.instrument(ctx, op, func(ctx context.Context) error {
-		current, err := s.get(ctx, contactID)
-		if err != nil {
-			return err
+	err = s.client.instrument(ctx, op, func(ctx context.Context) error {
+		current, rerr := s.get(ctx, contactID)
+		if rerr != nil {
+			return rerr
 		}
 		merged := params
 		if merged.Name == "" {
@@ -215,9 +237,18 @@ func (s *ContactsService) Update(ctx context.Context, contactID int64, params Co
 				merged.AliasEmailAddresses = append(merged.AliasEmailAddresses, alias.EmailAddress)
 			}
 		}
-		_, err = s.client.PatchForm(ctx, fmt.Sprintf("/contacts/%d", contactID), contactForm(merged))
-		return err
+
+		resp, rerr := s.client.genClient().UpdateContactWithResponse(ctx, contactID, contactBody(merged))
+		if rerr != nil {
+			return rerr
+		}
+		if cerr := contactWriteError(resp.JSON409, resp.JSON422, resp.HTTPResponse); cerr != nil {
+			return cerr
+		}
+		contact = resp.JSON200
+		return nil
 	})
+	return contact, err
 }
 
 // Hide takes a contact out of the contact list. Nothing is deleted — Reveal brings them back.
@@ -228,38 +259,81 @@ func (s *ContactsService) Hide(ctx context.Context, contactID int64) error {
 	}
 
 	return s.client.instrument(ctx, op, func(ctx context.Context) error {
-		_, err := s.client.DeleteForm(ctx, fmt.Sprintf("/contacts/%d", contactID))
-		return err
+		resp, err := s.client.genClient().HideContactWithResponse(ctx, contactID)
+		if err != nil {
+			return err
+		}
+		return CheckResponse(resp.HTTPResponse)
 	})
 }
 
-// Reveal puts a hidden contact back in the contact list.
-func (s *ContactsService) Reveal(ctx context.Context, contactID int64) error {
+// Reveal puts a hidden contact back in the contact list and returns it.
+func (s *ContactsService) Reveal(ctx context.Context, contactID int64) (contact *generated.Contact, err error) {
 	op := OperationInfo{
 		Service: "Contacts", Operation: "RevealContact",
 		ResourceType: "contact", IsMutation: true, ResourceID: contactID,
 	}
 
-	return s.client.instrument(ctx, op, func(ctx context.Context) error {
-		_, err := s.client.PostForm(ctx, fmt.Sprintf("/contacts/%d/reveal", contactID), url.Values{})
-		return err
+	err = s.client.instrument(ctx, op, func(ctx context.Context) error {
+		resp, rerr := s.client.genClient().RevealContactWithResponse(ctx, contactID)
+		if rerr != nil {
+			return rerr
+		}
+		if cerr := CheckResponse(resp.HTTPResponse); cerr != nil {
+			return cerr
+		}
+		contact = resp.JSON200
+		return nil
 	})
+	return contact, err
 }
 
-// SetNote writes the private note you keep on a contact, replacing whatever was there.
-func (s *ContactsService) SetNote(ctx context.Context, contactID int64, note string) error {
+// Note returns the private note kept on a contact. Its fields are empty strings when
+// there is no note.
+func (s *ContactsService) Note(ctx context.Context, contactID int64) (note *generated.ContactNote, err error) {
+	op := OperationInfo{
+		Service: "Contacts", Operation: "GetContactNote",
+		ResourceType: "note", IsMutation: false, ResourceID: contactID,
+	}
+
+	err = s.client.instrument(ctx, op, func(ctx context.Context) error {
+		resp, rerr := s.client.genClient().GetContactNoteWithResponse(ctx, contactID)
+		if rerr != nil {
+			return rerr
+		}
+		if cerr := CheckResponse(resp.HTTPResponse); cerr != nil {
+			return cerr
+		}
+		note = resp.JSON200
+		return nil
+	})
+	return note, err
+}
+
+// SetNote writes the private note you keep on a contact, replacing whatever was there,
+// and returns the note as it now reads.
+func (s *ContactsService) SetNote(ctx context.Context, contactID int64, note string) (result *generated.ContactNote, err error) {
 	op := OperationInfo{
 		Service: "Contacts", Operation: "UpdateContactNote",
 		ResourceType: "note", IsMutation: true, ResourceID: contactID,
 	}
 
-	return s.client.instrument(ctx, op, func(ctx context.Context) error {
-		values := url.Values{}
-		values.Set("contact[note]", note)
+	err = s.client.instrument(ctx, op, func(ctx context.Context) error {
+		body := generated.UpdateContactNoteJSONRequestBody{
+			Contact: generated.ContactNotePayload{Note: note},
+		}
 
-		_, err := s.client.PatchForm(ctx, fmt.Sprintf("/contacts/%d/note", contactID), values)
-		return err
+		resp, rerr := s.client.genClient().UpdateContactNoteWithResponse(ctx, contactID, body)
+		if rerr != nil {
+			return rerr
+		}
+		if cerr := contactWriteError(nil, resp.JSON422, resp.HTTPResponse); cerr != nil {
+			return cerr
+		}
+		result = resp.JSON200
+		return nil
 	})
+	return result, err
 }
 
 // DeleteNote clears the private note on a contact.
@@ -270,21 +344,38 @@ func (s *ContactsService) DeleteNote(ctx context.Context, contactID int64) error
 	}
 
 	return s.client.instrument(ctx, op, func(ctx context.Context) error {
-		_, err := s.client.DeleteForm(ctx, fmt.Sprintf("/contacts/%d/note", contactID))
-		return err
+		resp, err := s.client.genClient().DeleteContactNoteWithResponse(ctx, contactID)
+		if err != nil {
+			return err
+		}
+		return CheckResponse(resp.HTTPResponse)
 	})
 }
 
-// contactForm renders the contact params as the nested form the server expects. The contact
-// key is always present because the server requires it, even on a partial update.
-func contactForm(params ContactParams) url.Values {
-	values := url.Values{}
-	values.Set("contact[name]", params.Name)
-	if params.EmailAddress != "" {
-		values.Set("contact[email_address]", params.EmailAddress)
+// contactBody renders the contact params as the nested body the server expects. The
+// contact key is always present because the server requires it, even on a partial write.
+func contactBody(params ContactParams) generated.ContactRequestContent {
+	return generated.ContactRequestContent{
+		Contact: generated.ContactPayload{
+			Name:                params.Name,
+			EmailAddress:        params.EmailAddress,
+			AliasEmailAddresses: params.AliasEmailAddresses,
+		},
 	}
-	for _, alias := range params.AliasEmailAddresses {
-		values.Add("contact[alias_email_addresses][]", alias)
+}
+
+// contactWriteError turns the two refusals a contact write can answer with into typed
+// errors — an email address that belongs to someone else, and a contact the model itself
+// rejected — and falls back to the usual status handling.
+func contactWriteError(conflict *generated.ConflictErrorResponseContent, invalid *generated.UnprocessableEntityErrorResponseContent, resp *http.Response) error {
+	if conflict != nil {
+		return &ContactConflictError{
+			ConflictingContactIDs: conflict.ConflictingContactIds,
+			err:                   ErrConflict(conflict.Error),
+		}
 	}
-	return values
+	if invalid != nil {
+		return ErrValidation(invalid.Errors...)
+	}
+	return CheckResponse(resp)
 }

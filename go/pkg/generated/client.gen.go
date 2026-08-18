@@ -246,7 +246,10 @@ type CompleteHabitResponseContent = Recording
 // ConflictErrorResponseContent The request conflicts with current state, e.g. starting a time track while one
 // is already ongoing (haystack answers {"error": "..."} with 409).
 type ConflictErrorResponseContent struct {
-	Error string `json:"error"`
+	// ConflictingContactIds Contact writes only: the contacts already holding the email addresses that
+	// were sent, so a client can offer the merge the web offers.
+	ConflictingContactIds []int64 `json:"conflicting_contact_ids,omitempty"`
+	Error                 string  `json:"error"`
 }
 
 // Contact Contact — the identity of someone in HEY
@@ -289,6 +292,38 @@ type ContactDetail struct {
 	UpdatedAt time.Time `json:"updated_at,omitempty"`
 }
 
+// ContactNote A contact's private note. Empty strings when there is no note.
+type ContactNote struct {
+	ContactId int64  `json:"contact_id"`
+	Note      string `json:"note"`
+
+	// NoteHtml The note as editor HTML, the same markup the web hands Trix.
+	NoteHtml string `json:"note_html"`
+}
+
+// ContactNotePayload defines model for ContactNotePayload.
+type ContactNotePayload struct {
+	Note string `json:"note"`
+}
+
+// ContactNoteRequestContent Wire format: {contact: {note: "..."}}
+type ContactNoteRequestContent struct {
+	Contact ContactNotePayload `json:"contact"`
+}
+
+// ContactPayload defines model for ContactPayload.
+type ContactPayload struct {
+	// AliasEmailAddresses Sending the list replaces it: an address left out stops being an alias.
+	AliasEmailAddresses []string `json:"alias_email_addresses,omitempty"`
+	EmailAddress        string   `json:"email_address,omitempty"`
+	Name                string   `json:"name"`
+}
+
+// ContactRequestContent Wire format: {contact: {name, email_address, alias_email_addresses: [...]}}
+type ContactRequestContent struct {
+	Contact ContactPayload `json:"contact"`
+}
+
 // CreateBoxDesignationRequestContent defines model for CreateBoxDesignationRequestContent.
 type CreateBoxDesignationRequestContent struct {
 	ContactId int64 `json:"contact_id"`
@@ -309,6 +344,9 @@ type CreateCalendarTodoRequestContent struct {
 
 // CreateCalendarTodoResponseContent Recording — polymorphic by `type` (CalendarEvent, CalendarTodo, etc.)
 type CreateCalendarTodoResponseContent = Recording
+
+// CreateContactResponseContent Contact — the identity of someone in HEY
+type CreateContactResponseContent = Contact
 
 // CreateFolderForPostingsRequestContent Wire format: {posting_ids: [...], folder: {name, status}}
 type CreateFolderForPostingsRequestContent struct {
@@ -470,6 +508,9 @@ type GetCalendarRecordingsResponseContent = CalendarRecordingsResponse
 
 // GetClearancesResponseContent ClearanceSummary — the screener's pending count, not the clearances themselves
 type GetClearancesResponseContent = ClearanceSummary
+
+// GetContactNoteResponseContent A contact's private note. Empty strings when there is no note.
+type GetContactNoteResponseContent = ContactNote
 
 // GetContactResponseContent ContactDetail — extended contact with additional show fields
 type GetContactResponseContent = ContactDetail
@@ -926,6 +967,9 @@ type ReplyMessagePayload struct {
 	Content string `json:"content"`
 }
 
+// RevealContactResponseContent Contact — the identity of someone in HEY
+type RevealContactResponseContent = Contact
+
 // SearchFilterItem SearchFilterItem — one option offered by the advanced search refine form
 type SearchFilterItem struct {
 	Title string `json:"title,omitempty"`
@@ -1090,9 +1134,11 @@ type UncompleteCalendarTodoResponseContent = Recording
 // UncompleteHabitResponseContent Recording — polymorphic by `type` (CalendarEvent, CalendarTodo, etc.)
 type UncompleteHabitResponseContent = Recording
 
-// UnprocessableEntityErrorResponseContent defines model for UnprocessableEntityErrorResponseContent.
+// UnprocessableEntityErrorResponseContent The server rejected what was sent. HEY answers {"errors": ["..."]} — the messages
+// the model itself produced — so a client can show them as they are.
 type UnprocessableEntityErrorResponseContent struct {
-	Message string `json:"message"`
+	Errors  []string `json:"errors,omitempty"`
+	Message string   `json:"message,omitempty"`
 }
 
 // UpdateCollectionRequestContent Wire format: {collection: {name, summary}}
@@ -1104,6 +1150,12 @@ type UpdateCollectionRequestContent struct {
 type UpdateContactClearanceRequestContent struct {
 	Status string `json:"status"`
 }
+
+// UpdateContactNoteResponseContent A contact's private note. Empty strings when there is no note.
+type UpdateContactNoteResponseContent = ContactNote
+
+// UpdateContactResponseContent Contact — the identity of someone in HEY
+type UpdateContactResponseContent = Contact
 
 // UpdateHabitResponseContent Recording — polymorphic by `type` (CalendarEvent, CalendarTodo, etc.)
 type UpdateHabitResponseContent = Recording
@@ -1373,8 +1425,17 @@ type CreateCalendarTodoJSONRequestBody = CreateCalendarTodoRequestContent
 // UpdateCollectionJSONRequestBody defines body for UpdateCollection for application/json ContentType.
 type UpdateCollectionJSONRequestBody = UpdateCollectionRequestContent
 
+// CreateContactJSONRequestBody defines body for CreateContact for application/json ContentType.
+type CreateContactJSONRequestBody = ContactRequestContent
+
+// UpdateContactJSONRequestBody defines body for UpdateContact for application/json ContentType.
+type UpdateContactJSONRequestBody = ContactRequestContent
+
 // UpdateContactClearanceJSONRequestBody defines body for UpdateContactClearance for application/json ContentType.
 type UpdateContactClearanceJSONRequestBody = UpdateContactClearanceRequestContent
+
+// UpdateContactNoteJSONRequestBody defines body for UpdateContactNote for application/json ContentType.
+type UpdateContactNoteJSONRequestBody = ContactNoteRequestContent
 
 // CreateReplyJSONRequestBody defines body for CreateReply for application/json ContentType.
 type CreateReplyJSONRequestBody = CreateReplyRequestContent
@@ -1778,11 +1839,24 @@ type ClientInterface interface {
 
 	UpdateCollection(ctx context.Context, collectionId int64, body UpdateCollectionJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// CreateContactWithBody request with any body
+	CreateContactWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	CreateContact(ctx context.Context, body CreateContactJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// ListContacts request
 	ListContacts(ctx context.Context, params *ListContactsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// HideContact request
+	HideContact(ctx context.Context, contactId int64, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// GetContact request
 	GetContact(ctx context.Context, contactId int64, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// UpdateContactWithBody request with any body
+	UpdateContactWithBody(ctx context.Context, contactId int64, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	UpdateContact(ctx context.Context, contactId int64, body UpdateContactJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// UnbundleContact request
 	UnbundleContact(ctx context.Context, contactId int64, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -1794,6 +1868,20 @@ type ClientInterface interface {
 	UpdateContactClearanceWithBody(ctx context.Context, contactId int64, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	UpdateContactClearance(ctx context.Context, contactId int64, body UpdateContactClearanceJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DeleteContactNote request
+	DeleteContactNote(ctx context.Context, contactId int64, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetContactNote request
+	GetContactNote(ctx context.Context, contactId int64, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// UpdateContactNoteWithBody request with any body
+	UpdateContactNoteWithBody(ctx context.Context, contactId int64, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	UpdateContactNote(ctx context.Context, contactId int64, body UpdateContactNoteJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// RevealContact request
+	RevealContact(ctx context.Context, contactId int64, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ListDrafts request
 	ListDrafts(ctx context.Context, params *ListDraftsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -2518,6 +2606,36 @@ func (c *Client) UpdateCollection(ctx context.Context, collectionId int64, body 
 
 }
 
+// CreateContactWithBody executes the CreateContact operation.
+
+func (c *Client) CreateContactWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+
+	req, err := NewCreateContactRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+
+}
+
+func (c *Client) CreateContact(ctx context.Context, body CreateContactJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+
+	req, err := NewCreateContactRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+
+}
+
 // ListContacts is marked as idempotent and will be retried on transient failures.
 
 func (c *Client) ListContacts(ctx context.Context, params *ListContactsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -2528,6 +2646,16 @@ func (c *Client) ListContacts(ctx context.Context, params *ListContactsParams, r
 
 }
 
+// HideContact is marked as idempotent and will be retried on transient failures.
+
+func (c *Client) HideContact(ctx context.Context, contactId int64, reqEditors ...RequestEditorFn) (*http.Response, error) {
+
+	return c.doWithRetry(ctx, func() (*http.Request, error) {
+		return NewHideContactRequest(c.Server, contactId)
+	}, true, "HideContact", reqEditors...)
+
+}
+
 // GetContact is marked as idempotent and will be retried on transient failures.
 
 func (c *Client) GetContact(ctx context.Context, contactId int64, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -2535,6 +2663,36 @@ func (c *Client) GetContact(ctx context.Context, contactId int64, reqEditors ...
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
 		return NewGetContactRequest(c.Server, contactId)
 	}, true, "GetContact", reqEditors...)
+
+}
+
+// UpdateContactWithBody executes the UpdateContact operation.
+
+func (c *Client) UpdateContactWithBody(ctx context.Context, contactId int64, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+
+	req, err := NewUpdateContactRequestWithBody(c.Server, contactId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+
+}
+
+func (c *Client) UpdateContact(ctx context.Context, contactId int64, body UpdateContactJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+
+	req, err := NewUpdateContactRequest(c.Server, contactId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
 
 }
 
@@ -2583,6 +2741,72 @@ func (c *Client) UpdateContactClearanceWithBody(ctx context.Context, contactId i
 func (c *Client) UpdateContactClearance(ctx context.Context, contactId int64, body UpdateContactClearanceJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 
 	req, err := NewUpdateContactClearanceRequest(c.Server, contactId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+
+}
+
+// DeleteContactNote is marked as idempotent and will be retried on transient failures.
+
+func (c *Client) DeleteContactNote(ctx context.Context, contactId int64, reqEditors ...RequestEditorFn) (*http.Response, error) {
+
+	return c.doWithRetry(ctx, func() (*http.Request, error) {
+		return NewDeleteContactNoteRequest(c.Server, contactId)
+	}, true, "DeleteContactNote", reqEditors...)
+
+}
+
+// GetContactNote is marked as idempotent and will be retried on transient failures.
+
+func (c *Client) GetContactNote(ctx context.Context, contactId int64, reqEditors ...RequestEditorFn) (*http.Response, error) {
+
+	return c.doWithRetry(ctx, func() (*http.Request, error) {
+		return NewGetContactNoteRequest(c.Server, contactId)
+	}, true, "GetContactNote", reqEditors...)
+
+}
+
+// UpdateContactNoteWithBody executes the UpdateContactNote operation.
+
+func (c *Client) UpdateContactNoteWithBody(ctx context.Context, contactId int64, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+
+	req, err := NewUpdateContactNoteRequestWithBody(c.Server, contactId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+
+}
+
+func (c *Client) UpdateContactNote(ctx context.Context, contactId int64, body UpdateContactNoteJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+
+	req, err := NewUpdateContactNoteRequest(c.Server, contactId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+
+}
+
+// RevealContact executes the RevealContact operation.
+
+func (c *Client) RevealContact(ctx context.Context, contactId int64, reqEditors ...RequestEditorFn) (*http.Response, error) {
+
+	req, err := NewRevealContactRequest(c.Server, contactId)
 	if err != nil {
 		return nil, err
 	}
@@ -4983,6 +5207,46 @@ func NewUpdateCollectionRequestWithBody(server string, collectionId int64, conte
 	return req, nil
 }
 
+// NewCreateContactRequest calls the generic CreateContact builder with application/json body
+func NewCreateContactRequest(server string, body CreateContactJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewCreateContactRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewCreateContactRequestWithBody generates requests for CreateContact with any type of body
+func NewCreateContactRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/contacts")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
 // NewListContactsRequest generates requests for ListContacts
 func NewListContactsRequest(server string, params *ListContactsParams) (*http.Request, error) {
 	var err error
@@ -5048,6 +5312,40 @@ func NewListContactsRequest(server string, params *ListContactsParams) (*http.Re
 	return req, nil
 }
 
+// NewHideContactRequest generates requests for HideContact
+func NewHideContactRequest(server string, contactId int64) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "contactId", runtime.ParamLocationPath, contactId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/contacts/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("DELETE", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewGetContactRequest generates requests for GetContact
 func NewGetContactRequest(server string, contactId int64) (*http.Request, error) {
 	var err error
@@ -5078,6 +5376,53 @@ func NewGetContactRequest(server string, contactId int64) (*http.Request, error)
 	if err != nil {
 		return nil, err
 	}
+
+	return req, nil
+}
+
+// NewUpdateContactRequest calls the generic UpdateContact builder with application/json body
+func NewUpdateContactRequest(server string, contactId int64, body UpdateContactJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewUpdateContactRequestWithBody(server, contactId, "application/json", bodyReader)
+}
+
+// NewUpdateContactRequestWithBody generates requests for UpdateContact with any type of body
+func NewUpdateContactRequestWithBody(server string, contactId int64, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "contactId", runtime.ParamLocationPath, contactId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/contacts/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("PATCH", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
 
 	return req, nil
 }
@@ -5193,6 +5538,155 @@ func NewUpdateContactClearanceRequestWithBody(server string, contactId int64, co
 	}
 
 	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewDeleteContactNoteRequest generates requests for DeleteContactNote
+func NewDeleteContactNoteRequest(server string, contactId int64) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "contactId", runtime.ParamLocationPath, contactId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/contacts/%s/note", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("DELETE", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetContactNoteRequest generates requests for GetContactNote
+func NewGetContactNoteRequest(server string, contactId int64) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "contactId", runtime.ParamLocationPath, contactId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/contacts/%s/note", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewUpdateContactNoteRequest calls the generic UpdateContactNote builder with application/json body
+func NewUpdateContactNoteRequest(server string, contactId int64, body UpdateContactNoteJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewUpdateContactNoteRequestWithBody(server, contactId, "application/json", bodyReader)
+}
+
+// NewUpdateContactNoteRequestWithBody generates requests for UpdateContactNote with any type of body
+func NewUpdateContactNoteRequestWithBody(server string, contactId int64, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "contactId", runtime.ParamLocationPath, contactId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/contacts/%s/note", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("PATCH", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewRevealContactRequest generates requests for RevealContact
+func NewRevealContactRequest(server string, contactId int64) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "contactId", runtime.ParamLocationPath, contactId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/contacts/%s/reveal", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
 
 	return req, nil
 }
@@ -7264,11 +7758,18 @@ var operationMetadata = map[string]OperationMetadata{
 	"ListClips":                  {Idempotent: true, HasSensitiveParams: false},
 	"ListCollections":            {Idempotent: true, HasSensitiveParams: false},
 	"UpdateCollection":           {Idempotent: false, HasSensitiveParams: false},
+	"CreateContact":              {Idempotent: false, HasSensitiveParams: false},
 	"ListContacts":               {Idempotent: true, HasSensitiveParams: false},
+	"HideContact":                {Idempotent: true, HasSensitiveParams: false},
 	"GetContact":                 {Idempotent: true, HasSensitiveParams: false},
+	"UpdateContact":              {Idempotent: false, HasSensitiveParams: false},
 	"UnbundleContact":            {Idempotent: true, HasSensitiveParams: false},
 	"BundleContact":              {Idempotent: false, HasSensitiveParams: false},
 	"UpdateContactClearance":     {Idempotent: false, HasSensitiveParams: false},
+	"DeleteContactNote":          {Idempotent: true, HasSensitiveParams: false},
+	"GetContactNote":             {Idempotent: true, HasSensitiveParams: false},
+	"UpdateContactNote":          {Idempotent: false, HasSensitiveParams: false},
+	"RevealContact":              {Idempotent: false, HasSensitiveParams: false},
 	"ListDrafts":                 {Idempotent: true, HasSensitiveParams: false},
 	"NewEntryForward":            {Idempotent: true, HasSensitiveParams: false},
 	"CreateReply":                {Idempotent: false, HasSensitiveParams: false},
@@ -8254,6 +8755,20 @@ type ClientWithResponsesInterface interface {
 	// Rename a collection or change its summary.
 	UpdateCollectionWithResponse(ctx context.Context, collectionId int64, body UpdateCollectionJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateCollectionResponse, error)
 
+	// CreateContactWithBodyWithResponse performs a POST /contacts (the `CreateContact` operationId) request,
+	// with any type of body and a specified content type.
+	//
+	// Add a contact. Answers the contact that was created.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	CreateContactWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateContactResponse, error)
+
+	// CreateContactWithResponse performs a POST /contacts (the `CreateContact` operationId) request.
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Add a contact. Answers the contact that was created.
+	CreateContactWithResponse(ctx context.Context, body CreateContactJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateContactResponse, error)
+
 	// ListContactsWithResponse performs a GET /contacts.json (the `ListContacts` operationId) request.
 	//
 	// List contacts.
@@ -8261,12 +8776,37 @@ type ClientWithResponsesInterface interface {
 	// Returns a wrapper object for the known response body format(s).
 	ListContactsWithResponse(ctx context.Context, params *ListContactsParams, reqEditors ...RequestEditorFn) (*ListContactsResponse, error)
 
+	// HideContactWithResponse performs a DELETE /contacts/{contactId} (the `HideContact` operationId) request.
+	//
+	// Hide a contact. Nothing is deleted — RevealContact brings them back.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	HideContactWithResponse(ctx context.Context, contactId int64, reqEditors ...RequestEditorFn) (*HideContactResponse, error)
+
 	// GetContactWithResponse performs a GET /contacts/{contactId} (the `GetContact` operationId) request.
 	//
 	// Get a contact.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	GetContactWithResponse(ctx context.Context, contactId int64, reqEditors ...RequestEditorFn) (*GetContactResponse, error)
+
+	// UpdateContactWithBodyWithResponse performs a PATCH /contacts/{contactId} (the `UpdateContact` operationId) request,
+	// with any type of body and a specified content type.
+	//
+	// Edit a contact. HEY rewrites the whole contact, so send every field: a name,
+	// address or alias left out is cleared. Answers the contact, which is not always
+	// the one addressed — promoting an alias makes the alias primary.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	UpdateContactWithBodyWithResponse(ctx context.Context, contactId int64, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateContactResponse, error)
+
+	// UpdateContactWithResponse performs a PATCH /contacts/{contactId} (the `UpdateContact` operationId) request.
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Edit a contact. HEY rewrites the whole contact, so send every field: a name,
+	// address or alias left out is cleared. Answers the contact, which is not always
+	// the one addressed — promoting an alias makes the alias primary.
+	UpdateContactWithResponse(ctx context.Context, contactId int64, body UpdateContactJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateContactResponse, error)
 
 	// UnbundleContactWithResponse performs a DELETE /contacts/{contactId}/bundle.json (the `UnbundleContact` operationId) request.
 	//
@@ -8295,6 +8835,41 @@ type ClientWithResponsesInterface interface {
 	//
 	// Screen a contact in or out. Status is "approved" or "denied".
 	UpdateContactClearanceWithResponse(ctx context.Context, contactId int64, body UpdateContactClearanceJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateContactClearanceResponse, error)
+
+	// DeleteContactNoteWithResponse performs a DELETE /contacts/{contactId}/note (the `DeleteContactNote` operationId) request.
+	//
+	// Clear the private note on a contact.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	DeleteContactNoteWithResponse(ctx context.Context, contactId int64, reqEditors ...RequestEditorFn) (*DeleteContactNoteResponse, error)
+
+	// GetContactNoteWithResponse performs a GET /contacts/{contactId}/note (the `GetContactNote` operationId) request.
+	//
+	// Read the private note kept on a contact.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	GetContactNoteWithResponse(ctx context.Context, contactId int64, reqEditors ...RequestEditorFn) (*GetContactNoteResponse, error)
+
+	// UpdateContactNoteWithBodyWithResponse performs a PATCH /contacts/{contactId}/note (the `UpdateContactNote` operationId) request,
+	// with any type of body and a specified content type.
+	//
+	// Write the private note on a contact, replacing whatever was there
+	//
+	// Returns a wrapper object for the known response body format(s).
+	UpdateContactNoteWithBodyWithResponse(ctx context.Context, contactId int64, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateContactNoteResponse, error)
+
+	// UpdateContactNoteWithResponse performs a PATCH /contacts/{contactId}/note (the `UpdateContactNote` operationId) request.
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Write the private note on a contact, replacing whatever was there
+	UpdateContactNoteWithResponse(ctx context.Context, contactId int64, body UpdateContactNoteJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateContactNoteResponse, error)
+
+	// RevealContactWithResponse performs a POST /contacts/{contactId}/reveal (the `RevealContact` operationId) request.
+	//
+	// Put a hidden contact back in the contact list.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	RevealContactWithResponse(ctx context.Context, contactId int64, reqEditors ...RequestEditorFn) (*RevealContactResponse, error)
 
 	// ListDraftsWithResponse performs a GET /entries/drafts.json (the `ListDrafts` operationId) request.
 	//
@@ -11170,6 +11745,82 @@ func (r UpdateCollectionResponse) ContentType() string {
 	return ""
 }
 
+type CreateContactResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON201 the response for an HTTP 201 `application/json` response
+	JSON201 *CreateContactResponseContent
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *UnauthorizedErrorResponseContent
+	// JSON409 the response for an HTTP 409 `application/json` response
+	JSON409 *ConflictErrorResponseContent
+	// JSON422 the response for an HTTP 422 `application/json` response
+	JSON422 *UnprocessableEntityErrorResponseContent
+	// JSON500 the response for an HTTP 500 `application/json` response
+	JSON500 *InternalServerErrorResponseContent
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *ServiceUnavailableErrorResponseContent
+}
+
+// GetJSON201 returns the response for an HTTP 201 `application/json` response
+func (r CreateContactResponse) GetJSON201() *CreateContactResponseContent {
+	return r.JSON201
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r CreateContactResponse) GetJSON401() *UnauthorizedErrorResponseContent {
+	return r.JSON401
+}
+
+// GetJSON409 returns the response for an HTTP 409 `application/json` response
+func (r CreateContactResponse) GetJSON409() *ConflictErrorResponseContent {
+	return r.JSON409
+}
+
+// GetJSON422 returns the response for an HTTP 422 `application/json` response
+func (r CreateContactResponse) GetJSON422() *UnprocessableEntityErrorResponseContent {
+	return r.JSON422
+}
+
+// GetJSON500 returns the response for an HTTP 500 `application/json` response
+func (r CreateContactResponse) GetJSON500() *InternalServerErrorResponseContent {
+	return r.JSON500
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r CreateContactResponse) GetJSON503() *ServiceUnavailableErrorResponseContent {
+	return r.JSON503
+}
+
+// GetBody returns the raw response body bytes
+func (r CreateContactResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r CreateContactResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r CreateContactResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r CreateContactResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type ListContactsResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -11226,6 +11877,68 @@ func (r ListContactsResponse) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r ListContactsResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type HideContactResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *UnauthorizedErrorResponseContent
+	// JSON404 the response for an HTTP 404 `application/json` response
+	JSON404 *NotFoundErrorResponseContent
+	// JSON500 the response for an HTTP 500 `application/json` response
+	JSON500 *InternalServerErrorResponseContent
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *ServiceUnavailableErrorResponseContent
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r HideContactResponse) GetJSON401() *UnauthorizedErrorResponseContent {
+	return r.JSON401
+}
+
+// GetJSON404 returns the response for an HTTP 404 `application/json` response
+func (r HideContactResponse) GetJSON404() *NotFoundErrorResponseContent {
+	return r.JSON404
+}
+
+// GetJSON500 returns the response for an HTTP 500 `application/json` response
+func (r HideContactResponse) GetJSON500() *InternalServerErrorResponseContent {
+	return r.JSON500
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r HideContactResponse) GetJSON503() *ServiceUnavailableErrorResponseContent {
+	return r.JSON503
+}
+
+// GetBody returns the raw response body bytes
+func (r HideContactResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r HideContactResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r HideContactResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r HideContactResponse) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -11295,6 +12008,89 @@ func (r GetContactResponse) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r GetContactResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type UpdateContactResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *UpdateContactResponseContent
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *UnauthorizedErrorResponseContent
+	// JSON404 the response for an HTTP 404 `application/json` response
+	JSON404 *NotFoundErrorResponseContent
+	// JSON409 the response for an HTTP 409 `application/json` response
+	JSON409 *ConflictErrorResponseContent
+	// JSON422 the response for an HTTP 422 `application/json` response
+	JSON422 *UnprocessableEntityErrorResponseContent
+	// JSON500 the response for an HTTP 500 `application/json` response
+	JSON500 *InternalServerErrorResponseContent
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *ServiceUnavailableErrorResponseContent
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r UpdateContactResponse) GetJSON200() *UpdateContactResponseContent {
+	return r.JSON200
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r UpdateContactResponse) GetJSON401() *UnauthorizedErrorResponseContent {
+	return r.JSON401
+}
+
+// GetJSON404 returns the response for an HTTP 404 `application/json` response
+func (r UpdateContactResponse) GetJSON404() *NotFoundErrorResponseContent {
+	return r.JSON404
+}
+
+// GetJSON409 returns the response for an HTTP 409 `application/json` response
+func (r UpdateContactResponse) GetJSON409() *ConflictErrorResponseContent {
+	return r.JSON409
+}
+
+// GetJSON422 returns the response for an HTTP 422 `application/json` response
+func (r UpdateContactResponse) GetJSON422() *UnprocessableEntityErrorResponseContent {
+	return r.JSON422
+}
+
+// GetJSON500 returns the response for an HTTP 500 `application/json` response
+func (r UpdateContactResponse) GetJSON500() *InternalServerErrorResponseContent {
+	return r.JSON500
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r UpdateContactResponse) GetJSON503() *ServiceUnavailableErrorResponseContent {
+	return r.JSON503
+}
+
+// GetBody returns the raw response body bytes
+func (r UpdateContactResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r UpdateContactResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r UpdateContactResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r UpdateContactResponse) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -11495,6 +12291,282 @@ func (r UpdateContactClearanceResponse) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r UpdateContactClearanceResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type DeleteContactNoteResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *UnauthorizedErrorResponseContent
+	// JSON404 the response for an HTTP 404 `application/json` response
+	JSON404 *NotFoundErrorResponseContent
+	// JSON500 the response for an HTTP 500 `application/json` response
+	JSON500 *InternalServerErrorResponseContent
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *ServiceUnavailableErrorResponseContent
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r DeleteContactNoteResponse) GetJSON401() *UnauthorizedErrorResponseContent {
+	return r.JSON401
+}
+
+// GetJSON404 returns the response for an HTTP 404 `application/json` response
+func (r DeleteContactNoteResponse) GetJSON404() *NotFoundErrorResponseContent {
+	return r.JSON404
+}
+
+// GetJSON500 returns the response for an HTTP 500 `application/json` response
+func (r DeleteContactNoteResponse) GetJSON500() *InternalServerErrorResponseContent {
+	return r.JSON500
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r DeleteContactNoteResponse) GetJSON503() *ServiceUnavailableErrorResponseContent {
+	return r.JSON503
+}
+
+// GetBody returns the raw response body bytes
+func (r DeleteContactNoteResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r DeleteContactNoteResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DeleteContactNoteResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r DeleteContactNoteResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type GetContactNoteResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *GetContactNoteResponseContent
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *UnauthorizedErrorResponseContent
+	// JSON404 the response for an HTTP 404 `application/json` response
+	JSON404 *NotFoundErrorResponseContent
+	// JSON500 the response for an HTTP 500 `application/json` response
+	JSON500 *InternalServerErrorResponseContent
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *ServiceUnavailableErrorResponseContent
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r GetContactNoteResponse) GetJSON200() *GetContactNoteResponseContent {
+	return r.JSON200
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r GetContactNoteResponse) GetJSON401() *UnauthorizedErrorResponseContent {
+	return r.JSON401
+}
+
+// GetJSON404 returns the response for an HTTP 404 `application/json` response
+func (r GetContactNoteResponse) GetJSON404() *NotFoundErrorResponseContent {
+	return r.JSON404
+}
+
+// GetJSON500 returns the response for an HTTP 500 `application/json` response
+func (r GetContactNoteResponse) GetJSON500() *InternalServerErrorResponseContent {
+	return r.JSON500
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r GetContactNoteResponse) GetJSON503() *ServiceUnavailableErrorResponseContent {
+	return r.JSON503
+}
+
+// GetBody returns the raw response body bytes
+func (r GetContactNoteResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r GetContactNoteResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetContactNoteResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r GetContactNoteResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type UpdateContactNoteResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *UpdateContactNoteResponseContent
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *UnauthorizedErrorResponseContent
+	// JSON404 the response for an HTTP 404 `application/json` response
+	JSON404 *NotFoundErrorResponseContent
+	// JSON422 the response for an HTTP 422 `application/json` response
+	JSON422 *UnprocessableEntityErrorResponseContent
+	// JSON500 the response for an HTTP 500 `application/json` response
+	JSON500 *InternalServerErrorResponseContent
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *ServiceUnavailableErrorResponseContent
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r UpdateContactNoteResponse) GetJSON200() *UpdateContactNoteResponseContent {
+	return r.JSON200
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r UpdateContactNoteResponse) GetJSON401() *UnauthorizedErrorResponseContent {
+	return r.JSON401
+}
+
+// GetJSON404 returns the response for an HTTP 404 `application/json` response
+func (r UpdateContactNoteResponse) GetJSON404() *NotFoundErrorResponseContent {
+	return r.JSON404
+}
+
+// GetJSON422 returns the response for an HTTP 422 `application/json` response
+func (r UpdateContactNoteResponse) GetJSON422() *UnprocessableEntityErrorResponseContent {
+	return r.JSON422
+}
+
+// GetJSON500 returns the response for an HTTP 500 `application/json` response
+func (r UpdateContactNoteResponse) GetJSON500() *InternalServerErrorResponseContent {
+	return r.JSON500
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r UpdateContactNoteResponse) GetJSON503() *ServiceUnavailableErrorResponseContent {
+	return r.JSON503
+}
+
+// GetBody returns the raw response body bytes
+func (r UpdateContactNoteResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r UpdateContactNoteResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r UpdateContactNoteResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r UpdateContactNoteResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type RevealContactResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *RevealContactResponseContent
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *UnauthorizedErrorResponseContent
+	// JSON404 the response for an HTTP 404 `application/json` response
+	JSON404 *NotFoundErrorResponseContent
+	// JSON500 the response for an HTTP 500 `application/json` response
+	JSON500 *InternalServerErrorResponseContent
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *ServiceUnavailableErrorResponseContent
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r RevealContactResponse) GetJSON200() *RevealContactResponseContent {
+	return r.JSON200
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r RevealContactResponse) GetJSON401() *UnauthorizedErrorResponseContent {
+	return r.JSON401
+}
+
+// GetJSON404 returns the response for an HTTP 404 `application/json` response
+func (r RevealContactResponse) GetJSON404() *NotFoundErrorResponseContent {
+	return r.JSON404
+}
+
+// GetJSON500 returns the response for an HTTP 500 `application/json` response
+func (r RevealContactResponse) GetJSON500() *InternalServerErrorResponseContent {
+	return r.JSON500
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r RevealContactResponse) GetJSON503() *ServiceUnavailableErrorResponseContent {
+	return r.JSON503
+}
+
+// GetBody returns the raw response body bytes
+func (r RevealContactResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r RevealContactResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r RevealContactResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r RevealContactResponse) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -15135,6 +16207,32 @@ func (c *ClientWithResponses) UpdateCollectionWithResponse(ctx context.Context, 
 	return ParseUpdateCollectionResponse(rsp)
 }
 
+// CreateContactWithBodyWithResponse performs a POST /contacts (the `CreateContact` operationId) request,
+// with any type of body and a specified content type.
+//
+// Add a contact. Answers the contact that was created.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) CreateContactWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateContactResponse, error) {
+	rsp, err := c.CreateContactWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateContactResponse(rsp)
+}
+
+// CreateContactWithResponse performs a POST /contacts (the `CreateContact` operationId) request.
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Add a contact. Answers the contact that was created.
+func (c *ClientWithResponses) CreateContactWithResponse(ctx context.Context, body CreateContactJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateContactResponse, error) {
+	rsp, err := c.CreateContact(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateContactResponse(rsp)
+}
+
 // ListContactsWithResponse performs a GET /contacts.json (the `ListContacts` operationId) request.
 //
 // List contacts.
@@ -15148,6 +16246,19 @@ func (c *ClientWithResponses) ListContactsWithResponse(ctx context.Context, para
 	return ParseListContactsResponse(rsp)
 }
 
+// HideContactWithResponse performs a DELETE /contacts/{contactId} (the `HideContact` operationId) request.
+//
+// Hide a contact. Nothing is deleted — RevealContact brings them back.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) HideContactWithResponse(ctx context.Context, contactId int64, reqEditors ...RequestEditorFn) (*HideContactResponse, error) {
+	rsp, err := c.HideContact(ctx, contactId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseHideContactResponse(rsp)
+}
+
 // GetContactWithResponse performs a GET /contacts/{contactId} (the `GetContact` operationId) request.
 //
 // Get a contact.
@@ -15159,6 +16270,36 @@ func (c *ClientWithResponses) GetContactWithResponse(ctx context.Context, contac
 		return nil, err
 	}
 	return ParseGetContactResponse(rsp)
+}
+
+// UpdateContactWithBodyWithResponse performs a PATCH /contacts/{contactId} (the `UpdateContact` operationId) request,
+// with any type of body and a specified content type.
+//
+// Edit a contact. HEY rewrites the whole contact, so send every field: a name,
+// address or alias left out is cleared. Answers the contact, which is not always
+// the one addressed — promoting an alias makes the alias primary.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) UpdateContactWithBodyWithResponse(ctx context.Context, contactId int64, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateContactResponse, error) {
+	rsp, err := c.UpdateContactWithBody(ctx, contactId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpdateContactResponse(rsp)
+}
+
+// UpdateContactWithResponse performs a PATCH /contacts/{contactId} (the `UpdateContact` operationId) request.
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Edit a contact. HEY rewrites the whole contact, so send every field: a name,
+// address or alias left out is cleared. Answers the contact, which is not always
+// the one addressed — promoting an alias makes the alias primary.
+func (c *ClientWithResponses) UpdateContactWithResponse(ctx context.Context, contactId int64, body UpdateContactJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateContactResponse, error) {
+	rsp, err := c.UpdateContact(ctx, contactId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpdateContactResponse(rsp)
 }
 
 // UnbundleContactWithResponse performs a DELETE /contacts/{contactId}/bundle.json (the `UnbundleContact` operationId) request.
@@ -15211,6 +16352,71 @@ func (c *ClientWithResponses) UpdateContactClearanceWithResponse(ctx context.Con
 		return nil, err
 	}
 	return ParseUpdateContactClearanceResponse(rsp)
+}
+
+// DeleteContactNoteWithResponse performs a DELETE /contacts/{contactId}/note (the `DeleteContactNote` operationId) request.
+//
+// Clear the private note on a contact.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) DeleteContactNoteWithResponse(ctx context.Context, contactId int64, reqEditors ...RequestEditorFn) (*DeleteContactNoteResponse, error) {
+	rsp, err := c.DeleteContactNote(ctx, contactId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDeleteContactNoteResponse(rsp)
+}
+
+// GetContactNoteWithResponse performs a GET /contacts/{contactId}/note (the `GetContactNote` operationId) request.
+//
+// Read the private note kept on a contact.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) GetContactNoteWithResponse(ctx context.Context, contactId int64, reqEditors ...RequestEditorFn) (*GetContactNoteResponse, error) {
+	rsp, err := c.GetContactNote(ctx, contactId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetContactNoteResponse(rsp)
+}
+
+// UpdateContactNoteWithBodyWithResponse performs a PATCH /contacts/{contactId}/note (the `UpdateContactNote` operationId) request,
+// with any type of body and a specified content type.
+//
+// # Write the private note on a contact, replacing whatever was there
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) UpdateContactNoteWithBodyWithResponse(ctx context.Context, contactId int64, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateContactNoteResponse, error) {
+	rsp, err := c.UpdateContactNoteWithBody(ctx, contactId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpdateContactNoteResponse(rsp)
+}
+
+// UpdateContactNoteWithResponse performs a PATCH /contacts/{contactId}/note (the `UpdateContactNote` operationId) request.
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Write the private note on a contact, replacing whatever was there
+func (c *ClientWithResponses) UpdateContactNoteWithResponse(ctx context.Context, contactId int64, body UpdateContactNoteJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateContactNoteResponse, error) {
+	rsp, err := c.UpdateContactNote(ctx, contactId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpdateContactNoteResponse(rsp)
+}
+
+// RevealContactWithResponse performs a POST /contacts/{contactId}/reveal (the `RevealContact` operationId) request.
+//
+// Put a hidden contact back in the contact list.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) RevealContactWithResponse(ctx context.Context, contactId int64, reqEditors ...RequestEditorFn) (*RevealContactResponse, error) {
+	rsp, err := c.RevealContact(ctx, contactId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseRevealContactResponse(rsp)
 }
 
 // ListDraftsWithResponse performs a GET /entries/drafts.json (the `ListDrafts` operationId) request.
@@ -17960,6 +19166,67 @@ func ParseUpdateCollectionResponse(rsp *http.Response) (*UpdateCollectionRespons
 	return response, nil
 }
 
+// ParseCreateContactResponse parses an HTTP response from a CreateContactWithResponse call
+func ParseCreateContactResponse(rsp *http.Response) (*CreateContactResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &CreateContactResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest CreateContactResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest UnauthorizedErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
+		var dest ConflictErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON409 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 422:
+		var dest UnprocessableEntityErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON422 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest InternalServerErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+		var dest ServiceUnavailableErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON503 = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseListContactsResponse parses an HTTP response from a ListContactsWithResponse call
 func ParseListContactsResponse(rsp *http.Response) (*ListContactsResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -17987,6 +19254,56 @@ func ParseListContactsResponse(rsp *http.Response) (*ListContactsResponse, error
 			return nil, err
 		}
 		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest InternalServerErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+		var dest ServiceUnavailableErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON503 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseHideContactResponse parses an HTTP response from a HideContactWithResponse call
+func ParseHideContactResponse(rsp *http.Response) (*HideContactResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &HideContactResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 200:
+		break // No content-type
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest UnauthorizedErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFoundErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
 		var dest InternalServerErrorResponseContent
@@ -18041,6 +19358,74 @@ func ParseGetContactResponse(rsp *http.Response) (*GetContactResponse, error) {
 			return nil, err
 		}
 		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest InternalServerErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+		var dest ServiceUnavailableErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON503 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseUpdateContactResponse parses an HTTP response from a UpdateContactWithResponse call
+func ParseUpdateContactResponse(rsp *http.Response) (*UpdateContactResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &UpdateContactResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest UpdateContactResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest UnauthorizedErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFoundErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
+		var dest ConflictErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON409 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 422:
+		var dest UnprocessableEntityErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON422 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
 		var dest InternalServerErrorResponseContent
@@ -18205,6 +19590,225 @@ func ParseUpdateContactClearanceResponse(rsp *http.Response) (*UpdateContactClea
 			return nil, err
 		}
 		response.JSON422 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest InternalServerErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+		var dest ServiceUnavailableErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON503 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDeleteContactNoteResponse parses an HTTP response from a DeleteContactNoteWithResponse call
+func ParseDeleteContactNoteResponse(rsp *http.Response) (*DeleteContactNoteResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DeleteContactNoteResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 200:
+		break // No content-type
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest UnauthorizedErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFoundErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest InternalServerErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+		var dest ServiceUnavailableErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON503 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetContactNoteResponse parses an HTTP response from a GetContactNoteWithResponse call
+func ParseGetContactNoteResponse(rsp *http.Response) (*GetContactNoteResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetContactNoteResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest GetContactNoteResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest UnauthorizedErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFoundErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest InternalServerErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+		var dest ServiceUnavailableErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON503 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseUpdateContactNoteResponse parses an HTTP response from a UpdateContactNoteWithResponse call
+func ParseUpdateContactNoteResponse(rsp *http.Response) (*UpdateContactNoteResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &UpdateContactNoteResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest UpdateContactNoteResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest UnauthorizedErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFoundErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 422:
+		var dest UnprocessableEntityErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON422 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest InternalServerErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+		var dest ServiceUnavailableErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON503 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseRevealContactResponse parses an HTTP response from a RevealContactWithResponse call
+func ParseRevealContactResponse(rsp *http.Response) (*RevealContactResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &RevealContactResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest RevealContactResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest UnauthorizedErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFoundErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
 		var dest InternalServerErrorResponseContent

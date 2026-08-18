@@ -2052,6 +2052,284 @@
     ]
   },
   {
+    "name": "CreateContact uses /contacts path",
+    "description": "Verifies that CreateContact constructs the URL path /contacts",
+    "operation": "CreateContact",
+    "method": "POST",
+    "path": "/contacts",
+    "requestBody": {
+      "name": "Jane Dawson",
+      "email_address": "jane@example.com",
+      "alias_email_addresses": [
+        "j.dawson@example.org"
+      ]
+    },
+    "mockResponses": [
+      {
+        "status": 201,
+        "body": {
+          "id": 91824,
+          "name": "Jane Dawson"
+        }
+      }
+    ],
+    "assertions": [
+      {
+        "type": "requestPath",
+        "expected": "/contacts"
+      },
+      {
+        "type": "requestMethod",
+        "expected": "POST"
+      },
+      {
+        "type": "noError"
+      },
+      {
+        "type": "requestBody",
+        "expected": {
+          "contact.name": "Jane Dawson",
+          "contact.alias_email_addresses.0": "j.dawson@example.org"
+        }
+      }
+    ],
+    "tags": [
+      "path",
+      "contacts"
+    ]
+  },
+  {
+    "name": "UpdateContact uses /contacts/{contactId} path",
+    "description": "Verifies that UpdateContact constructs the URL path /contacts/{contactId}",
+    "operation": "UpdateContact",
+    "method": "PATCH",
+    "path": "/contacts/{contactId}",
+    "pathParams": {
+      "contactId": 91824
+    },
+    "requestBody": {
+      "name": "Jane Dawson",
+      "email_address": "jane@example.com"
+    },
+    "mockResponses": [
+      {
+        "status": 200,
+        "body": {
+          "id": 91824,
+          "name": "Jane Dawson"
+        }
+      }
+    ],
+    "assertions": [
+      {
+        "type": "requestPath",
+        "expected": "/contacts/91824"
+      },
+      {
+        "type": "requestMethod",
+        "expected": "PATCH"
+      },
+      {
+        "type": "noError"
+      },
+      {
+        "type": "requestBody",
+        "expected": {
+          "contact.email_address": "jane@example.com"
+        }
+      }
+    ],
+    "tags": [
+      "path",
+      "contacts"
+    ]
+  },
+  {
+    "name": "HideContact uses /contacts/{contactId} path",
+    "description": "Verifies that HideContact constructs the URL path /contacts/{contactId}",
+    "operation": "HideContact",
+    "method": "DELETE",
+    "path": "/contacts/{contactId}",
+    "pathParams": {
+      "contactId": 91824
+    },
+    "mockResponses": [
+      {
+        "status": 204,
+        "body": {}
+      }
+    ],
+    "assertions": [
+      {
+        "type": "requestPath",
+        "expected": "/contacts/91824"
+      },
+      {
+        "type": "requestMethod",
+        "expected": "DELETE"
+      },
+      {
+        "type": "noError"
+      }
+    ],
+    "tags": [
+      "path",
+      "contacts"
+    ]
+  },
+  {
+    "name": "RevealContact uses /contacts/{contactId}/reveal path",
+    "description": "Verifies that RevealContact constructs the URL path /contacts/{contactId}/reveal",
+    "operation": "RevealContact",
+    "method": "POST",
+    "path": "/contacts/{contactId}/reveal",
+    "pathParams": {
+      "contactId": 91824
+    },
+    "mockResponses": [
+      {
+        "status": 200,
+        "body": {
+          "id": 91824,
+          "name": "Jane Dawson"
+        }
+      }
+    ],
+    "assertions": [
+      {
+        "type": "requestPath",
+        "expected": "/contacts/91824/reveal"
+      },
+      {
+        "type": "requestMethod",
+        "expected": "POST"
+      },
+      {
+        "type": "noError"
+      }
+    ],
+    "tags": [
+      "path",
+      "contacts"
+    ]
+  },
+  {
+    "name": "GetContactNote uses /contacts/{contactId}/note path",
+    "description": "Verifies that GetContactNote constructs the URL path /contacts/{contactId}/note",
+    "operation": "GetContactNote",
+    "method": "GET",
+    "path": "/contacts/{contactId}/note",
+    "pathParams": {
+      "contactId": 91824
+    },
+    "mockResponses": [
+      {
+        "status": 200,
+        "body": {
+          "contact_id": 91824,
+          "note": "Prefers a call",
+          "note_html": "<div>Prefers a call</div>"
+        }
+      }
+    ],
+    "assertions": [
+      {
+        "type": "requestPath",
+        "expected": "/contacts/91824/note"
+      },
+      {
+        "type": "requestMethod",
+        "expected": "GET"
+      },
+      {
+        "type": "noError"
+      }
+    ],
+    "tags": [
+      "path",
+      "contacts"
+    ]
+  },
+  {
+    "name": "UpdateContactNote uses /contacts/{contactId}/note path",
+    "description": "Verifies that UpdateContactNote constructs the URL path /contacts/{contactId}/note",
+    "operation": "UpdateContactNote",
+    "method": "PATCH",
+    "path": "/contacts/{contactId}/note",
+    "pathParams": {
+      "contactId": 91824
+    },
+    "requestBody": {
+      "note": "Prefers a call"
+    },
+    "mockResponses": [
+      {
+        "status": 200,
+        "body": {
+          "contact_id": 91824,
+          "note": "Prefers a call",
+          "note_html": "<div>Prefers a call</div>"
+        }
+      }
+    ],
+    "assertions": [
+      {
+        "type": "requestPath",
+        "expected": "/contacts/91824/note"
+      },
+      {
+        "type": "requestMethod",
+        "expected": "PATCH"
+      },
+      {
+        "type": "noError"
+      },
+      {
+        "type": "requestBody",
+        "expected": {
+          "contact.note": "Prefers a call"
+        }
+      }
+    ],
+    "tags": [
+      "path",
+      "contacts"
+    ]
+  },
+  {
+    "name": "DeleteContactNote uses /contacts/{contactId}/note path",
+    "description": "Verifies that DeleteContactNote constructs the URL path /contacts/{contactId}/note",
+    "operation": "DeleteContactNote",
+    "method": "DELETE",
+    "path": "/contacts/{contactId}/note",
+    "pathParams": {
+      "contactId": 91824
+    },
+    "mockResponses": [
+      {
+        "status": 204,
+        "body": {}
+      }
+    ],
+    "assertions": [
+      {
+        "type": "requestPath",
+        "expected": "/contacts/91824/note"
+      },
+      {
+        "type": "requestMethod",
+        "expected": "DELETE"
+      },
+      {
+        "type": "noError"
+      }
+    ],
+    "tags": [
+      "path",
+      "contacts"
+    ]
+  },
+  {
     "name": "CreateBoxDesignation uses /boxes/{boxId}/designations.json path",
     "description": "Verifies that CreateBoxDesignation constructs the URL path /boxes/{boxId}/designations.json",
     "operation": "CreateBoxDesignation",

@@ -1127,6 +1127,31 @@ func executeOperation(client *generated.Client, ctx context.Context, tc TestCase
 	case "GetClearances":
 		return client.GetClearances(ctx)
 
+	// Contact writing and notes
+	case "CreateContact":
+		return client.CreateContact(ctx, contactBody(tc))
+	case "UpdateContact":
+		contactId := getInt64Param(tc.PathParams, "contactId")
+		return client.UpdateContact(ctx, contactId, contactBody(tc))
+	case "HideContact":
+		contactId := getInt64Param(tc.PathParams, "contactId")
+		return client.HideContact(ctx, contactId)
+	case "RevealContact":
+		contactId := getInt64Param(tc.PathParams, "contactId")
+		return client.RevealContact(ctx, contactId)
+	case "GetContactNote":
+		contactId := getInt64Param(tc.PathParams, "contactId")
+		return client.GetContactNote(ctx, contactId)
+	case "UpdateContactNote":
+		contactId := getInt64Param(tc.PathParams, "contactId")
+		body := generated.UpdateContactNoteJSONRequestBody{
+			Contact: generated.ContactNotePayload{Note: getStringParam(tc.RequestBody, "note")},
+		}
+		return client.UpdateContactNote(ctx, contactId, body)
+	case "DeleteContactNote":
+		contactId := getInt64Param(tc.PathParams, "contactId")
+		return client.DeleteContactNote(ctx, contactId)
+
 	// Box designations, groups and observation
 	case "CreateBoxDesignation":
 		boxId := getInt64Param(tc.PathParams, "boxId")
@@ -1323,6 +1348,35 @@ func habitBody(tc TestCase) generated.HabitRequestContent {
 			Days:  getInt32SliceParam(tc.RequestBody, "days"),
 		},
 	}
+}
+
+func contactBody(tc TestCase) generated.ContactRequestContent {
+	return generated.ContactRequestContent{
+		Contact: generated.ContactPayload{
+			Name:                getStringParam(tc.RequestBody, "name"),
+			EmailAddress:        getStringParam(tc.RequestBody, "email_address"),
+			AliasEmailAddresses: getStringSliceParam(tc.RequestBody, "alias_email_addresses"),
+		},
+	}
+}
+
+// getStringSliceParam extracts a []string parameter from a map.
+func getStringSliceParam(params map[string]interface{}, key string) []string {
+	val, ok := params[key]
+	if !ok {
+		return nil
+	}
+	arr, ok := val.([]interface{})
+	if !ok {
+		return nil
+	}
+	result := make([]string, 0, len(arr))
+	for _, v := range arr {
+		if s, ok := v.(string); ok {
+			result = append(result, s)
+		}
+	}
+	return result
 }
 
 // getStringParam extracts a string parameter from a map.

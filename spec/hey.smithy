@@ -165,6 +165,15 @@ service HEY {
         UpdateContactClearance
         GetClearances
 
+        // Contacts — writing and notes
+        CreateContact
+        UpdateContact
+        HideContact
+        RevealContact
+        GetContactNote
+        UpdateContactNote
+        DeleteContactNote
+
         // Boxes — designations, groups, observation
         CreateBoxDesignation
         DeleteBoxDesignation
@@ -234,11 +243,18 @@ structure NotFoundError {
     message: String
 }
 
+/// The server rejected what was sent. HEY answers {"errors": ["..."]} — the messages
+/// the model itself produced — so a client can show them as they are.
 @error("client")
 @httpError(422)
 structure UnprocessableEntityError {
-    @required
+    errors: MessageList
+
     message: String
+}
+
+list MessageList {
+    member: String
 }
 
 /// The request conflicts with current state, e.g. starting a time track while one
@@ -248,6 +264,10 @@ structure UnprocessableEntityError {
 structure ConflictError {
     @required
     error: String
+
+    /// Contact writes only: the contacts already holding the email addresses that
+    /// were sent, so a client can offer the merge the web offers.
+    conflicting_contact_ids: ContactIdList
 }
 
 @error("client")
@@ -301,6 +321,10 @@ structure Contact {
     contactable_type: String
 
     name_tag: String
+}
+
+list ContactIdList {
+    member: Long
 }
 
 list ContactList {
@@ -1477,6 +1501,159 @@ structure ContactDetail {
 structure GetContactOutput {
     @required
     contact: ContactDetail
+}
+
+/// Add a contact. Answers the contact that was created.
+@http(method: "POST", uri: "/contacts", code: 201)
+@tags(["Contacts"])
+@heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+operation CreateContact {
+    input: CreateContactInput
+    output: ContactWriteOutput
+    errors: [UnauthorizedError, ConflictError, UnprocessableEntityError, InternalServerError, ServiceUnavailableError]
+}
+
+structure CreateContactInput {
+    @httpPayload
+    @required
+    body: ContactRequestContent
+}
+
+/// Edit a contact. HEY rewrites the whole contact, so send every field: a name,
+/// address or alias left out is cleared. Answers the contact, which is not always
+/// the one addressed — promoting an alias makes the alias primary.
+@idempotent
+@http(method: "PATCH", uri: "/contacts/{contactId}")
+@tags(["Contacts"])
+@heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+operation UpdateContact {
+    input: UpdateContactInput
+    output: ContactWriteOutput
+    errors: [UnauthorizedError, NotFoundError, ConflictError, UnprocessableEntityError, InternalServerError, ServiceUnavailableError]
+}
+
+structure UpdateContactInput {
+    @httpLabel
+    @required
+    contactId: Long
+
+    @httpPayload
+    @required
+    body: ContactRequestContent
+}
+
+/// Hide a contact. Nothing is deleted — RevealContact brings them back.
+@idempotent
+@http(method: "DELETE", uri: "/contacts/{contactId}")
+@tags(["Contacts"])
+@heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+operation HideContact {
+    input: ContactActionInput
+    errors: [UnauthorizedError, NotFoundError, InternalServerError, ServiceUnavailableError]
+}
+
+/// Put a hidden contact back in the contact list
+@http(method: "POST", uri: "/contacts/{contactId}/reveal")
+@tags(["Contacts"])
+@heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+operation RevealContact {
+    input: ContactActionInput
+    output: ContactWriteOutput
+    errors: [UnauthorizedError, NotFoundError, InternalServerError, ServiceUnavailableError]
+}
+
+/// Wire format: {contact: {name, email_address, alias_email_addresses: [...]}}
+structure ContactRequestContent {
+    @required
+    contact: ContactPayload
+}
+
+structure ContactPayload {
+    @required
+    name: String
+
+    @heySensitive(category: "pii")
+    email_address: String
+
+    /// Sending the list replaces it: an address left out stops being an alias.
+    alias_email_addresses: EmailAddressList
+}
+
+/// The written contact, as the contact list renders it.
+structure ContactWriteOutput {
+    @required
+    contact: Contact
+}
+
+/// Read the private note kept on a contact
+@readonly
+@http(method: "GET", uri: "/contacts/{contactId}/note")
+@tags(["Contacts"])
+@heyRetry(maxAttempts: 3, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+operation GetContactNote {
+    input: ContactActionInput
+    output: GetContactNoteOutput
+    errors: [UnauthorizedError, NotFoundError, InternalServerError, ServiceUnavailableError]
+}
+
+structure GetContactNoteOutput {
+    @required
+    note: ContactNote
+}
+
+/// A contact's private note. Empty strings when there is no note.
+structure ContactNote {
+    @required
+    contact_id: Long
+
+    @required
+    note: String
+
+    /// The note as editor HTML, the same markup the web hands Trix.
+    @required
+    note_html: String
+}
+
+/// Write the private note on a contact, replacing whatever was there
+@idempotent
+@http(method: "PATCH", uri: "/contacts/{contactId}/note")
+@tags(["Contacts"])
+@heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+operation UpdateContactNote {
+    input: UpdateContactNoteInput
+    output: GetContactNoteOutput
+    errors: [UnauthorizedError, NotFoundError, UnprocessableEntityError, InternalServerError, ServiceUnavailableError]
+}
+
+structure UpdateContactNoteInput {
+    @httpLabel
+    @required
+    contactId: Long
+
+    @httpPayload
+    @required
+    body: ContactNoteRequestContent
+}
+
+/// Wire format: {contact: {note: "..."}}
+structure ContactNoteRequestContent {
+    @required
+    contact: ContactNotePayload
+}
+
+structure ContactNotePayload {
+    @required
+    note: String
+}
+
+/// Clear the private note on a contact
+@idempotent
+@http(method: "DELETE", uri: "/contacts/{contactId}/note")
+@tags(["Contacts"])
+@heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+operation DeleteContactNote {
+    input: ContactActionInput
+    errors: [UnauthorizedError, NotFoundError, InternalServerError, ServiceUnavailableError]
 }
 
 // =============================================================================

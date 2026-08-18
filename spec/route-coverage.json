@@ -51,6 +51,11 @@
   },
   {
     "method": "POST",
+    "operationId": "CreateContact",
+    "path": "/contacts"
+  },
+  {
+    "method": "POST",
     "operationId": "CreateFolderForPostings",
     "path": "/postings/folders.json"
   },
@@ -93,6 +98,11 @@
     "method": "DELETE",
     "operationId": "DeleteCalendarTodo",
     "path": "/calendar/todos/{todoId}"
+  },
+  {
+    "method": "DELETE",
+    "operationId": "DeleteContactNote",
+    "path": "/contacts/{contactId}/note"
   },
   {
     "method": "DELETE",
@@ -158,6 +168,11 @@
     "method": "GET",
     "operationId": "GetContact",
     "path": "/contacts/{contactId}"
+  },
+  {
+    "method": "GET",
+    "operationId": "GetContactNote",
+    "path": "/contacts/{contactId}/note"
   },
   {
     "method": "GET",
@@ -243,6 +258,11 @@
     "method": "GET",
     "operationId": "GetTrashTopics",
     "path": "/topics/trash.json"
+  },
+  {
+    "method": "DELETE",
+    "operationId": "HideContact",
+    "path": "/contacts/{contactId}"
   },
   {
     "method": "GET",
@@ -371,6 +391,11 @@
   },
   {
     "method": "POST",
+    "operationId": "RevealContact",
+    "path": "/contacts/{contactId}/reveal"
+  },
+  {
+    "method": "POST",
     "operationId": "StartTimeTrack",
     "path": "/calendar/ongoing_time_track.json"
   },
@@ -421,8 +446,18 @@
   },
   {
     "method": "PATCH",
+    "operationId": "UpdateContact",
+    "path": "/contacts/{contactId}"
+  },
+  {
+    "method": "PATCH",
     "operationId": "UpdateContactClearance",
     "path": "/contacts/{contactId}/clearance.json"
+  },
+  {
+    "method": "PATCH",
+    "operationId": "UpdateContactNote",
+    "path": "/contacts/{contactId}/note"
   },
   {
     "method": "PATCH",

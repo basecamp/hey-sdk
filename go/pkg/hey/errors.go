@@ -3,6 +3,7 @@ package hey
 import (
 	"errors"
 	"fmt"
+	"strings"
 )
 
 // Resilience errors for circuit breaker, bulkhead, and rate limiting.
@@ -196,6 +197,20 @@ func ErrConflict(msg string) *Error {
 		Code:       CodeConflict,
 		Message:    msg,
 		HTTPStatus: 409,
+	}
+}
+
+// ErrValidation signals that the server rejected the contents of the request (HTTP 422),
+// carrying the messages the model itself produced.
+func ErrValidation(messages ...string) *Error {
+	msg := "validation error"
+	if len(messages) > 0 {
+		msg = strings.Join(messages, "; ")
+	}
+	return &Error{
+		Code:       CodeValidation,
+		Message:    msg,
+		HTTPStatus: 422,
 	}
 }
 
