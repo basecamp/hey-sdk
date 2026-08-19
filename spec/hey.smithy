@@ -1431,6 +1431,7 @@ structure DirectUpload {
 }
 
 structure CreateDirectUploadOutput {
+    @httpPayload
     @required
     upload: DirectUpload
 }

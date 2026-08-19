@@ -57,7 +57,7 @@ func TestAttachmentsUpload(t *testing.T) {
 			"attachable_sgid":"sgid-456",
 			"direct_upload":{
 				"url":"` + uploadServer.URL + `/blob",
-				"headers":{"Content-Type":"application/pdf","Content-MD5":"` + checksum + `"}
+				"headers":{"Content-Type":"application/pdf","Content-MD5":"` + checksum + `","Authorization":"Bearer must-not-leak"}
 			}
 		}`))
 	})

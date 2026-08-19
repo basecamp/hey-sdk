@@ -24,7 +24,7 @@ func NewAttachmentsService(client *Client) *AttachmentsService {
 // CreateDirectUpload creates an Active Storage blob and returns the target for
 // uploading its bytes. The target URL is self-authenticating and must be used
 // with the exact headers returned by HEY.
-func (s *AttachmentsService) CreateDirectUpload(ctx context.Context, body generated.CreateDirectUploadJSONRequestBody) (result *generated.DirectUpload, err error) {
+func (s *AttachmentsService) CreateDirectUpload(ctx context.Context, body generated.CreateDirectUploadRequestContent) (result *generated.DirectUpload, err error) {
 	op := OperationInfo{
 		Service: "Attachments", Operation: "CreateDirectUpload",
 		ResourceType: "attachment", IsMutation: true,
@@ -97,6 +97,8 @@ func (s *AttachmentsService) Upload(ctx context.Context, filename, contentType s
 	for name, value := range upload.DirectUpload.Headers {
 		req.Header.Set(name, value)
 	}
+	// The upload URL authenticates the storage request; HEY credentials stay on HEY.
+	req.Header.Del("Authorization")
 
 	resp, err := s.client.httpClient.Do(req)
 	if err != nil {

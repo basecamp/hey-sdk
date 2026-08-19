@@ -408,9 +408,6 @@ type CreateDirectUploadRequestContent struct {
 	Blob DirectUploadBlob `json:"blob"`
 }
 
-// CreateDirectUploadResponseContent defines model for CreateDirectUploadResponseContent.
-type CreateDirectUploadResponseContent = DirectUpload
-
 // CreateFolderForPostingsRequestContent Wire format: {posting_ids: [...], folder: {name, status}}
 type CreateFolderForPostingsRequestContent struct {
 	Folder     FolderPayload `json:"folder"`
@@ -14695,7 +14692,7 @@ type CreateDirectUploadResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
 	// JSON200 the response for an HTTP 200 `application/json` response
-	JSON200 *CreateDirectUploadResponseContent
+	JSON200 *DirectUpload
 	// JSON401 the response for an HTTP 401 `application/json` response
 	JSON401 *UnauthorizedErrorResponseContent
 	// JSON422 the response for an HTTP 422 `application/json` response
@@ -14707,7 +14704,7 @@ type CreateDirectUploadResponse struct {
 }
 
 // GetJSON200 returns the response for an HTTP 200 `application/json` response
-func (r CreateDirectUploadResponse) GetJSON200() *CreateDirectUploadResponseContent {
+func (r CreateDirectUploadResponse) GetJSON200() *DirectUpload {
 	return r.JSON200
 }
 
@@ -21871,7 +21868,7 @@ func ParseCreateDirectUploadResponse(rsp *http.Response) (*CreateDirectUploadRes
 
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest CreateDirectUploadResponseContent
+		var dest DirectUpload
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}

@@ -6062,7 +6062,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/CreateDirectUploadResponseContent"
+                  "$ref": "#/components/schemas/DirectUpload"
                 }
               }
             }
@@ -8779,9 +8779,6 @@
         "required": [
           "blob"
         ]
-      },
-      "CreateDirectUploadResponseContent": {
-        "$ref": "#/components/schemas/DirectUpload"
       },
       "CreateFolderForPostingsRequestContent": {
         "type": "object",
