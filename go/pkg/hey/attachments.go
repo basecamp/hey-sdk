@@ -38,6 +38,9 @@ func (s *AttachmentsService) CreateDirectUpload(ctx context.Context, body genera
 		if responseErr := CheckResponse(resp.HTTPResponse); responseErr != nil {
 			return responseErr
 		}
+		if resp.JSON200 == nil || resp.JSON200.SignedId == "" || resp.JSON200.AttachableSgid == "" || resp.JSON200.DirectUpload.Url == "" {
+			return fmt.Errorf("HEY returned an empty attachment upload response")
+		}
 		result = resp.JSON200
 		return nil
 	})

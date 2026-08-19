@@ -149,8 +149,9 @@ func TestClient_GetBlobRejectsCrossOriginURL(t *testing.T) {
 	})
 
 	_, err := client.GetBlob(context.Background(), "https://files.example.org/report.pdf")
-	if err == nil {
-		t.Fatal("expected cross-origin URL error")
+	sdkErr, ok := err.(*Error)
+	if !ok || sdkErr.Code != CodeUsage {
+		t.Fatalf("cross-origin error = %v, want usage", err)
 	}
 }
 

@@ -345,7 +345,7 @@ func (c *Client) blobURL(path string) (string, error) {
 		return "", err
 	}
 	if !isSameOrigin(c.cfg.BaseURL, resolvedURL) {
-		return "", fmt.Errorf("blob URL points to different origin: %s", resolvedURL)
+		return "", ErrUsage("a blob download URL must start on the HEY origin")
 	}
 	return resolvedURL, nil
 }

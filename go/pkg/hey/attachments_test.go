@@ -87,6 +87,20 @@ func TestAttachmentsUploadRejectsInsecureStorageTarget(t *testing.T) {
 	}
 }
 
+func TestAttachmentsCreateDirectUploadRequiresResponse(t *testing.T) {
+	client := newTestClient(t, func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`null`))
+	})
+
+	_, err := client.Attachments().CreateDirectUpload(context.Background(), generated.CreateDirectUploadRequestContent{
+		Blob: generated.DirectUploadBlob{Filename: "report.pdf", ByteSize: 1, Checksum: "x", ContentType: "application/pdf"},
+	})
+	if err == nil || !strings.Contains(err.Error(), "empty attachment upload response") {
+		t.Fatalf("CreateDirectUpload error = %v", err)
+	}
+}
+
 func TestAttachmentsCreateDirectUpload(t *testing.T) {
 	client := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
