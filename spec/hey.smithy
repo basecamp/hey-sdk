@@ -181,6 +181,9 @@ service HEY {
         UpdateContactNote
         DeleteContactNote
 
+        // Boxes — posting sync
+        GetBoxPostingChanges
+
         // Boxes — designations, groups, observation
         CreateBoxDesignation
         DeleteBoxDesignation
@@ -2860,6 +2863,66 @@ structure DeleteBoxDesignationInput {
     @httpLabel
     @required
     designationId: Long
+}
+
+/// Read what changed among a box's postings since a point in time.
+///
+/// This is the incremental sync feed the mail clients follow rather than re-reading a
+/// box. `since` is an ISO 8601 timestamp with milliseconds and is exclusive, and `v` is
+/// the client's contract version — the server answers 409 when the caller is too far
+/// behind for an increment to carry the difference, which means read the box in full
+/// instead. A box's own `posting_changes_url` carries the `since` and `v` to start from,
+/// and the `Link` header names the next page while one remains and the next `since`
+/// cursor on the last page.
+@readonly
+@http(method: "GET", uri: "/boxes/{boxId}/postings/changes.json")
+@tags(["Boxes"])
+@heyRetry(maxAttempts: 3, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+@heyPagination(style: "link", totalCountHeader: "X-Total-Count")
+operation GetBoxPostingChanges {
+    input: GetBoxPostingChangesInput
+    output: GetBoxPostingChangesOutput
+    errors: [UnauthorizedError, NotFoundError, ConflictError, InternalServerError, ServiceUnavailableError]
+}
+
+structure GetBoxPostingChangesInput {
+    @httpLabel
+    @required
+    boxId: Long
+
+    @httpQuery("since")
+    @required
+    since: String
+
+    @httpQuery("v")
+    v: String
+
+    @httpQuery("page")
+    page: String
+
+    @httpQuery("per_page")
+    per_page: String
+}
+
+structure GetBoxPostingChangesOutput {
+    added: PostingList
+
+    updated: PostingList
+
+    deleted: DeletedPostingList
+}
+
+/// DeletedPosting — the stub the changes feed answers with for a posting that is gone
+structure DeletedPosting {
+    @required
+    id: Long
+
+    box_id: Long
+    deleted_at: DateTime
+}
+
+list DeletedPostingList {
+    member: DeletedPosting
 }
 
 /// List the Set Aside groups in a box

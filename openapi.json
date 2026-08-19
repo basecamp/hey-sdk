@@ -904,6 +904,133 @@
         }
       }
     },
+    "/boxes/{boxId}/postings/changes.json": {
+      "get": {
+        "description": "Read what changed among a box's postings since a point in time.\n\nThis is the incremental sync feed the mail clients follow rather than re-reading a\nbox. `since` is an ISO 8601 timestamp with milliseconds and is exclusive, and `v` is\nthe client's contract version — the server answers 409 when the caller is too far\nbehind for an increment to carry the difference, which means read the box in full\ninstead. A box's own `posting_changes_url` carries the `since` and `v` to start from,\nand the `Link` header names the next page while one remains and the next `since`\ncursor on the last page.",
+        "operationId": "GetBoxPostingChanges",
+        "parameters": [
+          {
+            "name": "boxId",
+            "in": "path",
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "required": true
+          },
+          {
+            "name": "since",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "required": true
+          },
+          {
+            "name": "v",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "x-go-type-skip-optional-pointer": false
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "x-go-type-skip-optional-pointer": false
+            }
+          },
+          {
+            "name": "per_page",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "x-go-type-skip-optional-pointer": false
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "GetBoxPostingChanges 200 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetBoxPostingChangesResponseContent"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UnauthorizedError 401 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnauthorizedErrorResponseContent"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError 404 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundErrorResponseContent"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "ConflictError 409 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConflictErrorResponseContent"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "InternalServerError 500 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorResponseContent"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ServiceUnavailableError 503 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceUnavailableErrorResponseContent"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Boxes"
+        ],
+        "x-hey-pagination": {
+          "style": "link",
+          "totalCountHeader": "X-Total-Count"
+        },
+        "x-hey-retry": {
+          "maxAttempts": 3,
+          "baseDelayMs": 1000,
+          "backoff": "exponential",
+          "retryOn": [
+            429,
+            503
+          ]
+        }
+      }
+    },
     "/bubble_up.json": {
       "get": {
         "description": "Get the Bubble Up box",
@@ -8851,6 +8978,32 @@
       "CreateTimeTrackResponseContent": {
         "$ref": "#/components/schemas/Recording"
       },
+      "DeletedPosting": {
+        "type": "object",
+        "description": "DeletedPosting — the stub the changes feed answers with for a posting that is gone",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "box_id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "deleted_at": {
+            "type": "string",
+            "description": "ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)",
+            "format": "date-time",
+            "x-go-type": "time.Time",
+            "x-go-type-import": {
+              "path": "time"
+            }
+          }
+        },
+        "required": [
+          "id"
+        ]
+      },
       "DirectUpload": {
         "type": "object",
         "properties": {
@@ -9208,6 +9361,29 @@
       },
       "GetAsideboxResponseContent": {
         "$ref": "#/components/schemas/BoxShowResponse"
+      },
+      "GetBoxPostingChangesResponseContent": {
+        "type": "object",
+        "properties": {
+          "added": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Posting"
+            }
+          },
+          "updated": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Posting"
+            }
+          },
+          "deleted": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DeletedPosting"
+            }
+          }
+        }
       },
       "GetBoxResponseContent": {
         "$ref": "#/components/schemas/BoxShowResponse"

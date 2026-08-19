@@ -440,6 +440,15 @@ type CreateStickyResponseContent = Sticky
 // CreateTimeTrackResponseContent Recording — polymorphic by `type` (CalendarEvent, CalendarTodo, etc.)
 type CreateTimeTrackResponseContent = Recording
 
+// DeletedPosting DeletedPosting — the stub the changes feed answers with for a posting that is gone
+type DeletedPosting struct {
+	BoxId int64 `json:"box_id,omitempty"`
+
+	// DeletedAt ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)
+	DeletedAt time.Time `json:"deleted_at,omitempty"`
+	Id        int64     `json:"id"`
+}
+
 // DirectUpload defines model for DirectUpload.
 type DirectUpload struct {
 	AttachableSgid string             `json:"attachable_sgid"`
@@ -576,6 +585,13 @@ type GetAdvancedSearchFiltersResponseContent = AdvancedSearchFilters
 // The API can return fields at root level or nested under a `box` key.
 // SDK response decoders normalize the nested variant to flat before decoding.
 type GetAsideboxResponseContent = BoxShowResponse
+
+// GetBoxPostingChangesResponseContent defines model for GetBoxPostingChangesResponseContent.
+type GetBoxPostingChangesResponseContent struct {
+	Added   []Posting        `json:"added,omitempty"`
+	Deleted []DeletedPosting `json:"deleted,omitempty"`
+	Updated []Posting        `json:"updated,omitempty"`
+}
 
 // GetBoxResponseContent BoxShowResponse — box detail with postings.
 // The API can return fields at root level or nested under a `box` key.
@@ -1367,6 +1383,14 @@ type GetBoxParams struct {
 	Page *string `form:"page,omitempty" json:"page,omitempty"`
 }
 
+// GetBoxPostingChangesParams defines parameters for GetBoxPostingChanges.
+type GetBoxPostingChangesParams struct {
+	Since   string  `form:"since" json:"since"`
+	V       *string `form:"v,omitempty" json:"v,omitempty"`
+	Page    *string `form:"page,omitempty" json:"page,omitempty"`
+	PerPage *string `form:"per_page,omitempty" json:"per_page,omitempty"`
+}
+
 // GetBubbleboxParams defines parameters for GetBubblebox.
 type GetBubbleboxParams struct {
 	Page *string `form:"page,omitempty" json:"page,omitempty"`
@@ -1846,6 +1870,9 @@ type ClientInterface interface {
 	// MarkBoxSeen request
 	MarkBoxSeen(ctx context.Context, boxId int64, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// GetBoxPostingChanges request
+	GetBoxPostingChanges(ctx context.Context, boxId int64, params *GetBoxPostingChangesParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// GetBubblebox request
 	GetBubblebox(ctx context.Context, params *GetBubbleboxParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
@@ -2315,6 +2342,16 @@ func (c *Client) MarkBoxSeen(ctx context.Context, boxId int64, reqEditors ...Req
 		return nil, err
 	}
 	return c.Client.Do(req)
+
+}
+
+// GetBoxPostingChanges is marked as idempotent and will be retried on transient failures.
+
+func (c *Client) GetBoxPostingChanges(ctx context.Context, boxId int64, params *GetBoxPostingChangesParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+
+	return c.doWithRetry(ctx, func() (*http.Request, error) {
+		return NewGetBoxPostingChangesRequest(c.Server, boxId, params)
+	}, true, "GetBoxPostingChanges", reqEditors...)
 
 }
 
@@ -4388,6 +4425,106 @@ func NewMarkBoxSeenRequest(server string, boxId int64) (*http.Request, error) {
 	}
 
 	req, err := http.NewRequest("POST", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetBoxPostingChangesRequest generates requests for GetBoxPostingChanges
+func NewGetBoxPostingChangesRequest(server string, boxId int64, params *GetBoxPostingChangesParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "boxId", runtime.ParamLocationPath, boxId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/boxes/%s/postings/changes.json", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if queryFrag, err := runtime.StyleParamWithLocation("form", true, "since", runtime.ParamLocationQuery, params.Since); err != nil {
+			return nil, err
+		} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+			return nil, err
+		} else {
+			for k, v := range parsed {
+				for _, v2 := range v {
+					queryValues.Add(k, v2)
+				}
+			}
+		}
+
+		if params.V != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "v", runtime.ParamLocationQuery, *params.V); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Page != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "page", runtime.ParamLocationQuery, *params.Page); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.PerPage != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "per_page", runtime.ParamLocationQuery, *params.PerPage); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -8039,6 +8176,7 @@ var operationMetadata = map[string]OperationMetadata{
 	"CreateBoxGroup":             {Idempotent: false, HasSensitiveParams: false},
 	"DeleteBoxGroup":             {Idempotent: true, HasSensitiveParams: false},
 	"MarkBoxSeen":                {Idempotent: false, HasSensitiveParams: false},
+	"GetBoxPostingChanges":       {Idempotent: true, HasSensitiveParams: false},
 	"GetBubblebox":               {Idempotent: true, HasSensitiveParams: false},
 	"CreateBulkReply":            {Idempotent: false, HasSensitiveParams: false},
 	"NewBulkReply":               {Idempotent: true, HasSensitiveParams: false},
@@ -8825,6 +8963,21 @@ type ClientWithResponsesInterface interface {
 	//
 	// Returns a wrapper object for the known response body format(s).
 	MarkBoxSeenWithResponse(ctx context.Context, boxId int64, reqEditors ...RequestEditorFn) (*MarkBoxSeenResponse, error)
+
+	// GetBoxPostingChangesWithResponse performs a GET /boxes/{boxId}/postings/changes.json (the `GetBoxPostingChanges` operationId) request.
+	//
+	// Read what changed among a box's postings since a point in time.
+	//
+	// This is the incremental sync feed the mail clients follow rather than re-reading a
+	// box. `since` is an ISO 8601 timestamp with milliseconds and is exclusive, and `v` is
+	// the client's contract version — the server answers 409 when the caller is too far
+	// behind for an increment to carry the difference, which means read the box in full
+	// instead. A box's own `posting_changes_url` carries the `since` and `v` to start from,
+	// and the `Link` header names the next page while one remains and the next `since`
+	// cursor on the last page.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	GetBoxPostingChangesWithResponse(ctx context.Context, boxId int64, params *GetBoxPostingChangesParams, reqEditors ...RequestEditorFn) (*GetBoxPostingChangesResponse, error)
 
 	// GetBubbleboxWithResponse performs a GET /bubble_up.json (the `GetBubblebox` operationId) request.
 	//
@@ -10345,6 +10498,82 @@ func (r MarkBoxSeenResponse) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r MarkBoxSeenResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type GetBoxPostingChangesResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *GetBoxPostingChangesResponseContent
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *UnauthorizedErrorResponseContent
+	// JSON404 the response for an HTTP 404 `application/json` response
+	JSON404 *NotFoundErrorResponseContent
+	// JSON409 the response for an HTTP 409 `application/json` response
+	JSON409 *ConflictErrorResponseContent
+	// JSON500 the response for an HTTP 500 `application/json` response
+	JSON500 *InternalServerErrorResponseContent
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *ServiceUnavailableErrorResponseContent
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r GetBoxPostingChangesResponse) GetJSON200() *GetBoxPostingChangesResponseContent {
+	return r.JSON200
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r GetBoxPostingChangesResponse) GetJSON401() *UnauthorizedErrorResponseContent {
+	return r.JSON401
+}
+
+// GetJSON404 returns the response for an HTTP 404 `application/json` response
+func (r GetBoxPostingChangesResponse) GetJSON404() *NotFoundErrorResponseContent {
+	return r.JSON404
+}
+
+// GetJSON409 returns the response for an HTTP 409 `application/json` response
+func (r GetBoxPostingChangesResponse) GetJSON409() *ConflictErrorResponseContent {
+	return r.JSON409
+}
+
+// GetJSON500 returns the response for an HTTP 500 `application/json` response
+func (r GetBoxPostingChangesResponse) GetJSON500() *InternalServerErrorResponseContent {
+	return r.JSON500
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r GetBoxPostingChangesResponse) GetJSON503() *ServiceUnavailableErrorResponseContent {
+	return r.JSON503
+}
+
+// GetBody returns the raw response body bytes
+func (r GetBoxPostingChangesResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r GetBoxPostingChangesResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetBoxPostingChangesResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r GetBoxPostingChangesResponse) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -16328,6 +16557,27 @@ func (c *ClientWithResponses) MarkBoxSeenWithResponse(ctx context.Context, boxId
 	return ParseMarkBoxSeenResponse(rsp)
 }
 
+// GetBoxPostingChangesWithResponse performs a GET /boxes/{boxId}/postings/changes.json (the `GetBoxPostingChanges` operationId) request.
+//
+// Read what changed among a box's postings since a point in time.
+//
+// This is the incremental sync feed the mail clients follow rather than re-reading a
+// box. `since` is an ISO 8601 timestamp with milliseconds and is exclusive, and `v` is
+// the client's contract version — the server answers 409 when the caller is too far
+// behind for an increment to carry the difference, which means read the box in full
+// instead. A box's own `posting_changes_url` carries the `since` and `v` to start from,
+// and the `Link` header names the next page while one remains and the next `since`
+// cursor on the last page.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) GetBoxPostingChangesWithResponse(ctx context.Context, boxId int64, params *GetBoxPostingChangesParams, reqEditors ...RequestEditorFn) (*GetBoxPostingChangesResponse, error) {
+	rsp, err := c.GetBoxPostingChanges(ctx, boxId, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetBoxPostingChangesResponse(rsp)
+}
+
 // GetBubbleboxWithResponse performs a GET /bubble_up.json (the `GetBubblebox` operationId) request.
 //
 // Get the Bubble Up box.
@@ -18402,6 +18652,67 @@ func ParseMarkBoxSeenResponse(rsp *http.Response) (*MarkBoxSeenResponse, error) 
 			return nil, err
 		}
 		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest InternalServerErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+		var dest ServiceUnavailableErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON503 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetBoxPostingChangesResponse parses an HTTP response from a GetBoxPostingChangesWithResponse call
+func ParseGetBoxPostingChangesResponse(rsp *http.Response) (*GetBoxPostingChangesResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetBoxPostingChangesResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest GetBoxPostingChangesResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest UnauthorizedErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFoundErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
+		var dest ConflictErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON409 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
 		var dest InternalServerErrorResponseContent

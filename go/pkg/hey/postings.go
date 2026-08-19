@@ -3,6 +3,8 @@ package hey
 import (
 	"context"
 	"fmt"
+	"net/http"
+	"net/url"
 	"time"
 
 	"github.com/basecamp/hey-sdk/go/pkg/generated"
@@ -259,6 +261,168 @@ func (s *PostingsService) BubbleUpNow(ctx context.Context, postingIDs ...int64) 
 		}
 		return CheckResponse(resp.HTTPResponse)
 	})
+}
+
+// PostingChangesCursor is where a read of a box's changes feed starts. Since is an ISO
+// 8601 timestamp with milliseconds and is exclusive; Version is the contract version the
+// caller speaks. A box's PostingChangesUrl carries the pair to begin with — read it with
+// PostingChangesCursorFrom rather than picking the query apart.
+type PostingChangesCursor struct {
+	Since   string
+	Version string
+	Page    string
+	PerPage string
+}
+
+// PostingChangesCursorFrom reads a cursor out of a changes URL the server issued, either
+// a box's PostingChangesUrl or a Link header the feed answered with.
+func PostingChangesCursorFrom(changesURL string) (PostingChangesCursor, error) {
+	parsed, err := url.Parse(changesURL)
+	if err != nil {
+		return PostingChangesCursor{}, fmt.Errorf("failed to read changes URL %q: %w", changesURL, err)
+	}
+
+	query := parsed.Query()
+	return PostingChangesCursor{
+		Since:   query.Get("since"),
+		Version: query.Get("v"),
+		Page:    query.Get("page"),
+		PerPage: query.Get("per_page"),
+	}, nil
+}
+
+// PostingChanges is everything that happened to a box's postings since a cursor.
+//
+// NextPage is set while this increment has more pages to read now. NextCursor is set on
+// the last page and is where the next read should resume; it is nil when nothing changed,
+// in which case the cursor that produced this page still stands. FullSyncRequired is set
+// when the cursor is too far behind for an increment to carry the difference, and the box
+// has to be read in full instead.
+type PostingChanges struct {
+	Added            []generated.Posting
+	Updated          []generated.Posting
+	Deleted          []generated.DeletedPosting
+	NextPage         *PostingChangesCursor
+	NextCursor       *PostingChangesCursor
+	FullSyncRequired bool
+}
+
+// AllChanges reads a box's posting changes feed from a cursor to its end.
+func (s *PostingsService) AllChanges(ctx context.Context, boxID int64, cursor PostingChangesCursor) (*PostingChanges, error) {
+	all := &PostingChanges{}
+
+	for page := 1; page <= s.client.httpOpts.MaxPages; page++ {
+		changes, err := s.Changes(ctx, boxID, cursor)
+		if err != nil {
+			return nil, err
+		}
+		if changes.FullSyncRequired {
+			return changes, nil
+		}
+
+		all.Added = append(all.Added, changes.Added...)
+		all.Updated = append(all.Updated, changes.Updated...)
+		all.Deleted = append(all.Deleted, changes.Deleted...)
+		all.NextCursor = changes.NextCursor
+
+		if changes.NextPage == nil {
+			return all, nil
+		}
+		cursor = *changes.NextPage
+	}
+
+	s.client.logger.Warn("posting changes pagination capped", "maxPages", s.client.httpOpts.MaxPages)
+	return all, nil
+}
+
+// Changes returns one page of a box's posting changes feed.
+func (s *PostingsService) Changes(ctx context.Context, boxID int64, cursor PostingChangesCursor) (result *PostingChanges, err error) {
+	if cursor.Since == "" {
+		return nil, ErrUsage("a since cursor is required — start from the box's posting_changes_url")
+	}
+
+	op := OperationInfo{
+		Service: "Postings", Operation: "GetBoxPostingChanges",
+		ResourceType: "posting", IsMutation: false, ResourceID: boxID,
+	}
+	if gater, ok := s.client.hooks.(GatingHooks); ok {
+		if ctx, err = gater.OnOperationGate(ctx, op); err != nil {
+			return
+		}
+	}
+	start := time.Now()
+	ctx = s.client.hooks.OnOperationStart(ctx, op)
+	defer func() { s.client.hooks.OnOperationEnd(ctx, op, err, time.Since(start)) }()
+
+	s.client.initGeneratedClient()
+	resp, err := s.client.gen.GetBoxPostingChangesWithResponse(ctx, boxID, cursor.params())
+	if err != nil {
+		return nil, err
+	}
+
+	// Too far behind for an increment: the server says so with a 409 and no body.
+	if resp.StatusCode() == http.StatusConflict {
+		return &PostingChanges{FullSyncRequired: true}, nil
+	}
+	if err = CheckResponse(resp.HTTPResponse); err != nil {
+		return nil, err
+	}
+
+	changes := &PostingChanges{}
+	if resp.JSON200 != nil {
+		changes.Added = resp.JSON200.Added
+		changes.Updated = resp.JSON200.Updated
+		changes.Deleted = resp.JSON200.Deleted
+	}
+
+	next, err := nextPostingChangesCursor(resp.HTTPResponse)
+	if err != nil {
+		return nil, err
+	}
+	if next != nil {
+		// The feed answers with a page link while an increment has more pages, and with a
+		// fresh since cursor on the last one.
+		if next.Page != "" {
+			changes.NextPage = next
+		} else {
+			changes.NextCursor = next
+		}
+	}
+
+	return changes, nil
+}
+
+func nextPostingChangesCursor(resp *http.Response) (*PostingChangesCursor, error) {
+	link := parseNextLink(resp.Header.Get("Link"))
+	if link == "" {
+		return nil, nil
+	}
+
+	requested := resp.Request.URL.String()
+	next := resolveURL(requested, link)
+	if !isSameOrigin(next, requested) {
+		return nil, fmt.Errorf("changes Link header points to a different origin: %s", next)
+	}
+
+	cursor, err := PostingChangesCursorFrom(next)
+	if err != nil {
+		return nil, err
+	}
+	return &cursor, nil
+}
+
+func (c PostingChangesCursor) params() *generated.GetBoxPostingChangesParams {
+	params := &generated.GetBoxPostingChangesParams{Since: c.Since}
+	if c.Version != "" {
+		params.V = &c.Version
+	}
+	if c.Page != "" {
+		params.Page = &c.Page
+	}
+	if c.PerPage != "" {
+		params.PerPage = &c.PerPage
+	}
+	return params
 }
 
 // BoxIDByKind returns the ID of the caller's box with the given kind

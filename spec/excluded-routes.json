@@ -1975,11 +1975,6 @@
     "reason": "phase-2: mobile triage surface"
   },
   {
-    "method": "GET",
-    "path": "/boxes/{box_id}/postings/changes",
-    "reason": "phase-2: mobile triage surface"
-  },
-  {
     "method": "DELETE",
     "path": "/boxes/{id}",
     "reason": "phase-2: mobile triage surface"

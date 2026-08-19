@@ -161,6 +161,11 @@
   },
   {
     "method": "GET",
+    "operationId": "GetBoxPostingChanges",
+    "path": "/boxes/{boxId}/postings/changes.json"
+  },
+  {
+    "method": "GET",
     "operationId": "GetBubblebox",
     "path": "/bubble_up.json"
   },

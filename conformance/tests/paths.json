@@ -3403,5 +3403,54 @@
       "path",
       "reads"
     ]
+  },
+  {
+    "name": "GetBoxPostingChanges uses /boxes/{boxId}/postings/changes.json path",
+    "description": "Verifies that GetBoxPostingChanges constructs the URL path /boxes/{boxId}/postings/changes.json and carries the sync cursor in the query",
+    "operation": "GetBoxPostingChanges",
+    "method": "GET",
+    "path": "/boxes/{boxId}/postings/changes.json",
+    "pathParams": {
+      "boxId": 24088
+    },
+    "queryParams": {
+      "since": "2026-08-18T09:00:00.000Z",
+      "v": "2"
+    },
+    "mockResponses": [
+      {
+        "status": 200,
+        "body": {
+          "added": [],
+          "updated": [],
+          "deleted": []
+        }
+      }
+    ],
+    "assertions": [
+      {
+        "type": "requestPath",
+        "expected": "/boxes/24088/postings/changes.json"
+      },
+      {
+        "type": "requestMethod",
+        "expected": "GET"
+      },
+      {
+        "type": "requestQuery",
+        "expected": {
+          "since": "2026-08-18T09:00:00.000Z",
+          "v": "2"
+        }
+      },
+      {
+        "type": "noError"
+      }
+    ],
+    "tags": [
+      "path",
+      "boxes",
+      "sync"
+    ]
   }
 ]

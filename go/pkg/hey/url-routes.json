@@ -115,6 +115,19 @@
       }
     },
     {
+      "pattern": "/boxes/{boxId}/postings/changes",
+      "resource": "Boxes",
+      "operations": {
+        "GET": "GetBoxPostingChanges"
+      },
+      "params": {
+        "boxId": {
+          "role": "parent",
+          "type": "int64"
+        }
+      }
+    },
+    {
       "pattern": "/bubble_up",
       "resource": "Boxes",
       "operations": {

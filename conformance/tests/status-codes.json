@@ -178,6 +178,23 @@
     "tags": ["status-code", "429", "error", "rate-limit"]
   },
   {
+    "name": "409 Conflict on the changes feed means read the box in full",
+    "description": "Verifies that a sync cursor too far behind answers 409 with no body, rather than being retried or read as an increment",
+    "operation": "GetBoxPostingChanges",
+    "method": "GET",
+    "path": "/boxes/{boxId}/postings/changes.json",
+    "pathParams": {"boxId": 24088},
+    "queryParams": {"since": "2026-01-01T00:00:00.000Z", "v": "2"},
+    "mockResponses": [
+      {"status": 409, "body": {}}
+    ],
+    "assertions": [
+      {"type": "requestCount", "expected": 1},
+      {"type": "statusCode", "expected": 409}
+    ],
+    "tags": ["status-code", "409", "sync", "no-retry"]
+  },
+  {
     "name": "500 Internal Server Error is surfaced",
     "description": "Verifies that 500 responses are surfaced as InternalServerError",
     "operation": "GetBox",

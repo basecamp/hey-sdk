@@ -862,6 +862,16 @@ func executeOperation(client *generated.Client, ctx context.Context, tc TestCase
 	case "GetBox":
 		boxId := getInt64Param(tc.PathParams, "boxId")
 		return client.GetBox(ctx, boxId, nil)
+	case "GetBoxPostingChanges":
+		boxId := getInt64Param(tc.PathParams, "boxId")
+		params := &generated.GetBoxPostingChangesParams{Since: getStringParam(tc.QueryParams, "since")}
+		if version := getStringParam(tc.QueryParams, "v"); version != "" {
+			params.V = &version
+		}
+		if page := getStringParam(tc.QueryParams, "page"); page != "" {
+			params.Page = &page
+		}
+		return client.GetBoxPostingChanges(ctx, boxId, params)
 	case "GetImbox":
 		return client.GetImbox(ctx, nil)
 	case "GetFeedbox":

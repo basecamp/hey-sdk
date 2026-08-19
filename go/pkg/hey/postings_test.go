@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -350,5 +351,143 @@ func TestTopicsService_TrashSharedTopicNeedsConfirmation(t *testing.T) {
 	e := AsError(err)
 	if e == nil || e.Code != CodeUsage || e.Hint == "" {
 		t.Fatalf("expected a usage error telling the caller to confirm, got %#v", err)
+	}
+}
+
+// newChangesTestClient serves a box's posting changes feed with the given handler, and
+// answers with the cursor a box's posting_changes_url would carry.
+func newChangesTestClient(t *testing.T, handler http.HandlerFunc) (*Client, PostingChangesCursor) {
+	t.Helper()
+	server := httptest.NewServer(handler)
+	t.Cleanup(server.Close)
+	c := NewClient(&Config{BaseURL: server.URL}, &StaticTokenProvider{Token: "test-token"},
+		WithMaxRetries(0), WithBaseDelay(time.Millisecond), WithMaxJitter(time.Millisecond))
+
+	cursor, err := PostingChangesCursorFrom(server.URL + "/boxes/24088/postings/changes.json?since=2026-08-18T09%3A00%3A00.000Z&v=2")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	return c, cursor
+}
+
+func TestPostingChangesCursorFrom(t *testing.T) {
+	cursor, err := PostingChangesCursorFrom("https://app.hey.com/boxes/24088/postings/changes.json?since=2026-08-18T09%3A00%3A00.000Z&v=2&page=3")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if cursor.Since != "2026-08-18T09:00:00.000Z" {
+		t.Errorf("since = %q, want it decoded", cursor.Since)
+	}
+	if cursor.Version != "2" || cursor.Page != "3" {
+		t.Errorf("cursor = %+v, want v 2 and page 3", cursor)
+	}
+}
+
+func TestPostingsService_Changes(t *testing.T) {
+	var requested string
+	c, cursor := newChangesTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+		requested = r.URL.String()
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Link", `<`+r.URL.Path+`?since=2026-08-18T09%3A14%3A22.031Z&v=2>; rel="next"`)
+		_, _ = w.Write([]byte(`{"added":[{"id":9001,"kind":"topic","box_id":24088}],
+			"updated":[{"id":9002,"kind":"topic","box_id":24088,"seen":true}],
+			"deleted":[{"id":9003,"box_id":24088,"deleted_at":"2026-08-18T09:14:00.000Z"}]}`))
+	})
+
+	changes, err := c.Postings().Changes(context.Background(), 24088, cursor)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if requested != "/boxes/24088/postings/changes.json?since=2026-08-18T09%3A00%3A00.000Z&v=2" {
+		t.Errorf("requested %q, want the box's own feed with the cursor", requested)
+	}
+	if len(changes.Added) != 1 || changes.Added[0].Id != 9001 {
+		t.Errorf("added = %+v, want posting 9001", changes.Added)
+	}
+	if len(changes.Updated) != 1 || !changes.Updated[0].Seen {
+		t.Errorf("updated = %+v, want a seen posting", changes.Updated)
+	}
+	if len(changes.Deleted) != 1 || changes.Deleted[0].Id != 9003 {
+		t.Errorf("deleted = %+v, want posting 9003", changes.Deleted)
+	}
+	if changes.NextPage != nil {
+		t.Errorf("next page = %+v, want none: a since link is a cursor, not a page", changes.NextPage)
+	}
+	if changes.NextCursor == nil || changes.NextCursor.Since != "2026-08-18T09:14:22.031Z" {
+		t.Errorf("cursor = %+v, want the since from the Link header", changes.NextCursor)
+	}
+}
+
+func TestPostingsService_AllChangesFollowsPages(t *testing.T) {
+	var requested []string
+	c, cursor := newChangesTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+		requested = append(requested, r.URL.String())
+		w.Header().Set("Content-Type", "application/json")
+		if r.URL.Query().Get("page") == "" {
+			w.Header().Set("Link", `<`+r.URL.Path+`?since=2026-08-18T09%3A00%3A00.000Z&v=2&page=2>; rel="next"`)
+			_, _ = w.Write([]byte(`{"added":[{"id":9001,"kind":"topic"}]}`))
+		} else {
+			w.Header().Set("Link", `<`+r.URL.Path+`?since=2026-08-18T09%3A30%3A00.000Z&v=2>; rel="next"`)
+			_, _ = w.Write([]byte(`{"added":[{"id":9002,"kind":"topic"}]}`))
+		}
+	})
+
+	changes, err := c.Postings().AllChanges(context.Background(), 24088, cursor)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(requested) != 2 {
+		t.Fatalf("requests = %v, want two pages", requested)
+	}
+	if !strings.Contains(requested[1], "page=2") {
+		t.Errorf("second request = %q, want the page from the Link header", requested[1])
+	}
+	if len(changes.Added) != 2 || changes.Added[0].Id != 9001 || changes.Added[1].Id != 9002 {
+		t.Errorf("added = %+v, want both pages", changes.Added)
+	}
+	if changes.NextCursor == nil || changes.NextCursor.Since != "2026-08-18T09:30:00.000Z" {
+		t.Errorf("cursor = %+v, want the last page's since", changes.NextCursor)
+	}
+}
+
+func TestPostingsService_ChangesTooFarBehind(t *testing.T) {
+	c, cursor := newChangesTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusConflict)
+	})
+
+	changes, err := c.Postings().AllChanges(context.Background(), 24088, cursor)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !changes.FullSyncRequired {
+		t.Error("a 409 should ask for a full sync rather than error")
+	}
+}
+
+func TestPostingsService_ChangesWithNothingNew(t *testing.T) {
+	c, cursor := newChangesTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{}`))
+	})
+
+	changes, err := c.Postings().AllChanges(context.Background(), 24088, cursor)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(changes.Added)+len(changes.Updated)+len(changes.Deleted) != 0 {
+		t.Errorf("changes = %+v, want none", changes)
+	}
+	if changes.NextCursor != nil {
+		t.Errorf("cursor = %+v, want none so the caller keeps the one it has", changes.NextCursor)
+	}
+}
+
+func TestPostingsService_ChangesRequiresACursor(t *testing.T) {
+	c, _ := newChangesTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+		t.Error("no request should be sent without a cursor")
+	})
+
+	if _, err := c.Postings().Changes(context.Background(), 24088, PostingChangesCursor{}); err == nil {
+		t.Fatal("expected error for a cursor with no since")
 	}
 }
