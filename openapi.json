@@ -7320,6 +7320,244 @@
         }
       }
     },
+    "/topics/{topicId}/bubble_up": {
+      "delete": {
+        "description": "Cancel a scheduled Bubble Up.",
+        "operationId": "CancelTopicBubbleUp",
+        "parameters": [
+          {
+            "name": "topicId",
+            "in": "path",
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "CancelTopicBubbleUp 200 response"
+          },
+          "401": {
+            "description": "UnauthorizedError 401 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnauthorizedErrorResponseContent"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError 404 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundErrorResponseContent"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "InternalServerError 500 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorResponseContent"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ServiceUnavailableError 503 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceUnavailableErrorResponseContent"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Topics"
+        ],
+        "x-hey-retry": {
+          "maxAttempts": 2,
+          "baseDelayMs": 1000,
+          "backoff": "exponential",
+          "retryOn": [
+            429,
+            503
+          ]
+        }
+      },
+      "post": {
+        "description": "Schedule a topic to Bubble Up on a custom date.",
+        "operationId": "ScheduleTopicBubbleUp",
+        "requestBody": {
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/ScheduleTopicBubbleUpInputPayload"
+              }
+            }
+          },
+          "required": true
+        },
+        "parameters": [
+          {
+            "name": "topicId",
+            "in": "path",
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "required": true
+          },
+          {
+            "name": "slot",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "required": true
+          },
+          {
+            "name": "waiting_on",
+            "in": "query",
+            "schema": {
+              "type": "boolean",
+              "x-go-type-skip-optional-pointer": false
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ScheduleTopicBubbleUp 200 response"
+          },
+          "401": {
+            "description": "UnauthorizedError 401 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnauthorizedErrorResponseContent"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError 404 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundErrorResponseContent"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "UnprocessableEntityError 422 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnprocessableEntityErrorResponseContent"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "InternalServerError 500 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorResponseContent"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ServiceUnavailableError 503 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceUnavailableErrorResponseContent"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Topics"
+        ]
+      }
+    },
+    "/topics/{topicId}/bubble_up_now": {
+      "post": {
+        "description": "Bubble a topic up immediately.",
+        "operationId": "BubbleUpTopicNow",
+        "parameters": [
+          {
+            "name": "topicId",
+            "in": "path",
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "BubbleUpTopicNow 200 response"
+          },
+          "401": {
+            "description": "UnauthorizedError 401 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnauthorizedErrorResponseContent"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError 404 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundErrorResponseContent"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "InternalServerError 500 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorResponseContent"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ServiceUnavailableError 503 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceUnavailableErrorResponseContent"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Topics"
+        ]
+      }
+    },
     "/topics/{topicId}/entries": {
       "get": {
         "description": "Get entries for a topic",
@@ -10483,6 +10721,9 @@
       },
       "RevealContactResponseContent": {
         "$ref": "#/components/schemas/Contact"
+      },
+      "ScheduleTopicBubbleUpInputPayload": {
+        "type": "string"
       },
       "SearchFilterItem": {
         "type": "object",

@@ -44,6 +44,13 @@
         ]
       }
     },
+    "BubbleUpTopicNow": {
+      "idempotent": false,
+      "readonly": false,
+      "retry": {
+        "max": 0
+      }
+    },
     "BundleContact": {
       "idempotent": false,
       "readonly": false,
@@ -58,6 +65,19 @@
       }
     },
     "CancelPostingsBubbleUp": {
+      "idempotent": true,
+      "readonly": false,
+      "retry": {
+        "backoff": "exponential",
+        "base_delay_ms": 1000,
+        "max": 2,
+        "retry_on": [
+          429,
+          503
+        ]
+      }
+    },
+    "CancelTopicBubbleUp": {
       "idempotent": true,
       "readonly": false,
       "retry": {
@@ -1120,6 +1140,13 @@
           429,
           503
         ]
+      }
+    },
+    "ScheduleTopicBubbleUp": {
+      "idempotent": false,
+      "readonly": false,
+      "retry": {
+        "max": 0
       }
     },
     "StartTimeTrack": {

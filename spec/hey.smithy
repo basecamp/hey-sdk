@@ -39,6 +39,7 @@ use smithy.api#readonly
 use smithy.api#idempotent
 use smithy.api#error
 use smithy.api#httpError
+use smithy.api#mediaType
 use smithy.api#retryable
 use smithy.api#sensitive
 use smithy.api#tags
@@ -157,6 +158,9 @@ service HEY {
         EmptyTrash
         EmptySpam
         MoveTopic
+        ScheduleTopicBubbleUp
+        CancelTopicBubbleUp
+        BubbleUpTopicNow
 
         // Entries
         MarkEntrySpam
@@ -2538,6 +2542,52 @@ structure TrashTopicInput {
 @tags(["Topics"])
 @heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
 operation RestoreTopic {
+    input: TopicStatusInput
+    errors: [UnauthorizedError, NotFoundError, InternalServerError, ServiceUnavailableError]
+}
+
+@mediaType("application/x-www-form-urlencoded")
+string BubbleUpFormDocument
+
+/// Schedule a topic to Bubble Up on a custom date.
+@http(method: "POST", uri: "/topics/{topicId}/bubble_up")
+@tags(["Topics"])
+operation ScheduleTopicBubbleUp {
+    input: ScheduleTopicBubbleUpInput
+    errors: [UnauthorizedError, NotFoundError, UnprocessableEntityError, InternalServerError, ServiceUnavailableError]
+}
+
+structure ScheduleTopicBubbleUpInput {
+    @httpLabel
+    @required
+    topicId: Long
+
+    @httpQuery("slot")
+    @required
+    slot: String
+
+    @httpQuery("waiting_on")
+    waiting_on: Boolean
+
+    @httpPayload
+    @required
+    body: BubbleUpFormDocument
+}
+
+/// Cancel a scheduled Bubble Up.
+@idempotent
+@http(method: "DELETE", uri: "/topics/{topicId}/bubble_up")
+@tags(["Topics"])
+@heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+operation CancelTopicBubbleUp {
+    input: TopicStatusInput
+    errors: [UnauthorizedError, NotFoundError, InternalServerError, ServiceUnavailableError]
+}
+
+/// Bubble a topic up immediately.
+@http(method: "POST", uri: "/topics/{topicId}/bubble_up_now")
+@tags(["Topics"])
+operation BubbleUpTopicNow {
     input: TopicStatusInput
     errors: [UnauthorizedError, NotFoundError, InternalServerError, ServiceUnavailableError]
 }

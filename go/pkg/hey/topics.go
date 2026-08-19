@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/url"
+	"strings"
 	"time"
 
 	"github.com/basecamp/hey-sdk/go/pkg/generated"
@@ -173,6 +175,81 @@ func (s *TopicsService) GetEverything(ctx context.Context, params *generated.Get
 		return nil, err
 	}
 	return resp.JSON200, nil
+}
+
+// ScheduleBubbleUp schedules a topic to bubble up on a custom date.
+func (s *TopicsService) ScheduleBubbleUp(ctx context.Context, topicID int64, date string, waitingOn bool) error {
+	if topicID <= 0 {
+		return ErrUsage("topic ID must be positive")
+	}
+	if _, err := time.Parse("2006-01-02", date); err != nil {
+		return ErrUsage("bubble up date must use YYYY-MM-DD")
+	}
+
+	op := OperationInfo{
+		Service: "Topics", Operation: "ScheduleTopicBubbleUp",
+		ResourceType: "topic", IsMutation: true, ResourceID: topicID,
+	}
+
+	return s.client.instrument(ctx, op, func(ctx context.Context) error {
+		params := &generated.ScheduleTopicBubbleUpParams{Slot: "custom"}
+		if waitingOn {
+			params.WaitingOn = &waitingOn
+		}
+		values := url.Values{"date": {date}}
+
+		resp, err := s.client.genClient().ScheduleTopicBubbleUpWithBodyWithResponse(
+			contextWithAccept(ctx, "*/*"),
+			topicID,
+			params,
+			"application/x-www-form-urlencoded",
+			strings.NewReader(values.Encode()),
+		)
+		if err != nil {
+			return err
+		}
+		return CheckResponse(resp.HTTPResponse)
+	})
+}
+
+// CancelBubbleUp removes a topic's scheduled Bubble Up.
+func (s *TopicsService) CancelBubbleUp(ctx context.Context, topicID int64) error {
+	if topicID <= 0 {
+		return ErrUsage("topic ID must be positive")
+	}
+
+	op := OperationInfo{
+		Service: "Topics", Operation: "CancelTopicBubbleUp",
+		ResourceType: "topic", IsMutation: true, ResourceID: topicID,
+	}
+
+	return s.client.instrument(ctx, op, func(ctx context.Context) error {
+		resp, err := s.client.genClient().CancelTopicBubbleUpWithResponse(contextWithAccept(ctx, "*/*"), topicID)
+		if err != nil {
+			return err
+		}
+		return CheckResponse(resp.HTTPResponse)
+	})
+}
+
+// BubbleUpNow moves a topic to the top of the Imbox immediately.
+func (s *TopicsService) BubbleUpNow(ctx context.Context, topicID int64) error {
+	if topicID <= 0 {
+		return ErrUsage("topic ID must be positive")
+	}
+
+	op := OperationInfo{
+		Service: "Topics", Operation: "BubbleUpTopicNow",
+		ResourceType: "topic", IsMutation: true, ResourceID: topicID,
+	}
+
+	return s.client.instrument(ctx, op, func(ctx context.Context) error {
+		resp, err := s.client.genClient().BubbleUpTopicNowWithResponse(contextWithAccept(ctx, "*/*"), topicID)
+		if err != nil {
+			return err
+		}
+		return CheckResponse(resp.HTTPResponse)
+	})
 }
 
 // --- Status and moves ---

@@ -218,14 +218,17 @@ func (c *Client) initGeneratedClient() {
 			if err := c.authStrategy.Authenticate(ctx, req); err != nil {
 				return err
 			}
+			accept := acceptFromContext(ctx)
 			req.Header.Set("User-Agent", c.userAgent)
-			if req.Header.Get("Content-Type") == "" {
+			if req.Header.Get("Content-Type") == "" && accept == "application/json" {
 				req.Header.Set("Content-Type", "application/json")
 			}
-			req.Header.Set("Accept", "application/json")
-			req.URL.Path = withJSONExtension(req.URL.Path)
-			if req.URL.RawPath != "" {
-				req.URL.RawPath = withJSONExtension(req.URL.RawPath)
+			req.Header.Set("Accept", accept)
+			if accept == "application/json" {
+				req.URL.Path = withJSONExtension(req.URL.Path)
+				if req.URL.RawPath != "" {
+					req.URL.RawPath = withJSONExtension(req.URL.RawPath)
+				}
 			}
 			return nil
 		}

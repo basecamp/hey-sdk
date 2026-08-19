@@ -3452,5 +3452,112 @@
       "boxes",
       "sync"
     ]
+  },
+  {
+    "name": "ScheduleTopicBubbleUp uses /topics/{topicId}/bubble_up path",
+    "description": "Verifies that ScheduleTopicBubbleUp constructs the custom-date Bubble Up request",
+    "operation": "ScheduleTopicBubbleUp",
+    "method": "POST",
+    "path": "/topics/{topicId}/bubble_up",
+    "pathParams": {
+      "topicId": 456
+    },
+    "queryParams": {
+      "slot": "custom",
+      "waiting_on": true
+    },
+    "requestBody": {
+      "date": "2026-08-20"
+    },
+    "mockResponses": [
+      {
+        "status": 204,
+        "body": {}
+      }
+    ],
+    "assertions": [
+      {
+        "type": "requestPath",
+        "expected": "/topics/456/bubble_up"
+      },
+      {
+        "type": "requestQuery",
+        "expected": {
+          "slot": "custom",
+          "waiting_on": true
+        }
+      },
+      {
+        "type": "requestForm",
+        "expected": {
+          "date": "2026-08-20"
+        }
+      },
+      {
+        "type": "noError"
+      }
+    ],
+    "tags": [
+      "path",
+      "topics"
+    ]
+  },
+  {
+    "name": "CancelTopicBubbleUp uses /topics/{topicId}/bubble_up path",
+    "description": "Verifies that CancelTopicBubbleUp constructs the topic Bubble Up path",
+    "operation": "CancelTopicBubbleUp",
+    "method": "DELETE",
+    "path": "/topics/{topicId}/bubble_up",
+    "pathParams": {
+      "topicId": 456
+    },
+    "mockResponses": [
+      {
+        "status": 204,
+        "body": {}
+      }
+    ],
+    "assertions": [
+      {
+        "type": "requestPath",
+        "expected": "/topics/456/bubble_up"
+      },
+      {
+        "type": "noError"
+      }
+    ],
+    "tags": [
+      "path",
+      "topics"
+    ]
+  },
+  {
+    "name": "BubbleUpTopicNow uses /topics/{topicId}/bubble_up_now path",
+    "description": "Verifies that BubbleUpTopicNow constructs the immediate Bubble Up path",
+    "operation": "BubbleUpTopicNow",
+    "method": "POST",
+    "path": "/topics/{topicId}/bubble_up_now",
+    "pathParams": {
+      "topicId": 456
+    },
+    "mockResponses": [
+      {
+        "status": 204,
+        "body": {}
+      }
+    ],
+    "assertions": [
+      {
+        "type": "requestPath",
+        "expected": "/topics/456/bubble_up_now"
+      },
+      {
+        "type": "noError"
+      }
+    ],
+    "tags": [
+      "path",
+      "topics"
+    ]
   }
 ]

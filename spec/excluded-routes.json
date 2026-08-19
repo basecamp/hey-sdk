@@ -3250,16 +3250,6 @@
     "reason": "phase-2: topic breakout threads"
   },
   {
-    "method": "DELETE",
-    "path": "/topics/{topic_id}/bubble_up",
-    "reason": "phase-2: topic bubble up"
-  },
-  {
-    "method": "POST",
-    "path": "/topics/{topic_id}/bubble_up",
-    "reason": "phase-2: topic bubble up"
-  },
-  {
     "method": "GET",
     "path": "/topics/{topic_id}/bubble_up/menu",
     "reason": "phase-2: topic bubble up"
@@ -3276,11 +3266,6 @@
   },
   {
     "method": "PATCH",
-    "path": "/topics/{topic_id}/bubble_up_now",
-    "reason": "phase-2: topic bubble up"
-  },
-  {
-    "method": "POST",
     "path": "/topics/{topic_id}/bubble_up_now",
     "reason": "phase-2: topic bubble up"
   },
