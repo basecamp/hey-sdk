@@ -838,6 +838,35 @@ func TestTimeTracksService_Update(t *testing.T) {
 	}
 }
 
+// The category goes out as category_title, the same spelling CreateTimeTrack
+// uses. Sent as category, haystack drops it and answers 200, so a wrong field
+// name here is silent -- the track just stays uncategorized.
+func TestTimeTracksService_Update_CategoryTitle(t *testing.T) {
+	client := newMutationTestClientWithValidation(t, "PUT", "/calendar/time_tracks/%s.json",
+		func(t *testing.T, body map[string]any) {
+			t.Helper()
+			tt, ok := body["calendar_time_track"].(map[string]any)
+			if !ok {
+				t.Fatal("missing calendar_time_track wrapper")
+			}
+			if tt["category_title"] != "Client work" {
+				t.Errorf("expected the category title, got %v", tt["category_title"])
+			}
+			if v, present := tt["category"]; present {
+				t.Errorf("category is not the field haystack reads; got category=%v", v)
+			}
+		},
+		`{"id":1,"type":"TimeTrack","category":"Client work"}`,
+	)
+
+	body := generated.UpdateTimeTrackJSONRequestBody{
+		CalendarTimeTrack: generated.UpdateTimeTrackPayload{CategoryTitle: "Client work"},
+	}
+	if _, err := client.TimeTracks().Update(context.Background(), 1, body); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
 func TestTimeTracksService_Stop(t *testing.T) {
 	client := newMutationTestClientWithValidation(t, "PUT", "/calendar/time_tracks/%s.json",
 		func(t *testing.T, body map[string]any) {
@@ -851,7 +880,7 @@ func TestTimeTracksService_Stop(t *testing.T) {
 			}
 			// Stop must not touch the start: a zero-valued starts_at would be
 			// applied by the server and rewrite the track to year 0001.
-			for _, k := range []string{"starts_at", "category", "notes", "title"} {
+			for _, k := range []string{"starts_at", "category", "category_title", "notes", "title"} {
 				if v, present := tt[k]; present {
 					t.Errorf("stop body must only carry ends_at; got %s=%v", k, v)
 				}

@@ -1988,7 +1988,7 @@ structure UpdateTimeTrackInput {
     body: UpdateTimeTrackRequestContent
 }
 
-/// Wire format: {calendar_time_track: {title, notes, category, starts_at, ends_at}}
+/// Wire format: {calendar_time_track: {title, notes, category_title, starts_at, ends_at}}
 structure UpdateTimeTrackRequestContent {
     @required
     calendar_time_track: UpdateTimeTrackPayload
@@ -1997,7 +1997,13 @@ structure UpdateTimeTrackRequestContent {
 structure UpdateTimeTrackPayload {
     title: String
     notes: String
-    category: String
+
+    /// Files the track under a category, by title, matching CreateTimeTrack's
+    /// category_title. The title has to name a category that already exists;
+    /// haystack ignores an unknown one rather than creating it, and there is no
+    /// way to clear a category once set -- neither "" nor null unsets it.
+    category_title: String
+
     starts_at: DateTime
     ends_at: DateTime
 }

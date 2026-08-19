@@ -10972,8 +10972,9 @@
           "notes": {
             "type": "string"
           },
-          "category": {
-            "type": "string"
+          "category_title": {
+            "type": "string",
+            "description": "Files the track under a category, by title, matching CreateTimeTrack's\ncategory_title. The title has to name a category that already exists;\nhaystack ignores an unknown one rather than creating it, and there is no\nway to clear a category once set -- neither \"\" nor null unsets it."
           },
           "starts_at": {
             "type": "string",
@@ -10999,7 +11000,7 @@
       },
       "UpdateTimeTrackRequestContent": {
         "type": "object",
-        "description": "Wire format: {calendar_time_track: {title, notes, category, starts_at, ends_at}}",
+        "description": "Wire format: {calendar_time_track: {title, notes, category_title, starts_at, ends_at}}",
         "properties": {
           "calendar_time_track": {
             "$ref": "#/components/schemas/UpdateTimeTrackPayload"
