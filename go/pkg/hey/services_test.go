@@ -1619,6 +1619,22 @@ func TestEntriesService_MarkSpam(t *testing.T) {
 	}
 }
 
+func TestEntriesService_NewReply(t *testing.T) {
+	client := newRequestTestClient(t, "GET", "/entries/%s/replies/new.json", nil, 200,
+		`{"url":"https://app.hey.com/entries/5512/replies","subject":"Re: Quarterly planning","is_reply":true,"addressed":{"directly":[{"id":7,"name":"Amanda Jones","email_address":"amanda@example.com"}]}}`)
+
+	draft, err := client.Entries().NewReply(context.Background(), 5512)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !draft.IsReply || draft.Subject != "Re: Quarterly planning" {
+		t.Errorf("unexpected reply draft: %+v", draft)
+	}
+	if len(draft.Addressed.Directly) != 1 || draft.Addressed.Directly[0].EmailAddress != "amanda@example.com" {
+		t.Errorf("unexpected reply recipients: %+v", draft.Addressed)
+	}
+}
+
 func TestEntriesService_NewForward(t *testing.T) {
 	client := newRequestTestClient(t, "GET", "/entries/%s/forwards/new.json", nil, 200,
 		`{"url":"https://app.hey.com/messages","subject":"Fwd: Quarterly planning","content":"<div>quoted</div>","is_reply":false}`)

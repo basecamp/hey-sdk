@@ -4505,6 +4505,87 @@
         }
       }
     },
+    "/entries/{entryId}/replies/new.json": {
+      "get": {
+        "description": "Get the live reply envelope for an entry, including HEY's resolved recipients.\nSend it with CreateReply after filling in the message content.",
+        "operationId": "NewEntryReply",
+        "parameters": [
+          {
+            "name": "entryId",
+            "in": "path",
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "NewEntryReply 200 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NewEntryReplyResponseContent"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UnauthorizedError 401 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnauthorizedErrorResponseContent"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError 404 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundErrorResponseContent"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "InternalServerError 500 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorResponseContent"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ServiceUnavailableError 503 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceUnavailableErrorResponseContent"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Entries"
+        ],
+        "x-hey-retry": {
+          "maxAttempts": 3,
+          "baseDelayMs": 1000,
+          "backoff": "exponential",
+          "retryOn": [
+            429,
+            503
+          ]
+        }
+      }
+    },
     "/entries/{entryId}/status/spam.json": {
       "put": {
         "description": "Mark an entry as spam. Denies the sender when every thread from them is already spam.",
@@ -9933,6 +10014,9 @@
         "$ref": "#/components/schemas/BulkReplyDraft"
       },
       "NewEntryForwardResponseContent": {
+        "$ref": "#/components/schemas/MessageDraft"
+      },
+      "NewEntryReplyResponseContent": {
         "$ref": "#/components/schemas/MessageDraft"
       },
       "NotFoundErrorResponseContent": {

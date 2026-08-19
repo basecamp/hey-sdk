@@ -890,6 +890,9 @@ type NewBulkReplyResponseContent = BulkReplyDraft
 // NewEntryForwardResponseContent MessageDraft — a prefilled compose payload (forward, reply). Unsent, so it has no id.
 type NewEntryForwardResponseContent = MessageDraft
 
+// NewEntryReplyResponseContent MessageDraft — a prefilled compose payload (forward, reply). Unsent, so it has no id.
+type NewEntryReplyResponseContent = MessageDraft
+
 // NotFoundErrorResponseContent defines model for NotFoundErrorResponseContent.
 type NotFoundErrorResponseContent struct {
 	Message string `json:"message"`
@@ -2028,6 +2031,9 @@ type ClientInterface interface {
 
 	CreateReply(ctx context.Context, entryId int64, body CreateReplyJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// NewEntryReply request
+	NewEntryReply(ctx context.Context, entryId int64, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// MarkEntrySpam request
 	MarkEntrySpam(ctx context.Context, entryId int64, reqEditors ...RequestEditorFn) (*http.Response, error)
 
@@ -3054,6 +3060,16 @@ func (c *Client) CreateReply(ctx context.Context, entryId int64, body CreateRepl
 		return nil, err
 	}
 	return c.Client.Do(req)
+
+}
+
+// NewEntryReply is marked as idempotent and will be retried on transient failures.
+
+func (c *Client) NewEntryReply(ctx context.Context, entryId int64, reqEditors ...RequestEditorFn) (*http.Response, error) {
+
+	return c.doWithRetry(ctx, func() (*http.Request, error) {
+		return NewNewEntryReplyRequest(c.Server, entryId)
+	}, true, "NewEntryReply", reqEditors...)
 
 }
 
@@ -6225,6 +6241,40 @@ func NewCreateReplyRequestWithBody(server string, entryId int64, contentType str
 	return req, nil
 }
 
+// NewNewEntryReplyRequest generates requests for NewEntryReply
+func NewNewEntryReplyRequest(server string, entryId int64) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "entryId", runtime.ParamLocationPath, entryId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/entries/%s/replies/new.json", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewMarkEntrySpamRequest generates requests for MarkEntrySpam
 func NewMarkEntrySpamRequest(server string, entryId int64) (*http.Request, error) {
 	var err error
@@ -8220,6 +8270,7 @@ var operationMetadata = map[string]OperationMetadata{
 	"ListDrafts":                 {Idempotent: true, HasSensitiveParams: false},
 	"NewEntryForward":            {Idempotent: true, HasSensitiveParams: false},
 	"CreateReply":                {Idempotent: false, HasSensitiveParams: false},
+	"NewEntryReply":              {Idempotent: true, HasSensitiveParams: false},
 	"MarkEntrySpam":              {Idempotent: true, HasSensitiveParams: false},
 	"GetFeedbox":                 {Idempotent: true, HasSensitiveParams: false},
 	"GetFolder":                  {Idempotent: true, HasSensitiveParams: false},
@@ -9387,6 +9438,14 @@ type ClientWithResponsesInterface interface {
 	//
 	// Reply to an entry.
 	CreateReplyWithResponse(ctx context.Context, entryId int64, body CreateReplyJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateReplyResponse, error)
+
+	// NewEntryReplyWithResponse performs a GET /entries/{entryId}/replies/new.json (the `NewEntryReply` operationId) request.
+	//
+	// Get the live reply envelope for an entry, including HEY's resolved recipients.
+	// Send it with CreateReply after filling in the message content.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	NewEntryReplyWithResponse(ctx context.Context, entryId int64, reqEditors ...RequestEditorFn) (*NewEntryReplyResponse, error)
 
 	// MarkEntrySpamWithResponse performs a PUT /entries/{entryId}/status/spam.json (the `MarkEntrySpam` operationId) request.
 	//
@@ -13491,6 +13550,75 @@ func (r CreateReplyResponse) ContentType() string {
 	return ""
 }
 
+type NewEntryReplyResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *NewEntryReplyResponseContent
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *UnauthorizedErrorResponseContent
+	// JSON404 the response for an HTTP 404 `application/json` response
+	JSON404 *NotFoundErrorResponseContent
+	// JSON500 the response for an HTTP 500 `application/json` response
+	JSON500 *InternalServerErrorResponseContent
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *ServiceUnavailableErrorResponseContent
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r NewEntryReplyResponse) GetJSON200() *NewEntryReplyResponseContent {
+	return r.JSON200
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r NewEntryReplyResponse) GetJSON401() *UnauthorizedErrorResponseContent {
+	return r.JSON401
+}
+
+// GetJSON404 returns the response for an HTTP 404 `application/json` response
+func (r NewEntryReplyResponse) GetJSON404() *NotFoundErrorResponseContent {
+	return r.JSON404
+}
+
+// GetJSON500 returns the response for an HTTP 500 `application/json` response
+func (r NewEntryReplyResponse) GetJSON500() *InternalServerErrorResponseContent {
+	return r.JSON500
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r NewEntryReplyResponse) GetJSON503() *ServiceUnavailableErrorResponseContent {
+	return r.JSON503
+}
+
+// GetBody returns the raw response body bytes
+func (r NewEntryReplyResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r NewEntryReplyResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r NewEntryReplyResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r NewEntryReplyResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type MarkEntrySpamResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -17323,6 +17451,20 @@ func (c *ClientWithResponses) CreateReplyWithResponse(ctx context.Context, entry
 	return ParseCreateReplyResponse(rsp)
 }
 
+// NewEntryReplyWithResponse performs a GET /entries/{entryId}/replies/new.json (the `NewEntryReply` operationId) request.
+//
+// Get the live reply envelope for an entry, including HEY's resolved recipients.
+// Send it with CreateReply after filling in the message content.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) NewEntryReplyWithResponse(ctx context.Context, entryId int64, reqEditors ...RequestEditorFn) (*NewEntryReplyResponse, error) {
+	rsp, err := c.NewEntryReply(ctx, entryId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseNewEntryReplyResponse(rsp)
+}
+
 // MarkEntrySpamWithResponse performs a PUT /entries/{entryId}/status/spam.json (the `MarkEntrySpam` operationId) request.
 //
 // Mark an entry as spam. Denies the sender when every thread from them is already spam.
@@ -21015,6 +21157,60 @@ func ParseCreateReplyResponse(rsp *http.Response) (*CreateReplyResponse, error) 
 			return nil, err
 		}
 		response.JSON422 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest InternalServerErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+		var dest ServiceUnavailableErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON503 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseNewEntryReplyResponse parses an HTTP response from a NewEntryReplyWithResponse call
+func ParseNewEntryReplyResponse(rsp *http.Response) (*NewEntryReplyResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &NewEntryReplyResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest NewEntryReplyResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest UnauthorizedErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFoundErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
 		var dest InternalServerErrorResponseContent

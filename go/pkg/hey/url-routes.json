@@ -465,6 +465,19 @@
       }
     },
     {
+      "pattern": "/entries/{entryId}/replies/new",
+      "resource": "Entries",
+      "operations": {
+        "GET": "NewEntryReply"
+      },
+      "params": {
+        "entryId": {
+          "role": "parent",
+          "type": "int64"
+        }
+      }
+    },
+    {
       "pattern": "/entries/{entryId}/status/spam",
       "resource": "Entries",
       "operations": {
