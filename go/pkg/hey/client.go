@@ -277,17 +277,77 @@ func (c *Client) GetHTML(ctx context.Context, path string) (*Response, error) {
 // the response cache. Redirects may leave the HEY origin, but the HTTP client
 // strips authorization before following them.
 func (c *Client) GetBlob(ctx context.Context, path string) (*Response, error) {
-	resolvedURL, err := c.buildURL(path)
+	resolvedURL, err := c.blobURL(path)
 	if err != nil {
 		return nil, err
-	}
-	if !isSameOrigin(c.cfg.BaseURL, resolvedURL) {
-		return nil, fmt.Errorf("blob URL points to different origin: %s", resolvedURL)
 	}
 
 	ctx = contextWithAccept(ctx, "*/*")
 	ctx = contextWithoutCache(ctx)
 	return c.doRequestURL(ctx, "GET", resolvedURL, nil)
+}
+
+// DownloadBlob streams a blob to destination without placing the complete file
+// in memory. It returns the number of bytes written and the final response headers.
+func (c *Client) DownloadBlob(ctx context.Context, path string, destination io.Writer) (int64, http.Header, error) {
+	if destination == nil {
+		return 0, nil, ErrUsage("a blob download needs a destination")
+	}
+	resolvedURL, err := c.blobURL(path)
+	if err != nil {
+		return 0, nil, err
+	}
+
+	for attempt := 1; attempt <= 2; attempt++ {
+		req, requestErr := http.NewRequestWithContext(ctx, http.MethodGet, resolvedURL, nil)
+		if requestErr != nil {
+			return 0, nil, requestErr
+		}
+		if authErr := c.authStrategy.Authenticate(ctx, req); authErr != nil {
+			return 0, nil, authErr
+		}
+		req.Header.Set("User-Agent", c.userAgent)
+		req.Header.Set("Accept", "*/*")
+
+		resp, requestErr := c.httpClient.Do(req)
+		if requestErr != nil {
+			return 0, nil, ErrNetwork(requestErr)
+		}
+		if resp.StatusCode == http.StatusUnauthorized && attempt == 1 {
+			_ = resp.Body.Close()
+			if authManager, ok := c.tokenProvider.(*AuthManager); ok {
+				if refreshErr := authManager.Refresh(ctx); refreshErr == nil {
+					continue
+				}
+			}
+			return 0, nil, ErrAuth("Authentication failed")
+		}
+		if responseErr := CheckResponse(resp); responseErr != nil {
+			_ = resp.Body.Close()
+			return 0, nil, responseErr
+		}
+		written, copyErr := io.Copy(destination, resp.Body)
+		closeErr := resp.Body.Close()
+		if copyErr != nil {
+			return written, resp.Header, fmt.Errorf("download blob: %w", copyErr)
+		}
+		if closeErr != nil {
+			return written, resp.Header, fmt.Errorf("close blob download: %w", closeErr)
+		}
+		return written, resp.Header, nil
+	}
+	return 0, nil, ErrAuth("Authentication failed")
+}
+
+func (c *Client) blobURL(path string) (string, error) {
+	resolvedURL, err := c.buildURL(path)
+	if err != nil {
+		return "", err
+	}
+	if !isSameOrigin(c.cfg.BaseURL, resolvedURL) {
+		return "", fmt.Errorf("blob URL points to different origin: %s", resolvedURL)
+	}
+	return resolvedURL, nil
 }
 
 // GetCSV performs a GET request with Accept: text/csv, returning the raw CSV bytes.

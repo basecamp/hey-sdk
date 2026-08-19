@@ -189,6 +189,54 @@ func TestClient_GetBlobStripsAuthorizationOnCrossOriginRedirect(t *testing.T) {
 	}
 }
 
+func TestClient_DownloadBlobStreamsCrossOriginRedirect(t *testing.T) {
+	binary := []byte{0x00, 0xff, 0x01, 0xfe}
+	var targetAuthorization atomic.Value
+	target := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		targetAuthorization.Store(r.Header.Get("Authorization"))
+		w.Header().Set("Content-Type", "application/octet-stream")
+		_, _ = w.Write(binary)
+	}))
+	t.Cleanup(target.Close)
+
+	source := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if got := r.Header.Get("Authorization"); got != "Bearer test-token" {
+			t.Errorf("source Authorization = %q, want Bearer token", got)
+		}
+		http.Redirect(w, r, target.URL+"/download/file.bin", http.StatusFound)
+	}))
+	t.Cleanup(source.Close)
+
+	client := NewClient(
+		&Config{BaseURL: source.URL},
+		&StaticTokenProvider{Token: "test-token"},
+		WithMaxRetries(0),
+	)
+	var destination bytes.Buffer
+	written, headers, err := client.DownloadBlob(context.Background(), "/rails/active_storage/blobs/redirect/abc/file.bin", &destination)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if written != int64(len(binary)) || !bytes.Equal(destination.Bytes(), binary) {
+		t.Fatalf("download = %d bytes %v, want %v", written, destination.Bytes(), binary)
+	}
+	if headers.Get("Content-Type") != "application/octet-stream" {
+		t.Errorf("Content-Type = %q", headers.Get("Content-Type"))
+	}
+	if got, _ := targetAuthorization.Load().(string); got != "" {
+		t.Errorf("target Authorization = %q, want empty", got)
+	}
+}
+
+func TestClient_DownloadBlobRequiresDestination(t *testing.T) {
+	client := newTestClient(t, func(http.ResponseWriter, *http.Request) {
+		t.Error("nil destination should be rejected before making a request")
+	})
+	if _, _, err := client.DownloadBlob(context.Background(), "/blob", nil); err == nil {
+		t.Fatal("expected destination error")
+	}
+}
+
 func TestClient_Post(t *testing.T) {
 	client := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != "POST" {
