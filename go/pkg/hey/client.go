@@ -274,8 +274,9 @@ func (c *Client) GetHTML(ctx context.Context, path string) (*Response, error) {
 }
 
 // GetBlob performs a same-origin GET request for binary content and bypasses
-// the response cache. Redirects may leave the HEY origin, but the HTTP client
-// strips authorization before following them.
+// the response cache. It buffers up to MaxResponseBodyBytes; DownloadBlob streams
+// files of any size. Redirects may leave the HEY origin, and the HTTP client strips
+// authorization before following them.
 func (c *Client) GetBlob(ctx context.Context, path string) (*Response, error) {
 	resolvedURL, err := c.blobURL(path)
 	if err != nil {
