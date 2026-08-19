@@ -284,7 +284,7 @@ func (c *Client) GetBlob(ctx context.Context, path string) (*Response, error) {
 
 	ctx = contextWithAccept(ctx, "*/*")
 	ctx = contextWithoutCache(ctx)
-	return c.doRequestURL(ctx, "GET", resolvedURL, nil)
+	return c.doRequestURL(ctx, http.MethodGet, resolvedURL, nil)
 }
 
 // DownloadBlob streams a blob to destination without placing the complete file
@@ -314,7 +314,7 @@ func (c *Client) blobURL(path string) (string, error) {
 		return "", err
 	}
 	if !isSameOrigin(c.cfg.BaseURL, resolvedURL) {
-		return "", ErrUsage("a blob download URL must start on the HEY origin")
+		return "", ErrUsage("a blob URL must start on the HEY origin")
 	}
 	return resolvedURL, nil
 }
@@ -622,7 +622,7 @@ func (c *Client) singleRequest(ctx context.Context, method, url string, body any
 	req.Header.Set("Accept", acceptFromContext(ctx))
 
 	var cacheKey string
-	if method == "GET" && c.cache != nil && !noCacheFromContext(ctx) {
+	if method == http.MethodGet && c.cache != nil && !noCacheFromContext(ctx) {
 		cacheKey = c.cache.Key(url, req.Header.Get("Authorization"))
 		if etag := c.cache.GetETag(cacheKey); etag != "" {
 			req.Header.Set("If-None-Match", etag)
@@ -673,7 +673,7 @@ func (c *Client) singleRequest(ctx context.Context, method, url string, body any
 			respBody = json.RawMessage("null")
 		}
 
-		if method == "GET" && cacheKey != "" {
+		if method == http.MethodGet && cacheKey != "" {
 			if etag := resp.Header.Get("ETag"); etag != "" {
 				_ = c.cache.Set(cacheKey, respBody, etag)
 				c.logger.Debug("cache stored", "etag", etag)
