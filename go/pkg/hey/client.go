@@ -298,45 +298,14 @@ func (c *Client) DownloadBlob(ctx context.Context, path string, destination io.W
 		return 0, nil, err
 	}
 
-	for attempt := 1; attempt <= 2; attempt++ {
-		req, requestErr := http.NewRequestWithContext(ctx, http.MethodGet, resolvedURL, nil)
-		if requestErr != nil {
-			return 0, nil, requestErr
-		}
-		if authErr := c.authStrategy.Authenticate(ctx, req); authErr != nil {
-			return 0, nil, authErr
-		}
-		req.Header.Set("User-Agent", c.userAgent)
-		req.Header.Set("Accept", "*/*")
-
-		resp, requestErr := c.httpClient.Do(req)
-		if requestErr != nil {
-			return 0, nil, ErrNetwork(requestErr)
-		}
-		if resp.StatusCode == http.StatusUnauthorized && attempt == 1 {
-			_ = resp.Body.Close()
-			if authManager, ok := c.tokenProvider.(*AuthManager); ok {
-				if refreshErr := authManager.Refresh(ctx); refreshErr == nil {
-					continue
-				}
-			}
-			return 0, nil, ErrAuth("Authentication failed")
-		}
-		if responseErr := CheckResponse(resp); responseErr != nil {
-			_ = resp.Body.Close()
-			return 0, nil, responseErr
-		}
-		written, copyErr := io.Copy(destination, resp.Body)
-		closeErr := resp.Body.Close()
-		if copyErr != nil {
-			return written, resp.Header, fmt.Errorf("download blob: %w", copyErr)
-		}
-		if closeErr != nil {
-			return written, resp.Header, fmt.Errorf("close blob download: %w", closeErr)
-		}
-		return written, resp.Header, nil
+	ctx = contextWithAccept(ctx, "*/*")
+	ctx = contextWithoutCache(ctx)
+	ctx, stream := contextWithStreamDestination(ctx, destination)
+	resp, err := c.doRequestURL(ctx, http.MethodGet, resolvedURL, nil)
+	if err != nil {
+		return stream.written, nil, err
 	}
-	return 0, nil, ErrAuth("Authentication failed")
+	return stream.written, resp.Headers, nil
 }
 
 func (c *Client) blobURL(path string) (string, error) {
@@ -542,6 +511,23 @@ func noCacheFromContext(ctx context.Context) bool {
 	return v
 }
 
+type contextKeyStreamDestination struct{}
+
+type streamDestination struct {
+	writer  io.Writer
+	written int64
+}
+
+func contextWithStreamDestination(ctx context.Context, writer io.Writer) (context.Context, *streamDestination) {
+	destination := &streamDestination{writer: writer}
+	return context.WithValue(ctx, contextKeyStreamDestination{}, destination), destination
+}
+
+func streamDestinationFromContext(ctx context.Context) *streamDestination {
+	destination, _ := ctx.Value(contextKeyStreamDestination{}).(*streamDestination)
+	return destination
+}
+
 func (c *Client) doRequest(ctx context.Context, method, path string, body any) (*Response, error) {
 	url, err := c.buildURL(path)
 	if err != nil {
@@ -671,6 +657,13 @@ func (c *Client) singleRequest(ctx context.Context, method, url string, body any
 		return nil, ErrAPI(304, "304 received but no cached response available")
 
 	case http.StatusOK, http.StatusCreated, http.StatusNoContent:
+		if destination := streamDestinationFromContext(ctx); destination != nil {
+			destination.written, err = io.Copy(destination.writer, resp.Body)
+			if err != nil {
+				return nil, fmt.Errorf("stream response: %w", err)
+			}
+			return &Response{StatusCode: resp.StatusCode, Headers: resp.Header}, nil
+		}
 		respBody, err := limitedReadAll(resp.Body, MaxResponseBodyBytes)
 		if err != nil {
 			return nil, fmt.Errorf("failed to read response: %w", err)

@@ -111,5 +111,8 @@ func (s *AttachmentsService) Upload(ctx context.Context, filename, contentType s
 	if err := CheckResponse(resp); err != nil {
 		return nil, err
 	}
+	if _, err := io.Copy(io.Discard, resp.Body); err != nil {
+		return nil, fmt.Errorf("drain attachment upload response: %w", err)
+	}
 	return upload, nil
 }
