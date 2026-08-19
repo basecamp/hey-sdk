@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"sync/atomic"
@@ -226,6 +227,48 @@ func TestClient_DownloadBlobStreamsCrossOriginRedirect(t *testing.T) {
 	}
 	if got, _ := targetAuthorization.Load().(string); got != "" {
 		t.Errorf("target Authorization = %q, want empty", got)
+	}
+}
+
+type failingStreamWriter struct {
+	limit   int
+	written int
+}
+
+func (w *failingStreamWriter) Write(data []byte) (int, error) {
+	remaining := w.limit - w.written
+	if remaining <= 0 {
+		return 0, errors.New("destination failed")
+	}
+	if len(data) > remaining {
+		w.written += remaining
+		return remaining, errors.New("destination failed")
+	}
+	w.written += len(data)
+	return len(data), nil
+}
+
+func TestClient_DownloadBlobDoesNotRetryPartialWrites(t *testing.T) {
+	var requests atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		requests.Add(1)
+		_, _ = w.Write([]byte("streamed attachment"))
+	}))
+	t.Cleanup(server.Close)
+	client := NewClient(
+		&Config{BaseURL: server.URL},
+		&StaticTokenProvider{Token: "test-token"},
+		WithMaxRetries(3),
+		WithBaseDelay(time.Millisecond),
+		WithMaxJitter(time.Millisecond),
+	)
+	destination := &failingStreamWriter{limit: 4}
+	written, _, err := client.DownloadBlob(context.Background(), "/blob", destination)
+	if err == nil || written != 4 {
+		t.Fatalf("DownloadBlob = %d, %v", written, err)
+	}
+	if requests.Load() != 1 {
+		t.Errorf("requests = %d, want 1", requests.Load())
 	}
 }
 
