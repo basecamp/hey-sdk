@@ -132,7 +132,9 @@ func (s *ContactsService) Screen(ctx context.Context, contactID int64, status st
 }
 
 // Clearances returns the screener summary — how many senders are waiting to be screened.
-// The API does not expose the pending senders themselves here.
+//
+// Deprecated: use Client.Clearances(). PendingCount answers the same count, and Pending
+// answers the senders themselves.
 func (s *ContactsService) Clearances(ctx context.Context) (result *generated.ClearanceSummary, err error) {
 	op := OperationInfo{
 		Service: "Contacts", Operation: "GetClearances",
@@ -140,7 +142,7 @@ func (s *ContactsService) Clearances(ctx context.Context) (result *generated.Cle
 	}
 
 	err = s.client.instrument(ctx, op, func(ctx context.Context) error {
-		resp, rerr := s.client.genClient().GetClearancesWithResponse(ctx)
+		resp, rerr := s.client.genClient().GetClearancesWithResponse(ctx, &generated.GetClearancesParams{})
 		if rerr != nil {
 			return rerr
 		}

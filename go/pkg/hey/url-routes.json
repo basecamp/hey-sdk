@@ -323,6 +323,35 @@
       "params": {}
     },
     {
+      "pattern": "/clearances/bulk",
+      "resource": "Contacts",
+      "operations": {
+        "PATCH": "BulkUpdateClearances"
+      },
+      "params": {}
+    },
+    {
+      "pattern": "/clearances/punt",
+      "resource": "Contacts",
+      "operations": {
+        "POST": "PuntClearances"
+      },
+      "params": {}
+    },
+    {
+      "pattern": "/clearances/{clearanceId}",
+      "resource": "Contacts",
+      "operations": {
+        "PATCH": "UpdateClearance"
+      },
+      "params": {
+        "clearanceId": {
+          "role": "recording",
+          "type": "int64"
+        }
+      }
+    },
+    {
       "pattern": "/clips",
       "resource": "Clips",
       "operations": {
@@ -530,6 +559,27 @@
       },
       "params": {
         "messageId": {
+          "role": "recording",
+          "type": "int64"
+        }
+      }
+    },
+    {
+      "pattern": "/my/clearances",
+      "resource": "Contacts",
+      "operations": {
+        "GET": "GetMyClearances"
+      },
+      "params": {}
+    },
+    {
+      "pattern": "/my/clearances/{clearanceId}",
+      "resource": "Contacts",
+      "operations": {
+        "PATCH": "UpdateMyClearance"
+      },
+      "params": {
+        "clearanceId": {
           "role": "recording",
           "type": "int64"
         }

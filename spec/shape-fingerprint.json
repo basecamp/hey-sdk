@@ -1,5 +1,6 @@
 {
   "AdvancedSearch": "4a09f43f1c3ebd17edc3260a9e171d910bc9e96e7967bd6509d80a72d6fc035e",
+  "BulkUpdateClearances": "d4dab559212cc1468322e5cc96c2e650ee64a70e98c147b584d649ee708eeeab",
   "CompleteCalendarTodo": "3a6804f346bb5301f410dac434453eddee1569b54e1f7dd4413b8a0d23c270b2",
   "CompleteHabit": "9bb7a50c07c31309731cb6ae3289aab6c496d65b4458c13ac535ba6919e69bc5",
   "CreateBoxGroup": "d04089956551c379f18238cfef578d7241682aa98b660a5292deb551ce891ed4",
@@ -27,6 +28,7 @@
   "GetJournalEntry": "f045610c5289ac1d282c60805cc787a4df2d6b2ab8d41a59ba2299a56abab6a4",
   "GetLaterbox": "6cc7e63b0f9142d966565eae669bbd7e3d0475164e904b277961c657d75da23f",
   "GetMessage": "449eb645bc61901cd766000b7f7acc22f0432336e3ba1d9f1503f79dda61fe14",
+  "GetMyClearances": "c477f38fb70e472bc2e653f56a812de9e161e364bbab6fb6c5a7e68183723547",
   "GetNavigation": "37f9720f7dbacb2beb0dba5eaa65937569f2d4ac7b1feafb6980f0c7ecc618fe",
   "GetOngoingTimeTrack": "1a011516b31b02ee0229083aec5e0d75b2500cd16d803c2dbf264ac7899868d6",
   "GetSentTopics": "71c0d4f58d450b6b8d4b5a4654053e122103622fabf7e76929aab8c61ed5c2fb",
@@ -53,10 +55,12 @@
   "StartTimeTrack": "631c6e31e91d56c667db4f53df609e0006de3787de580f1f52366f8da283ec91",
   "UncompleteCalendarTodo": "2034f18325d4021bdf67313966275d25c100b11e77bcacfbcddfd3f2ab551783",
   "UncompleteHabit": "d6cbfd918a4f869bf812a29ebc40aeeb203fe88736c424701274b15c94041c43",
+  "UpdateClearance": "c1597f10d3d5f9fabcf67ee69776dfedfe3f67752799276cda904caa9440b502",
   "UpdateContact": "e02333bf4001ecc7ef74a7fef1df25e15d77cf692f31a4e61e314a0446240aaf",
   "UpdateContactNote": "8333012b045fd6fef793cc5e757cbca113eda36bc1d592a3e91a8b60abe6f2b6",
   "UpdateHabit": "abdae94f7cb43bfa8d8fc2db6ead534ae9911b6f73d71a5d9bb212d876802444",
   "UpdateJournalEntry": "c28bc6186595cfc9bb61c3e90f3735fb90e50c81a78a60e45c08189713db9004",
+  "UpdateMyClearance": "8339f944b2987935481a7ed6d5ece614d3bda79633778c5d685906fda9bf842b",
   "UpdateSticky": "59bd8472ed21daeff7a1c0e91ba53dff8821810a7badd9d1d05cf0e3f8bac339",
   "UpdateTimeTrack": "eb9135887276c0f3262eb6b4c74c5f9a533499d66d9b10d5965f791850fc496b"
 }

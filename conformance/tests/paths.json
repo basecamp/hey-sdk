@@ -3452,5 +3452,181 @@
       "boxes",
       "sync"
     ]
+  },
+  {
+    "name": "UpdateClearance uses /clearances/{clearanceId} path",
+    "description": "Verifies that UpdateClearance constructs the URL path /clearances/{clearanceId}",
+    "operation": "UpdateClearance",
+    "method": "PATCH",
+    "path": "/clearances/{clearanceId}",
+    "pathParams": {
+      "clearanceId": 91
+    },
+    "requestBody": {
+      "status": "approved"
+    },
+    "mockResponses": [
+      {
+        "status": 200,
+        "body": {
+          "id": 91,
+          "status": "approved"
+        }
+      }
+    ],
+    "assertions": [
+      {
+        "type": "requestPath",
+        "expected": "/clearances/91"
+      },
+      {
+        "type": "requestMethod",
+        "expected": "PATCH"
+      },
+      {
+        "type": "noError"
+      }
+    ],
+    "tags": [
+      "path",
+      "clearances"
+    ]
+  },
+  {
+    "name": "BulkUpdateClearances uses /clearances/bulk.json path",
+    "description": "Verifies that BulkUpdateClearances constructs the URL path /clearances/bulk.json",
+    "operation": "BulkUpdateClearances",
+    "method": "PATCH",
+    "path": "/clearances/bulk.json",
+    "requestBody": {
+      "ids": "91,92",
+      "status": "denied"
+    },
+    "mockResponses": [
+      {
+        "status": 200,
+        "body": {
+          "clearances": []
+        }
+      }
+    ],
+    "assertions": [
+      {
+        "type": "requestPath",
+        "expected": "/clearances/bulk.json"
+      },
+      {
+        "type": "requestMethod",
+        "expected": "PATCH"
+      },
+      {
+        "type": "noError"
+      }
+    ],
+    "tags": [
+      "path",
+      "clearances"
+    ]
+  },
+  {
+    "name": "PuntClearances uses /clearances/punt.json path",
+    "description": "Verifies that PuntClearances constructs the URL path /clearances/punt.json",
+    "operation": "PuntClearances",
+    "method": "POST",
+    "path": "/clearances/punt.json",
+    "mockResponses": [
+      {
+        "status": 202,
+        "body": null
+      }
+    ],
+    "assertions": [
+      {
+        "type": "requestPath",
+        "expected": "/clearances/punt.json"
+      },
+      {
+        "type": "requestMethod",
+        "expected": "POST"
+      },
+      {
+        "type": "noError"
+      }
+    ],
+    "tags": [
+      "path",
+      "clearances"
+    ]
+  },
+  {
+    "name": "GetMyClearances uses /my/clearances.json path",
+    "description": "Verifies that GetMyClearances constructs the URL path /my/clearances.json",
+    "operation": "GetMyClearances",
+    "method": "GET",
+    "path": "/my/clearances.json",
+    "mockResponses": [
+      {
+        "status": 200,
+        "body": {
+          "clearances": []
+        }
+      }
+    ],
+    "assertions": [
+      {
+        "type": "requestPath",
+        "expected": "/my/clearances.json"
+      },
+      {
+        "type": "requestMethod",
+        "expected": "GET"
+      },
+      {
+        "type": "noError"
+      }
+    ],
+    "tags": [
+      "path",
+      "clearances"
+    ]
+  },
+  {
+    "name": "UpdateMyClearance uses /my/clearances/{clearanceId} path",
+    "description": "Verifies that UpdateMyClearance constructs the URL path /my/clearances/{clearanceId}",
+    "operation": "UpdateMyClearance",
+    "method": "PATCH",
+    "path": "/my/clearances/{clearanceId}",
+    "pathParams": {
+      "clearanceId": 91
+    },
+    "requestBody": {
+      "status": "denied"
+    },
+    "mockResponses": [
+      {
+        "status": 200,
+        "body": {
+          "id": 91,
+          "status": "denied"
+        }
+      }
+    ],
+    "assertions": [
+      {
+        "type": "requestPath",
+        "expected": "/my/clearances/91"
+      },
+      {
+        "type": "requestMethod",
+        "expected": "PATCH"
+      },
+      {
+        "type": "noError"
+      }
+    ],
+    "tags": [
+      "path",
+      "clearances"
+    ]
   }
 ]

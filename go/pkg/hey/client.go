@@ -73,6 +73,7 @@ type Client struct {
 	entries        *EntriesService
 	bulkReplies    *BulkRepliesService
 	contacts       *ContactsService
+	clearances     *ClearancesService
 	calendars      *CalendarsService
 	calendarTodos  *CalendarTodosService
 	calendarEvents *CalendarEventsService
@@ -948,6 +949,16 @@ func (c *Client) Contacts() *ContactsService {
 		c.contacts = NewContactsService(c)
 	}
 	return c.contacts
+}
+
+// Clearances returns the ClearancesService, for working the Screener.
+func (c *Client) Clearances() *ClearancesService {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.clearances == nil {
+		c.clearances = NewClearancesService(c)
+	}
+	return c.clearances
 }
 
 // Calendars returns the CalendarsService.

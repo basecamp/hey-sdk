@@ -177,6 +177,16 @@ type BulkReplyRequestContent struct {
 	Message  BulkReplyMessagePayload `json:"message"`
 }
 
+// BulkUpdateClearancesRequestContent defines model for BulkUpdateClearancesRequestContent.
+type BulkUpdateClearancesRequestContent struct {
+	Ids    string `json:"ids"`
+	Spam   *bool  `json:"spam,omitempty"`
+	Status string `json:"status"`
+}
+
+// BulkUpdateClearancesResponseContent ClearanceListResponse — wire format: {clearances: [...]}
+type BulkUpdateClearancesResponseContent = ClearanceListResponse
+
 // Calendar Calendar
 type Calendar struct {
 	Color string `json:"color,omitempty"`
@@ -222,15 +232,38 @@ type CalendarWithRecordingChangesUrl struct {
 }
 
 // Clearance Clearance — screening status for a contact
+//
+// petitioner and most_recent_entry are only filled in by the Screener reads. The
+// contact reads answer a clearance with nothing but its id and status.
 type Clearance struct {
-	Id     int64  `json:"id"`
-	Status string `json:"status,omitempty"`
+	// CreatedAt ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)
+	CreatedAt time.Time `json:"created_at,omitempty"`
+	Id        int64     `json:"id"`
+
+	// MostRecentEntry Entry — a message entry within a topic
+	MostRecentEntry Entry `json:"most_recent_entry,omitempty"`
+
+	// Petitioner Contact — the identity of someone in HEY
+	Petitioner Contact `json:"petitioner,omitempty"`
+	Status     string  `json:"status,omitempty"`
+
+	// UpdatedAt ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)
+	UpdatedAt time.Time `json:"updated_at,omitempty"`
 }
 
-// ClearanceSummary ClearanceSummary — the screener's pending count, not the clearances themselves
+// ClearanceListResponse ClearanceListResponse — wire format: {clearances: [...]}
+type ClearanceListResponse struct {
+	Clearances []Clearance `json:"clearances,omitempty"`
+}
+
+// ClearanceSummary ClearanceSummary — the Screener's pending count, and the queue itself when asked for
+//
+// clearances is only present when the read passes include_clearances. Without it HEY
+// answers the count alone, which is what its own apps sync.
 type ClearanceSummary struct {
-	PendingClearancesCount int32  `json:"pending_clearances_count,omitempty"`
-	SignedStreamName       string `json:"signed_stream_name,omitempty"`
+	Clearances             []Clearance `json:"clearances,omitempty"`
+	PendingClearancesCount int32       `json:"pending_clearances_count,omitempty"`
+	SignedStreamName       string      `json:"signed_stream_name,omitempty"`
 }
 
 // Clip defines model for Clip.
@@ -319,6 +352,9 @@ type ContactDetail struct {
 	AvatarUrl             string    `json:"avatar_url,omitempty"`
 
 	// Clearance Clearance — screening status for a contact
+	//
+	// petitioner and most_recent_entry are only filled in by the Screener reads. The
+	// contact reads answer a clearance with nothing but its id and status.
 	Clearance       Clearance `json:"clearance,omitempty"`
 	ContactableType string    `json:"contactable_type,omitempty"`
 
@@ -514,7 +550,9 @@ type Entry struct {
 	Creator Contact `json:"creator,omitempty"`
 	Id      int64   `json:"id"`
 	Kind    string  `json:"kind,omitempty"`
+	Subject string  `json:"subject,omitempty"`
 	Summary string  `json:"summary,omitempty"`
+	TopicId int64   `json:"topic_id,omitempty"`
 
 	// UpdatedAt ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)
 	UpdatedAt time.Time `json:"updated_at,omitempty"`
@@ -606,7 +644,10 @@ type GetBubbleboxResponseContent = BoxShowResponse
 // GetCalendarRecordingsResponseContent CalendarRecordingsResponse — recordings grouped by type
 type GetCalendarRecordingsResponseContent = CalendarRecordingsResponse
 
-// GetClearancesResponseContent ClearanceSummary — the screener's pending count, not the clearances themselves
+// GetClearancesResponseContent ClearanceSummary — the Screener's pending count, and the queue itself when asked for
+//
+// clearances is only present when the read passes include_clearances. Without it HEY
+// answers the count alone, which is what its own apps sync.
 type GetClearancesResponseContent = ClearanceSummary
 
 // GetContactNoteResponseContent A contact's private note. Empty strings when there is no note.
@@ -644,6 +685,9 @@ type GetLaterboxResponseContent = BoxShowResponse
 
 // GetMessageResponseContent Message — full message detail
 type GetMessageResponseContent = Message
+
+// GetMyClearancesResponseContent ClearanceListResponse — wire format: {clearances: [...]}
+type GetMyClearancesResponseContent = ClearanceListResponse
 
 // GetNavigationResponseContent NavigationResponse
 type GetNavigationResponseContent = NavigationResponse
@@ -1244,6 +1288,20 @@ type UnprocessableEntityErrorResponseContent struct {
 	Message string   `json:"message,omitempty"`
 }
 
+// UpdateClearanceRequestContent Wire format: {status: "approved"|"denied"} — top level, not nested under a clearance key.
+type UpdateClearanceRequestContent struct {
+	DesignationBoxId int64  `json:"designation_box_id,omitempty"`
+	MarkTopicsAsSeen *bool  `json:"mark_topics_as_seen,omitempty"`
+	Spam             *bool  `json:"spam,omitempty"`
+	Status           string `json:"status"`
+}
+
+// UpdateClearanceResponseContent Clearance — screening status for a contact
+//
+// petitioner and most_recent_entry are only filled in by the Screener reads. The
+// contact reads answer a clearance with nothing but its id and status.
+type UpdateClearanceResponseContent = Clearance
+
 // UpdateCollectionRequestContent Wire format: {collection: {name, summary}}
 type UpdateCollectionRequestContent struct {
 	Collection CollectionPayload `json:"collection"`
@@ -1270,6 +1328,17 @@ type UpdateJournalEntryRequestContent struct {
 
 // UpdateJournalEntryResponseContent Recording — polymorphic by `type` (CalendarEvent, CalendarTodo, etc.)
 type UpdateJournalEntryResponseContent = Recording
+
+// UpdateMyClearanceRequestContent defines model for UpdateMyClearanceRequestContent.
+type UpdateMyClearanceRequestContent struct {
+	Status string `json:"status"`
+}
+
+// UpdateMyClearanceResponseContent Clearance — screening status for a contact
+//
+// petitioner and most_recent_entry are only filled in by the Screener reads. The
+// contact reads answer a clearance with nothing but its id and status.
+type UpdateMyClearanceResponseContent = Clearance
 
 // UpdateStickyResponseContent Sticky — a note on the stickies board
 type UpdateStickyResponseContent = Sticky
@@ -1408,6 +1477,12 @@ type GetCalendarRecordingsParams struct {
 	EndsOn   *string `form:"ends_on,omitempty" json:"ends_on,omitempty"`
 }
 
+// GetClearancesParams defines parameters for GetClearances.
+type GetClearancesParams struct {
+	IncludeClearances *bool   `form:"include_clearances,omitempty" json:"include_clearances,omitempty"`
+	Page              *string `form:"page,omitempty" json:"page,omitempty"`
+}
+
 // ListClipsParams defines parameters for ListClips.
 type ListClipsParams struct {
 	Page *string `form:"page,omitempty" json:"page,omitempty"`
@@ -1436,6 +1511,11 @@ type GetFolderParams struct {
 
 // GetImboxParams defines parameters for GetImbox.
 type GetImboxParams struct {
+	Page *string `form:"page,omitempty" json:"page,omitempty"`
+}
+
+// GetMyClearancesParams defines parameters for GetMyClearances.
+type GetMyClearancesParams struct {
 	Page *string `form:"page,omitempty" json:"page,omitempty"`
 }
 
@@ -1542,6 +1622,12 @@ type UpdateTimeTrackJSONRequestBody = UpdateTimeTrackRequestContent
 // CreateCalendarTodoJSONRequestBody defines body for CreateCalendarTodo for application/json ContentType.
 type CreateCalendarTodoJSONRequestBody = CreateCalendarTodoRequestContent
 
+// BulkUpdateClearancesJSONRequestBody defines body for BulkUpdateClearances for application/json ContentType.
+type BulkUpdateClearancesJSONRequestBody = BulkUpdateClearancesRequestContent
+
+// UpdateClearanceJSONRequestBody defines body for UpdateClearance for application/json ContentType.
+type UpdateClearanceJSONRequestBody = UpdateClearanceRequestContent
+
 // UpdateCollectionJSONRequestBody defines body for UpdateCollection for application/json ContentType.
 type UpdateCollectionJSONRequestBody = UpdateCollectionRequestContent
 
@@ -1562,6 +1648,9 @@ type CreateReplyJSONRequestBody = CreateReplyRequestContent
 
 // CreateMessageJSONRequestBody defines body for CreateMessage for application/json ContentType.
 type CreateMessageJSONRequestBody = CreateMessageRequestContent
+
+// UpdateMyClearanceJSONRequestBody defines body for UpdateMyClearance for application/json ContentType.
+type UpdateMyClearanceJSONRequestBody = UpdateMyClearanceRequestContent
 
 // AddPostingsToBoxGroupJSONRequestBody defines body for AddPostingsToBoxGroup for application/json ContentType.
 type AddPostingsToBoxGroupJSONRequestBody = AddPostingsToBoxGroupRequestContent
@@ -1960,7 +2049,20 @@ type ClientInterface interface {
 	GetCalendarRecordings(ctx context.Context, calendarId int64, params *GetCalendarRecordingsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// GetClearances request
-	GetClearances(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+	GetClearances(ctx context.Context, params *GetClearancesParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// BulkUpdateClearancesWithBody request with any body
+	BulkUpdateClearancesWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	BulkUpdateClearances(ctx context.Context, body BulkUpdateClearancesJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// PuntClearances request
+	PuntClearances(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// UpdateClearanceWithBody request with any body
+	UpdateClearanceWithBody(ctx context.Context, clearanceId int64, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	UpdateClearance(ctx context.Context, clearanceId int64, body UpdateClearanceJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ListClips request
 	ListClips(ctx context.Context, params *ListClipsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -2050,6 +2152,14 @@ type ClientInterface interface {
 
 	// GetMessage request
 	GetMessage(ctx context.Context, messageId int64, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetMyClearances request
+	GetMyClearances(ctx context.Context, params *GetMyClearancesParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// UpdateMyClearanceWithBody request with any body
+	UpdateMyClearanceWithBody(ctx context.Context, clearanceId int64, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	UpdateMyClearance(ctx context.Context, clearanceId int64, body UpdateMyClearanceJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// GetNavigation request
 	GetNavigation(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -2737,11 +2847,87 @@ func (c *Client) GetCalendarRecordings(ctx context.Context, calendarId int64, pa
 
 // GetClearances is marked as idempotent and will be retried on transient failures.
 
-func (c *Client) GetClearances(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+func (c *Client) GetClearances(ctx context.Context, params *GetClearancesParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
 
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
-		return NewGetClearancesRequest(c.Server)
+		return NewGetClearancesRequest(c.Server, params)
 	}, true, "GetClearances", reqEditors...)
+
+}
+
+// BulkUpdateClearancesWithBody executes the BulkUpdateClearances operation.
+
+func (c *Client) BulkUpdateClearancesWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+
+	req, err := NewBulkUpdateClearancesRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+
+}
+
+func (c *Client) BulkUpdateClearances(ctx context.Context, body BulkUpdateClearancesJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+
+	req, err := NewBulkUpdateClearancesRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+
+}
+
+// PuntClearances executes the PuntClearances operation.
+
+func (c *Client) PuntClearances(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+
+	req, err := NewPuntClearancesRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+
+}
+
+// UpdateClearanceWithBody executes the UpdateClearance operation.
+
+func (c *Client) UpdateClearanceWithBody(ctx context.Context, clearanceId int64, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+
+	req, err := NewUpdateClearanceRequestWithBody(c.Server, clearanceId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+
+}
+
+func (c *Client) UpdateClearance(ctx context.Context, clearanceId int64, body UpdateClearanceJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+
+	req, err := NewUpdateClearanceRequest(c.Server, clearanceId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
 
 }
 
@@ -3144,6 +3330,46 @@ func (c *Client) GetMessage(ctx context.Context, messageId int64, reqEditors ...
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
 		return NewGetMessageRequest(c.Server, messageId)
 	}, true, "GetMessage", reqEditors...)
+
+}
+
+// GetMyClearances is marked as idempotent and will be retried on transient failures.
+
+func (c *Client) GetMyClearances(ctx context.Context, params *GetMyClearancesParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+
+	return c.doWithRetry(ctx, func() (*http.Request, error) {
+		return NewGetMyClearancesRequest(c.Server, params)
+	}, true, "GetMyClearances", reqEditors...)
+
+}
+
+// UpdateMyClearanceWithBody executes the UpdateMyClearance operation.
+
+func (c *Client) UpdateMyClearanceWithBody(ctx context.Context, clearanceId int64, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+
+	req, err := NewUpdateMyClearanceRequestWithBody(c.Server, clearanceId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+
+}
+
+func (c *Client) UpdateMyClearance(ctx context.Context, clearanceId int64, body UpdateMyClearanceJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+
+	req, err := NewUpdateMyClearanceRequest(c.Server, clearanceId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
 
 }
 
@@ -5462,7 +5688,7 @@ func NewGetCalendarRecordingsRequest(server string, calendarId int64, params *Ge
 }
 
 // NewGetClearancesRequest generates requests for GetClearances
-func NewGetClearancesRequest(server string) (*http.Request, error) {
+func NewGetClearancesRequest(server string, params *GetClearancesParams) (*http.Request, error) {
 	var err error
 
 	serverURL, err := url.Parse(server)
@@ -5480,10 +5706,162 @@ func NewGetClearancesRequest(server string) (*http.Request, error) {
 		return nil, err
 	}
 
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if params.IncludeClearances != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "include_clearances", runtime.ParamLocationQuery, *params.IncludeClearances); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Page != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "page", runtime.ParamLocationQuery, *params.Page); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
 	req, err := http.NewRequest("GET", queryURL.String(), nil)
 	if err != nil {
 		return nil, err
 	}
+
+	return req, nil
+}
+
+// NewBulkUpdateClearancesRequest calls the generic BulkUpdateClearances builder with application/json body
+func NewBulkUpdateClearancesRequest(server string, body BulkUpdateClearancesJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewBulkUpdateClearancesRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewBulkUpdateClearancesRequestWithBody generates requests for BulkUpdateClearances with any type of body
+func NewBulkUpdateClearancesRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/clearances/bulk.json")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("PATCH", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewPuntClearancesRequest generates requests for PuntClearances
+func NewPuntClearancesRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/clearances/punt.json")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewUpdateClearanceRequest calls the generic UpdateClearance builder with application/json body
+func NewUpdateClearanceRequest(server string, clearanceId int64, body UpdateClearanceJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewUpdateClearanceRequestWithBody(server, clearanceId, "application/json", bodyReader)
+}
+
+// NewUpdateClearanceRequestWithBody generates requests for UpdateClearance with any type of body
+func NewUpdateClearanceRequestWithBody(server string, clearanceId int64, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "clearanceId", runtime.ParamLocationPath, clearanceId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/clearances/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("PATCH", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
 
 	return req, nil
 }
@@ -6510,6 +6888,102 @@ func NewGetMessageRequest(server string, messageId int64) (*http.Request, error)
 	if err != nil {
 		return nil, err
 	}
+
+	return req, nil
+}
+
+// NewGetMyClearancesRequest generates requests for GetMyClearances
+func NewGetMyClearancesRequest(server string, params *GetMyClearancesParams) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/my/clearances.json")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if params.Page != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "page", runtime.ParamLocationQuery, *params.Page); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewUpdateMyClearanceRequest calls the generic UpdateMyClearance builder with application/json body
+func NewUpdateMyClearanceRequest(server string, clearanceId int64, body UpdateMyClearanceJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewUpdateMyClearanceRequestWithBody(server, clearanceId, "application/json", bodyReader)
+}
+
+// NewUpdateMyClearanceRequestWithBody generates requests for UpdateMyClearance with any type of body
+func NewUpdateMyClearanceRequestWithBody(server string, clearanceId int64, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "clearanceId", runtime.ParamLocationPath, clearanceId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/my/clearances/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("PATCH", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
 
 	return req, nil
 }
@@ -8202,6 +8676,9 @@ var operationMetadata = map[string]OperationMetadata{
 	"ListCalendars":              {Idempotent: true, HasSensitiveParams: false},
 	"GetCalendarRecordings":      {Idempotent: true, HasSensitiveParams: false},
 	"GetClearances":              {Idempotent: true, HasSensitiveParams: false},
+	"BulkUpdateClearances":       {Idempotent: false, HasSensitiveParams: false},
+	"PuntClearances":             {Idempotent: false, HasSensitiveParams: false},
+	"UpdateClearance":            {Idempotent: false, HasSensitiveParams: false},
 	"ListClips":                  {Idempotent: true, HasSensitiveParams: false},
 	"ListCollections":            {Idempotent: true, HasSensitiveParams: false},
 	"UpdateCollection":           {Idempotent: false, HasSensitiveParams: false},
@@ -8227,6 +8704,8 @@ var operationMetadata = map[string]OperationMetadata{
 	"GetImbox":                   {Idempotent: true, HasSensitiveParams: false},
 	"CreateMessage":              {Idempotent: false, HasSensitiveParams: false},
 	"GetMessage":                 {Idempotent: true, HasSensitiveParams: false},
+	"GetMyClearances":            {Idempotent: true, HasSensitiveParams: false},
+	"UpdateMyClearance":          {Idempotent: false, HasSensitiveParams: false},
 	"GetNavigation":              {Idempotent: true, HasSensitiveParams: false},
 	"GetTrailbox":                {Idempotent: true, HasSensitiveParams: false},
 	"RemovePostingsFromBoxGroup": {Idempotent: true, HasSensitiveParams: false},
@@ -9210,10 +9689,51 @@ type ClientWithResponsesInterface interface {
 
 	// GetClearancesWithResponse performs a GET /clearances.json (the `GetClearances` operationId) request.
 	//
-	// Get the screener summary — how many senders are waiting to be screened.
+	// Get the Screener — the pending count, and the senders waiting when asked for them
 	//
 	// Returns a wrapper object for the known response body format(s).
-	GetClearancesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetClearancesResponse, error)
+	GetClearancesWithResponse(ctx context.Context, params *GetClearancesParams, reqEditors ...RequestEditorFn) (*GetClearancesResponse, error)
+
+	// BulkUpdateClearancesWithBodyWithResponse performs a PATCH /clearances/bulk.json (the `BulkUpdateClearances` operationId) request,
+	// with any type of body and a specified content type.
+	//
+	// Screen several senders out at once. ids is a comma-separated list.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	BulkUpdateClearancesWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*BulkUpdateClearancesResponse, error)
+
+	// BulkUpdateClearancesWithResponse performs a PATCH /clearances/bulk.json (the `BulkUpdateClearances` operationId) request.
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Screen several senders out at once. ids is a comma-separated list.
+	BulkUpdateClearancesWithResponse(ctx context.Context, body BulkUpdateClearancesJSONRequestBody, reqEditors ...RequestEditorFn) (*BulkUpdateClearancesResponse, error)
+
+	// PuntClearancesWithResponse performs a POST /clearances/punt.json (the `PuntClearances` operationId) request.
+	//
+	// Clear the Screener — every pending sender is punted and reexamined on their next email.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	PuntClearancesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*PuntClearancesResponse, error)
+
+	// UpdateClearanceWithBodyWithResponse performs a PATCH /clearances/{clearanceId} (the `UpdateClearance` operationId) request,
+	// with any type of body and a specified content type.
+	//
+	// Screen a sender in or out of the Screener
+	//
+	// designation_box_id files everything they send into that box instead of the Imbox.
+	// spam marks what is already waiting as spam and trains the filter on it.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	UpdateClearanceWithBodyWithResponse(ctx context.Context, clearanceId int64, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateClearanceResponse, error)
+
+	// UpdateClearanceWithResponse performs a PATCH /clearances/{clearanceId} (the `UpdateClearance` operationId) request.
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Screen a sender in or out of the Screener
+	//
+	// designation_box_id files everything they send into that box instead of the Imbox.
+	// spam marks what is already waiting as spam and trains the filter on it.
+	UpdateClearanceWithResponse(ctx context.Context, clearanceId int64, body UpdateClearanceJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateClearanceResponse, error)
 
 	// ListClipsWithResponse performs a GET /clips.json (the `ListClips` operationId) request.
 	//
@@ -9445,6 +9965,27 @@ type ClientWithResponsesInterface interface {
 	//
 	// Returns a wrapper object for the known response body format(s).
 	GetMessageWithResponse(ctx context.Context, messageId int64, reqEditors ...RequestEditorFn) (*GetMessageResponse, error)
+
+	// GetMyClearancesWithResponse performs a GET /my/clearances.json (the `GetMyClearances` operationId) request.
+	//
+	// The senders already screened in or out.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	GetMyClearancesWithResponse(ctx context.Context, params *GetMyClearancesParams, reqEditors ...RequestEditorFn) (*GetMyClearancesResponse, error)
+
+	// UpdateMyClearanceWithBodyWithResponse performs a PATCH /my/clearances/{clearanceId} (the `UpdateMyClearance` operationId) request,
+	// with any type of body and a specified content type.
+	//
+	// Rescreen a sender who was already screened in or out.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	UpdateMyClearanceWithBodyWithResponse(ctx context.Context, clearanceId int64, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateMyClearanceResponse, error)
+
+	// UpdateMyClearanceWithResponse performs a PATCH /my/clearances/{clearanceId} (the `UpdateMyClearance` operationId) request.
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Rescreen a sender who was already screened in or out.
+	UpdateMyClearanceWithResponse(ctx context.Context, clearanceId int64, body UpdateMyClearanceJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateMyClearanceResponse, error)
 
 	// GetNavigationWithResponse performs a GET /my/navigation.json (the `GetNavigation` operationId) request.
 	//
@@ -12270,6 +12811,206 @@ func (r GetClearancesResponse) ContentType() string {
 	return ""
 }
 
+type BulkUpdateClearancesResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *BulkUpdateClearancesResponseContent
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *UnauthorizedErrorResponseContent
+	// JSON404 the response for an HTTP 404 `application/json` response
+	JSON404 *NotFoundErrorResponseContent
+	// JSON500 the response for an HTTP 500 `application/json` response
+	JSON500 *InternalServerErrorResponseContent
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *ServiceUnavailableErrorResponseContent
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r BulkUpdateClearancesResponse) GetJSON200() *BulkUpdateClearancesResponseContent {
+	return r.JSON200
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r BulkUpdateClearancesResponse) GetJSON401() *UnauthorizedErrorResponseContent {
+	return r.JSON401
+}
+
+// GetJSON404 returns the response for an HTTP 404 `application/json` response
+func (r BulkUpdateClearancesResponse) GetJSON404() *NotFoundErrorResponseContent {
+	return r.JSON404
+}
+
+// GetJSON500 returns the response for an HTTP 500 `application/json` response
+func (r BulkUpdateClearancesResponse) GetJSON500() *InternalServerErrorResponseContent {
+	return r.JSON500
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r BulkUpdateClearancesResponse) GetJSON503() *ServiceUnavailableErrorResponseContent {
+	return r.JSON503
+}
+
+// GetBody returns the raw response body bytes
+func (r BulkUpdateClearancesResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r BulkUpdateClearancesResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r BulkUpdateClearancesResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r BulkUpdateClearancesResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type PuntClearancesResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *UnauthorizedErrorResponseContent
+	// JSON500 the response for an HTTP 500 `application/json` response
+	JSON500 *InternalServerErrorResponseContent
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *ServiceUnavailableErrorResponseContent
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r PuntClearancesResponse) GetJSON401() *UnauthorizedErrorResponseContent {
+	return r.JSON401
+}
+
+// GetJSON500 returns the response for an HTTP 500 `application/json` response
+func (r PuntClearancesResponse) GetJSON500() *InternalServerErrorResponseContent {
+	return r.JSON500
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r PuntClearancesResponse) GetJSON503() *ServiceUnavailableErrorResponseContent {
+	return r.JSON503
+}
+
+// GetBody returns the raw response body bytes
+func (r PuntClearancesResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r PuntClearancesResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r PuntClearancesResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r PuntClearancesResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type UpdateClearanceResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *UpdateClearanceResponseContent
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *UnauthorizedErrorResponseContent
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *ForbiddenErrorResponseContent
+	// JSON404 the response for an HTTP 404 `application/json` response
+	JSON404 *NotFoundErrorResponseContent
+	// JSON500 the response for an HTTP 500 `application/json` response
+	JSON500 *InternalServerErrorResponseContent
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *ServiceUnavailableErrorResponseContent
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r UpdateClearanceResponse) GetJSON200() *UpdateClearanceResponseContent {
+	return r.JSON200
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r UpdateClearanceResponse) GetJSON401() *UnauthorizedErrorResponseContent {
+	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r UpdateClearanceResponse) GetJSON403() *ForbiddenErrorResponseContent {
+	return r.JSON403
+}
+
+// GetJSON404 returns the response for an HTTP 404 `application/json` response
+func (r UpdateClearanceResponse) GetJSON404() *NotFoundErrorResponseContent {
+	return r.JSON404
+}
+
+// GetJSON500 returns the response for an HTTP 500 `application/json` response
+func (r UpdateClearanceResponse) GetJSON500() *InternalServerErrorResponseContent {
+	return r.JSON500
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r UpdateClearanceResponse) GetJSON503() *ServiceUnavailableErrorResponseContent {
+	return r.JSON503
+}
+
+// GetBody returns the raw response body bytes
+func (r UpdateClearanceResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r UpdateClearanceResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r UpdateClearanceResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r UpdateClearanceResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type ListClipsResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -13933,6 +14674,144 @@ func (r GetMessageResponse) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r GetMessageResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type GetMyClearancesResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *GetMyClearancesResponseContent
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *UnauthorizedErrorResponseContent
+	// JSON500 the response for an HTTP 500 `application/json` response
+	JSON500 *InternalServerErrorResponseContent
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *ServiceUnavailableErrorResponseContent
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r GetMyClearancesResponse) GetJSON200() *GetMyClearancesResponseContent {
+	return r.JSON200
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r GetMyClearancesResponse) GetJSON401() *UnauthorizedErrorResponseContent {
+	return r.JSON401
+}
+
+// GetJSON500 returns the response for an HTTP 500 `application/json` response
+func (r GetMyClearancesResponse) GetJSON500() *InternalServerErrorResponseContent {
+	return r.JSON500
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r GetMyClearancesResponse) GetJSON503() *ServiceUnavailableErrorResponseContent {
+	return r.JSON503
+}
+
+// GetBody returns the raw response body bytes
+func (r GetMyClearancesResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r GetMyClearancesResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetMyClearancesResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r GetMyClearancesResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type UpdateMyClearanceResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *UpdateMyClearanceResponseContent
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *UnauthorizedErrorResponseContent
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *ForbiddenErrorResponseContent
+	// JSON404 the response for an HTTP 404 `application/json` response
+	JSON404 *NotFoundErrorResponseContent
+	// JSON500 the response for an HTTP 500 `application/json` response
+	JSON500 *InternalServerErrorResponseContent
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *ServiceUnavailableErrorResponseContent
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r UpdateMyClearanceResponse) GetJSON200() *UpdateMyClearanceResponseContent {
+	return r.JSON200
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r UpdateMyClearanceResponse) GetJSON401() *UnauthorizedErrorResponseContent {
+	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r UpdateMyClearanceResponse) GetJSON403() *ForbiddenErrorResponseContent {
+	return r.JSON403
+}
+
+// GetJSON404 returns the response for an HTTP 404 `application/json` response
+func (r UpdateMyClearanceResponse) GetJSON404() *NotFoundErrorResponseContent {
+	return r.JSON404
+}
+
+// GetJSON500 returns the response for an HTTP 500 `application/json` response
+func (r UpdateMyClearanceResponse) GetJSON500() *InternalServerErrorResponseContent {
+	return r.JSON500
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r UpdateMyClearanceResponse) GetJSON503() *ServiceUnavailableErrorResponseContent {
+	return r.JSON503
+}
+
+// GetBody returns the raw response body bytes
+func (r UpdateMyClearanceResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r UpdateMyClearanceResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r UpdateMyClearanceResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r UpdateMyClearanceResponse) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -16995,15 +17874,86 @@ func (c *ClientWithResponses) GetCalendarRecordingsWithResponse(ctx context.Cont
 
 // GetClearancesWithResponse performs a GET /clearances.json (the `GetClearances` operationId) request.
 //
-// Get the screener summary — how many senders are waiting to be screened.
+// # Get the Screener — the pending count, and the senders waiting when asked for them
 //
 // Returns a wrapper object for the known response body format(s).
-func (c *ClientWithResponses) GetClearancesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetClearancesResponse, error) {
-	rsp, err := c.GetClearances(ctx, reqEditors...)
+func (c *ClientWithResponses) GetClearancesWithResponse(ctx context.Context, params *GetClearancesParams, reqEditors ...RequestEditorFn) (*GetClearancesResponse, error) {
+	rsp, err := c.GetClearances(ctx, params, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
 	return ParseGetClearancesResponse(rsp)
+}
+
+// BulkUpdateClearancesWithBodyWithResponse performs a PATCH /clearances/bulk.json (the `BulkUpdateClearances` operationId) request,
+// with any type of body and a specified content type.
+//
+// Screen several senders out at once. ids is a comma-separated list.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) BulkUpdateClearancesWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*BulkUpdateClearancesResponse, error) {
+	rsp, err := c.BulkUpdateClearancesWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseBulkUpdateClearancesResponse(rsp)
+}
+
+// BulkUpdateClearancesWithResponse performs a PATCH /clearances/bulk.json (the `BulkUpdateClearances` operationId) request.
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Screen several senders out at once. ids is a comma-separated list.
+func (c *ClientWithResponses) BulkUpdateClearancesWithResponse(ctx context.Context, body BulkUpdateClearancesJSONRequestBody, reqEditors ...RequestEditorFn) (*BulkUpdateClearancesResponse, error) {
+	rsp, err := c.BulkUpdateClearances(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseBulkUpdateClearancesResponse(rsp)
+}
+
+// PuntClearancesWithResponse performs a POST /clearances/punt.json (the `PuntClearances` operationId) request.
+//
+// Clear the Screener — every pending sender is punted and reexamined on their next email.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) PuntClearancesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*PuntClearancesResponse, error) {
+	rsp, err := c.PuntClearances(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePuntClearancesResponse(rsp)
+}
+
+// UpdateClearanceWithBodyWithResponse performs a PATCH /clearances/{clearanceId} (the `UpdateClearance` operationId) request,
+// with any type of body and a specified content type.
+//
+// # Screen a sender in or out of the Screener
+//
+// designation_box_id files everything they send into that box instead of the Imbox.
+// spam marks what is already waiting as spam and trains the filter on it.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) UpdateClearanceWithBodyWithResponse(ctx context.Context, clearanceId int64, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateClearanceResponse, error) {
+	rsp, err := c.UpdateClearanceWithBody(ctx, clearanceId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpdateClearanceResponse(rsp)
+}
+
+// UpdateClearanceWithResponse performs a PATCH /clearances/{clearanceId} (the `UpdateClearance` operationId) request.
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// # Screen a sender in or out of the Screener
+//
+// designation_box_id files everything they send into that box instead of the Imbox.
+// spam marks what is already waiting as spam and trains the filter on it.
+func (c *ClientWithResponses) UpdateClearanceWithResponse(ctx context.Context, clearanceId int64, body UpdateClearanceJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateClearanceResponse, error) {
+	rsp, err := c.UpdateClearance(ctx, clearanceId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpdateClearanceResponse(rsp)
 }
 
 // ListClipsWithResponse performs a GET /clips.json (the `ListClips` operationId) request.
@@ -17427,6 +18377,45 @@ func (c *ClientWithResponses) GetMessageWithResponse(ctx context.Context, messag
 		return nil, err
 	}
 	return ParseGetMessageResponse(rsp)
+}
+
+// GetMyClearancesWithResponse performs a GET /my/clearances.json (the `GetMyClearances` operationId) request.
+//
+// The senders already screened in or out.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) GetMyClearancesWithResponse(ctx context.Context, params *GetMyClearancesParams, reqEditors ...RequestEditorFn) (*GetMyClearancesResponse, error) {
+	rsp, err := c.GetMyClearances(ctx, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetMyClearancesResponse(rsp)
+}
+
+// UpdateMyClearanceWithBodyWithResponse performs a PATCH /my/clearances/{clearanceId} (the `UpdateMyClearance` operationId) request,
+// with any type of body and a specified content type.
+//
+// Rescreen a sender who was already screened in or out.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) UpdateMyClearanceWithBodyWithResponse(ctx context.Context, clearanceId int64, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateMyClearanceResponse, error) {
+	rsp, err := c.UpdateMyClearanceWithBody(ctx, clearanceId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpdateMyClearanceResponse(rsp)
+}
+
+// UpdateMyClearanceWithResponse performs a PATCH /my/clearances/{clearanceId} (the `UpdateMyClearance` operationId) request.
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Rescreen a sender who was already screened in or out.
+func (c *ClientWithResponses) UpdateMyClearanceWithResponse(ctx context.Context, clearanceId int64, body UpdateMyClearanceJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateMyClearanceResponse, error) {
+	rsp, err := c.UpdateMyClearance(ctx, clearanceId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpdateMyClearanceResponse(rsp)
 }
 
 // GetNavigationWithResponse performs a GET /my/navigation.json (the `GetNavigation` operationId) request.
@@ -20063,6 +21052,164 @@ func ParseGetClearancesResponse(rsp *http.Response) (*GetClearancesResponse, err
 	return response, nil
 }
 
+// ParseBulkUpdateClearancesResponse parses an HTTP response from a BulkUpdateClearancesWithResponse call
+func ParseBulkUpdateClearancesResponse(rsp *http.Response) (*BulkUpdateClearancesResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &BulkUpdateClearancesResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest BulkUpdateClearancesResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest UnauthorizedErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFoundErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest InternalServerErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+		var dest ServiceUnavailableErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON503 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParsePuntClearancesResponse parses an HTTP response from a PuntClearancesWithResponse call
+func ParsePuntClearancesResponse(rsp *http.Response) (*PuntClearancesResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &PuntClearancesResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 200:
+		break // No content-type
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest UnauthorizedErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest InternalServerErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+		var dest ServiceUnavailableErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON503 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseUpdateClearanceResponse parses an HTTP response from a UpdateClearanceWithResponse call
+func ParseUpdateClearanceResponse(rsp *http.Response) (*UpdateClearanceResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &UpdateClearanceResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest UpdateClearanceResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest UnauthorizedErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest ForbiddenErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFoundErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest InternalServerErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+		var dest ServiceUnavailableErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON503 = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseListClipsResponse parses an HTTP response from a ListClipsWithResponse call
 func ParseListClipsResponse(rsp *http.Response) (*ListClipsResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -21357,6 +22504,114 @@ func ParseGetMessageResponse(rsp *http.Response) (*GetMessageResponse, error) {
 			return nil, err
 		}
 		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFoundErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest InternalServerErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+		var dest ServiceUnavailableErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON503 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetMyClearancesResponse parses an HTTP response from a GetMyClearancesWithResponse call
+func ParseGetMyClearancesResponse(rsp *http.Response) (*GetMyClearancesResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetMyClearancesResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest GetMyClearancesResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest UnauthorizedErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest InternalServerErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+		var dest ServiceUnavailableErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON503 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseUpdateMyClearanceResponse parses an HTTP response from a UpdateMyClearanceWithResponse call
+func ParseUpdateMyClearanceResponse(rsp *http.Response) (*UpdateMyClearanceResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &UpdateMyClearanceResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest UpdateMyClearanceResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest UnauthorizedErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest ForbiddenErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
 		var dest NotFoundErrorResponseContent

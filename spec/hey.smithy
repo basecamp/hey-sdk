@@ -171,6 +171,11 @@ service HEY {
         UnbundleContact
         UpdateContactClearance
         GetClearances
+        UpdateClearance
+        BulkUpdateClearances
+        PuntClearances
+        GetMyClearances
+        UpdateMyClearance
 
         // Contacts — writing and notes
         CreateContact
@@ -426,10 +431,26 @@ structure Domain {
 }
 
 /// Clearance — screening status for a contact
+///
+/// petitioner and most_recent_entry are only filled in by the Screener reads. The
+/// contact reads answer a clearance with nothing but its id and status.
 structure Clearance {
     @required
     id: Long
     status: String
+    created_at: DateTime
+    updated_at: DateTime
+    petitioner: Contact
+    most_recent_entry: Entry
+}
+
+list ClearanceList {
+    member: Clearance
+}
+
+/// ClearanceListResponse — wire format: {clearances: [...]}
+structure ClearanceListResponse {
+    clearances: ClearanceList
 }
 
 /// Account — a HEY account
@@ -506,6 +527,8 @@ structure Entry {
     summary: String
     kind: String
     app_url: String
+    subject: String
+    topic_id: Long
 }
 
 list EntryList {
@@ -2334,10 +2357,14 @@ structure FolderWithPostings {
     postings: PostingList
 }
 
-/// ClearanceSummary — the screener's pending count, not the clearances themselves
+/// ClearanceSummary — the Screener's pending count, and the queue itself when asked for
+///
+/// clearances is only present when the read passes include_clearances. Without it HEY
+/// answers the count alone, which is what its own apps sync.
 structure ClearanceSummary {
     pending_clearances_count: Integer
     signed_stream_name: String
+    clearances: ClearanceList
 }
 
 /// MessageDraft — a prefilled compose payload (forward, reply). Unsent, so it has no id.
@@ -2802,19 +2829,156 @@ structure UpdateContactClearanceRequestContent {
     status: String
 }
 
-/// Get the screener summary — how many senders are waiting to be screened
+/// Get the Screener — the pending count, and the senders waiting when asked for them
 @readonly
 @http(method: "GET", uri: "/clearances.json")
 @tags(["Contacts"])
 @heyRetry(maxAttempts: 3, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+@heyPagination(style: "link", totalCountHeader: "X-Total-Count")
 operation GetClearances {
+    input: GetClearancesInput
     output: GetClearancesOutput
     errors: [UnauthorizedError, InternalServerError, ServiceUnavailableError]
+}
+
+structure GetClearancesInput {
+    @httpQuery("include_clearances")
+    include_clearances: Boolean
+
+    @httpQuery("page")
+    page: String
 }
 
 structure GetClearancesOutput {
     @required
     summary: ClearanceSummary
+}
+
+/// Screen a sender in or out of the Screener
+///
+/// designation_box_id files everything they send into that box instead of the Imbox.
+/// spam marks what is already waiting as spam and trains the filter on it.
+@idempotent
+@http(method: "PATCH", uri: "/clearances/{clearanceId}")
+@tags(["Contacts"])
+@heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+operation UpdateClearance {
+    input: UpdateClearanceInput
+    output: UpdateClearanceOutput
+    errors: [UnauthorizedError, ForbiddenError, NotFoundError, InternalServerError, ServiceUnavailableError]
+}
+
+structure UpdateClearanceInput {
+    @httpLabel
+    @required
+    clearanceId: Long
+
+    @httpPayload
+    @required
+    body: UpdateClearanceRequestContent
+}
+
+/// Wire format: {status: "approved"|"denied"} — top level, not nested under a clearance key.
+structure UpdateClearanceRequestContent {
+    @required
+    status: String
+
+    designation_box_id: Long
+    spam: Boolean
+    mark_topics_as_seen: Boolean
+}
+
+structure UpdateClearanceOutput {
+    @required
+    clearance: Clearance
+}
+
+/// Screen several senders out at once. ids is a comma-separated list.
+@idempotent
+@http(method: "PATCH", uri: "/clearances/bulk.json")
+@tags(["Contacts"])
+@heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+operation BulkUpdateClearances {
+    input: BulkUpdateClearancesInput
+    output: BulkUpdateClearancesOutput
+    errors: [UnauthorizedError, NotFoundError, InternalServerError, ServiceUnavailableError]
+}
+
+structure BulkUpdateClearancesInput {
+    @httpPayload
+    @required
+    body: BulkUpdateClearancesRequestContent
+}
+
+structure BulkUpdateClearancesRequestContent {
+    @required
+    ids: String
+
+    @required
+    status: String
+
+    spam: Boolean
+}
+
+structure BulkUpdateClearancesOutput {
+    @required
+    response: ClearanceListResponse
+}
+
+/// Clear the Screener — every pending sender is punted and reexamined on their next email
+@http(method: "POST", uri: "/clearances/punt.json")
+@tags(["Contacts"])
+@heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+operation PuntClearances {
+    errors: [UnauthorizedError, InternalServerError, ServiceUnavailableError]
+}
+
+/// The senders already screened in or out
+@readonly
+@http(method: "GET", uri: "/my/clearances.json")
+@tags(["Contacts"])
+@heyRetry(maxAttempts: 3, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+@heyPagination(style: "link", totalCountHeader: "X-Total-Count")
+operation GetMyClearances {
+    input: PagedInput
+    output: GetMyClearancesOutput
+    errors: [UnauthorizedError, InternalServerError, ServiceUnavailableError]
+}
+
+structure GetMyClearancesOutput {
+    @required
+    response: ClearanceListResponse
+}
+
+/// Rescreen a sender who was already screened in or out
+@idempotent
+@http(method: "PATCH", uri: "/my/clearances/{clearanceId}")
+@tags(["Contacts"])
+@heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+operation UpdateMyClearance {
+    input: UpdateMyClearanceInput
+    output: UpdateMyClearanceOutput
+    errors: [UnauthorizedError, ForbiddenError, NotFoundError, InternalServerError, ServiceUnavailableError]
+}
+
+structure UpdateMyClearanceInput {
+    @httpLabel
+    @required
+    clearanceId: Long
+
+    @httpPayload
+    @required
+    body: UpdateMyClearanceRequestContent
+}
+
+structure UpdateMyClearanceRequestContent {
+    @required
+    status: String
+}
+
+structure UpdateMyClearanceOutput {
+    @required
+    clearance: Clearance
 }
 
 // =============================================================================

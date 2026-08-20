@@ -1,0 +1,264 @@
+package hey
+
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"io"
+	"net/http"
+	"net/http/httptest"
+	"testing"
+)
+
+// The apps sync this endpoint for the Screener badge, so the count must not drag the queue
+// along with it.
+func TestClearancesService_PendingCountAsksForTheCountAlone(t *testing.T) {
+	var gotQuery string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet || r.URL.Path != "/clearances.json" {
+			t.Errorf("expected GET /clearances.json, got %s %s", r.Method, r.URL.Path)
+		}
+		gotQuery = r.URL.RawQuery
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"pending_clearances_count":3,"signed_stream_name":"abc"}`))
+	}))
+	t.Cleanup(srv.Close)
+	client := NewClient(&Config{BaseURL: srv.URL}, &StaticTokenProvider{Token: "t"}, WithMaxRetries(0))
+
+	count, err := client.Clearances().PendingCount(context.Background())
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if count != 3 {
+		t.Errorf("expected 3 pending, got %d", count)
+	}
+	if gotQuery != "" {
+		t.Errorf("expected no query, got %q", gotQuery)
+	}
+}
+
+func TestClearancesService_Pending(t *testing.T) {
+	var gotInclude, gotPage string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet || r.URL.Path != "/clearances.json" {
+			t.Errorf("expected GET /clearances.json, got %s %s", r.Method, r.URL.Path)
+		}
+		gotInclude = r.URL.Query().Get("include_clearances")
+		gotPage = r.URL.Query().Get("page")
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"pending_clearances_count":1,"clearances":[
+			{"id":91,"status":"pending","petitioner":{"id":51,"name":"Hollis Heimboch","email_address":"hollis@example.com"},
+			 "most_recent_entry":{"id":71,"subject":"New numbers!","topic_id":81,"summary":"The latest sales numbers"}}]}`))
+	}))
+	t.Cleanup(srv.Close)
+	client := NewClient(&Config{BaseURL: srv.URL}, &StaticTokenProvider{Token: "t"}, WithMaxRetries(0))
+
+	summary, err := client.Clearances().Pending(context.Background(), "eyJwYWdlIjoyfQ")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if gotInclude != "true" {
+		t.Errorf("expected include_clearances=true, got %q", gotInclude)
+	}
+	if gotPage != "eyJwYWdlIjoyfQ" {
+		t.Errorf("expected the page token to be passed through, got %q", gotPage)
+	}
+	if len(summary.Clearances) != 1 {
+		t.Fatalf("expected one clearance, got %+v", summary.Clearances)
+	}
+
+	clearance := summary.Clearances[0]
+	if clearance.Petitioner.EmailAddress != "hollis@example.com" {
+		t.Errorf("expected the petitioner, got %+v", clearance.Petitioner)
+	}
+	if clearance.MostRecentEntry.Subject != "New numbers!" {
+		t.Errorf("expected the subject, got %q", clearance.MostRecentEntry.Subject)
+	}
+	if clearance.MostRecentEntry.TopicId != 81 {
+		t.Errorf("expected the topic to reply to, got %d", clearance.MostRecentEntry.TopicId)
+	}
+}
+
+func TestClearancesService_Screen(t *testing.T) {
+	var gotBody map[string]any
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPatch || r.URL.Path != "/clearances/91.json" {
+			t.Errorf("expected PATCH /clearances/91.json, got %s %s", r.Method, r.URL.Path)
+		}
+		raw, _ := io.ReadAll(r.Body)
+		_ = json.Unmarshal(raw, &gotBody)
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"id":91,"status":"approved"}`))
+	}))
+	t.Cleanup(srv.Close)
+	client := NewClient(&Config{BaseURL: srv.URL}, &StaticTokenProvider{Token: "t"}, WithMaxRetries(0))
+
+	clearance, err := client.Clearances().Screen(context.Background(), 91, ClearanceApproved,
+		ScreenOptions{DesignationBoxID: 7, MarkTopicsAsSeen: true})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if clearance.Status != "approved" {
+		t.Errorf("expected the updated clearance, got %+v", clearance)
+	}
+	if gotBody["status"] != "approved" {
+		t.Errorf("expected the status at the top level, got %+v", gotBody)
+	}
+	if gotBody["designation_box_id"] != float64(7) {
+		t.Errorf("expected the designation box, got %+v", gotBody["designation_box_id"])
+	}
+	if gotBody["mark_topics_as_seen"] != true {
+		t.Errorf("expected mark_topics_as_seen, got %+v", gotBody["mark_topics_as_seen"])
+	}
+	// Options left alone stay off the wire entirely, since HEY reads them for truthiness.
+	if _, sent := gotBody["spam"]; sent {
+		t.Errorf("expected no spam key, got %+v", gotBody)
+	}
+}
+
+// The Screener only takes a decision. Anything else is a caller bug, and HEY answers 403,
+// so it is worth catching before the round trip.
+func TestClearancesService_ScreenRejectsOtherStatuses(t *testing.T) {
+	client := NewClient(&Config{BaseURL: "https://example.invalid"}, &StaticTokenProvider{Token: "t"}, WithMaxRetries(0))
+
+	for _, status := range []string{"pending", "unexamined", "punting", ""} {
+		_, err := client.Clearances().Screen(context.Background(), 91, status, ScreenOptions{})
+
+		var heyErr *Error
+		if !errors.As(err, &heyErr) || heyErr.Code != CodeValidation {
+			t.Errorf("expected a validation error for %q, got %v", status, err)
+		}
+	}
+}
+
+func TestClearancesService_ScreenMany(t *testing.T) {
+	var gotBody map[string]any
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPatch || r.URL.Path != "/clearances/bulk.json" {
+			t.Errorf("expected PATCH /clearances/bulk.json, got %s %s", r.Method, r.URL.Path)
+		}
+		raw, _ := io.ReadAll(r.Body)
+		_ = json.Unmarshal(raw, &gotBody)
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"clearances":[{"id":91,"status":"denied"},{"id":92,"status":"denied"}]}`))
+	}))
+	t.Cleanup(srv.Close)
+	client := NewClient(&Config{BaseURL: srv.URL}, &StaticTokenProvider{Token: "t"}, WithMaxRetries(0))
+
+	clearances, err := client.Clearances().ScreenMany(context.Background(), []int64{91, 92}, ClearanceDenied, true)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if gotBody["ids"] != "91,92" {
+		t.Errorf("expected a comma separated list of ids, got %+v", gotBody["ids"])
+	}
+	if gotBody["spam"] != true {
+		t.Errorf("expected spam, got %+v", gotBody["spam"])
+	}
+	if len(clearances) != 2 || clearances[1].Id != 92 {
+		t.Errorf("expected both clearances back, got %+v", clearances)
+	}
+}
+
+func TestClearancesService_ScreenManyRequiresClearances(t *testing.T) {
+	client := NewClient(&Config{BaseURL: "https://example.invalid"}, &StaticTokenProvider{Token: "t"}, WithMaxRetries(0))
+
+	_, err := client.Clearances().ScreenMany(context.Background(), nil, ClearanceDenied, false)
+
+	var heyErr *Error
+	if !errors.As(err, &heyErr) || heyErr.Code != CodeUsage {
+		t.Fatalf("expected a usage error, got %v", err)
+	}
+}
+
+// HEY answers 404 when none of the ids belong to the caller, rather than reporting an
+// empty success.
+func TestClearancesService_ScreenManySurfacesUnknownIDs(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	t.Cleanup(srv.Close)
+	client := NewClient(&Config{BaseURL: srv.URL}, &StaticTokenProvider{Token: "t"}, WithMaxRetries(0))
+
+	_, err := client.Clearances().ScreenMany(context.Background(), []int64{404}, ClearanceDenied, false)
+
+	var heyErr *Error
+	if !errors.As(err, &heyErr) || heyErr.Code != CodeNotFound {
+		t.Fatalf("expected a not found error, got %v", err)
+	}
+}
+
+func TestClearancesService_Punt(t *testing.T) {
+	var called bool
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		called = true
+		if r.Method != http.MethodPost || r.URL.Path != "/clearances/punt.json" {
+			t.Errorf("expected POST /clearances/punt.json, got %s %s", r.Method, r.URL.Path)
+		}
+		w.WriteHeader(http.StatusAccepted)
+	}))
+	t.Cleanup(srv.Close)
+	client := NewClient(&Config{BaseURL: srv.URL}, &StaticTokenProvider{Token: "t"}, WithMaxRetries(0))
+
+	if err := client.Clearances().Punt(context.Background()); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !called {
+		t.Error("expected the punt to be sent")
+	}
+}
+
+func TestClearancesService_Screened(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet || r.URL.Path != "/my/clearances.json" {
+			t.Errorf("expected GET /my/clearances.json, got %s %s", r.Method, r.URL.Path)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"clearances":[
+			{"id":91,"status":"approved","petitioner":{"id":51,"name":"Glenn"}},
+			{"id":92,"status":"denied","petitioner":{"id":52,"name":"Spammer"}}]}`))
+	}))
+	t.Cleanup(srv.Close)
+	client := NewClient(&Config{BaseURL: srv.URL}, &StaticTokenProvider{Token: "t"}, WithMaxRetries(0))
+
+	clearances, err := client.Clearances().Screened(context.Background(), "")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(clearances) != 2 {
+		t.Fatalf("expected two clearances, got %+v", clearances)
+	}
+	if clearances[0].Status != "approved" || clearances[1].Status != "denied" {
+		t.Errorf("expected both decisions, got %+v", clearances)
+	}
+	if clearances[0].Petitioner.Name != "Glenn" {
+		t.Errorf("expected the petitioner, got %+v", clearances[0].Petitioner)
+	}
+}
+
+func TestClearancesService_Rescreen(t *testing.T) {
+	var gotBody map[string]any
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPatch || r.URL.Path != "/my/clearances/91.json" {
+			t.Errorf("expected PATCH /my/clearances/91.json, got %s %s", r.Method, r.URL.Path)
+		}
+		raw, _ := io.ReadAll(r.Body)
+		_ = json.Unmarshal(raw, &gotBody)
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"id":91,"status":"denied"}`))
+	}))
+	t.Cleanup(srv.Close)
+	client := NewClient(&Config{BaseURL: srv.URL}, &StaticTokenProvider{Token: "t"}, WithMaxRetries(0))
+
+	clearance, err := client.Clearances().Rescreen(context.Background(), 91, ClearanceDenied)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	// HEY takes the status flat here, not nested under a clearance key like its own form.
+	if gotBody["status"] != "denied" {
+		t.Errorf("expected the status at the top level, got %+v", gotBody)
+	}
+	if clearance.Status != "denied" {
+		t.Errorf("expected the updated clearance, got %+v", clearance)
+	}
+}

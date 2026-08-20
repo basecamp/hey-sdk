@@ -2955,8 +2955,26 @@
     },
     "/clearances.json": {
       "get": {
-        "description": "Get the screener summary — how many senders are waiting to be screened",
+        "description": "Get the Screener — the pending count, and the senders waiting when asked for them",
         "operationId": "GetClearances",
+        "parameters": [
+          {
+            "name": "include_clearances",
+            "in": "query",
+            "schema": {
+              "type": "boolean",
+              "x-go-type-skip-optional-pointer": false
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "x-go-type-skip-optional-pointer": false
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "GetClearances 200 response",
@@ -3002,8 +3020,246 @@
         "tags": [
           "Contacts"
         ],
+        "x-hey-pagination": {
+          "style": "link",
+          "totalCountHeader": "X-Total-Count"
+        },
         "x-hey-retry": {
           "maxAttempts": 3,
+          "baseDelayMs": 1000,
+          "backoff": "exponential",
+          "retryOn": [
+            429,
+            503
+          ]
+        }
+      }
+    },
+    "/clearances/bulk.json": {
+      "patch": {
+        "description": "Screen several senders out at once. ids is a comma-separated list.",
+        "operationId": "BulkUpdateClearances",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BulkUpdateClearancesRequestContent"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "BulkUpdateClearances 200 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BulkUpdateClearancesResponseContent"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UnauthorizedError 401 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnauthorizedErrorResponseContent"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError 404 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundErrorResponseContent"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "InternalServerError 500 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorResponseContent"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ServiceUnavailableError 503 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceUnavailableErrorResponseContent"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Contacts"
+        ],
+        "x-hey-retry": {
+          "maxAttempts": 2,
+          "baseDelayMs": 1000,
+          "backoff": "exponential",
+          "retryOn": [
+            429,
+            503
+          ]
+        }
+      }
+    },
+    "/clearances/punt.json": {
+      "post": {
+        "description": "Clear the Screener — every pending sender is punted and reexamined on their next email",
+        "operationId": "PuntClearances",
+        "responses": {
+          "200": {
+            "description": "PuntClearances 200 response"
+          },
+          "401": {
+            "description": "UnauthorizedError 401 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnauthorizedErrorResponseContent"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "InternalServerError 500 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorResponseContent"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ServiceUnavailableError 503 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceUnavailableErrorResponseContent"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Contacts"
+        ],
+        "x-hey-retry": {
+          "maxAttempts": 2,
+          "baseDelayMs": 1000,
+          "backoff": "exponential",
+          "retryOn": [
+            429,
+            503
+          ]
+        }
+      }
+    },
+    "/clearances/{clearanceId}": {
+      "patch": {
+        "description": "Screen a sender in or out of the Screener\n\ndesignation_box_id files everything they send into that box instead of the Imbox.\nspam marks what is already waiting as spam and trains the filter on it.",
+        "operationId": "UpdateClearance",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateClearanceRequestContent"
+              }
+            }
+          },
+          "required": true
+        },
+        "parameters": [
+          {
+            "name": "clearanceId",
+            "in": "path",
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "UpdateClearance 200 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UpdateClearanceResponseContent"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UnauthorizedError 401 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnauthorizedErrorResponseContent"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ForbiddenError 403 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ForbiddenErrorResponseContent"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError 404 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundErrorResponseContent"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "InternalServerError 500 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorResponseContent"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ServiceUnavailableError 503 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceUnavailableErrorResponseContent"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Contacts"
+        ],
+        "x-hey-retry": {
+          "maxAttempts": 2,
           "baseDelayMs": 1000,
           "backoff": "exponential",
           "retryOn": [
@@ -5017,6 +5273,181 @@
         ],
         "x-hey-retry": {
           "maxAttempts": 3,
+          "baseDelayMs": 1000,
+          "backoff": "exponential",
+          "retryOn": [
+            429,
+            503
+          ]
+        }
+      }
+    },
+    "/my/clearances.json": {
+      "get": {
+        "description": "The senders already screened in or out",
+        "operationId": "GetMyClearances",
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "x-go-type-skip-optional-pointer": false
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "GetMyClearances 200 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetMyClearancesResponseContent"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UnauthorizedError 401 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnauthorizedErrorResponseContent"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "InternalServerError 500 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorResponseContent"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ServiceUnavailableError 503 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceUnavailableErrorResponseContent"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Contacts"
+        ],
+        "x-hey-pagination": {
+          "style": "link",
+          "totalCountHeader": "X-Total-Count"
+        },
+        "x-hey-retry": {
+          "maxAttempts": 3,
+          "baseDelayMs": 1000,
+          "backoff": "exponential",
+          "retryOn": [
+            429,
+            503
+          ]
+        }
+      }
+    },
+    "/my/clearances/{clearanceId}": {
+      "patch": {
+        "description": "Rescreen a sender who was already screened in or out",
+        "operationId": "UpdateMyClearance",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateMyClearanceRequestContent"
+              }
+            }
+          },
+          "required": true
+        },
+        "parameters": [
+          {
+            "name": "clearanceId",
+            "in": "path",
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "UpdateMyClearance 200 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UpdateMyClearanceResponseContent"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UnauthorizedError 401 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnauthorizedErrorResponseContent"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ForbiddenError 403 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ForbiddenErrorResponseContent"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError 404 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundErrorResponseContent"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "InternalServerError 500 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorResponseContent"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ServiceUnavailableError 503 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceUnavailableErrorResponseContent"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Contacts"
+        ],
+        "x-hey-retry": {
+          "maxAttempts": 2,
           "baseDelayMs": 1000,
           "backoff": "exponential",
           "retryOn": [
@@ -8342,6 +8773,28 @@
           "message"
         ]
       },
+      "BulkUpdateClearancesRequestContent": {
+        "type": "object",
+        "properties": {
+          "ids": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "spam": {
+            "type": "boolean",
+            "x-go-type-skip-optional-pointer": false
+          }
+        },
+        "required": [
+          "ids",
+          "status"
+        ]
+      },
+      "BulkUpdateClearancesResponseContent": {
+        "$ref": "#/components/schemas/ClearanceListResponse"
+      },
       "Calendar": {
         "type": "object",
         "description": "Calendar",
@@ -8465,7 +8918,7 @@
       },
       "Clearance": {
         "type": "object",
-        "description": "Clearance — screening status for a contact",
+        "description": "Clearance — screening status for a contact\n\npetitioner and most_recent_entry are only filled in by the Screener reads. The\ncontact reads answer a clearance with nothing but its id and status.",
         "properties": {
           "id": {
             "type": "integer",
@@ -8473,15 +8926,51 @@
           },
           "status": {
             "type": "string"
+          },
+          "created_at": {
+            "type": "string",
+            "description": "ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)",
+            "format": "date-time",
+            "x-go-type": "time.Time",
+            "x-go-type-import": {
+              "path": "time"
+            }
+          },
+          "updated_at": {
+            "type": "string",
+            "description": "ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)",
+            "format": "date-time",
+            "x-go-type": "time.Time",
+            "x-go-type-import": {
+              "path": "time"
+            }
+          },
+          "petitioner": {
+            "$ref": "#/components/schemas/Contact"
+          },
+          "most_recent_entry": {
+            "$ref": "#/components/schemas/Entry"
           }
         },
         "required": [
           "id"
         ]
       },
+      "ClearanceListResponse": {
+        "type": "object",
+        "description": "ClearanceListResponse — wire format: {clearances: [...]}",
+        "properties": {
+          "clearances": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Clearance"
+            }
+          }
+        }
+      },
       "ClearanceSummary": {
         "type": "object",
-        "description": "ClearanceSummary — the screener's pending count, not the clearances themselves",
+        "description": "ClearanceSummary — the Screener's pending count, and the queue itself when asked for\n\nclearances is only present when the read passes include_clearances. Without it HEY\nanswers the count alone, which is what its own apps sync.",
         "properties": {
           "pending_clearances_count": {
             "type": "integer",
@@ -8489,6 +8978,12 @@
           },
           "signed_stream_name": {
             "type": "string"
+          },
+          "clearances": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Clearance"
+            }
           }
         }
       },
@@ -9191,6 +9686,13 @@
           },
           "app_url": {
             "type": "string"
+          },
+          "subject": {
+            "type": "string"
+          },
+          "topic_id": {
+            "type": "integer",
+            "format": "int64"
           }
         },
         "required": [
@@ -9426,6 +9928,9 @@
       },
       "GetMessageResponseContent": {
         "$ref": "#/components/schemas/Message"
+      },
+      "GetMyClearancesResponseContent": {
+        "$ref": "#/components/schemas/ClearanceListResponse"
       },
       "GetNavigationResponseContent": {
         "$ref": "#/components/schemas/NavigationResponse"
@@ -10912,6 +11417,33 @@
           }
         }
       },
+      "UpdateClearanceRequestContent": {
+        "type": "object",
+        "description": "Wire format: {status: \"approved\"|\"denied\"} — top level, not nested under a clearance key.",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "designation_box_id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "spam": {
+            "type": "boolean",
+            "x-go-type-skip-optional-pointer": false
+          },
+          "mark_topics_as_seen": {
+            "type": "boolean",
+            "x-go-type-skip-optional-pointer": false
+          }
+        },
+        "required": [
+          "status"
+        ]
+      },
+      "UpdateClearanceResponseContent": {
+        "$ref": "#/components/schemas/Clearance"
+      },
       "UpdateCollectionRequestContent": {
         "type": "object",
         "description": "Wire format: {collection: {name, summary}}",
@@ -10959,6 +11491,20 @@
       },
       "UpdateJournalEntryResponseContent": {
         "$ref": "#/components/schemas/Recording"
+      },
+      "UpdateMyClearanceRequestContent": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "status"
+        ]
+      },
+      "UpdateMyClearanceResponseContent": {
+        "$ref": "#/components/schemas/Clearance"
       },
       "UpdateStickyResponseContent": {
         "$ref": "#/components/schemas/Sticky"

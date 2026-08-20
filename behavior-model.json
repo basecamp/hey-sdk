@@ -44,6 +44,19 @@
         ]
       }
     },
+    "BulkUpdateClearances": {
+      "idempotent": true,
+      "readonly": false,
+      "retry": {
+        "backoff": "exponential",
+        "base_delay_ms": 1000,
+        "max": 2,
+        "retry_on": [
+          429,
+          503
+        ]
+      }
+    },
     "BundleContact": {
       "idempotent": false,
       "readonly": false,
@@ -457,6 +470,10 @@
     },
     "GetClearances": {
       "idempotent": false,
+      "pagination": {
+        "style": "link",
+        "totalCountHeader": "X-Total-Count"
+      },
       "readonly": true,
       "retry": {
         "backoff": "exponential",
@@ -595,6 +612,23 @@
     },
     "GetMessage": {
       "idempotent": false,
+      "readonly": true,
+      "retry": {
+        "backoff": "exponential",
+        "base_delay_ms": 1000,
+        "max": 3,
+        "retry_on": [
+          429,
+          503
+        ]
+      }
+    },
+    "GetMyClearances": {
+      "idempotent": false,
+      "pagination": {
+        "style": "link",
+        "totalCountHeader": "X-Total-Count"
+      },
       "readonly": true,
       "retry": {
         "backoff": "exponential",
@@ -1070,6 +1104,19 @@
         ]
       }
     },
+    "PuntClearances": {
+      "idempotent": false,
+      "readonly": false,
+      "retry": {
+        "backoff": "exponential",
+        "base_delay_ms": 1000,
+        "max": 2,
+        "retry_on": [
+          429,
+          503
+        ]
+      }
+    },
     "RemovePostingsFromBoxGroup": {
       "idempotent": true,
       "readonly": false,
@@ -1239,6 +1286,19 @@
         ]
       }
     },
+    "UpdateClearance": {
+      "idempotent": true,
+      "readonly": false,
+      "retry": {
+        "backoff": "exponential",
+        "base_delay_ms": 1000,
+        "max": 2,
+        "retry_on": [
+          429,
+          503
+        ]
+      }
+    },
     "UpdateCollection": {
       "idempotent": true,
       "readonly": false,
@@ -1306,6 +1366,19 @@
     },
     "UpdateJournalEntry": {
       "idempotent": false,
+      "readonly": false,
+      "retry": {
+        "backoff": "exponential",
+        "base_delay_ms": 1000,
+        "max": 2,
+        "retry_on": [
+          429,
+          503
+        ]
+      }
+    },
+    "UpdateMyClearance": {
+      "idempotent": true,
       "readonly": false,
       "retry": {
         "backoff": "exponential",

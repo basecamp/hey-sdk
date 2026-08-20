@@ -2495,16 +2495,6 @@
     "reason": "phase-2: personal settings and preferences"
   },
   {
-    "method": "GET",
-    "path": "/my/clearances",
-    "reason": "phase-2: personal settings and preferences"
-  },
-  {
-    "method": "PATCH",
-    "path": "/my/clearances/{id}",
-    "reason": "phase-2: personal settings and preferences"
-  },
-  {
     "method": "PUT",
     "path": "/my/clearances/{id}",
     "reason": "phase-2: personal settings and preferences"
@@ -2895,11 +2885,6 @@
     "reason": "phase-2: screener clearances"
   },
   {
-    "method": "PATCH",
-    "path": "/clearances/bulk",
-    "reason": "phase-2: screener clearances"
-  },
-  {
     "method": "POST",
     "path": "/clearances/bulk",
     "reason": "phase-2: screener clearances"
@@ -2930,11 +2915,6 @@
     "reason": "phase-2: screener clearances"
   },
   {
-    "method": "POST",
-    "path": "/clearances/punt",
-    "reason": "phase-2: screener clearances"
-  },
-  {
     "method": "PUT",
     "path": "/clearances/punt",
     "reason": "phase-2: screener clearances"
@@ -2946,11 +2926,6 @@
   },
   {
     "method": "GET",
-    "path": "/clearances/{id}",
-    "reason": "phase-2: screener clearances"
-  },
-  {
-    "method": "PATCH",
     "path": "/clearances/{id}",
     "reason": "phase-2: screener clearances"
   },

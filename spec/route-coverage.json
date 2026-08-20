@@ -15,6 +15,11 @@
     "path": "/postings/bulk_bubble_up_now.json"
   },
   {
+    "method": "PATCH",
+    "operationId": "BulkUpdateClearances",
+    "path": "/clearances/bulk.json"
+  },
+  {
     "method": "POST",
     "operationId": "BundleContact",
     "path": "/contacts/{contactId}/bundle.json"
@@ -231,6 +236,11 @@
   },
   {
     "method": "GET",
+    "operationId": "GetMyClearances",
+    "path": "/my/clearances.json"
+  },
+  {
+    "method": "GET",
     "operationId": "GetNavigation",
     "path": "/my/navigation.json"
   },
@@ -395,6 +405,11 @@
     "path": "/entries/{entryId}/forwards/new.json"
   },
   {
+    "method": "POST",
+    "operationId": "PuntClearances",
+    "path": "/clearances/punt.json"
+  },
+  {
     "method": "DELETE",
     "operationId": "RemovePostingsFromBoxGroup",
     "path": "/postings/box_groups.json"
@@ -461,6 +476,11 @@
   },
   {
     "method": "PATCH",
+    "operationId": "UpdateClearance",
+    "path": "/clearances/{clearanceId}"
+  },
+  {
+    "method": "PATCH",
     "operationId": "UpdateCollection",
     "path": "/collections/{collectionId}"
   },
@@ -488,6 +508,11 @@
     "method": "PATCH",
     "operationId": "UpdateJournalEntry",
     "path": "/calendar/days/{day}/journal_entry"
+  },
+  {
+    "method": "PATCH",
+    "operationId": "UpdateMyClearance",
+    "path": "/my/clearances/{clearanceId}"
   },
   {
     "method": "PATCH",

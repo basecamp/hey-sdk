@@ -1209,7 +1209,25 @@ func executeOperation(client *generated.Client, ctx context.Context, tc TestCase
 		body := generated.UpdateContactClearanceJSONRequestBody{Status: getStringParam(tc.RequestBody, "status")}
 		return client.UpdateContactClearance(ctx, contactId, body)
 	case "GetClearances":
-		return client.GetClearances(ctx)
+		return client.GetClearances(ctx, &generated.GetClearancesParams{})
+	case "UpdateClearance":
+		clearanceId := getInt64Param(tc.PathParams, "clearanceId")
+		body := generated.UpdateClearanceJSONRequestBody{Status: getStringParam(tc.RequestBody, "status")}
+		return client.UpdateClearance(ctx, clearanceId, body)
+	case "BulkUpdateClearances":
+		body := generated.BulkUpdateClearancesJSONRequestBody{
+			Ids:    getStringParam(tc.RequestBody, "ids"),
+			Status: getStringParam(tc.RequestBody, "status"),
+		}
+		return client.BulkUpdateClearances(ctx, body)
+	case "PuntClearances":
+		return client.PuntClearances(ctx)
+	case "GetMyClearances":
+		return client.GetMyClearances(ctx, &generated.GetMyClearancesParams{})
+	case "UpdateMyClearance":
+		clearanceId := getInt64Param(tc.PathParams, "clearanceId")
+		body := generated.UpdateMyClearanceJSONRequestBody{Status: getStringParam(tc.RequestBody, "status")}
+		return client.UpdateMyClearance(ctx, clearanceId, body)
 
 	// Contact writing and notes
 	case "CreateContact":
