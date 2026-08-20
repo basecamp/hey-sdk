@@ -28,7 +28,7 @@ func (c *Client) ForAccount(ctx context.Context, accountID int64) (*Client, erro
 		return nil, ErrUsage(fmt.Sprintf("account ID must be positive, got %d", accountID))
 	}
 
-	identityClient := &Client{clientShared: c.clientShared, httpClient: c.httpClient}
+	identityClient := &Client{clientShared: c.clientShared, httpClient: c.rootHTTPClient}
 	identity, err := identityClient.Identity().GetIdentity(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch identity for account validation: %w", err)
@@ -42,7 +42,7 @@ func (c *Client) ForAccount(ctx context.Context, accountID int64) (*Client, erro
 
 	client := &Client{
 		clientShared: c.clientShared,
-		httpClient:   accountScopedHTTPClient(c.httpClient),
+		httpClient:   accountScopedHTTPClient(c.rootHTTPClient, c.cfg.BaseURL, accountID),
 		accountID:    accountID,
 	}
 	client.seedAccountIdentity(identity)
@@ -152,32 +152,51 @@ func (c *Client) accountScopedURL(rawURL string) (string, error) {
 }
 
 func (c *Client) applyAccountScope(requestURL *url.URL) {
-	if c.accountID == 0 || requestURL == nil || c.cfg.BaseURL == "" || !isSameOrigin(c.cfg.BaseURL, requestURL.String()) {
+	applyAccountScope(c.cfg.BaseURL, c.accountID, requestURL)
+}
+
+func applyAccountScope(baseURL string, accountID int64, requestURL *url.URL) {
+	if accountID == 0 || requestURL == nil || baseURL == "" || !isSameOrigin(baseURL, requestURL.String()) {
 		return
 	}
 
 	query := requestURL.Query()
-	query.Set(filteredAccountIDParameter, strconv.FormatInt(c.accountID, 10))
+	query.Set(filteredAccountIDParameter, strconv.FormatInt(accountID, 10))
 	requestURL.RawQuery = query.Encode()
 }
 
-func accountScopedHTTPClient(source *http.Client) *http.Client {
+func accountScopedHTTPClient(source *http.Client, baseURL string, accountID int64) *http.Client {
 	client := *source
 	transport := source.Transport
 	if transport == nil {
 		transport = http.DefaultTransport
 	}
-	client.Transport = &filteredAccountCookieTransport{inner: transport}
+	client.Transport = &accountScopedTransport{
+		inner:     transport,
+		baseURL:   baseURL,
+		accountID: accountID,
+	}
+	if source.Jar != nil {
+		client.Jar = &accountScopedCookieJar{inner: source.Jar}
+	}
 	return &client
 }
 
-type filteredAccountCookieTransport struct {
-	inner http.RoundTripper
+type accountScopedTransport struct {
+	inner     http.RoundTripper
+	baseURL   string
+	accountID int64
 }
 
-func (t *filteredAccountCookieTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+func (t *accountScopedTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	request := req.Clone(req.Context())
 	request.Header = req.Header.Clone()
+	applyAccountScope(t.baseURL, t.accountID, request.URL)
+	removeAccountFilterCookie(request)
+	return t.inner.RoundTrip(request)
+}
+
+func removeAccountFilterCookie(request *http.Request) {
 	cookies := request.Cookies()
 	request.Header.Del("Cookie")
 	for _, cookie := range cookies {
@@ -185,5 +204,26 @@ func (t *filteredAccountCookieTransport) RoundTrip(req *http.Request) (*http.Res
 			request.AddCookie(cookie)
 		}
 	}
-	return t.inner.RoundTrip(request)
+}
+
+type accountScopedCookieJar struct {
+	inner http.CookieJar
+}
+
+func (j *accountScopedCookieJar) Cookies(u *url.URL) []*http.Cookie {
+	return cookiesWithoutAccountFilter(j.inner.Cookies(u))
+}
+
+func (j *accountScopedCookieJar) SetCookies(u *url.URL, cookies []*http.Cookie) {
+	j.inner.SetCookies(u, cookiesWithoutAccountFilter(cookies))
+}
+
+func cookiesWithoutAccountFilter(cookies []*http.Cookie) []*http.Cookie {
+	filtered := make([]*http.Cookie, 0, len(cookies))
+	for _, cookie := range cookies {
+		if cookie.Name != filteredAccountIDParameter {
+			filtered = append(filtered, cookie)
+		}
+	}
+	return filtered
 }

@@ -3,6 +3,7 @@ package hey
 import (
 	"bytes"
 	"context"
+	"errors"
 	"io"
 	"log/slog"
 	"net/http"
@@ -10,6 +11,7 @@ import (
 	"net/url"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestRequireHTTPS(t *testing.T) {
@@ -161,6 +163,33 @@ func TestRequestLogsExcludeUserProvidedURLs(t *testing.T) {
 	if !strings.Contains(output, "method=GET") {
 		t.Fatalf("request method missing from logs: %s", output)
 	}
+
+	logs.Reset()
+	failingClient := NewClient(
+		&Config{BaseURL: "https://example.com"},
+		&StaticTokenProvider{Token: "token"},
+		WithLogger(logger),
+		WithTransport(failingRoundTripper{}),
+		WithMaxRetries(1),
+		WithBaseDelay(time.Nanosecond),
+		WithMaxJitter(time.Nanosecond),
+	)
+	if _, err := failingClient.Get(context.Background(), "/messages.json?subject=forged-network-log-entry"); err == nil {
+		t.Fatal("failing request returned no error")
+	}
+	output = logs.String()
+	if strings.Contains(output, "forged-network-log-entry") {
+		t.Fatalf("network error URL reached logs: %s", output)
+	}
+	if !strings.Contains(output, "errorCode=network") {
+		t.Fatalf("network error code missing from retry log: %s", output)
+	}
+}
+
+type failingRoundTripper struct{}
+
+func (failingRoundTripper) RoundTrip(*http.Request) (*http.Response, error) {
+	return nil, errors.New("connection failed")
 }
 
 func TestLimitedReadAll(t *testing.T) {

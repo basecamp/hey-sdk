@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -22,14 +23,15 @@ import (
 const DefaultUserAgent = "hey-sdk-go/" + Version + " (api:" + APIVersion + ")"
 
 type clientShared struct {
-	tokenProvider TokenProvider
-	authStrategy  AuthStrategy
-	cfg           *Config
-	cache         *Cache
-	userAgent     string
-	logger        *slog.Logger
-	httpOpts      HTTPOptions
-	hooks         Hooks
+	tokenProvider  TokenProvider
+	authStrategy   AuthStrategy
+	rootHTTPClient *http.Client
+	cfg            *Config
+	cache          *Cache
+	userAgent      string
+	logger         *slog.Logger
+	httpOpts       HTTPOptions
+	hooks          Hooks
 }
 
 // Client is an HTTP client for the HEY API. A root client represents the
@@ -217,6 +219,7 @@ func NewClient(cfg *Config, tokenProvider TokenProvider, opts ...ClientOption) *
 		c.cache = NewCache(cfg.CacheDir)
 	}
 
+	c.rootHTTPClient = c.httpClient
 	return c
 }
 
@@ -596,7 +599,13 @@ func (c *Client) doRequestURL(ctx context.Context, method, url string, body any)
 			return nil, err
 		}
 
-		c.logger.Debug("retrying request", "attempt", attempt, "maxRetries", c.httpOpts.MaxRetries, "delay", delay, "error", lastErr)
+		c.logger.Debug(
+			"retrying request",
+			"attempt", attempt,
+			"maxRetries", c.httpOpts.MaxRetries,
+			"delay", delay,
+			"errorCode", errorCodeForLog(lastErr),
+		)
 
 		info := RequestInfo{Method: method, URL: url, Attempt: attempt}
 		c.hooks.OnRetry(ctx, info, attempt+1, lastErr)
@@ -610,6 +619,14 @@ func (c *Client) doRequestURL(ctx context.Context, method, url string, body any)
 	}
 
 	return nil, fmt.Errorf("request failed after %d retries: %w", c.httpOpts.MaxRetries, lastErr)
+}
+
+func errorCodeForLog(err error) string {
+	var sdkErr *Error
+	if errors.As(err, &sdkErr) {
+		return sdkErr.Code
+	}
+	return CodeAPI
 }
 
 func (c *Client) singleRequest(ctx context.Context, method, url string, body any, attempt int) (*Response, error) {

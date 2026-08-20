@@ -18,8 +18,17 @@ import (
 )
 
 func TestClientForAccountIsImmutable(t *testing.T) {
+	var requestedAccount string
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
+		if r.URL.Path == "/probe.json" {
+			requestedAccount = r.URL.Query().Get(filteredAccountIDParameter)
+			_, _ = io.WriteString(w, `{"ok":true}`)
+			return
+		}
+		if got := r.URL.Query().Get(filteredAccountIDParameter); got != "" {
+			t.Errorf("account validation was scoped to %q", got)
+		}
 		_, _ = io.WriteString(w, `{"id":1,"accounts":[{"id":11,"status":"active"},{"id":22,"status":"active"},{"id":33,"status":"active"}]}`)
 	}))
 	t.Cleanup(server.Close)
@@ -52,6 +61,12 @@ func TestClientForAccountIsImmutable(t *testing.T) {
 	}
 	if got, _ := replaced.AccountID(); got != 33 {
 		t.Fatalf("replacement AccountID = %d, want 33", got)
+	}
+	if _, err := replaced.Get(context.Background(), "/probe.json"); err != nil {
+		t.Fatal(err)
+	}
+	if requestedAccount != "33" {
+		t.Fatalf("replacement request account = %q, want 33", requestedAccount)
 	}
 }
 
@@ -168,6 +183,83 @@ func TestAccountScopeRemovesConflictingFilterCookie(t *testing.T) {
 	}
 	if _, present := cookies[filteredAccountIDParameter]; present {
 		t.Errorf("filter cookie reached scoped request: %v", cookies)
+	}
+}
+
+func TestAccountScopeFollowsSameOriginRedirects(t *testing.T) {
+	var startAccount, finalAccount string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch r.URL.Path {
+		case "/identity.json":
+			_, _ = io.WriteString(w, `{"id":1,"accounts":[{"id":42,"status":"active"}]}`)
+		case "/start":
+			startAccount = r.URL.Query().Get(filteredAccountIDParameter)
+			http.Redirect(w, r, "/final", http.StatusFound)
+		case "/final":
+			finalAccount = r.URL.Query().Get(filteredAccountIDParameter)
+			_, _ = io.WriteString(w, `{"ok":true}`)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	t.Cleanup(server.Close)
+
+	root := NewClient(&Config{BaseURL: server.URL}, &StaticTokenProvider{Token: "token"}, WithMaxRetries(0))
+	client := mustForAccount(t, root, 42)
+	if _, err := client.Get(context.Background(), "/start"); err != nil {
+		t.Fatal(err)
+	}
+	if startAccount != "42" || finalAccount != "42" {
+		t.Fatalf("redirect accounts = start %q, final %q; want 42", startAccount, finalAccount)
+	}
+}
+
+func TestScopedResponseDoesNotSetRootAccountFilterCookie(t *testing.T) {
+	jar, err := cookiejar.New(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var rootCookies []*http.Cookie
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch r.URL.Path {
+		case "/identity.json":
+			_, _ = io.WriteString(w, `{"id":1,"accounts":[{"id":42,"status":"active"}]}`)
+		case "/scoped.json":
+			http.SetCookie(w, &http.Cookie{Name: filteredAccountIDParameter, Value: "42"})
+			http.SetCookie(w, &http.Cookie{Name: "session_update", Value: "kept"})
+			_, _ = io.WriteString(w, `{"ok":true}`)
+		case "/root.json":
+			rootCookies = r.Cookies()
+			_, _ = io.WriteString(w, `{"ok":true}`)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	t.Cleanup(server.Close)
+
+	root := NewClient(
+		&Config{BaseURL: server.URL},
+		&StaticTokenProvider{Token: "token"},
+		WithHTTPClient(&http.Client{Jar: jar}),
+	)
+	client := mustForAccount(t, root, 42)
+	if _, err := client.Get(context.Background(), "/scoped.json"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := root.Get(context.Background(), "/root.json"); err != nil {
+		t.Fatal(err)
+	}
+	cookies := map[string]string{}
+	for _, cookie := range rootCookies {
+		cookies[cookie.Name] = cookie.Value
+	}
+	if _, present := cookies[filteredAccountIDParameter]; present {
+		t.Errorf("scoped filter cookie reached root request: %v", cookies)
+	}
+	if cookies["session_update"] != "kept" {
+		t.Errorf("session update cookie = %q, want kept", cookies["session_update"])
 	}
 }
 
@@ -898,7 +990,7 @@ func mustForAccount(t *testing.T, client *Client, accountID int64) *Client {
 func scopedTestClient(root *Client, accountID int64) *Client {
 	return &Client{
 		clientShared: root.clientShared,
-		httpClient:   accountScopedHTTPClient(root.httpClient),
+		httpClient:   accountScopedHTTPClient(root.rootHTTPClient, root.cfg.BaseURL, accountID),
 		accountID:    accountID,
 	}
 }
