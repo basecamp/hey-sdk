@@ -1177,10 +1177,13 @@ func executeOperation(client *generated.Client, ctx context.Context, tc TestCase
 		body := generated.MoveTopicJSONRequestBody{BoxId: getInt64Param(tc.RequestBody, "box_id")}
 		return client.MoveTopic(ctx, topicId, body)
 
-	// Entry status and forwards
+	// Entry status and message drafts
 	case "MarkEntrySpam":
 		entryId := getInt64Param(tc.PathParams, "entryId")
 		return client.MarkEntrySpam(ctx, entryId)
+	case "NewEntryReply":
+		entryId := getInt64Param(tc.PathParams, "entryId")
+		return client.NewEntryReply(ctx, entryId)
 	case "NewEntryForward":
 		entryId := getInt64Param(tc.PathParams, "entryId")
 		return client.NewEntryForward(ctx, entryId)

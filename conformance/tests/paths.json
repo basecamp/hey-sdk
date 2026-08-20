@@ -1956,6 +1956,48 @@
     ]
   },
   {
+    "name": "NewEntryReply uses /entries/{entryId}/replies/new.json path",
+    "description": "Verifies that NewEntryReply constructs the URL path /entries/{entryId}/replies/new.json",
+    "operation": "NewEntryReply",
+    "method": "GET",
+    "path": "/entries/{entryId}/replies/new.json",
+    "pathParams": {
+      "entryId": 5512
+    },
+    "mockResponses": [
+      {
+        "status": 200,
+        "body": {
+          "url": "https://app.hey.com/entries/5512/replies",
+          "subject": "Re: Kitchen remodel",
+          "is_reply": true,
+          "addressed": {
+            "directly": [
+              {
+                "id": 7,
+                "name": "Amanda Jones",
+                "email_address": "amanda@example.com"
+              }
+            ]
+          }
+        }
+      }
+    ],
+    "assertions": [
+      {
+        "type": "requestPath",
+        "expected": "/entries/5512/replies/new.json"
+      },
+      {
+        "type": "noError"
+      }
+    ],
+    "tags": [
+      "path",
+      "entries"
+    ]
+  },
+  {
     "name": "NewEntryForward uses /entries/{entryId}/forwards/new.json path",
     "description": "Verifies that NewEntryForward constructs the URL path /entries/{entryId}/forwards/new.json",
     "operation": "NewEntryForward",

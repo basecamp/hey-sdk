@@ -395,6 +395,11 @@
     "path": "/entries/{entryId}/forwards/new.json"
   },
   {
+    "method": "GET",
+    "operationId": "NewEntryReply",
+    "path": "/entries/{entryId}/replies/new.json"
+  },
+  {
     "method": "DELETE",
     "operationId": "RemovePostingsFromBoxGroup",
     "path": "/postings/box_groups.json"

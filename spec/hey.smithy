@@ -160,6 +160,7 @@ service HEY {
 
         // Entries
         MarkEntrySpam
+        NewEntryReply
         NewEntryForward
 
         // Bulk reply
@@ -2603,7 +2604,7 @@ structure MoveTopicRequestContent {
 }
 
 // =============================================================================
-// ENTRY STATUS AND FORWARDS
+// ENTRY STATUS AND MESSAGE DRAFTS
 // =============================================================================
 
 /// Mark an entry as spam. Denies the sender when every thread from them is already spam.
@@ -2620,6 +2621,23 @@ structure EntryStatusInput {
     @httpLabel
     @required
     entryId: Long
+}
+
+/// Get the live reply envelope for an entry, including HEY's resolved recipients.
+/// Send it with CreateReply after filling in the message content.
+@readonly
+@http(method: "GET", uri: "/entries/{entryId}/replies/new.json")
+@tags(["Entries"])
+@heyRetry(maxAttempts: 3, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+operation NewEntryReply {
+    input: EntryStatusInput
+    output: NewEntryReplyOutput
+    errors: [UnauthorizedError, NotFoundError, InternalServerError, ServiceUnavailableError]
+}
+
+structure NewEntryReplyOutput {
+    @required
+    reply: MessageDraft
 }
 
 /// Get a prefilled forward of an entry: subject, quoted body and blank recipients.
