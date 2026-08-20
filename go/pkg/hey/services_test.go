@@ -1753,6 +1753,52 @@ func TestFoldersService_Get(t *testing.T) {
 	}
 }
 
+func TestFoldersService_GetPage(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/folders/12.json" {
+			t.Errorf("path = %q, want /folders/12.json", r.URL.Path)
+		}
+		if page := r.URL.Query().Get("page"); page != "current-cursor" {
+			t.Errorf("page = %q, want current-cursor", page)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("X-Total-Count", "42")
+		w.Header().Set("Link", `<http://`+r.Host+`/folders/12.json?page=next-cursor>; rel="next"`)
+		_, _ = io.WriteString(w, `{"id":12,"name":"Receipts","postings":[{"id":1,"kind":"topic"}]}`)
+	}))
+	t.Cleanup(server.Close)
+
+	client := NewClient(&Config{BaseURL: server.URL}, &StaticTokenProvider{Token: "test-token"}, WithMaxRetries(0))
+	cursor := "current-cursor"
+	page, err := client.Folders().GetPage(context.Background(), 12, &generated.GetFolderParams{Page: &cursor})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if page.Folder == nil || page.Folder.Name != "Receipts" || page.TotalCount != 42 || page.NextPage != "next-cursor" {
+		t.Errorf("unexpected folder page: %+v", page)
+	}
+}
+
+func TestFolderPageFromLink(t *testing.T) {
+	tests := []struct {
+		header string
+		want   string
+	}{
+		{header: `<https://app.hey.com/folders/12.json?page=next>; rel="next"`, want: "next"},
+		{header: `<https://app.hey.com/folders/12.json?page=previous>; rel="prev", <https://app.hey.com/folders/12.json?page=a,b>; rel="next"`, want: "a,b"},
+	}
+	for _, tt := range tests {
+		if got := folderPageFromLink(tt.header); got != tt.want {
+			t.Errorf("folderPageFromLink(%q) = %q, want %q", tt.header, got, tt.want)
+		}
+	}
+	for _, header := range []string{"", "not a URL", `<https://app.hey.com/folders/12.json>; rel="next"`} {
+		if got := folderPageFromLink(header); got != "" {
+			t.Errorf("folderPageFromLink(%q) = %q, want empty", header, got)
+		}
+	}
+}
+
 // --- Collections ---
 
 func TestCollectionsService_List(t *testing.T) {
