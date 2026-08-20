@@ -2858,7 +2858,7 @@ structure GetClearancesOutput {
 ///
 /// designation_box_id files everything they send into that box instead of the Imbox.
 /// spam marks what is already waiting as spam and trains the filter on it.
-@idempotent
+@heyIdempotent(natural: true)
 @http(method: "PATCH", uri: "/clearances/{clearanceId}")
 @tags(["Contacts"])
 @heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
