@@ -427,7 +427,7 @@ func (c *Client) doBodyRequest(ctx context.Context, method, path, contentType st
 	}
 	req.Header.Set("Accept", "*/*")
 
-	c.logger.Debug("http form request", "method", method, "url", req.URL.String())
+	c.logger.Debug("http form request", "method", method)
 
 	// Use a derived client that captures redirects instead of following them.
 	// This is thread-safe because it shares the transport but not the redirect policy.
@@ -646,7 +646,7 @@ func (c *Client) singleRequest(ctx context.Context, method, url string, body any
 		}
 	}
 
-	c.logger.Debug("http request", "method", method, "url", requestURL, "attempt", attempt)
+	c.logger.Debug("http request", "method", method, "attempt", attempt)
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {

@@ -157,9 +157,7 @@ func (t *loggingTransport) RoundTrip(req *http.Request) (*http.Response, error) 
 	}()
 
 	if t.client.logger != nil {
-		t.client.logger.Debug("http request",
-			"method", req.Method,
-			"url", req.URL.String())
+		t.client.logger.Debug("http request", "method", req.Method)
 	}
 
 	resp, err := t.inner.RoundTrip(req)
