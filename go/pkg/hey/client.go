@@ -21,13 +21,7 @@ import (
 // DefaultUserAgent is the default User-Agent header value.
 const DefaultUserAgent = "hey-sdk-go/" + Version + " (api:" + APIVersion + ")"
 
-// Client is an HTTP client for the HEY API.
-// Unlike the Basecamp SDK, HEY is user-scoped — services hang directly
-// off Client with no AccountClient or ForAccount indirection.
-//
-// Client is safe for concurrent use after construction.
-type Client struct {
-	httpClient    *http.Client
+type clientShared struct {
 	tokenProvider TokenProvider
 	authStrategy  AuthStrategy
 	cfg           *Config
@@ -36,8 +30,19 @@ type Client struct {
 	logger        *slog.Logger
 	httpOpts      HTTPOptions
 	hooks         Hooks
+}
 
-	// Generated client (single shared instance)
+// Client is an HTTP client for the HEY API. A root client represents the
+// authenticated identity and presents mail from All Accounts. ForAccount
+// derives an immutable client that presents mail for one linked account.
+//
+// Client is safe for concurrent use after construction.
+type Client struct {
+	*clientShared
+	httpClient *http.Client
+	accountID  int64
+
+	// Generated client for this account scope
 	genOnce sync.Once
 	gen     *generated.ClientWithResponses
 
@@ -45,6 +50,11 @@ type Client struct {
 	senderMu   sync.Mutex
 	senderID   int64
 	senderDone bool
+
+	// Cached user ID for the selected account (lazy-initialized, retries on error)
+	accountUserMu   sync.Mutex
+	accountUserID   int64
+	accountUserDone bool
 
 	// Cached box IDs by kind (imbox, feedbox, ...), lazy-initialized from ListBoxes
 	boxMu     sync.Mutex
@@ -148,14 +158,14 @@ func WithAuthStrategy(strategy AuthStrategy) ClientOption {
 // NewClient creates a new API client.
 func NewClient(cfg *Config, tokenProvider TokenProvider, opts ...ClientOption) *Client {
 	cfgCopy := *cfg
-	c := &Client{
+	c := &Client{clientShared: &clientShared{
 		tokenProvider: tokenProvider,
 		cfg:           &cfgCopy,
 		userAgent:     DefaultUserAgent,
 		logger:        slog.New(discardHandler{}),
 		hooks:         NoopHooks{},
 		httpOpts:      DefaultHTTPOptions(),
-	}
+	}}
 
 	for _, opt := range opts {
 		opt(c)
@@ -210,23 +220,22 @@ func NewClient(cfg *Config, tokenProvider TokenProvider, opts ...ClientOption) *
 	return c
 }
 
-// initGeneratedClient initializes the shared generated OpenAPI client.
+// initGeneratedClient initializes the generated OpenAPI client for this account scope.
 func (c *Client) initGeneratedClient() {
 	c.genOnce.Do(func() {
 		serverURL := strings.TrimSuffix(c.cfg.BaseURL, "/")
 		authEditor := func(ctx context.Context, req *http.Request) error {
-			if err := c.authStrategy.Authenticate(ctx, req); err != nil {
-				return err
-			}
-			req.Header.Set("User-Agent", c.userAgent)
-			if req.Header.Get("Content-Type") == "" {
-				req.Header.Set("Content-Type", "application/json")
-			}
-			req.Header.Set("Accept", "application/json")
 			req.URL.Path = withJSONExtension(req.URL.Path)
 			if req.URL.RawPath != "" {
 				req.URL.RawPath = withJSONExtension(req.URL.RawPath)
 			}
+			if err := c.prepareAPIRequest(ctx, req); err != nil {
+				return err
+			}
+			if req.Header.Get("Content-Type") == "" {
+				req.Header.Set("Content-Type", "application/json")
+			}
+			req.Header.Set("Accept", "application/json")
 			return nil
 		}
 		gen, err := generated.NewClientWithResponses(serverURL,
@@ -410,16 +419,15 @@ func (c *Client) doBodyRequest(ctx context.Context, method, path, contentType st
 		return nil, err
 	}
 
-	if err := c.authStrategy.Authenticate(ctx, req); err != nil {
+	if err := c.prepareAPIRequest(ctx, req); err != nil {
 		return nil, err
 	}
-	req.Header.Set("User-Agent", c.userAgent)
 	if contentType != "" {
 		req.Header.Set("Content-Type", contentType)
 	}
 	req.Header.Set("Accept", "*/*")
 
-	c.logger.Debug("http form request", "method", method, "url", reqURL)
+	c.logger.Debug("http form request", "method", method, "url", req.URL.String())
 
 	// Use a derived client that captures redirects instead of following them.
 	// This is thread-safe because it shares the transport but not the redirect policy.
@@ -538,6 +546,12 @@ func (c *Client) doRequest(ctx context.Context, method, path string, body any) (
 }
 
 func (c *Client) doRequestURL(ctx context.Context, method, url string, body any) (*Response, error) {
+	requestURL, err := c.accountScopedURL(url)
+	if err != nil {
+		return nil, err
+	}
+	url = requestURL
+
 	// Non-idempotent mutations: Don't retry on 429/5xx to avoid duplicating data.
 	// Only retry once after successful 401 token refresh.
 	if method == "POST" || method == "PATCH" {
@@ -615,23 +629,24 @@ func (c *Client) singleRequest(ctx context.Context, method, url string, body any
 		return nil, err
 	}
 
-	if err := c.authStrategy.Authenticate(ctx, req); err != nil {
+	if err := c.prepareAPIRequest(ctx, req); err != nil {
 		return nil, err
 	}
-	req.Header.Set("User-Agent", c.userAgent)
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", acceptFromContext(ctx))
 
+	requestURL := req.URL.String()
 	var cacheKey string
-	if method == http.MethodGet && c.cache != nil && !noCacheFromContext(ctx) {
-		cacheKey = c.cache.Key(url, req.Header.Get("Authorization"))
+	authorization := req.Header.Get("Authorization")
+	if method == http.MethodGet && c.cache != nil && authorization != "" && !noCacheFromContext(ctx) {
+		cacheKey = c.cache.Key(requestURL, authorization)
 		if etag := c.cache.GetETag(cacheKey); etag != "" {
 			req.Header.Set("If-None-Match", etag)
 			c.logger.Debug("cache conditional request", "etag", etag)
 		}
 	}
 
-	c.logger.Debug("http request", "method", method, "url", url, "attempt", attempt)
+	c.logger.Debug("http request", "method", method, "url", requestURL, "attempt", attempt)
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
@@ -1088,10 +1103,12 @@ func (c *Client) World() *WorldService {
 	return c.world
 }
 
-// DefaultSenderID returns the current user's default sender contact ID.
-// The result is cached after the first successful call. Transient errors
-// are not cached, so subsequent calls will retry the identity fetch.
-// This is required for mutation operations that need an acting_sender_id.
+// DefaultSenderID returns the default sender contact ID for this client. An
+// account-scoped client selects only senders belonging to its account. An All
+// Accounts client preserves the identity-wide default sender behavior.
+//
+// The result is cached after the first successful call. Transient errors are
+// not cached, so subsequent calls retry the identity fetch.
 func (c *Client) DefaultSenderID(ctx context.Context) (int64, error) {
 	c.senderMu.Lock()
 	defer c.senderMu.Unlock()
@@ -1107,9 +1124,28 @@ func (c *Client) DefaultSenderID(ctx context.Context) (int64, error) {
 	if identity == nil {
 		return 0, ErrAPI(0, "could not fetch identity")
 	}
-	for _, s := range identity.Senders {
-		if s.Default {
-			c.senderID = s.Id
+
+	if c.accountID > 0 {
+		for _, sender := range identity.Senders {
+			if sender.AccountId == c.accountID && sender.Default {
+				c.senderID = sender.Id
+				c.senderDone = true
+				return c.senderID, nil
+			}
+		}
+		for _, sender := range identity.Senders {
+			if sender.AccountId == c.accountID {
+				c.senderID = sender.Id
+				c.senderDone = true
+				return c.senderID, nil
+			}
+		}
+		return 0, ErrNotFound("sender for account", strconv.FormatInt(c.accountID, 10))
+	}
+
+	for _, sender := range identity.Senders {
+		if sender.Default {
+			c.senderID = sender.Id
 			c.senderDone = true
 			return c.senderID, nil
 		}

@@ -20,8 +20,9 @@ func NewCache(dir string) *Cache {
 	return &Cache{dir: dir}
 }
 
-// Key generates a cache key for a URL and token.
-// Unlike Basecamp, HEY has no account ID — key is URL + token hash.
+// Key generates a cache key for a URL and authorization value. Account-scoped
+// request URLs carry their account filter in the query, so each linked account
+// has distinct cache entries.
 func (c *Cache) Key(url, token string) string {
 	tokenHash := ""
 	if token != "" {

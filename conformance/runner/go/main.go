@@ -229,9 +229,28 @@ func runTest(tc TestCase) TestResult {
 		}
 	}
 
-	// Execute the operation
+	// Execute the operation. Account-scoped cases exercise the hand-written
+	// client layer because account scope is an SDK behavior rather than a
+	// generated Smithy operation.
 	ctx := context.Background()
-	sdkResp, sdkErr := executeOperation(client, ctx, tc)
+	var sdkResp *http.Response
+	var sdkErr error
+	if _, scoped := tc.ConfigOverrides["accountId"]; scoped {
+		accountID := getInt64Param(tc.ConfigOverrides, "accountId")
+		rootClient := hey.NewClient(
+			&hey.Config{BaseURL: server.URL},
+			&hey.StaticTokenProvider{Token: "conformance-test-token"},
+			hey.WithMaxRetries(0),
+		)
+		scopedClient, accountErr := rootClient.ForAccount(ctx, accountID)
+		if accountErr != nil {
+			sdkErr = accountErr
+		} else {
+			sdkErr = executeAccountScopedOperation(scopedClient, ctx, tc)
+		}
+	} else {
+		sdkResp, sdkErr = executeOperation(client, ctx, tc)
+	}
 
 	// Capture response body for responseBody assertions
 	var responseBodyBytes []byte
@@ -498,6 +517,18 @@ func checkAssertion(testName string, a Assertion, s checkState) TestResult {
 			return fail(testName, "Expected request path %q, got %q", expected, s.requestPaths[0])
 		}
 
+	case "lastRequestPath":
+		expected, ok := a.Expected.(string)
+		if !ok {
+			return fail(testName, "lastRequestPath: expected a string value, got %T", a.Expected)
+		}
+		if len(s.requestPaths) == 0 {
+			return fail(testName, "Expected a request, but none were recorded")
+		}
+		if got := s.requestPaths[len(s.requestPaths)-1]; got != expected {
+			return fail(testName, "Expected last request path %q, got %q", expected, got)
+		}
+
 	case "requestMethod":
 		expected, ok := a.Expected.(string)
 		if !ok {
@@ -530,6 +561,27 @@ func checkAssertion(testName string, a Assertion, s checkState) TestResult {
 			}
 			if got := q.Get(k); got != fmt.Sprint(v) {
 				return fail(testName, "Expected query param %s=%v, got %q", k, v, got)
+			}
+		}
+
+	case "lastRequestQuery":
+		expected, ok := a.Expected.(map[string]interface{})
+		if !ok {
+			return fail(testName, "lastRequestQuery: expected an object, got %T", a.Expected)
+		}
+		if len(s.requestQueries) == 0 {
+			return fail(testName, "Expected a request, but none were recorded")
+		}
+		q := s.requestQueries[len(s.requestQueries)-1]
+		for k, v := range expected {
+			if v == nil {
+				if q.Has(k) {
+					return fail(testName, "Expected last query param %q to be absent, got %q", k, q.Get(k))
+				}
+				continue
+			}
+			if got := q.Get(k); got != fmt.Sprint(v) {
+				return fail(testName, "Expected last query param %s=%v, got %q", k, v, got)
 			}
 		}
 
@@ -1285,6 +1337,16 @@ func executeOperation(client *generated.Client, ctx context.Context, tc TestCase
 
 	default:
 		return nil, fmt.Errorf("unknown operation: %s", tc.Operation)
+	}
+}
+
+func executeAccountScopedOperation(client *hey.Client, ctx context.Context, tc TestCase) error {
+	switch tc.Operation {
+	case "ListBoxes":
+		_, err := client.Boxes().List(ctx)
+		return err
+	default:
+		return fmt.Errorf("account-scoped conformance does not support operation: %s", tc.Operation)
 	}
 }
 

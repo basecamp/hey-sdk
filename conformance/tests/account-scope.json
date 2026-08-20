@@ -1,0 +1,61 @@
+[
+  {
+    "name": "Account-scoped client filters generated operations",
+    "description": "Verifies that Client.ForAccount adds exactly one filtered_account_id to a generated request",
+    "operation": "ListBoxes",
+    "method": "GET",
+    "path": "/boxes.json",
+    "configOverrides": {
+      "accountId": 42
+    },
+    "mockResponses": [
+      {
+        "status": 200,
+        "body": {
+          "id": 1,
+          "accounts": [
+            {
+              "id": 42,
+              "status": "active"
+            }
+          ]
+        }
+      },
+      {
+        "status": 200,
+        "body": []
+      }
+    ],
+    "assertions": [
+      {
+        "type": "requestCount",
+        "expected": 2
+      },
+      {
+        "type": "requestPath",
+        "expected": "/identity.json"
+      },
+      {
+        "type": "lastRequestPath",
+        "expected": "/boxes.json"
+      },
+      {
+        "type": "lastRequestQuery",
+        "expected": {
+          "filtered_account_id": "42"
+        }
+      },
+      {
+        "type": "headerPresent",
+        "path": "Authorization"
+      },
+      {
+        "type": "noError"
+      }
+    ],
+    "tags": [
+      "account-scope",
+      "linked-accounts"
+    ]
+  }
+]

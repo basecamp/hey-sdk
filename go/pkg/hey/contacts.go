@@ -200,6 +200,17 @@ func (s *ContactsService) Create(ctx context.Context, params ContactParams) (con
 	}
 
 	err = s.client.instrument(ctx, op, func(ctx context.Context) error {
+		if accountID, scoped := s.client.AccountID(); scoped {
+			accountUserID, rerr := s.client.AccountUserID(ctx)
+			if rerr != nil {
+				return rerr
+			}
+			if params.AccountUserID != 0 && params.AccountUserID != accountUserID {
+				return ErrUsage(fmt.Sprintf("account user %d does not belong to selected account %d", params.AccountUserID, accountID))
+			}
+			params.AccountUserID = accountUserID
+		}
+
 		resp, rerr := s.client.genClient().CreateContactWithResponse(ctx, createContactBody(params))
 		if rerr != nil {
 			return rerr

@@ -44,6 +44,26 @@
 //   - [Client.Publications] - Public links for threads
 //   - [Client.Designations], [Client.Extenzions], [Client.World] - Where mail lands, extra addresses, and HEY World
 //
+// # Linked Accounts and Separate Identities
+//
+// A root client represents one authenticated HEY identity and presents mail
+// from All Accounts. [Client.ForAccount] derives an immutable client that
+// presents mail and resolves acting senders and users for one linked account:
+//
+//	work, err := client.ForAccount(ctx, workAccountID)
+//	if err != nil {
+//	    log.Fatal(err)
+//	}
+//	postings, err := work.Boxes().GetImbox(ctx, nil)
+//
+// Separate identities use separate root clients with their own token providers
+// or authentication strategies. Each root client can derive its own linked
+// account clients.
+//
+// Account scope follows HEY's mail-filter semantics and is not an authorization
+// boundary. Identity-owned services such as Calendar and Journal remain
+// identity-wide.
+//
 // # Working with Boxes
 //
 // List all mailboxes:

@@ -60,11 +60,50 @@ Services on the client: `Identity`, `Boxes`, `Postings`, `Topics`, `Messages`, `
 `Journal`, `Search`, `Folders`, `Collections`, `Stickies`, `Clips`, `Snippets`, `Workflows`,
 `Publications`, `Designations`, `Extenzions`, `World`.
 
+### Linked accounts and separate identities
+
+A root client represents one authenticated HEY identity and presents mail from All Accounts.
+Derive an immutable client to present mail and choose acting users and senders for one linked
+account:
+
+```go
+work, err := client.ForAccount(ctx, workAccountID)
+if err != nil {
+    return err
+}
+postings, _ := work.Boxes().GetImbox(ctx, nil)
+_ = work.Messages().Create(ctx, "Subject", "Body", []string{"someone@example.com"}, nil, nil)
+```
+
+`ForAccount` verifies that the account is accessible to the authenticated identity when the
+scoped client is derived, then adds HEY's `filtered_account_id` to same-origin API requests,
+including pagination and retries. Long-lived applications can derive a fresh scoped client
+after observing identity or account-membership changes. It never adds the filter to signed external upload or download URLs.
+Account-scoped message sends resolve a sender from that account, and account-scoped contact
+creation resolves the identity's user in that account. Both operations return an error when
+the account has no matching sender or user rather than falling back to another account.
+
+Account scope follows HEY's mail-filter semantics; it is not an authorization boundary.
+Identity-owned services such as Calendar and Journal remain identity-wide. Use a client
+derived for a thread's account when replying or forwarding that thread.
+
+Separate, unlinked identities use separate root clients with separate token providers or auth
+strategies. Each root can independently derive its own linked-account clients:
+
+```go
+personal := hey.NewClient(cfg, personalTokenProvider)
+workIdentity := hey.NewClient(cfg, workTokenProvider)
+
+personalMail, _ := personal.ForAccount(ctx, personalAccountID)
+workMail, _ := workIdentity.ForAccount(ctx, workAccountID)
+```
+
 Every call reports itself to the client's `Hooks` (`hey.WithHooks`) as a named operation —
 `Postings.MovePostings`, `TimeTracks.StopTimeTrack` — and a `GatingHooks` implementation
 can refuse an operation before it runs. Retries, circuit breaking, bulkheads and rate limits
 are configured with `WithResilience`, `WithCircuitBreaker`, `WithBulkhead` and
-`WithRateLimit`; HTTP caching with `WithCache`.
+`WithRateLimit`; HTTP caching with `WithCache`. Response caching is active for requests with
+an `Authorization` header, which gives each authenticated identity a stable cache partition.
 
 ### Errors
 
