@@ -1627,11 +1627,12 @@ type HttpRequestDoer interface {
 	Do(req *http.Request) (*http.Response, error)
 }
 
-// RetryConfig configures retry behavior for idempotent operations.
+// RetryConfig configures client-level retry overrides for idempotent operations.
+// Retryable status codes always come from each operation's API contract.
 type RetryConfig struct {
-	// MaxRetries is the maximum number of retry attempts (default: 3)
+	// MaxRetries overrides the operation's maximum attempts when explicitly configured.
 	MaxRetries int
-	// BaseDelay is the initial delay between retries (default: 1s)
+	// BaseDelay overrides the operation's initial delay when explicitly configured.
 	BaseDelay time.Duration
 	// MaxDelay is the maximum delay between retries (default: 30s)
 	MaxDelay time.Duration
@@ -1647,6 +1648,221 @@ func DefaultRetryConfig() RetryConfig {
 		MaxDelay:   30 * time.Second,
 		Multiplier: 2.0,
 	}
+}
+
+type retryPolicy struct {
+	MaxAttempts       int
+	BaseDelay         time.Duration
+	Backoff           string
+	RetryableStatuses []int
+}
+
+var operationRetryPolicies = map[string]retryPolicy{
+
+	"AdvancedSearch": {MaxAttempts: 3, BaseDelay: time.Duration(1000) * time.Millisecond, Backoff: "exponential", RetryableStatuses: []int{429, 503}},
+
+	"GetAdvancedSearchFilters": {MaxAttempts: 3, BaseDelay: time.Duration(1000) * time.Millisecond, Backoff: "exponential", RetryableStatuses: []int{429, 503}},
+
+	"ListBoxes": {MaxAttempts: 3, BaseDelay: time.Duration(1000) * time.Millisecond, Backoff: "exponential", RetryableStatuses: []int{429, 503}},
+
+	"GetBox": {MaxAttempts: 3, BaseDelay: time.Duration(1000) * time.Millisecond, Backoff: "exponential", RetryableStatuses: []int{429, 503}},
+
+	"CreateBoxDesignation": {MaxAttempts: 2, BaseDelay: time.Duration(1000) * time.Millisecond, Backoff: "exponential", RetryableStatuses: []int{429, 503}},
+
+	"DeleteBoxDesignation": {MaxAttempts: 2, BaseDelay: time.Duration(1000) * time.Millisecond, Backoff: "exponential", RetryableStatuses: []int{429, 503}},
+
+	"ListBoxGroups": {MaxAttempts: 3, BaseDelay: time.Duration(1000) * time.Millisecond, Backoff: "exponential", RetryableStatuses: []int{429, 503}},
+
+	"CreateBoxGroup": {MaxAttempts: 2, BaseDelay: time.Duration(1000) * time.Millisecond, Backoff: "exponential", RetryableStatuses: []int{429, 503}},
+
+	"DeleteBoxGroup": {MaxAttempts: 2, BaseDelay: time.Duration(1000) * time.Millisecond, Backoff: "exponential", RetryableStatuses: []int{429, 503}},
+
+	"MarkBoxSeen": {MaxAttempts: 2, BaseDelay: time.Duration(1000) * time.Millisecond, Backoff: "exponential", RetryableStatuses: []int{429, 503}},
+
+	"GetBoxPostingChanges": {MaxAttempts: 3, BaseDelay: time.Duration(1000) * time.Millisecond, Backoff: "exponential", RetryableStatuses: []int{429, 503}},
+
+	"GetBubblebox": {MaxAttempts: 3, BaseDelay: time.Duration(1000) * time.Millisecond, Backoff: "exponential", RetryableStatuses: []int{429, 503}},
+
+	"NewBulkReply": {MaxAttempts: 3, BaseDelay: time.Duration(1000) * time.Millisecond, Backoff: "exponential", RetryableStatuses: []int{429, 503}},
+
+	"UncompleteHabit": {MaxAttempts: 3, BaseDelay: time.Duration(1000) * time.Millisecond, Backoff: "exponential", RetryableStatuses: []int{429, 503}},
+
+	"CompleteHabit": {MaxAttempts: 3, BaseDelay: time.Duration(1000) * time.Millisecond, Backoff: "exponential", RetryableStatuses: []int{429, 503}},
+
+	"GetJournalEntry": {MaxAttempts: 3, BaseDelay: time.Duration(1000) * time.Millisecond, Backoff: "exponential", RetryableStatuses: []int{429, 503}},
+
+	"UpdateJournalEntry": {MaxAttempts: 2, BaseDelay: time.Duration(1000) * time.Millisecond, Backoff: "exponential", RetryableStatuses: []int{429, 503}},
+
+	"CreateHabit": {MaxAttempts: 2, BaseDelay: time.Duration(1000) * time.Millisecond, Backoff: "exponential", RetryableStatuses: []int{429, 503}},
+
+	"DeleteHabit": {MaxAttempts: 2, BaseDelay: time.Duration(1000) * time.Millisecond, Backoff: "exponential", RetryableStatuses: []int{429, 503}},
+
+	"UpdateHabit": {MaxAttempts: 2, BaseDelay: time.Duration(1000) * time.Millisecond, Backoff: "exponential", RetryableStatuses: []int{429, 503}},
+
+	"ResumeHabit": {MaxAttempts: 2, BaseDelay: time.Duration(1000) * time.Millisecond, Backoff: "exponential", RetryableStatuses: []int{429, 503}},
+
+	"StopHabit": {MaxAttempts: 2, BaseDelay: time.Duration(1000) * time.Millisecond, Backoff: "exponential", RetryableStatuses: []int{429, 503}},
+
+	"GetOngoingTimeTrack": {MaxAttempts: 3, BaseDelay: time.Duration(1000) * time.Millisecond, Backoff: "exponential", RetryableStatuses: []int{429, 503}},
+
+	"StartTimeTrack": {MaxAttempts: 2, BaseDelay: time.Duration(1000) * time.Millisecond, Backoff: "exponential", RetryableStatuses: []int{429, 503}},
+
+	"CreateTimeTrack": {MaxAttempts: 2, BaseDelay: time.Duration(1000) * time.Millisecond, Backoff: "exponential", RetryableStatuses: []int{429, 503}},
+
+	"ListTimeTrackCategories": {MaxAttempts: 3, BaseDelay: time.Duration(1000) * time.Millisecond, Backoff: "exponential", RetryableStatuses: []int{429, 503}},
+
+	"DeleteTimeTrack": {MaxAttempts: 2, BaseDelay: time.Duration(1000) * time.Millisecond, Backoff: "exponential", RetryableStatuses: []int{429, 503}},
+
+	"UpdateTimeTrack": {MaxAttempts: 3, BaseDelay: time.Duration(1000) * time.Millisecond, Backoff: "exponential", RetryableStatuses: []int{429, 503}},
+
+	"CreateCalendarTodo": {MaxAttempts: 2, BaseDelay: time.Duration(1000) * time.Millisecond, Backoff: "exponential", RetryableStatuses: []int{429, 503}},
+
+	"DeleteCalendarTodo": {MaxAttempts: 3, BaseDelay: time.Duration(1000) * time.Millisecond, Backoff: "exponential", RetryableStatuses: []int{429, 503}},
+
+	"UncompleteCalendarTodo": {MaxAttempts: 3, BaseDelay: time.Duration(1000) * time.Millisecond, Backoff: "exponential", RetryableStatuses: []int{429, 503}},
+
+	"CompleteCalendarTodo": {MaxAttempts: 3, BaseDelay: time.Duration(1000) * time.Millisecond, Backoff: "exponential", RetryableStatuses: []int{429, 503}},
+
+	"ListCalendars": {MaxAttempts: 3, BaseDelay: time.Duration(1000) * time.Millisecond, Backoff: "exponential", RetryableStatuses: []int{429, 503}},
+
+	"GetCalendarRecordings": {MaxAttempts: 3, BaseDelay: time.Duration(1000) * time.Millisecond, Backoff: "exponential", RetryableStatuses: []int{429, 503}},
+
+	"ListClearances": {MaxAttempts: 3, BaseDelay: time.Duration(1000) * time.Millisecond, Backoff: "exponential", RetryableStatuses: []int{429, 503}},
+
+	"GetClearances": {MaxAttempts: 3, BaseDelay: time.Duration(1000) * time.Millisecond, Backoff: "exponential", RetryableStatuses: []int{429, 503}},
+
+	"UpdateClearance": {MaxAttempts: 2, BaseDelay: time.Duration(1000) * time.Millisecond, Backoff: "exponential", RetryableStatuses: []int{429, 503}},
+
+	"ListClips": {MaxAttempts: 3, BaseDelay: time.Duration(1000) * time.Millisecond, Backoff: "exponential", RetryableStatuses: []int{429, 503}},
+
+	"ListCollections": {MaxAttempts: 3, BaseDelay: time.Duration(1000) * time.Millisecond, Backoff: "exponential", RetryableStatuses: []int{429, 503}},
+
+	"UpdateCollection": {MaxAttempts: 2, BaseDelay: time.Duration(1000) * time.Millisecond, Backoff: "exponential", RetryableStatuses: []int{429, 503}},
+
+	"ListContacts": {MaxAttempts: 3, BaseDelay: time.Duration(1000) * time.Millisecond, Backoff: "exponential", RetryableStatuses: []int{429, 503}},
+
+	"CreateContact": {MaxAttempts: 2, BaseDelay: time.Duration(1000) * time.Millisecond, Backoff: "exponential", RetryableStatuses: []int{429, 503}},
+
+	"HideContact": {MaxAttempts: 2, BaseDelay: time.Duration(1000) * time.Millisecond, Backoff: "exponential", RetryableStatuses: []int{429, 503}},
+
+	"GetContact": {MaxAttempts: 3, BaseDelay: time.Duration(1000) * time.Millisecond, Backoff: "exponential", RetryableStatuses: []int{429, 503}},
+
+	"UpdateContact": {MaxAttempts: 2, BaseDelay: time.Duration(1000) * time.Millisecond, Backoff: "exponential", RetryableStatuses: []int{429, 503}},
+
+	"UnbundleContact": {MaxAttempts: 2, BaseDelay: time.Duration(1000) * time.Millisecond, Backoff: "exponential", RetryableStatuses: []int{429, 503}},
+
+	"BundleContact": {MaxAttempts: 2, BaseDelay: time.Duration(1000) * time.Millisecond, Backoff: "exponential", RetryableStatuses: []int{429, 503}},
+
+	"UpdateContactClearance": {MaxAttempts: 2, BaseDelay: time.Duration(1000) * time.Millisecond, Backoff: "exponential", RetryableStatuses: []int{429, 503}},
+
+	"DeleteContactNote": {MaxAttempts: 2, BaseDelay: time.Duration(1000) * time.Millisecond, Backoff: "exponential", RetryableStatuses: []int{429, 503}},
+
+	"GetContactNote": {MaxAttempts: 3, BaseDelay: time.Duration(1000) * time.Millisecond, Backoff: "exponential", RetryableStatuses: []int{429, 503}},
+
+	"UpdateContactNote": {MaxAttempts: 2, BaseDelay: time.Duration(1000) * time.Millisecond, Backoff: "exponential", RetryableStatuses: []int{429, 503}},
+
+	"RevealContact": {MaxAttempts: 2, BaseDelay: time.Duration(1000) * time.Millisecond, Backoff: "exponential", RetryableStatuses: []int{429, 503}},
+
+	"ListDrafts": {MaxAttempts: 3, BaseDelay: time.Duration(1000) * time.Millisecond, Backoff: "exponential", RetryableStatuses: []int{429, 503}},
+
+	"NewEntryForward": {MaxAttempts: 3, BaseDelay: time.Duration(1000) * time.Millisecond, Backoff: "exponential", RetryableStatuses: []int{429, 503}},
+
+	"CreateReply": {MaxAttempts: 2, BaseDelay: time.Duration(1000) * time.Millisecond, Backoff: "exponential", RetryableStatuses: []int{429, 503}},
+
+	"MarkEntrySpam": {MaxAttempts: 2, BaseDelay: time.Duration(1000) * time.Millisecond, Backoff: "exponential", RetryableStatuses: []int{429, 503}},
+
+	"GetFeedbox": {MaxAttempts: 3, BaseDelay: time.Duration(1000) * time.Millisecond, Backoff: "exponential", RetryableStatuses: []int{429, 503}},
+
+	"GetFolder": {MaxAttempts: 3, BaseDelay: time.Duration(1000) * time.Millisecond, Backoff: "exponential", RetryableStatuses: []int{429, 503}},
+
+	"GetIdentity": {MaxAttempts: 3, BaseDelay: time.Duration(1000) * time.Millisecond, Backoff: "exponential", RetryableStatuses: []int{429, 503}},
+
+	"GetImbox": {MaxAttempts: 3, BaseDelay: time.Duration(1000) * time.Millisecond, Backoff: "exponential", RetryableStatuses: []int{429, 503}},
+
+	"CreateMessage": {MaxAttempts: 2, BaseDelay: time.Duration(1000) * time.Millisecond, Backoff: "exponential", RetryableStatuses: []int{429, 503}},
+
+	"GetMessage": {MaxAttempts: 3, BaseDelay: time.Duration(1000) * time.Millisecond, Backoff: "exponential", RetryableStatuses: []int{429, 503}},
+
+	"GetNavigation": {MaxAttempts: 3, BaseDelay: time.Duration(1000) * time.Millisecond, Backoff: "exponential", RetryableStatuses: []int{429, 503}},
+
+	"GetTrailbox": {MaxAttempts: 3, BaseDelay: time.Duration(1000) * time.Millisecond, Backoff: "exponential", RetryableStatuses: []int{429, 503}},
+
+	"RemovePostingsFromBoxGroup": {MaxAttempts: 2, BaseDelay: time.Duration(1000) * time.Millisecond, Backoff: "exponential", RetryableStatuses: []int{429, 503}},
+
+	"AddPostingsToBoxGroup": {MaxAttempts: 2, BaseDelay: time.Duration(1000) * time.Millisecond, Backoff: "exponential", RetryableStatuses: []int{429, 503}},
+
+	"CancelPostingsBubbleUp": {MaxAttempts: 2, BaseDelay: time.Duration(1000) * time.Millisecond, Backoff: "exponential", RetryableStatuses: []int{429, 503}},
+
+	"BubbleUpPostingsNow": {MaxAttempts: 2, BaseDelay: time.Duration(1000) * time.Millisecond, Backoff: "exponential", RetryableStatuses: []int{429, 503}},
+
+	"UnfilePostings": {MaxAttempts: 2, BaseDelay: time.Duration(1000) * time.Millisecond, Backoff: "exponential", RetryableStatuses: []int{429, 503}},
+
+	"FilePostings": {MaxAttempts: 2, BaseDelay: time.Duration(1000) * time.Millisecond, Backoff: "exponential", RetryableStatuses: []int{429, 503}},
+
+	"CreateFolderForPostings": {MaxAttempts: 2, BaseDelay: time.Duration(1000) * time.Millisecond, Backoff: "exponential", RetryableStatuses: []int{429, 503}},
+
+	"MovePostings": {MaxAttempts: 2, BaseDelay: time.Duration(1000) * time.Millisecond, Backoff: "exponential", RetryableStatuses: []int{429, 503}},
+
+	"UnmutePostings": {MaxAttempts: 2, BaseDelay: time.Duration(1000) * time.Millisecond, Backoff: "exponential", RetryableStatuses: []int{429, 503}},
+
+	"MutePostings": {MaxAttempts: 2, BaseDelay: time.Duration(1000) * time.Millisecond, Backoff: "exponential", RetryableStatuses: []int{429, 503}},
+
+	"MarkPostingsSeen": {MaxAttempts: 2, BaseDelay: time.Duration(1000) * time.Millisecond, Backoff: "exponential", RetryableStatuses: []int{429, 503}},
+
+	"MarkPostingsSpam": {MaxAttempts: 2, BaseDelay: time.Duration(1000) * time.Millisecond, Backoff: "exponential", RetryableStatuses: []int{429, 503}},
+
+	"TrashPostings": {MaxAttempts: 2, BaseDelay: time.Duration(1000) * time.Millisecond, Backoff: "exponential", RetryableStatuses: []int{429, 503}},
+
+	"MarkPostingsUnseen": {MaxAttempts: 2, BaseDelay: time.Duration(1000) * time.Millisecond, Backoff: "exponential", RetryableStatuses: []int{429, 503}},
+
+	"GetLaterbox": {MaxAttempts: 3, BaseDelay: time.Duration(1000) * time.Millisecond, Backoff: "exponential", RetryableStatuses: []int{429, 503}},
+
+	"GetAsidebox": {MaxAttempts: 3, BaseDelay: time.Duration(1000) * time.Millisecond, Backoff: "exponential", RetryableStatuses: []int{429, 503}},
+
+	"ListSnippets": {MaxAttempts: 3, BaseDelay: time.Duration(1000) * time.Millisecond, Backoff: "exponential", RetryableStatuses: []int{429, 503}},
+
+	"ListStickies": {MaxAttempts: 3, BaseDelay: time.Duration(1000) * time.Millisecond, Backoff: "exponential", RetryableStatuses: []int{429, 503}},
+
+	"CreateSticky": {MaxAttempts: 2, BaseDelay: time.Duration(1000) * time.Millisecond, Backoff: "exponential", RetryableStatuses: []int{429, 503}},
+
+	"MoveSticky": {MaxAttempts: 2, BaseDelay: time.Duration(1000) * time.Millisecond, Backoff: "exponential", RetryableStatuses: []int{429, 503}},
+
+	"DeleteSticky": {MaxAttempts: 2, BaseDelay: time.Duration(1000) * time.Millisecond, Backoff: "exponential", RetryableStatuses: []int{429, 503}},
+
+	"UpdateSticky": {MaxAttempts: 2, BaseDelay: time.Duration(1000) * time.Millisecond, Backoff: "exponential", RetryableStatuses: []int{429, 503}},
+
+	"GetEverythingTopics": {MaxAttempts: 3, BaseDelay: time.Duration(1000) * time.Millisecond, Backoff: "exponential", RetryableStatuses: []int{429, 503}},
+
+	"GetSentTopics": {MaxAttempts: 3, BaseDelay: time.Duration(1000) * time.Millisecond, Backoff: "exponential", RetryableStatuses: []int{429, 503}},
+
+	"GetSpamTopics": {MaxAttempts: 3, BaseDelay: time.Duration(1000) * time.Millisecond, Backoff: "exponential", RetryableStatuses: []int{429, 503}},
+
+	"EmptySpam": {MaxAttempts: 2, BaseDelay: time.Duration(1000) * time.Millisecond, Backoff: "exponential", RetryableStatuses: []int{429, 503}},
+
+	"GetTrashTopics": {MaxAttempts: 3, BaseDelay: time.Duration(1000) * time.Millisecond, Backoff: "exponential", RetryableStatuses: []int{429, 503}},
+
+	"EmptyTrash": {MaxAttempts: 2, BaseDelay: time.Duration(1000) * time.Millisecond, Backoff: "exponential", RetryableStatuses: []int{429, 503}},
+
+	"GetTopic": {MaxAttempts: 3, BaseDelay: time.Duration(1000) * time.Millisecond, Backoff: "exponential", RetryableStatuses: []int{429, 503}},
+
+	"GetTopicEntries": {MaxAttempts: 3, BaseDelay: time.Duration(1000) * time.Millisecond, Backoff: "exponential", RetryableStatuses: []int{429, 503}},
+
+	"MoveTopic": {MaxAttempts: 2, BaseDelay: time.Duration(1000) * time.Millisecond, Backoff: "exponential", RetryableStatuses: []int{429, 503}},
+
+	"GetTopicPublication": {MaxAttempts: 3, BaseDelay: time.Duration(1000) * time.Millisecond, Backoff: "exponential", RetryableStatuses: []int{429, 503}},
+
+	"RestoreTopic": {MaxAttempts: 2, BaseDelay: time.Duration(1000) * time.Millisecond, Backoff: "exponential", RetryableStatuses: []int{429, 503}},
+
+	"MarkTopicHam": {MaxAttempts: 2, BaseDelay: time.Duration(1000) * time.Millisecond, Backoff: "exponential", RetryableStatuses: []int{429, 503}},
+
+	"TrashTopic": {MaxAttempts: 2, BaseDelay: time.Duration(1000) * time.Millisecond, Backoff: "exponential", RetryableStatuses: []int{429, 503}},
+
+	"GetWorkflow": {MaxAttempts: 3, BaseDelay: time.Duration(1000) * time.Millisecond, Backoff: "exponential", RetryableStatuses: []int{429, 503}},
+}
+
+type retryOverrides struct {
+	MaxRetries bool
+	BaseDelay  bool
 }
 
 // Client which conforms to the OpenAPI3 specification for this service.
@@ -1666,7 +1882,8 @@ type Client struct {
 	RequestEditors []RequestEditorFn
 
 	// RetryConfig for idempotent operations
-	RetryConfig RetryConfig
+	RetryConfig    RetryConfig
+	retryOverrides retryOverrides
 
 	// Logger for debug output (optional)
 	Logger *slog.Logger
@@ -1717,10 +1934,31 @@ func WithRequestEditorFn(fn RequestEditorFn) ClientOption {
 	}
 }
 
-// WithRetryConfig allows setting custom retry configuration for idempotent operations.
+// WithRetryConfig overrides operation-specific attempt and delay defaults.
+// Retryable status codes remain operation-defined.
 func WithRetryConfig(cfg RetryConfig) ClientOption {
 	return func(c *Client) error {
 		c.RetryConfig = cfg
+		c.retryOverrides.MaxRetries = true
+		c.retryOverrides.BaseDelay = true
+		return nil
+	}
+}
+
+// WithMaxRetries overrides the maximum retries for idempotent operations.
+func WithMaxRetries(maxRetries int) ClientOption {
+	return func(c *Client) error {
+		c.RetryConfig.MaxRetries = maxRetries
+		c.retryOverrides.MaxRetries = true
+		return nil
+	}
+}
+
+// WithBaseDelay overrides the initial delay for idempotent operations.
+func WithBaseDelay(baseDelay time.Duration) ClientOption {
+	return func(c *Client) error {
+		c.RetryConfig.BaseDelay = baseDelay
+		c.retryOverrides.BaseDelay = true
 		return nil
 	}
 }
@@ -1733,30 +1971,58 @@ func WithLogger(logger *slog.Logger) ClientOption {
 	}
 }
 
-// isRetryableStatus returns true if the HTTP status code indicates a retryable error.
-func isRetryableStatus(statusCode int) bool {
-	switch statusCode {
-	case http.StatusTooManyRequests, // 429
-		http.StatusInternalServerError, // 500
-		http.StatusBadGateway,          // 502
-		http.StatusServiceUnavailable,  // 503
-		http.StatusGatewayTimeout:      // 504
-		return true
-	default:
-		return false
+func (p retryPolicy) retriesStatus(statusCode int) bool {
+	for _, retryableStatus := range p.RetryableStatuses {
+		if statusCode == retryableStatus {
+			return true
+		}
 	}
+	return false
 }
 
-// doWithRetry executes a request with retry logic for idempotent operations.
+func (p retryPolicy) nextDelay(current, maxDelay time.Duration, multiplier float64) time.Duration {
+	switch p.Backoff {
+	case "constant":
+		current = p.BaseDelay
+	case "linear":
+		current += p.BaseDelay
+	default:
+		current = time.Duration(float64(current) * multiplier)
+	}
+	if current > maxDelay {
+		return maxDelay
+	}
+	return current
+}
+
+func (c *Client) retryPolicy(operationId string) retryPolicy {
+	policy, ok := operationRetryPolicies[operationId]
+	if !ok {
+		return retryPolicy{MaxAttempts: 1}
+	}
+	if c.retryOverrides.MaxRetries {
+		policy.MaxAttempts = c.RetryConfig.MaxRetries + 1
+	}
+	if c.retryOverrides.BaseDelay {
+		policy.BaseDelay = c.RetryConfig.BaseDelay
+	}
+	if policy.MaxAttempts < 1 {
+		policy.MaxAttempts = 1
+	}
+	return policy
+}
+
+// doWithRetry executes a request using the operation's declared retry policy.
 func (c *Client) doWithRetry(ctx context.Context, buildRequest func() (*http.Request, error), isIdempotent bool, operationId string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	policy := c.retryPolicy(operationId)
 	maxAttempts := 1
 	if isIdempotent {
-		maxAttempts = c.RetryConfig.MaxRetries + 1
+		maxAttempts = policy.MaxAttempts
 	}
 
 	var lastResp *http.Response
 	var lastErr error
-	delay := c.RetryConfig.BaseDelay
+	delay := policy.BaseDelay
 
 	for attempt := 1; attempt <= maxAttempts; attempt++ {
 		req, err := buildRequest()
@@ -1785,17 +2051,14 @@ func (c *Client) doWithRetry(ctx context.Context, buildRequest func() (*http.Req
 					return nil, ctx.Err()
 				case <-time.After(delay + time.Duration(rand.Int63n(int64(100*time.Millisecond)))):
 				}
-				delay = time.Duration(float64(delay) * c.RetryConfig.Multiplier)
-				if delay > c.RetryConfig.MaxDelay {
-					delay = c.RetryConfig.MaxDelay
-				}
+				delay = policy.nextDelay(delay, c.RetryConfig.MaxDelay, c.RetryConfig.Multiplier)
 				continue
 			}
 			return nil, err
 		}
 
 		// Success or non-retryable status
-		if !isRetryableStatus(resp.StatusCode) {
+		if !policy.retriesStatus(resp.StatusCode) {
 			return resp, nil
 		}
 
@@ -1831,10 +2094,7 @@ func (c *Client) doWithRetry(ctx context.Context, buildRequest func() (*http.Req
 			return nil, ctx.Err()
 		case <-time.After(retryDelay + time.Duration(rand.Int63n(int64(100*time.Millisecond)))):
 		}
-		delay = time.Duration(float64(delay) * c.RetryConfig.Multiplier)
-		if delay > c.RetryConfig.MaxDelay {
-			delay = c.RetryConfig.MaxDelay
-		}
+		delay = policy.nextDelay(delay, c.RetryConfig.MaxDelay, c.RetryConfig.Multiplier)
 	}
 
 	if lastErr != nil {
@@ -2216,7 +2476,7 @@ type ClientInterface interface {
 	GetWorkflow(ctx context.Context, workflowId int64, reqEditors ...RequestEditorFn) (*http.Response, error)
 }
 
-// AdvancedSearch is marked as idempotent and will be retried on transient failures.
+// AdvancedSearch is marked as idempotent and follows its operation retry policy.
 
 func (c *Client) AdvancedSearch(ctx context.Context, params *AdvancedSearchParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
 
@@ -2226,7 +2486,7 @@ func (c *Client) AdvancedSearch(ctx context.Context, params *AdvancedSearchParam
 
 }
 
-// GetAdvancedSearchFilters is marked as idempotent and will be retried on transient failures.
+// GetAdvancedSearchFilters is marked as idempotent and follows its operation retry policy.
 
 func (c *Client) GetAdvancedSearchFilters(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
 
@@ -2236,7 +2496,7 @@ func (c *Client) GetAdvancedSearchFilters(ctx context.Context, reqEditors ...Req
 
 }
 
-// ListBoxes is marked as idempotent and will be retried on transient failures.
+// ListBoxes is marked as idempotent and follows its operation retry policy.
 
 func (c *Client) ListBoxes(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
 
@@ -2246,7 +2506,7 @@ func (c *Client) ListBoxes(ctx context.Context, reqEditors ...RequestEditorFn) (
 
 }
 
-// GetBox is marked as idempotent and will be retried on transient failures.
+// GetBox is marked as idempotent and follows its operation retry policy.
 
 func (c *Client) GetBox(ctx context.Context, boxId int64, params *GetBoxParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
 
@@ -2286,7 +2546,7 @@ func (c *Client) CreateBoxDesignation(ctx context.Context, boxId int64, body Cre
 
 }
 
-// DeleteBoxDesignation is marked as idempotent and will be retried on transient failures.
+// DeleteBoxDesignation is marked as idempotent and follows its operation retry policy.
 
 func (c *Client) DeleteBoxDesignation(ctx context.Context, boxId int64, designationId int64, reqEditors ...RequestEditorFn) (*http.Response, error) {
 
@@ -2296,7 +2556,7 @@ func (c *Client) DeleteBoxDesignation(ctx context.Context, boxId int64, designat
 
 }
 
-// ListBoxGroups is marked as idempotent and will be retried on transient failures.
+// ListBoxGroups is marked as idempotent and follows its operation retry policy.
 
 func (c *Client) ListBoxGroups(ctx context.Context, boxId int64, reqEditors ...RequestEditorFn) (*http.Response, error) {
 
@@ -2336,7 +2596,7 @@ func (c *Client) CreateBoxGroup(ctx context.Context, boxId int64, body CreateBox
 
 }
 
-// DeleteBoxGroup is marked as idempotent and will be retried on transient failures.
+// DeleteBoxGroup is marked as idempotent and follows its operation retry policy.
 
 func (c *Client) DeleteBoxGroup(ctx context.Context, boxId int64, groupId int64, reqEditors ...RequestEditorFn) (*http.Response, error) {
 
@@ -2362,7 +2622,7 @@ func (c *Client) MarkBoxSeen(ctx context.Context, boxId int64, reqEditors ...Req
 
 }
 
-// GetBoxPostingChanges is marked as idempotent and will be retried on transient failures.
+// GetBoxPostingChanges is marked as idempotent and follows its operation retry policy.
 
 func (c *Client) GetBoxPostingChanges(ctx context.Context, boxId int64, params *GetBoxPostingChangesParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
 
@@ -2372,7 +2632,7 @@ func (c *Client) GetBoxPostingChanges(ctx context.Context, boxId int64, params *
 
 }
 
-// GetBubblebox is marked as idempotent and will be retried on transient failures.
+// GetBubblebox is marked as idempotent and follows its operation retry policy.
 
 func (c *Client) GetBubblebox(ctx context.Context, params *GetBubbleboxParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
 
@@ -2412,7 +2672,7 @@ func (c *Client) CreateBulkReply(ctx context.Context, body CreateBulkReplyJSONRe
 
 }
 
-// NewBulkReply is marked as idempotent and will be retried on transient failures.
+// NewBulkReply is marked as idempotent and follows its operation retry policy.
 
 func (c *Client) NewBulkReply(ctx context.Context, params *NewBulkReplyParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
 
@@ -2422,7 +2682,7 @@ func (c *Client) NewBulkReply(ctx context.Context, params *NewBulkReplyParams, r
 
 }
 
-// UncompleteHabit is marked as idempotent and will be retried on transient failures.
+// UncompleteHabit is marked as idempotent and follows its operation retry policy.
 
 func (c *Client) UncompleteHabit(ctx context.Context, day string, habitId int64, reqEditors ...RequestEditorFn) (*http.Response, error) {
 
@@ -2432,7 +2692,7 @@ func (c *Client) UncompleteHabit(ctx context.Context, day string, habitId int64,
 
 }
 
-// CompleteHabit is marked as idempotent and will be retried on transient failures.
+// CompleteHabit is marked as idempotent and follows its operation retry policy.
 
 func (c *Client) CompleteHabit(ctx context.Context, day string, habitId int64, reqEditors ...RequestEditorFn) (*http.Response, error) {
 
@@ -2442,7 +2702,7 @@ func (c *Client) CompleteHabit(ctx context.Context, day string, habitId int64, r
 
 }
 
-// GetJournalEntry is marked as idempotent and will be retried on transient failures.
+// GetJournalEntry is marked as idempotent and follows its operation retry policy.
 
 func (c *Client) GetJournalEntry(ctx context.Context, day string, reqEditors ...RequestEditorFn) (*http.Response, error) {
 
@@ -2512,7 +2772,7 @@ func (c *Client) CreateHabit(ctx context.Context, body CreateHabitJSONRequestBod
 
 }
 
-// DeleteHabit is marked as idempotent and will be retried on transient failures.
+// DeleteHabit is marked as idempotent and follows its operation retry policy.
 
 func (c *Client) DeleteHabit(ctx context.Context, habitId int64, reqEditors ...RequestEditorFn) (*http.Response, error) {
 
@@ -2552,7 +2812,7 @@ func (c *Client) UpdateHabit(ctx context.Context, habitId int64, body UpdateHabi
 
 }
 
-// ResumeHabit is marked as idempotent and will be retried on transient failures.
+// ResumeHabit is marked as idempotent and follows its operation retry policy.
 
 func (c *Client) ResumeHabit(ctx context.Context, habitId int64, reqEditors ...RequestEditorFn) (*http.Response, error) {
 
@@ -2578,7 +2838,7 @@ func (c *Client) StopHabit(ctx context.Context, habitId int64, reqEditors ...Req
 
 }
 
-// GetOngoingTimeTrack is marked as idempotent and will be retried on transient failures.
+// GetOngoingTimeTrack is marked as idempotent and follows its operation retry policy.
 
 func (c *Client) GetOngoingTimeTrack(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
 
@@ -2634,7 +2894,7 @@ func (c *Client) CreateTimeTrack(ctx context.Context, body CreateTimeTrackJSONRe
 
 }
 
-// ListTimeTrackCategories is marked as idempotent and will be retried on transient failures.
+// ListTimeTrackCategories is marked as idempotent and follows its operation retry policy.
 
 func (c *Client) ListTimeTrackCategories(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
 
@@ -2644,7 +2904,7 @@ func (c *Client) ListTimeTrackCategories(ctx context.Context, reqEditors ...Requ
 
 }
 
-// DeleteTimeTrack is marked as idempotent and will be retried on transient failures.
+// DeleteTimeTrack is marked as idempotent and follows its operation retry policy.
 
 func (c *Client) DeleteTimeTrack(ctx context.Context, timeTrackId int64, reqEditors ...RequestEditorFn) (*http.Response, error) {
 
@@ -2654,7 +2914,7 @@ func (c *Client) DeleteTimeTrack(ctx context.Context, timeTrackId int64, reqEdit
 
 }
 
-// UpdateTimeTrackWithBody is marked as idempotent and will be retried on transient failures.
+// UpdateTimeTrackWithBody is marked as idempotent and follows its operation retry policy.
 
 func (c *Client) UpdateTimeTrackWithBody(ctx context.Context, timeTrackId int64, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
 
@@ -2710,7 +2970,7 @@ func (c *Client) CreateCalendarTodo(ctx context.Context, body CreateCalendarTodo
 
 }
 
-// DeleteCalendarTodo is marked as idempotent and will be retried on transient failures.
+// DeleteCalendarTodo is marked as idempotent and follows its operation retry policy.
 
 func (c *Client) DeleteCalendarTodo(ctx context.Context, todoId int64, reqEditors ...RequestEditorFn) (*http.Response, error) {
 
@@ -2720,7 +2980,7 @@ func (c *Client) DeleteCalendarTodo(ctx context.Context, todoId int64, reqEditor
 
 }
 
-// UncompleteCalendarTodo is marked as idempotent and will be retried on transient failures.
+// UncompleteCalendarTodo is marked as idempotent and follows its operation retry policy.
 
 func (c *Client) UncompleteCalendarTodo(ctx context.Context, todoId int64, reqEditors ...RequestEditorFn) (*http.Response, error) {
 
@@ -2730,7 +2990,7 @@ func (c *Client) UncompleteCalendarTodo(ctx context.Context, todoId int64, reqEd
 
 }
 
-// CompleteCalendarTodo is marked as idempotent and will be retried on transient failures.
+// CompleteCalendarTodo is marked as idempotent and follows its operation retry policy.
 
 func (c *Client) CompleteCalendarTodo(ctx context.Context, todoId int64, reqEditors ...RequestEditorFn) (*http.Response, error) {
 
@@ -2740,7 +3000,7 @@ func (c *Client) CompleteCalendarTodo(ctx context.Context, todoId int64, reqEdit
 
 }
 
-// ListCalendars is marked as idempotent and will be retried on transient failures.
+// ListCalendars is marked as idempotent and follows its operation retry policy.
 
 func (c *Client) ListCalendars(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
 
@@ -2750,7 +3010,7 @@ func (c *Client) ListCalendars(ctx context.Context, reqEditors ...RequestEditorF
 
 }
 
-// GetCalendarRecordings is marked as idempotent and will be retried on transient failures.
+// GetCalendarRecordings is marked as idempotent and follows its operation retry policy.
 
 func (c *Client) GetCalendarRecordings(ctx context.Context, calendarId int64, params *GetCalendarRecordingsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
 
@@ -2760,7 +3020,7 @@ func (c *Client) GetCalendarRecordings(ctx context.Context, calendarId int64, pa
 
 }
 
-// ListClearances is marked as idempotent and will be retried on transient failures.
+// ListClearances is marked as idempotent and follows its operation retry policy.
 
 func (c *Client) ListClearances(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
 
@@ -2770,7 +3030,7 @@ func (c *Client) ListClearances(ctx context.Context, reqEditors ...RequestEditor
 
 }
 
-// GetClearances is marked as idempotent and will be retried on transient failures.
+// GetClearances is marked as idempotent and follows its operation retry policy.
 
 func (c *Client) GetClearances(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
 
@@ -2780,7 +3040,7 @@ func (c *Client) GetClearances(ctx context.Context, reqEditors ...RequestEditorF
 
 }
 
-// UpdateClearanceWithBody is marked as idempotent and will be retried on transient failures.
+// UpdateClearanceWithBody is marked as idempotent and follows its operation retry policy.
 
 func (c *Client) UpdateClearanceWithBody(ctx context.Context, clearanceId int64, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
 
@@ -2806,7 +3066,7 @@ func (c *Client) UpdateClearanceWithFormdataBody(ctx context.Context, clearanceI
 
 }
 
-// ListClips is marked as idempotent and will be retried on transient failures.
+// ListClips is marked as idempotent and follows its operation retry policy.
 
 func (c *Client) ListClips(ctx context.Context, params *ListClipsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
 
@@ -2816,7 +3076,7 @@ func (c *Client) ListClips(ctx context.Context, params *ListClipsParams, reqEdit
 
 }
 
-// ListCollections is marked as idempotent and will be retried on transient failures.
+// ListCollections is marked as idempotent and follows its operation retry policy.
 
 func (c *Client) ListCollections(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
 
@@ -2856,7 +3116,7 @@ func (c *Client) UpdateCollection(ctx context.Context, collectionId int64, body 
 
 }
 
-// ListContacts is marked as idempotent and will be retried on transient failures.
+// ListContacts is marked as idempotent and follows its operation retry policy.
 
 func (c *Client) ListContacts(ctx context.Context, params *ListContactsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
 
@@ -2896,7 +3156,7 @@ func (c *Client) CreateContact(ctx context.Context, body CreateContactJSONReques
 
 }
 
-// HideContact is marked as idempotent and will be retried on transient failures.
+// HideContact is marked as idempotent and follows its operation retry policy.
 
 func (c *Client) HideContact(ctx context.Context, contactId int64, reqEditors ...RequestEditorFn) (*http.Response, error) {
 
@@ -2906,7 +3166,7 @@ func (c *Client) HideContact(ctx context.Context, contactId int64, reqEditors ..
 
 }
 
-// GetContact is marked as idempotent and will be retried on transient failures.
+// GetContact is marked as idempotent and follows its operation retry policy.
 
 func (c *Client) GetContact(ctx context.Context, contactId int64, reqEditors ...RequestEditorFn) (*http.Response, error) {
 
@@ -2946,7 +3206,7 @@ func (c *Client) UpdateContact(ctx context.Context, contactId int64, body Update
 
 }
 
-// UnbundleContact is marked as idempotent and will be retried on transient failures.
+// UnbundleContact is marked as idempotent and follows its operation retry policy.
 
 func (c *Client) UnbundleContact(ctx context.Context, contactId int64, reqEditors ...RequestEditorFn) (*http.Response, error) {
 
@@ -3002,7 +3262,7 @@ func (c *Client) UpdateContactClearance(ctx context.Context, contactId int64, bo
 
 }
 
-// DeleteContactNote is marked as idempotent and will be retried on transient failures.
+// DeleteContactNote is marked as idempotent and follows its operation retry policy.
 
 func (c *Client) DeleteContactNote(ctx context.Context, contactId int64, reqEditors ...RequestEditorFn) (*http.Response, error) {
 
@@ -3012,7 +3272,7 @@ func (c *Client) DeleteContactNote(ctx context.Context, contactId int64, reqEdit
 
 }
 
-// GetContactNote is marked as idempotent and will be retried on transient failures.
+// GetContactNote is marked as idempotent and follows its operation retry policy.
 
 func (c *Client) GetContactNote(ctx context.Context, contactId int64, reqEditors ...RequestEditorFn) (*http.Response, error) {
 
@@ -3068,7 +3328,7 @@ func (c *Client) RevealContact(ctx context.Context, contactId int64, reqEditors 
 
 }
 
-// ListDrafts is marked as idempotent and will be retried on transient failures.
+// ListDrafts is marked as idempotent and follows its operation retry policy.
 
 func (c *Client) ListDrafts(ctx context.Context, params *ListDraftsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
 
@@ -3078,7 +3338,7 @@ func (c *Client) ListDrafts(ctx context.Context, params *ListDraftsParams, reqEd
 
 }
 
-// NewEntryForward is marked as idempotent and will be retried on transient failures.
+// NewEntryForward is marked as idempotent and follows its operation retry policy.
 
 func (c *Client) NewEntryForward(ctx context.Context, entryId int64, reqEditors ...RequestEditorFn) (*http.Response, error) {
 
@@ -3118,7 +3378,7 @@ func (c *Client) CreateReply(ctx context.Context, entryId int64, body CreateRepl
 
 }
 
-// MarkEntrySpam is marked as idempotent and will be retried on transient failures.
+// MarkEntrySpam is marked as idempotent and follows its operation retry policy.
 
 func (c *Client) MarkEntrySpam(ctx context.Context, entryId int64, reqEditors ...RequestEditorFn) (*http.Response, error) {
 
@@ -3128,7 +3388,7 @@ func (c *Client) MarkEntrySpam(ctx context.Context, entryId int64, reqEditors ..
 
 }
 
-// GetFeedbox is marked as idempotent and will be retried on transient failures.
+// GetFeedbox is marked as idempotent and follows its operation retry policy.
 
 func (c *Client) GetFeedbox(ctx context.Context, params *GetFeedboxParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
 
@@ -3138,7 +3398,7 @@ func (c *Client) GetFeedbox(ctx context.Context, params *GetFeedboxParams, reqEd
 
 }
 
-// GetFolder is marked as idempotent and will be retried on transient failures.
+// GetFolder is marked as idempotent and follows its operation retry policy.
 
 func (c *Client) GetFolder(ctx context.Context, folderId int64, params *GetFolderParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
 
@@ -3148,7 +3408,7 @@ func (c *Client) GetFolder(ctx context.Context, folderId int64, params *GetFolde
 
 }
 
-// GetIdentity is marked as idempotent and will be retried on transient failures.
+// GetIdentity is marked as idempotent and follows its operation retry policy.
 
 func (c *Client) GetIdentity(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
 
@@ -3158,7 +3418,7 @@ func (c *Client) GetIdentity(ctx context.Context, reqEditors ...RequestEditorFn)
 
 }
 
-// GetImbox is marked as idempotent and will be retried on transient failures.
+// GetImbox is marked as idempotent and follows its operation retry policy.
 
 func (c *Client) GetImbox(ctx context.Context, params *GetImboxParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
 
@@ -3198,7 +3458,7 @@ func (c *Client) CreateMessage(ctx context.Context, body CreateMessageJSONReques
 
 }
 
-// GetMessage is marked as idempotent and will be retried on transient failures.
+// GetMessage is marked as idempotent and follows its operation retry policy.
 
 func (c *Client) GetMessage(ctx context.Context, messageId int64, reqEditors ...RequestEditorFn) (*http.Response, error) {
 
@@ -3208,7 +3468,7 @@ func (c *Client) GetMessage(ctx context.Context, messageId int64, reqEditors ...
 
 }
 
-// GetNavigation is marked as idempotent and will be retried on transient failures.
+// GetNavigation is marked as idempotent and follows its operation retry policy.
 
 func (c *Client) GetNavigation(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
 
@@ -3218,7 +3478,7 @@ func (c *Client) GetNavigation(ctx context.Context, reqEditors ...RequestEditorF
 
 }
 
-// GetTrailbox is marked as idempotent and will be retried on transient failures.
+// GetTrailbox is marked as idempotent and follows its operation retry policy.
 
 func (c *Client) GetTrailbox(ctx context.Context, params *GetTrailboxParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
 
@@ -3228,7 +3488,7 @@ func (c *Client) GetTrailbox(ctx context.Context, params *GetTrailboxParams, req
 
 }
 
-// RemovePostingsFromBoxGroup is marked as idempotent and will be retried on transient failures.
+// RemovePostingsFromBoxGroup is marked as idempotent and follows its operation retry policy.
 
 func (c *Client) RemovePostingsFromBoxGroup(ctx context.Context, params *RemovePostingsFromBoxGroupParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
 
@@ -3268,7 +3528,7 @@ func (c *Client) AddPostingsToBoxGroup(ctx context.Context, body AddPostingsToBo
 
 }
 
-// CancelPostingsBubbleUp is marked as idempotent and will be retried on transient failures.
+// CancelPostingsBubbleUp is marked as idempotent and follows its operation retry policy.
 
 func (c *Client) CancelPostingsBubbleUp(ctx context.Context, params *CancelPostingsBubbleUpParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
 
@@ -3308,7 +3568,7 @@ func (c *Client) BubbleUpPostingsNow(ctx context.Context, body BubbleUpPostingsN
 
 }
 
-// UnfilePostings is marked as idempotent and will be retried on transient failures.
+// UnfilePostings is marked as idempotent and follows its operation retry policy.
 
 func (c *Client) UnfilePostings(ctx context.Context, params *UnfilePostingsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
 
@@ -3408,7 +3668,7 @@ func (c *Client) MovePostings(ctx context.Context, body MovePostingsJSONRequestB
 
 }
 
-// UnmutePostings is marked as idempotent and will be retried on transient failures.
+// UnmutePostings is marked as idempotent and follows its operation retry policy.
 
 func (c *Client) UnmutePostings(ctx context.Context, params *UnmutePostingsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
 
@@ -3598,7 +3858,7 @@ func (c *Client) CreateDirectUpload(ctx context.Context, body CreateDirectUpload
 
 }
 
-// GetLaterbox is marked as idempotent and will be retried on transient failures.
+// GetLaterbox is marked as idempotent and follows its operation retry policy.
 
 func (c *Client) GetLaterbox(ctx context.Context, params *GetLaterboxParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
 
@@ -3608,7 +3868,7 @@ func (c *Client) GetLaterbox(ctx context.Context, params *GetLaterboxParams, req
 
 }
 
-// GetAsidebox is marked as idempotent and will be retried on transient failures.
+// GetAsidebox is marked as idempotent and follows its operation retry policy.
 
 func (c *Client) GetAsidebox(ctx context.Context, params *GetAsideboxParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
 
@@ -3618,7 +3878,7 @@ func (c *Client) GetAsidebox(ctx context.Context, params *GetAsideboxParams, req
 
 }
 
-// ListSnippets is marked as idempotent and will be retried on transient failures.
+// ListSnippets is marked as idempotent and follows its operation retry policy.
 
 func (c *Client) ListSnippets(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
 
@@ -3628,7 +3888,7 @@ func (c *Client) ListSnippets(ctx context.Context, reqEditors ...RequestEditorFn
 
 }
 
-// ListStickies is marked as idempotent and will be retried on transient failures.
+// ListStickies is marked as idempotent and follows its operation retry policy.
 
 func (c *Client) ListStickies(ctx context.Context, params *ListStickiesParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
 
@@ -3698,7 +3958,7 @@ func (c *Client) MoveSticky(ctx context.Context, body MoveStickyJSONRequestBody,
 
 }
 
-// DeleteSticky is marked as idempotent and will be retried on transient failures.
+// DeleteSticky is marked as idempotent and follows its operation retry policy.
 
 func (c *Client) DeleteSticky(ctx context.Context, stickyId int64, reqEditors ...RequestEditorFn) (*http.Response, error) {
 
@@ -3738,7 +3998,7 @@ func (c *Client) UpdateSticky(ctx context.Context, stickyId int64, body UpdateSt
 
 }
 
-// GetEverythingTopics is marked as idempotent and will be retried on transient failures.
+// GetEverythingTopics is marked as idempotent and follows its operation retry policy.
 
 func (c *Client) GetEverythingTopics(ctx context.Context, params *GetEverythingTopicsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
 
@@ -3748,7 +4008,7 @@ func (c *Client) GetEverythingTopics(ctx context.Context, params *GetEverythingT
 
 }
 
-// GetSentTopics is marked as idempotent and will be retried on transient failures.
+// GetSentTopics is marked as idempotent and follows its operation retry policy.
 
 func (c *Client) GetSentTopics(ctx context.Context, params *GetSentTopicsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
 
@@ -3758,7 +4018,7 @@ func (c *Client) GetSentTopics(ctx context.Context, params *GetSentTopicsParams,
 
 }
 
-// GetSpamTopics is marked as idempotent and will be retried on transient failures.
+// GetSpamTopics is marked as idempotent and follows its operation retry policy.
 
 func (c *Client) GetSpamTopics(ctx context.Context, params *GetSpamTopicsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
 
@@ -3768,7 +4028,7 @@ func (c *Client) GetSpamTopics(ctx context.Context, params *GetSpamTopicsParams,
 
 }
 
-// EmptySpam is marked as idempotent and will be retried on transient failures.
+// EmptySpam is marked as idempotent and follows its operation retry policy.
 
 func (c *Client) EmptySpam(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
 
@@ -3778,7 +4038,7 @@ func (c *Client) EmptySpam(ctx context.Context, reqEditors ...RequestEditorFn) (
 
 }
 
-// GetTrashTopics is marked as idempotent and will be retried on transient failures.
+// GetTrashTopics is marked as idempotent and follows its operation retry policy.
 
 func (c *Client) GetTrashTopics(ctx context.Context, params *GetTrashTopicsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
 
@@ -3788,7 +4048,7 @@ func (c *Client) GetTrashTopics(ctx context.Context, params *GetTrashTopicsParam
 
 }
 
-// EmptyTrash is marked as idempotent and will be retried on transient failures.
+// EmptyTrash is marked as idempotent and follows its operation retry policy.
 
 func (c *Client) EmptyTrash(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
 
@@ -3798,7 +4058,7 @@ func (c *Client) EmptyTrash(ctx context.Context, reqEditors ...RequestEditorFn) 
 
 }
 
-// GetTopic is marked as idempotent and will be retried on transient failures.
+// GetTopic is marked as idempotent and follows its operation retry policy.
 
 func (c *Client) GetTopic(ctx context.Context, topicId int64, reqEditors ...RequestEditorFn) (*http.Response, error) {
 
@@ -3808,7 +4068,7 @@ func (c *Client) GetTopic(ctx context.Context, topicId int64, reqEditors ...Requ
 
 }
 
-// GetTopicEntries is marked as idempotent and will be retried on transient failures.
+// GetTopicEntries is marked as idempotent and follows its operation retry policy.
 
 func (c *Client) GetTopicEntries(ctx context.Context, topicId int64, params *GetTopicEntriesParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
 
@@ -3848,7 +4108,7 @@ func (c *Client) MoveTopic(ctx context.Context, topicId int64, body MoveTopicJSO
 
 }
 
-// GetTopicPublication is marked as idempotent and will be retried on transient failures.
+// GetTopicPublication is marked as idempotent and follows its operation retry policy.
 
 func (c *Client) GetTopicPublication(ctx context.Context, topicId int64, reqEditors ...RequestEditorFn) (*http.Response, error) {
 
@@ -3858,7 +4118,7 @@ func (c *Client) GetTopicPublication(ctx context.Context, topicId int64, reqEdit
 
 }
 
-// RestoreTopic is marked as idempotent and will be retried on transient failures.
+// RestoreTopic is marked as idempotent and follows its operation retry policy.
 
 func (c *Client) RestoreTopic(ctx context.Context, topicId int64, reqEditors ...RequestEditorFn) (*http.Response, error) {
 
@@ -3868,7 +4128,7 @@ func (c *Client) RestoreTopic(ctx context.Context, topicId int64, reqEditors ...
 
 }
 
-// MarkTopicHam is marked as idempotent and will be retried on transient failures.
+// MarkTopicHam is marked as idempotent and follows its operation retry policy.
 
 func (c *Client) MarkTopicHam(ctx context.Context, topicId int64, reqEditors ...RequestEditorFn) (*http.Response, error) {
 
@@ -3878,7 +4138,7 @@ func (c *Client) MarkTopicHam(ctx context.Context, topicId int64, reqEditors ...
 
 }
 
-// TrashTopic is marked as idempotent and will be retried on transient failures.
+// TrashTopic is marked as idempotent and follows its operation retry policy.
 
 func (c *Client) TrashTopic(ctx context.Context, topicId int64, params *TrashTopicParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
 
@@ -3888,7 +4148,7 @@ func (c *Client) TrashTopic(ctx context.Context, topicId int64, params *TrashTop
 
 }
 
-// GetWorkflow is marked as idempotent and will be retried on transient failures.
+// GetWorkflow is marked as idempotent and follows its operation retry policy.
 
 func (c *Client) GetWorkflow(ctx context.Context, workflowId int64, reqEditors ...RequestEditorFn) (*http.Response, error) {
 

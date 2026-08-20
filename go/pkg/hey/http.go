@@ -59,6 +59,7 @@ func WithTimeout(d time.Duration) ClientOption {
 func WithMaxRetries(n int) ClientOption {
 	return func(c *Client) {
 		c.httpOpts.MaxRetries = n
+		c.maxRetriesSet = true
 	}
 }
 
@@ -66,6 +67,7 @@ func WithMaxRetries(n int) ClientOption {
 func WithBaseDelay(d time.Duration) ClientOption {
 	return func(c *Client) {
 		c.httpOpts.BaseDelay = d
+		c.baseDelaySet = true
 	}
 }
 

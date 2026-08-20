@@ -36,6 +36,43 @@
     "tags": ["retry", "429", "rate-limit"]
   },
   {
+    "name": "Operation retry policy limits UpdateClearance to two attempts",
+    "description": "Verifies that UpdateClearance follows its maxAttempts contract instead of the generated client's global default",
+    "operation": "UpdateClearance",
+    "method": "PATCH",
+    "path": "/clearances/{clearanceId}",
+    "pathParams": {"clearanceId": 12345},
+    "requestBody": {"status": "denied"},
+    "mockResponses": [
+      {"status": 503},
+      {"status": 503},
+      {"status": 204}
+    ],
+    "assertions": [
+      {"type": "requestCount", "expected": 2},
+      {"type": "statusCode", "expected": 503}
+    ],
+    "tags": ["retry", "operation-policy", "max-attempts"]
+  },
+  {
+    "name": "Operation retry policy excludes undeclared statuses",
+    "description": "Verifies that UpdateClearance does not retry a 500 response when its retryOn contract lists only 429 and 503",
+    "operation": "UpdateClearance",
+    "method": "PATCH",
+    "path": "/clearances/{clearanceId}",
+    "pathParams": {"clearanceId": 12345},
+    "requestBody": {"status": "denied"},
+    "mockResponses": [
+      {"status": 500},
+      {"status": 204}
+    ],
+    "assertions": [
+      {"type": "requestCount", "expected": 1},
+      {"type": "statusCode", "expected": 500}
+    ],
+    "tags": ["retry", "operation-policy", "retry-on"]
+  },
+  {
     "name": "POST operation does NOT retry (not idempotent)",
     "description": "Verifies that POST operations do NOT retry since they are not idempotent",
     "operation": "CreateMessage",

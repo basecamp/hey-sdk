@@ -350,7 +350,7 @@ func TestClearancesServiceUpdateAcceptsRedirect(t *testing.T) {
 	}
 }
 
-func TestClearancesServiceUpdateRetriesWithCompleteBody(t *testing.T) {
+func TestClearancesServiceUpdateExplicitRetryOverrideReplaysCompleteBody(t *testing.T) {
 	var requests atomic.Int64
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		request := requests.Add(1)
@@ -363,7 +363,7 @@ func TestClearancesServiceUpdateRetriesWithCompleteBody(t *testing.T) {
 		if got := r.PostForm.Get("designation_box_id"); got != "215744" {
 			t.Errorf("request %d designation_box_id = %q, want 215744", request, got)
 		}
-		if request == 1 {
+		if request < 3 {
 			w.WriteHeader(http.StatusServiceUnavailable)
 			return
 		}
@@ -374,15 +374,49 @@ func TestClearancesServiceUpdateRetriesWithCompleteBody(t *testing.T) {
 	client := NewClient(
 		&Config{BaseURL: server.URL},
 		&StaticTokenProvider{Token: "test-token"},
-		WithMaxRetries(1),
+		WithMaxRetries(2),
 		WithBaseDelay(time.Millisecond),
 		WithMaxJitter(time.Millisecond),
 	)
 	if err := client.Clearances().Approve(context.Background(), 123, 215744); err != nil {
 		t.Fatalf("Approve: %v", err)
 	}
-	if requests.Load() != 2 {
-		t.Fatalf("requests = %d, want 2", requests.Load())
+	if requests.Load() != 3 {
+		t.Fatalf("requests = %d, want 3", requests.Load())
+	}
+}
+
+func TestClearancesServiceUpdateUsesOperationRetryPolicy(t *testing.T) {
+	tests := []struct {
+		name         string
+		status       int
+		wantRequests int64
+	}{
+		{name: "declared status", status: http.StatusServiceUnavailable, wantRequests: 2},
+		{name: "undeclared status", status: http.StatusInternalServerError, wantRequests: 1},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var requests atomic.Int64
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				requests.Add(1)
+				w.WriteHeader(tt.status)
+			}))
+			t.Cleanup(server.Close)
+
+			client := NewClient(
+				&Config{BaseURL: server.URL},
+				&StaticTokenProvider{Token: "test-token"},
+				WithBaseDelay(time.Nanosecond),
+			)
+			if err := client.Clearances().Deny(context.Background(), 123); err == nil {
+				t.Fatal("Deny returned nil, want API error")
+			}
+			if got := requests.Load(); got != tt.wantRequests {
+				t.Fatalf("requests = %d, want %d", got, tt.wantRequests)
+			}
+		})
 	}
 }
 

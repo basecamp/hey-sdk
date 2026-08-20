@@ -209,12 +209,6 @@ func runTest(tc TestCase) TestResult {
 
 	// Create generated client pointing to mock server with auth header
 	client, err := generated.NewClient(server.URL,
-		generated.WithRetryConfig(generated.RetryConfig{
-			MaxRetries: 3,
-			BaseDelay:  1 * time.Second,
-			MaxDelay:   30 * time.Second,
-			Multiplier: 2.0,
-		}),
 		generated.WithRequestEditorFn(func(_ context.Context, req *http.Request) error {
 			req.Header.Set("Authorization", "Bearer conformance-test-token")
 			req.Header.Set("User-Agent", "hey-sdk-go/conformance")

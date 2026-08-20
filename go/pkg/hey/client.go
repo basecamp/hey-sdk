@@ -32,6 +32,8 @@ type clientShared struct {
 	logger         *slog.Logger
 	httpOpts       HTTPOptions
 	hooks          Hooks
+	maxRetriesSet  bool
+	baseDelaySet   bool
 }
 
 // Client is an HTTP client for the HEY API. A root client represents the
@@ -228,9 +230,6 @@ func NewClient(cfg *Config, tokenProvider TokenProvider, opts ...ClientOption) *
 func (c *Client) initGeneratedClient() {
 	c.genOnce.Do(func() {
 		serverURL := strings.TrimSuffix(c.cfg.BaseURL, "/")
-		retryConfig := generated.DefaultRetryConfig()
-		retryConfig.MaxRetries = c.httpOpts.MaxRetries
-		retryConfig.BaseDelay = c.httpOpts.BaseDelay
 		authEditor := func(ctx context.Context, req *http.Request) error {
 			accept := acceptFromContext(ctx)
 			if accept == "application/json" {
@@ -248,10 +247,17 @@ func (c *Client) initGeneratedClient() {
 			req.Header.Set("Accept", accept)
 			return nil
 		}
-		gen, err := generated.NewClientWithResponses(serverURL,
+		options := []generated.ClientOption{
 			generated.WithHTTPClient(c.httpClient),
-			generated.WithRetryConfig(retryConfig),
-			generated.WithRequestEditorFn(authEditor))
+			generated.WithRequestEditorFn(authEditor),
+		}
+		if c.maxRetriesSet {
+			options = append(options, generated.WithMaxRetries(c.httpOpts.MaxRetries))
+		}
+		if c.baseDelaySet {
+			options = append(options, generated.WithBaseDelay(c.httpOpts.BaseDelay))
+		}
+		gen, err := generated.NewClientWithResponses(serverURL, options...)
 		if err != nil {
 			panic(fmt.Sprintf("hey: failed to create generated client: %v", err))
 		}
