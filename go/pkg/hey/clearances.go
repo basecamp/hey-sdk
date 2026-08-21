@@ -58,6 +58,14 @@ func (s *ClearancesService) Summary(ctx context.Context) (summary *generated.Cle
 	return summary, err
 }
 
+// ClearancePage contains one page of clearances and the cursor for the page after it.
+// PendingCount is what the Screener holds in total and is only answered by PendingPage.
+type ClearancePage struct {
+	Clearances   []generated.Clearance
+	PendingCount int
+	NextPage     string
+}
+
 // Pending answers the senders waiting to be screened, a page at a time.
 //
 // Each one carries the petitioner and the most recent entry they sent, so a caller can
@@ -70,13 +78,7 @@ func (s *ClearancesService) Pending(ctx context.Context, page string) (summary *
 	}
 
 	err = s.client.instrument(ctx, op, func(ctx context.Context) error {
-		include := true
-		params := &generated.GetClearancesParams{IncludeClearances: &include}
-		if page != "" {
-			params.Page = &page
-		}
-
-		resp, rerr := s.client.genClient().GetClearancesWithResponse(ctx, params)
+		resp, rerr := s.client.genClient().GetClearancesWithResponse(ctx, pendingClearancesParams(page))
 		if rerr != nil {
 			return rerr
 		}
@@ -87,6 +89,35 @@ func (s *ClearancesService) Pending(ctx context.Context, page string) (summary *
 		return nil
 	})
 	return summary, err
+}
+
+// PendingPage answers the same queue as Pending along with the cursor for the page after
+// it, so a caller walking the queue is told when it has reached the end of it.
+func (s *ClearancesService) PendingPage(ctx context.Context, page string) (result *ClearancePage, err error) {
+	op := OperationInfo{
+		Service: "Clearances", Operation: "GetClearances",
+		ResourceType: "clearance", IsMutation: false,
+	}
+
+	err = s.client.instrument(ctx, op, func(ctx context.Context) error {
+		resp, rerr := s.client.genClient().GetClearancesWithResponse(ctx, pendingClearancesParams(page))
+		if rerr != nil {
+			return rerr
+		}
+		if cerr := CheckResponse(resp.HTTPResponse); cerr != nil {
+			return cerr
+		}
+		result = &ClearancePage{}
+		if resp.JSON200 != nil {
+			result.Clearances = resp.JSON200.Clearances
+			result.PendingCount = int(resp.JSON200.PendingClearancesCount)
+		}
+		if resp.HTTPResponse != nil {
+			result.NextPage = gearedPageFromLink(resp.HTTPResponse.Header.Get("Link"))
+		}
+		return nil
+	})
+	return result, err
 }
 
 // Screen answers the Screener for one sender. Status is ClearanceApproved or
@@ -204,6 +235,16 @@ func (s *ClearancesService) Punt(ctx context.Context) error {
 // Screened answers the senders already screened in or out, newest decision first, a page
 // at a time.
 func (s *ClearancesService) Screened(ctx context.Context, page string) (clearances []generated.Clearance, err error) {
+	result, err := s.ScreenedPage(ctx, page)
+	if err != nil || result == nil {
+		return nil, err
+	}
+	return result.Clearances, nil
+}
+
+// ScreenedPage answers the same decisions as Screened along with the cursor for the page
+// after it.
+func (s *ClearancesService) ScreenedPage(ctx context.Context, page string) (result *ClearancePage, err error) {
 	op := OperationInfo{
 		Service: "Clearances", Operation: "GetMyClearances",
 		ResourceType: "clearance", IsMutation: false,
@@ -222,12 +263,16 @@ func (s *ClearancesService) Screened(ctx context.Context, page string) (clearanc
 		if cerr := CheckResponse(resp.HTTPResponse); cerr != nil {
 			return cerr
 		}
+		result = &ClearancePage{}
 		if resp.JSON200 != nil {
-			clearances = resp.JSON200.Clearances
+			result.Clearances = resp.JSON200.Clearances
+		}
+		if resp.HTTPResponse != nil {
+			result.NextPage = gearedPageFromLink(resp.HTTPResponse.Header.Get("Link"))
 		}
 		return nil
 	})
-	return clearances, err
+	return result, err
 }
 
 // Rescreen changes its mind about a sender already screened in or out.
@@ -257,6 +302,15 @@ func (s *ClearancesService) Rescreen(ctx context.Context, clearanceID int64, sta
 		return nil
 	})
 	return clearance, err
+}
+
+func pendingClearancesParams(page string) *generated.GetClearancesParams {
+	include := true
+	params := &generated.GetClearancesParams{IncludeClearances: &include}
+	if page != "" {
+		params.Page = &page
+	}
+	return params
 }
 
 func validateClearanceStatus(status string) error {

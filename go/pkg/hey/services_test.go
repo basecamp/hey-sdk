@@ -994,6 +994,38 @@ func TestSearchService_Search(t *testing.T) {
 	}
 }
 
+func TestSearchService_SearchPage(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		if r.URL.Query().Get("page") == "3" {
+			_, _ = w.Write([]byte(`{"matches":[{"topic":{"id":331,"name":"Kitchen remodel"},"posting_id":4471829}]}`))
+			return
+		}
+		w.Header().Set("Link", `<http://`+r.Host+`/advanced_search.json?q=cabinets&page=3>; rel="next"`)
+		_, _ = w.Write([]byte(`{"matches":[{"topic":{"id":332,"name":"Cabinet estimate"},"posting_id":4471830}]}`))
+	}))
+	t.Cleanup(srv.Close)
+	client := NewClient(&Config{BaseURL: srv.URL}, &StaticTokenProvider{Token: "t"}, WithMaxRetries(0))
+
+	results, err := client.Search().SearchPage(context.Background(), SearchParams{Query: "cabinets", Page: 2})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if results.NextPage != 3 {
+		t.Errorf("next page = %d, want 3", results.NextPage)
+	}
+
+	// The last page carries no Link header, which is how a caller walking the results is
+	// told to stop asking.
+	last, err := client.Search().SearchPage(context.Background(), SearchParams{Query: "cabinets", Page: 3})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if last.NextPage != 0 || len(last.Result.Matches) != 1 {
+		t.Errorf("last page = %+v", last)
+	}
+}
+
 func TestSearchService_Filters(t *testing.T) {
 	client := newServiceTestClient(t, map[string]string{
 		"/advanced_search_filters.json": `{"refine_in":[{"title":"Imbox","value":"imbox"}],"refine_labels":[{"title":"Receipts","value":"Receipts"}]}`,
@@ -1689,6 +1721,48 @@ func TestContactsService_Clearances(t *testing.T) {
 }
 
 // --- Boxes, groups and observation ---
+
+func TestBoxesService_GetPage(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/boxes/5.json" {
+			t.Errorf("path = %q, want /boxes/5.json", r.URL.Path)
+		}
+		if page := r.URL.Query().Get("page"); page != "current-cursor" {
+			t.Errorf("page = %q, want current-cursor", page)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("X-Total-Count", "214")
+		w.Header().Set("Link", `<http://`+r.Host+`/boxes/5.json?page=next-cursor>; rel="next"`)
+		_, _ = io.WriteString(w, `{"id":5,"name":"Imbox","postings":[{"id":1,"kind":"topic"}]}`)
+	}))
+	t.Cleanup(server.Close)
+
+	client := NewClient(&Config{BaseURL: server.URL}, &StaticTokenProvider{Token: "test-token"}, WithMaxRetries(0))
+	cursor := "current-cursor"
+	page, err := client.Boxes().GetPage(context.Background(), 5, &generated.GetBoxParams{Page: &cursor})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if page.Box == nil || page.Box.Name != "Imbox" || len(page.Box.Postings) != 1 || page.TotalCount != 214 || page.NextPage != "next-cursor" {
+		t.Errorf("unexpected box page: %+v", page)
+	}
+}
+
+// The last page carries no Link header, which is how a caller walking a box is told to
+// stop asking for more.
+func TestBoxesService_GetPageOnLastPage(t *testing.T) {
+	client := newServiceTestClient(t, map[string]string{
+		"/boxes/%s": `{"id":5,"name":"Imbox","postings":[{"id":1,"kind":"topic"}]}`,
+	})
+
+	page, err := client.Boxes().GetPage(context.Background(), 5, nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if page.NextPage != "" {
+		t.Errorf("next page = %q, want none", page.NextPage)
+	}
+}
 
 func TestBoxesService_ListGroups(t *testing.T) {
 	client := newServiceTestClient(t, map[string]string{

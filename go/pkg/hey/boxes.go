@@ -2,6 +2,7 @@ package hey
 
 import (
 	"context"
+	"strconv"
 	"time"
 
 	"github.com/basecamp/hey-sdk/go/pkg/generated"
@@ -43,30 +44,45 @@ func (s *BoxesService) List(ctx context.Context) (result *generated.ListBoxesRes
 	return resp.JSON200, nil
 }
 
+// BoxPage contains one page of a box and its pagination state.
+type BoxPage struct {
+	Box        *generated.BoxShowResponse
+	NextPage   string
+	TotalCount int
+}
+
 // Get returns a specific mailbox by ID.
-func (s *BoxesService) Get(ctx context.Context, boxID int64, params *generated.GetBoxParams) (result *generated.BoxShowResponse, err error) {
+func (s *BoxesService) Get(ctx context.Context, boxID int64, params *generated.GetBoxParams) (*generated.BoxShowResponse, error) {
+	page, err := s.GetPage(ctx, boxID, params)
+	if err != nil || page == nil {
+		return nil, err
+	}
+	return page.Box, nil
+}
+
+// GetPage returns a box page with its next cursor and total posting count.
+func (s *BoxesService) GetPage(ctx context.Context, boxID int64, params *generated.GetBoxParams) (result *BoxPage, err error) {
 	op := OperationInfo{
 		Service: "Boxes", Operation: "GetBox",
 		ResourceType: "box", IsMutation: false, ResourceID: boxID,
 	}
-	if gater, ok := s.client.hooks.(GatingHooks); ok {
-		if ctx, err = gater.OnOperationGate(ctx, op); err != nil {
-			return
-		}
-	}
-	start := time.Now()
-	ctx = s.client.hooks.OnOperationStart(ctx, op)
-	defer func() { s.client.hooks.OnOperationEnd(ctx, op, err, time.Since(start)) }()
 
-	s.client.initGeneratedClient()
-	resp, err := s.client.gen.GetBoxWithResponse(ctx, boxID, params)
-	if err != nil {
-		return nil, err
-	}
-	if err = CheckResponse(resp.HTTPResponse); err != nil {
-		return nil, err
-	}
-	return resp.JSON200, nil
+	err = s.client.instrument(ctx, op, func(ctx context.Context) error {
+		resp, rerr := s.client.genClient().GetBoxWithResponse(ctx, boxID, params)
+		if rerr != nil {
+			return rerr
+		}
+		if cerr := CheckResponse(resp.HTTPResponse); cerr != nil {
+			return cerr
+		}
+		result = &BoxPage{Box: resp.JSON200}
+		if resp.HTTPResponse != nil {
+			result.TotalCount, _ = strconv.Atoi(resp.HTTPResponse.Header.Get("X-Total-Count"))
+			result.NextPage = gearedPageFromLink(resp.HTTPResponse.Header.Get("Link"))
+		}
+		return nil
+	})
+	return result, err
 }
 
 // GetImbox returns the Imbox.
