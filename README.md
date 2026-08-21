@@ -105,6 +105,12 @@ are configured with `WithResilience`, `WithCircuitBreaker`, `WithBulkhead` and
 `WithRateLimit`; HTTP caching with `WithCache`. Response caching is active for requests with
 an `Authorization` header, which gives each authenticated identity a stable cache partition.
 
+JSON and HTML answers are capped in the transport at `WithMaxResponseBodyBytes` (16 MiB of
+decompressed body by default; a negative value removes the cap). A body past it fails with an
+error that `errors.Is(err, hey.ErrResponseTooLarge)`, and is not retried. Blobs (`GetBlob`,
+`DownloadBlob`) and CSV exports are not capped there: the one buffers under
+`hey.MaxResponseBodyBytes`, the other streams.
+
 ### Errors
 
 Calls return `*hey.Error` with a stable `Code` (`hey.CodeNotFound`, `hey.CodeAuth`,

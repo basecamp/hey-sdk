@@ -13,6 +13,12 @@ const (
 	DefaultMaxJitter  = 100 * time.Millisecond
 	DefaultTimeout    = 30 * time.Second
 	DefaultMaxPages   = 10000
+
+	// DefaultMaxResponseBodyBytes is the most a JSON or HTML response may deliver, in
+	// decompressed bytes: 16 MiB, which is a message with a very large HTML body several
+	// times over, and small enough that a server answering one page with gigabytes is
+	// refused long before it exhausts memory.
+	DefaultMaxResponseBodyBytes int64 = 16 << 20
 )
 
 // HTTPOptions configures the HTTP client behavior.
@@ -35,16 +41,37 @@ type HTTPOptions struct {
 	// Transport is the HTTP transport to use. If nil, a default transport
 	// with sensible connection pooling is created.
 	Transport http.RoundTripper
+
+	// MaxResponseBodyBytes is the most a JSON or HTML response body may deliver, in
+	// decompressed bytes, before its read fails with ErrResponseTooLarge (default:
+	// DefaultMaxResponseBodyBytes). 0 means the default; a negative value disables the
+	// cap, for consumers that bound their reads themselves. Blob (*/*) and CSV answers are
+	// never capped: GetBlob buffers under MaxResponseBodyBytes and DownloadBlob streams.
+	MaxResponseBodyBytes int64
 }
 
 // DefaultHTTPOptions returns HTTPOptions with sensible defaults.
 func DefaultHTTPOptions() HTTPOptions {
 	return HTTPOptions{
-		Timeout:    DefaultTimeout,
-		MaxRetries: DefaultMaxRetries,
-		BaseDelay:  DefaultBaseDelay,
-		MaxJitter:  DefaultMaxJitter,
-		MaxPages:   DefaultMaxPages,
+		Timeout:              DefaultTimeout,
+		MaxRetries:           DefaultMaxRetries,
+		BaseDelay:            DefaultBaseDelay,
+		MaxJitter:            DefaultMaxJitter,
+		MaxPages:             DefaultMaxPages,
+		MaxResponseBodyBytes: DefaultMaxResponseBodyBytes,
+	}
+}
+
+// responseBodyLimit is the cap NewClient installs: the configured MaxResponseBodyBytes,
+// the default when it is 0, and 0 — no cap — when it is negative.
+func (o HTTPOptions) responseBodyLimit() int64 {
+	switch {
+	case o.MaxResponseBodyBytes == 0:
+		return DefaultMaxResponseBodyBytes
+	case o.MaxResponseBodyBytes < 0:
+		return 0
+	default:
+		return o.MaxResponseBodyBytes
 	}
 }
 
@@ -83,10 +110,21 @@ func WithMaxPages(n int) ClientOption {
 	}
 }
 
-// WithTransport sets a custom HTTP transport.
+// WithTransport sets a custom HTTP transport. The SDK still wraps it with its own
+// response body cap, logging and hooks; WithHTTPClient is the option that replaces all of
+// that.
 func WithTransport(t http.RoundTripper) ClientOption {
 	return func(c *Client) {
 		c.httpOpts.Transport = t
+	}
+}
+
+// WithMaxResponseBodyBytes sets the most a JSON or HTML response body may deliver, in
+// decompressed bytes, before its read fails with ErrResponseTooLarge. 0 restores
+// DefaultMaxResponseBodyBytes; a negative value disables the cap.
+func WithMaxResponseBodyBytes(n int64) ClientOption {
+	return func(c *Client) {
+		c.httpOpts.MaxResponseBodyBytes = n
 	}
 }
 

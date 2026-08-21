@@ -16,6 +16,11 @@ var (
 	ErrRateLimited = errors.New("rate limit exceeded")
 )
 
+// ErrResponseTooLarge is the error a JSON or HTML response body ends with once it passes
+// the client's MaxResponseBodyBytes. It reaches the caller wrapped, so test for it with
+// errors.Is.
+var ErrResponseTooLarge = errors.New("response body exceeded the size limit")
+
 // Error codes for API responses.
 const (
 	CodeUsage      = "usage"

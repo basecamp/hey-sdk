@@ -8,9 +8,13 @@ import (
 	"strings"
 )
 
-// Response body size limits.
+// Response body size limits. JSON and HTML answers are capped in the transport, at the
+// client's MaxResponseBodyBytes (HTTPOptions, WithMaxResponseBodyBytes; 16 MiB by default),
+// before any of these apply.
 const (
-	// MaxResponseBodyBytes is the maximum size for successful API response bodies (50 MB).
+	// MaxResponseBodyBytes is the most the client buffers of a successful body the
+	// transport cap leaves alone — a blob read with GetBlob, a mutation answered to a */*
+	// request, a form or multipart answer — 50 MiB.
 	MaxResponseBodyBytes int64 = 50 * 1024 * 1024
 	// MaxErrorBodyBytes is the maximum size for error response bodies (1 MB).
 	MaxErrorBodyBytes int64 = 1 * 1024 * 1024

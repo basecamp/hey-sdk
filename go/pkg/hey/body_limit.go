@@ -1,0 +1,128 @@
+package hey
+
+import (
+	"fmt"
+	"io"
+	"mime"
+	"net/http"
+	"strings"
+)
+
+// The generated parsers read every response body with io.ReadAll before a service method
+// can apply a budget, so a server answering one entries page or one message with gigabytes
+// was a memory exhaustion for every consumer of the SDK. The bound lives in the transport
+// NewClient builds, where it covers every request the root client, an account-scoped client
+// and the generated client make: a RoundTripper that caps what a text-bearing response can
+// deliver, success and error alike, before a parser sees it.
+//
+// A success body past the limit is refused — its first read past the cap fails with
+// ErrResponseTooLarge — since a parser that buffers it would buffer it whole. An error body
+// past the limit is cut off at the cap instead: the status is what matters about an error,
+// and a refusal would hide it behind a read failure. Both happen at read time rather than at
+// the round trip: a round-trip error is one the retry loops, the SDK's and the generated
+// client's, treat as a network failure and try again, and the body would be too large again.
+//
+// Which responses are capped is decided by the request, not by what the server says it
+// answered with: the SDK asks for application/json where a generated parser or doRequest
+// will buffer the answer and for text/html where GetHTML will, and asks for */* for a blob,
+// which it streams to a destination of any size (DownloadBlob) or buffers under its own
+// MaxResponseBodyBytes (GetBlob), and for text/csv for an export. A server that labels a
+// JSON answer as a PNG is still capped; an attachment that happens to be a text file is
+// still streamed.
+
+// bodyLimitTransport wraps an http.RoundTripper so that JSON and HTML responses cannot
+// deliver more than limit decompressed bytes.
+type bodyLimitTransport struct {
+	inner http.RoundTripper
+	limit int64
+}
+
+// RoundTrip implements http.RoundTripper.
+func (t *bodyLimitTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	resp, err := t.inner.RoundTrip(req)
+	if err != nil || resp == nil || resp.Body == nil || !isParsedRequest(req) {
+		return resp, err
+	}
+	if resp.StatusCode >= 400 {
+		resp.Body = &truncatedBody{Reader: io.LimitReader(resp.Body, t.limit), closer: resp.Body}
+		return resp, nil
+	}
+	remaining := t.limit
+	if resp.ContentLength > t.limit {
+		// Declared past the limit: refused on its first read, the same failure a streamed
+		// body produces once it passes the cap, so neither retry loop sees a round-trip error.
+		remaining = -1
+	}
+	resp.Body = &cappedBody{
+		ReadCloser: resp.Body,
+		remaining:  remaining,
+		declared:   resp.ContentLength,
+		limit:      t.limit,
+		request:    req,
+	}
+	return resp, nil
+}
+
+// isParsedRequest reports a request whose answer the SDK buffers and parses, by what the
+// request asked for. Anything it did not ask for as JSON or HTML — a blob's */*, an export's
+// text/csv — it handles by streaming or under its own bound.
+func isParsedRequest(req *http.Request) bool {
+	accept := req.Header.Get("Accept")
+	if accept == "" {
+		return true
+	}
+	for part := range strings.SplitSeq(accept, ",") {
+		mediaType, _, err := mime.ParseMediaType(strings.TrimSpace(part))
+		if err != nil {
+			continue
+		}
+		if mediaType == "application/json" || strings.HasSuffix(mediaType, "+json") || mediaType == "text/html" {
+			return true
+		}
+	}
+	return false
+}
+
+// truncatedBody is an error body cut off at the cap: what the server said, up to the limit,
+// with the status still standing.
+type truncatedBody struct {
+	io.Reader
+	closer io.Closer
+}
+
+func (b *truncatedBody) Close() error { return b.closer.Close() }
+
+// cappedBody is a success body that delivers up to the limit and fails on the first byte
+// past it.
+type cappedBody struct {
+	io.ReadCloser
+	remaining int64
+	declared  int64
+	limit     int64
+	request   *http.Request
+}
+
+// Read delivers up to the limit and fails on the first byte past it. A body that is exactly
+// the limit is read whole: with nothing remaining, the next read still asks the wrapped body
+// for one byte, and gets its EOF rather than a refusal. A body declared past the limit
+// starts with a negative remainder and fails on its first read.
+func (b *cappedBody) Read(p []byte) (int, error) {
+	if len(p) == 0 {
+		return 0, nil
+	}
+	if b.remaining < 0 {
+		return 0, fmt.Errorf("%s %s: Content-Length %d: %w of %d bytes",
+			b.request.Method, b.request.URL.Path, b.declared, ErrResponseTooLarge, b.limit)
+	}
+	if int64(len(p)) > b.remaining+1 {
+		p = p[:b.remaining+1]
+	}
+	n, err := b.ReadCloser.Read(p)
+	if int64(n) > b.remaining {
+		n = int(b.remaining)
+		b.remaining = 0
+		return n, fmt.Errorf("%s %s: %w of %d bytes", b.request.Method, b.request.URL.Path, ErrResponseTooLarge, b.limit)
+	}
+	b.remaining -= int64(n)
+	return n, err
+}

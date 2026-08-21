@@ -102,6 +102,10 @@
 //	    }
 //	}
 //
+// JSON and HTML response bodies are capped at [WithMaxResponseBodyBytes] (16 MiB of
+// decompressed body by default). A body past the cap fails with an error that wraps
+// [ErrResponseTooLarge], and is not retried; blobs and CSV exports are not capped.
+//
 // # Thread Safety
 //
 // The Client is safe for concurrent use after construction.

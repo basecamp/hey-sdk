@@ -23,6 +23,18 @@ func TestDefaultHTTPOptions(t *testing.T) {
 	if opts.MaxPages != 10000 {
 		t.Fatalf("expected 10000 max pages, got %d", opts.MaxPages)
 	}
+	if opts.MaxResponseBodyBytes != DefaultMaxResponseBodyBytes {
+		t.Fatalf("expected %d max response body bytes, got %d", DefaultMaxResponseBodyBytes, opts.MaxResponseBodyBytes)
+	}
+}
+
+// 0 asks for the default cap and a negative value for none; anything else is the cap.
+func TestHTTPOptionsResponseBodyLimit(t *testing.T) {
+	for configured, want := range map[int64]int64{0: DefaultMaxResponseBodyBytes, -1: 0, 4 << 20: 4 << 20} {
+		if got := (HTTPOptions{MaxResponseBodyBytes: configured}).responseBodyLimit(); got != want {
+			t.Errorf("MaxResponseBodyBytes %d: limit %d, want %d", configured, got, want)
+		}
+	}
 }
 
 func TestRetryableError(t *testing.T) {
@@ -61,8 +73,12 @@ func TestClientOptions(t *testing.T) {
 		WithBaseDelay(2*time.Second),
 		WithMaxJitter(50*time.Millisecond),
 		WithMaxPages(100),
+		WithMaxResponseBodyBytes(4<<20),
 	)
 
+	if c.httpOpts.MaxResponseBodyBytes != 4<<20 {
+		t.Fatalf("expected 4 MiB max response body bytes, got %d", c.httpOpts.MaxResponseBodyBytes)
+	}
 	if c.httpOpts.Timeout != 10*time.Second {
 		t.Fatalf("expected 10s timeout, got %v", c.httpOpts.Timeout)
 	}

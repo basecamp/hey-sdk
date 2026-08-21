@@ -121,7 +121,10 @@ func (r *Response) UnmarshalData(v any) error {
 // ClientOption configures a Client.
 type ClientOption func(*Client)
 
-// WithHTTPClient sets a custom HTTP client.
+// WithHTTPClient sets a custom HTTP client. It replaces the one NewClient would build, so
+// none of what that one carries — the request timeout, credential stripping on cross-origin
+// redirects, the response body cap, logging and hooks — applies to it. WithTransport keeps
+// all of that and swaps only the transport underneath.
 func WithHTTPClient(c *http.Client) ClientOption {
 	return func(client *Client) {
 		client.httpClient = c
@@ -184,6 +187,12 @@ func NewClient(cfg *Config, tokenProvider TokenProvider, opts ...ClientOption) *
 			transport = newDefaultTransport()
 		}
 
+		// The cap sits inside the logging transport, so logging and hooks see every round
+		// trip, and outside the transport that negotiated the encoding, so it counts the
+		// decompressed bytes a parser would buffer.
+		if limit := c.httpOpts.responseBodyLimit(); limit > 0 {
+			transport = &bodyLimitTransport{inner: transport, limit: limit}
+		}
 		transport = &loggingTransport{inner: transport, client: c}
 
 		c.httpClient = &http.Client{
@@ -474,7 +483,9 @@ func (c *Client) doBodyRequest(ctx context.Context, method, path, contentType st
 		}, nil
 
 	case resp.StatusCode >= 200 && resp.StatusCode < 300:
-		responseBody, err := io.ReadAll(resp.Body)
+		// Asked for with */*, so the transport's cap does not apply; bound it here as
+		// singleRequest bounds its own reads.
+		responseBody, err := limitedReadAll(resp.Body, MaxResponseBodyBytes)
 		if err != nil {
 			return nil, ErrNetwork(err)
 		}
