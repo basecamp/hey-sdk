@@ -225,6 +225,20 @@ func NewClient(cfg *Config, tokenProvider TokenProvider, opts ...ClientOption) *
 }
 
 // initGeneratedClient initializes the generated OpenAPI client for this account scope.
+// refreshCredentials renews what the next request will authenticate with, and reports
+// whether anything was able to. The strategy is asked before the token provider because a
+// client given both is authenticated by the strategy, so the strategy is what holds the
+// credentials a 401 was about.
+func (c *Client) refreshCredentials(ctx context.Context) bool {
+	if refresher, ok := c.authStrategy.(TokenRefresher); ok {
+		return refresher.Refresh(ctx) == nil
+	}
+	if refresher, ok := c.tokenProvider.(TokenRefresher); ok {
+		return refresher.Refresh(ctx) == nil
+	}
+	return false
+}
+
 func (c *Client) initGeneratedClient() {
 	c.genOnce.Do(func() {
 		serverURL := strings.TrimSuffix(c.cfg.BaseURL, "/")
@@ -468,10 +482,8 @@ func (c *Client) doBodyRequest(ctx context.Context, method, path, contentType st
 
 	case resp.StatusCode == http.StatusUnauthorized:
 		// Try token refresh and retry once
-		if authMgr, ok := c.tokenProvider.(*AuthManager); ok {
-			if refreshErr := authMgr.Refresh(ctx); refreshErr == nil {
-				return c.doBodyRequest(ctx, method, path, contentType, body)
-			}
+		if c.refreshCredentials(ctx) {
+			return c.doBodyRequest(ctx, method, path, contentType, body)
 		}
 		return nil, ErrAuth("Authentication failed")
 
@@ -726,15 +738,11 @@ func (c *Client) singleRequest(ctx context.Context, method, url string, body any
 		return nil, &retryableError{err: rateErr, retryAfter: time.Duration(retryAfter) * time.Second}
 
 	case http.StatusUnauthorized:
-		if attempt == 1 {
-			if authMgr, ok := c.tokenProvider.(*AuthManager); ok {
-				if err := authMgr.Refresh(ctx); err == nil {
-					return nil, &Error{
-						Code:      CodeAuth,
-						Message:   "Token refreshed",
-						Retryable: true,
-					}
-				}
+		if attempt == 1 && c.refreshCredentials(ctx) {
+			return nil, &Error{
+				Code:      CodeAuth,
+				Message:   "Token refreshed",
+				Retryable: true,
 			}
 		}
 		return nil, ErrAuth("Authentication failed")

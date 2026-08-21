@@ -13,6 +13,15 @@ type AuthStrategy interface {
 	Authenticate(ctx context.Context, req *http.Request) error
 }
 
+// TokenRefresher renews the credentials a request is authenticated with, which is what
+// lets a 401 be retried rather than surfaced. AuthManager is one, and so is any
+// AuthStrategy or TokenProvider a caller brings that can renew what it hands out — a
+// client that keeps its credentials somewhere else is exactly the case that needs this,
+// since it has no AuthManager for the client to recognise.
+type TokenRefresher interface {
+	Refresh(ctx context.Context) error
+}
+
 // BearerAuth implements AuthStrategy using OAuth Bearer tokens.
 // This is the default authentication strategy.
 type BearerAuth struct {
