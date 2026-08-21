@@ -1779,7 +1779,7 @@ func TestFoldersService_GetPage(t *testing.T) {
 	}
 }
 
-func TestFolderPageFromLink(t *testing.T) {
+func TestGearedPageFromLink(t *testing.T) {
 	tests := []struct {
 		header string
 		want   string
@@ -1788,13 +1788,13 @@ func TestFolderPageFromLink(t *testing.T) {
 		{header: `<https://app.hey.com/folders/12.json?page=previous>; rel="prev", <https://app.hey.com/folders/12.json?page=a,b>; rel="next"`, want: "a,b"},
 	}
 	for _, tt := range tests {
-		if got := folderPageFromLink(tt.header); got != tt.want {
-			t.Errorf("folderPageFromLink(%q) = %q, want %q", tt.header, got, tt.want)
+		if got := gearedPageFromLink(tt.header); got != tt.want {
+			t.Errorf("gearedPageFromLink(%q) = %q, want %q", tt.header, got, tt.want)
 		}
 	}
 	for _, header := range []string{"", "not a URL", `<https://app.hey.com/folders/12.json>; rel="next"`} {
-		if got := folderPageFromLink(header); got != "" {
-			t.Errorf("folderPageFromLink(%q) = %q, want empty", header, got)
+		if got := gearedPageFromLink(header); got != "" {
+			t.Errorf("gearedPageFromLink(%q) = %q, want empty", header, got)
 		}
 	}
 }
@@ -1812,6 +1812,59 @@ func TestCollectionsService_List(t *testing.T) {
 	}
 	if len(*collections) != 1 || (*collections)[0].Name != "Kitchen remodel" {
 		t.Errorf("expected one Kitchen remodel collection, got %+v", collections)
+	}
+}
+
+func TestCollectionsService_Get(t *testing.T) {
+	client := newServiceTestClient(t, map[string]string{
+		"/collections/%s": `{"id":33,"name":"Kitchen remodel","app_url":"https://app.hey.com/collections/33","postings":[{"id":91,"kind":"topic","account_id":7,"seen":true,"name":"Contractor quotes"}]}`,
+	})
+
+	collection, err := client.Collections().Get(context.Background(), 33, nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if collection.Id != 33 || collection.Name != "Kitchen remodel" || len(collection.Postings) != 1 {
+		t.Fatalf("unexpected collection: %+v", collection)
+	}
+	posting := collection.Postings[0]
+	if posting.Id != 91 || posting.Kind != "topic" || posting.AccountId != 7 || !posting.Seen || posting.Name != "Contractor quotes" {
+		t.Errorf("unexpected posting: %+v", posting)
+	}
+}
+
+func TestCollectionsService_GetPage(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/collections/33.json" {
+			t.Errorf("path = %q, want /collections/33.json", r.URL.Path)
+		}
+		if page := r.URL.Query().Get("page"); page != "current-cursor" {
+			t.Errorf("page = %q, want current-cursor", page)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("X-Total-Count", "42")
+		w.Header().Set("Link", `<http://`+r.Host+`/collections/33.json?page=next-cursor>; rel="next"`)
+		_, _ = io.WriteString(w, `{"id":33,"name":"Kitchen remodel","postings":[{"id":91,"kind":"topic"}]}`)
+	}))
+	t.Cleanup(server.Close)
+
+	client := NewClient(&Config{BaseURL: server.URL}, &StaticTokenProvider{Token: "test-token"}, WithMaxRetries(0))
+	cursor := "current-cursor"
+	page, err := client.Collections().GetPage(context.Background(), 33, &generated.GetCollectionParams{Page: &cursor})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if page.Collection == nil || page.Collection.Name != "Kitchen remodel" || len(page.Collection.Postings) != 1 || page.TotalCount != 42 || page.NextPage != "next-cursor" {
+		t.Errorf("unexpected collection page: %+v", page)
+	}
+}
+
+func TestCollectionsService_GetNotFound(t *testing.T) {
+	client := newServiceTestClient(t, map[string]string{})
+
+	_, err := client.Collections().Get(context.Background(), 33, nil)
+	if err == nil || AsError(err).Code != CodeNotFound {
+		t.Fatalf("expected not found, got %v", err)
 	}
 }
 

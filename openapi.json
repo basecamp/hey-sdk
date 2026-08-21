@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "HEY",
-    "version": "2026-08-20",
+    "version": "2026-08-21",
     "description": "HEY API",
     "contact": {
       "name": "Basecamp",
@@ -3404,6 +3404,97 @@
       }
     },
     "/collections/{collectionId}": {
+      "get": {
+        "description": "Get a collection and one page of its active, accessible threads",
+        "operationId": "GetCollection",
+        "parameters": [
+          {
+            "name": "collectionId",
+            "in": "path",
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "required": true
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "x-go-type-skip-optional-pointer": false
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "GetCollection 200 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetCollectionResponseContent"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UnauthorizedError 401 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnauthorizedErrorResponseContent"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError 404 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundErrorResponseContent"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "InternalServerError 500 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorResponseContent"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ServiceUnavailableError 503 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceUnavailableErrorResponseContent"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Collections"
+        ],
+        "x-hey-pagination": {
+          "style": "link",
+          "totalCountHeader": "X-Total-Count"
+        },
+        "x-hey-retry": {
+          "maxAttempts": 3,
+          "baseDelayMs": 1000,
+          "backoff": "exponential",
+          "retryOn": [
+            429,
+            503
+          ]
+        }
+      },
       "patch": {
         "description": "Rename a collection or change its summary",
         "operationId": "UpdateCollection",
@@ -9094,6 +9185,49 @@
           }
         }
       },
+      "CollectionWithPostings": {
+        "type": "object",
+        "description": "CollectionWithPostings — collection detail with its threads as posting objects",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "name": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string",
+            "description": "ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)",
+            "format": "date-time",
+            "x-go-type": "time.Time",
+            "x-go-type-import": {
+              "path": "time"
+            }
+          },
+          "updated_at": {
+            "type": "string",
+            "description": "ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)",
+            "format": "date-time",
+            "x-go-type": "time.Time",
+            "x-go-type-import": {
+              "path": "time"
+            }
+          },
+          "app_url": {
+            "type": "string"
+          },
+          "postings": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Posting"
+            }
+          }
+        },
+        "required": [
+          "id"
+        ]
+      },
       "CompleteCalendarTodoResponseContent": {
         "$ref": "#/components/schemas/Recording"
       },
@@ -9898,6 +10032,9 @@
       },
       "GetClearancesResponseContent": {
         "$ref": "#/components/schemas/ClearanceSummary"
+      },
+      "GetCollectionResponseContent": {
+        "$ref": "#/components/schemas/CollectionWithPostings"
       },
       "GetContactNoteResponseContent": {
         "$ref": "#/components/schemas/ContactNote"

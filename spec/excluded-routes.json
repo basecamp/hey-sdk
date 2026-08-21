@@ -1350,11 +1350,6 @@
     "reason": "phase-2: collections"
   },
   {
-    "method": "GET",
-    "path": "/collections/{id}",
-    "reason": "phase-2: collections"
-  },
-  {
     "method": "PUT",
     "path": "/collections/{id}",
     "reason": "phase-2: collections"

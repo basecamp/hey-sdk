@@ -371,6 +371,7 @@
       "pattern": "/collections/{collectionId}",
       "resource": "Collections",
       "operations": {
+        "GET": "GetCollection",
         "PATCH": "UpdateCollection"
       },
       "params": {

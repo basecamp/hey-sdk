@@ -59,7 +59,7 @@ timestamp DateTime
 /// HEY API
 @restJson1
 service HEY {
-    version: "2026-08-20"
+    version: "2026-08-21"
     operations: [
         // Identity (2 MVP)
         GetIdentity
@@ -202,6 +202,7 @@ service HEY {
 
         // Collections
         ListCollections
+        GetCollection
         UpdateCollection
 
         // Stickies
@@ -375,6 +376,17 @@ structure Collection {
 
 list CollectionList {
     member: Collection
+}
+
+/// CollectionWithPostings — collection detail with its threads as posting objects
+structure CollectionWithPostings {
+    @required
+    id: Long
+    name: String
+    created_at: DateTime
+    updated_at: DateTime
+    app_url: String
+    postings: PostingList
 }
 
 /// Folder — email folder
@@ -3225,6 +3237,32 @@ operation ListCollections {
 structure ListCollectionsOutput {
     @required
     collections: CollectionList
+}
+
+/// Get a collection and one page of its active, accessible threads
+@readonly
+@http(method: "GET", uri: "/collections/{collectionId}")
+@tags(["Collections"])
+@heyRetry(maxAttempts: 3, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+@heyPagination(style: "link", totalCountHeader: "X-Total-Count")
+operation GetCollection {
+    input: GetCollectionInput
+    output: GetCollectionOutput
+    errors: [UnauthorizedError, NotFoundError, InternalServerError, ServiceUnavailableError]
+}
+
+structure GetCollectionInput {
+    @httpLabel
+    @required
+    collectionId: Long
+
+    @httpQuery("page")
+    page: String
+}
+
+structure GetCollectionOutput {
+    @required
+    collection: CollectionWithPostings
 }
 
 /// Rename a collection or change its summary

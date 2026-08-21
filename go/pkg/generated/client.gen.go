@@ -308,6 +308,20 @@ type CollectionPayload struct {
 	Summary string `json:"summary,omitempty"`
 }
 
+// CollectionWithPostings CollectionWithPostings — collection detail with its threads as posting objects
+type CollectionWithPostings struct {
+	AppUrl string `json:"app_url,omitempty"`
+
+	// CreatedAt ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)
+	CreatedAt time.Time `json:"created_at,omitempty"`
+	Id        int64     `json:"id"`
+	Name      string    `json:"name,omitempty"`
+	Postings  []Posting `json:"postings,omitempty"`
+
+	// UpdatedAt ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)
+	UpdatedAt time.Time `json:"updated_at,omitempty"`
+}
+
 // CompleteCalendarTodoResponseContent Recording — polymorphic by `type` (CalendarEvent, CalendarTodo, etc.)
 type CompleteCalendarTodoResponseContent = Recording
 
@@ -649,6 +663,9 @@ type GetCalendarRecordingsResponseContent = CalendarRecordingsResponse
 // clearances is only present when the read passes include_clearances. Without it HEY
 // answers the count alone, which is what its own apps sync.
 type GetClearancesResponseContent = ClearanceSummary
+
+// GetCollectionResponseContent CollectionWithPostings — collection detail with its threads as posting objects
+type GetCollectionResponseContent = CollectionWithPostings
 
 // GetContactNoteResponseContent A contact's private note. Empty strings when there is no note.
 type GetContactNoteResponseContent = ContactNote
@@ -1488,6 +1505,11 @@ type ListClipsParams struct {
 	Page *string `form:"page,omitempty" json:"page,omitempty"`
 }
 
+// GetCollectionParams defines parameters for GetCollection.
+type GetCollectionParams struct {
+	Page *string `form:"page,omitempty" json:"page,omitempty"`
+}
+
 // ListContactsParams defines parameters for ListContacts.
 type ListContactsParams struct {
 	Page *string `form:"page,omitempty" json:"page,omitempty"`
@@ -2069,6 +2091,9 @@ type ClientInterface interface {
 
 	// ListCollections request
 	ListCollections(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetCollection request
+	GetCollection(ctx context.Context, collectionId int64, params *GetCollectionParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// UpdateCollectionWithBody request with any body
 	UpdateCollectionWithBody(ctx context.Context, collectionId int64, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -2948,6 +2973,16 @@ func (c *Client) ListCollections(ctx context.Context, reqEditors ...RequestEdito
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
 		return NewListCollectionsRequest(c.Server)
 	}, true, "ListCollections", reqEditors...)
+
+}
+
+// GetCollection is marked as idempotent and will be retried on transient failures.
+
+func (c *Client) GetCollection(ctx context.Context, collectionId int64, params *GetCollectionParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+
+	return c.doWithRetry(ctx, func() (*http.Request, error) {
+		return NewGetCollectionRequest(c.Server, collectionId, params)
+	}, true, "GetCollection", reqEditors...)
 
 }
 
@@ -5942,6 +5977,62 @@ func NewListCollectionsRequest(server string) (*http.Request, error) {
 	return req, nil
 }
 
+// NewGetCollectionRequest generates requests for GetCollection
+func NewGetCollectionRequest(server string, collectionId int64, params *GetCollectionParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "collectionId", runtime.ParamLocationPath, collectionId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/collections/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if params.Page != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "page", runtime.ParamLocationQuery, *params.Page); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewUpdateCollectionRequest calls the generic UpdateCollection builder with application/json body
 func NewUpdateCollectionRequest(server string, collectionId int64, body UpdateCollectionJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
@@ -8681,6 +8772,7 @@ var operationMetadata = map[string]OperationMetadata{
 	"UpdateClearance":            {Idempotent: false, HasSensitiveParams: false},
 	"ListClips":                  {Idempotent: true, HasSensitiveParams: false},
 	"ListCollections":            {Idempotent: true, HasSensitiveParams: false},
+	"GetCollection":              {Idempotent: true, HasSensitiveParams: false},
 	"UpdateCollection":           {Idempotent: false, HasSensitiveParams: false},
 	"ListContacts":               {Idempotent: true, HasSensitiveParams: false},
 	"CreateContact":              {Idempotent: false, HasSensitiveParams: false},
@@ -9748,6 +9840,13 @@ type ClientWithResponsesInterface interface {
 	//
 	// Returns a wrapper object for the known response body format(s).
 	ListCollectionsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListCollectionsResponse, error)
+
+	// GetCollectionWithResponse performs a GET /collections/{collectionId} (the `GetCollection` operationId) request.
+	//
+	// Get a collection and one page of its active, accessible threads
+	//
+	// Returns a wrapper object for the known response body format(s).
+	GetCollectionWithResponse(ctx context.Context, collectionId int64, params *GetCollectionParams, reqEditors ...RequestEditorFn) (*GetCollectionResponse, error)
 
 	// UpdateCollectionWithBodyWithResponse performs a PATCH /collections/{collectionId} (the `UpdateCollection` operationId) request,
 	// with any type of body and a specified content type.
@@ -13129,6 +13228,75 @@ func (r ListCollectionsResponse) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r ListCollectionsResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type GetCollectionResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *GetCollectionResponseContent
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *UnauthorizedErrorResponseContent
+	// JSON404 the response for an HTTP 404 `application/json` response
+	JSON404 *NotFoundErrorResponseContent
+	// JSON500 the response for an HTTP 500 `application/json` response
+	JSON500 *InternalServerErrorResponseContent
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *ServiceUnavailableErrorResponseContent
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r GetCollectionResponse) GetJSON200() *GetCollectionResponseContent {
+	return r.JSON200
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r GetCollectionResponse) GetJSON401() *UnauthorizedErrorResponseContent {
+	return r.JSON401
+}
+
+// GetJSON404 returns the response for an HTTP 404 `application/json` response
+func (r GetCollectionResponse) GetJSON404() *NotFoundErrorResponseContent {
+	return r.JSON404
+}
+
+// GetJSON500 returns the response for an HTTP 500 `application/json` response
+func (r GetCollectionResponse) GetJSON500() *InternalServerErrorResponseContent {
+	return r.JSON500
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r GetCollectionResponse) GetJSON503() *ServiceUnavailableErrorResponseContent {
+	return r.JSON503
+}
+
+// GetBody returns the raw response body bytes
+func (r GetCollectionResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r GetCollectionResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetCollectionResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r GetCollectionResponse) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -17982,6 +18150,19 @@ func (c *ClientWithResponses) ListCollectionsWithResponse(ctx context.Context, r
 	return ParseListCollectionsResponse(rsp)
 }
 
+// GetCollectionWithResponse performs a GET /collections/{collectionId} (the `GetCollection` operationId) request.
+//
+// # Get a collection and one page of its active, accessible threads
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) GetCollectionWithResponse(ctx context.Context, collectionId int64, params *GetCollectionParams, reqEditors ...RequestEditorFn) (*GetCollectionResponse, error) {
+	rsp, err := c.GetCollection(ctx, collectionId, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetCollectionResponse(rsp)
+}
+
 // UpdateCollectionWithBodyWithResponse performs a PATCH /collections/{collectionId} (the `UpdateCollection` operationId) request,
 // with any type of body and a specified content type.
 //
@@ -21284,6 +21465,60 @@ func ParseListCollectionsResponse(rsp *http.Response) (*ListCollectionsResponse,
 			return nil, err
 		}
 		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest InternalServerErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+		var dest ServiceUnavailableErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON503 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetCollectionResponse parses an HTTP response from a GetCollectionWithResponse call
+func ParseGetCollectionResponse(rsp *http.Response) (*GetCollectionResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetCollectionResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest GetCollectionResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest UnauthorizedErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFoundErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
 		var dest InternalServerErrorResponseContent

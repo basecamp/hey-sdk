@@ -2725,6 +2725,57 @@
     ]
   },
   {
+    "name": "GetCollection uses /collections/{collectionId} path",
+    "description": "Verifies that GetCollection constructs the collection detail path and carries the opaque page cursor",
+    "operation": "GetCollection",
+    "method": "GET",
+    "path": "/collections/{collectionId}",
+    "pathParams": {
+      "collectionId": 33
+    },
+    "queryParams": {
+      "page": "next-cursor"
+    },
+    "mockResponses": [
+      {
+        "status": 200,
+        "body": {
+          "id": 33,
+          "name": "Kitchen remodel",
+          "postings": [
+            {
+              "id": 91,
+              "kind": "topic"
+            }
+          ]
+        }
+      }
+    ],
+    "assertions": [
+      {
+        "type": "requestPath",
+        "expected": "/collections/33"
+      },
+      {
+        "type": "requestMethod",
+        "expected": "GET"
+      },
+      {
+        "type": "requestQuery",
+        "expected": {
+          "page": "next-cursor"
+        }
+      },
+      {
+        "type": "noError"
+      }
+    ],
+    "tags": [
+      "path",
+      "collections"
+    ]
+  },
+  {
     "name": "UpdateCollection uses /collections/{collectionId} path",
     "description": "Verifies that UpdateCollection constructs the URL path /collections/{collectionId}",
     "operation": "UpdateCollection",

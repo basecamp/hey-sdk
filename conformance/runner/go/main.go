@@ -647,6 +647,22 @@ func checkAssertion(testName string, a Assertion, s checkState) TestResult {
 			if actual != expected {
 				return fail(testName, "Expected X-Total-Count=%d, got %d", expected, actual)
 			}
+		case "nextPage":
+			if s.sdkResp == nil {
+				return fail(testName, "No HTTP response to check Link header")
+			}
+			next := extractNextLinkURL(s.sdkResp.Header.Get("Link"))
+			parsed, err := url.Parse(next)
+			if err != nil || next == "" {
+				return fail(testName, "Link header does not contain a valid next URL")
+			}
+			expected, ok := a.Expected.(string)
+			if !ok {
+				return fail(testName, "responseMeta.nextPage: expected a string, got %T", a.Expected)
+			}
+			if actual := parsed.Query().Get("page"); actual != expected {
+				return fail(testName, "Expected next page %q, got %q", expected, actual)
+			}
 		default:
 			return fail(testName, "Unknown responseMeta path: %s", a.Path)
 		}
@@ -689,13 +705,13 @@ func checkAssertion(testName string, a Assertion, s checkState) TestResult {
 		if len(s.responseBodyBytes) == 0 {
 			return fail(testName, "Expected responseBody.%s, but no response body captured", fieldPath)
 		}
-		var resultMap map[string]interface{}
+		var responseBody interface{}
 		dec := json.NewDecoder(bytes.NewReader(s.responseBodyBytes))
 		dec.UseNumber()
-		if err := dec.Decode(&resultMap); err != nil {
+		if err := dec.Decode(&responseBody); err != nil {
 			return fail(testName, "Failed to decode response body for responseBody assertion: %v", err)
 		}
-		actual, ok := resultMap[fieldPath]
+		actual, ok := lookupJSONPath(responseBody, fieldPath)
 		if !ok {
 			return fail(testName, "Expected responseBody.%s, but field not present", fieldPath)
 		}
@@ -1291,6 +1307,14 @@ func executeOperation(client *generated.Client, ctx context.Context, tc TestCase
 	// Collections
 	case "ListCollections":
 		return client.ListCollections(ctx)
+	case "GetCollection":
+		collectionId := getInt64Param(tc.PathParams, "collectionId")
+		params := &generated.GetCollectionParams{}
+		if _, ok := tc.QueryParams["page"]; ok {
+			page := getStringParam(tc.QueryParams, "page")
+			params.Page = &page
+		}
+		return client.GetCollection(ctx, collectionId, params)
 	case "UpdateCollection":
 		collectionId := getInt64Param(tc.PathParams, "collectionId")
 		body := generated.UpdateCollectionJSONRequestBody{

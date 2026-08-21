@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/url"
+	"strconv"
 
 	"github.com/basecamp/hey-sdk/go/pkg/generated"
 )
@@ -35,6 +36,13 @@ type UpdateCollectionParams struct {
 	Summary string
 }
 
+// CollectionPage contains one page of a collection and its pagination state.
+type CollectionPage struct {
+	Collection *generated.CollectionWithPostings
+	NextPage   string
+	TotalCount int
+}
+
 // List returns your collections.
 func (s *CollectionsService) List(ctx context.Context) (result *generated.ListCollectionsResponseContent, err error) {
 	op := OperationInfo{
@@ -51,6 +59,40 @@ func (s *CollectionsService) List(ctx context.Context) (result *generated.ListCo
 			return cerr
 		}
 		result = resp.JSON200
+		return nil
+	})
+	return result, err
+}
+
+// Get returns a collection and the active, accessible threads in its requested page.
+func (s *CollectionsService) Get(ctx context.Context, collectionID int64, params *generated.GetCollectionParams) (*generated.CollectionWithPostings, error) {
+	page, err := s.GetPage(ctx, collectionID, params)
+	if err != nil || page == nil {
+		return nil, err
+	}
+	return page.Collection, nil
+}
+
+// GetPage returns a collection page with its next cursor and total posting count.
+func (s *CollectionsService) GetPage(ctx context.Context, collectionID int64, params *generated.GetCollectionParams) (result *CollectionPage, err error) {
+	op := OperationInfo{
+		Service: "Collections", Operation: "GetCollection",
+		ResourceType: "collection", IsMutation: false, ResourceID: collectionID,
+	}
+
+	err = s.client.instrument(ctx, op, func(ctx context.Context) error {
+		resp, rerr := s.client.genClient().GetCollectionWithResponse(ctx, collectionID, params)
+		if rerr != nil {
+			return rerr
+		}
+		if cerr := CheckResponse(resp.HTTPResponse); cerr != nil {
+			return cerr
+		}
+		result = &CollectionPage{Collection: resp.JSON200}
+		if resp.HTTPResponse != nil {
+			result.TotalCount, _ = strconv.Atoi(resp.HTTPResponse.Header.Get("X-Total-Count"))
+			result.NextPage = gearedPageFromLink(resp.HTTPResponse.Header.Get("Link"))
+		}
 		return nil
 	})
 	return result, err

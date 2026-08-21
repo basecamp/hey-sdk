@@ -42,5 +42,45 @@
       {"type": "noError"}
     ],
     "tags": ["pagination", "total-count"]
+  },
+  {
+    "name": "Collection detail contract exposes postings and pagination metadata",
+    "description": "Verifies the collection detail wire response and its Link and X-Total-Count pagination contract",
+    "operation": "GetCollection",
+    "method": "GET",
+    "path": "/collections/{collectionId}",
+    "pathParams": {
+      "collectionId": 33
+    },
+    "mockResponses": [
+      {
+        "status": 200,
+        "headers": {
+          "Link": "</collections/33.json?page=next-cursor>; rel=\"next\"",
+          "X-Total-Count": "42"
+        },
+        "body": {
+          "id": 33,
+          "name": "Kitchen remodel",
+          "postings": [
+            {
+              "id": 91,
+              "kind": "topic"
+            }
+          ]
+        }
+      }
+    ],
+    "assertions": [
+      {"type": "requestCount", "expected": 1},
+      {"type": "statusCode", "expected": 200},
+      {"type": "responseBody", "path": "id", "expected": 33},
+      {"type": "responseBody", "path": "postings.0.id", "expected": 91},
+      {"type": "responseBody", "path": "postings.0.kind", "expected": "topic"},
+      {"type": "responseMeta", "path": "nextPage", "expected": "next-cursor"},
+      {"type": "responseMeta", "path": "totalCount", "expected": 42},
+      {"type": "noError"}
+    ],
+    "tags": ["pagination", "collections", "link-header", "total-count"]
   }
 ]

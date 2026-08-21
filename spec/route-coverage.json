@@ -186,6 +186,11 @@
   },
   {
     "method": "GET",
+    "operationId": "GetCollection",
+    "path": "/collections/{collectionId}"
+  },
+  {
+    "method": "GET",
     "operationId": "GetContact",
     "path": "/contacts/{contactId}"
   },
