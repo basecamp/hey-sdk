@@ -1781,18 +1781,22 @@ func TestFoldersService_GetPage(t *testing.T) {
 
 func TestGearedPageFromLink(t *testing.T) {
 	tests := []struct {
+		name   string
 		header string
 		want   string
 	}{
-		{header: `<https://app.hey.com/folders/12.json?page=next>; rel="next"`, want: "next"},
-		{header: `<https://app.hey.com/folders/12.json?page=previous>; rel="prev", <https://app.hey.com/folders/12.json?page=a,b>; rel="next"`, want: "a,b"},
+		{name: "single next link", header: `<https://app.hey.com/folders/12.json?page=next>; rel="next"`, want: "next"},
+		{name: "next link last", header: `<https://app.hey.com/folders/12.json?page=previous>; rel="prev", <https://app.hey.com/folders/12.json?page=a,b>; rel="next"`, want: "a,b"},
+		{name: "next link first", header: `<https://app.hey.com/folders/12.json?page=next>; rel="next", <https://app.hey.com/folders/12.json?page=previous>; rel="prev"`, want: "next"},
 	}
 	for _, tt := range tests {
-		if got := gearedPageFromLink(tt.header); got != tt.want {
-			t.Errorf("gearedPageFromLink(%q) = %q, want %q", tt.header, got, tt.want)
-		}
+		t.Run(tt.name, func(t *testing.T) {
+			if got := gearedPageFromLink(tt.header); got != tt.want {
+				t.Errorf("gearedPageFromLink(%q) = %q, want %q", tt.header, got, tt.want)
+			}
+		})
 	}
-	for _, header := range []string{"", "not a URL", `<https://app.hey.com/folders/12.json>; rel="next"`} {
+	for _, header := range []string{"", "not a URL", `<https://app.hey.com/folders/12.json>; rel="next"`, `<https://app.hey.com/folders/12.json?page=previous>; rel="prev", <https://app.hey.com/folders/12.json?page=last>; rel="last"`} {
 		if got := gearedPageFromLink(header); got != "" {
 			t.Errorf("gearedPageFromLink(%q) = %q, want empty", header, got)
 		}

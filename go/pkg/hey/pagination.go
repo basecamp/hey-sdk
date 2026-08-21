@@ -52,7 +52,9 @@ func gearedNextLink(header string) string {
 
 func gearedLinkIsNext(params string) bool {
 	for _, param := range strings.Split(params, ";") {
-		parts := strings.SplitN(strings.TrimSpace(strings.Trim(param, ",")), "=", 2)
+		param = strings.TrimSpace(param)
+		param = strings.TrimSpace(strings.TrimSuffix(param, ","))
+		parts := strings.SplitN(param, "=", 2)
 		if len(parts) != 2 || !strings.EqualFold(parts[0], "rel") {
 			continue
 		}
