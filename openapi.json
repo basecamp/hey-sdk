@@ -8452,7 +8452,8 @@
             "x-go-type": "types.Date",
             "x-go-type-import": {
               "path": "github.com/basecamp/hey-sdk/go/pkg/types"
-            }
+            },
+            "x-omitzero": true
           },
           "burner": {
             "type": "boolean"
@@ -8754,7 +8755,8 @@
             "x-go-type": "time.Time",
             "x-go-type-import": {
               "path": "time"
-            }
+            },
+            "x-omitzero": true
           },
           "surprise_me": {
             "type": "boolean"
@@ -8907,7 +8909,8 @@
             "x-go-type": "time.Time",
             "x-go-type-import": {
               "path": "time"
-            }
+            },
+            "x-omitzero": true
           },
           "updated_at": {
             "type": "string",
@@ -8916,7 +8919,8 @@
             "x-go-type": "time.Time",
             "x-go-type-import": {
               "path": "time"
-            }
+            },
+            "x-omitzero": true
           },
           "owned": {
             "type": "boolean"
@@ -8988,7 +8992,8 @@
             "x-go-type-import": {
               "path": "time"
             },
-            "x-go-type-skip-optional-pointer": false
+            "x-go-type-skip-optional-pointer": false,
+            "x-omitzero": true
           }
         },
         "required": [
@@ -9025,7 +9030,8 @@
             "x-go-type": "time.Time",
             "x-go-type-import": {
               "path": "time"
-            }
+            },
+            "x-omitzero": true
           },
           "updated_at": {
             "type": "string",
@@ -9034,7 +9040,8 @@
             "x-go-type": "time.Time",
             "x-go-type-import": {
               "path": "time"
-            }
+            },
+            "x-omitzero": true
           },
           "petitioner": {
             "$ref": "#/components/schemas/Contact"
@@ -9095,7 +9102,8 @@
             "x-go-type": "time.Time",
             "x-go-type-import": {
               "path": "time"
-            }
+            },
+            "x-omitzero": true
           },
           "updated_at": {
             "type": "string",
@@ -9104,7 +9112,8 @@
             "x-go-type": "time.Time",
             "x-go-type-import": {
               "path": "time"
-            }
+            },
+            "x-omitzero": true
           },
           "entry_id": {
             "type": "integer",
@@ -9155,7 +9164,8 @@
             "x-go-type": "time.Time",
             "x-go-type-import": {
               "path": "time"
-            }
+            },
+            "x-omitzero": true
           },
           "updated_at": {
             "type": "string",
@@ -9164,7 +9174,8 @@
             "x-go-type": "time.Time",
             "x-go-type-import": {
               "path": "time"
-            }
+            },
+            "x-omitzero": true
           },
           "app_url": {
             "type": "string"
@@ -9203,7 +9214,8 @@
             "x-go-type": "time.Time",
             "x-go-type-import": {
               "path": "time"
-            }
+            },
+            "x-omitzero": true
           },
           "updated_at": {
             "type": "string",
@@ -9212,7 +9224,8 @@
             "x-go-type": "time.Time",
             "x-go-type-import": {
               "path": "time"
-            }
+            },
+            "x-omitzero": true
           },
           "app_url": {
             "type": "string"
@@ -9280,7 +9293,8 @@
             "x-go-type": "time.Time",
             "x-go-type-import": {
               "path": "time"
-            }
+            },
+            "x-omitzero": true
           },
           "name": {
             "type": "string"
@@ -9330,7 +9344,8 @@
             "x-go-type": "time.Time",
             "x-go-type-import": {
               "path": "time"
-            }
+            },
+            "x-omitzero": true
           },
           "name": {
             "type": "string"
@@ -9626,7 +9641,8 @@
             "x-go-type": "time.Time",
             "x-go-type-import": {
               "path": "time"
-            }
+            },
+            "x-omitzero": true
           }
         },
         "required": [
@@ -9739,7 +9755,8 @@
             "x-go-type": "time.Time",
             "x-go-type-import": {
               "path": "time"
-            }
+            },
+            "x-omitzero": true
           },
           "creator": {
             "$ref": "#/components/schemas/Contact"
@@ -9773,7 +9790,8 @@
             "x-go-type": "time.Time",
             "x-go-type-import": {
               "path": "time"
-            }
+            },
+            "x-omitzero": true
           }
         },
         "required": [
@@ -9795,7 +9813,8 @@
             "x-go-type": "time.Time",
             "x-go-type-import": {
               "path": "time"
-            }
+            },
+            "x-omitzero": true
           },
           "updated_at": {
             "type": "string",
@@ -9804,7 +9823,8 @@
             "x-go-type": "time.Time",
             "x-go-type-import": {
               "path": "time"
-            }
+            },
+            "x-omitzero": true
           },
           "creator": {
             "$ref": "#/components/schemas/Contact"
@@ -9905,7 +9925,8 @@
             "x-go-type": "time.Time",
             "x-go-type-import": {
               "path": "time"
-            }
+            },
+            "x-omitzero": true
           },
           "updated_at": {
             "type": "string",
@@ -9914,7 +9935,8 @@
             "x-go-type": "time.Time",
             "x-go-type-import": {
               "path": "time"
-            }
+            },
+            "x-omitzero": true
           },
           "app_url": {
             "type": "string"
@@ -9956,7 +9978,8 @@
             "x-go-type": "time.Time",
             "x-go-type-import": {
               "path": "time"
-            }
+            },
+            "x-omitzero": true
           },
           "updated_at": {
             "type": "string",
@@ -9965,7 +9988,8 @@
             "x-go-type": "time.Time",
             "x-go-type-import": {
               "path": "time"
-            }
+            },
+            "x-omitzero": true
           },
           "app_url": {
             "type": "string"
@@ -10316,7 +10340,8 @@
             "x-go-type": "time.Time",
             "x-go-type-import": {
               "path": "time"
-            }
+            },
+            "x-omitzero": true
           },
           "updated_at": {
             "type": "string",
@@ -10325,7 +10350,8 @@
             "x-go-type": "time.Time",
             "x-go-type-import": {
               "path": "time"
-            }
+            },
+            "x-omitzero": true
           },
           "url": {
             "type": "string"
@@ -10358,7 +10384,8 @@
             "x-go-type": "time.Time",
             "x-go-type-import": {
               "path": "time"
-            }
+            },
+            "x-omitzero": true
           },
           "posting": {
             "$ref": "#/components/schemas/MessagePostingContext"
@@ -10615,7 +10642,8 @@
             "x-go-type": "time.Time",
             "x-go-type-import": {
               "path": "time"
-            }
+            },
+            "x-omitzero": true
           },
           "updated_at": {
             "type": "string",
@@ -10624,7 +10652,8 @@
             "x-go-type": "time.Time",
             "x-go-type-import": {
               "path": "time"
-            }
+            },
+            "x-omitzero": true
           },
           "observed_at": {
             "type": "string",
@@ -10633,7 +10662,8 @@
             "x-go-type": "time.Time",
             "x-go-type-import": {
               "path": "time"
-            }
+            },
+            "x-omitzero": true
           },
           "active_at": {
             "type": "string",
@@ -10642,7 +10672,8 @@
             "x-go-type": "time.Time",
             "x-go-type-import": {
               "path": "time"
-            }
+            },
+            "x-omitzero": true
           },
           "box_id": {
             "type": "integer",
@@ -10828,7 +10859,8 @@
             "x-go-type": "time.Time",
             "x-go-type-import": {
               "path": "time"
-            }
+            },
+            "x-omitzero": true
           },
           "ends_at": {
             "type": "string",
@@ -10837,7 +10869,8 @@
             "x-go-type": "time.Time",
             "x-go-type-import": {
               "path": "time"
-            }
+            },
+            "x-omitzero": true
           },
           "created_at": {
             "type": "string",
@@ -10846,7 +10879,8 @@
             "x-go-type": "time.Time",
             "x-go-type-import": {
               "path": "time"
-            }
+            },
+            "x-omitzero": true
           },
           "updated_at": {
             "type": "string",
@@ -10855,7 +10889,8 @@
             "x-go-type": "time.Time",
             "x-go-type-import": {
               "path": "time"
-            }
+            },
+            "x-omitzero": true
           },
           "type": {
             "type": "string",
@@ -10886,7 +10921,8 @@
             "x-go-type": "time.Time",
             "x-go-type-import": {
               "path": "time"
-            }
+            },
+            "x-omitzero": true
           },
           "highlighted": {
             "type": "boolean"
@@ -10976,7 +11012,8 @@
             "x-go-type": "time.Time",
             "x-go-type-import": {
               "path": "time"
-            }
+            },
+            "x-omitzero": true
           },
           "notes": {
             "type": "string"
@@ -11084,7 +11121,8 @@
             "x-go-type": "time.Time",
             "x-go-type-import": {
               "path": "time"
-            }
+            },
+            "x-omitzero": true
           },
           "created_at": {
             "type": "string",
@@ -11093,7 +11131,8 @@
             "x-go-type": "time.Time",
             "x-go-type-import": {
               "path": "time"
-            }
+            },
+            "x-omitzero": true
           },
           "updated_at": {
             "type": "string",
@@ -11102,7 +11141,8 @@
             "x-go-type": "time.Time",
             "x-go-type-import": {
               "path": "time"
-            }
+            },
+            "x-omitzero": true
           },
           "label": {
             "type": "string"
@@ -11240,7 +11280,8 @@
             "x-go-type": "time.Time",
             "x-go-type-import": {
               "path": "time"
-            }
+            },
+            "x-omitzero": true
           },
           "updated_at": {
             "type": "string",
@@ -11249,7 +11290,8 @@
             "x-go-type": "time.Time",
             "x-go-type-import": {
               "path": "time"
-            }
+            },
+            "x-omitzero": true
           }
         },
         "required": [
@@ -11280,7 +11322,8 @@
             "x-go-type": "time.Time",
             "x-go-type-import": {
               "path": "time"
-            }
+            },
+            "x-omitzero": true
           },
           "updated_at": {
             "type": "string",
@@ -11289,7 +11332,8 @@
             "x-go-type": "time.Time",
             "x-go-type-import": {
               "path": "time"
-            }
+            },
+            "x-omitzero": true
           }
         },
         "required": [
@@ -11336,7 +11380,8 @@
             "x-go-type": "time.Time",
             "x-go-type-import": {
               "path": "time"
-            }
+            },
+            "x-omitzero": true
           },
           "updated_at": {
             "type": "string",
@@ -11345,7 +11390,8 @@
             "x-go-type": "time.Time",
             "x-go-type-import": {
               "path": "time"
-            }
+            },
+            "x-omitzero": true
           }
         },
         "required": [
@@ -11401,7 +11447,8 @@
             "x-go-type": "time.Time",
             "x-go-type-import": {
               "path": "time"
-            }
+            },
+            "x-omitzero": true
           },
           "updated_at": {
             "type": "string",
@@ -11410,7 +11457,8 @@
             "x-go-type": "time.Time",
             "x-go-type-import": {
               "path": "time"
-            }
+            },
+            "x-omitzero": true
           },
           "active_at": {
             "type": "string",
@@ -11419,7 +11467,8 @@
             "x-go-type": "time.Time",
             "x-go-type-import": {
               "path": "time"
-            }
+            },
+            "x-omitzero": true
           },
           "status": {
             "type": "string"
@@ -11666,7 +11715,8 @@
             "x-go-type-import": {
               "path": "time"
             },
-            "x-go-type-skip-optional-pointer": false
+            "x-go-type-skip-optional-pointer": false,
+            "x-omitzero": true
           },
           "ends_at": {
             "type": "string",
@@ -11676,7 +11726,8 @@
             "x-go-type-import": {
               "path": "time"
             },
-            "x-go-type-skip-optional-pointer": false
+            "x-go-type-skip-optional-pointer": false,
+            "x-omitzero": true
           }
         }
       },
@@ -11754,7 +11805,8 @@
             "x-go-type": "time.Time",
             "x-go-type-import": {
               "path": "time"
-            }
+            },
+            "x-omitzero": true
           },
           "updated_at": {
             "type": "string",
@@ -11763,7 +11815,8 @@
             "x-go-type": "time.Time",
             "x-go-type-import": {
               "path": "time"
-            }
+            },
+            "x-omitzero": true
           },
           "app_url": {
             "type": "string"

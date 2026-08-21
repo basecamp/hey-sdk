@@ -34,7 +34,7 @@ type Account struct {
 	Readonly    bool       `json:"readonly,omitempty"`
 	Status      string     `json:"status,omitempty"`
 	Trial       bool       `json:"trial,omitempty"`
-	TrialEndsOn types.Date `json:"trial_ends_on,omitempty"`
+	TrialEndsOn types.Date `json:"trial_ends_on,omitempty,omitzero"`
 }
 
 // AddPostingsToBoxGroupRequestContent defines model for AddPostingsToBoxGroupRequestContent.
@@ -135,7 +135,7 @@ type BoxShowResponse struct {
 // BubbleUpSchedule BubbleUpSchedule
 type BubbleUpSchedule struct {
 	// BubbleUpAt ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)
-	BubbleUpAt time.Time `json:"bubble_up_at,omitempty"`
+	BubbleUpAt time.Time `json:"bubble_up_at,omitempty,omitzero"`
 	SurpriseMe bool      `json:"surprise_me,omitempty"`
 }
 
@@ -192,7 +192,7 @@ type Calendar struct {
 	Color string `json:"color,omitempty"`
 
 	// CreatedAt ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)
-	CreatedAt         time.Time `json:"created_at,omitempty"`
+	CreatedAt         time.Time `json:"created_at,omitempty,omitzero"`
 	External          bool      `json:"external,omitempty"`
 	Id                int64     `json:"id"`
 	Kind              string    `json:"kind,omitempty"`
@@ -204,7 +204,7 @@ type Calendar struct {
 	RecordingsUrl     string    `json:"recordings_url,omitempty"`
 
 	// UpdatedAt ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)
-	UpdatedAt time.Time `json:"updated_at,omitempty"`
+	UpdatedAt time.Time `json:"updated_at,omitempty,omitzero"`
 	Url       string    `json:"url,omitempty"`
 }
 
@@ -220,7 +220,7 @@ type CalendarRecordingsResponse map[string][]Recording
 // CalendarTodoPayload defines model for CalendarTodoPayload.
 type CalendarTodoPayload struct {
 	// StartsAt Date string (YYYY-MM-DD). Defaults to today if omitted.
-	StartsAt *time.Time `json:"starts_at,omitempty"`
+	StartsAt *time.Time `json:"starts_at,omitempty,omitzero"`
 	Title    string     `json:"title"`
 }
 
@@ -237,7 +237,7 @@ type CalendarWithRecordingChangesUrl struct {
 // contact reads answer a clearance with nothing but its id and status.
 type Clearance struct {
 	// CreatedAt ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)
-	CreatedAt time.Time `json:"created_at,omitempty"`
+	CreatedAt time.Time `json:"created_at,omitempty,omitzero"`
 	Id        int64     `json:"id"`
 
 	// MostRecentEntry Entry — a message entry within a topic
@@ -248,7 +248,7 @@ type Clearance struct {
 	Status     string  `json:"status,omitempty"`
 
 	// UpdatedAt ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)
-	UpdatedAt time.Time `json:"updated_at,omitempty"`
+	UpdatedAt time.Time `json:"updated_at,omitempty,omitzero"`
 }
 
 // ClearanceListResponse ClearanceListResponse — wire format: {clearances: [...]}
@@ -271,7 +271,7 @@ type Clip struct {
 	Content string `json:"content,omitempty"`
 
 	// CreatedAt ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)
-	CreatedAt time.Time `json:"created_at,omitempty"`
+	CreatedAt time.Time `json:"created_at,omitempty,omitzero"`
 	EntryId   int64     `json:"entry_id,omitempty"`
 	Id        int64     `json:"id"`
 
@@ -279,7 +279,7 @@ type Clip struct {
 	Topic ClipTopic `json:"topic,omitempty"`
 
 	// UpdatedAt ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)
-	UpdatedAt time.Time `json:"updated_at,omitempty"`
+	UpdatedAt time.Time `json:"updated_at,omitempty,omitzero"`
 }
 
 // ClipTopic The topic a clip was taken from
@@ -294,12 +294,12 @@ type Collection struct {
 	AppUrl string `json:"app_url,omitempty"`
 
 	// CreatedAt ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)
-	CreatedAt time.Time `json:"created_at,omitempty"`
+	CreatedAt time.Time `json:"created_at,omitempty,omitzero"`
 	Id        int64     `json:"id"`
 	Name      string    `json:"name,omitempty"`
 
 	// UpdatedAt ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)
-	UpdatedAt time.Time `json:"updated_at,omitempty"`
+	UpdatedAt time.Time `json:"updated_at,omitempty,omitzero"`
 }
 
 // CollectionPayload defines model for CollectionPayload.
@@ -313,13 +313,13 @@ type CollectionWithPostings struct {
 	AppUrl string `json:"app_url,omitempty"`
 
 	// CreatedAt ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)
-	CreatedAt time.Time `json:"created_at,omitempty"`
+	CreatedAt time.Time `json:"created_at,omitempty,omitzero"`
 	Id        int64     `json:"id"`
 	Name      string    `json:"name,omitempty"`
 	Postings  []Posting `json:"postings,omitempty"`
 
 	// UpdatedAt ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)
-	UpdatedAt time.Time `json:"updated_at,omitempty"`
+	UpdatedAt time.Time `json:"updated_at,omitempty,omitzero"`
 }
 
 // CompleteCalendarTodoResponseContent Recording — polymorphic by `type` (CalendarEvent, CalendarTodo, etc.)
@@ -355,7 +355,7 @@ type Contact struct {
 	NameTag               string `json:"name_tag,omitempty"`
 
 	// UpdatedAt ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)
-	UpdatedAt time.Time `json:"updated_at,omitempty"`
+	UpdatedAt time.Time `json:"updated_at,omitempty,omitzero"`
 }
 
 // ContactDetail ContactDetail — extended contact with additional show fields
@@ -382,7 +382,7 @@ type ContactDetail struct {
 	NameTag      string `json:"name_tag,omitempty"`
 
 	// UpdatedAt ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)
-	UpdatedAt time.Time `json:"updated_at,omitempty"`
+	UpdatedAt time.Time `json:"updated_at,omitempty,omitzero"`
 }
 
 // ContactNote A contact's private note. Empty strings when there is no note.
@@ -495,7 +495,7 @@ type DeletedPosting struct {
 	BoxId int64 `json:"box_id,omitempty"`
 
 	// DeletedAt ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)
-	DeletedAt time.Time `json:"deleted_at,omitempty"`
+	DeletedAt time.Time `json:"deleted_at,omitempty,omitzero"`
 	Id        int64     `json:"id"`
 }
 
@@ -543,12 +543,12 @@ type DraftMessage struct {
 	Id      int64   `json:"id"`
 
 	// ScheduledDeliveryAt ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)
-	ScheduledDeliveryAt time.Time `json:"scheduled_delivery_at,omitempty"`
+	ScheduledDeliveryAt time.Time `json:"scheduled_delivery_at,omitempty,omitzero"`
 	Subject             string    `json:"subject,omitempty"`
 	Summary             string    `json:"summary,omitempty"`
 
 	// UpdatedAt ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)
-	UpdatedAt time.Time `json:"updated_at,omitempty"`
+	UpdatedAt time.Time `json:"updated_at,omitempty,omitzero"`
 	Url       string    `json:"url,omitempty"`
 }
 
@@ -558,7 +558,7 @@ type Entry struct {
 	AppUrl                string `json:"app_url,omitempty"`
 
 	// CreatedAt ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)
-	CreatedAt time.Time `json:"created_at,omitempty"`
+	CreatedAt time.Time `json:"created_at,omitempty,omitzero"`
 
 	// Creator Contact — the identity of someone in HEY
 	Creator Contact `json:"creator,omitempty"`
@@ -569,7 +569,7 @@ type Entry struct {
 	TopicId int64   `json:"topic_id,omitempty"`
 
 	// UpdatedAt ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)
-	UpdatedAt time.Time `json:"updated_at,omitempty"`
+	UpdatedAt time.Time `json:"updated_at,omitempty,omitzero"`
 }
 
 // Extenzion Extenzion — external account extension
@@ -597,12 +597,12 @@ type Folder struct {
 	AppUrl string `json:"app_url,omitempty"`
 
 	// CreatedAt ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)
-	CreatedAt time.Time `json:"created_at,omitempty"`
+	CreatedAt time.Time `json:"created_at,omitempty,omitzero"`
 	Id        int64     `json:"id"`
 	Name      string    `json:"name,omitempty"`
 
 	// UpdatedAt ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)
-	UpdatedAt time.Time `json:"updated_at,omitempty"`
+	UpdatedAt time.Time `json:"updated_at,omitempty,omitzero"`
 }
 
 // FolderPayload defines model for FolderPayload.
@@ -616,13 +616,13 @@ type FolderWithPostings struct {
 	AppUrl string `json:"app_url,omitempty"`
 
 	// CreatedAt ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)
-	CreatedAt time.Time `json:"created_at,omitempty"`
+	CreatedAt time.Time `json:"created_at,omitempty,omitzero"`
 	Id        int64     `json:"id"`
 	Name      string    `json:"name,omitempty"`
 	Postings  []Posting `json:"postings,omitempty"`
 
 	// UpdatedAt ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)
-	UpdatedAt time.Time `json:"updated_at,omitempty"`
+	UpdatedAt time.Time `json:"updated_at,omitempty,omitzero"`
 }
 
 // ForbiddenErrorResponseContent defines model for ForbiddenErrorResponseContent.
@@ -834,7 +834,7 @@ type Message struct {
 	Content         string          `json:"content,omitempty"`
 
 	// CreatedAt ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)
-	CreatedAt time.Time `json:"created_at,omitempty"`
+	CreatedAt time.Time `json:"created_at,omitempty,omitzero"`
 
 	// Creator Contact — the identity of someone in HEY
 	Creator Contact `json:"creator,omitempty"`
@@ -845,7 +845,7 @@ type Message struct {
 	Posting MessagePostingContext `json:"posting,omitempty"`
 
 	// ScheduledDeliveryAt ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)
-	ScheduledDeliveryAt time.Time `json:"scheduled_delivery_at,omitempty"`
+	ScheduledDeliveryAt time.Time `json:"scheduled_delivery_at,omitempty,omitzero"`
 
 	// Sender Contact — the identity of someone in HEY
 	Sender                Contact `json:"sender,omitempty"`
@@ -853,7 +853,7 @@ type Message struct {
 	Subject               string  `json:"subject,omitempty"`
 
 	// UpdatedAt ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)
-	UpdatedAt time.Time `json:"updated_at,omitempty"`
+	UpdatedAt time.Time `json:"updated_at,omitempty,omitzero"`
 	Url       string    `json:"url,omitempty"`
 }
 
@@ -967,7 +967,7 @@ type Posting struct {
 	AccountId int64 `json:"account_id,omitempty"`
 
 	// ActiveAt ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)
-	ActiveAt              time.Time `json:"active_at,omitempty"`
+	ActiveAt              time.Time `json:"active_at,omitempty,omitzero"`
 	AddressedContacts     []Contact `json:"addressed_contacts,omitempty"`
 	AlternativeSenderName string    `json:"alternative_sender_name,omitempty"`
 	AppBundleUrl          string    `json:"app_bundle_url,omitempty"`
@@ -985,7 +985,7 @@ type Posting struct {
 	Contacts          []Contact        `json:"contacts,omitempty"`
 
 	// CreatedAt ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)
-	CreatedAt time.Time `json:"created_at,omitempty"`
+	CreatedAt time.Time `json:"created_at,omitempty,omitzero"`
 
 	// Creator Contact — the identity of someone in HEY
 	Creator                 Contact     `json:"creator,omitempty"`
@@ -1005,13 +1005,13 @@ type Posting struct {
 	Note PostingNote `json:"note,omitempty"`
 
 	// ObservedAt ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)
-	ObservedAt           time.Time `json:"observed_at,omitempty"`
+	ObservedAt           time.Time `json:"observed_at,omitempty,omitzero"`
 	PreapprovedClearance bool      `json:"preapproved_clearance,omitempty"`
 	Seen                 bool      `json:"seen,omitempty"`
 	Summary              string    `json:"summary,omitempty"`
 
 	// UpdatedAt ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)
-	UpdatedAt         time.Time  `json:"updated_at,omitempty"`
+	UpdatedAt         time.Time  `json:"updated_at,omitempty,omitzero"`
 	VisibleEntryCount int32      `json:"visible_entry_count,omitempty"`
 	Workflows         []Workflow `json:"workflows,omitempty"`
 }
@@ -1038,7 +1038,7 @@ type Recording struct {
 	Color    string   `json:"color,omitempty"`
 
 	// CompletedAt ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)
-	CompletedAt time.Time `json:"completed_at,omitempty"`
+	CompletedAt time.Time `json:"completed_at,omitempty,omitzero"`
 	Content     string    `json:"content,omitempty"`
 
 	// ContentHtml Full rich-text HTML of a journal entry (GetJournalEntry / UpdateJournalEntry only;
@@ -1046,13 +1046,13 @@ type Recording struct {
 	ContentHtml string `json:"content_html,omitempty"`
 
 	// CreatedAt ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)
-	CreatedAt   time.Time `json:"created_at,omitempty"`
+	CreatedAt   time.Time `json:"created_at,omitempty,omitzero"`
 	Days        []int32   `json:"days,omitempty"`
 	Description string    `json:"description,omitempty"`
 	EditUrl     string    `json:"edit_url,omitempty"`
 
 	// EndsAt ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)
-	EndsAt         time.Time `json:"ends_at,omitempty"`
+	EndsAt         time.Time `json:"ends_at,omitempty,omitzero"`
 	EndsAtTimeZone string    `json:"ends_at_time_zone,omitempty"`
 	Highlighted    bool      `json:"highlighted,omitempty"`
 	Icon           string    `json:"icon,omitempty"`
@@ -1084,11 +1084,11 @@ type Recording struct {
 	RemindersLabel     string             `json:"reminders_label,omitempty"`
 
 	// StartsAt ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)
-	StartsAt         time.Time `json:"starts_at,omitempty"`
+	StartsAt         time.Time `json:"starts_at,omitempty,omitzero"`
 	StartsAtTimeZone string    `json:"starts_at_time_zone,omitempty"`
 
 	// StoppedAt ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)
-	StoppedAt time.Time `json:"stopped_at,omitempty"`
+	StoppedAt time.Time `json:"stopped_at,omitempty,omitzero"`
 	Summary   string    `json:"summary,omitempty"`
 	Title     string    `json:"title,omitempty"`
 
@@ -1096,7 +1096,7 @@ type Recording struct {
 	Type string `json:"type"`
 
 	// UpdatedAt ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)
-	UpdatedAt time.Time `json:"updated_at,omitempty"`
+	UpdatedAt time.Time `json:"updated_at,omitempty,omitzero"`
 	Url       string    `json:"url,omitempty"`
 }
 
@@ -1110,7 +1110,7 @@ type RecurrenceSchedule struct {
 // Reminder Reminder
 type Reminder struct {
 	// CreatedAt ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)
-	CreatedAt       time.Time `json:"created_at,omitempty"`
+	CreatedAt       time.Time `json:"created_at,omitempty,omitzero"`
 	DefaultDuration bool      `json:"default_duration,omitempty"`
 	Delivered       bool      `json:"delivered,omitempty"`
 	Duration        int32     `json:"duration,omitempty"`
@@ -1119,11 +1119,11 @@ type Reminder struct {
 	Label           string    `json:"label,omitempty"`
 
 	// RemindAt ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)
-	RemindAt time.Time `json:"remind_at,omitempty"`
+	RemindAt time.Time `json:"remind_at,omitempty,omitzero"`
 	Summary  string    `json:"summary,omitempty"`
 
 	// UpdatedAt ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)
-	UpdatedAt time.Time `json:"updated_at,omitempty"`
+	UpdatedAt time.Time `json:"updated_at,omitempty,omitzero"`
 }
 
 // ReplyMessagePayload defines model for ReplyMessagePayload.
@@ -1177,12 +1177,12 @@ type Snippet struct {
 	ContentHtml string `json:"content_html,omitempty"`
 
 	// CreatedAt ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)
-	CreatedAt time.Time `json:"created_at,omitempty"`
+	CreatedAt time.Time `json:"created_at,omitempty,omitzero"`
 	Id        int64     `json:"id"`
 	Name      string    `json:"name,omitempty"`
 
 	// UpdatedAt ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)
-	UpdatedAt time.Time `json:"updated_at,omitempty"`
+	UpdatedAt time.Time `json:"updated_at,omitempty,omitzero"`
 }
 
 // StartTimeTrackResponseContent Recording — polymorphic by `type` (CalendarEvent, CalendarTodo, etc.)
@@ -1193,12 +1193,12 @@ type Sticky struct {
 	Body string `json:"body,omitempty"`
 
 	// CreatedAt ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)
-	CreatedAt time.Time `json:"created_at,omitempty"`
+	CreatedAt time.Time `json:"created_at,omitempty,omitzero"`
 	Id        int64     `json:"id"`
 	Size      string    `json:"size,omitempty"`
 
 	// UpdatedAt ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)
-	UpdatedAt time.Time `json:"updated_at,omitempty"`
+	UpdatedAt time.Time `json:"updated_at,omitempty,omitzero"`
 }
 
 // StickyPayload defines model for StickyPayload.
@@ -1215,12 +1215,12 @@ type StickyRequestContent struct {
 // TimeTrackCategory defines model for TimeTrackCategory.
 type TimeTrackCategory struct {
 	// CreatedAt ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)
-	CreatedAt time.Time `json:"created_at,omitempty"`
+	CreatedAt time.Time `json:"created_at,omitempty,omitzero"`
 	Id        int64     `json:"id"`
 	Title     string    `json:"title,omitempty"`
 
 	// UpdatedAt ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)
-	UpdatedAt time.Time `json:"updated_at,omitempty"`
+	UpdatedAt time.Time `json:"updated_at,omitempty,omitzero"`
 }
 
 // TimeTrackRequestContent defines model for TimeTrackRequestContent.
@@ -1236,13 +1236,13 @@ type Topic struct {
 	AccountId int64 `json:"account_id,omitempty"`
 
 	// ActiveAt ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)
-	ActiveAt    time.Time    `json:"active_at,omitempty"`
+	ActiveAt    time.Time    `json:"active_at,omitempty,omitzero"`
 	AppUrl      string       `json:"app_url,omitempty"`
 	Collections []Collection `json:"collections,omitempty"`
 	Contacts    []Contact    `json:"contacts,omitempty"`
 
 	// CreatedAt ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)
-	CreatedAt time.Time `json:"created_at,omitempty"`
+	CreatedAt time.Time `json:"created_at,omitempty,omitzero"`
 
 	// Creator Contact — the identity of someone in HEY
 	Creator Contact `json:"creator,omitempty"`
@@ -1260,7 +1260,7 @@ type Topic struct {
 	Status      string `json:"status,omitempty"`
 
 	// UpdatedAt ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)
-	UpdatedAt time.Time `json:"updated_at,omitempty"`
+	UpdatedAt time.Time `json:"updated_at,omitempty,omitzero"`
 }
 
 // TopicListResponse TopicListResponse — wrapped topic list (sent, spam, trash, everything)
@@ -1365,11 +1365,11 @@ type UpdateTimeTrackPayload struct {
 	Category string `json:"category,omitempty"`
 
 	// EndsAt ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)
-	EndsAt *time.Time `json:"ends_at,omitempty"`
+	EndsAt *time.Time `json:"ends_at,omitempty,omitzero"`
 	Notes  string     `json:"notes,omitempty"`
 
 	// StartsAt ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)
-	StartsAt *time.Time `json:"starts_at,omitempty"`
+	StartsAt *time.Time `json:"starts_at,omitempty,omitzero"`
 	Title    string     `json:"title,omitempty"`
 }
 
@@ -1403,7 +1403,7 @@ type Workflow struct {
 	AppUrl string `json:"app_url,omitempty"`
 
 	// CreatedAt ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)
-	CreatedAt time.Time `json:"created_at,omitempty"`
+	CreatedAt time.Time `json:"created_at,omitempty,omitzero"`
 	Id        int64     `json:"id"`
 	Name      string    `json:"name,omitempty"`
 
@@ -1411,7 +1411,7 @@ type Workflow struct {
 	Stages []WorkflowStage `json:"stages,omitempty"`
 
 	// UpdatedAt ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)
-	UpdatedAt time.Time `json:"updated_at,omitempty"`
+	UpdatedAt time.Time `json:"updated_at,omitempty,omitzero"`
 }
 
 // WorkflowStage defines model for WorkflowStage.
