@@ -151,6 +151,12 @@ func runTest(tc TestCase) TestResult {
 	// Create mock server that serves responses in sequence
 	responseIndex := 0
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// The conformance server serves API operation routes; HEY has no root operation.
+		if r.URL.Path == "/" {
+			http.NotFound(w, r)
+			return
+		}
+
 		mu.Lock()
 		requestCount++
 		requestTimes = append(requestTimes, time.Now())
