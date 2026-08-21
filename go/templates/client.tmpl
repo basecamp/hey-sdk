@@ -10,11 +10,12 @@ type HttpRequestDoer interface {
 
 {{$clientTypeName := opts.OutputOptions.ClientTypeName -}}
 
-// RetryConfig configures retry behavior for idempotent operations.
+// RetryConfig configures client-level retry overrides for idempotent operations.
+// Retryable status codes always come from each operation's API contract.
 type RetryConfig struct {
-	// MaxRetries is the maximum number of retry attempts (default: 3)
+	// MaxRetries overrides the operation's maximum attempts when explicitly configured.
 	MaxRetries int
-	// BaseDelay is the initial delay between retries (default: 1s)
+	// BaseDelay overrides the operation's initial delay when explicitly configured.
 	BaseDelay time.Duration
 	// MaxDelay is the maximum delay between retries (default: 30s)
 	MaxDelay time.Duration
@@ -30,6 +31,32 @@ func DefaultRetryConfig() RetryConfig {
 		MaxDelay:   30 * time.Second,
 		Multiplier: 2.0,
 	}
+}
+
+type retryPolicy struct {
+	MaxAttempts       int
+	BaseDelay         time.Duration
+	Backoff           string
+	RetryableStatuses []int
+}
+
+var operationRetryPolicies = map[string]retryPolicy{
+{{range . -}}
+{{$opid := .OperationId -}}
+{{if .Spec -}}
+{{if .Spec.Extensions -}}
+{{$retry := index .Spec.Extensions "x-hey-retry" -}}
+{{if $retry}}
+	"{{$opid}}": {MaxAttempts: {{index $retry "maxAttempts"}}, BaseDelay: time.Duration({{index $retry "baseDelayMs"}}) * time.Millisecond, Backoff: {{printf "%q" (index $retry "backoff")}}, RetryableStatuses: []int{ {{range index $retry "retryOn"}}{{.}}, {{end}} }},
+{{end -}}
+{{end -}}
+{{end -}}
+{{end}}
+}
+
+type retryOverrides struct {
+	MaxRetries bool
+	BaseDelay  bool
 }
 
 // {{ $clientTypeName }} which conforms to the OpenAPI3 specification for this service.
@@ -50,6 +77,7 @@ type {{ $clientTypeName }} struct {
 
 	// RetryConfig for idempotent operations
 	RetryConfig RetryConfig
+	retryOverrides retryOverrides
 
 	// Logger for debug output (optional)
 	Logger *slog.Logger
@@ -100,10 +128,31 @@ func WithRequestEditorFn(fn RequestEditorFn) ClientOption {
 	}
 }
 
-// WithRetryConfig allows setting custom retry configuration for idempotent operations.
+// WithRetryConfig overrides operation-specific attempt and delay defaults.
+// Retryable status codes remain operation-defined.
 func WithRetryConfig(cfg RetryConfig) ClientOption {
 	return func(c *{{ $clientTypeName }}) error {
 		c.RetryConfig = cfg
+		c.retryOverrides.MaxRetries = true
+		c.retryOverrides.BaseDelay = true
+		return nil
+	}
+}
+
+// WithMaxRetries overrides the maximum retries for idempotent operations.
+func WithMaxRetries(maxRetries int) ClientOption {
+	return func(c *{{ $clientTypeName }}) error {
+		c.RetryConfig.MaxRetries = maxRetries
+		c.retryOverrides.MaxRetries = true
+		return nil
+	}
+}
+
+// WithBaseDelay overrides the initial delay for idempotent operations.
+func WithBaseDelay(baseDelay time.Duration) ClientOption {
+	return func(c *{{ $clientTypeName }}) error {
+		c.RetryConfig.BaseDelay = baseDelay
+		c.retryOverrides.BaseDelay = true
 		return nil
 	}
 }
@@ -116,30 +165,58 @@ func WithLogger(logger *slog.Logger) ClientOption {
 	}
 }
 
-// isRetryableStatus returns true if the HTTP status code indicates a retryable error.
-func isRetryableStatus(statusCode int) bool {
-	switch statusCode {
-	case http.StatusTooManyRequests,       // 429
-		http.StatusInternalServerError,     // 500
-		http.StatusBadGateway,              // 502
-		http.StatusServiceUnavailable,      // 503
-		http.StatusGatewayTimeout:          // 504
-		return true
-	default:
-		return false
+func (p retryPolicy) retriesStatus(statusCode int) bool {
+	for _, retryableStatus := range p.RetryableStatuses {
+		if statusCode == retryableStatus {
+			return true
+		}
 	}
+	return false
 }
 
-// doWithRetry executes a request with retry logic for idempotent operations.
+func (p retryPolicy) nextDelay(current, maxDelay time.Duration, multiplier float64) time.Duration {
+	switch p.Backoff {
+	case "constant":
+		current = p.BaseDelay
+	case "linear":
+		current += p.BaseDelay
+	default:
+		current = time.Duration(float64(current) * multiplier)
+	}
+	if current > maxDelay {
+		return maxDelay
+	}
+	return current
+}
+
+func (c *{{ $clientTypeName }}) retryPolicy(operationId string) retryPolicy {
+	policy, ok := operationRetryPolicies[operationId]
+	if !ok {
+		policy = retryPolicy{MaxAttempts: 1, Backoff: "exponential"}
+	}
+	if c.retryOverrides.MaxRetries {
+		policy.MaxAttempts = c.RetryConfig.MaxRetries + 1
+	}
+	if c.retryOverrides.BaseDelay {
+		policy.BaseDelay = c.RetryConfig.BaseDelay
+	}
+	if policy.MaxAttempts < 1 {
+		policy.MaxAttempts = 1
+	}
+	return policy
+}
+
+// doWithRetry executes a request using the operation's declared retry policy.
 func (c *{{ $clientTypeName }}) doWithRetry(ctx context.Context, buildRequest func() (*http.Request, error), isIdempotent bool, operationId string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	policy := c.retryPolicy(operationId)
 	maxAttempts := 1
 	if isIdempotent {
-		maxAttempts = c.RetryConfig.MaxRetries + 1
+		maxAttempts = policy.MaxAttempts
 	}
 
 	var lastResp *http.Response
 	var lastErr error
-	delay := c.RetryConfig.BaseDelay
+	delay := policy.BaseDelay
 
 	for attempt := 1; attempt <= maxAttempts; attempt++ {
 		req, err := buildRequest()
@@ -168,17 +245,14 @@ func (c *{{ $clientTypeName }}) doWithRetry(ctx context.Context, buildRequest fu
 					return nil, ctx.Err()
 				case <-time.After(delay + time.Duration(rand.Int63n(int64(100*time.Millisecond)))):
 				}
-				delay = time.Duration(float64(delay) * c.RetryConfig.Multiplier)
-				if delay > c.RetryConfig.MaxDelay {
-					delay = c.RetryConfig.MaxDelay
-				}
+				delay = policy.nextDelay(delay, c.RetryConfig.MaxDelay, c.RetryConfig.Multiplier)
 				continue
 			}
 			return nil, err
 		}
 
 		// Success or non-retryable status
-		if !isRetryableStatus(resp.StatusCode) {
+		if !policy.retriesStatus(resp.StatusCode) {
 			return resp, nil
 		}
 
@@ -214,10 +288,7 @@ func (c *{{ $clientTypeName }}) doWithRetry(ctx context.Context, buildRequest fu
 			return nil, ctx.Err()
 		case <-time.After(retryDelay + time.Duration(rand.Int63n(int64(100*time.Millisecond)))):
 		}
-		delay = time.Duration(float64(delay) * c.RetryConfig.Multiplier)
-		if delay > c.RetryConfig.MaxDelay {
-			delay = c.RetryConfig.MaxDelay
-		}
+		delay = policy.nextDelay(delay, c.RetryConfig.MaxDelay, c.RetryConfig.Multiplier)
 	}
 
 	if lastErr != nil {
@@ -261,14 +332,24 @@ type ClientInterface interface {
 {{end -}}
 
 {{if $isIdempotent}}
-// {{$opid}}{{if .HasBody}}WithBody{{end}} is marked as idempotent and will be retried on transient failures.
+// {{$opid}}{{if .HasBody}}WithBody{{end}} is marked as idempotent and follows its operation retry policy.
 {{else}}
 // {{$opid}}{{if .HasBody}}WithBody{{end}} executes the {{$opid}} operation.
 {{end}}
 func (c *{{ $clientTypeName }}) {{$opid}}{{if .HasBody}}WithBody{{end}}(ctx context.Context{{genParamArgs $pathParams}}{{if $hasParams}}, params *{{$opid}}Params{{end}}{{if .HasBody}}, contentType string, body io.Reader{{end}}, reqEditors... RequestEditorFn) (*http.Response, error) {
 {{if $isIdempotent}}
+    {{if .HasBody -}}
+    var bodyBytes []byte
+    if body != nil {
+        var err error
+        bodyBytes, err = io.ReadAll(body)
+        if err != nil {
+            return nil, err
+        }
+    }
+    {{end -}}
     return c.doWithRetry(ctx, func() (*http.Request, error) {
-        return New{{$opid}}Request{{if .HasBody}}WithBody{{end}}(c.Server{{genParamNames .PathParams}}{{if $hasParams}}, params{{end}}{{if .HasBody}}, contentType, body{{end}})
+        return New{{$opid}}Request{{if .HasBody}}WithBody{{end}}(c.Server{{genParamNames .PathParams}}{{if $hasParams}}, params{{end}}{{if .HasBody}}, contentType, bytes.NewReader(bodyBytes){{end}})
     }, true, "{{$opid}}", reqEditors...)
 {{else}}
     req, err := New{{$opid}}Request{{if .HasBody}}WithBody{{end}}(c.Server{{genParamNames .PathParams}}{{if $hasParams}}, params{{end}}{{if .HasBody}}, contentType, body{{end}})

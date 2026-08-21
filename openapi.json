@@ -3258,6 +3258,9 @@
         "tags": [
           "Contacts"
         ],
+        "x-hey-idempotent": {
+          "natural": true
+        },
         "x-hey-retry": {
           "maxAttempts": 2,
           "baseDelayMs": 1000,

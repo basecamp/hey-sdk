@@ -32,6 +32,8 @@ type clientShared struct {
 	logger         *slog.Logger
 	httpOpts       HTTPOptions
 	hooks          Hooks
+	maxRetriesSet  bool
+	baseDelaySet   bool
 }
 
 // Client is an HTTP client for the HEY API. A root client represents the
@@ -256,9 +258,17 @@ func (c *Client) initGeneratedClient() {
 			req.Header.Set("Accept", "application/json")
 			return nil
 		}
-		gen, err := generated.NewClientWithResponses(serverURL,
+		options := []generated.ClientOption{
 			generated.WithHTTPClient(c.httpClient),
-			generated.WithRequestEditorFn(authEditor))
+			generated.WithRequestEditorFn(authEditor),
+		}
+		if c.maxRetriesSet {
+			options = append(options, generated.WithMaxRetries(c.httpOpts.MaxRetries))
+		}
+		if c.baseDelaySet {
+			options = append(options, generated.WithBaseDelay(c.httpOpts.BaseDelay))
+		}
+		gen, err := generated.NewClientWithResponses(serverURL, options...)
 		if err != nil {
 			panic(fmt.Sprintf("hey: failed to create generated client: %v", err))
 		}

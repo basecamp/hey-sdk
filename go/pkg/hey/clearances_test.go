@@ -7,7 +7,12 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
+	"sync/atomic"
 	"testing"
+	"time"
+
+	"github.com/basecamp/hey-sdk/go/pkg/generated"
 )
 
 // The apps sync this endpoint for the Screener badge, so the count must not drag the queue
@@ -217,6 +222,118 @@ func TestClearancesService_Screen(t *testing.T) {
 	// Options left alone stay off the wire entirely, since HEY reads them for truthiness.
 	if _, sent := gotBody["spam"]; sent {
 		t.Errorf("expected no spam key, got %+v", gotBody)
+	}
+}
+
+func TestClearancesService_ScreenExplicitRetryOverrideReplaysCompleteBody(t *testing.T) {
+	var requests atomic.Int64
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		request := requests.Add(1)
+		var body generated.UpdateClearanceJSONRequestBody
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			t.Fatalf("request %d body: %v", request, err)
+		}
+		if body.Status != ClearanceApproved || body.DesignationBoxId != 215744 {
+			t.Errorf("request %d body = %+v", request, body)
+		}
+		if request < 3 {
+			w.WriteHeader(http.StatusServiceUnavailable)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"id":123,"status":"approved"}`))
+	}))
+	t.Cleanup(server.Close)
+
+	client := NewClient(
+		&Config{BaseURL: server.URL},
+		&StaticTokenProvider{Token: "test-token"},
+		WithMaxRetries(2),
+		WithBaseDelay(time.Nanosecond),
+	)
+	if _, err := client.Clearances().Screen(context.Background(), 123, ClearanceApproved,
+		ScreenOptions{DesignationBoxID: 215744}); err != nil {
+		t.Fatalf("Screen: %v", err)
+	}
+	if requests.Load() != 3 {
+		t.Fatalf("requests = %d, want 3", requests.Load())
+	}
+}
+
+func TestGeneratedUpdateClearanceWithBodyRetryReplaysCompleteBody(t *testing.T) {
+	var requests atomic.Int64
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		request := requests.Add(1)
+		var body generated.UpdateClearanceJSONRequestBody
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			t.Fatalf("request %d body: %v", request, err)
+		}
+		if body.Status != ClearanceDenied {
+			t.Errorf("request %d status = %q", request, body.Status)
+		}
+		if request < 3 {
+			w.WriteHeader(http.StatusServiceUnavailable)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"id":123,"status":"denied"}`))
+	}))
+	t.Cleanup(server.Close)
+
+	client, err := generated.NewClient(
+		server.URL,
+		generated.WithMaxRetries(2),
+		generated.WithBaseDelay(time.Nanosecond),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	response, err := client.UpdateClearanceWithBody(
+		context.Background(),
+		123,
+		"application/json",
+		strings.NewReader(`{"status":"denied"}`),
+	)
+	if err != nil {
+		t.Fatalf("UpdateClearanceWithBody: %v", err)
+	}
+	defer response.Body.Close()
+	if requests.Load() != 3 {
+		t.Fatalf("requests = %d, want 3", requests.Load())
+	}
+}
+
+func TestClearancesService_ScreenUsesOperationRetryPolicy(t *testing.T) {
+	tests := []struct {
+		name         string
+		status       int
+		wantRequests int64
+	}{
+		{name: "declared status", status: http.StatusServiceUnavailable, wantRequests: 2},
+		{name: "undeclared status", status: http.StatusInternalServerError, wantRequests: 1},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var requests atomic.Int64
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				requests.Add(1)
+				w.WriteHeader(tt.status)
+			}))
+			t.Cleanup(server.Close)
+
+			client := NewClient(
+				&Config{BaseURL: server.URL},
+				&StaticTokenProvider{Token: "test-token"},
+				WithBaseDelay(time.Nanosecond),
+			)
+			if _, err := client.Clearances().Screen(context.Background(), 123, ClearanceDenied, ScreenOptions{}); err == nil {
+				t.Fatal("Screen returned nil, want API error")
+			}
+			if got := requests.Load(); got != tt.wantRequests {
+				t.Fatalf("requests = %d, want %d", got, tt.wantRequests)
+			}
+		})
 	}
 }
 
