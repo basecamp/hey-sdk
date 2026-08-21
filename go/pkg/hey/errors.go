@@ -22,7 +22,11 @@ var (
 // form or multipart answer at the 50 MiB MaxResponseBodyBytes constant. It reaches the
 // caller wrapped, so test for it with errors.Is. An error response refused this way still
 // carries its status: the error is the *Error CheckResponse builds for the status, with the
-// refusal as its Cause, so errors.As finds the HTTPStatus and errors.Is finds this.
+// refusal as its Cause, so errors.As finds the HTTPStatus and errors.Is finds this. The
+// refusal reaches whoever reads the body. The generated parsers read every body, so a
+// service method answers with it; the raw Get and GetHTML answer an error status without
+// reading its body, so there the status error stands alone and the oversized body is simply
+// never buffered — which is what the bound is for.
 var ErrResponseTooLarge = errors.New("response body exceeded the size limit")
 
 // Error codes for API responses.
