@@ -190,9 +190,7 @@ func NewClient(cfg *Config, tokenProvider TokenProvider, opts ...ClientOption) *
 		// The cap sits inside the logging transport, so logging and hooks see every round
 		// trip, and outside the transport that negotiated the encoding, so it counts the
 		// decompressed bytes a parser would buffer.
-		if limit := c.httpOpts.responseBodyLimit(); limit > 0 {
-			transport = &bodyLimitTransport{inner: transport, limit: limit}
-		}
+		transport = &bodyLimitTransport{inner: transport, limit: c.httpOpts.responseBodyLimit()}
 		transport = &loggingTransport{inner: transport, client: c}
 
 		c.httpClient = &http.Client{
@@ -703,6 +701,12 @@ func (c *Client) singleRequest(ctx context.Context, method, url string, body any
 			c.logger.Debug("cache hit", "status", 304)
 			cached := c.cache.GetBody(cacheKey)
 			if cached != nil {
+				// Written by a client with a higher cap, or an older SDK with none: the
+				// transport never saw it, so it is held to the bound here.
+				if bound := c.bufferBound(req); int64(len(cached)) > bound {
+					return nil, fmt.Errorf("%s %s: cached response of %d bytes: %w of %d bytes",
+						method, req.URL.Path, len(cached), ErrResponseTooLarge, bound)
+				}
 				return &Response{
 					Data:       cached,
 					StatusCode: http.StatusOK,
@@ -721,7 +725,7 @@ func (c *Client) singleRequest(ctx context.Context, method, url string, body any
 			}
 			return &Response{StatusCode: resp.StatusCode, Headers: resp.Header}, nil
 		}
-		respBody, err := limitedReadAll(resp.Body, MaxResponseBodyBytes)
+		respBody, err := limitedReadAll(resp.Body, c.bufferBound(req))
 		if err != nil {
 			return nil, fmt.Errorf("failed to read response: %w", err)
 		}
@@ -795,6 +799,19 @@ func (c *Client) singleRequest(ctx context.Context, method, url string, body any
 		}
 		return nil, ErrAPI(resp.StatusCode, fmt.Sprintf("Request failed (HTTP %d)", resp.StatusCode))
 	}
+}
+
+// bufferBound is the most singleRequest buffers of an answer to req. A parsed request —
+// JSON, HTML — is already capped in the transport at the configured limit, so the bound here
+// is that same limit: a second, smaller one would refuse an answer below the cap the caller
+// configured, and the same number still holds for a client built with WithHTTPClient, which
+// has no transport cap. Anything else — a blob, an export — is bounded at the 50 MiB
+// MaxResponseBodyBytes constant.
+func (c *Client) bufferBound(req *http.Request) int64 {
+	if isParsedRequest(req) {
+		return c.httpOpts.responseBodyLimit()
+	}
+	return MaxResponseBodyBytes
 }
 
 func (c *Client) buildURL(path string) (string, error) {

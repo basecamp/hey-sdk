@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"io"
+	"math"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
@@ -170,34 +171,80 @@ func TestBodyLimitCountsDecompressedBytes(t *testing.T) {
 	}
 }
 
-// An error body past the limit is cut off at the limit, not refused: the status is what
-// matters about an error, and a read failure would hide it.
-func TestBodyLimitTruncatesErrorBodies(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+// serveErrorJSON answers status with a JSON error body of the given size.
+func serveErrorJSON(status, size int) http.HandlerFunc {
+	return func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusInternalServerError)
-		_, _ = io.WriteString(w, `{"error":"`+strings.Repeat("e", 4096)+`"}`)
-	}))
-	t.Cleanup(server.Close)
-
-	status, body, err := getAccepting(t, cappedTransportClient(), server.URL, "application/json")
-	if err != nil {
-		t.Fatalf("err = %v, want the error body read without a refusal", err)
+		w.Header().Set("X-Request-Id", "req-7f3a")
+		w.WriteHeader(status)
+		_, _ = io.WriteString(w, `{"error":"`+strings.Repeat("e", size-12)+`"}`)
 	}
-	if status != http.StatusInternalServerError || int64(len(body)) != testBodyLimit {
-		t.Fatalf("status %d, %d bytes; want the status with the body cut at the limit", status, len(body))
-	}
+}
 
-	// Through the client, the status is what the caller gets.
-	client, _ := newCappedTestClient(t, func(w http.ResponseWriter, _ *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusUnprocessableEntity)
-		_, _ = io.WriteString(w, `{"error":"`+strings.Repeat("e", 4096)+`"}`)
-	})
-	_, err = client.Get(context.Background(), "/messages/1.json")
+// An error body past the limit is refused like a success body, but the refusal is the
+// status's own *Error with ErrResponseTooLarge as its cause. The generated parsers decode a
+// modeled error payload before a service wrapper reaches CheckResponse, so a body merely cut
+// off at the cap would reach the caller as a JSON syntax error with no status on it.
+func TestBodyLimitRefusesAnErrorBodyWithItsStatus(t *testing.T) {
+	client, hits := newCappedTestClient(t, serveErrorJSON(http.StatusUnauthorized, 4096))
+
+	_, err := client.Messages().Get(context.Background(), 1)
 	var apiErr *Error
-	if !errors.As(err, &apiErr) || apiErr.HTTPStatus != http.StatusUnprocessableEntity || errors.Is(err, ErrResponseTooLarge) {
-		t.Fatalf("err = %v, want the 422 to stand", err)
+	if !errors.As(err, &apiErr) {
+		t.Fatalf("err = %v (%T), want a *Error through the generated client", err, err)
+	}
+	if apiErr.HTTPStatus != http.StatusUnauthorized || apiErr.Code != CodeAuth || apiErr.RequestID != "req-7f3a" {
+		t.Errorf("err = %+v, want the 401's code, status and request id", apiErr)
+	}
+	if !errors.Is(err, ErrResponseTooLarge) {
+		t.Errorf("err = %v, want ErrResponseTooLarge as the cause", err)
+	}
+	if hits.Load() != 1 {
+		t.Errorf("server saw %d requests, want 1", hits.Load())
+	}
+
+	// A 5xx is the same refusal, retryable as the status is; read through the transport
+	// alone, since both clients' retry loops would wait out their backoff on a 500 first.
+	server := httptest.NewServer(serveErrorJSON(http.StatusInternalServerError, 4096))
+	t.Cleanup(server.Close)
+	status, _, err := getAccepting(t, cappedTransportClient(), server.URL, "application/json")
+	if !errors.As(err, &apiErr) || apiErr.HTTPStatus != http.StatusInternalServerError || !apiErr.Retryable || !errors.Is(err, ErrResponseTooLarge) {
+		t.Errorf("status %d, err = %v, want the 500's *Error wrapping ErrResponseTooLarge", status, err)
+	}
+}
+
+// An error body within the limit reads whole and is handled as it always was: the generated
+// parser decodes it and CheckResponse reports the status, with no refusal in sight.
+func TestBodyLimitPassesAnErrorBodyWithinTheLimit(t *testing.T) {
+	client, _ := newCappedTestClient(t, serveErrorJSON(http.StatusNotFound, 64))
+
+	_, err := client.Messages().Get(context.Background(), 1)
+	var apiErr *Error
+	if !errors.As(err, &apiErr) || apiErr.HTTPStatus != http.StatusNotFound || apiErr.Code != CodeNotFound {
+		t.Fatalf("err = %v, want the 404", err)
+	}
+	if errors.Is(err, ErrResponseTooLarge) {
+		t.Errorf("err = %v, want no refusal for a body within the limit", err)
+	}
+
+	// The hand-written path reads what it can of an error body and reports the status
+	// either way, within the limit or past it.
+	for _, size := range []int{64, 4096} {
+		client, _ := newCappedTestClient(t, serveErrorJSON(http.StatusUnprocessableEntity, size))
+		_, err := client.Get(context.Background(), "/messages/1.json")
+		if !errors.As(err, &apiErr) || apiErr.HTTPStatus != http.StatusUnprocessableEntity {
+			t.Errorf("%d-byte 422 body: err = %v, want the 422 to stand", size, err)
+		}
+	}
+}
+
+// The largest cap an int64 holds must not overflow the one extra byte a read asks for.
+func TestBodyLimitAcceptsTheLargestCap(t *testing.T) {
+	client, _ := newCappedTestClient(t, serveOversizedJSON(false), WithMaxResponseBodyBytes(math.MaxInt64))
+
+	resp, err := client.Get(context.Background(), "/messages/1.json")
+	if err != nil || len(resp.Data) != 4096 {
+		t.Fatalf("err = %v, %d bytes; want the whole body under a cap of math.MaxInt64", err, len(resp.Data))
 	}
 }
 
@@ -250,19 +297,71 @@ func TestBodyLimitDecidesByTheRequest(t *testing.T) {
 	}
 }
 
-// 0 installs the default cap; a negative value installs none.
-func TestBodyLimitOptionDefaultsAndOptsOut(t *testing.T) {
-	defaulted, _ := newCappedTestClient(t, serveOversizedJSON(false), WithMaxResponseBodyBytes(0))
-	capped, ok := defaulted.httpClient.Transport.(*loggingTransport).inner.(*bodyLimitTransport)
-	if !ok || capped.limit != DefaultMaxResponseBodyBytes {
-		t.Fatalf("MaxResponseBodyBytes 0: transport %T, want the default cap of %d", defaulted.httpClient.Transport.(*loggingTransport).inner, DefaultMaxResponseBodyBytes)
+// 0 and a negative value both install the default cap: there is no opting out.
+func TestBodyLimitOptionDefaults(t *testing.T) {
+	for _, configured := range []int64{0, -1} {
+		client, _ := newCappedTestClient(t, serveOversizedJSON(false), WithMaxResponseBodyBytes(configured))
+		inner := client.httpClient.Transport.(*loggingTransport).inner
+		capped, ok := inner.(*bodyLimitTransport)
+		if !ok || capped.limit != DefaultMaxResponseBodyBytes {
+			t.Errorf("MaxResponseBodyBytes %d: transport %T, want the default cap of %d", configured, inner, DefaultMaxResponseBodyBytes)
+		}
+	}
+}
+
+// What singleRequest buffers is bounded by the request's kind: a parsed answer at the
+// configured cap the transport already holds it to, so no second bound refuses it below
+// that; anything else at the 50 MiB constant.
+func TestBufferBoundFollowsTheRequest(t *testing.T) {
+	client, _ := newCappedTestClient(t, serveOversizedJSON(false))
+	for accept, want := range map[string]int64{
+		"application/json":         testBodyLimit,
+		"application/vnd.api+json": testBodyLimit,
+		"text/html":                testBodyLimit,
+		"":                         testBodyLimit,
+		"*/*":                      MaxResponseBodyBytes,
+		"text/csv":                 MaxResponseBodyBytes,
+	} {
+		req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, "https://app.hey.com/messages/1.json", nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if accept != "" {
+			req.Header.Set("Accept", accept)
+		}
+		if got := client.bufferBound(req); got != want {
+			t.Errorf("Accept %q: bound %d, want %d", accept, got, want)
+		}
+	}
+}
+
+// A cached body is held to the cap too. The transport never saw it — a client with a
+// higher cap, or an older SDK with none, wrote it — so a 304 that would hand it back is
+// refused the same way the live answer would have been.
+func TestBodyLimitRefusesACachedBodyPastTheCap(t *testing.T) {
+	const etag = `"v1"`
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("If-None-Match") == etag {
+			w.WriteHeader(http.StatusNotModified)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("ETag", etag)
+		_, _ = io.WriteString(w, `{"content":"`+strings.Repeat("x", 4096)+`"}`)
+	}))
+	t.Cleanup(server.Close)
+
+	cache := NewCache(t.TempDir())
+	newClient := func(limit int64) *Client {
+		return NewClient(&Config{BaseURL: server.URL}, &StaticTokenProvider{Token: "test-token"},
+			WithMaxRetries(0), WithCache(cache), WithMaxResponseBodyBytes(limit))
+	}
+	if resp, err := newClient(1<<20).Get(context.Background(), "/messages/1.json"); err != nil || resp.FromCache {
+		t.Fatalf("seeding the cache: err = %v, from cache %v", err, resp != nil && resp.FromCache)
 	}
 
-	uncapped, _ := newCappedTestClient(t, serveOversizedJSON(false), WithMaxResponseBodyBytes(-1))
-	if _, ok := uncapped.httpClient.Transport.(*loggingTransport).inner.(*bodyLimitTransport); ok {
-		t.Fatal("MaxResponseBodyBytes -1: a cap was installed")
-	}
-	if resp, err := uncapped.Get(context.Background(), "/messages/1.json"); err != nil || len(resp.Data) != 4096 {
-		t.Fatalf("uncapped: err = %v, want the whole body", err)
+	_, err := newClient(testBodyLimit).Get(context.Background(), "/messages/1.json")
+	if !errors.Is(err, ErrResponseTooLarge) {
+		t.Fatalf("err = %v, want ErrResponseTooLarge for a cached body past the cap", err)
 	}
 }

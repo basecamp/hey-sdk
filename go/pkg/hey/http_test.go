@@ -28,9 +28,9 @@ func TestDefaultHTTPOptions(t *testing.T) {
 	}
 }
 
-// 0 asks for the default cap and a negative value for none; anything else is the cap.
+// 0 and a negative value ask for the default cap; anything else is the cap.
 func TestHTTPOptionsResponseBodyLimit(t *testing.T) {
-	for configured, want := range map[int64]int64{0: DefaultMaxResponseBodyBytes, -1: 0, 4 << 20: 4 << 20} {
+	for configured, want := range map[int64]int64{0: DefaultMaxResponseBodyBytes, -1: DefaultMaxResponseBodyBytes, 4 << 20: 4 << 20} {
 		if got := (HTTPOptions{MaxResponseBodyBytes: configured}).responseBodyLimit(); got != want {
 			t.Errorf("MaxResponseBodyBytes %d: limit %d, want %d", configured, got, want)
 		}

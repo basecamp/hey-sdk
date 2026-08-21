@@ -3,18 +3,26 @@ package hey
 import (
 	"fmt"
 	"io"
+	"math"
 	"net/http"
 	"net/url"
 	"strings"
 )
 
 // Response body size limits. JSON and HTML answers are capped in the transport, at the
-// client's MaxResponseBodyBytes (HTTPOptions, WithMaxResponseBodyBytes; 16 MiB by default),
-// before any of these apply.
+// client's configured limit (HTTPOptions.MaxResponseBodyBytes, WithMaxResponseBodyBytes;
+// DefaultMaxResponseBodyBytes, 16 MiB, by default), before any of these apply.
 const (
 	// MaxResponseBodyBytes is the most the client buffers of a successful body the
-	// transport cap leaves alone — a blob read with GetBlob, a mutation answered to a */*
-	// request, a form or multipart answer — 50 MiB.
+	// transport cap leaves alone — a blob read with GetBlob, an export read with GetCSV, a
+	// mutation answered to a */* request, a form or multipart answer — 50 MiB. Only
+	// DownloadBlob, which streams to the caller's writer, reads without a bound. A body
+	// past it fails with an error wrapping ErrResponseTooLarge.
+	//
+	// This constant shares its name with the HTTPOptions.MaxResponseBodyBytes field and is
+	// not the same limit: the field is the configurable cap on JSON and HTML, this is the
+	// fixed bound on everything else. The name predates the field and is kept for
+	// compatibility.
 	MaxResponseBodyBytes int64 = 50 * 1024 * 1024
 	// MaxErrorBodyBytes is the maximum size for error response bodies (1 MB).
 	MaxErrorBodyBytes int64 = 1 * 1024 * 1024
@@ -22,15 +30,21 @@ const (
 	MaxErrorMessageBytes = 500
 )
 
-// limitedReadAll reads up to maxBytes from r.
+// limitedReadAll reads up to maxBytes from r, and fails with an error wrapping
+// ErrResponseTooLarge on a body longer than that.
 func limitedReadAll(r io.Reader, maxBytes int64) ([]byte, error) {
-	lr := io.LimitReader(r, maxBytes+1)
-	data, err := io.ReadAll(lr)
+	// One byte past the bound is what tells a body over it from one exactly at it. A bound
+	// of math.MaxInt64 has no room for that byte, and nothing can exceed it anyway.
+	past := maxBytes
+	if past < math.MaxInt64 {
+		past++
+	}
+	data, err := io.ReadAll(io.LimitReader(r, past))
 	if err != nil {
 		return nil, err
 	}
 	if int64(len(data)) > maxBytes {
-		return nil, fmt.Errorf("response body exceeds %d byte limit", maxBytes)
+		return nil, fmt.Errorf("%w of %d bytes", ErrResponseTooLarge, maxBytes)
 	}
 	return data, nil
 }

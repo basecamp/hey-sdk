@@ -102,9 +102,12 @@
 //	    }
 //	}
 //
-// JSON and HTML response bodies are capped at [WithMaxResponseBodyBytes] (16 MiB of
-// decompressed body by default). A body past the cap fails with an error that wraps
-// [ErrResponseTooLarge], and is not retried; blobs and CSV exports are not capped.
+// JSON and HTML response bodies are capped in the transport at [WithMaxResponseBodyBytes]
+// (16 MiB of decompressed body by default), success and error responses alike. A body past
+// the cap fails with an error that wraps [ErrResponseTooLarge] and is not retried; a refused
+// error response still carries its status in the [Error] the read fails with. Buffered blob
+// and CSV answers ([Client.GetBlob], [Client.GetCSV]) are bounded by the 50 MiB
+// [MaxResponseBodyBytes] constant instead; only [Client.DownloadBlob] reads without a bound.
 //
 // # Thread Safety
 //

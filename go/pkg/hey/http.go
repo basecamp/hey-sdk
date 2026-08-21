@@ -43,10 +43,16 @@ type HTTPOptions struct {
 	Transport http.RoundTripper
 
 	// MaxResponseBodyBytes is the most a JSON or HTML response body may deliver, in
-	// decompressed bytes, before its read fails with ErrResponseTooLarge (default:
-	// DefaultMaxResponseBodyBytes). 0 means the default; a negative value disables the
-	// cap, for consumers that bound their reads themselves. Blob (*/*) and CSV answers are
-	// never capped: GetBlob buffers under MaxResponseBodyBytes and DownloadBlob streams.
+	// decompressed bytes, before its read fails with an error wrapping ErrResponseTooLarge —
+	// success and error responses alike; a refused error body still carries its status. 0
+	// or a negative value means DefaultMaxResponseBodyBytes: the cap is always installed.
+	// The transport applies it; a client built with WithHTTPClient keeps it only on Get and
+	// GetHTML, which bound their own buffering at the same number, not on the service
+	// methods.
+	//
+	// Blob (*/*) and CSV answers are not capped here: GetBlob and GetCSV buffer under the
+	// 50 MiB MaxResponseBodyBytes constant instead, and only DownloadBlob streams without
+	// a bound.
 	MaxResponseBodyBytes int64
 }
 
@@ -62,17 +68,14 @@ func DefaultHTTPOptions() HTTPOptions {
 	}
 }
 
-// responseBodyLimit is the cap NewClient installs: the configured MaxResponseBodyBytes,
-// the default when it is 0, and 0 — no cap — when it is negative.
+// responseBodyLimit is the cap NewClient installs: the configured MaxResponseBodyBytes, or
+// the default when that is 0 or negative. There is no opting out — a consumer that wants
+// more raises the cap.
 func (o HTTPOptions) responseBodyLimit() int64 {
-	switch {
-	case o.MaxResponseBodyBytes == 0:
+	if o.MaxResponseBodyBytes <= 0 {
 		return DefaultMaxResponseBodyBytes
-	case o.MaxResponseBodyBytes < 0:
-		return 0
-	default:
-		return o.MaxResponseBodyBytes
 	}
+	return o.MaxResponseBodyBytes
 }
 
 // WithTimeout sets the HTTP request timeout.
@@ -120,8 +123,8 @@ func WithTransport(t http.RoundTripper) ClientOption {
 }
 
 // WithMaxResponseBodyBytes sets the most a JSON or HTML response body may deliver, in
-// decompressed bytes, before its read fails with ErrResponseTooLarge. 0 restores
-// DefaultMaxResponseBodyBytes; a negative value disables the cap.
+// decompressed bytes, before its read fails with an error wrapping ErrResponseTooLarge. 0
+// or a negative value restores DefaultMaxResponseBodyBytes; the cap cannot be removed.
 func WithMaxResponseBodyBytes(n int64) ClientOption {
 	return func(c *Client) {
 		c.httpOpts.MaxResponseBodyBytes = n

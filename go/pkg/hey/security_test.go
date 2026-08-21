@@ -205,8 +205,8 @@ func TestLimitedReadAll(t *testing.T) {
 
 	r2 := strings.NewReader("too long")
 	_, err = limitedReadAll(r2, 3)
-	if err == nil {
-		t.Fatal("expected error for exceeding limit")
+	if !errors.Is(err, ErrResponseTooLarge) {
+		t.Fatalf("err = %v, want ErrResponseTooLarge for exceeding the limit", err)
 	}
 }
 
