@@ -9832,6 +9832,14 @@
           },
           "calendar_changes_url": {
             "type": "string"
+          },
+          "selected_calendar_ids": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "description": "The calendars every period read is drawn from. ToggleCalendar changes this and\nanswers the new one, so a client reads it here once — to open on what is already\non — and takes it from the toggle after that."
           }
         }
       },

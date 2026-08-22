@@ -822,6 +822,11 @@ list CalendarWithRecordingChangesUrlList {
 structure CalendarListPayload {
     calendars: CalendarWithRecordingChangesUrlList
     calendar_changes_url: String
+
+    /// The calendars every period read is drawn from. ToggleCalendar changes this and
+    /// answers the new one, so a client reads it here once — to open on what is already
+    /// on — and takes it from the toggle after that.
+    selected_calendar_ids: CalendarIdList
 }
 
 /// RecurrenceSchedule

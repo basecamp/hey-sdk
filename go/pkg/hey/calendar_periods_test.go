@@ -240,6 +240,32 @@ func TestCalendarsToggleAnswersTheSelection(t *testing.T) {
 	}
 }
 
+// The calendar list carries the selection too, so a client can open on what is already on
+// without a toggle to tell it.
+func TestCalendarsListCarriesTheSelection(t *testing.T) {
+	client := periodsClient(t, func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{
+		  "calendars": [
+		    { "calendar": { "id": 41, "name": "Design Team", "color": "teal", "personal": false } },
+		    { "calendar": { "id": 42, "name": "", "personal": true } }
+		  ],
+		  "selected_calendar_ids": [42]
+		}`))
+	})
+
+	payload, err := client.Calendars().List(context.Background())
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(payload.SelectedCalendarIds) != 1 || payload.SelectedCalendarIds[0] != 42 {
+		t.Errorf("selected ids = %v, want [42]", payload.SelectedCalendarIds)
+	}
+	if payload.Calendars[0].Calendar.Color != "teal" {
+		t.Errorf("color = %q, want teal", payload.Calendars[0].Calendar.Color)
+	}
+}
+
 func TestCalendarPeriodsReportNotFound(t *testing.T) {
 	client := periodsClient(t, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")

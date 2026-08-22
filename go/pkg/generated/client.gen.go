@@ -217,6 +217,11 @@ type CalendarDayListPayload struct {
 type CalendarListPayload struct {
 	CalendarChangesUrl string                            `json:"calendar_changes_url,omitempty"`
 	Calendars          []CalendarWithRecordingChangesUrl `json:"calendars,omitempty"`
+
+	// SelectedCalendarIds The calendars every period read is drawn from. ToggleCalendar changes this and
+	// answers the new one, so a client reads it here once — to open on what is already
+	// on — and takes it from the toggle after that.
+	SelectedCalendarIds []int64 `json:"selected_calendar_ids,omitempty"`
 }
 
 // CalendarPeriod CalendarPeriod — a day or a week: its bounds and everything in it, grouped by type.
