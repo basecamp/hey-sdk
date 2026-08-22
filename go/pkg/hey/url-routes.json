@@ -152,6 +152,27 @@
       "params": {}
     },
     {
+      "pattern": "/calendar/days",
+      "resource": "Calendar Periods",
+      "operations": {
+        "GET": "ListCalendarDays"
+      },
+      "params": {}
+    },
+    {
+      "pattern": "/calendar/days/{day}",
+      "resource": "Calendar Periods",
+      "operations": {
+        "GET": "GetCalendarDay"
+      },
+      "params": {
+        "day": {
+          "role": "recording",
+          "type": "string"
+        }
+      }
+    },
+    {
       "pattern": "/calendar/days/{day}/habits/{habitId}/completions",
       "resource": "Calendar Habits",
       "operations": {
@@ -303,6 +324,40 @@
       }
     },
     {
+      "pattern": "/calendar/weeks",
+      "resource": "Calendar Periods",
+      "operations": {
+        "GET": "ListCalendarWeeks"
+      },
+      "params": {}
+    },
+    {
+      "pattern": "/calendar/weeks/{week}",
+      "resource": "Calendar Periods",
+      "operations": {
+        "GET": "GetCalendarWeek"
+      },
+      "params": {
+        "week": {
+          "role": "recording",
+          "type": "string"
+        }
+      }
+    },
+    {
+      "pattern": "/calendar/years/{year}",
+      "resource": "Calendar Periods",
+      "operations": {
+        "GET": "GetCalendarYear"
+      },
+      "params": {
+        "year": {
+          "role": "recording",
+          "type": "string"
+        }
+      }
+    },
+    {
       "pattern": "/calendars",
       "resource": "Calendars",
       "operations": {
@@ -315,6 +370,19 @@
       "resource": "Calendars",
       "operations": {
         "GET": "GetCalendarRecordings"
+      },
+      "params": {
+        "calendarId": {
+          "role": "parent",
+          "type": "int64"
+        }
+      }
+    },
+    {
+      "pattern": "/calendars/{calendarId}/toggle",
+      "resource": "Calendars",
+      "operations": {
+        "POST": "ToggleCalendar"
       },
       "params": {
         "calendarId": {

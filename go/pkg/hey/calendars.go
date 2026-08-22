@@ -43,6 +43,31 @@ func (s *CalendarsService) List(ctx context.Context) (result *generated.Calendar
 	return resp.JSON200, nil
 }
 
+// Toggle switches a calendar in or out of the identity's selection and returns the ids the
+// selection is left holding. The selection is what CalendarPeriodsService reads are scoped
+// to, so this is how a client changes which calendars a day, week or year is drawn from.
+func (s *CalendarsService) Toggle(ctx context.Context, calendarID int64) (selectedIDs []int64, err error) {
+	op := OperationInfo{
+		Service: "Calendars", Operation: "ToggleCalendar",
+		ResourceType: "calendar", IsMutation: true, ResourceID: calendarID,
+	}
+
+	err = s.client.instrument(ctx, op, func(ctx context.Context) error {
+		resp, rerr := s.client.genClient().ToggleCalendarWithResponse(ctx, calendarID)
+		if rerr != nil {
+			return rerr
+		}
+		if cerr := CheckResponse(resp.HTTPResponse); cerr != nil {
+			return cerr
+		}
+		if resp.JSON200 != nil {
+			selectedIDs = resp.JSON200.SelectedCalendarIds
+		}
+		return nil
+	})
+	return selectedIDs, err
+}
+
 // GetRecordings returns recordings for a specific calendar.
 func (s *CalendarsService) GetRecordings(ctx context.Context, calendarID int64, params *generated.GetCalendarRecordingsParams) (result *generated.CalendarRecordingsResponse, err error) {
 	op := OperationInfo{

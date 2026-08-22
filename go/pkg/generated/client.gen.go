@@ -208,14 +208,41 @@ type Calendar struct {
 	Url       string    `json:"url,omitempty"`
 }
 
+// CalendarDayListPayload defines model for CalendarDayListPayload.
+type CalendarDayListPayload struct {
+	Days []CalendarPeriod `json:"days"`
+}
+
 // CalendarListPayload CalendarListPayload
 type CalendarListPayload struct {
 	CalendarChangesUrl string                            `json:"calendar_changes_url,omitempty"`
 	Calendars          []CalendarWithRecordingChangesUrl `json:"calendars,omitempty"`
 }
 
+// CalendarPeriod CalendarPeriod — a day or a week: its bounds and everything in it, grouped by type.
+// Recurring events arrive expanded into the occurrences that fall inside the window,
+// which is what makes this a different answer than the recordings a calendar lists.
+type CalendarPeriod struct {
+	// EndsAt ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)
+	EndsAt time.Time `json:"ends_at"`
+
+	// Kind "day" or "week"
+	Kind string `json:"kind"`
+
+	// Recordings CalendarRecordingsResponse — recordings grouped by type
+	Recordings CalendarRecordingsResponse `json:"recordings"`
+
+	// StartsAt ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)
+	StartsAt time.Time `json:"starts_at"`
+}
+
 // CalendarRecordingsResponse CalendarRecordingsResponse — recordings grouped by type
 type CalendarRecordingsResponse map[string][]Recording
+
+// CalendarSelection CalendarSelection — the calendars a toggle left switched on
+type CalendarSelection struct {
+	SelectedCalendarIds []int64 `json:"selected_calendar_ids"`
+}
 
 // CalendarTodoChanges Nothing here is required: a rename sends a title and leaves the day alone.
 type CalendarTodoChanges struct {
@@ -233,11 +260,46 @@ type CalendarTodoPayload struct {
 	Title    string     `json:"title"`
 }
 
+// CalendarWeekListPayload defines model for CalendarWeekListPayload.
+type CalendarWeekListPayload struct {
+	Weeks []CalendarPeriod `json:"weeks"`
+}
+
 // CalendarWithRecordingChangesUrl CalendarWithRecordingChangesUrl — wraps calendar with sync URL
 type CalendarWithRecordingChangesUrl struct {
 	// Calendar Calendar
 	Calendar            Calendar `json:"calendar,omitempty"`
 	RecordingChangesUrl string   `json:"recording_changes_url,omitempty"`
+}
+
+// CalendarYear CalendarYear — the grid a year is drawn as. A year carries one entry per day plus the
+// events that span more than one, not every recording it holds: a year's worth of
+// expanded occurrences is not something a client asks for by opening a year.
+type CalendarYear struct {
+	Days []CalendarYearDay `json:"days"`
+
+	// EndsAt ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)
+	EndsAt time.Time `json:"ends_at"`
+
+	// Kind "year"
+	Kind string `json:"kind"`
+
+	// PaddingDaysCount Days between the reader's week start and January 1st, so the grid lines up
+	PaddingDaysCount int32 `json:"padding_days_count"`
+
+	// SpannedEvents All-day and multi-day events, oldest first
+	SpannedEvents []Recording `json:"spanned_events"`
+
+	// StartsAt ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)
+	StartsAt time.Time `json:"starts_at"`
+}
+
+// CalendarYearDay defines model for CalendarYearDay.
+type CalendarYearDay struct {
+	Backgrounded bool `json:"backgrounded"`
+
+	// StartsAt ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)
+	StartsAt time.Time `json:"starts_at"`
 }
 
 // Clearance Clearance — screening status for a contact
@@ -664,8 +726,23 @@ type GetBoxResponseContent = BoxShowResponse
 // SDK response decoders normalize the nested variant to flat before decoding.
 type GetBubbleboxResponseContent = BoxShowResponse
 
+// GetCalendarDayResponseContent CalendarPeriod — a day or a week: its bounds and everything in it, grouped by type.
+// Recurring events arrive expanded into the occurrences that fall inside the window,
+// which is what makes this a different answer than the recordings a calendar lists.
+type GetCalendarDayResponseContent = CalendarPeriod
+
 // GetCalendarRecordingsResponseContent CalendarRecordingsResponse — recordings grouped by type
 type GetCalendarRecordingsResponseContent = CalendarRecordingsResponse
+
+// GetCalendarWeekResponseContent CalendarPeriod — a day or a week: its bounds and everything in it, grouped by type.
+// Recurring events arrive expanded into the occurrences that fall inside the window,
+// which is what makes this a different answer than the recordings a calendar lists.
+type GetCalendarWeekResponseContent = CalendarPeriod
+
+// GetCalendarYearResponseContent CalendarYear — the grid a year is drawn as. A year carries one entry per day plus the
+// events that span more than one, not every recording it holds: a year's worth of
+// expanded occurrences is not something a client asks for by opening a year.
+type GetCalendarYearResponseContent = CalendarYear
 
 // GetClearancesResponseContent ClearanceSummary — the Screener's pending count, and the queue itself when asked for
 //
@@ -803,6 +880,12 @@ type ListBoxGroupsResponseContent = BoxGroupsResponse
 
 // ListBoxesResponseContent defines model for ListBoxesResponseContent.
 type ListBoxesResponseContent = []Box
+
+// ListCalendarDaysResponseContent defines model for ListCalendarDaysResponseContent.
+type ListCalendarDaysResponseContent = CalendarDayListPayload
+
+// ListCalendarWeeksResponseContent defines model for ListCalendarWeeksResponseContent.
+type ListCalendarWeeksResponseContent = CalendarWeekListPayload
 
 // ListCalendarsResponseContent CalendarListPayload
 type ListCalendarsResponseContent = CalendarListPayload
@@ -1248,6 +1331,9 @@ type TimeTrackRequestContent struct {
 	StartsAt      time.Time `json:"starts_at"`
 }
 
+// ToggleCalendarResponseContent CalendarSelection — the calendars a toggle left switched on
+type ToggleCalendarResponseContent = CalendarSelection
+
 // Topic Topic detail
 type Topic struct {
 	AccountId int64 `json:"account_id,omitempty"`
@@ -1519,10 +1605,25 @@ type NewBulkReplyParams struct {
 	PostingIds string `form:"posting_ids" json:"posting_ids"`
 }
 
+// ListCalendarDaysParams defines parameters for ListCalendarDays.
+type ListCalendarDaysParams struct {
+	// StartsAt Date (YYYY-MM-DD) to start from. Defaults to today.
+	StartsAt *string `form:"starts_at,omitempty" json:"starts_at,omitempty"`
+}
+
 // ListJournalEntriesParams defines parameters for ListJournalEntries.
 type ListJournalEntriesParams struct {
 	Page *string `form:"page,omitempty" json:"page,omitempty"`
 	Q    *string `form:"q,omitempty" json:"q,omitempty"`
+}
+
+// ListCalendarWeeksParams defines parameters for ListCalendarWeeks.
+type ListCalendarWeeksParams struct {
+	// StartsAt Date (YYYY-MM-DD) of the first week. Takes precedence over centered_at.
+	StartsAt *string `form:"starts_at,omitempty" json:"starts_at,omitempty"`
+
+	// CenteredAt Date (YYYY-MM-DD) to center the nine weeks on. Defaults to today.
+	CenteredAt *string `form:"centered_at,omitempty" json:"centered_at,omitempty"`
 }
 
 // GetCalendarRecordingsParams defines parameters for GetCalendarRecordings.
@@ -2038,6 +2139,12 @@ type ClientInterface interface {
 	// NewBulkReply request
 	NewBulkReply(ctx context.Context, params *NewBulkReplyParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// ListCalendarDays request
+	ListCalendarDays(ctx context.Context, params *ListCalendarDaysParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetCalendarDay request
+	GetCalendarDay(ctx context.Context, day string, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// UncompleteHabit request
 	UncompleteHabit(ctx context.Context, day string, habitId int64, reqEditors ...RequestEditorFn) (*http.Response, error)
 
@@ -2115,11 +2222,23 @@ type ClientInterface interface {
 	// CompleteCalendarTodo request
 	CompleteCalendarTodo(ctx context.Context, todoId int64, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// ListCalendarWeeks request
+	ListCalendarWeeks(ctx context.Context, params *ListCalendarWeeksParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetCalendarWeek request
+	GetCalendarWeek(ctx context.Context, week string, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetCalendarYear request
+	GetCalendarYear(ctx context.Context, year string, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// ListCalendars request
 	ListCalendars(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// GetCalendarRecordings request
 	GetCalendarRecordings(ctx context.Context, calendarId int64, params *GetCalendarRecordingsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ToggleCalendar request
+	ToggleCalendar(ctx context.Context, calendarId int64, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// GetClearances request
 	GetClearances(ctx context.Context, params *GetClearancesParams, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -2599,6 +2718,26 @@ func (c *Client) NewBulkReply(ctx context.Context, params *NewBulkReplyParams, r
 
 }
 
+// ListCalendarDays is marked as idempotent and will be retried on transient failures.
+
+func (c *Client) ListCalendarDays(ctx context.Context, params *ListCalendarDaysParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+
+	return c.doWithRetry(ctx, func() (*http.Request, error) {
+		return NewListCalendarDaysRequest(c.Server, params)
+	}, true, "ListCalendarDays", reqEditors...)
+
+}
+
+// GetCalendarDay is marked as idempotent and will be retried on transient failures.
+
+func (c *Client) GetCalendarDay(ctx context.Context, day string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+
+	return c.doWithRetry(ctx, func() (*http.Request, error) {
+		return NewGetCalendarDayRequest(c.Server, day)
+	}, true, "GetCalendarDay", reqEditors...)
+
+}
+
 // UncompleteHabit is marked as idempotent and will be retried on transient failures.
 
 func (c *Client) UncompleteHabit(ctx context.Context, day string, habitId int64, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -2949,6 +3088,36 @@ func (c *Client) CompleteCalendarTodo(ctx context.Context, todoId int64, reqEdit
 
 }
 
+// ListCalendarWeeks is marked as idempotent and will be retried on transient failures.
+
+func (c *Client) ListCalendarWeeks(ctx context.Context, params *ListCalendarWeeksParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+
+	return c.doWithRetry(ctx, func() (*http.Request, error) {
+		return NewListCalendarWeeksRequest(c.Server, params)
+	}, true, "ListCalendarWeeks", reqEditors...)
+
+}
+
+// GetCalendarWeek is marked as idempotent and will be retried on transient failures.
+
+func (c *Client) GetCalendarWeek(ctx context.Context, week string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+
+	return c.doWithRetry(ctx, func() (*http.Request, error) {
+		return NewGetCalendarWeekRequest(c.Server, week)
+	}, true, "GetCalendarWeek", reqEditors...)
+
+}
+
+// GetCalendarYear is marked as idempotent and will be retried on transient failures.
+
+func (c *Client) GetCalendarYear(ctx context.Context, year string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+
+	return c.doWithRetry(ctx, func() (*http.Request, error) {
+		return NewGetCalendarYearRequest(c.Server, year)
+	}, true, "GetCalendarYear", reqEditors...)
+
+}
+
 // ListCalendars is marked as idempotent and will be retried on transient failures.
 
 func (c *Client) ListCalendars(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -2966,6 +3135,22 @@ func (c *Client) GetCalendarRecordings(ctx context.Context, calendarId int64, pa
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
 		return NewGetCalendarRecordingsRequest(c.Server, calendarId, params)
 	}, true, "GetCalendarRecordings", reqEditors...)
+
+}
+
+// ToggleCalendar executes the ToggleCalendar operation.
+
+func (c *Client) ToggleCalendar(ctx context.Context, calendarId int64, reqEditors ...RequestEditorFn) (*http.Response, error) {
+
+	req, err := NewToggleCalendarRequest(c.Server, calendarId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
 
 }
 
@@ -5072,6 +5257,89 @@ func NewNewBulkReplyRequest(server string, params *NewBulkReplyParams) (*http.Re
 	return req, nil
 }
 
+// NewListCalendarDaysRequest generates requests for ListCalendarDays
+func NewListCalendarDaysRequest(server string, params *ListCalendarDaysParams) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/calendar/days.json")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if params.StartsAt != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "starts_at", runtime.ParamLocationQuery, *params.StartsAt); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetCalendarDayRequest generates requests for GetCalendarDay
+func NewGetCalendarDayRequest(server string, day string) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "day", runtime.ParamLocationPath, day)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/calendar/days/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewUncompleteHabitRequest generates requests for UncompleteHabit
 func NewUncompleteHabitRequest(server string, day string, habitId int64) (*http.Request, error) {
 	var err error
@@ -5880,6 +6148,139 @@ func NewCompleteCalendarTodoRequest(server string, todoId int64) (*http.Request,
 	return req, nil
 }
 
+// NewListCalendarWeeksRequest generates requests for ListCalendarWeeks
+func NewListCalendarWeeksRequest(server string, params *ListCalendarWeeksParams) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/calendar/weeks.json")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if params.StartsAt != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "starts_at", runtime.ParamLocationQuery, *params.StartsAt); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.CenteredAt != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "centered_at", runtime.ParamLocationQuery, *params.CenteredAt); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetCalendarWeekRequest generates requests for GetCalendarWeek
+func NewGetCalendarWeekRequest(server string, week string) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "week", runtime.ParamLocationPath, week)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/calendar/weeks/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetCalendarYearRequest generates requests for GetCalendarYear
+func NewGetCalendarYearRequest(server string, year string) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "year", runtime.ParamLocationPath, year)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/calendar/years/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewListCalendarsRequest generates requests for ListCalendars
 func NewListCalendarsRequest(server string) (*http.Request, error) {
 	var err error
@@ -5972,6 +6373,40 @@ func NewGetCalendarRecordingsRequest(server string, calendarId int64, params *Ge
 	}
 
 	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewToggleCalendarRequest generates requests for ToggleCalendar
+func NewToggleCalendarRequest(server string, calendarId int64) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "calendarId", runtime.ParamLocationPath, calendarId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/calendars/%s/toggle", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -9097,6 +9532,8 @@ var operationMetadata = map[string]OperationMetadata{
 	"GetBubblebox":               {Idempotent: true, HasSensitiveParams: false},
 	"CreateBulkReply":            {Idempotent: false, HasSensitiveParams: false},
 	"NewBulkReply":               {Idempotent: true, HasSensitiveParams: false},
+	"ListCalendarDays":           {Idempotent: true, HasSensitiveParams: false},
+	"GetCalendarDay":             {Idempotent: true, HasSensitiveParams: false},
 	"UncompleteHabit":            {Idempotent: true, HasSensitiveParams: false},
 	"CompleteHabit":              {Idempotent: true, HasSensitiveParams: false},
 	"GetJournalEntry":            {Idempotent: true, HasSensitiveParams: false},
@@ -9118,8 +9555,12 @@ var operationMetadata = map[string]OperationMetadata{
 	"UpdateCalendarTodo":         {Idempotent: false, HasSensitiveParams: false},
 	"UncompleteCalendarTodo":     {Idempotent: true, HasSensitiveParams: false},
 	"CompleteCalendarTodo":       {Idempotent: true, HasSensitiveParams: false},
+	"ListCalendarWeeks":          {Idempotent: true, HasSensitiveParams: false},
+	"GetCalendarWeek":            {Idempotent: true, HasSensitiveParams: false},
+	"GetCalendarYear":            {Idempotent: true, HasSensitiveParams: false},
 	"ListCalendars":              {Idempotent: true, HasSensitiveParams: false},
 	"GetCalendarRecordings":      {Idempotent: true, HasSensitiveParams: false},
+	"ToggleCalendar":             {Idempotent: false, HasSensitiveParams: false},
 	"GetClearances":              {Idempotent: true, HasSensitiveParams: false},
 	"BulkUpdateClearances":       {Idempotent: false, HasSensitiveParams: false},
 	"PuntClearances":             {Idempotent: false, HasSensitiveParams: false},
@@ -9938,6 +10379,21 @@ type ClientWithResponsesInterface interface {
 	// Returns a wrapper object for the known response body format(s).
 	NewBulkReplyWithResponse(ctx context.Context, params *NewBulkReplyParams, reqEditors ...RequestEditorFn) (*NewBulkReplyResponse, error)
 
+	// ListCalendarDaysWithResponse performs a GET /calendar/days.json (the `ListCalendarDays` operationId) request.
+	//
+	// List the days from a date onwards. The server picks how many, so this is a window
+	// rather than a page: read the next one by asking from the last day's date.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	ListCalendarDaysWithResponse(ctx context.Context, params *ListCalendarDaysParams, reqEditors ...RequestEditorFn) (*ListCalendarDaysResponse, error)
+
+	// GetCalendarDayWithResponse performs a GET /calendar/days/{day} (the `GetCalendarDay` operationId) request.
+	//
+	// Get one day.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	GetCalendarDayWithResponse(ctx context.Context, day string, reqEditors ...RequestEditorFn) (*GetCalendarDayResponse, error)
+
 	// UncompleteHabitWithResponse performs a DELETE /calendar/days/{day}/habits/{habitId}/completions (the `UncompleteHabit` operationId) request.
 	//
 	// Uncomplete a habit for a day.
@@ -10147,6 +10603,27 @@ type ClientWithResponsesInterface interface {
 	// Returns a wrapper object for the known response body format(s).
 	CompleteCalendarTodoWithResponse(ctx context.Context, todoId int64, reqEditors ...RequestEditorFn) (*CompleteCalendarTodoResponse, error)
 
+	// ListCalendarWeeksWithResponse performs a GET /calendar/weeks.json (the `ListCalendarWeeks` operationId) request.
+	//
+	// List the weeks around a date — nine of them, centered on it.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	ListCalendarWeeksWithResponse(ctx context.Context, params *ListCalendarWeeksParams, reqEditors ...RequestEditorFn) (*ListCalendarWeeksResponse, error)
+
+	// GetCalendarWeekWithResponse performs a GET /calendar/weeks/{week} (the `GetCalendarWeek` operationId) request.
+	//
+	// Get one week.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	GetCalendarWeekWithResponse(ctx context.Context, week string, reqEditors ...RequestEditorFn) (*GetCalendarWeekResponse, error)
+
+	// GetCalendarYearWithResponse performs a GET /calendar/years/{year} (the `GetCalendarYear` operationId) request.
+	//
+	// Get one year as the grid it is drawn as.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	GetCalendarYearWithResponse(ctx context.Context, year string, reqEditors ...RequestEditorFn) (*GetCalendarYearResponse, error)
+
 	// ListCalendarsWithResponse performs a GET /calendars.json (the `ListCalendars` operationId) request.
 	//
 	// List calendars.
@@ -10160,6 +10637,15 @@ type ClientWithResponsesInterface interface {
 	//
 	// Returns a wrapper object for the known response body format(s).
 	GetCalendarRecordingsWithResponse(ctx context.Context, calendarId int64, params *GetCalendarRecordingsParams, reqEditors ...RequestEditorFn) (*GetCalendarRecordingsResponse, error)
+
+	// ToggleCalendarWithResponse performs a POST /calendars/{calendarId}/toggle (the `ToggleCalendar` operationId) request.
+	//
+	// Switch a calendar in or out of the reader's selection, and answer the selection it
+	// left behind. The selection is what every period read is scoped to, so a toggle is how
+	// a client changes which calendars a day, week or year is drawn from.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	ToggleCalendarWithResponse(ctx context.Context, calendarId int64, reqEditors ...RequestEditorFn) (*ToggleCalendarResponse, error)
 
 	// GetClearancesWithResponse performs a GET /clearances.json (the `GetClearances` operationId) request.
 	//
@@ -11823,6 +12309,137 @@ func (r NewBulkReplyResponse) ContentType() string {
 	return ""
 }
 
+type ListCalendarDaysResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *ListCalendarDaysResponseContent
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *UnauthorizedErrorResponseContent
+	// JSON500 the response for an HTTP 500 `application/json` response
+	JSON500 *InternalServerErrorResponseContent
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *ServiceUnavailableErrorResponseContent
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListCalendarDaysResponse) GetJSON200() *ListCalendarDaysResponseContent {
+	return r.JSON200
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r ListCalendarDaysResponse) GetJSON401() *UnauthorizedErrorResponseContent {
+	return r.JSON401
+}
+
+// GetJSON500 returns the response for an HTTP 500 `application/json` response
+func (r ListCalendarDaysResponse) GetJSON500() *InternalServerErrorResponseContent {
+	return r.JSON500
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r ListCalendarDaysResponse) GetJSON503() *ServiceUnavailableErrorResponseContent {
+	return r.JSON503
+}
+
+// GetBody returns the raw response body bytes
+func (r ListCalendarDaysResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListCalendarDaysResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListCalendarDaysResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListCalendarDaysResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type GetCalendarDayResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *GetCalendarDayResponseContent
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *UnauthorizedErrorResponseContent
+	// JSON404 the response for an HTTP 404 `application/json` response
+	JSON404 *NotFoundErrorResponseContent
+	// JSON500 the response for an HTTP 500 `application/json` response
+	JSON500 *InternalServerErrorResponseContent
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *ServiceUnavailableErrorResponseContent
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r GetCalendarDayResponse) GetJSON200() *GetCalendarDayResponseContent {
+	return r.JSON200
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r GetCalendarDayResponse) GetJSON401() *UnauthorizedErrorResponseContent {
+	return r.JSON401
+}
+
+// GetJSON404 returns the response for an HTTP 404 `application/json` response
+func (r GetCalendarDayResponse) GetJSON404() *NotFoundErrorResponseContent {
+	return r.JSON404
+}
+
+// GetJSON500 returns the response for an HTTP 500 `application/json` response
+func (r GetCalendarDayResponse) GetJSON500() *InternalServerErrorResponseContent {
+	return r.JSON500
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r GetCalendarDayResponse) GetJSON503() *ServiceUnavailableErrorResponseContent {
+	return r.JSON503
+}
+
+// GetBody returns the raw response body bytes
+func (r GetCalendarDayResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r GetCalendarDayResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetCalendarDayResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r GetCalendarDayResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type UncompleteHabitResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -13258,6 +13875,206 @@ func (r CompleteCalendarTodoResponse) ContentType() string {
 	return ""
 }
 
+type ListCalendarWeeksResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *ListCalendarWeeksResponseContent
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *UnauthorizedErrorResponseContent
+	// JSON500 the response for an HTTP 500 `application/json` response
+	JSON500 *InternalServerErrorResponseContent
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *ServiceUnavailableErrorResponseContent
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListCalendarWeeksResponse) GetJSON200() *ListCalendarWeeksResponseContent {
+	return r.JSON200
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r ListCalendarWeeksResponse) GetJSON401() *UnauthorizedErrorResponseContent {
+	return r.JSON401
+}
+
+// GetJSON500 returns the response for an HTTP 500 `application/json` response
+func (r ListCalendarWeeksResponse) GetJSON500() *InternalServerErrorResponseContent {
+	return r.JSON500
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r ListCalendarWeeksResponse) GetJSON503() *ServiceUnavailableErrorResponseContent {
+	return r.JSON503
+}
+
+// GetBody returns the raw response body bytes
+func (r ListCalendarWeeksResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListCalendarWeeksResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListCalendarWeeksResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListCalendarWeeksResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type GetCalendarWeekResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *GetCalendarWeekResponseContent
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *UnauthorizedErrorResponseContent
+	// JSON404 the response for an HTTP 404 `application/json` response
+	JSON404 *NotFoundErrorResponseContent
+	// JSON500 the response for an HTTP 500 `application/json` response
+	JSON500 *InternalServerErrorResponseContent
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *ServiceUnavailableErrorResponseContent
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r GetCalendarWeekResponse) GetJSON200() *GetCalendarWeekResponseContent {
+	return r.JSON200
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r GetCalendarWeekResponse) GetJSON401() *UnauthorizedErrorResponseContent {
+	return r.JSON401
+}
+
+// GetJSON404 returns the response for an HTTP 404 `application/json` response
+func (r GetCalendarWeekResponse) GetJSON404() *NotFoundErrorResponseContent {
+	return r.JSON404
+}
+
+// GetJSON500 returns the response for an HTTP 500 `application/json` response
+func (r GetCalendarWeekResponse) GetJSON500() *InternalServerErrorResponseContent {
+	return r.JSON500
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r GetCalendarWeekResponse) GetJSON503() *ServiceUnavailableErrorResponseContent {
+	return r.JSON503
+}
+
+// GetBody returns the raw response body bytes
+func (r GetCalendarWeekResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r GetCalendarWeekResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetCalendarWeekResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r GetCalendarWeekResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type GetCalendarYearResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *GetCalendarYearResponseContent
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *UnauthorizedErrorResponseContent
+	// JSON404 the response for an HTTP 404 `application/json` response
+	JSON404 *NotFoundErrorResponseContent
+	// JSON500 the response for an HTTP 500 `application/json` response
+	JSON500 *InternalServerErrorResponseContent
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *ServiceUnavailableErrorResponseContent
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r GetCalendarYearResponse) GetJSON200() *GetCalendarYearResponseContent {
+	return r.JSON200
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r GetCalendarYearResponse) GetJSON401() *UnauthorizedErrorResponseContent {
+	return r.JSON401
+}
+
+// GetJSON404 returns the response for an HTTP 404 `application/json` response
+func (r GetCalendarYearResponse) GetJSON404() *NotFoundErrorResponseContent {
+	return r.JSON404
+}
+
+// GetJSON500 returns the response for an HTTP 500 `application/json` response
+func (r GetCalendarYearResponse) GetJSON500() *InternalServerErrorResponseContent {
+	return r.JSON500
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r GetCalendarYearResponse) GetJSON503() *ServiceUnavailableErrorResponseContent {
+	return r.JSON503
+}
+
+// GetBody returns the raw response body bytes
+func (r GetCalendarYearResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r GetCalendarYearResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetCalendarYearResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r GetCalendarYearResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type ListCalendarsResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -13383,6 +14200,75 @@ func (r GetCalendarRecordingsResponse) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r GetCalendarRecordingsResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ToggleCalendarResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *ToggleCalendarResponseContent
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *UnauthorizedErrorResponseContent
+	// JSON404 the response for an HTTP 404 `application/json` response
+	JSON404 *NotFoundErrorResponseContent
+	// JSON500 the response for an HTTP 500 `application/json` response
+	JSON500 *InternalServerErrorResponseContent
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *ServiceUnavailableErrorResponseContent
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ToggleCalendarResponse) GetJSON200() *ToggleCalendarResponseContent {
+	return r.JSON200
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r ToggleCalendarResponse) GetJSON401() *UnauthorizedErrorResponseContent {
+	return r.JSON401
+}
+
+// GetJSON404 returns the response for an HTTP 404 `application/json` response
+func (r ToggleCalendarResponse) GetJSON404() *NotFoundErrorResponseContent {
+	return r.JSON404
+}
+
+// GetJSON500 returns the response for an HTTP 500 `application/json` response
+func (r ToggleCalendarResponse) GetJSON500() *InternalServerErrorResponseContent {
+	return r.JSON500
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r ToggleCalendarResponse) GetJSON503() *ServiceUnavailableErrorResponseContent {
+	return r.JSON503
+}
+
+// GetBody returns the raw response body bytes
+func (r ToggleCalendarResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ToggleCalendarResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ToggleCalendarResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ToggleCalendarResponse) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -18374,6 +19260,33 @@ func (c *ClientWithResponses) NewBulkReplyWithResponse(ctx context.Context, para
 	return ParseNewBulkReplyResponse(rsp)
 }
 
+// ListCalendarDaysWithResponse performs a GET /calendar/days.json (the `ListCalendarDays` operationId) request.
+//
+// List the days from a date onwards. The server picks how many, so this is a window
+// rather than a page: read the next one by asking from the last day's date.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) ListCalendarDaysWithResponse(ctx context.Context, params *ListCalendarDaysParams, reqEditors ...RequestEditorFn) (*ListCalendarDaysResponse, error) {
+	rsp, err := c.ListCalendarDays(ctx, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListCalendarDaysResponse(rsp)
+}
+
+// GetCalendarDayWithResponse performs a GET /calendar/days/{day} (the `GetCalendarDay` operationId) request.
+//
+// Get one day.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) GetCalendarDayWithResponse(ctx context.Context, day string, reqEditors ...RequestEditorFn) (*GetCalendarDayResponse, error) {
+	rsp, err := c.GetCalendarDay(ctx, day, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetCalendarDayResponse(rsp)
+}
+
 // UncompleteHabitWithResponse performs a DELETE /calendar/days/{day}/habits/{habitId}/completions (the `UncompleteHabit` operationId) request.
 //
 // Uncomplete a habit for a day.
@@ -18751,6 +19664,45 @@ func (c *ClientWithResponses) CompleteCalendarTodoWithResponse(ctx context.Conte
 	return ParseCompleteCalendarTodoResponse(rsp)
 }
 
+// ListCalendarWeeksWithResponse performs a GET /calendar/weeks.json (the `ListCalendarWeeks` operationId) request.
+//
+// List the weeks around a date — nine of them, centered on it.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) ListCalendarWeeksWithResponse(ctx context.Context, params *ListCalendarWeeksParams, reqEditors ...RequestEditorFn) (*ListCalendarWeeksResponse, error) {
+	rsp, err := c.ListCalendarWeeks(ctx, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListCalendarWeeksResponse(rsp)
+}
+
+// GetCalendarWeekWithResponse performs a GET /calendar/weeks/{week} (the `GetCalendarWeek` operationId) request.
+//
+// Get one week.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) GetCalendarWeekWithResponse(ctx context.Context, week string, reqEditors ...RequestEditorFn) (*GetCalendarWeekResponse, error) {
+	rsp, err := c.GetCalendarWeek(ctx, week, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetCalendarWeekResponse(rsp)
+}
+
+// GetCalendarYearWithResponse performs a GET /calendar/years/{year} (the `GetCalendarYear` operationId) request.
+//
+// Get one year as the grid it is drawn as.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) GetCalendarYearWithResponse(ctx context.Context, year string, reqEditors ...RequestEditorFn) (*GetCalendarYearResponse, error) {
+	rsp, err := c.GetCalendarYear(ctx, year, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetCalendarYearResponse(rsp)
+}
+
 // ListCalendarsWithResponse performs a GET /calendars.json (the `ListCalendars` operationId) request.
 //
 // List calendars.
@@ -18775,6 +19727,21 @@ func (c *ClientWithResponses) GetCalendarRecordingsWithResponse(ctx context.Cont
 		return nil, err
 	}
 	return ParseGetCalendarRecordingsResponse(rsp)
+}
+
+// ToggleCalendarWithResponse performs a POST /calendars/{calendarId}/toggle (the `ToggleCalendar` operationId) request.
+//
+// Switch a calendar in or out of the reader's selection, and answer the selection it
+// left behind. The selection is what every period read is scoped to, so a toggle is how
+// a client changes which calendars a day, week or year is drawn from.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) ToggleCalendarWithResponse(ctx context.Context, calendarId int64, reqEditors ...RequestEditorFn) (*ToggleCalendarResponse, error) {
+	rsp, err := c.ToggleCalendar(ctx, calendarId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseToggleCalendarResponse(rsp)
 }
 
 // GetClearancesWithResponse performs a GET /clearances.json (the `GetClearances` operationId) request.
@@ -20834,6 +21801,107 @@ func ParseNewBulkReplyResponse(rsp *http.Response) (*NewBulkReplyResponse, error
 	return response, nil
 }
 
+// ParseListCalendarDaysResponse parses an HTTP response from a ListCalendarDaysWithResponse call
+func ParseListCalendarDaysResponse(rsp *http.Response) (*ListCalendarDaysResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListCalendarDaysResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ListCalendarDaysResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest UnauthorizedErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest InternalServerErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+		var dest ServiceUnavailableErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON503 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetCalendarDayResponse parses an HTTP response from a GetCalendarDayWithResponse call
+func ParseGetCalendarDayResponse(rsp *http.Response) (*GetCalendarDayResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetCalendarDayResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest GetCalendarDayResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest UnauthorizedErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFoundErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest InternalServerErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+		var dest ServiceUnavailableErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON503 = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseUncompleteHabitResponse parses an HTTP response from a UncompleteHabitWithResponse call
 func ParseUncompleteHabitResponse(rsp *http.Response) (*UncompleteHabitResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -21969,6 +23037,161 @@ func ParseCompleteCalendarTodoResponse(rsp *http.Response) (*CompleteCalendarTod
 	return response, nil
 }
 
+// ParseListCalendarWeeksResponse parses an HTTP response from a ListCalendarWeeksWithResponse call
+func ParseListCalendarWeeksResponse(rsp *http.Response) (*ListCalendarWeeksResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListCalendarWeeksResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ListCalendarWeeksResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest UnauthorizedErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest InternalServerErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+		var dest ServiceUnavailableErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON503 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetCalendarWeekResponse parses an HTTP response from a GetCalendarWeekWithResponse call
+func ParseGetCalendarWeekResponse(rsp *http.Response) (*GetCalendarWeekResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetCalendarWeekResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest GetCalendarWeekResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest UnauthorizedErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFoundErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest InternalServerErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+		var dest ServiceUnavailableErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON503 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetCalendarYearResponse parses an HTTP response from a GetCalendarYearWithResponse call
+func ParseGetCalendarYearResponse(rsp *http.Response) (*GetCalendarYearResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetCalendarYearResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest GetCalendarYearResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest UnauthorizedErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFoundErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest InternalServerErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+		var dest ServiceUnavailableErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON503 = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseListCalendarsResponse parses an HTTP response from a ListCalendarsWithResponse call
 func ParseListCalendarsResponse(rsp *http.Response) (*ListCalendarsResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -22032,6 +23255,60 @@ func ParseGetCalendarRecordingsResponse(rsp *http.Response) (*GetCalendarRecordi
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest GetCalendarRecordingsResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest UnauthorizedErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFoundErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest InternalServerErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+		var dest ServiceUnavailableErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON503 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseToggleCalendarResponse parses an HTTP response from a ToggleCalendarWithResponse call
+func ParseToggleCalendarResponse(rsp *http.Response) (*ToggleCalendarResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ToggleCalendarResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ToggleCalendarResponseContent
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}

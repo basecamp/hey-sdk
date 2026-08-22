@@ -181,8 +181,23 @@
   },
   {
     "method": "GET",
+    "operationId": "GetCalendarDay",
+    "path": "/calendar/days/{day}"
+  },
+  {
+    "method": "GET",
     "operationId": "GetCalendarRecordings",
     "path": "/calendars/{calendarId}/recordings"
+  },
+  {
+    "method": "GET",
+    "operationId": "GetCalendarWeek",
+    "path": "/calendar/weeks/{week}"
+  },
+  {
+    "method": "GET",
+    "operationId": "GetCalendarYear",
+    "path": "/calendar/years/{year}"
   },
   {
     "method": "GET",
@@ -313,6 +328,16 @@
     "method": "GET",
     "operationId": "ListBoxes",
     "path": "/boxes.json"
+  },
+  {
+    "method": "GET",
+    "operationId": "ListCalendarDays",
+    "path": "/calendar/days.json"
+  },
+  {
+    "method": "GET",
+    "operationId": "ListCalendarWeeks",
+    "path": "/calendar/weeks.json"
   },
   {
     "method": "GET",
@@ -458,6 +483,11 @@
     "method": "POST",
     "operationId": "StopHabit",
     "path": "/calendar/habits/{habitId}/stop.json"
+  },
+  {
+    "method": "POST",
+    "operationId": "ToggleCalendar",
+    "path": "/calendars/{calendarId}/toggle"
   },
   {
     "method": "POST",

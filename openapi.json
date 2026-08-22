@@ -1254,6 +1254,158 @@
         }
       }
     },
+    "/calendar/days.json": {
+      "get": {
+        "description": "List the days from a date onwards. The server picks how many, so this is a window\nrather than a page: read the next one by asking from the last day's date.",
+        "operationId": "ListCalendarDays",
+        "parameters": [
+          {
+            "name": "starts_at",
+            "in": "query",
+            "description": "Date (YYYY-MM-DD) to start from. Defaults to today.",
+            "schema": {
+              "type": "string",
+              "description": "Date (YYYY-MM-DD) to start from. Defaults to today.",
+              "x-go-type-skip-optional-pointer": false
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ListCalendarDays 200 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListCalendarDaysResponseContent"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UnauthorizedError 401 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnauthorizedErrorResponseContent"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "InternalServerError 500 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorResponseContent"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ServiceUnavailableError 503 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceUnavailableErrorResponseContent"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Calendar Periods"
+        ],
+        "x-hey-retry": {
+          "maxAttempts": 3,
+          "baseDelayMs": 1000,
+          "backoff": "exponential",
+          "retryOn": [
+            429,
+            503
+          ]
+        }
+      }
+    },
+    "/calendar/days/{day}": {
+      "get": {
+        "description": "Get one day",
+        "operationId": "GetCalendarDay",
+        "parameters": [
+          {
+            "name": "day",
+            "in": "path",
+            "schema": {
+              "type": "string"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "GetCalendarDay 200 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetCalendarDayResponseContent"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UnauthorizedError 401 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnauthorizedErrorResponseContent"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError 404 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundErrorResponseContent"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "InternalServerError 500 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorResponseContent"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ServiceUnavailableError 503 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceUnavailableErrorResponseContent"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Calendar Periods"
+        ],
+        "x-hey-retry": {
+          "maxAttempts": 3,
+          "baseDelayMs": 1000,
+          "backoff": "exponential",
+          "retryOn": [
+            429,
+            503
+          ]
+        }
+      }
+    },
     "/calendar/days/{day}/habits/{habitId}/completions": {
       "delete": {
         "description": "Uncomplete a habit for a day",
@@ -2973,6 +3125,252 @@
         }
       }
     },
+    "/calendar/weeks.json": {
+      "get": {
+        "description": "List the weeks around a date — nine of them, centered on it.",
+        "operationId": "ListCalendarWeeks",
+        "parameters": [
+          {
+            "name": "starts_at",
+            "in": "query",
+            "description": "Date (YYYY-MM-DD) of the first week. Takes precedence over centered_at.",
+            "schema": {
+              "type": "string",
+              "description": "Date (YYYY-MM-DD) of the first week. Takes precedence over centered_at.",
+              "x-go-type-skip-optional-pointer": false
+            }
+          },
+          {
+            "name": "centered_at",
+            "in": "query",
+            "description": "Date (YYYY-MM-DD) to center the nine weeks on. Defaults to today.",
+            "schema": {
+              "type": "string",
+              "description": "Date (YYYY-MM-DD) to center the nine weeks on. Defaults to today.",
+              "x-go-type-skip-optional-pointer": false
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ListCalendarWeeks 200 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListCalendarWeeksResponseContent"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UnauthorizedError 401 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnauthorizedErrorResponseContent"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "InternalServerError 500 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorResponseContent"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ServiceUnavailableError 503 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceUnavailableErrorResponseContent"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Calendar Periods"
+        ],
+        "x-hey-retry": {
+          "maxAttempts": 3,
+          "baseDelayMs": 1000,
+          "backoff": "exponential",
+          "retryOn": [
+            429,
+            503
+          ]
+        }
+      }
+    },
+    "/calendar/weeks/{week}": {
+      "get": {
+        "description": "Get one week",
+        "operationId": "GetCalendarWeek",
+        "parameters": [
+          {
+            "name": "week",
+            "in": "path",
+            "description": "Any date in the week (YYYY-MM-DD)",
+            "schema": {
+              "type": "string",
+              "description": "Any date in the week (YYYY-MM-DD)"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "GetCalendarWeek 200 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetCalendarWeekResponseContent"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UnauthorizedError 401 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnauthorizedErrorResponseContent"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError 404 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundErrorResponseContent"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "InternalServerError 500 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorResponseContent"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ServiceUnavailableError 503 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceUnavailableErrorResponseContent"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Calendar Periods"
+        ],
+        "x-hey-retry": {
+          "maxAttempts": 3,
+          "baseDelayMs": 1000,
+          "backoff": "exponential",
+          "retryOn": [
+            429,
+            503
+          ]
+        }
+      }
+    },
+    "/calendar/years/{year}": {
+      "get": {
+        "description": "Get one year as the grid it is drawn as",
+        "operationId": "GetCalendarYear",
+        "parameters": [
+          {
+            "name": "year",
+            "in": "path",
+            "description": "Any date in the year (YYYY-MM-DD)",
+            "schema": {
+              "type": "string",
+              "description": "Any date in the year (YYYY-MM-DD)"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "GetCalendarYear 200 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetCalendarYearResponseContent"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UnauthorizedError 401 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnauthorizedErrorResponseContent"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError 404 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundErrorResponseContent"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "InternalServerError 500 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorResponseContent"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ServiceUnavailableError 503 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceUnavailableErrorResponseContent"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Calendar Periods"
+        ],
+        "x-hey-retry": {
+          "maxAttempts": 3,
+          "baseDelayMs": 1000,
+          "backoff": "exponential",
+          "retryOn": [
+            429,
+            503
+          ]
+        }
+      }
+    },
     "/calendars.json": {
       "get": {
         "description": "List calendars",
@@ -3124,6 +3522,87 @@
         },
         "x-hey-retry": {
           "maxAttempts": 3,
+          "baseDelayMs": 1000,
+          "backoff": "exponential",
+          "retryOn": [
+            429,
+            503
+          ]
+        }
+      }
+    },
+    "/calendars/{calendarId}/toggle": {
+      "post": {
+        "description": "Switch a calendar in or out of the reader's selection, and answer the selection it\nleft behind. The selection is what every period read is scoped to, so a toggle is how\na client changes which calendars a day, week or year is drawn from.",
+        "operationId": "ToggleCalendar",
+        "parameters": [
+          {
+            "name": "calendarId",
+            "in": "path",
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ToggleCalendar 200 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToggleCalendarResponseContent"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UnauthorizedError 401 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnauthorizedErrorResponseContent"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError 404 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundErrorResponseContent"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "InternalServerError 500 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorResponseContent"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ServiceUnavailableError 503 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceUnavailableErrorResponseContent"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Calendars"
+        ],
+        "x-hey-retry": {
+          "maxAttempts": 2,
           "baseDelayMs": 1000,
           "backoff": "exponential",
           "retryOn": [
@@ -9327,6 +9806,20 @@
           "id"
         ]
       },
+      "CalendarDayListPayload": {
+        "type": "object",
+        "properties": {
+          "days": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CalendarPeriod"
+            }
+          }
+        },
+        "required": [
+          "days"
+        ]
+      },
       "CalendarListPayload": {
         "type": "object",
         "description": "CalendarListPayload",
@@ -9342,6 +9835,43 @@
           }
         }
       },
+      "CalendarPeriod": {
+        "type": "object",
+        "description": "CalendarPeriod — a day or a week: its bounds and everything in it, grouped by type.\nRecurring events arrive expanded into the occurrences that fall inside the window,\nwhich is what makes this a different answer than the recordings a calendar lists.",
+        "properties": {
+          "starts_at": {
+            "type": "string",
+            "description": "ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)",
+            "format": "date-time",
+            "x-go-type": "time.Time",
+            "x-go-type-import": {
+              "path": "time"
+            }
+          },
+          "ends_at": {
+            "type": "string",
+            "description": "ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)",
+            "format": "date-time",
+            "x-go-type": "time.Time",
+            "x-go-type-import": {
+              "path": "time"
+            }
+          },
+          "kind": {
+            "type": "string",
+            "description": "\"day\" or \"week\""
+          },
+          "recordings": {
+            "$ref": "#/components/schemas/CalendarRecordingsResponse"
+          }
+        },
+        "required": [
+          "ends_at",
+          "kind",
+          "recordings",
+          "starts_at"
+        ]
+      },
       "CalendarRecordingsResponse": {
         "type": "object",
         "additionalProperties": {
@@ -9354,6 +9884,22 @@
           "type": "string"
         },
         "description": "CalendarRecordingsResponse — recordings grouped by type"
+      },
+      "CalendarSelection": {
+        "type": "object",
+        "description": "CalendarSelection — the calendars a toggle left switched on",
+        "properties": {
+          "selected_calendar_ids": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        },
+        "required": [
+          "selected_calendar_ids"
+        ]
       },
       "CalendarTodoChanges": {
         "type": "object",
@@ -9399,6 +9945,20 @@
           "title"
         ]
       },
+      "CalendarWeekListPayload": {
+        "type": "object",
+        "properties": {
+          "weeks": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CalendarPeriod"
+            }
+          }
+        },
+        "required": [
+          "weeks"
+        ]
+      },
       "CalendarWithRecordingChangesUrl": {
         "type": "object",
         "description": "CalendarWithRecordingChangesUrl — wraps calendar with sync URL",
@@ -9410,6 +9970,81 @@
             "type": "string"
           }
         }
+      },
+      "CalendarYear": {
+        "type": "object",
+        "description": "CalendarYear — the grid a year is drawn as. A year carries one entry per day plus the\nevents that span more than one, not every recording it holds: a year's worth of\nexpanded occurrences is not something a client asks for by opening a year.",
+        "properties": {
+          "starts_at": {
+            "type": "string",
+            "description": "ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)",
+            "format": "date-time",
+            "x-go-type": "time.Time",
+            "x-go-type-import": {
+              "path": "time"
+            }
+          },
+          "ends_at": {
+            "type": "string",
+            "description": "ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)",
+            "format": "date-time",
+            "x-go-type": "time.Time",
+            "x-go-type-import": {
+              "path": "time"
+            }
+          },
+          "kind": {
+            "type": "string",
+            "description": "\"year\""
+          },
+          "padding_days_count": {
+            "type": "integer",
+            "description": "Days between the reader's week start and January 1st, so the grid lines up",
+            "format": "int32"
+          },
+          "days": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CalendarYearDay"
+            }
+          },
+          "spanned_events": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Recording"
+            },
+            "description": "All-day and multi-day events, oldest first"
+          }
+        },
+        "required": [
+          "days",
+          "ends_at",
+          "kind",
+          "padding_days_count",
+          "spanned_events",
+          "starts_at"
+        ]
+      },
+      "CalendarYearDay": {
+        "type": "object",
+        "properties": {
+          "starts_at": {
+            "type": "string",
+            "description": "ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)",
+            "format": "date-time",
+            "x-go-type": "time.Time",
+            "x-go-type-import": {
+              "path": "time"
+            }
+          },
+          "backgrounded": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "backgrounded",
+          "starts_at"
+        ]
       },
       "Clearance": {
         "type": "object",
@@ -10450,8 +11085,17 @@
       "GetBubbleboxResponseContent": {
         "$ref": "#/components/schemas/BoxShowResponse"
       },
+      "GetCalendarDayResponseContent": {
+        "$ref": "#/components/schemas/CalendarPeriod"
+      },
       "GetCalendarRecordingsResponseContent": {
         "$ref": "#/components/schemas/CalendarRecordingsResponse"
+      },
+      "GetCalendarWeekResponseContent": {
+        "$ref": "#/components/schemas/CalendarPeriod"
+      },
+      "GetCalendarYearResponseContent": {
+        "$ref": "#/components/schemas/CalendarYear"
       },
       "GetClearancesResponseContent": {
         "$ref": "#/components/schemas/ClearanceSummary"
@@ -10663,6 +11307,12 @@
         "items": {
           "$ref": "#/components/schemas/Box"
         }
+      },
+      "ListCalendarDaysResponseContent": {
+        "$ref": "#/components/schemas/CalendarDayListPayload"
+      },
+      "ListCalendarWeeksResponseContent": {
+        "$ref": "#/components/schemas/CalendarWeekListPayload"
       },
       "ListCalendarsResponseContent": {
         "$ref": "#/components/schemas/CalendarListPayload"
@@ -11844,6 +12494,9 @@
           "ends_at",
           "starts_at"
         ]
+      },
+      "ToggleCalendarResponseContent": {
+        "$ref": "#/components/schemas/CalendarSelection"
       },
       "Topic": {
         "type": "object",

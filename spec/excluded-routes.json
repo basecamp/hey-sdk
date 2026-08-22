@@ -170,11 +170,6 @@
     "reason": "phase-2: calendar cover image"
   },
   {
-    "method": "GET",
-    "path": "/calendar/days",
-    "reason": "phase-2: calendar day management"
-  },
-  {
     "method": "POST",
     "path": "/calendar/days",
     "reason": "phase-2: calendar day management"
@@ -182,7 +177,7 @@
   {
     "method": "GET",
     "path": "/calendar/days/now",
-    "reason": "phase-2: calendar day management"
+    "reason": "the same action as GET /calendar/days/{id}, which takes `now` as its date"
   },
   {
     "method": "GET",
@@ -411,11 +406,6 @@
   },
   {
     "method": "DELETE",
-    "path": "/calendar/days/{id}",
-    "reason": "phase-2: calendar day management"
-  },
-  {
-    "method": "GET",
     "path": "/calendar/days/{id}",
     "reason": "phase-2: calendar day management"
   },
@@ -1065,11 +1055,6 @@
     "reason": "phase-2: calendar user profile"
   },
   {
-    "method": "GET",
-    "path": "/calendar/weeks",
-    "reason": "phase-2: calendar week view"
-  },
-  {
     "method": "POST",
     "path": "/calendar/weeks",
     "reason": "phase-2: calendar week view"
@@ -1220,11 +1205,6 @@
     "reason": "phase-2: calendar week view"
   },
   {
-    "method": "GET",
-    "path": "/calendar/weeks/{id}",
-    "reason": "phase-2: calendar week view"
-  },
-  {
     "method": "PATCH",
     "path": "/calendar/weeks/{id}",
     "reason": "phase-2: calendar week view"
@@ -1246,11 +1226,6 @@
   },
   {
     "method": "DELETE",
-    "path": "/calendar/years/{id}",
-    "reason": "phase-2: calendar year view"
-  },
-  {
-    "method": "GET",
     "path": "/calendar/years/{id}",
     "reason": "phase-2: calendar year view"
   },
@@ -3131,11 +3106,6 @@
   },
   {
     "method": "PATCH",
-    "path": "/calendars/{calendar_id}/toggle",
-    "reason": "phase-2: shared calendar toggle"
-  },
-  {
-    "method": "POST",
     "path": "/calendars/{calendar_id}/toggle",
     "reason": "phase-2: shared calendar toggle"
   },

@@ -459,11 +459,50 @@
         ]
       }
     },
+    "GetCalendarDay": {
+      "idempotent": false,
+      "readonly": true,
+      "retry": {
+        "backoff": "exponential",
+        "base_delay_ms": 1000,
+        "max": 3,
+        "retry_on": [
+          429,
+          503
+        ]
+      }
+    },
     "GetCalendarRecordings": {
       "idempotent": false,
       "pagination": {
         "style": "window"
       },
+      "readonly": true,
+      "retry": {
+        "backoff": "exponential",
+        "base_delay_ms": 1000,
+        "max": 3,
+        "retry_on": [
+          429,
+          503
+        ]
+      }
+    },
+    "GetCalendarWeek": {
+      "idempotent": false,
+      "readonly": true,
+      "retry": {
+        "backoff": "exponential",
+        "base_delay_ms": 1000,
+        "max": 3,
+        "retry_on": [
+          429,
+          503
+        ]
+      }
+    },
+    "GetCalendarYear": {
+      "idempotent": false,
       "readonly": true,
       "retry": {
         "backoff": "exponential",
@@ -856,6 +895,32 @@
         ]
       }
     },
+    "ListCalendarDays": {
+      "idempotent": false,
+      "readonly": true,
+      "retry": {
+        "backoff": "exponential",
+        "base_delay_ms": 1000,
+        "max": 3,
+        "retry_on": [
+          429,
+          503
+        ]
+      }
+    },
+    "ListCalendarWeeks": {
+      "idempotent": false,
+      "readonly": true,
+      "retry": {
+        "backoff": "exponential",
+        "base_delay_ms": 1000,
+        "max": 3,
+        "retry_on": [
+          429,
+          503
+        ]
+      }
+    },
     "ListCalendars": {
       "idempotent": false,
       "readonly": true,
@@ -1230,6 +1295,19 @@
       }
     },
     "StopHabit": {
+      "idempotent": false,
+      "readonly": false,
+      "retry": {
+        "backoff": "exponential",
+        "base_delay_ms": 1000,
+        "max": 2,
+        "retry_on": [
+          429,
+          503
+        ]
+      }
+    },
+    "ToggleCalendar": {
       "idempotent": false,
       "readonly": false,
       "retry": {

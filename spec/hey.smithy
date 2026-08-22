@@ -101,6 +101,14 @@ service HEY {
         // Calendars (2 MVP)
         ListCalendars
         GetCalendarRecordings
+        ToggleCalendar
+
+        // Calendar periods
+        GetCalendarDay
+        ListCalendarDays
+        GetCalendarWeek
+        ListCalendarWeeks
+        GetCalendarYear
 
         // Calendar Todos (5 MVP)
         CreateCalendarTodo
@@ -979,6 +987,86 @@ map CalendarRecordingsResponse {
     value: RecordingList
 }
 
+/// CalendarPeriod — a day or a week: its bounds and everything in it, grouped by type.
+/// Recurring events arrive expanded into the occurrences that fall inside the window,
+/// which is what makes this a different answer than the recordings a calendar lists.
+structure CalendarPeriod {
+    @required
+    starts_at: DateTime
+
+    @required
+    ends_at: DateTime
+
+    /// "day" or "week"
+    @required
+    kind: String
+
+    @required
+    recordings: CalendarRecordingsResponse
+}
+
+list CalendarPeriodList {
+    member: CalendarPeriod
+}
+
+structure CalendarDayListPayload {
+    @required
+    days: CalendarPeriodList
+}
+
+structure CalendarWeekListPayload {
+    @required
+    weeks: CalendarPeriodList
+}
+
+/// CalendarYear — the grid a year is drawn as. A year carries one entry per day plus the
+/// events that span more than one, not every recording it holds: a year's worth of
+/// expanded occurrences is not something a client asks for by opening a year.
+structure CalendarYear {
+    @required
+    starts_at: DateTime
+
+    @required
+    ends_at: DateTime
+
+    /// "year"
+    @required
+    kind: String
+
+    /// Days between the reader's week start and January 1st, so the grid lines up
+    @required
+    padding_days_count: Integer
+
+    @required
+    days: CalendarYearDayList
+
+    /// All-day and multi-day events, oldest first
+    @required
+    spanned_events: RecordingList
+}
+
+structure CalendarYearDay {
+    @required
+    starts_at: DateTime
+
+    @required
+    backgrounded: Boolean
+}
+
+list CalendarYearDayList {
+    member: CalendarYearDay
+}
+
+list CalendarIdList {
+    member: Long
+}
+
+/// CalendarSelection — the calendars a toggle left switched on
+structure CalendarSelection {
+    @required
+    selected_calendar_ids: CalendarIdList
+}
+
 /// NavigationIcon
 structure NavigationIcon {
     name: String
@@ -1835,6 +1923,153 @@ structure GetCalendarRecordingsInput {
 structure GetCalendarRecordingsOutput {
     @required
     recordings: CalendarRecordingsResponse
+}
+
+/// Switch a calendar in or out of the reader's selection, and answer the selection it
+/// left behind. The selection is what every period read is scoped to, so a toggle is how
+/// a client changes which calendars a day, week or year is drawn from.
+@http(method: "POST", uri: "/calendars/{calendarId}/toggle")
+@tags(["Calendars"])
+@heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+operation ToggleCalendar {
+    input: ToggleCalendarInput
+    output: ToggleCalendarOutput
+    errors: [UnauthorizedError, NotFoundError, InternalServerError, ServiceUnavailableError]
+}
+
+structure ToggleCalendarInput {
+    @httpLabel
+    @required
+    calendarId: Long
+}
+
+structure ToggleCalendarOutput {
+    @required
+    selection: CalendarSelection
+}
+
+// =============================================================================
+// CALENDAR PERIOD OPERATIONS
+//
+// A day, a week and a year, each scoped to the reader's calendar selection. `day`,
+// `week` and `year` are dates (YYYY-MM-DD); a day also takes the literal `now`.
+// =============================================================================
+
+/// Get one day
+@readonly
+@http(method: "GET", uri: "/calendar/days/{day}")
+@tags(["Calendar Periods"])
+@heyRetry(maxAttempts: 3, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+operation GetCalendarDay {
+    input: GetCalendarDayInput
+    output: GetCalendarDayOutput
+    errors: [UnauthorizedError, NotFoundError, InternalServerError, ServiceUnavailableError]
+}
+
+structure GetCalendarDayInput {
+    @httpLabel
+    @required
+    day: String
+}
+
+structure GetCalendarDayOutput {
+    @required
+    day: CalendarPeriod
+}
+
+/// List the days from a date onwards. The server picks how many, so this is a window
+/// rather than a page: read the next one by asking from the last day's date.
+@readonly
+@http(method: "GET", uri: "/calendar/days.json")
+@tags(["Calendar Periods"])
+@heyRetry(maxAttempts: 3, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+operation ListCalendarDays {
+    input: ListCalendarDaysInput
+    output: ListCalendarDaysOutput
+    errors: [UnauthorizedError, InternalServerError, ServiceUnavailableError]
+}
+
+structure ListCalendarDaysInput {
+    /// Date (YYYY-MM-DD) to start from. Defaults to today.
+    @httpQuery("starts_at")
+    starts_at: String
+}
+
+structure ListCalendarDaysOutput {
+    @required
+    response: CalendarDayListPayload
+}
+
+/// Get one week
+@readonly
+@http(method: "GET", uri: "/calendar/weeks/{week}")
+@tags(["Calendar Periods"])
+@heyRetry(maxAttempts: 3, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+operation GetCalendarWeek {
+    input: GetCalendarWeekInput
+    output: GetCalendarWeekOutput
+    errors: [UnauthorizedError, NotFoundError, InternalServerError, ServiceUnavailableError]
+}
+
+structure GetCalendarWeekInput {
+    /// Any date in the week (YYYY-MM-DD)
+    @httpLabel
+    @required
+    week: String
+}
+
+structure GetCalendarWeekOutput {
+    @required
+    week: CalendarPeriod
+}
+
+/// List the weeks around a date — nine of them, centered on it.
+@readonly
+@http(method: "GET", uri: "/calendar/weeks.json")
+@tags(["Calendar Periods"])
+@heyRetry(maxAttempts: 3, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+operation ListCalendarWeeks {
+    input: ListCalendarWeeksInput
+    output: ListCalendarWeeksOutput
+    errors: [UnauthorizedError, InternalServerError, ServiceUnavailableError]
+}
+
+structure ListCalendarWeeksInput {
+    /// Date (YYYY-MM-DD) of the first week. Takes precedence over centered_at.
+    @httpQuery("starts_at")
+    starts_at: String
+
+    /// Date (YYYY-MM-DD) to center the nine weeks on. Defaults to today.
+    @httpQuery("centered_at")
+    centered_at: String
+}
+
+structure ListCalendarWeeksOutput {
+    @required
+    response: CalendarWeekListPayload
+}
+
+/// Get one year as the grid it is drawn as
+@readonly
+@http(method: "GET", uri: "/calendar/years/{year}")
+@tags(["Calendar Periods"])
+@heyRetry(maxAttempts: 3, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+operation GetCalendarYear {
+    input: GetCalendarYearInput
+    output: GetCalendarYearOutput
+    errors: [UnauthorizedError, NotFoundError, InternalServerError, ServiceUnavailableError]
+}
+
+structure GetCalendarYearInput {
+    /// Any date in the year (YYYY-MM-DD)
+    @httpLabel
+    @required
+    year: String
+}
+
+structure GetCalendarYearOutput {
+    @required
+    year: CalendarYear
 }
 
 // =============================================================================

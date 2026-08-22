@@ -63,34 +63,35 @@ type Client struct {
 	boxByKind map[string]int64
 
 	// Services (lazy-initialized, protected by mu)
-	mu             sync.Mutex
-	identity       *IdentityService
-	boxes          *BoxesService
-	postings       *PostingsService
-	topics         *TopicsService
-	messages       *MessagesService
-	attachments    *AttachmentsService
-	entries        *EntriesService
-	bulkReplies    *BulkRepliesService
-	contacts       *ContactsService
-	clearances     *ClearancesService
-	calendars      *CalendarsService
-	calendarTodos  *CalendarTodosService
-	calendarEvents *CalendarEventsService
-	habits         *HabitsService
-	timeTracks     *TimeTracksService
-	journal        *JournalService
-	search         *SearchService
-	designations   *DesignationsService
-	extenzions     *ExtenzionsService
-	folders        *FoldersService
-	collections    *CollectionsService
-	stickies       *StickiesService
-	clips          *ClipsService
-	snippets       *SnippetsService
-	workflows      *WorkflowsService
-	publications   *PublicationsService
-	world          *WorldService
+	mu              sync.Mutex
+	identity        *IdentityService
+	boxes           *BoxesService
+	postings        *PostingsService
+	topics          *TopicsService
+	messages        *MessagesService
+	attachments     *AttachmentsService
+	entries         *EntriesService
+	bulkReplies     *BulkRepliesService
+	contacts        *ContactsService
+	clearances      *ClearancesService
+	calendars       *CalendarsService
+	calendarPeriods *CalendarPeriodsService
+	calendarTodos   *CalendarTodosService
+	calendarEvents  *CalendarEventsService
+	habits          *HabitsService
+	timeTracks      *TimeTracksService
+	journal         *JournalService
+	search          *SearchService
+	designations    *DesignationsService
+	extenzions      *ExtenzionsService
+	folders         *FoldersService
+	collections     *CollectionsService
+	stickies        *StickiesService
+	clips           *ClipsService
+	snippets        *SnippetsService
+	workflows       *WorkflowsService
+	publications    *PublicationsService
+	world           *WorldService
 }
 
 // Response wraps an API response.
@@ -1012,6 +1013,16 @@ func (c *Client) Calendars() *CalendarsService {
 		c.calendars = NewCalendarsService(c)
 	}
 	return c.calendars
+}
+
+// CalendarPeriods returns the CalendarPeriodsService.
+func (c *Client) CalendarPeriods() *CalendarPeriodsService {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.calendarPeriods == nil {
+		c.calendarPeriods = NewCalendarPeriodsService(c)
+	}
+	return c.calendarPeriods
 }
 
 // CalendarTodos returns the CalendarTodosService.
