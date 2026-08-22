@@ -253,6 +253,13 @@
         ]
       }
     },
+    "CreateWorkflowStaging": {
+      "idempotent": false,
+      "readonly": false,
+      "retry": {
+        "max": 0
+      }
+    },
     "DeleteBoxDesignation": {
       "idempotent": true,
       "readonly": false,
@@ -1080,6 +1087,13 @@
           429,
           503
         ]
+      }
+    },
+    "MoveWorkflowStaging": {
+      "idempotent": true,
+      "readonly": false,
+      "retry": {
+        "max": 0
       }
     },
     "MutePostings": {

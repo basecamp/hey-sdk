@@ -223,6 +223,8 @@ service HEY {
         ListClips
         ListSnippets
         GetWorkflow
+        CreateWorkflowStaging
+        MoveWorkflowStaging
         GetTopicPublication
     ]
 }
@@ -3692,6 +3694,57 @@ structure GetWorkflowInput {
 structure GetWorkflowOutput {
     @required
     workflow: Workflow
+}
+
+/// Add a topic to a workflow. HEY places it in the first stage.
+@http(method: "POST", uri: "/topics/{topicId}/workflows/{workflowId}/stagings")
+@tags(["Workflows"])
+operation CreateWorkflowStaging {
+    input: CreateWorkflowStagingInput
+    errors: [UnauthorizedError, ForbiddenError, NotFoundError, UnprocessableEntityError, InternalServerError, ServiceUnavailableError]
+}
+
+structure CreateWorkflowStagingInput {
+    @httpLabel
+    @required
+    topicId: Long
+
+    @httpLabel
+    @required
+    workflowId: Long
+}
+
+/// Move a staged topic to a workflow stage.
+@idempotent
+@http(method: "PATCH", uri: "/topics/{topicId}/workflows/{workflowId}/stagings")
+@tags(["Workflows"])
+operation MoveWorkflowStaging {
+    input: MoveWorkflowStagingInput
+    errors: [UnauthorizedError, ForbiddenError, NotFoundError, UnprocessableEntityError, InternalServerError, ServiceUnavailableError]
+}
+
+structure MoveWorkflowStagingInput {
+    @httpLabel
+    @required
+    topicId: Long
+
+    @httpLabel
+    @required
+    workflowId: Long
+
+    @httpPayload
+    @required
+    body: MoveWorkflowStagingRequestContent
+}
+
+structure MoveWorkflowStagingRequestContent {
+    @required
+    workflow_staging: WorkflowStagingPayload
+}
+
+structure WorkflowStagingPayload {
+    @required
+    workflow_stage_id: Long
 }
 
 /// Whether a thread is shared with a public link, and the link

@@ -3391,6 +3391,85 @@
     ]
   },
   {
+    "name": "CreateWorkflowStaging uses the topic workflow stagings path",
+    "description": "Verifies that CreateWorkflowStaging adds a topic through its workflow staging resource",
+    "operation": "CreateWorkflowStaging",
+    "method": "POST",
+    "path": "/topics/{topicId}/workflows/{workflowId}/stagings",
+    "pathParams": {
+      "topicId": 4471829,
+      "workflowId": 8801
+    },
+    "mockResponses": [
+      {
+        "status": 204,
+        "body": {}
+      }
+    ],
+    "assertions": [
+      {
+        "type": "requestPath",
+        "expected": "/topics/4471829/workflows/8801/stagings"
+      },
+      {
+        "type": "requestMethod",
+        "expected": "POST"
+      },
+      {
+        "type": "noError"
+      }
+    ],
+    "tags": [
+      "path",
+      "workflows",
+      "writes"
+    ]
+  },
+  {
+    "name": "MoveWorkflowStaging uses the topic workflow stagings path",
+    "description": "Verifies that MoveWorkflowStaging sends the selected stage to the topic's workflow staging resource",
+    "operation": "MoveWorkflowStaging",
+    "method": "PATCH",
+    "path": "/topics/{topicId}/workflows/{workflowId}/stagings",
+    "pathParams": {
+      "topicId": 4471829,
+      "workflowId": 8801
+    },
+    "requestBody": {
+      "workflow_stage_id": 5513
+    },
+    "mockResponses": [
+      {
+        "status": 204,
+        "body": {}
+      }
+    ],
+    "assertions": [
+      {
+        "type": "requestPath",
+        "expected": "/topics/4471829/workflows/8801/stagings"
+      },
+      {
+        "type": "requestMethod",
+        "expected": "PATCH"
+      },
+      {
+        "type": "requestBody",
+        "expected": {
+          "workflow_staging.workflow_stage_id": 5513
+        }
+      },
+      {
+        "type": "noError"
+      }
+    ],
+    "tags": [
+      "path",
+      "workflows",
+      "writes"
+    ]
+  },
+  {
     "name": "ListTimeTrackCategories uses /calendar/time_tracks/categories.json path",
     "description": "Verifies that ListTimeTrackCategories constructs the URL path /calendar/time_tracks/categories.json",
     "operation": "ListTimeTrackCategories",

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/url"
 	"strconv"
+	"strings"
 
 	"github.com/basecamp/hey-sdk/go/pkg/generated"
 )
@@ -190,7 +191,9 @@ func (s *WorkflowsService) DeleteStage(ctx context.Context, workflowID, stageID 
 	})
 }
 
-// StageTopic files a topic into a workflow stage.
+// StageTopic adds a topic to a workflow in the selected stage. HEY creates the workflow
+// membership before selecting the stage, so a stage-selection error leaves the topic in the
+// workflow's first stage.
 func (s *WorkflowsService) StageTopic(ctx context.Context, topicID, workflowID, stageID int64) error {
 	op := OperationInfo{
 		Service: "Workflows", Operation: "CreateWorkflowStaging",
@@ -198,12 +201,40 @@ func (s *WorkflowsService) StageTopic(ctx context.Context, topicID, workflowID, 
 	}
 
 	return s.client.instrument(ctx, op, func(ctx context.Context) error {
-		values := url.Values{}
-		values.Set("workflow_stage_id", strconv.FormatInt(stageID, 10))
-
-		_, err := s.client.PostForm(ctx, fmt.Sprintf("/topics/%d/workflows/%d/stagings", topicID, workflowID), values)
-		return err
+		resp, err := s.client.genClient().CreateWorkflowStagingWithResponse(ctx, topicID, workflowID, useFormRepresentation)
+		if err != nil {
+			return err
+		}
+		if err := CheckResponse(resp.HTTPResponse); err != nil {
+			return err
+		}
+		return s.moveTopic(ctx, topicID, workflowID, stageID)
 	})
+}
+
+// MoveTopic moves a staged topic to another workflow stage.
+func (s *WorkflowsService) MoveTopic(ctx context.Context, topicID, workflowID, stageID int64) error {
+	op := OperationInfo{
+		Service: "Workflows", Operation: "MoveWorkflowStaging",
+		ResourceType: "workflow_staging", IsMutation: true, ResourceID: topicID,
+	}
+
+	return s.client.instrument(ctx, op, func(ctx context.Context) error {
+		return s.moveTopic(ctx, topicID, workflowID, stageID)
+	})
+}
+
+func (s *WorkflowsService) moveTopic(ctx context.Context, topicID, workflowID, stageID int64) error {
+	values := url.Values{}
+	values.Set("workflow_staging[workflow_stage_id]", strconv.FormatInt(stageID, 10))
+
+	resp, err := s.client.genClient().MoveWorkflowStagingWithBodyWithResponse(
+		ctx, topicID, workflowID, "application/x-www-form-urlencoded", strings.NewReader(values.Encode()), useFormRepresentation,
+	)
+	if err != nil {
+		return err
+	}
+	return CheckResponse(resp.HTTPResponse)
 }
 
 // UnstageTopic takes a topic back off a workflow.

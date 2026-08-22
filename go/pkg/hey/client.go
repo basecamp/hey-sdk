@@ -281,6 +281,13 @@ func withJSONExtension(path string) string {
 	return path + ".json"
 }
 
+// useFormRepresentation selects the HTML representation used by form-backed operations.
+func useFormRepresentation(_ context.Context, req *http.Request) error {
+	req.URL.Path = strings.TrimSuffix(req.URL.Path, ".json")
+	req.Header.Set("Accept", "*/*")
+	return nil
+}
+
 // discardHandler is a slog.Handler that discards all log records.
 type discardHandler struct{}
 

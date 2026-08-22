@@ -100,6 +100,11 @@
     "path": "/calendar/time_tracks.json"
   },
   {
+    "method": "POST",
+    "operationId": "CreateWorkflowStaging",
+    "path": "/topics/{topicId}/workflows/{workflowId}/stagings"
+  },
+  {
     "method": "DELETE",
     "operationId": "DeleteBoxDesignation",
     "path": "/boxes/{boxId}/designations/{designationId}"
@@ -393,6 +398,11 @@
     "method": "POST",
     "operationId": "MoveTopic",
     "path": "/topics/{topicId}/moves.json"
+  },
+  {
+    "method": "PATCH",
+    "operationId": "MoveWorkflowStaging",
+    "path": "/topics/{topicId}/workflows/{workflowId}/stagings"
   },
   {
     "method": "POST",

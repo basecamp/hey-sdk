@@ -3555,16 +3555,6 @@
     "reason": "phase-2: topic workflows"
   },
   {
-    "method": "PATCH",
-    "path": "/topics/{topic_id}/workflows/{workflow_id}/stagings",
-    "reason": "phase-2: topic workflows"
-  },
-  {
-    "method": "POST",
-    "path": "/topics/{topic_id}/workflows/{workflow_id}/stagings",
-    "reason": "phase-2: topic workflows"
-  },
-  {
     "method": "PUT",
     "path": "/topics/{topic_id}/workflows/{workflow_id}/stagings",
     "reason": "phase-2: topic workflows"

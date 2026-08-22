@@ -2687,14 +2687,82 @@ func TestWorkflowsService_Writes(t *testing.T) {
 		t.Fatalf("unexpected error renaming a stage: %v", err)
 	}
 
-	filer := newFormTestClient(t, "POST", "/topics/%s/workflows/%s/stagings", func(t *testing.T, values url.Values) {
+	mover := newFormTestClient(t, "PATCH", "/topics/%s/workflows/%s/stagings", func(t *testing.T, values url.Values) {
 		t.Helper()
-		if values.Get("workflow_stage_id") != "5512" {
-			t.Errorf("expected the stage id, got %q", values.Get("workflow_stage_id"))
+		if values.Get("workflow_staging[workflow_stage_id]") != "5513" {
+			t.Errorf("expected the destination stage id, got %q", values.Get("workflow_staging[workflow_stage_id]"))
 		}
-	}, "/topics/4471829")
-	if err := filer.Workflows().StageTopic(context.Background(), 4471829, 8801, 5512); err != nil {
+	}, "")
+	if err := mover.Workflows().MoveTopic(context.Background(), 4471829, 8801, 5513); err != nil {
+		t.Fatalf("unexpected error moving a staged topic: %v", err)
+	}
+}
+
+func TestWorkflowsService_StageTopicMovesToRequestedStage(t *testing.T) {
+	const stagingPath = "/topics/4471829/workflows/8801/stagings"
+	requestCount := 0
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requestCount++
+		if r.URL.Path != stagingPath {
+			t.Errorf("expected path %s, got %s", stagingPath, r.URL.Path)
+		}
+		if got := r.Header.Get("Accept"); got != "*/*" {
+			t.Errorf("expected the form representation, got Accept %q", got)
+		}
+		if err := r.ParseForm(); err != nil {
+			t.Fatalf("failed to parse form: %v", err)
+		}
+
+		switch requestCount {
+		case 1:
+			if r.Method != http.MethodPost {
+				t.Errorf("expected the staging request to use POST, got %s", r.Method)
+			}
+			if len(r.PostForm) != 0 {
+				t.Errorf("expected the staging request body to be empty, got %v", r.PostForm)
+			}
+		case 2:
+			if r.Method != http.MethodPatch {
+				t.Errorf("expected the move request to use PATCH, got %s", r.Method)
+			}
+			if got := r.PostForm.Get("workflow_staging[workflow_stage_id]"); got != "5512" {
+				t.Errorf("expected the destination stage id, got %q", got)
+			}
+		default:
+			t.Errorf("unexpected request %d", requestCount)
+		}
+
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	t.Cleanup(server.Close)
+
+	client := NewClient(&Config{BaseURL: server.URL}, &StaticTokenProvider{Token: "test-token"}, WithMaxRetries(0))
+	if err := client.Workflows().StageTopic(context.Background(), 4471829, 8801, 5512); err != nil {
 		t.Fatalf("unexpected error staging a topic: %v", err)
+	}
+	if requestCount != 2 {
+		t.Fatalf("expected staging and move requests, got %d requests", requestCount)
+	}
+}
+
+func TestWorkflowsService_StageTopicSurfacesStageSelectionError(t *testing.T) {
+	requestCount := 0
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requestCount++
+		if requestCount == 1 {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+		w.WriteHeader(http.StatusUnprocessableEntity)
+	}))
+	t.Cleanup(server.Close)
+
+	client := NewClient(&Config{BaseURL: server.URL}, &StaticTokenProvider{Token: "test-token"}, WithMaxRetries(0))
+	if err := client.Workflows().StageTopic(context.Background(), 4471829, 8801, 9999); err == nil {
+		t.Fatal("expected the stage-selection error to surface")
+	}
+	if requestCount != 2 {
+		t.Fatalf("expected staging and move requests, got %d requests", requestCount)
 	}
 }
 
@@ -2733,6 +2801,9 @@ func TestWorkflowsService_WriteErrorsSurface(t *testing.T) {
 	c := NewClient(&Config{BaseURL: srv.URL}, &StaticTokenProvider{Token: "t"}, WithMaxRetries(0))
 	if err := c.Workflows().Delete(context.Background(), 8801); err == nil {
 		t.Fatal("expected a 403 to surface as an error")
+	}
+	if err := c.Workflows().MoveTopic(context.Background(), 4471829, 8801, 5513); err == nil {
+		t.Fatal("expected a 403 moving a staged topic to surface as an error")
 	}
 	if err := c.Workflows().UnstageTopic(context.Background(), 4471829, 8801); err == nil {
 		t.Fatal("expected a 403 to surface as an error")

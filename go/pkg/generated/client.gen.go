@@ -919,6 +919,11 @@ type MoveTopicRequestContent struct {
 	BoxId int64 `json:"box_id"`
 }
 
+// MoveWorkflowStagingRequestContent defines model for MoveWorkflowStagingRequestContent.
+type MoveWorkflowStagingRequestContent struct {
+	WorkflowStaging WorkflowStagingPayload `json:"workflow_staging"`
+}
+
 // NavigationIcon NavigationIcon
 type NavigationIcon struct {
 	AndroidUrl string `json:"android_url,omitempty"`
@@ -1420,6 +1425,11 @@ type WorkflowStage struct {
 	Name string `json:"name,omitempty"`
 }
 
+// WorkflowStagingPayload defines model for WorkflowStagingPayload.
+type WorkflowStagingPayload struct {
+	WorkflowStageId int64 `json:"workflow_stage_id"`
+}
+
 // SensitiveString is a string type that redacts its value in logs.
 // Used for fields marked with x-hey-sensitive in the OpenAPI spec.
 type SensitiveString string
@@ -1718,6 +1728,9 @@ type UpdateStickyJSONRequestBody = StickyRequestContent
 
 // MoveTopicJSONRequestBody defines body for MoveTopic for application/json ContentType.
 type MoveTopicJSONRequestBody = MoveTopicRequestContent
+
+// MoveWorkflowStagingJSONRequestBody defines body for MoveWorkflowStaging for application/json ContentType.
+type MoveWorkflowStagingJSONRequestBody = MoveWorkflowStagingRequestContent
 
 // RequestEditorFn is the function signature for the RequestEditor callback function
 type RequestEditorFn func(ctx context.Context, req *http.Request) error
@@ -2329,6 +2342,14 @@ type ClientInterface interface {
 
 	// TrashTopic request
 	TrashTopic(ctx context.Context, topicId int64, params *TrashTopicParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// MoveWorkflowStagingWithBody request with any body
+	MoveWorkflowStagingWithBody(ctx context.Context, topicId int64, workflowId int64, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	MoveWorkflowStaging(ctx context.Context, topicId int64, workflowId int64, body MoveWorkflowStagingJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CreateWorkflowStaging request
+	CreateWorkflowStaging(ctx context.Context, topicId int64, workflowId int64, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// GetWorkflow request
 	GetWorkflow(ctx context.Context, workflowId int64, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -4085,6 +4106,52 @@ func (c *Client) TrashTopic(ctx context.Context, topicId int64, params *TrashTop
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
 		return NewTrashTopicRequest(c.Server, topicId, params)
 	}, true, "TrashTopic", reqEditors...)
+
+}
+
+// MoveWorkflowStagingWithBody executes the MoveWorkflowStaging operation.
+
+func (c *Client) MoveWorkflowStagingWithBody(ctx context.Context, topicId int64, workflowId int64, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+
+	req, err := NewMoveWorkflowStagingRequestWithBody(c.Server, topicId, workflowId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+
+}
+
+func (c *Client) MoveWorkflowStaging(ctx context.Context, topicId int64, workflowId int64, body MoveWorkflowStagingJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+
+	req, err := NewMoveWorkflowStagingRequest(c.Server, topicId, workflowId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+
+}
+
+// CreateWorkflowStaging executes the CreateWorkflowStaging operation.
+
+func (c *Client) CreateWorkflowStaging(ctx context.Context, topicId int64, workflowId int64, reqEditors ...RequestEditorFn) (*http.Response, error) {
+
+	req, err := NewCreateWorkflowStagingRequest(c.Server, topicId, workflowId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
 
 }
 
@@ -8671,6 +8738,101 @@ func NewTrashTopicRequest(server string, topicId int64, params *TrashTopicParams
 	return req, nil
 }
 
+// NewMoveWorkflowStagingRequest calls the generic MoveWorkflowStaging builder with application/json body
+func NewMoveWorkflowStagingRequest(server string, topicId int64, workflowId int64, body MoveWorkflowStagingJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewMoveWorkflowStagingRequestWithBody(server, topicId, workflowId, "application/json", bodyReader)
+}
+
+// NewMoveWorkflowStagingRequestWithBody generates requests for MoveWorkflowStaging with any type of body
+func NewMoveWorkflowStagingRequestWithBody(server string, topicId int64, workflowId int64, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "topicId", runtime.ParamLocationPath, topicId)
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithLocation("simple", false, "workflowId", runtime.ParamLocationPath, workflowId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/topics/%s/workflows/%s/stagings", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("PATCH", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewCreateWorkflowStagingRequest generates requests for CreateWorkflowStaging
+func NewCreateWorkflowStagingRequest(server string, topicId int64, workflowId int64) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "topicId", runtime.ParamLocationPath, topicId)
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithLocation("simple", false, "workflowId", runtime.ParamLocationPath, workflowId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/topics/%s/workflows/%s/stagings", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewGetWorkflowRequest generates requests for GetWorkflow
 func NewGetWorkflowRequest(server string, workflowId int64) (*http.Request, error) {
 	var err error
@@ -8836,6 +8998,8 @@ var operationMetadata = map[string]OperationMetadata{
 	"RestoreTopic":               {Idempotent: true, HasSensitiveParams: false},
 	"MarkTopicHam":               {Idempotent: true, HasSensitiveParams: false},
 	"TrashTopic":                 {Idempotent: true, HasSensitiveParams: false},
+	"MoveWorkflowStaging":        {Idempotent: false, HasSensitiveParams: false},
+	"CreateWorkflowStaging":      {Idempotent: false, HasSensitiveParams: false},
 	"GetWorkflow":                {Idempotent: true, HasSensitiveParams: false},
 }
 
@@ -10487,6 +10651,27 @@ type ClientWithResponsesInterface interface {
 	//
 	// Returns a wrapper object for the known response body format(s).
 	TrashTopicWithResponse(ctx context.Context, topicId int64, params *TrashTopicParams, reqEditors ...RequestEditorFn) (*TrashTopicResponse, error)
+
+	// MoveWorkflowStagingWithBodyWithResponse performs a PATCH /topics/{topicId}/workflows/{workflowId}/stagings (the `MoveWorkflowStaging` operationId) request,
+	// with any type of body and a specified content type.
+	//
+	// Move a staged topic to a workflow stage.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	MoveWorkflowStagingWithBodyWithResponse(ctx context.Context, topicId int64, workflowId int64, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*MoveWorkflowStagingResponse, error)
+
+	// MoveWorkflowStagingWithResponse performs a PATCH /topics/{topicId}/workflows/{workflowId}/stagings (the `MoveWorkflowStaging` operationId) request.
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Move a staged topic to a workflow stage.
+	MoveWorkflowStagingWithResponse(ctx context.Context, topicId int64, workflowId int64, body MoveWorkflowStagingJSONRequestBody, reqEditors ...RequestEditorFn) (*MoveWorkflowStagingResponse, error)
+
+	// CreateWorkflowStagingWithResponse performs a POST /topics/{topicId}/workflows/{workflowId}/stagings (the `CreateWorkflowStaging` operationId) request.
+	//
+	// Add a topic to a workflow. HEY places it in the first stage.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	CreateWorkflowStagingWithResponse(ctx context.Context, topicId int64, workflowId int64, reqEditors ...RequestEditorFn) (*CreateWorkflowStagingResponse, error)
 
 	// GetWorkflowWithResponse performs a GET /workflows/{workflowId} (the `GetWorkflow` operationId) request.
 	//
@@ -17370,6 +17555,158 @@ func (r TrashTopicResponse) ContentType() string {
 	return ""
 }
 
+type MoveWorkflowStagingResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *UnauthorizedErrorResponseContent
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *ForbiddenErrorResponseContent
+	// JSON404 the response for an HTTP 404 `application/json` response
+	JSON404 *NotFoundErrorResponseContent
+	// JSON422 the response for an HTTP 422 `application/json` response
+	JSON422 *UnprocessableEntityErrorResponseContent
+	// JSON500 the response for an HTTP 500 `application/json` response
+	JSON500 *InternalServerErrorResponseContent
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *ServiceUnavailableErrorResponseContent
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r MoveWorkflowStagingResponse) GetJSON401() *UnauthorizedErrorResponseContent {
+	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r MoveWorkflowStagingResponse) GetJSON403() *ForbiddenErrorResponseContent {
+	return r.JSON403
+}
+
+// GetJSON404 returns the response for an HTTP 404 `application/json` response
+func (r MoveWorkflowStagingResponse) GetJSON404() *NotFoundErrorResponseContent {
+	return r.JSON404
+}
+
+// GetJSON422 returns the response for an HTTP 422 `application/json` response
+func (r MoveWorkflowStagingResponse) GetJSON422() *UnprocessableEntityErrorResponseContent {
+	return r.JSON422
+}
+
+// GetJSON500 returns the response for an HTTP 500 `application/json` response
+func (r MoveWorkflowStagingResponse) GetJSON500() *InternalServerErrorResponseContent {
+	return r.JSON500
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r MoveWorkflowStagingResponse) GetJSON503() *ServiceUnavailableErrorResponseContent {
+	return r.JSON503
+}
+
+// GetBody returns the raw response body bytes
+func (r MoveWorkflowStagingResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r MoveWorkflowStagingResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r MoveWorkflowStagingResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r MoveWorkflowStagingResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type CreateWorkflowStagingResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *UnauthorizedErrorResponseContent
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *ForbiddenErrorResponseContent
+	// JSON404 the response for an HTTP 404 `application/json` response
+	JSON404 *NotFoundErrorResponseContent
+	// JSON422 the response for an HTTP 422 `application/json` response
+	JSON422 *UnprocessableEntityErrorResponseContent
+	// JSON500 the response for an HTTP 500 `application/json` response
+	JSON500 *InternalServerErrorResponseContent
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *ServiceUnavailableErrorResponseContent
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r CreateWorkflowStagingResponse) GetJSON401() *UnauthorizedErrorResponseContent {
+	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r CreateWorkflowStagingResponse) GetJSON403() *ForbiddenErrorResponseContent {
+	return r.JSON403
+}
+
+// GetJSON404 returns the response for an HTTP 404 `application/json` response
+func (r CreateWorkflowStagingResponse) GetJSON404() *NotFoundErrorResponseContent {
+	return r.JSON404
+}
+
+// GetJSON422 returns the response for an HTTP 422 `application/json` response
+func (r CreateWorkflowStagingResponse) GetJSON422() *UnprocessableEntityErrorResponseContent {
+	return r.JSON422
+}
+
+// GetJSON500 returns the response for an HTTP 500 `application/json` response
+func (r CreateWorkflowStagingResponse) GetJSON500() *InternalServerErrorResponseContent {
+	return r.JSON500
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r CreateWorkflowStagingResponse) GetJSON503() *ServiceUnavailableErrorResponseContent {
+	return r.JSON503
+}
+
+// GetBody returns the raw response body bytes
+func (r CreateWorkflowStagingResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r CreateWorkflowStagingResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r CreateWorkflowStagingResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r CreateWorkflowStagingResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type GetWorkflowResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -19317,6 +19654,45 @@ func (c *ClientWithResponses) TrashTopicWithResponse(ctx context.Context, topicI
 		return nil, err
 	}
 	return ParseTrashTopicResponse(rsp)
+}
+
+// MoveWorkflowStagingWithBodyWithResponse performs a PATCH /topics/{topicId}/workflows/{workflowId}/stagings (the `MoveWorkflowStaging` operationId) request,
+// with any type of body and a specified content type.
+//
+// Move a staged topic to a workflow stage.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) MoveWorkflowStagingWithBodyWithResponse(ctx context.Context, topicId int64, workflowId int64, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*MoveWorkflowStagingResponse, error) {
+	rsp, err := c.MoveWorkflowStagingWithBody(ctx, topicId, workflowId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseMoveWorkflowStagingResponse(rsp)
+}
+
+// MoveWorkflowStagingWithResponse performs a PATCH /topics/{topicId}/workflows/{workflowId}/stagings (the `MoveWorkflowStaging` operationId) request.
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Move a staged topic to a workflow stage.
+func (c *ClientWithResponses) MoveWorkflowStagingWithResponse(ctx context.Context, topicId int64, workflowId int64, body MoveWorkflowStagingJSONRequestBody, reqEditors ...RequestEditorFn) (*MoveWorkflowStagingResponse, error) {
+	rsp, err := c.MoveWorkflowStaging(ctx, topicId, workflowId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseMoveWorkflowStagingResponse(rsp)
+}
+
+// CreateWorkflowStagingWithResponse performs a POST /topics/{topicId}/workflows/{workflowId}/stagings (the `CreateWorkflowStaging` operationId) request.
+//
+// Add a topic to a workflow. HEY places it in the first stage.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) CreateWorkflowStagingWithResponse(ctx context.Context, topicId int64, workflowId int64, reqEditors ...RequestEditorFn) (*CreateWorkflowStagingResponse, error) {
+	rsp, err := c.CreateWorkflowStaging(ctx, topicId, workflowId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateWorkflowStagingResponse(rsp)
 }
 
 // GetWorkflowWithResponse performs a GET /workflows/{workflowId} (the `GetWorkflow` operationId) request.
@@ -24734,6 +25110,134 @@ func ParseTrashTopicResponse(rsp *http.Response) (*TrashTopicResponse, error) {
 			return nil, err
 		}
 		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest InternalServerErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+		var dest ServiceUnavailableErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON503 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseMoveWorkflowStagingResponse parses an HTTP response from a MoveWorkflowStagingWithResponse call
+func ParseMoveWorkflowStagingResponse(rsp *http.Response) (*MoveWorkflowStagingResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &MoveWorkflowStagingResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 200:
+		break // No content-type
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest UnauthorizedErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest ForbiddenErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFoundErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 422:
+		var dest UnprocessableEntityErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON422 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest InternalServerErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+		var dest ServiceUnavailableErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON503 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseCreateWorkflowStagingResponse parses an HTTP response from a CreateWorkflowStagingWithResponse call
+func ParseCreateWorkflowStagingResponse(rsp *http.Response) (*CreateWorkflowStagingResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &CreateWorkflowStagingResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 200:
+		break // No content-type
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest UnauthorizedErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest ForbiddenErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFoundErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 422:
+		var dest UnprocessableEntityErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON422 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
 		var dest InternalServerErrorResponseContent

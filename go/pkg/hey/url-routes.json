@@ -896,6 +896,24 @@
       }
     },
     {
+      "pattern": "/topics/{topicId}/workflows/{workflowId}/stagings",
+      "resource": "Workflows",
+      "operations": {
+        "PATCH": "MoveWorkflowStaging",
+        "POST": "CreateWorkflowStaging"
+      },
+      "params": {
+        "topicId": {
+          "role": "parent",
+          "type": "int64"
+        },
+        "workflowId": {
+          "role": "parent",
+          "type": "int64"
+        }
+      }
+    },
+    {
       "pattern": "/workflows/{workflowId}",
       "resource": "Workflows",
       "operations": {

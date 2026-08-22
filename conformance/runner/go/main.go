@@ -1095,6 +1095,24 @@ func executeOperation(client *generated.Client, ctx context.Context, tc TestCase
 		return client.ListSnippets(ctx)
 	case "GetWorkflow":
 		return client.GetWorkflow(ctx, getInt64Param(tc.PathParams, "workflowId"))
+	case "CreateWorkflowStaging":
+		return client.CreateWorkflowStaging(
+			ctx,
+			getInt64Param(tc.PathParams, "topicId"),
+			getInt64Param(tc.PathParams, "workflowId"),
+		)
+	case "MoveWorkflowStaging":
+		body := generated.MoveWorkflowStagingJSONRequestBody{
+			WorkflowStaging: generated.WorkflowStagingPayload{
+				WorkflowStageId: getInt64Param(tc.RequestBody, "workflow_stage_id"),
+			},
+		}
+		return client.MoveWorkflowStaging(
+			ctx,
+			getInt64Param(tc.PathParams, "topicId"),
+			getInt64Param(tc.PathParams, "workflowId"),
+			body,
+		)
 	case "ListTimeTrackCategories":
 		return client.ListTimeTrackCategories(ctx)
 	case "GetTopicPublication":
