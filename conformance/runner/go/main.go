@@ -1063,6 +1063,8 @@ func executeOperation(client *generated.Client, ctx context.Context, tc TestCase
 		return client.UpdateTimeTrack(ctx, timeTrackId, body)
 
 	// Journal
+	case "ListJournalEntries":
+		return client.ListJournalEntries(ctx, nil)
 	case "GetJournalEntry":
 		day := getStringParam(tc.PathParams, "day")
 		return client.GetJournalEntry(ctx, day)

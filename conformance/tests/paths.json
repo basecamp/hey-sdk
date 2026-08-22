@@ -851,6 +851,38 @@
     ]
   },
   {
+    "name": "ListJournalEntries uses /calendar/journal_entries path",
+    "description": "Verifies that ListJournalEntries reads the journal feed from /calendar/journal_entries",
+    "operation": "ListJournalEntries",
+    "method": "GET",
+    "path": "/calendar/journal_entries",
+    "mockResponses": [
+      {
+        "status": 200,
+        "body": [
+          {
+            "id": 123,
+            "type": "CalendarJournalEntry",
+            "content": "Quarterly planning"
+          }
+        ]
+      }
+    ],
+    "assertions": [
+      {
+        "type": "requestPath",
+        "expected": "/calendar/journal_entries"
+      },
+      {
+        "type": "noError"
+      }
+    ],
+    "tags": [
+      "path",
+      "calendar-journal"
+    ]
+  },
+  {
     "name": "ListCalendars uses /calendars.json path",
     "description": "Verifies that ListCalendars constructs the URL path /calendars.json",
     "operation": "ListCalendars",

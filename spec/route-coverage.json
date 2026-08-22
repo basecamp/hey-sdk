@@ -341,6 +341,11 @@
   },
   {
     "method": "GET",
+    "operationId": "ListJournalEntries",
+    "path": "/calendar/journal_entries"
+  },
+  {
+    "method": "GET",
     "operationId": "ListSnippets",
     "path": "/snippets.json"
   },

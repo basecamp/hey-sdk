@@ -2010,6 +2010,87 @@
         }
       }
     },
+    "/calendar/journal_entries": {
+      "get": {
+        "description": "List journal entries newest first. The next page, if any, is a Link header.\nPass q to search journal entry content.",
+        "operationId": "ListJournalEntries",
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "x-go-type-skip-optional-pointer": false
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "x-go-type-skip-optional-pointer": false
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ListJournalEntries 200 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListJournalEntriesResponseContent"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UnauthorizedError 401 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnauthorizedErrorResponseContent"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "InternalServerError 500 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorResponseContent"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ServiceUnavailableError 503 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceUnavailableErrorResponseContent"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Calendar Journal"
+        ],
+        "x-hey-pagination": {
+          "style": "link"
+        },
+        "x-hey-retry": {
+          "maxAttempts": 3,
+          "baseDelayMs": 1000,
+          "backoff": "exponential",
+          "retryOn": [
+            429,
+            503
+          ]
+        }
+      }
+    },
     "/calendar/ongoing_time_track.json": {
       "get": {
         "description": "Get the ongoing time track (404 = no active track; see ADR-004)",
@@ -10608,6 +10689,12 @@
         "type": "array",
         "items": {
           "$ref": "#/components/schemas/DraftMessage"
+        }
+      },
+      "ListJournalEntriesResponseContent": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/Recording"
         }
       },
       "ListSnippetsResponseContent": {

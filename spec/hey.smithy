@@ -125,7 +125,8 @@ service HEY {
         StartTimeTrack
         UpdateTimeTrack
 
-        // Calendar Journal (2 MVP)
+        // Calendar Journal (3 MVP)
+        ListJournalEntries
         GetJournalEntry
         UpdateJournalEntry
 
@@ -2093,6 +2094,32 @@ structure UpdateTimeTrackOutput {
 // =============================================================================
 // CALENDAR JOURNAL OPERATIONS
 // =============================================================================
+
+/// List journal entries newest first. The next page, if any, is a Link header.
+/// Pass q to search journal entry content.
+@readonly
+@http(method: "GET", uri: "/calendar/journal_entries")
+@tags(["Calendar Journal"])
+@heyRetry(maxAttempts: 3, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+@heyPagination(style: "link")
+operation ListJournalEntries {
+    input: ListJournalEntriesInput
+    output: ListJournalEntriesOutput
+    errors: [UnauthorizedError, InternalServerError, ServiceUnavailableError]
+}
+
+structure ListJournalEntriesInput {
+    @httpQuery("page")
+    page: String
+
+    @httpQuery("q")
+    q: String
+}
+
+structure ListJournalEntriesOutput {
+    @required
+    entries: RecordingList
+}
 
 /// Get journal entry for a day
 @readonly

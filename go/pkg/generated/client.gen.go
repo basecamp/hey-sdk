@@ -819,6 +819,9 @@ type ListContactsResponseContent = []Contact
 // ListDraftsResponseContent defines model for ListDraftsResponseContent.
 type ListDraftsResponseContent = []DraftMessage
 
+// ListJournalEntriesResponseContent defines model for ListJournalEntriesResponseContent.
+type ListJournalEntriesResponseContent = []Recording
+
 // ListSnippetsResponseContent defines model for ListSnippetsResponseContent.
 type ListSnippetsResponseContent = []Snippet
 
@@ -1516,6 +1519,12 @@ type NewBulkReplyParams struct {
 	PostingIds string `form:"posting_ids" json:"posting_ids"`
 }
 
+// ListJournalEntriesParams defines parameters for ListJournalEntries.
+type ListJournalEntriesParams struct {
+	Page *string `form:"page,omitempty" json:"page,omitempty"`
+	Q    *string `form:"q,omitempty" json:"q,omitempty"`
+}
+
 // GetCalendarRecordingsParams defines parameters for GetCalendarRecordings.
 type GetCalendarRecordingsParams struct {
 	StartsOn *string `form:"starts_on,omitempty" json:"starts_on,omitempty"`
@@ -2061,6 +2070,9 @@ type ClientInterface interface {
 
 	// StopHabit request
 	StopHabit(ctx context.Context, habitId int64, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListJournalEntries request
+	ListJournalEntries(ctx context.Context, params *ListJournalEntriesParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// GetOngoingTimeTrack request
 	GetOngoingTimeTrack(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -2740,6 +2752,16 @@ func (c *Client) StopHabit(ctx context.Context, habitId int64, reqEditors ...Req
 		return nil, err
 	}
 	return c.Client.Do(req)
+
+}
+
+// ListJournalEntries is marked as idempotent and will be retried on transient failures.
+
+func (c *Client) ListJournalEntries(ctx context.Context, params *ListJournalEntriesParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+
+	return c.doWithRetry(ctx, func() (*http.Request, error) {
+		return NewListJournalEntriesRequest(c.Server, params)
+	}, true, "ListJournalEntries", reqEditors...)
 
 }
 
@@ -5395,6 +5417,71 @@ func NewStopHabitRequest(server string, habitId int64) (*http.Request, error) {
 	}
 
 	req, err := http.NewRequest("POST", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewListJournalEntriesRequest generates requests for ListJournalEntries
+func NewListJournalEntriesRequest(server string, params *ListJournalEntriesParams) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/calendar/journal_entries")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if params.Page != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "page", runtime.ParamLocationQuery, *params.Page); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Q != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "q", runtime.ParamLocationQuery, *params.Q); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -9019,6 +9106,7 @@ var operationMetadata = map[string]OperationMetadata{
 	"UpdateHabit":                {Idempotent: false, HasSensitiveParams: false},
 	"ResumeHabit":                {Idempotent: true, HasSensitiveParams: false},
 	"StopHabit":                  {Idempotent: false, HasSensitiveParams: false},
+	"ListJournalEntries":         {Idempotent: true, HasSensitiveParams: false},
 	"GetOngoingTimeTrack":        {Idempotent: true, HasSensitiveParams: false},
 	"StartTimeTrack":             {Idempotent: false, HasSensitiveParams: false},
 	"CreateTimeTrack":            {Idempotent: false, HasSensitiveParams: false},
@@ -9935,6 +10023,14 @@ type ClientWithResponsesInterface interface {
 	//
 	// Returns a wrapper object for the known response body format(s).
 	StopHabitWithResponse(ctx context.Context, habitId int64, reqEditors ...RequestEditorFn) (*StopHabitResponse, error)
+
+	// ListJournalEntriesWithResponse performs a GET /calendar/journal_entries (the `ListJournalEntries` operationId) request.
+	//
+	// List journal entries newest first. The next page, if any, is a Link header.
+	// Pass q to search journal entry content.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	ListJournalEntriesWithResponse(ctx context.Context, params *ListJournalEntriesParams, reqEditors ...RequestEditorFn) (*ListJournalEntriesResponse, error)
 
 	// GetOngoingTimeTrackWithResponse performs a GET /calendar/ongoing_time_track.json (the `GetOngoingTimeTrack` operationId) request.
 	//
@@ -12335,6 +12431,68 @@ func (r StopHabitResponse) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r StopHabitResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ListJournalEntriesResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *ListJournalEntriesResponseContent
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *UnauthorizedErrorResponseContent
+	// JSON500 the response for an HTTP 500 `application/json` response
+	JSON500 *InternalServerErrorResponseContent
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *ServiceUnavailableErrorResponseContent
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListJournalEntriesResponse) GetJSON200() *ListJournalEntriesResponseContent {
+	return r.JSON200
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r ListJournalEntriesResponse) GetJSON401() *UnauthorizedErrorResponseContent {
+	return r.JSON401
+}
+
+// GetJSON500 returns the response for an HTTP 500 `application/json` response
+func (r ListJournalEntriesResponse) GetJSON500() *InternalServerErrorResponseContent {
+	return r.JSON500
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r ListJournalEntriesResponse) GetJSON503() *ServiceUnavailableErrorResponseContent {
+	return r.JSON503
+}
+
+// GetBody returns the raw response body bytes
+func (r ListJournalEntriesResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListJournalEntriesResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListJournalEntriesResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListJournalEntriesResponse) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -18374,6 +18532,20 @@ func (c *ClientWithResponses) StopHabitWithResponse(ctx context.Context, habitId
 	return ParseStopHabitResponse(rsp)
 }
 
+// ListJournalEntriesWithResponse performs a GET /calendar/journal_entries (the `ListJournalEntries` operationId) request.
+//
+// List journal entries newest first. The next page, if any, is a Link header.
+// Pass q to search journal entry content.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) ListJournalEntriesWithResponse(ctx context.Context, params *ListJournalEntriesParams, reqEditors ...RequestEditorFn) (*ListJournalEntriesResponse, error) {
+	rsp, err := c.ListJournalEntries(ctx, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListJournalEntriesResponse(rsp)
+}
+
 // GetOngoingTimeTrackWithResponse performs a GET /calendar/ongoing_time_track.json (the `GetOngoingTimeTrack` operationId) request.
 //
 // Get the ongoing time track (404 = no active track; see ADR-004)
@@ -21130,6 +21302,53 @@ func ParseStopHabitResponse(rsp *http.Response) (*StopHabitResponse, error) {
 			return nil, err
 		}
 		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest InternalServerErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+		var dest ServiceUnavailableErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON503 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListJournalEntriesResponse parses an HTTP response from a ListJournalEntriesWithResponse call
+func ParseListJournalEntriesResponse(rsp *http.Response) (*ListJournalEntriesResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListJournalEntriesResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ListJournalEntriesResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest UnauthorizedErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
 		var dest InternalServerErrorResponseContent

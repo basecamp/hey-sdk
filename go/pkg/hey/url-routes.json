@@ -220,6 +220,14 @@
       }
     },
     {
+      "pattern": "/calendar/journal_entries",
+      "resource": "Calendar Journal",
+      "operations": {
+        "GET": "ListJournalEntries"
+      },
+      "params": {}
+    },
+    {
       "pattern": "/calendar/ongoing_time_track",
       "resource": "Calendar Time Tracks",
       "operations": {
