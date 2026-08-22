@@ -217,6 +217,15 @@ type CalendarListPayload struct {
 // CalendarRecordingsResponse CalendarRecordingsResponse — recordings grouped by type
 type CalendarRecordingsResponse map[string][]Recording
 
+// CalendarTodoChanges Nothing here is required: a rename sends a title and leaves the day alone.
+type CalendarTodoChanges struct {
+	Focused *bool `json:"focused,omitempty"`
+
+	// StartsAt Date string (YYYY-MM-DD). The day the todo is filed on.
+	StartsAt *time.Time `json:"starts_at,omitempty,omitzero"`
+	Title    string     `json:"title,omitempty"`
+}
+
 // CalendarTodoPayload defines model for CalendarTodoPayload.
 type CalendarTodoPayload struct {
 	// StartsAt Date string (YYYY-MM-DD). Defaults to today if omitted.
@@ -1310,6 +1319,15 @@ type UnprocessableEntityErrorResponseContent struct {
 	Message string   `json:"message,omitempty"`
 }
 
+// UpdateCalendarTodoRequestContent Wire format: {calendar_todo: {title, starts_at, focused}}
+type UpdateCalendarTodoRequestContent struct {
+	// CalendarTodo Nothing here is required: a rename sends a title and leaves the day alone.
+	CalendarTodo CalendarTodoChanges `json:"calendar_todo"`
+}
+
+// UpdateCalendarTodoResponseContent Recording — polymorphic by `type` (CalendarEvent, CalendarTodo, etc.)
+type UpdateCalendarTodoResponseContent = Recording
+
 // UpdateClearanceRequestContent Wire format: {status: "approved"|"denied"} — top level, not nested under a clearance key.
 type UpdateClearanceRequestContent struct {
 	DesignationBoxId int64  `json:"designation_box_id,omitempty"`
@@ -1653,6 +1671,9 @@ type UpdateTimeTrackJSONRequestBody = UpdateTimeTrackRequestContent
 
 // CreateCalendarTodoJSONRequestBody defines body for CreateCalendarTodo for application/json ContentType.
 type CreateCalendarTodoJSONRequestBody = CreateCalendarTodoRequestContent
+
+// UpdateCalendarTodoJSONRequestBody defines body for UpdateCalendarTodo for application/json ContentType.
+type UpdateCalendarTodoJSONRequestBody = UpdateCalendarTodoRequestContent
 
 // BulkUpdateClearancesJSONRequestBody defines body for BulkUpdateClearances for application/json ContentType.
 type BulkUpdateClearancesJSONRequestBody = BulkUpdateClearancesRequestContent
@@ -2070,6 +2091,11 @@ type ClientInterface interface {
 
 	// DeleteCalendarTodo request
 	DeleteCalendarTodo(ctx context.Context, todoId int64, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// UpdateCalendarTodoWithBody request with any body
+	UpdateCalendarTodoWithBody(ctx context.Context, todoId int64, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	UpdateCalendarTodo(ctx context.Context, todoId int64, body UpdateCalendarTodoJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// UncompleteCalendarTodo request
 	UncompleteCalendarTodo(ctx context.Context, todoId int64, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -2848,6 +2874,36 @@ func (c *Client) DeleteCalendarTodo(ctx context.Context, todoId int64, reqEditor
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
 		return NewDeleteCalendarTodoRequest(c.Server, todoId)
 	}, true, "DeleteCalendarTodo", reqEditors...)
+
+}
+
+// UpdateCalendarTodoWithBody executes the UpdateCalendarTodo operation.
+
+func (c *Client) UpdateCalendarTodoWithBody(ctx context.Context, todoId int64, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+
+	req, err := NewUpdateCalendarTodoRequestWithBody(c.Server, todoId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+
+}
+
+func (c *Client) UpdateCalendarTodo(ctx context.Context, todoId int64, body UpdateCalendarTodoJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+
+	req, err := NewUpdateCalendarTodoRequest(c.Server, todoId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
 
 }
 
@@ -5618,6 +5674,53 @@ func NewDeleteCalendarTodoRequest(server string, todoId int64) (*http.Request, e
 	if err != nil {
 		return nil, err
 	}
+
+	return req, nil
+}
+
+// NewUpdateCalendarTodoRequest calls the generic UpdateCalendarTodo builder with application/json body
+func NewUpdateCalendarTodoRequest(server string, todoId int64, body UpdateCalendarTodoJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewUpdateCalendarTodoRequestWithBody(server, todoId, "application/json", bodyReader)
+}
+
+// NewUpdateCalendarTodoRequestWithBody generates requests for UpdateCalendarTodo with any type of body
+func NewUpdateCalendarTodoRequestWithBody(server string, todoId int64, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "todoId", runtime.ParamLocationPath, todoId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/calendar/todos/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("PATCH", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
 
 	return req, nil
 }
@@ -8924,6 +9027,7 @@ var operationMetadata = map[string]OperationMetadata{
 	"UpdateTimeTrack":            {Idempotent: true, HasSensitiveParams: false},
 	"CreateCalendarTodo":         {Idempotent: false, HasSensitiveParams: false},
 	"DeleteCalendarTodo":         {Idempotent: true, HasSensitiveParams: false},
+	"UpdateCalendarTodo":         {Idempotent: false, HasSensitiveParams: false},
 	"UncompleteCalendarTodo":     {Idempotent: true, HasSensitiveParams: false},
 	"CompleteCalendarTodo":       {Idempotent: true, HasSensitiveParams: false},
 	"ListCalendars":              {Idempotent: true, HasSensitiveParams: false},
@@ -9914,6 +10018,24 @@ type ClientWithResponsesInterface interface {
 	//
 	// Returns a wrapper object for the known response body format(s).
 	DeleteCalendarTodoWithResponse(ctx context.Context, todoId int64, reqEditors ...RequestEditorFn) (*DeleteCalendarTodoResponse, error)
+
+	// UpdateCalendarTodoWithBodyWithResponse performs a PATCH /calendar/todos/{todoId} (the `UpdateCalendarTodo` operationId) request,
+	// with any type of body and a specified content type.
+	//
+	// Edit a calendar todo. todoId is the recording's id, and every field of the payload
+	// is optional: haystack's `wrap_parameters` accepts title, focused and starts_at, and
+	// changes only what is sent.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	UpdateCalendarTodoWithBodyWithResponse(ctx context.Context, todoId int64, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateCalendarTodoResponse, error)
+
+	// UpdateCalendarTodoWithResponse performs a PATCH /calendar/todos/{todoId} (the `UpdateCalendarTodo` operationId) request.
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Edit a calendar todo. todoId is the recording's id, and every field of the payload
+	// is optional: haystack's `wrap_parameters` accepts title, focused and starts_at, and
+	// changes only what is sent.
+	UpdateCalendarTodoWithResponse(ctx context.Context, todoId int64, body UpdateCalendarTodoJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateCalendarTodoResponse, error)
 
 	// UncompleteCalendarTodoWithResponse performs a DELETE /calendar/todos/{todoId}/completions (the `UncompleteCalendarTodo` operationId) request.
 	//
@@ -12758,6 +12880,82 @@ func (r DeleteCalendarTodoResponse) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r DeleteCalendarTodoResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type UpdateCalendarTodoResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *UpdateCalendarTodoResponseContent
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *UnauthorizedErrorResponseContent
+	// JSON404 the response for an HTTP 404 `application/json` response
+	JSON404 *NotFoundErrorResponseContent
+	// JSON422 the response for an HTTP 422 `application/json` response
+	JSON422 *UnprocessableEntityErrorResponseContent
+	// JSON500 the response for an HTTP 500 `application/json` response
+	JSON500 *InternalServerErrorResponseContent
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *ServiceUnavailableErrorResponseContent
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r UpdateCalendarTodoResponse) GetJSON200() *UpdateCalendarTodoResponseContent {
+	return r.JSON200
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r UpdateCalendarTodoResponse) GetJSON401() *UnauthorizedErrorResponseContent {
+	return r.JSON401
+}
+
+// GetJSON404 returns the response for an HTTP 404 `application/json` response
+func (r UpdateCalendarTodoResponse) GetJSON404() *NotFoundErrorResponseContent {
+	return r.JSON404
+}
+
+// GetJSON422 returns the response for an HTTP 422 `application/json` response
+func (r UpdateCalendarTodoResponse) GetJSON422() *UnprocessableEntityErrorResponseContent {
+	return r.JSON422
+}
+
+// GetJSON500 returns the response for an HTTP 500 `application/json` response
+func (r UpdateCalendarTodoResponse) GetJSON500() *InternalServerErrorResponseContent {
+	return r.JSON500
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r UpdateCalendarTodoResponse) GetJSON503() *ServiceUnavailableErrorResponseContent {
+	return r.JSON503
+}
+
+// GetBody returns the raw response body bytes
+func (r UpdateCalendarTodoResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r UpdateCalendarTodoResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r UpdateCalendarTodoResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r UpdateCalendarTodoResponse) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -18325,6 +18523,36 @@ func (c *ClientWithResponses) DeleteCalendarTodoWithResponse(ctx context.Context
 	return ParseDeleteCalendarTodoResponse(rsp)
 }
 
+// UpdateCalendarTodoWithBodyWithResponse performs a PATCH /calendar/todos/{todoId} (the `UpdateCalendarTodo` operationId) request,
+// with any type of body and a specified content type.
+//
+// Edit a calendar todo. todoId is the recording's id, and every field of the payload
+// is optional: haystack's `wrap_parameters` accepts title, focused and starts_at, and
+// changes only what is sent.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) UpdateCalendarTodoWithBodyWithResponse(ctx context.Context, todoId int64, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateCalendarTodoResponse, error) {
+	rsp, err := c.UpdateCalendarTodoWithBody(ctx, todoId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpdateCalendarTodoResponse(rsp)
+}
+
+// UpdateCalendarTodoWithResponse performs a PATCH /calendar/todos/{todoId} (the `UpdateCalendarTodo` operationId) request.
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Edit a calendar todo. todoId is the recording's id, and every field of the payload
+// is optional: haystack's `wrap_parameters` accepts title, focused and starts_at, and
+// changes only what is sent.
+func (c *ClientWithResponses) UpdateCalendarTodoWithResponse(ctx context.Context, todoId int64, body UpdateCalendarTodoJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateCalendarTodoResponse, error) {
+	rsp, err := c.UpdateCalendarTodo(ctx, todoId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpdateCalendarTodoResponse(rsp)
+}
+
 // UncompleteCalendarTodoWithResponse performs a DELETE /calendar/todos/{todoId}/completions (the `UncompleteCalendarTodo` operationId) request.
 //
 // Uncomplete a calendar todo.
@@ -21333,6 +21561,67 @@ func ParseDeleteCalendarTodoResponse(rsp *http.Response) (*DeleteCalendarTodoRes
 			return nil, err
 		}
 		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest InternalServerErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+		var dest ServiceUnavailableErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON503 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseUpdateCalendarTodoResponse parses an HTTP response from a UpdateCalendarTodoWithResponse call
+func ParseUpdateCalendarTodoResponse(rsp *http.Response) (*UpdateCalendarTodoResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &UpdateCalendarTodoResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest UpdateCalendarTodoResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest UnauthorizedErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFoundErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 422:
+		var dest UnprocessableEntityErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON422 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
 		var dest InternalServerErrorResponseContent

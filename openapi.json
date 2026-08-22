@@ -2628,6 +2628,105 @@
             503
           ]
         }
+      },
+      "patch": {
+        "description": "Edit a calendar todo. todoId is the recording's id, and every field of the payload\nis optional: haystack's `wrap_parameters` accepts title, focused and starts_at, and\nchanges only what is sent.",
+        "operationId": "UpdateCalendarTodo",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateCalendarTodoRequestContent"
+              }
+            }
+          },
+          "required": true
+        },
+        "parameters": [
+          {
+            "name": "todoId",
+            "in": "path",
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "UpdateCalendarTodo 200 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UpdateCalendarTodoResponseContent"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UnauthorizedError 401 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnauthorizedErrorResponseContent"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError 404 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundErrorResponseContent"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "UnprocessableEntityError 422 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnprocessableEntityErrorResponseContent"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "InternalServerError 500 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorResponseContent"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ServiceUnavailableError 503 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceUnavailableErrorResponseContent"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Calendar Todos"
+        ],
+        "x-hey-retry": {
+          "maxAttempts": 2,
+          "baseDelayMs": 1000,
+          "backoff": "exponential",
+          "retryOn": [
+            429,
+            503
+          ]
+        }
       }
     },
     "/calendar/todos/{todoId}/completions": {
@@ -9175,6 +9274,29 @@
         },
         "description": "CalendarRecordingsResponse — recordings grouped by type"
       },
+      "CalendarTodoChanges": {
+        "type": "object",
+        "description": "Nothing here is required: a rename sends a title and leaves the day alone.",
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "starts_at": {
+            "type": "string",
+            "description": "Date string (YYYY-MM-DD). The day the todo is filed on.",
+            "x-go-type": "time.Time",
+            "x-go-type-import": {
+              "path": "time"
+            },
+            "x-go-type-skip-optional-pointer": false,
+            "x-omitzero": true
+          },
+          "focused": {
+            "type": "boolean",
+            "x-go-type-skip-optional-pointer": false
+          }
+        }
+      },
       "CalendarTodoPayload": {
         "type": "object",
         "properties": {
@@ -11809,6 +11931,21 @@
             "type": "string"
           }
         }
+      },
+      "UpdateCalendarTodoRequestContent": {
+        "type": "object",
+        "description": "Wire format: {calendar_todo: {title, starts_at, focused}}",
+        "properties": {
+          "calendar_todo": {
+            "$ref": "#/components/schemas/CalendarTodoChanges"
+          }
+        },
+        "required": [
+          "calendar_todo"
+        ]
+      },
+      "UpdateCalendarTodoResponseContent": {
+        "$ref": "#/components/schemas/Recording"
       },
       "UpdateClearanceRequestContent": {
         "type": "object",

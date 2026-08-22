@@ -1040,11 +1040,6 @@
     "reason": "phase-2: calendar todo management"
   },
   {
-    "method": "PATCH",
-    "path": "/calendar/todos/{id}",
-    "reason": "phase-2: calendar todo management"
-  },
-  {
     "method": "PUT",
     "path": "/calendar/todos/{id}",
     "reason": "phase-2: calendar todo management"

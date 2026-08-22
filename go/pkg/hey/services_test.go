@@ -670,6 +670,79 @@ func TestCalendarTodosService_Create(t *testing.T) {
 	}
 }
 
+func TestCalendarTodosService_Update(t *testing.T) {
+	client := newMutationTestClientWithValidation(t, "PATCH", "/calendar/todos/1.json",
+		func(t *testing.T, body map[string]any) {
+			t.Helper()
+			todo, ok := body["calendar_todo"].(map[string]any)
+			if !ok {
+				t.Fatal("missing calendar_todo wrapper")
+			}
+			if todo["title"] != "Renew the passport" {
+				t.Errorf("expected title 'Renew the passport', got %v", todo["title"])
+			}
+			// A rename says nothing about the day or the focus, so the server keeps them.
+			if _, ok := todo["starts_at"]; ok {
+				t.Errorf("a rename sent starts_at: %v", todo)
+			}
+			if _, ok := todo["focused"]; ok {
+				t.Errorf("a rename sent focused: %v", todo)
+			}
+		},
+		`{"id":1,"type":"CalendarTodo","title":"Renew the passport"}`,
+	)
+
+	result, err := client.CalendarTodos().Update(context.Background(), 1, TodoChanges{Title: "Renew the passport"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result == nil {
+		t.Fatal("expected non-nil result")
+	}
+}
+
+// starts_at goes out as the bare date it was given: sent as an RFC 3339 instant at UTC
+// midnight it can land on the day before once the server reads it in the user's zone.
+func TestCalendarTodosService_UpdateSendsABareDate(t *testing.T) {
+	focused := true
+	client := newMutationTestClientWithValidation(t, "PATCH", "/calendar/todos/1.json",
+		func(t *testing.T, body map[string]any) {
+			t.Helper()
+			todo, ok := body["calendar_todo"].(map[string]any)
+			if !ok {
+				t.Fatal("missing calendar_todo wrapper")
+			}
+			if todo["starts_at"] != "2026-03-13" {
+				t.Errorf("starts_at = %v, want the bare date", todo["starts_at"])
+			}
+			if todo["focused"] != true {
+				t.Errorf("focused = %v", todo["focused"])
+			}
+		},
+		`{"id":1,"type":"CalendarTodo"}`,
+	)
+
+	if _, err := client.CalendarTodos().Update(context.Background(), 1, TodoChanges{
+		StartsAt: "2026-03-13",
+		Focused:  &focused,
+	}); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestCalendarTodosService_UpdateRefusesAnEmptyChange(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		t.Errorf("an update that changes nothing reached the server: %s %s", r.Method, r.URL.Path)
+		w.WriteHeader(200)
+	}))
+	defer server.Close()
+
+	client := NewClient(&Config{BaseURL: server.URL}, &StaticTokenProvider{Token: "test-token"})
+	if _, err := client.CalendarTodos().Update(context.Background(), 1, TodoChanges{}); err == nil {
+		t.Fatal("an update that changes nothing was accepted")
+	}
+}
+
 func TestCalendarTodosService_Complete(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")

@@ -491,6 +491,11 @@
   },
   {
     "method": "PATCH",
+    "operationId": "UpdateCalendarTodo",
+    "path": "/calendar/todos/{todoId}"
+  },
+  {
+    "method": "PATCH",
     "operationId": "UpdateClearance",
     "path": "/clearances/{clearanceId}"
   },

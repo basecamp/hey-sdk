@@ -270,7 +270,8 @@
       "pattern": "/calendar/todos/{todoId}",
       "resource": "Calendar Todos",
       "operations": {
-        "DELETE": "DeleteCalendarTodo"
+        "DELETE": "DeleteCalendarTodo",
+        "PATCH": "UpdateCalendarTodo"
       },
       "params": {
         "todoId": {

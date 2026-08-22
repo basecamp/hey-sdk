@@ -102,8 +102,9 @@ service HEY {
         ListCalendars
         GetCalendarRecordings
 
-        // Calendar Todos (4 MVP)
+        // Calendar Todos (5 MVP)
         CreateCalendarTodo
+        UpdateCalendarTodo
         CompleteCalendarTodo
         UncompleteCalendarTodo
         DeleteCalendarTodo
@@ -1870,6 +1871,51 @@ structure CalendarTodoPayload {
 }
 
 structure CreateCalendarTodoOutput {
+    @required
+    recording: Recording
+}
+
+/// Edit a calendar todo. todoId is the recording's id, and every field of the payload
+/// is optional: haystack's `wrap_parameters` accepts title, focused and starts_at, and
+/// changes only what is sent.
+@idempotent
+@http(method: "PATCH", uri: "/calendar/todos/{todoId}")
+@tags(["Calendar Todos"])
+@heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+operation UpdateCalendarTodo {
+    input: UpdateCalendarTodoInput
+    output: UpdateCalendarTodoOutput
+    errors: [UnauthorizedError, NotFoundError, UnprocessableEntityError, InternalServerError, ServiceUnavailableError]
+}
+
+structure UpdateCalendarTodoInput {
+    @httpLabel
+    @required
+    todoId: Long
+
+    @httpPayload
+    @required
+    body: UpdateCalendarTodoRequestContent
+}
+
+/// Wire format: {calendar_todo: {title, starts_at, focused}}
+structure UpdateCalendarTodoRequestContent {
+    @required
+    calendar_todo: CalendarTodoChanges
+}
+
+/// Nothing here is required: a rename sends a title and leaves the day alone.
+structure CalendarTodoChanges {
+    title: String
+
+    /// Date string (YYYY-MM-DD). The day the todo is filed on.
+    starts_at: String
+
+    focused: Boolean
+}
+
+/// The edited todo as a recording (haystack renders calendar/recordings/_recording).
+structure UpdateCalendarTodoOutput {
     @required
     recording: Recording
 }
