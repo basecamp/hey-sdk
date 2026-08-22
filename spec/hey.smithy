@@ -3715,7 +3715,6 @@ structure CreateWorkflowStagingInput {
 }
 
 /// Move a staged topic to a workflow stage.
-@idempotent
 @http(method: "PATCH", uri: "/topics/{topicId}/workflows/{workflowId}/stagings")
 @tags(["Workflows"])
 operation MoveWorkflowStaging {

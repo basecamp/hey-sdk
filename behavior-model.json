@@ -1090,7 +1090,7 @@
       }
     },
     "MoveWorkflowStaging": {
-      "idempotent": true,
+      "idempotent": false,
       "readonly": false,
       "retry": {
         "max": 0
