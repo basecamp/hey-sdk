@@ -1298,6 +1298,38 @@ func TestCalendarEventsService_Update_WithAZonePerEnd(t *testing.T) {
 	}
 }
 
+// The deprecated single TimeZone still names both ends, and now carries the flag that makes
+// HEY read it — which it never did before.
+func TestCalendarEventsService_Create_WithTheDeprecatedTimeZone(t *testing.T) {
+	client := newFormJSONTestClient(t, "POST", "/calendar/events.json",
+		func(t *testing.T, values url.Values) {
+			t.Helper()
+			for field, want := range map[string]string{
+				"calendar_event[set_time_zone]":            "1",
+				"calendar_event[starts_at_time_zone_name]": "America/New_York",
+				"calendar_event[ends_at_time_zone_name]":   "America/New_York",
+			} {
+				if got := values.Get(field); got != want {
+					t.Errorf("%s = %q, want %q", field, got, want)
+				}
+			}
+		},
+		201, calendarEventJSON,
+	)
+
+	_, err := client.CalendarEvents().Create(context.Background(), CreateCalendarEventParams{
+		CalendarID: 1,
+		Title:      "Meeting",
+		StartsAt:   "2026-04-06",
+		StartTime:  "10:00",
+		EndTime:    "11:00",
+		TimeZone:   "America/New_York",
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
 // Empty zones say the times are UTC, and put the event back to having no zones of its own.
 func TestCalendarEventsService_Update_ClearingTheZones(t *testing.T) {
 	none := ""

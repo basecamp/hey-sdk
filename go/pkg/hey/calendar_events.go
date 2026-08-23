@@ -47,6 +47,11 @@ type CreateCalendarEventParams struct {
 	// as its own form offers, so an event can start in one and finish in another.
 	StartTimeZone string
 	EndTimeZone   string
+	// TimeZone names one zone for both ends.
+	//
+	// Deprecated: use StartTimeZone and EndTimeZone. It stands in for whichever of them is
+	// empty, so a caller that only ever wanted one zone keeps working.
+	TimeZone string
 	// Reminders is a list of durations before the event to send reminders.
 	// The API accepts any duration, not just the presets in the web UI.
 	Reminders []time.Duration
@@ -77,7 +82,12 @@ type UpdateCalendarEventParams struct {
 	// with; nil leaves them out of the request, which HEY also reads as clearing them.
 	StartTimeZone *string
 	EndTimeZone   *string
-	Reminders     []time.Duration
+	// TimeZone names one zone for both ends.
+	//
+	// Deprecated: use StartTimeZone and EndTimeZone. It stands in for whichever of them is
+	// nil, so a caller that only ever wanted one zone keeps working.
+	TimeZone  *string
+	Reminders []time.Duration
 }
 
 // setTimeZones writes the zones a timed event's clock times are written in, and the flag that
@@ -86,6 +96,22 @@ type UpdateCalendarEventParams struct {
 //
 // Naming no zone is a complete answer rather than an omission — convert to UTC and say nothing.
 // An all-day event does not come through here at all, since a date has no zone.
+// timeZoneOr and timeZonePointerOr let the deprecated TimeZone stand in for an end the caller
+// did not name.
+func timeZoneOr(zone, both string) string {
+	if zone == "" {
+		return both
+	}
+	return zone
+}
+
+func timeZonePointerOr(zone, both *string) *string {
+	if zone == nil {
+		return both
+	}
+	return zone
+}
+
 func setTimeZones(values url.Values, start, end string) {
 	if start == "" && end == "" {
 		values.Set("calendar_event[set_time_zone]", "0")
@@ -140,7 +166,9 @@ func (s *CalendarEventsService) Create(ctx context.Context, params CreateCalenda
 		values.Set("calendar_event[all_day]", "0")
 		values.Set("calendar_event[starts_at_time]", params.StartTime+":00")
 		values.Set("calendar_event[ends_at_time]", params.EndTime+":00")
-		setTimeZones(values, params.StartTimeZone, params.EndTimeZone)
+		setTimeZones(values,
+			timeZoneOr(params.StartTimeZone, params.TimeZone),
+			timeZoneOr(params.EndTimeZone, params.TimeZone))
 		for _, r := range params.Reminders {
 			values.Add("timed_reminder_durations[]", fmt.Sprintf("%d", int64(r.Seconds())))
 		}
@@ -215,13 +243,15 @@ func (s *CalendarEventsService) Update(ctx context.Context, eventID int64, param
 	if params.CalendarID != nil {
 		values.Set("calendar_event[calendar_id]", fmt.Sprintf("%d", *params.CalendarID))
 	}
-	if params.StartTimeZone != nil || params.EndTimeZone != nil {
+	startZone := timeZonePointerOr(params.StartTimeZone, params.TimeZone)
+	endZone := timeZonePointerOr(params.EndTimeZone, params.TimeZone)
+	if startZone != nil || endZone != nil {
 		var start, end string
-		if params.StartTimeZone != nil {
-			start = *params.StartTimeZone
+		if startZone != nil {
+			start = *startZone
 		}
-		if params.EndTimeZone != nil {
-			end = *params.EndTimeZone
+		if endZone != nil {
+			end = *endZone
 		}
 		setTimeZones(values, start, end)
 	}
