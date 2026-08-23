@@ -1162,7 +1162,9 @@ func TestCalendarEventsService_Create(t *testing.T) {
 		StartsAt:   "2026-04-06",
 		StartTime:  "10:00",
 		EndTime:    "11:00",
-		TimeZone:   "America/New_York",
+
+		StartTimeZone: "America/New_York",
+		EndTimeZone:   "America/New_York",
 	})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -1191,7 +1193,9 @@ func TestCalendarEventsService_Create_OnAServerWithoutTheJSONBranch(t *testing.T
 		StartsAt:   "2026-04-06",
 		StartTime:  "10:00",
 		EndTime:    "11:00",
-		TimeZone:   "America/New_York",
+
+		StartTimeZone: "America/New_York",
+		EndTimeZone:   "America/New_York",
 	})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -1263,6 +1267,59 @@ func TestCalendarEventsService_Update(t *testing.T) {
 	}
 	if recording.Title != "Updated Meeting" {
 		t.Errorf("expected the new title, got %q", recording.Title)
+	}
+}
+
+// An event can start in one zone and finish in another, which is what a flight is.
+func TestCalendarEventsService_Update_WithAZonePerEnd(t *testing.T) {
+	departs, arrives := "Europe/Zagreb", "America/New_York"
+	client := newFormJSONTestClient(t, "PATCH", "/calendar/events/%s",
+		func(t *testing.T, values url.Values) {
+			t.Helper()
+			for field, want := range map[string]string{
+				"calendar_event[set_time_zone]":            "1",
+				"calendar_event[starts_at_time_zone_name]": "Europe/Zagreb",
+				"calendar_event[ends_at_time_zone_name]":   "America/New_York",
+			} {
+				if got := values.Get(field); got != want {
+					t.Errorf("%s = %q, want %q", field, got, want)
+				}
+			}
+		},
+		200, `{"id": 99, "type": "Calendar::Event"}`,
+	)
+
+	_, err := client.CalendarEvents().Update(context.Background(), 99, UpdateCalendarEventParams{
+		StartTimeZone: &departs,
+		EndTimeZone:   &arrives,
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+// Empty zones say the times are UTC, and put the event back to having no zones of its own.
+func TestCalendarEventsService_Update_ClearingTheZones(t *testing.T) {
+	none := ""
+	client := newFormJSONTestClient(t, "PATCH", "/calendar/events/%s",
+		func(t *testing.T, values url.Values) {
+			t.Helper()
+			if got := values.Get("calendar_event[set_time_zone]"); got != "0" {
+				t.Errorf("set_time_zone = %q, want 0", got)
+			}
+			if got := values.Get("calendar_event[starts_at_time_zone_name]"); got != "" {
+				t.Errorf("a zone was named anyway: %q", got)
+			}
+		},
+		200, `{"id": 99, "type": "Calendar::Event"}`,
+	)
+
+	_, err := client.CalendarEvents().Update(context.Background(), 99, UpdateCalendarEventParams{
+		StartTimeZone: &none,
+		EndTimeZone:   &none,
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
 	}
 }
 
