@@ -1383,6 +1383,416 @@ func TestCalendarEventsService_Delete(t *testing.T) {
 	}
 }
 
+func TestParseOccurrenceID(t *testing.T) {
+	occurrence, err := ParseOccurrenceID("153688907_2026-08-21")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if occurrence.EventID != 153688907 {
+		t.Errorf("EventID = %d, want 153688907", occurrence.EventID)
+	}
+	if got := occurrence.Date.Format("2006-01-02"); got != "2026-08-21" {
+		t.Errorf("Date = %s, want 2026-08-21", got)
+	}
+	if got := occurrence.String(); got != "153688907_2026-08-21" {
+		t.Errorf("String() = %q, want the occurrence id back", got)
+	}
+	if got := occurrence.DateParam(); got != "2026-08-21" {
+		t.Errorf("DateParam() = %q, want 2026-08-21", got)
+	}
+}
+
+func TestParseOccurrenceID_Malformed(t *testing.T) {
+	for _, occurrenceID := range []string{
+		"",
+		"153688907",
+		"153688907_",
+		"153688907_2026-08",
+		"153688907_2026-13-40",
+		"153688907_20260821",
+		"_2026-08-21",
+		"0_2026-08-21",
+		"summer_2026-08-21",
+		"153688907_2026-08-21_extra",
+	} {
+		if _, err := ParseOccurrenceID(occurrenceID); err == nil {
+			t.Errorf("%q was accepted as an occurrence id", occurrenceID)
+		}
+	}
+}
+
+func TestCalendarEventsService_UpdateOccurrence(t *testing.T) {
+	newTitle := "Summer Friday"
+	client := newFormJSONTestClient(t, "PATCH", "/calendar/events/153688907/occurrences/2026-08-21.json",
+		func(t *testing.T, values url.Values) {
+			t.Helper()
+			for field, want := range map[string]string{
+				"calendar_event[summary]": "Summer Friday",
+				"apply_to_future":         "0",
+				"repeat_frequency":        "custom",
+			} {
+				if got := values.Get(field); got != want {
+					t.Errorf("%s = %q, want %q", field, got, want)
+				}
+			}
+		},
+		200, `{"id": 153688908, "title": "Summer Friday", "type": "Calendar::Event"}`,
+	)
+
+	occurrence, err := ParseOccurrenceID("153688907_2026-08-21")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	recording, err := client.CalendarEvents().UpdateOccurrence(context.Background(), occurrence, OccurrenceScopeThisEvent,
+		UpdateCalendarEventOccurrenceParams{
+			UpdateCalendarEventParams: UpdateCalendarEventParams{Title: &newTitle},
+		})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if recording.Id != 153688908 {
+		t.Errorf("expected the realized occurrence, got %d", recording.Id)
+	}
+}
+
+// Naming no frequency has to mean "leave the series alone", because HEY reads a silent update as
+// "stop repeating" and cancels every other occurrence.
+func TestCalendarEventsService_UpdateOccurrence_KeepsTheSeriesRepeating(t *testing.T) {
+	client := newFormJSONTestClient(t, "PATCH", "/calendar/events/%s/occurrences/%s",
+		func(t *testing.T, values url.Values) {
+			t.Helper()
+			if got := values.Get("repeat_frequency"); got != "custom" {
+				t.Errorf("repeat_frequency = %q, want custom", got)
+			}
+		},
+		200, `{"id": 153688908, "type": "Calendar::Event"}`,
+	)
+
+	_, err := client.CalendarEvents().UpdateOccurrence(context.Background(),
+		EventOccurrence{EventID: 153688907, Date: time.Date(2026, 8, 21, 0, 0, 0, 0, time.UTC)},
+		OccurrenceScopeThisEvent, UpdateCalendarEventOccurrenceParams{})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestCalendarEventsService_UpdateOccurrence_ThisAndFollowing(t *testing.T) {
+	startTime := "10:30"
+	client := newFormJSONTestClient(t, "PATCH", "/calendar/events/%s/occurrences/%s",
+		func(t *testing.T, values url.Values) {
+			t.Helper()
+			for field, want := range map[string]string{
+				"apply_to_future":                "1",
+				"repeat_frequency":               "every_week",
+				"calendar_event[starts_at_time]": "10:30:00",
+			} {
+				if got := values.Get(field); got != want {
+					t.Errorf("%s = %q, want %q", field, got, want)
+				}
+			}
+		},
+		200, `{"id": 153688908, "type": "Calendar::Event"}`,
+	)
+
+	_, err := client.CalendarEvents().UpdateOccurrence(context.Background(),
+		EventOccurrence{EventID: 153688907, Date: time.Date(2026, 8, 21, 0, 0, 0, 0, time.UTC)},
+		OccurrenceScopeThisAndFollowing, UpdateCalendarEventOccurrenceParams{
+			UpdateCalendarEventParams: UpdateCalendarEventParams{
+				StartTime: &startTime,
+				Repeat:    &RepeatParams{Frequency: RepeatEveryWeek},
+			},
+		})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+// assertFormFields checks the fields a write is expected to carry, and that the ones it is
+// expected to leave out are absent — for the content and countdown parameters an absent key and
+// an empty one mean different things to HEY.
+func assertFormFields(t *testing.T, values url.Values, want map[string]string, absent ...string) {
+	t.Helper()
+	for field, wanted := range want {
+		if got := values.Get(field); got != wanted {
+			t.Errorf("%s = %q, want %q", field, got, wanted)
+		}
+	}
+	for _, field := range absent {
+		if values.Has(field) {
+			t.Errorf("%s was sent as %q, want it left out", field, values.Get(field))
+		}
+	}
+}
+
+func TestCalendarEventsService_Create_WithContentAndGuests(t *testing.T) {
+	client := newFormJSONTestClient(t, "POST", "/calendar/events.json",
+		func(t *testing.T, values url.Values) {
+			t.Helper()
+			assertFormFields(t, values, map[string]string{
+				"calendar_event[description]":                     "<div>Bring the <strong>roadmap</strong>.</div>",
+				"calendar_event[location]":                        "Meeting Room 2",
+				"calendar_event[url]":                             "https://meet.google.com/abc-defg-hij",
+				"calendar_event[entry_id]":                        "884213",
+				"calendar_event[highlighted]":                     "1",
+				"calendar_event[highlight_id]":                    "",
+				"countdown_interval_duration_value":               "2",
+				"countdown_interval_duration_unit":                "604800",
+				"repeat_frequency":                                "every_other_week",
+				"calendar_recurrence_schedule[recurs_until_type]": "date",
+				"calendar_recurrence_schedule[recurs_until_date]": "2026-12-18",
+			}, "calendar_recurrence_schedule[recurs_count]")
+
+			guests := values["calendar_event[attendance_email_addresses][]"]
+			if len(guests) != 2 || guests[0] != "marta.kowalska@example.com" || guests[1] != "yusuf.demir@example.org" {
+				t.Errorf("guest list = %v", guests)
+			}
+		},
+		201, calendarEventJSON,
+	)
+
+	circled := true
+	_, err := client.CalendarEvents().Create(context.Background(), CreateCalendarEventParams{
+		CalendarID: 1,
+		Title:      "Quarterly roadmap review",
+		StartsAt:   "2026-09-10",
+		AllDay:     true,
+		Content: EventContentParams{
+			Notes:    "<div>Bring the <strong>roadmap</strong>.</div>",
+			Location: "Meeting Room 2",
+			Link:     "https://meet.google.com/abc-defg-hij",
+			EntryID:  884213,
+		},
+		Attendees:   []string{"marta.kowalska@example.com", "yusuf.demir@example.org"},
+		Highlighted: &circled,
+		Countdown:   CountdownParams{Value: 2, Unit: CountdownUnitWeeks},
+		Repeat: &RepeatParams{
+			Frequency: RepeatEveryOtherWeek,
+			Until:     RepeatUntilDate,
+			UntilDate: "2026-12-18",
+			Count:     9,
+		},
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+// HEY defaults all four content fields to nothing on every write, so an update that only means to
+// move an event still has to say what its notes are. Sending them empty is the SDK being honest
+// about that rather than pretending the fields were left alone.
+func TestCalendarEventsService_Update_SendsTheWholeContentEveryTime(t *testing.T) {
+	client := newFormJSONTestClient(t, "PATCH", "/calendar/events/%s",
+		func(t *testing.T, values url.Values) {
+			t.Helper()
+			assertFormFields(t, values, map[string]string{
+				"calendar_event[starts_at]":   "2026-09-11",
+				"calendar_event[description]": "",
+				"calendar_event[location]":    "",
+				"calendar_event[url]":         "",
+				"calendar_event[entry_id]":    "",
+			})
+		},
+		200, `{"id": 99, "type": "Calendar::Event"}`,
+	)
+
+	startsAt := "2026-09-11"
+	_, err := client.CalendarEvents().Update(context.Background(), 99, UpdateCalendarEventParams{
+		StartsAt: &startsAt,
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+// Turning the circle off needs the empty highlight_id: without it HEY reads highlighted=0 as a
+// request to build a highlight, which turns the circle on. It goes out with the flag either way.
+func TestCalendarEventsService_Update_Highlighted(t *testing.T) {
+	for circled, wantFlag := range map[bool]string{true: "1", false: "0"} {
+		client := newFormJSONTestClient(t, "PATCH", "/calendar/events/%s",
+			func(t *testing.T, values url.Values) {
+				t.Helper()
+				assertFormFields(t, values, map[string]string{
+					"calendar_event[highlighted]":  wantFlag,
+					"calendar_event[highlight_id]": "",
+				})
+			},
+			200, `{"id": 99, "type": "Calendar::Event"}`,
+		)
+
+		_, err := client.CalendarEvents().Update(context.Background(), 99, UpdateCalendarEventParams{
+			Highlighted: &circled,
+		})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	}
+}
+
+// Nothing is sent for the circle when nobody asked about it, because HEY only reads the flag when
+// it is submitted.
+func TestCalendarEventsService_Update_LeavesTheCircleAloneUnasked(t *testing.T) {
+	client := newFormJSONTestClient(t, "PATCH", "/calendar/events/%s",
+		func(t *testing.T, values url.Values) {
+			t.Helper()
+			assertFormFields(t, values, nil,
+				"calendar_event[highlighted]", "calendar_event[highlight_id]")
+		},
+		200, `{"id": 99, "type": "Calendar::Event"}`,
+	)
+
+	_, err := client.CalendarEvents().Update(context.Background(), 99, UpdateCalendarEventParams{})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+// The zero countdown sends no countdown at all, which is how HEY is told to delete it. There is no
+// third state, so this is the same request as one that never had a countdown in mind.
+func TestCalendarEventsService_Update_ZeroCountdownSendsNothing(t *testing.T) {
+	client := newFormJSONTestClient(t, "PATCH", "/calendar/events/%s",
+		func(t *testing.T, values url.Values) {
+			t.Helper()
+			assertFormFields(t, values, nil,
+				"countdown_interval_duration_value", "countdown_interval_duration_unit")
+		},
+		200, `{"id": 99, "type": "Calendar::Event"}`,
+	)
+
+	_, err := client.CalendarEvents().Update(context.Background(), 99, UpdateCalendarEventParams{})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+// A countdown with no unit named is counted in days, which is the web app's own default.
+func TestCalendarEventsService_Update_CountdownDefaultsToDays(t *testing.T) {
+	client := newFormJSONTestClient(t, "PATCH", "/calendar/events/%s",
+		func(t *testing.T, values url.Values) {
+			t.Helper()
+			assertFormFields(t, values, map[string]string{
+				"countdown_interval_duration_value": "10",
+				"countdown_interval_duration_unit":  "86400",
+			})
+		},
+		200, `{"id": 99, "type": "Calendar::Event"}`,
+	)
+
+	_, err := client.CalendarEvents().Update(context.Background(), 99, UpdateCalendarEventParams{
+		Countdown: CountdownParams{Value: 10},
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+// A nil guest list leaves the roster alone; an empty one clears it, and needs a blank value on
+// the wire to say so, since a form cannot carry an empty array.
+func TestCalendarEventsService_Update_Attendees(t *testing.T) {
+	client := newFormJSONTestClient(t, "PATCH", "/calendar/events/%s",
+		func(t *testing.T, values url.Values) {
+			t.Helper()
+			assertFormFields(t, values, nil, "calendar_event[attendance_email_addresses][]")
+		},
+		200, `{"id": 99, "type": "Calendar::Event"}`,
+	)
+
+	_, err := client.CalendarEvents().Update(context.Background(), 99, UpdateCalendarEventParams{})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	client = newFormJSONTestClient(t, "PATCH", "/calendar/events/%s",
+		func(t *testing.T, values url.Values) {
+			t.Helper()
+			guests := values["calendar_event[attendance_email_addresses][]"]
+			if len(guests) != 1 || guests[0] != "" {
+				t.Errorf("guest list = %v, want a single blank so HEY sees the key", guests)
+			}
+		},
+		200, `{"id": 99, "type": "Calendar::Event"}`,
+	)
+
+	_, err = client.CalendarEvents().Update(context.Background(), 99, UpdateCalendarEventParams{
+		Attendees: []string{},
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+// A count-limited recurrence sends the count and no until-date, since HEY reads only the one
+// matching the type.
+func TestCalendarEventsService_Update_RepeatUntilCount(t *testing.T) {
+	client := newFormJSONTestClient(t, "PATCH", "/calendar/events/%s",
+		func(t *testing.T, values url.Values) {
+			t.Helper()
+			assertFormFields(t, values, map[string]string{
+				"repeat_frequency": "every_weekday",
+				"calendar_recurrence_schedule[recurs_until_type]": "count",
+				"calendar_recurrence_schedule[recurs_count]":      "12",
+			}, "calendar_recurrence_schedule[recurs_until_date]")
+		},
+		200, `{"id": 99, "type": "Calendar::Event"}`,
+	)
+
+	_, err := client.CalendarEvents().Update(context.Background(), 99, UpdateCalendarEventParams{
+		Repeat: &RepeatParams{Frequency: RepeatEveryWeekday, Until: RepeatUntilCount, Count: 12},
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+// A whole-event update that says nothing about the recurrence leaves it alone — the one place
+// where the occurrence update reads the same silence differently.
+func TestCalendarEventsService_Update_WithoutRepeatLeavesTheScheduleAlone(t *testing.T) {
+	client := newFormJSONTestClient(t, "PATCH", "/calendar/events/%s",
+		func(t *testing.T, values url.Values) {
+			t.Helper()
+			assertFormFields(t, values, nil, "repeat_frequency")
+		},
+		200, `{"id": 99, "type": "Calendar::Event"}`,
+	)
+
+	_, err := client.CalendarEvents().Update(context.Background(), 99, UpdateCalendarEventParams{})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+// A delete carries no body, so the scope rides in the query string, as it does in HEY's own
+// occurrence links.
+func TestCalendarEventsService_DeleteOccurrence(t *testing.T) {
+	for scope, wantApplyToFuture := range map[OccurrenceScope]string{
+		OccurrenceScopeThisEvent:        "0",
+		OccurrenceScopeThisAndFollowing: "1",
+	} {
+		var gotPath, gotApplyToFuture, gotMethod string
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			gotMethod, gotPath = r.Method, r.URL.Path
+			gotApplyToFuture = r.URL.Query().Get("apply_to_future")
+			w.WriteHeader(204)
+		}))
+		t.Cleanup(server.Close)
+		client := NewClient(&Config{BaseURL: server.URL}, &StaticTokenProvider{Token: "test-token"}, WithMaxRetries(0))
+
+		err := client.CalendarEvents().DeleteOccurrence(context.Background(),
+			EventOccurrence{EventID: 153688907, Date: time.Date(2026, 8, 21, 0, 0, 0, 0, time.UTC)}, scope)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if gotMethod != "DELETE" {
+			t.Errorf("expected DELETE, got %s", gotMethod)
+		}
+		if gotPath != "/calendar/events/153688907/occurrences/2026-08-21.json" {
+			t.Errorf("path = %q", gotPath)
+		}
+		if gotApplyToFuture != wantApplyToFuture {
+			t.Errorf("apply_to_future = %q, want %q for %s", gotApplyToFuture, wantApplyToFuture, scope)
+		}
+	}
+}
+
 // --- Designations ---
 
 func TestDesignationsService_Create(t *testing.T) {
