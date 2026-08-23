@@ -3502,6 +3502,39 @@
     ]
   },
   {
+    "name": "ListTimeTracks uses /calendar/time_tracks.json path",
+    "description": "Verifies that ListTimeTracks constructs the URL path /calendar/time_tracks.json",
+    "operation": "ListTimeTracks",
+    "method": "GET",
+    "path": "/calendar/time_tracks.json",
+    "mockResponses": [
+      {
+        "status": 200,
+        "body": {
+          "time_tracks": [],
+          "categories": []
+        }
+      }
+    ],
+    "assertions": [
+      {
+        "type": "requestPath",
+        "expected": "/calendar/time_tracks.json"
+      },
+      {
+        "type": "requestMethod",
+        "expected": "GET"
+      },
+      {
+        "type": "noError"
+      }
+    ],
+    "tags": [
+      "path",
+      "reads"
+    ]
+  },
+  {
     "name": "ListTimeTrackCategories uses /calendar/time_tracks/categories.json path",
     "description": "Verifies that ListTimeTrackCategories constructs the URL path /calendar/time_tracks/categories.json",
     "operation": "ListTimeTrackCategories",

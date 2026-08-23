@@ -23,6 +23,32 @@
     "tags": ["pagination", "link-header"]
   },
   {
+    "name": "Tracked time is read without empty pagination parameters",
+    "description": "Verifies that an unfiltered first read of the tracked-time index sends neither page nor category_id, so geared_pagination is not handed a blank cursor",
+    "operation": "ListTimeTracks",
+    "method": "GET",
+    "path": "/calendar/time_tracks.json",
+    "mockResponses": [
+      {
+        "status": 200,
+        "headers": {
+          "Link": "</calendar/time_tracks.json?page=eyJwYWdlIjoyfQ>; rel=\"next\""
+        },
+        "body": {
+          "time_tracks": [{"id": 701, "type": "Calendar::TimeTrack", "category": "Client work"}],
+          "categories": [{"id": 31, "title": "Client work"}]
+        }
+      }
+    ],
+    "assertions": [
+      {"type": "requestCount", "expected": 1},
+      {"type": "statusCode", "expected": 200},
+      {"type": "requestQuery", "expected": {"page": null, "category_id": null}},
+      {"type": "noError"}
+    ],
+    "tags": ["pagination", "link-header"]
+  },
+  {
     "name": "Total count header is accessible",
     "description": "Verifies that X-Total-Count header is parsed and accessible",
     "operation": "ListContacts",

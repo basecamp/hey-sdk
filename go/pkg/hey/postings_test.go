@@ -217,6 +217,24 @@ func TestTimeTracksService_StopAnnouncesItself(t *testing.T) {
 	}
 }
 
+// Filing on the way out is still stopping, so a gating policy that allows a stop allows
+// this too — it must not arrive as UpdateTimeTrack.
+func TestTimeTracksService_StopAndFileAnnouncesItselfAsStopping(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"id":1,"type":"TimeTrack"}`))
+	}))
+	t.Cleanup(srv.Close)
+	rec := &opRecorder{}
+	c := NewClient(&Config{BaseURL: srv.URL}, &StaticTokenProvider{Token: "t"}, WithMaxRetries(0), WithHooks(rec))
+	if err := c.TimeTracks().StopAndFile(context.Background(), 1, "Client work"); err != nil {
+		t.Fatal(err)
+	}
+	if len(rec.ops) != 1 || rec.ops[0] != "StopTimeTrack" {
+		t.Errorf("hooks saw %v, want exactly [StopTimeTrack]", rec.ops)
+	}
+}
+
 func TestCheckResponse_ForbiddenMutationIsScopeError(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusForbidden)

@@ -385,6 +385,11 @@
     "path": "/calendar/time_tracks/categories.json"
   },
   {
+    "method": "GET",
+    "operationId": "ListTimeTracks",
+    "path": "/calendar/time_tracks.json"
+  },
+  {
     "method": "POST",
     "operationId": "MarkBoxSeen",
     "path": "/boxes/{boxId}/observation.json"

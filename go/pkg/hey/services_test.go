@@ -842,6 +842,156 @@ func TestHabitsService_Uncomplete(t *testing.T) {
 
 // --- TimeTracks ---
 
+func TestTimeTracksService_ListPage(t *testing.T) {
+	var gotPage, gotCategory string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet || r.URL.Path != "/calendar/time_tracks.json" {
+			t.Errorf("expected GET /calendar/time_tracks.json, got %s %s", r.Method, r.URL.Path)
+		}
+		gotPage = r.URL.Query().Get("page")
+		gotCategory = r.URL.Query().Get("category_id")
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Link", `<http://`+r.Host+`/calendar/time_tracks.json?page=eyJwYWdlIjozfQ&category_id=31>; rel="next"`)
+		_, _ = w.Write([]byte(`{"time_tracks":[
+			{"id":701,"type":"Calendar::TimeTrack","title":"Time Track",
+			 "starts_at":"2026-08-19T09:00:00Z","ends_at":"2026-08-19T11:30:00Z",
+			 "completed_at":"2026-08-19T11:30:00Z",
+			 "notes":"Reviewed the migration plan","category":"Client work"}],
+			"categories":[{"id":31,"title":"Client work"},{"id":32,"title":"Internal"}]}`))
+	}))
+	t.Cleanup(srv.Close)
+	client := NewClient(&Config{BaseURL: srv.URL}, &StaticTokenProvider{Token: "t"}, WithMaxRetries(0))
+
+	cursor, categoryID := "eyJwYWdlIjoyfQ", int64(31)
+	page, err := client.TimeTracks().ListPage(context.Background(), &generated.ListTimeTracksParams{
+		Page:       &cursor,
+		CategoryId: &categoryID,
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if gotPage != "eyJwYWdlIjoyfQ" {
+		t.Errorf("expected the cursor to be passed through, got %q", gotPage)
+	}
+	if gotCategory != "31" {
+		t.Errorf("expected the category filter to be passed through, got %q", gotCategory)
+	}
+	if len(page.TimeTracks) != 1 || page.TimeTracks[0].Id != 701 {
+		t.Fatalf("expected time track 701, got %+v", page.TimeTracks)
+	}
+	// A track's category is the title as a plain string, not an object.
+	if got := page.TimeTracks[0].Category; got != "Client work" {
+		t.Errorf("category = %q, want \"Client work\"", got)
+	}
+	if got := page.TimeTracks[0].Notes; got != "Reviewed the migration plan" {
+		t.Errorf("notes = %q, want the notes the track was filed with", got)
+	}
+	// The categories ride along, so filtering needs no second read.
+	if len(page.Categories) != 2 || page.Categories[0].Title != "Client work" || page.Categories[1].Title != "Internal" {
+		t.Errorf("expected both categories from the same read, got %+v", page.Categories)
+	}
+	if page.NextPage != "eyJwYWdlIjozfQ" {
+		t.Errorf("expected the cursor for the next page, got %q", page.NextPage)
+	}
+}
+
+// The last page carries no Link header, which is how a caller walking the list is told it
+// has reached the end. A nil Link is the end of the list, not an error.
+func TestTimeTracksService_ListPageOnLastPage(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Query().Has("page") || r.URL.Query().Has("category_id") {
+			t.Errorf("expected no empty query parameters on the first unfiltered read, got %q", r.URL.RawQuery)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"time_tracks":[{"id":701,"type":"Calendar::TimeTrack","category":null}],
+			"categories":[]}`))
+	}))
+	t.Cleanup(srv.Close)
+	client := NewClient(&Config{BaseURL: srv.URL}, &StaticTokenProvider{Token: "t"}, WithMaxRetries(0))
+
+	page, err := client.TimeTracks().ListPage(context.Background(), nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(page.TimeTracks) != 1 {
+		t.Fatalf("expected one time track, got %+v", page.TimeTracks)
+	}
+	// An uncategorized track serves category: null, which is the empty string here.
+	if got := page.TimeTracks[0].Category; got != "" {
+		t.Errorf("category = %q, want empty for an uncategorized track", got)
+	}
+	if page.NextPage != "" {
+		t.Errorf("expected no cursor past the last page, got %q", page.NextPage)
+	}
+}
+
+// A cursor on an empty page is still the end of the list: the caller stops on the empty
+// page rather than following a cursor into nothing.
+func TestTimeTracksService_ListPageEmptyWithACursor(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Link", `<http://`+r.Host+`/calendar/time_tracks.json?page=eyJwYWdlIjo5fQ>; rel="next"`)
+		_, _ = w.Write([]byte(`{"time_tracks":[],"categories":[{"id":31,"title":"Client work"}]}`))
+	}))
+	t.Cleanup(srv.Close)
+	client := NewClient(&Config{BaseURL: srv.URL}, &StaticTokenProvider{Token: "t"}, WithMaxRetries(0))
+
+	page, err := client.TimeTracks().ListPage(context.Background(), nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(page.TimeTracks) != 0 {
+		t.Fatalf("expected an empty page, got %+v", page.TimeTracks)
+	}
+	// The cursor is reported as served; ending the list on an empty page is the caller's
+	// move, and it must be able to see both facts.
+	if page.NextPage != "eyJwYWdlIjo5fQ" {
+		t.Errorf("expected the served cursor to be reported, got %q", page.NextPage)
+	}
+}
+
+// List answers the payload and drops the cursor.
+func TestTimeTracksService_List(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Link", `<http://`+r.Host+`/calendar/time_tracks.json?page=eyJwYWdlIjoyfQ>; rel="next"`)
+		_, _ = w.Write([]byte(`{"time_tracks":[{"id":701,"type":"Calendar::TimeTrack"}],
+			"categories":[{"id":31,"title":"Client work"}]}`))
+	}))
+	t.Cleanup(srv.Close)
+	client := NewClient(&Config{BaseURL: srv.URL}, &StaticTokenProvider{Token: "t"}, WithMaxRetries(0))
+
+	tracked, err := client.TimeTracks().List(context.Background(), nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(tracked.TimeTracks) != 1 || tracked.TimeTracks[0].Id != 701 {
+		t.Errorf("expected time track 701, got %+v", tracked.TimeTracks)
+	}
+	if len(tracked.Categories) != 1 || tracked.Categories[0].Id != 31 {
+		t.Errorf("expected the categories alongside the tracks, got %+v", tracked.Categories)
+	}
+}
+
+// A category_id the calendar has no category for is a 404, not an empty list.
+func TestTimeTracksService_ListPage_UnknownCategory(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	t.Cleanup(srv.Close)
+	client := NewClient(&Config{BaseURL: srv.URL}, &StaticTokenProvider{Token: "t"}, WithMaxRetries(0))
+
+	missing := int64(9999)
+	_, err := client.TimeTracks().ListPage(context.Background(), &generated.ListTimeTracksParams{CategoryId: &missing})
+	if err == nil {
+		t.Fatal("expected an error for a category the calendar does not have")
+	}
+	var apiErr *Error
+	if !errors.As(err, &apiErr) || apiErr.HTTPStatus != http.StatusNotFound || apiErr.Code != CodeNotFound {
+		t.Errorf("expected a 404 *Error, got %v", err)
+	}
+}
+
 func TestTimeTracksService_GetOngoing(t *testing.T) {
 	client := newServiceTestClient(t, map[string]string{
 		"/calendar/ongoing_time_track.json": `{"id":1,"type":"TimeTrack"}`,
@@ -924,7 +1074,7 @@ func TestTimeTracksService_Stop(t *testing.T) {
 			}
 			// Stop must not touch the start: a zero-valued starts_at would be
 			// applied by the server and rewrite the track to year 0001.
-			for _, k := range []string{"starts_at", "category", "notes", "title"} {
+			for _, k := range []string{"starts_at", "category", "category_title", "notes", "title"} {
 				if v, present := tt[k]; present {
 					t.Errorf("stop body must only carry ends_at; got %s=%v", k, v)
 				}
@@ -935,6 +1085,96 @@ func TestTimeTracksService_Stop(t *testing.T) {
 
 	err := client.TimeTracks().Stop(context.Background(), 1)
 	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+// Stopping and filing is one PUT, and the category rides on category_title — the
+// category field the payload also carries is one the server throws away.
+func TestTimeTracksService_StopAndFile(t *testing.T) {
+	client := newMutationTestClientWithValidation(t, "PUT", "/calendar/time_tracks/%s.json",
+		func(t *testing.T, body map[string]any) {
+			t.Helper()
+			tt, ok := body["calendar_time_track"].(map[string]any)
+			if !ok {
+				t.Fatal("missing calendar_time_track wrapper")
+			}
+			if got := tt["category_title"]; got != "Client work" {
+				t.Errorf("category_title = %v, want \"Client work\"", got)
+			}
+			if _, ok := tt["ends_at"]; !ok {
+				t.Error("missing ends_at: filing a track is stopping it")
+			}
+			for _, k := range []string{"starts_at", "category", "notes", "title"} {
+				if v, present := tt[k]; present {
+					t.Errorf("body must only carry ends_at and category_title; got %s=%v", k, v)
+				}
+			}
+		},
+		`{"id":1,"type":"TimeTrack"}`,
+	)
+
+	if err := client.TimeTracks().StopAndFile(context.Background(), 1, "Client work"); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+// Update carries a category the same way, and does not smuggle in the fields it wasn't given.
+func TestTimeTracksService_Update_FilesUnderACategory(t *testing.T) {
+	client := newMutationTestClientWithValidation(t, "PUT", "/calendar/time_tracks/%s.json",
+		func(t *testing.T, body map[string]any) {
+			t.Helper()
+			tt, ok := body["calendar_time_track"].(map[string]any)
+			if !ok {
+				t.Fatal("missing calendar_time_track wrapper")
+			}
+			for field, want := range map[string]string{
+				"category_title": "Client work",
+				"notes":          "Reviewed the migration plan",
+			} {
+				if got := tt[field]; got != want {
+					t.Errorf("%s = %v, want %q", field, got, want)
+				}
+			}
+			for _, k := range []string{"starts_at", "ends_at", "category", "title"} {
+				if v, present := tt[k]; present {
+					t.Errorf("body must not carry %s; got %v", k, v)
+				}
+			}
+		},
+		`{"id":1,"type":"TimeTrack"}`,
+	)
+
+	_, err := client.TimeTracks().Update(context.Background(), 1, generated.UpdateTimeTrackJSONRequestBody{
+		CalendarTimeTrack: generated.UpdateTimeTrackPayload{
+			CategoryTitle: "Client work",
+			Notes:         "Reviewed the migration plan",
+		},
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+// StopAndFile with no category is Stop, and must not send a blank category_title:
+// haystack ignores a blank one, but a caller reading the wire should not see a field
+// that does nothing.
+func TestTimeTracksService_StopAndFile_WithoutACategory(t *testing.T) {
+	client := newMutationTestClientWithValidation(t, "PUT", "/calendar/time_tracks/%s.json",
+		func(t *testing.T, body map[string]any) {
+			t.Helper()
+			tt, ok := body["calendar_time_track"].(map[string]any)
+			if !ok {
+				t.Fatal("missing calendar_time_track wrapper")
+			}
+			if v, present := tt["category_title"]; present {
+				t.Errorf("category_title should be omitted, got %v", v)
+			}
+		},
+		`{"id":1,"type":"TimeTrack"}`,
+	)
+
+	if err := client.TimeTracks().StopAndFile(context.Background(), 1, ""); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 }

@@ -20,6 +20,81 @@ func NewTimeTracksService(client *Client) *TimeTracksService {
 	return &TimeTracksService{client: client}
 }
 
+// TimeTrackPage is one page of tracked time: the completed tracks, the calendar's
+// categories, and the cursor for the page after this one.
+//
+// Categories is the whole category list rather than the ones this page happens to use,
+// because the index serves it for the filter — so a caller offering the filter never
+// needs Categories() as well.
+type TimeTrackPage struct {
+	TimeTracks []generated.Recording
+	Categories []generated.TimeTrackCategory
+	NextPage   string
+}
+
+// List returns a page of tracked time: completed tracks only, newest-ended first, with
+// the calendar's categories alongside them. Pass nil params for the first page, or set
+// CategoryId to narrow the list to one category — an id the calendar has no category for
+// is a 404.
+//
+// A running track is not in this list; GetOngoing answers that.
+//
+// List drops the cursor for the next page. Walk the list with ListPage instead.
+func (s *TimeTracksService) List(ctx context.Context, params *generated.ListTimeTracksParams) (result *generated.TrackedTime, err error) {
+	op := OperationInfo{
+		Service: "TimeTracks", Operation: "ListTimeTracks",
+		ResourceType: "time_track", IsMutation: false,
+	}
+	err = s.client.instrument(ctx, op, func(ctx context.Context) error {
+		result, _, err = s.list(ctx, params)
+		return err
+	})
+	return result, err
+}
+
+// ListPage returns the same page as List along with the cursor for the page after it, so
+// a caller walking the list is told when it has reached the end of it.
+//
+// An empty NextPage means there is no page after this one: geared_pagination only sends
+// the Link header while there is more to read, so the last page carries no cursor and
+// that is not an error. An empty page ends the list whatever cursor came with it.
+func (s *TimeTracksService) ListPage(ctx context.Context, params *generated.ListTimeTracksParams) (result *TimeTrackPage, err error) {
+	op := OperationInfo{
+		Service: "TimeTracks", Operation: "ListTimeTracks",
+		ResourceType: "time_track", IsMutation: false,
+	}
+	err = s.client.instrument(ctx, op, func(ctx context.Context) error {
+		tracked, next, lerr := s.list(ctx, params)
+		if lerr != nil {
+			return lerr
+		}
+		result = &TimeTrackPage{NextPage: next}
+		if tracked != nil {
+			result.TimeTracks = tracked.TimeTracks
+			result.Categories = tracked.Categories
+		}
+		return nil
+	})
+	return result, err
+}
+
+// list is the shared GET for List and ListPage: same request, same response handling.
+// It hands back the payload untouched so List can answer it without rebuilding it.
+func (s *TimeTracksService) list(ctx context.Context, params *generated.ListTimeTracksParams) (*generated.TrackedTime, string, error) {
+	resp, err := s.client.genClient().ListTimeTracksWithResponse(ctx, params)
+	if err != nil {
+		return nil, "", err
+	}
+	if err = CheckResponse(resp.HTTPResponse); err != nil {
+		return nil, "", err
+	}
+	next := ""
+	if resp.HTTPResponse != nil {
+		next = gearedPageFromLink(resp.HTTPResponse.Header.Get("Link"))
+	}
+	return resp.JSON200, next, nil
+}
+
 // GetOngoing returns the ongoing time track, or nil if none is active.
 // Per ADR-004, a 404 response is treated as "no active track" rather than an error.
 func (s *TimeTracksService) GetOngoing(ctx context.Context) (result *generated.Recording, err error) {
@@ -53,9 +128,9 @@ func (s *TimeTracksService) GetOngoing(ctx context.Context) (result *generated.R
 
 // Start starts a new time track and returns it as a recording.
 //
-// It takes no parameters: haystack ignores the request body here and starts a
-// track with defaults. Set title/notes/category afterwards with Update. A 409
-// means a track is already ongoing.
+// It takes no parameters: HEY ignores the request body here and starts a track with
+// defaults. Notes and a category come later, with Update or StopAndFile, both of which
+// also stop the track. A 409 means a track is already ongoing.
 func (s *TimeTracksService) Start(ctx context.Context) (result *generated.Recording, err error) {
 	op := OperationInfo{
 		Service: "TimeTracks", Operation: "StartTimeTrack",
@@ -88,6 +163,10 @@ func (s *TimeTracksService) Start(ctx context.Context) (result *generated.Record
 // Update updates an existing time track.
 //
 // The body already carries the {calendar_time_track: {...}} wrapper the API expects.
+//
+// Every update completes the track, whether or not the body sets ends_at, so there is
+// no adjusting a running track: updating one stops it. Set CategoryTitle to file the
+// track under a category; the Category field is ignored by the server.
 func (s *TimeTracksService) Update(ctx context.Context, timeTrackID int64, body generated.UpdateTimeTrackJSONRequestBody) (result *generated.Recording, err error) {
 	op := OperationInfo{
 		Service: "TimeTracks", Operation: "UpdateTimeTrack",
@@ -105,6 +184,16 @@ func (s *TimeTracksService) Update(ctx context.Context, timeTrackID int64, body 
 // so a gating policy can allow one without the other; the request itself is
 // the same PUT that Update sends.
 func (s *TimeTracksService) Stop(ctx context.Context, timeTrackID int64) error {
+	return s.StopAndFile(ctx, timeTrackID, "")
+}
+
+// StopAndFile stops a time track and files it under a category in the one request,
+// creating the category if HEY has none by that name. An empty categoryTitle stops the
+// track without filing it, which is what Stop does.
+//
+// Filing is only ever part of stopping: the server completes a track on every update,
+// so there is no such thing as setting a category on a track that keeps running.
+func (s *TimeTracksService) StopAndFile(ctx context.Context, timeTrackID int64, categoryTitle string) error {
 	op := OperationInfo{
 		Service: "TimeTracks", Operation: "StopTimeTrack",
 		ResourceType: "time_track", IsMutation: true, ResourceID: timeTrackID,
@@ -112,7 +201,10 @@ func (s *TimeTracksService) Stop(ctx context.Context, timeTrackID int64) error {
 	return s.client.instrument(ctx, op, func(ctx context.Context) error {
 		now := time.Now().UTC()
 		_, err := s.update(ctx, timeTrackID, generated.UpdateTimeTrackJSONRequestBody{
-			CalendarTimeTrack: generated.UpdateTimeTrackPayload{EndsAt: &now},
+			CalendarTimeTrack: generated.UpdateTimeTrackPayload{
+				EndsAt:        &now,
+				CategoryTitle: categoryTitle,
+			},
 		})
 		return err
 	})

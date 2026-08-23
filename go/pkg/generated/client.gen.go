@@ -919,6 +919,10 @@ type ListStickiesResponseContent = []Sticky
 // ListTimeTrackCategoriesResponseContent defines model for ListTimeTrackCategoriesResponseContent.
 type ListTimeTrackCategoriesResponseContent = []TimeTrackCategory
 
+// ListTimeTracksResponseContent The tracked-time index: a page of completed tracks, and every category they can be
+// filed under.
+type ListTimeTracksResponseContent = TrackedTime
+
 // MarkPostingsRequestContent defines model for MarkPostingsRequestContent.
 type MarkPostingsRequestContent struct {
 	PostingIds []int64 `json:"posting_ids"`
@@ -1386,6 +1390,13 @@ type TopicPublication struct {
 	Url string `json:"url,omitempty"`
 }
 
+// TrackedTime The tracked-time index: a page of completed tracks, and every category they can be
+// filed under.
+type TrackedTime struct {
+	Categories []TimeTrackCategory `json:"categories,omitempty"`
+	TimeTracks []Recording         `json:"time_tracks,omitempty"`
+}
+
 // TrashPostingsRequestContent defines model for TrashPostingsRequestContent.
 type TrashPostingsRequestContent struct {
 	PostingIds []int64 `json:"posting_ids"`
@@ -1479,7 +1490,15 @@ type UpdateStickyResponseContent = Sticky
 
 // UpdateTimeTrackPayload defines model for UpdateTimeTrackPayload.
 type UpdateTimeTrackPayload struct {
+	// Category Ignored by the server, which reads category_title instead. Kept for
+	// compatibility only.
 	Category string `json:"category,omitempty"`
+
+	// CategoryTitle Files the track under this category, creating the category if HEY does not
+	// have one by that name. Blank is a no-op, not a way to clear the category:
+	// once filed, a track can only be moved to another category, or left where it
+	// is by deleting the category itself.
+	CategoryTitle string `json:"category_title,omitempty"`
 
 	// EndsAt ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)
 	EndsAt *time.Time `json:"ends_at,omitempty,omitzero"`
@@ -1487,10 +1506,13 @@ type UpdateTimeTrackPayload struct {
 
 	// StartsAt ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)
 	StartsAt *time.Time `json:"starts_at,omitempty,omitzero"`
-	Title    string     `json:"title,omitempty"`
+
+	// Title Ignored by the server. A time track's title is the constant "Time Track";
+	// HEY dropped per-track titles in 2023. Kept for compatibility only.
+	Title string `json:"title,omitempty"`
 }
 
-// UpdateTimeTrackRequestContent Wire format: {calendar_time_track: {title, notes, category, starts_at, ends_at}}
+// UpdateTimeTrackRequestContent Wire format: {calendar_time_track: {notes, category_title, starts_at, ends_at}}
 type UpdateTimeTrackRequestContent struct {
 	CalendarTimeTrack UpdateTimeTrackPayload `json:"calendar_time_track"`
 }
@@ -1620,6 +1642,12 @@ type ListCalendarDaysParams struct {
 type ListJournalEntriesParams struct {
 	Page *string `form:"page,omitempty" json:"page,omitempty"`
 	Q    *string `form:"q,omitempty" json:"q,omitempty"`
+}
+
+// ListTimeTracksParams defines parameters for ListTimeTracks.
+type ListTimeTracksParams struct {
+	Page       *string `form:"page,omitempty" json:"page,omitempty"`
+	CategoryId *int64  `form:"category_id,omitempty" json:"category_id,omitempty"`
 }
 
 // ListCalendarWeeksParams defines parameters for ListCalendarWeeks.
@@ -2191,6 +2219,9 @@ type ClientInterface interface {
 
 	// StartTimeTrack request
 	StartTimeTrack(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListTimeTracks request
+	ListTimeTracks(ctx context.Context, params *ListTimeTracksParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// CreateTimeTrackWithBody request with any body
 	CreateTimeTrackWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -2932,6 +2963,16 @@ func (c *Client) StartTimeTrack(ctx context.Context, reqEditors ...RequestEditor
 		return nil, err
 	}
 	return c.Client.Do(req)
+
+}
+
+// ListTimeTracks is marked as idempotent and will be retried on transient failures.
+
+func (c *Client) ListTimeTracks(ctx context.Context, params *ListTimeTracksParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+
+	return c.doWithRetry(ctx, func() (*http.Request, error) {
+		return NewListTimeTracksRequest(c.Server, params)
+	}, true, "ListTimeTracks", reqEditors...)
 
 }
 
@@ -5809,6 +5850,71 @@ func NewStartTimeTrackRequest(server string) (*http.Request, error) {
 	}
 
 	req, err := http.NewRequest("POST", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewListTimeTracksRequest generates requests for ListTimeTracks
+func NewListTimeTracksRequest(server string, params *ListTimeTracksParams) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/calendar/time_tracks.json")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if params.Page != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "page", runtime.ParamLocationQuery, *params.Page); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.CategoryId != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "category_id", runtime.ParamLocationQuery, *params.CategoryId); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -9551,6 +9657,7 @@ var operationMetadata = map[string]OperationMetadata{
 	"ListJournalEntries":         {Idempotent: true, HasSensitiveParams: false},
 	"GetOngoingTimeTrack":        {Idempotent: true, HasSensitiveParams: false},
 	"StartTimeTrack":             {Idempotent: false, HasSensitiveParams: false},
+	"ListTimeTracks":             {Idempotent: true, HasSensitiveParams: false},
 	"CreateTimeTrack":            {Idempotent: false, HasSensitiveParams: false},
 	"ListTimeTrackCategories":    {Idempotent: true, HasSensitiveParams: false},
 	"DeleteTimeTrack":            {Idempotent: true, HasSensitiveParams: false},
@@ -10504,10 +10611,28 @@ type ClientWithResponsesInterface interface {
 	//
 	// Start a new time track. Takes no body: haystack's
 	// Calendar::OngoingTimeTracksController#create ignores request parameters and
-	// starts a track with defaults; use UpdateTimeTrack to set title/notes/category.
+	// starts a track with defaults; use UpdateTimeTrack to set notes and category_title,
+	// which also stops the track.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	StartTimeTrackWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*StartTimeTrackResponse, error)
+
+	// ListTimeTracksWithResponse performs a GET /calendar/time_tracks.json (the `ListTimeTracks` operationId) request.
+	//
+	// List tracked time — completed tracks only, newest-ended first.
+	//
+	// A running track is not here; read that with GetOngoingTimeTrack. The next page, if
+	// any, is a Link header, and the last page carries none, so a nil Link is the end of
+	// the list rather than an error.
+	//
+	// category_id narrows the list to one category and 404s if the calendar has no
+	// category by that id.
+	//
+	// The calendar's categories come back alongside the tracks, so showing or applying the
+	// filter does not need ListTimeTrackCategories as well.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	ListTimeTracksWithResponse(ctx context.Context, params *ListTimeTracksParams, reqEditors ...RequestEditorFn) (*ListTimeTracksResponse, error)
 
 	// CreateTimeTrackWithBodyWithResponse performs a POST /calendar/time_tracks.json (the `CreateTimeTrack` operationId) request,
 	// with any type of body and a specified content type.
@@ -10546,6 +10671,12 @@ type ClientWithResponsesInterface interface {
 	//
 	// Update a time track (stop by setting ends_at to current time).
 	//
+	// Every update completes the track, whether or not ends_at is sent, so this cannot
+	// be used to adjust a running track: it stops it.
+	//
+	// Only the fields sent are written, so a partial update leaves the rest of the track
+	// alone. A starts_at or ends_at the server cannot parse is a 400, not a 422.
+	//
 	// Returns a wrapper object for the known response body format(s).
 	UpdateTimeTrackWithBodyWithResponse(ctx context.Context, timeTrackId int64, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateTimeTrackResponse, error)
 
@@ -10553,6 +10684,12 @@ type ClientWithResponsesInterface interface {
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
 	// Update a time track (stop by setting ends_at to current time).
+	//
+	// Every update completes the track, whether or not ends_at is sent, so this cannot
+	// be used to adjust a running track: it stops it.
+	//
+	// Only the fields sent are written, so a partial update leaves the rest of the track
+	// alone. A starts_at or ends_at the server cannot parse is a 400, not a 422.
 	UpdateTimeTrackWithResponse(ctx context.Context, timeTrackId int64, body UpdateTimeTrackJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateTimeTrackResponse, error)
 
 	// CreateCalendarTodoWithBodyWithResponse performs a POST /calendar/todos.json (the `CreateCalendarTodo` operationId) request,
@@ -13259,6 +13396,75 @@ func (r StartTimeTrackResponse) ContentType() string {
 	return ""
 }
 
+type ListTimeTracksResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *ListTimeTracksResponseContent
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *UnauthorizedErrorResponseContent
+	// JSON404 the response for an HTTP 404 `application/json` response
+	JSON404 *NotFoundErrorResponseContent
+	// JSON500 the response for an HTTP 500 `application/json` response
+	JSON500 *InternalServerErrorResponseContent
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *ServiceUnavailableErrorResponseContent
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListTimeTracksResponse) GetJSON200() *ListTimeTracksResponseContent {
+	return r.JSON200
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r ListTimeTracksResponse) GetJSON401() *UnauthorizedErrorResponseContent {
+	return r.JSON401
+}
+
+// GetJSON404 returns the response for an HTTP 404 `application/json` response
+func (r ListTimeTracksResponse) GetJSON404() *NotFoundErrorResponseContent {
+	return r.JSON404
+}
+
+// GetJSON500 returns the response for an HTTP 500 `application/json` response
+func (r ListTimeTracksResponse) GetJSON500() *InternalServerErrorResponseContent {
+	return r.JSON500
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r ListTimeTracksResponse) GetJSON503() *ServiceUnavailableErrorResponseContent {
+	return r.JSON503
+}
+
+// GetBody returns the raw response body bytes
+func (r ListTimeTracksResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListTimeTracksResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListTimeTracksResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListTimeTracksResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type CreateTimeTrackResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -13464,6 +13670,8 @@ type UpdateTimeTrackResponse struct {
 	HTTPResponse *http.Response
 	// JSON200 the response for an HTTP 200 `application/json` response
 	JSON200 *UpdateTimeTrackResponseContent
+	// JSON400 the response for an HTTP 400 `application/json` response
+	JSON400 *BadRequestErrorResponseContent
 	// JSON401 the response for an HTTP 401 `application/json` response
 	JSON401 *UnauthorizedErrorResponseContent
 	// JSON404 the response for an HTTP 404 `application/json` response
@@ -13479,6 +13687,11 @@ type UpdateTimeTrackResponse struct {
 // GetJSON200 returns the response for an HTTP 200 `application/json` response
 func (r UpdateTimeTrackResponse) GetJSON200() *UpdateTimeTrackResponseContent {
 	return r.JSON200
+}
+
+// GetJSON400 returns the response for an HTTP 400 `application/json` response
+func (r UpdateTimeTrackResponse) GetJSON400() *BadRequestErrorResponseContent {
+	return r.JSON400
 }
 
 // GetJSON401 returns the response for an HTTP 401 `application/json` response
@@ -19481,7 +19694,8 @@ func (c *ClientWithResponses) GetOngoingTimeTrackWithResponse(ctx context.Contex
 //
 // Start a new time track. Takes no body: haystack's
 // Calendar::OngoingTimeTracksController#create ignores request parameters and
-// starts a track with defaults; use UpdateTimeTrack to set title/notes/category.
+// starts a track with defaults; use UpdateTimeTrack to set notes and category_title,
+// which also stops the track.
 //
 // Returns a wrapper object for the known response body format(s).
 func (c *ClientWithResponses) StartTimeTrackWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*StartTimeTrackResponse, error) {
@@ -19490,6 +19704,29 @@ func (c *ClientWithResponses) StartTimeTrackWithResponse(ctx context.Context, re
 		return nil, err
 	}
 	return ParseStartTimeTrackResponse(rsp)
+}
+
+// ListTimeTracksWithResponse performs a GET /calendar/time_tracks.json (the `ListTimeTracks` operationId) request.
+//
+// List tracked time — completed tracks only, newest-ended first.
+//
+// A running track is not here; read that with GetOngoingTimeTrack. The next page, if
+// any, is a Link header, and the last page carries none, so a nil Link is the end of
+// the list rather than an error.
+//
+// category_id narrows the list to one category and 404s if the calendar has no
+// category by that id.
+//
+// The calendar's categories come back alongside the tracks, so showing or applying the
+// filter does not need ListTimeTrackCategories as well.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) ListTimeTracksWithResponse(ctx context.Context, params *ListTimeTracksParams, reqEditors ...RequestEditorFn) (*ListTimeTracksResponse, error) {
+	rsp, err := c.ListTimeTracks(ctx, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListTimeTracksResponse(rsp)
 }
 
 // CreateTimeTrackWithBodyWithResponse performs a POST /calendar/time_tracks.json (the `CreateTimeTrack` operationId) request,
@@ -19553,6 +19790,12 @@ func (c *ClientWithResponses) DeleteTimeTrackWithResponse(ctx context.Context, t
 //
 // Update a time track (stop by setting ends_at to current time).
 //
+// Every update completes the track, whether or not ends_at is sent, so this cannot
+// be used to adjust a running track: it stops it.
+//
+// Only the fields sent are written, so a partial update leaves the rest of the track
+// alone. A starts_at or ends_at the server cannot parse is a 400, not a 422.
+//
 // Returns a wrapper object for the known response body format(s).
 func (c *ClientWithResponses) UpdateTimeTrackWithBodyWithResponse(ctx context.Context, timeTrackId int64, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateTimeTrackResponse, error) {
 	rsp, err := c.UpdateTimeTrackWithBody(ctx, timeTrackId, contentType, body, reqEditors...)
@@ -19566,6 +19809,12 @@ func (c *ClientWithResponses) UpdateTimeTrackWithBodyWithResponse(ctx context.Co
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
 // Update a time track (stop by setting ends_at to current time).
+//
+// Every update completes the track, whether or not ends_at is sent, so this cannot
+// be used to adjust a running track: it stops it.
+//
+// Only the fields sent are written, so a partial update leaves the rest of the track
+// alone. A starts_at or ends_at the server cannot parse is a 400, not a 422.
 func (c *ClientWithResponses) UpdateTimeTrackWithResponse(ctx context.Context, timeTrackId int64, body UpdateTimeTrackJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateTimeTrackResponse, error) {
 	rsp, err := c.UpdateTimeTrack(ctx, timeTrackId, body, reqEditors...)
 	if err != nil {
@@ -22550,6 +22799,60 @@ func ParseStartTimeTrackResponse(rsp *http.Response) (*StartTimeTrackResponse, e
 	return response, nil
 }
 
+// ParseListTimeTracksResponse parses an HTTP response from a ListTimeTracksWithResponse call
+func ParseListTimeTracksResponse(rsp *http.Response) (*ListTimeTracksResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListTimeTracksResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ListTimeTracksResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest UnauthorizedErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFoundErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest InternalServerErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+		var dest ServiceUnavailableErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON503 = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseCreateTimeTrackResponse parses an HTTP response from a CreateTimeTrackWithResponse call
 func ParseCreateTimeTrackResponse(rsp *http.Response) (*CreateTimeTrackResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -22728,6 +23031,13 @@ func ParseUpdateTimeTrackResponse(rsp *http.Response) (*UpdateTimeTrackResponse,
 			return nil, err
 		}
 		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest BadRequestErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
 		var dest UnauthorizedErrorResponseContent

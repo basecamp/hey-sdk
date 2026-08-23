@@ -5,11 +5,6 @@
     "reason": "broken: returns 404 (hey-cli PR #2)"
   },
   {
-    "method": "GET",
-    "path": "/calendar/time_tracks.json",
-    "reason": "broken: returns 406 (hey-cli PR #2)"
-  },
-  {
     "method": "DELETE",
     "path": "/auditor_token",
     "reason": "internal: auditor token management"

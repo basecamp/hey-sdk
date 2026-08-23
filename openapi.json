@@ -2308,7 +2308,7 @@
         }
       },
       "post": {
-        "description": "Start a new time track. Takes no body: haystack's\nCalendar::OngoingTimeTracksController#create ignores request parameters and\nstarts a track with defaults; use UpdateTimeTrack to set title/notes/category.",
+        "description": "Start a new time track. Takes no body: haystack's\nCalendar::OngoingTimeTracksController#create ignores request parameters and\nstarts a track with defaults; use UpdateTimeTrack to set notes and category_title,\nwhich also stops the track.",
         "operationId": "StartTimeTrack",
         "responses": {
           "200": {
@@ -2387,6 +2387,96 @@
       }
     },
     "/calendar/time_tracks.json": {
+      "get": {
+        "description": "List tracked time — completed tracks only, newest-ended first.\n\nA running track is not here; read that with GetOngoingTimeTrack. The next page, if\nany, is a Link header, and the last page carries none, so a nil Link is the end of\nthe list rather than an error.\n\ncategory_id narrows the list to one category and 404s if the calendar has no\ncategory by that id.\n\nThe calendar's categories come back alongside the tracks, so showing or applying the\nfilter does not need ListTimeTrackCategories as well.",
+        "operationId": "ListTimeTracks",
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "x-go-type-skip-optional-pointer": false
+            }
+          },
+          {
+            "name": "category_id",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "x-go-type-skip-optional-pointer": false
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ListTimeTracks 200 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListTimeTracksResponseContent"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UnauthorizedError 401 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnauthorizedErrorResponseContent"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError 404 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundErrorResponseContent"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "InternalServerError 500 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorResponseContent"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ServiceUnavailableError 503 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceUnavailableErrorResponseContent"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Calendar Time Tracks"
+        ],
+        "x-hey-pagination": {
+          "style": "link"
+        },
+        "x-hey-retry": {
+          "maxAttempts": 3,
+          "baseDelayMs": 1000,
+          "backoff": "exponential",
+          "retryOn": [
+            429,
+            503
+          ]
+        }
+      },
       "post": {
         "description": "Record a finished stretch of time.\n\nJSON callers send the fields flat; Rails wraps them into calendar_time_track itself.",
         "operationId": "CreateTimeTrack",
@@ -2610,7 +2700,7 @@
         }
       },
       "put": {
-        "description": "Update a time track (stop by setting ends_at to current time)",
+        "description": "Update a time track (stop by setting ends_at to current time).\n\nEvery update completes the track, whether or not ends_at is sent, so this cannot\nbe used to adjust a running track: it stops it.\n\nOnly the fields sent are written, so a partial update leaves the rest of the track\nalone. A starts_at or ends_at the server cannot parse is a 400, not a 422.",
         "operationId": "UpdateTimeTrack",
         "requestBody": {
           "content": {
@@ -2640,6 +2730,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/UpdateTimeTrackResponseContent"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "BadRequestError 400 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BadRequestErrorResponseContent"
                 }
               }
             }
@@ -11373,6 +11473,9 @@
           "$ref": "#/components/schemas/TimeTrackCategory"
         }
       },
+      "ListTimeTracksResponseContent": {
+        "$ref": "#/components/schemas/TrackedTime"
+      },
       "MarkPostingsRequestContent": {
         "type": "object",
         "properties": {
@@ -12629,6 +12732,24 @@
           "published"
         ]
       },
+      "TrackedTime": {
+        "type": "object",
+        "description": "The tracked-time index: a page of completed tracks, and every category they can be\nfiled under.",
+        "properties": {
+          "time_tracks": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Recording"
+            }
+          },
+          "categories": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TimeTrackCategory"
+            }
+          }
+        }
+      },
       "TrashPostingsRequestContent": {
         "type": "object",
         "properties": {
@@ -12791,13 +12912,19 @@
         "type": "object",
         "properties": {
           "title": {
-            "type": "string"
+            "type": "string",
+            "description": "Ignored by the server. A time track's title is the constant \"Time Track\";\nHEY dropped per-track titles in 2023. Kept for compatibility only."
           },
           "notes": {
             "type": "string"
           },
           "category": {
-            "type": "string"
+            "type": "string",
+            "description": "Ignored by the server, which reads category_title instead. Kept for\ncompatibility only."
+          },
+          "category_title": {
+            "type": "string",
+            "description": "Files the track under this category, creating the category if HEY does not\nhave one by that name. Blank is a no-op, not a way to clear the category:\nonce filed, a track can only be moved to another category, or left where it\nis by deleting the category itself."
           },
           "starts_at": {
             "type": "string",
@@ -12825,7 +12952,7 @@
       },
       "UpdateTimeTrackRequestContent": {
         "type": "object",
-        "description": "Wire format: {calendar_time_track: {title, notes, category, starts_at, ends_at}}",
+        "description": "Wire format: {calendar_time_track: {notes, category_title, starts_at, ends_at}}",
         "properties": {
           "calendar_time_track": {
             "$ref": "#/components/schemas/UpdateTimeTrackPayload"

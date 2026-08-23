@@ -261,6 +261,7 @@
       "pattern": "/calendar/time_tracks",
       "resource": "Calendar Time Tracks",
       "operations": {
+        "GET": "ListTimeTracks",
         "POST": "CreateTimeTrack"
       },
       "params": {}

@@ -226,6 +226,9 @@ service HEY {
         CreateTimeTrack
         DeleteTimeTrack
 
+        // Calendar Time Tracks — read
+        ListTimeTracks
+
         // Calendar Time Track categories
         ListTimeTrackCategories
 
@@ -2255,6 +2258,48 @@ operation UncompleteHabit {
 // CALENDAR TIME TRACK OPERATIONS
 // =============================================================================
 
+/// List tracked time — completed tracks only, newest-ended first.
+///
+/// A running track is not here; read that with GetOngoingTimeTrack. The next page, if
+/// any, is a Link header, and the last page carries none, so a nil Link is the end of
+/// the list rather than an error.
+///
+/// category_id narrows the list to one category and 404s if the calendar has no
+/// category by that id.
+///
+/// The calendar's categories come back alongside the tracks, so showing or applying the
+/// filter does not need ListTimeTrackCategories as well.
+@readonly
+@http(method: "GET", uri: "/calendar/time_tracks.json")
+@tags(["Calendar Time Tracks"])
+@heyRetry(maxAttempts: 3, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+@heyPagination(style: "link")
+operation ListTimeTracks {
+    input: ListTimeTracksInput
+    output: ListTimeTracksOutput
+    errors: [UnauthorizedError, NotFoundError, InternalServerError, ServiceUnavailableError]
+}
+
+structure ListTimeTracksInput {
+    @httpQuery("page")
+    page: String
+
+    @httpQuery("category_id")
+    category_id: Long
+}
+
+structure ListTimeTracksOutput {
+    @required
+    tracked_time: TrackedTime
+}
+
+/// The tracked-time index: a page of completed tracks, and every category they can be
+/// filed under.
+structure TrackedTime {
+    time_tracks: RecordingList
+    categories: TimeTrackCategoryList
+}
+
 /// Get the ongoing time track (404 = no active track; see ADR-004)
 @readonly
 @http(method: "GET", uri: "/calendar/ongoing_time_track.json")
@@ -2273,7 +2318,8 @@ structure GetOngoingTimeTrackOutput {
 
 /// Start a new time track. Takes no body: haystack's
 /// Calendar::OngoingTimeTracksController#create ignores request parameters and
-/// starts a track with defaults; use UpdateTimeTrack to set title/notes/category.
+/// starts a track with defaults; use UpdateTimeTrack to set notes and category_title,
+/// which also stops the track.
 @http(method: "POST", uri: "/calendar/ongoing_time_track.json")
 @tags(["Calendar Time Tracks"])
 @heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
@@ -2287,7 +2333,13 @@ structure StartTimeTrackOutput {
     recording: Recording
 }
 
-/// Update a time track (stop by setting ends_at to current time)
+/// Update a time track (stop by setting ends_at to current time).
+///
+/// Every update completes the track, whether or not ends_at is sent, so this cannot
+/// be used to adjust a running track: it stops it.
+///
+/// Only the fields sent are written, so a partial update leaves the rest of the track
+/// alone. A starts_at or ends_at the server cannot parse is a 400, not a 422.
 @idempotent
 // NOTE: The live path is /calendar/time_tracks/{id}.json, but Smithy forbids a
 // literal after a label inside one segment. The generated client appends .json to
@@ -2299,7 +2351,7 @@ structure StartTimeTrackOutput {
 operation UpdateTimeTrack {
     input: UpdateTimeTrackInput
     output: UpdateTimeTrackOutput
-    errors: [UnauthorizedError, NotFoundError, UnprocessableEntityError, InternalServerError, ServiceUnavailableError]
+    errors: [UnauthorizedError, BadRequestError, NotFoundError, UnprocessableEntityError, InternalServerError, ServiceUnavailableError]
 }
 
 structure UpdateTimeTrackInput {
@@ -2312,16 +2364,29 @@ structure UpdateTimeTrackInput {
     body: UpdateTimeTrackRequestContent
 }
 
-/// Wire format: {calendar_time_track: {title, notes, category, starts_at, ends_at}}
+/// Wire format: {calendar_time_track: {notes, category_title, starts_at, ends_at}}
 structure UpdateTimeTrackRequestContent {
     @required
     calendar_time_track: UpdateTimeTrackPayload
 }
 
 structure UpdateTimeTrackPayload {
+    /// Ignored by the server. A time track's title is the constant "Time Track";
+    /// HEY dropped per-track titles in 2023. Kept for compatibility only.
     title: String
+
     notes: String
+
+    /// Ignored by the server, which reads category_title instead. Kept for
+    /// compatibility only.
     category: String
+
+    /// Files the track under this category, creating the category if HEY does not
+    /// have one by that name. Blank is a no-op, not a way to clear the category:
+    /// once filed, a track can only be moved to another category, or left where it
+    /// is by deleting the category itself.
+    category_title: String
+
     starts_at: DateTime
     ends_at: DateTime
 }

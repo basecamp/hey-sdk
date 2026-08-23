@@ -1115,6 +1115,8 @@ func executeOperation(client *generated.Client, ctx context.Context, tc TestCase
 			getInt64Param(tc.PathParams, "workflowId"),
 			body,
 		)
+	case "ListTimeTracks":
+		return client.ListTimeTracks(ctx, nil)
 	case "ListTimeTrackCategories":
 		return client.ListTimeTrackCategories(ctx)
 	case "GetTopicPublication":
