@@ -2162,6 +2162,86 @@
         }
       }
     },
+    "/calendar/identity/first_week_day": {
+      "put": {
+        "description": "Set which day the identity's calendar weeks start on. Answers the stored\npreference. The write reaches every HEY client — web, mobile and this SDK\nread the same identity preference.",
+        "operationId": "UpdateFirstWeekDay",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateFirstWeekDayRequestContent"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "UpdateFirstWeekDay 200 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UpdateFirstWeekDayResponseContent"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "BadRequestError 400 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BadRequestErrorResponseContent"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UnauthorizedError 401 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnauthorizedErrorResponseContent"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "InternalServerError 500 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorResponseContent"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ServiceUnavailableError 503 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceUnavailableErrorResponseContent"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Identity"
+        ],
+        "x-hey-retry": {
+          "maxAttempts": 3,
+          "baseDelayMs": 1000,
+          "backoff": "exponential",
+          "retryOn": [
+            429,
+            503
+          ]
+        }
+      }
+    },
     "/calendar/journal_entries": {
       "get": {
         "description": "List journal entries newest first. The next page, if any, is a Link header.\nPass q to search journal entry content.",
@@ -6014,6 +6094,76 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/GetIdentityResponseContent"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UnauthorizedError 401 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnauthorizedErrorResponseContent"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "InternalServerError 500 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorResponseContent"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ServiceUnavailableError 503 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceUnavailableErrorResponseContent"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Identity"
+        ],
+        "x-hey-retry": {
+          "maxAttempts": 3,
+          "baseDelayMs": 1000,
+          "backoff": "exponential",
+          "retryOn": [
+            429,
+            503
+          ]
+        }
+      }
+    },
+    "/identity/time_format": {
+      "put": {
+        "description": "Set whether HEY renders times on a 12-hour or a 24-hour clock. Answers the\nstored preference. The parameter is the web toggle's, said honestly: true\nfor the 24-hour clock, false for the 12-hour one.",
+        "operationId": "UpdateTimeFormat",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateTimeFormatRequestContent"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "UpdateTimeFormat 200 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UpdateTimeFormatResponseContent"
                 }
               }
             }
@@ -11380,6 +11530,31 @@
           "posting_ids"
         ]
       },
+      "FirstWeekDayParams": {
+        "type": "object",
+        "properties": {
+          "first_week_day": {
+            "type": "string",
+            "description": "Lowercase day name, sunday through saturday."
+          }
+        },
+        "required": [
+          "first_week_day"
+        ]
+      },
+      "FirstWeekDayPreference": {
+        "type": "object",
+        "properties": {
+          "first_week_day": {
+            "type": "integer",
+            "description": "0 is Sunday through 6 Saturday, as GetIdentity serves it.",
+            "format": "int32"
+          }
+        },
+        "required": [
+          "first_week_day"
+        ]
+      },
       "Folder": {
         "type": "object",
         "description": "Folder — email folder",
@@ -12966,6 +13141,18 @@
           "sticky"
         ]
       },
+      "TimeFormatPreference": {
+        "type": "object",
+        "properties": {
+          "time_format": {
+            "type": "string",
+            "description": "\"twelve_hour\" or \"twenty_four_hour\", as GetIdentity serves it."
+          }
+        },
+        "required": [
+          "time_format"
+        ]
+      },
       "TimeTrackCategory": {
         "type": "object",
         "properties": {
@@ -13299,6 +13486,21 @@
       "UpdateContactResponseContent": {
         "$ref": "#/components/schemas/Contact"
       },
+      "UpdateFirstWeekDayRequestContent": {
+        "type": "object",
+        "description": "Wire format: {identity_preference: {first_week_day: \"monday\"}}",
+        "properties": {
+          "identity_preference": {
+            "$ref": "#/components/schemas/FirstWeekDayParams"
+          }
+        },
+        "required": [
+          "identity_preference"
+        ]
+      },
+      "UpdateFirstWeekDayResponseContent": {
+        "$ref": "#/components/schemas/FirstWeekDayPreference"
+      },
       "UpdateHabitResponseContent": {
         "$ref": "#/components/schemas/Recording"
       },
@@ -13333,6 +13535,21 @@
       },
       "UpdateStickyResponseContent": {
         "$ref": "#/components/schemas/Sticky"
+      },
+      "UpdateTimeFormatRequestContent": {
+        "type": "object",
+        "properties": {
+          "twenty_four_hour_time_format": {
+            "type": "boolean",
+            "x-go-type-skip-optional-pointer": false
+          }
+        },
+        "required": [
+          "twenty_four_hour_time_format"
+        ]
+      },
+      "UpdateTimeFormatResponseContent": {
+        "$ref": "#/components/schemas/TimeFormatPreference"
       },
       "UpdateTimeTrackPayload": {
         "type": "object",

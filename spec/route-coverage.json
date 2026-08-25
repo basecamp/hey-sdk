@@ -575,6 +575,11 @@
     "path": "/contacts/{contactId}/note.json"
   },
   {
+    "method": "PUT",
+    "operationId": "UpdateFirstWeekDay",
+    "path": "/calendar/identity/first_week_day"
+  },
+  {
     "method": "PATCH",
     "operationId": "UpdateHabit",
     "path": "/calendar/habits/{habitId}"
@@ -598,6 +603,11 @@
     "method": "PATCH",
     "operationId": "UpdateSticky",
     "path": "/stickies/{stickyId}"
+  },
+  {
+    "method": "PUT",
+    "operationId": "UpdateTimeFormat",
+    "path": "/identity/time_format"
   },
   {
     "method": "PUT",

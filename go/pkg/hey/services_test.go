@@ -220,6 +220,59 @@ func TestIdentityService_GetNavigation(t *testing.T) {
 	}
 }
 
+func TestIdentityService_UpdateFirstWeekDay(t *testing.T) {
+	client := newMutationTestClientWithValidation(t, "PUT", "/calendar/identity/first_week_day.json",
+		func(t *testing.T, body map[string]any) {
+			t.Helper()
+			preference, _ := body["identity_preference"].(map[string]any)
+			if preference["first_week_day"] != "monday" {
+				t.Errorf("expected monday, got %v", preference["first_week_day"])
+			}
+		}, `{"first_week_day":1}`)
+
+	stored, err := client.Identity().UpdateFirstWeekDay(context.Background(), time.Monday)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if stored != time.Monday {
+		t.Errorf("stored day = %v, want Monday", stored)
+	}
+}
+
+func TestIdentityService_UpdateTimeFormat(t *testing.T) {
+	twentyFour := newMutationTestClientWithValidation(t, "PUT", "/identity/time_format.json",
+		func(t *testing.T, body map[string]any) {
+			t.Helper()
+			if body["twenty_four_hour_time_format"] != true {
+				t.Errorf("expected true, got %v", body["twenty_four_hour_time_format"])
+			}
+		}, `{"time_format":"twenty_four_hour"}`)
+
+	stored, err := twentyFour.Identity().UpdateTimeFormat(context.Background(), TimeFormatTwentyFourHour)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if stored != TimeFormatTwentyFourHour {
+		t.Errorf("stored format = %v, want twenty_four_hour", stored)
+	}
+
+	twelve := newMutationTestClientWithValidation(t, "PUT", "/identity/time_format.json",
+		func(t *testing.T, body map[string]any) {
+			t.Helper()
+			if body["twenty_four_hour_time_format"] != false {
+				t.Errorf("expected false, got %v", body["twenty_four_hour_time_format"])
+			}
+		}, `{"time_format":"twelve_hour"}`)
+
+	stored, err = twelve.Identity().UpdateTimeFormat(context.Background(), TimeFormatTwelveHour)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if stored != TimeFormatTwelveHour {
+		t.Errorf("stored format = %v, want twelve_hour", stored)
+	}
+}
+
 func TestIdentityService_GetIdentity_Error(t *testing.T) {
 	client := newServiceTestClient(t, map[string]string{})
 	_, err := client.Identity().GetIdentity(context.Background())

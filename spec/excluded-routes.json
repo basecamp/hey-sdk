@@ -672,12 +672,7 @@
   {
     "method": "PATCH",
     "path": "/calendar/identity/first_week_day",
-    "reason": "phase-2: calendar identity settings"
-  },
-  {
-    "method": "PUT",
-    "path": "/calendar/identity/first_week_day",
-    "reason": "phase-2: calendar identity settings"
+    "reason": "modelled as PUT UpdateFirstWeekDay; PATCH is the same Rails route"
   },
   {
     "method": "PATCH",
@@ -1987,12 +1982,7 @@
   {
     "method": "PATCH",
     "path": "/identity/time_format",
-    "reason": "phase-2: mobile triage surface"
-  },
-  {
-    "method": "PUT",
-    "path": "/identity/time_format",
-    "reason": "phase-2: mobile triage surface"
+    "reason": "modelled as PUT UpdateTimeFormat; PATCH is the same Rails route"
   },
   {
     "method": "PATCH",

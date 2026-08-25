@@ -668,6 +668,18 @@ type FilePostingsRequestContent struct {
 	PostingIds []int64 `json:"posting_ids"`
 }
 
+// FirstWeekDayParams defines model for FirstWeekDayParams.
+type FirstWeekDayParams struct {
+	// FirstWeekDay Lowercase day name, sunday through saturday.
+	FirstWeekDay string `json:"first_week_day"`
+}
+
+// FirstWeekDayPreference defines model for FirstWeekDayPreference.
+type FirstWeekDayPreference struct {
+	// FirstWeekDay 0 is Sunday through 6 Saturday, as GetIdentity serves it.
+	FirstWeekDay int32 `json:"first_week_day"`
+}
+
 // Folder Folder — email folder
 type Folder struct {
 	AppUrl string `json:"app_url,omitempty"`
@@ -1379,6 +1391,12 @@ type StickyRequestContent struct {
 	Sticky StickyPayload `json:"sticky"`
 }
 
+// TimeFormatPreference defines model for TimeFormatPreference.
+type TimeFormatPreference struct {
+	// TimeFormat "twelve_hour" or "twenty_four_hour", as GetIdentity serves it.
+	TimeFormat string `json:"time_format"`
+}
+
 // TimeTrackCategory defines model for TimeTrackCategory.
 type TimeTrackCategory struct {
 	// CreatedAt ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)
@@ -1521,6 +1539,14 @@ type UpdateContactNoteResponseContent = ContactNote
 // UpdateContactResponseContent Contact — the identity of someone in HEY
 type UpdateContactResponseContent = Contact
 
+// UpdateFirstWeekDayRequestContent Wire format: {identity_preference: {first_week_day: "monday"}}
+type UpdateFirstWeekDayRequestContent struct {
+	IdentityPreference FirstWeekDayParams `json:"identity_preference"`
+}
+
+// UpdateFirstWeekDayResponseContent defines model for UpdateFirstWeekDayResponseContent.
+type UpdateFirstWeekDayResponseContent = FirstWeekDayPreference
+
 // UpdateHabitResponseContent Recording — polymorphic by `type` (CalendarEvent, CalendarTodo, etc.)
 type UpdateHabitResponseContent = Recording
 
@@ -1545,6 +1571,14 @@ type UpdateMyClearanceResponseContent = Clearance
 
 // UpdateStickyResponseContent Sticky — a note on the stickies board
 type UpdateStickyResponseContent = Sticky
+
+// UpdateTimeFormatRequestContent defines model for UpdateTimeFormatRequestContent.
+type UpdateTimeFormatRequestContent struct {
+	TwentyFourHourTimeFormat bool `json:"twenty_four_hour_time_format"`
+}
+
+// UpdateTimeFormatResponseContent defines model for UpdateTimeFormatResponseContent.
+type UpdateTimeFormatResponseContent = TimeFormatPreference
 
 // UpdateTimeTrackPayload defines model for UpdateTimeTrackPayload.
 type UpdateTimeTrackPayload struct {
@@ -1864,6 +1898,9 @@ type CreateHabitJSONRequestBody = HabitRequestContent
 // UpdateHabitJSONRequestBody defines body for UpdateHabit for application/json ContentType.
 type UpdateHabitJSONRequestBody = HabitRequestContent
 
+// UpdateFirstWeekDayJSONRequestBody defines body for UpdateFirstWeekDay for application/json ContentType.
+type UpdateFirstWeekDayJSONRequestBody = UpdateFirstWeekDayRequestContent
+
 // CreateTimeTrackJSONRequestBody defines body for CreateTimeTrack for application/json ContentType.
 type CreateTimeTrackJSONRequestBody = TimeTrackRequestContent
 
@@ -1899,6 +1936,9 @@ type UpdateContactNoteJSONRequestBody = ContactNoteRequestContent
 
 // CreateReplyJSONRequestBody defines body for CreateReply for application/json ContentType.
 type CreateReplyJSONRequestBody = CreateReplyRequestContent
+
+// UpdateTimeFormatJSONRequestBody defines body for UpdateTimeFormat for application/json ContentType.
+type UpdateTimeFormatJSONRequestBody = UpdateTimeFormatRequestContent
 
 // CreateMessageJSONRequestBody defines body for CreateMessage for application/json ContentType.
 type CreateMessageJSONRequestBody = CreateMessageRequestContent
@@ -2272,6 +2312,11 @@ type ClientInterface interface {
 	// StopHabit request
 	StopHabit(ctx context.Context, habitId int64, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// UpdateFirstWeekDayWithBody request with any body
+	UpdateFirstWeekDayWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	UpdateFirstWeekDay(ctx context.Context, body UpdateFirstWeekDayJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// ListJournalEntries request
 	ListJournalEntries(ctx context.Context, params *ListJournalEntriesParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
@@ -2439,6 +2484,11 @@ type ClientInterface interface {
 
 	// GetIdentity request
 	GetIdentity(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// UpdateTimeFormatWithBody request with any body
+	UpdateTimeFormatWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	UpdateTimeFormat(ctx context.Context, body UpdateTimeFormatJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// GetImbox request
 	GetImbox(ctx context.Context, params *GetImboxParams, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -3002,6 +3052,24 @@ func (c *Client) StopHabit(ctx context.Context, habitId int64, reqEditors ...Req
 		return nil, err
 	}
 	return c.Client.Do(req)
+
+}
+
+// UpdateFirstWeekDayWithBody is marked as idempotent and will be retried on transient failures.
+
+func (c *Client) UpdateFirstWeekDayWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+
+	return c.doWithRetry(ctx, func() (*http.Request, error) {
+		return NewUpdateFirstWeekDayRequestWithBody(c.Server, contentType, body)
+	}, true, "UpdateFirstWeekDay", reqEditors...)
+
+}
+
+func (c *Client) UpdateFirstWeekDay(ctx context.Context, body UpdateFirstWeekDayJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+
+	return c.doWithRetry(ctx, func() (*http.Request, error) {
+		return NewUpdateFirstWeekDayRequest(c.Server, body)
+	}, true, "UpdateFirstWeekDay", reqEditors...)
 
 }
 
@@ -3740,6 +3808,24 @@ func (c *Client) GetIdentity(ctx context.Context, reqEditors ...RequestEditorFn)
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
 		return NewGetIdentityRequest(c.Server)
 	}, true, "GetIdentity", reqEditors...)
+
+}
+
+// UpdateTimeFormatWithBody is marked as idempotent and will be retried on transient failures.
+
+func (c *Client) UpdateTimeFormatWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+
+	return c.doWithRetry(ctx, func() (*http.Request, error) {
+		return NewUpdateTimeFormatRequestWithBody(c.Server, contentType, body)
+	}, true, "UpdateTimeFormat", reqEditors...)
+
+}
+
+func (c *Client) UpdateTimeFormat(ctx context.Context, body UpdateTimeFormatJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+
+	return c.doWithRetry(ctx, func() (*http.Request, error) {
+		return NewUpdateTimeFormatRequest(c.Server, body)
+	}, true, "UpdateTimeFormat", reqEditors...)
 
 }
 
@@ -5873,6 +5959,46 @@ func NewStopHabitRequest(server string, habitId int64) (*http.Request, error) {
 	return req, nil
 }
 
+// NewUpdateFirstWeekDayRequest calls the generic UpdateFirstWeekDay builder with application/json body
+func NewUpdateFirstWeekDayRequest(server string, body UpdateFirstWeekDayJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewUpdateFirstWeekDayRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewUpdateFirstWeekDayRequestWithBody generates requests for UpdateFirstWeekDay with any type of body
+func NewUpdateFirstWeekDayRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/calendar/identity/first_week_day")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("PUT", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
 // NewListJournalEntriesRequest generates requests for ListJournalEntries
 func NewListJournalEntriesRequest(server string, params *ListJournalEntriesParams) (*http.Request, error) {
 	var err error
@@ -7862,6 +7988,46 @@ func NewGetIdentityRequest(server string) (*http.Request, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	return req, nil
+}
+
+// NewUpdateTimeFormatRequest calls the generic UpdateTimeFormat builder with application/json body
+func NewUpdateTimeFormatRequest(server string, body UpdateTimeFormatJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewUpdateTimeFormatRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewUpdateTimeFormatRequestWithBody generates requests for UpdateTimeFormat with any type of body
+func NewUpdateTimeFormatRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/identity/time_format")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("PUT", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
 
 	return req, nil
 }
@@ -9938,6 +10104,7 @@ var operationMetadata = map[string]OperationMetadata{
 	"UpdateHabit":                {Idempotent: false, HasSensitiveParams: false},
 	"ResumeHabit":                {Idempotent: true, HasSensitiveParams: false},
 	"StopHabit":                  {Idempotent: false, HasSensitiveParams: false},
+	"UpdateFirstWeekDay":         {Idempotent: true, HasSensitiveParams: false},
 	"ListJournalEntries":         {Idempotent: true, HasSensitiveParams: false},
 	"GetOngoingTimeTrack":        {Idempotent: true, HasSensitiveParams: false},
 	"StartTimeTrack":             {Idempotent: false, HasSensitiveParams: false},
@@ -9986,6 +10153,7 @@ var operationMetadata = map[string]OperationMetadata{
 	"GetFeedbox":                 {Idempotent: true, HasSensitiveParams: false},
 	"GetFolder":                  {Idempotent: true, HasSensitiveParams: false},
 	"GetIdentity":                {Idempotent: true, HasSensitiveParams: false},
+	"UpdateTimeFormat":           {Idempotent: true, HasSensitiveParams: false},
 	"GetImbox":                   {Idempotent: true, HasSensitiveParams: false},
 	"CreateMessage":              {Idempotent: false, HasSensitiveParams: false},
 	"GetMessage":                 {Idempotent: true, HasSensitiveParams: false},
@@ -10888,6 +11056,24 @@ type ClientWithResponsesInterface interface {
 	// Returns a wrapper object for the known response body format(s).
 	StopHabitWithResponse(ctx context.Context, habitId int64, reqEditors ...RequestEditorFn) (*StopHabitResponse, error)
 
+	// UpdateFirstWeekDayWithBodyWithResponse performs a PUT /calendar/identity/first_week_day (the `UpdateFirstWeekDay` operationId) request,
+	// with any type of body and a specified content type.
+	//
+	// Set which day the identity's calendar weeks start on. Answers the stored
+	// preference. The write reaches every HEY client — web, mobile and this SDK
+	// read the same identity preference.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	UpdateFirstWeekDayWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateFirstWeekDayResponse, error)
+
+	// UpdateFirstWeekDayWithResponse performs a PUT /calendar/identity/first_week_day (the `UpdateFirstWeekDay` operationId) request.
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Set which day the identity's calendar weeks start on. Answers the stored
+	// preference. The write reaches every HEY client — web, mobile and this SDK
+	// read the same identity preference.
+	UpdateFirstWeekDayWithResponse(ctx context.Context, body UpdateFirstWeekDayJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateFirstWeekDayResponse, error)
+
 	// ListJournalEntriesWithResponse performs a GET /calendar/journal_entries (the `ListJournalEntries` operationId) request.
 	//
 	// List journal entries newest first. The next page, if any, is a Link header.
@@ -11357,6 +11543,24 @@ type ClientWithResponsesInterface interface {
 	//
 	// Returns a wrapper object for the known response body format(s).
 	GetIdentityWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetIdentityResponse, error)
+
+	// UpdateTimeFormatWithBodyWithResponse performs a PUT /identity/time_format (the `UpdateTimeFormat` operationId) request,
+	// with any type of body and a specified content type.
+	//
+	// Set whether HEY renders times on a 12-hour or a 24-hour clock. Answers the
+	// stored preference. The parameter is the web toggle's, said honestly: true
+	// for the 24-hour clock, false for the 12-hour one.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	UpdateTimeFormatWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateTimeFormatResponse, error)
+
+	// UpdateTimeFormatWithResponse performs a PUT /identity/time_format (the `UpdateTimeFormat` operationId) request.
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Set whether HEY renders times on a 12-hour or a 24-hour clock. Answers the
+	// stored preference. The parameter is the web toggle's, said honestly: true
+	// for the 24-hour clock, false for the 12-hour one.
+	UpdateTimeFormatWithResponse(ctx context.Context, body UpdateTimeFormatJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateTimeFormatResponse, error)
 
 	// GetImboxWithResponse performs a GET /imbox.json (the `GetImbox` operationId) request.
 	//
@@ -13549,6 +13753,75 @@ func (r StopHabitResponse) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r StopHabitResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type UpdateFirstWeekDayResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *UpdateFirstWeekDayResponseContent
+	// JSON400 the response for an HTTP 400 `application/json` response
+	JSON400 *BadRequestErrorResponseContent
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *UnauthorizedErrorResponseContent
+	// JSON500 the response for an HTTP 500 `application/json` response
+	JSON500 *InternalServerErrorResponseContent
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *ServiceUnavailableErrorResponseContent
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r UpdateFirstWeekDayResponse) GetJSON200() *UpdateFirstWeekDayResponseContent {
+	return r.JSON200
+}
+
+// GetJSON400 returns the response for an HTTP 400 `application/json` response
+func (r UpdateFirstWeekDayResponse) GetJSON400() *BadRequestErrorResponseContent {
+	return r.JSON400
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r UpdateFirstWeekDayResponse) GetJSON401() *UnauthorizedErrorResponseContent {
+	return r.JSON401
+}
+
+// GetJSON500 returns the response for an HTTP 500 `application/json` response
+func (r UpdateFirstWeekDayResponse) GetJSON500() *InternalServerErrorResponseContent {
+	return r.JSON500
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r UpdateFirstWeekDayResponse) GetJSON503() *ServiceUnavailableErrorResponseContent {
+	return r.JSON503
+}
+
+// GetBody returns the raw response body bytes
+func (r UpdateFirstWeekDayResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r UpdateFirstWeekDayResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r UpdateFirstWeekDayResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r UpdateFirstWeekDayResponse) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -16784,6 +17057,68 @@ func (r GetIdentityResponse) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r GetIdentityResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type UpdateTimeFormatResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *UpdateTimeFormatResponseContent
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *UnauthorizedErrorResponseContent
+	// JSON500 the response for an HTTP 500 `application/json` response
+	JSON500 *InternalServerErrorResponseContent
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *ServiceUnavailableErrorResponseContent
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r UpdateTimeFormatResponse) GetJSON200() *UpdateTimeFormatResponseContent {
+	return r.JSON200
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r UpdateTimeFormatResponse) GetJSON401() *UnauthorizedErrorResponseContent {
+	return r.JSON401
+}
+
+// GetJSON500 returns the response for an HTTP 500 `application/json` response
+func (r UpdateTimeFormatResponse) GetJSON500() *InternalServerErrorResponseContent {
+	return r.JSON500
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r UpdateTimeFormatResponse) GetJSON503() *ServiceUnavailableErrorResponseContent {
+	return r.JSON503
+}
+
+// GetBody returns the raw response body bytes
+func (r UpdateTimeFormatResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r UpdateTimeFormatResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r UpdateTimeFormatResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r UpdateTimeFormatResponse) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -20291,6 +20626,36 @@ func (c *ClientWithResponses) StopHabitWithResponse(ctx context.Context, habitId
 	return ParseStopHabitResponse(rsp)
 }
 
+// UpdateFirstWeekDayWithBodyWithResponse performs a PUT /calendar/identity/first_week_day (the `UpdateFirstWeekDay` operationId) request,
+// with any type of body and a specified content type.
+//
+// Set which day the identity's calendar weeks start on. Answers the stored
+// preference. The write reaches every HEY client — web, mobile and this SDK
+// read the same identity preference.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) UpdateFirstWeekDayWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateFirstWeekDayResponse, error) {
+	rsp, err := c.UpdateFirstWeekDayWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpdateFirstWeekDayResponse(rsp)
+}
+
+// UpdateFirstWeekDayWithResponse performs a PUT /calendar/identity/first_week_day (the `UpdateFirstWeekDay` operationId) request.
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Set which day the identity's calendar weeks start on. Answers the stored
+// preference. The write reaches every HEY client — web, mobile and this SDK
+// read the same identity preference.
+func (c *ClientWithResponses) UpdateFirstWeekDayWithResponse(ctx context.Context, body UpdateFirstWeekDayJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateFirstWeekDayResponse, error) {
+	rsp, err := c.UpdateFirstWeekDay(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpdateFirstWeekDayResponse(rsp)
+}
+
 // ListJournalEntriesWithResponse performs a GET /calendar/journal_entries (the `ListJournalEntries` operationId) request.
 //
 // List journal entries newest first. The next page, if any, is a Link header.
@@ -21119,6 +21484,36 @@ func (c *ClientWithResponses) GetIdentityWithResponse(ctx context.Context, reqEd
 		return nil, err
 	}
 	return ParseGetIdentityResponse(rsp)
+}
+
+// UpdateTimeFormatWithBodyWithResponse performs a PUT /identity/time_format (the `UpdateTimeFormat` operationId) request,
+// with any type of body and a specified content type.
+//
+// Set whether HEY renders times on a 12-hour or a 24-hour clock. Answers the
+// stored preference. The parameter is the web toggle's, said honestly: true
+// for the 24-hour clock, false for the 12-hour one.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) UpdateTimeFormatWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateTimeFormatResponse, error) {
+	rsp, err := c.UpdateTimeFormatWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpdateTimeFormatResponse(rsp)
+}
+
+// UpdateTimeFormatWithResponse performs a PUT /identity/time_format (the `UpdateTimeFormat` operationId) request.
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Set whether HEY renders times on a 12-hour or a 24-hour clock. Answers the
+// stored preference. The parameter is the web toggle's, said honestly: true
+// for the 24-hour clock, false for the 12-hour one.
+func (c *ClientWithResponses) UpdateTimeFormatWithResponse(ctx context.Context, body UpdateTimeFormatJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateTimeFormatResponse, error) {
+	rsp, err := c.UpdateTimeFormat(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpdateTimeFormatResponse(rsp)
 }
 
 // GetImboxWithResponse performs a GET /imbox.json (the `GetImbox` operationId) request.
@@ -23345,6 +23740,60 @@ func ParseStopHabitResponse(rsp *http.Response) (*StopHabitResponse, error) {
 			return nil, err
 		}
 		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest InternalServerErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+		var dest ServiceUnavailableErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON503 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseUpdateFirstWeekDayResponse parses an HTTP response from a UpdateFirstWeekDayWithResponse call
+func ParseUpdateFirstWeekDayResponse(rsp *http.Response) (*UpdateFirstWeekDayResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &UpdateFirstWeekDayResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest UpdateFirstWeekDayResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest BadRequestErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest UnauthorizedErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
 		var dest InternalServerErrorResponseContent
@@ -25885,6 +26334,53 @@ func ParseGetIdentityResponse(rsp *http.Response) (*GetIdentityResponse, error) 
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest GetIdentityResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest UnauthorizedErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest InternalServerErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+		var dest ServiceUnavailableErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON503 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseUpdateTimeFormatResponse parses an HTTP response from a UpdateTimeFormatWithResponse call
+func ParseUpdateTimeFormatResponse(rsp *http.Response) (*UpdateTimeFormatResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &UpdateTimeFormatResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest UpdateTimeFormatResponseContent
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}

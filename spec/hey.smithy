@@ -61,9 +61,11 @@ timestamp DateTime
 service HEY {
     version: "2026-08-21"
     operations: [
-        // Identity (2 MVP)
+        // Identity (4 MVP)
         GetIdentity
         GetNavigation
+        UpdateFirstWeekDay
+        UpdateTimeFormat
 
         // Boxes (8 MVP)
         ListBoxes
@@ -1176,6 +1178,83 @@ operation GetNavigation {
 structure GetNavigationOutput {
     @required
     navigation: NavigationResponse
+}
+
+/// Set which day the identity's calendar weeks start on. Answers the stored
+/// preference. The write reaches every HEY client — web, mobile and this SDK
+/// read the same identity preference.
+@idempotent
+@http(method: "PUT", uri: "/calendar/identity/first_week_day")
+@tags(["Identity"])
+@heyRetry(maxAttempts: 3, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+operation UpdateFirstWeekDay {
+    input: UpdateFirstWeekDayInput
+    output: UpdateFirstWeekDayOutput
+    errors: [UnauthorizedError, BadRequestError, InternalServerError, ServiceUnavailableError]
+}
+
+structure UpdateFirstWeekDayInput {
+    @httpPayload
+    @required
+    body: UpdateFirstWeekDayRequestContent
+}
+
+/// Wire format: {identity_preference: {first_week_day: "monday"}}
+structure UpdateFirstWeekDayRequestContent {
+    @required
+    identity_preference: FirstWeekDayParams
+}
+
+structure FirstWeekDayParams {
+    /// Lowercase day name, sunday through saturday.
+    @required
+    first_week_day: String
+}
+
+structure UpdateFirstWeekDayOutput {
+    @required
+    preference: FirstWeekDayPreference
+}
+
+structure FirstWeekDayPreference {
+    /// 0 is Sunday through 6 Saturday, as GetIdentity serves it.
+    @required
+    first_week_day: Integer
+}
+
+/// Set whether HEY renders times on a 12-hour or a 24-hour clock. Answers the
+/// stored preference. The parameter is the web toggle's, said honestly: true
+/// for the 24-hour clock, false for the 12-hour one.
+@idempotent
+@http(method: "PUT", uri: "/identity/time_format")
+@tags(["Identity"])
+@heyRetry(maxAttempts: 3, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+operation UpdateTimeFormat {
+    input: UpdateTimeFormatInput
+    output: UpdateTimeFormatOutput
+    errors: [UnauthorizedError, InternalServerError, ServiceUnavailableError]
+}
+
+structure UpdateTimeFormatInput {
+    @httpPayload
+    @required
+    body: UpdateTimeFormatRequestContent
+}
+
+structure UpdateTimeFormatRequestContent {
+    @required
+    twenty_four_hour_time_format: Boolean
+}
+
+structure UpdateTimeFormatOutput {
+    @required
+    preference: TimeFormatPreference
+}
+
+structure TimeFormatPreference {
+    /// "twelve_hour" or "twenty_four_hour", as GetIdentity serves it.
+    @required
+    time_format: String
 }
 
 // =============================================================================

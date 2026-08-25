@@ -241,6 +241,14 @@
       }
     },
     {
+      "pattern": "/calendar/identity/first_week_day",
+      "resource": "Identity",
+      "operations": {
+        "PUT": "UpdateFirstWeekDay"
+      },
+      "params": {}
+    },
+    {
       "pattern": "/calendar/journal_entries",
       "resource": "Calendar Journal",
       "operations": {
@@ -637,6 +645,14 @@
       "resource": "Identity",
       "operations": {
         "GET": "GetIdentity"
+      },
+      "params": {}
+    },
+    {
+      "pattern": "/identity/time_format",
+      "resource": "Identity",
+      "operations": {
+        "PUT": "UpdateTimeFormat"
       },
       "params": {}
     },
