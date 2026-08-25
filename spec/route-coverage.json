@@ -496,6 +496,11 @@
   },
   {
     "method": "POST",
+    "operationId": "SchedulePostingsBubbleUp",
+    "path": "/postings/bubble_up.json"
+  },
+  {
+    "method": "POST",
     "operationId": "StartTimeTrack",
     "path": "/calendar/ongoing_time_track.json"
   },

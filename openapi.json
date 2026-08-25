@@ -7127,6 +7127,77 @@
             503
           ]
         }
+      },
+      "post": {
+        "description": "Schedule a selection of postings to bubble up.\n\nHEY's scheduler takes a `slot` — today, tomorrow, weekend, next_week, surprise_me\nor custom — and a custom slot also carries the `date` (YYYY-MM-DD) to bubble up on,\nat HEY's morning hour. The today slot lands at HEY's evening hour of the current\nday instead, and both hours are UTC over JSON. An unknown slot, or a custom slot\nwithout a date, is a server error rather than a validation response, so callers\ncheck both first. Responds 201 Created.",
+        "operationId": "SchedulePostingsBubbleUp",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SchedulePostingsBubbleUpRequestContent"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "SchedulePostingsBubbleUp 200 response"
+          },
+          "401": {
+            "description": "UnauthorizedError 401 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnauthorizedErrorResponseContent"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError 404 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundErrorResponseContent"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "InternalServerError 500 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorResponseContent"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ServiceUnavailableError 503 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceUnavailableErrorResponseContent"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Postings"
+        ],
+        "x-hey-retry": {
+          "maxAttempts": 2,
+          "baseDelayMs": 1000,
+          "backoff": "exponential",
+          "retryOn": [
+            429,
+            503
+          ]
+        }
       }
     },
     "/postings/bulk_bubble_up_now.json": {
@@ -12943,6 +13014,28 @@
       },
       "RevealContactResponseContent": {
         "$ref": "#/components/schemas/Contact"
+      },
+      "SchedulePostingsBubbleUpRequestContent": {
+        "type": "object",
+        "properties": {
+          "posting_ids": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          "slot": {
+            "type": "string"
+          },
+          "date": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "posting_ids",
+          "slot"
+        ]
       },
       "SearchFilterItem": {
         "type": "object",

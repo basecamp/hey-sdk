@@ -1313,6 +1313,13 @@ type ReplyMessagePayload struct {
 // RevealContactResponseContent Contact — the identity of someone in HEY
 type RevealContactResponseContent = Contact
 
+// SchedulePostingsBubbleUpRequestContent defines model for SchedulePostingsBubbleUpRequestContent.
+type SchedulePostingsBubbleUpRequestContent struct {
+	Date       string  `json:"date,omitempty"`
+	PostingIds []int64 `json:"posting_ids"`
+	Slot       string  `json:"slot"`
+}
+
 // SearchFilterItem SearchFilterItem — one option offered by the advanced search refine form
 type SearchFilterItem struct {
 	Title string `json:"title,omitempty"`
@@ -1952,6 +1959,9 @@ type UpdateMyClearanceJSONRequestBody = UpdateMyClearanceRequestContent
 // AddPostingsToBoxGroupJSONRequestBody defines body for AddPostingsToBoxGroup for application/json ContentType.
 type AddPostingsToBoxGroupJSONRequestBody = AddPostingsToBoxGroupRequestContent
 
+// SchedulePostingsBubbleUpJSONRequestBody defines body for SchedulePostingsBubbleUp for application/json ContentType.
+type SchedulePostingsBubbleUpJSONRequestBody = SchedulePostingsBubbleUpRequestContent
+
 // BubbleUpPostingsNowJSONRequestBody defines body for BubbleUpPostingsNow for application/json ContentType.
 type BubbleUpPostingsNowJSONRequestBody = MarkPostingsRequestContent
 
@@ -2533,6 +2543,11 @@ type ClientInterface interface {
 
 	// CancelPostingsBubbleUp request
 	CancelPostingsBubbleUp(ctx context.Context, params *CancelPostingsBubbleUpParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SchedulePostingsBubbleUpWithBody request with any body
+	SchedulePostingsBubbleUpWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	SchedulePostingsBubbleUp(ctx context.Context, body SchedulePostingsBubbleUpJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// BubbleUpPostingsNowWithBody request with any body
 	BubbleUpPostingsNowWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -4026,6 +4041,36 @@ func (c *Client) CancelPostingsBubbleUp(ctx context.Context, params *CancelPosti
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
 		return NewCancelPostingsBubbleUpRequest(c.Server, params)
 	}, true, "CancelPostingsBubbleUp", reqEditors...)
+
+}
+
+// SchedulePostingsBubbleUpWithBody executes the SchedulePostingsBubbleUp operation.
+
+func (c *Client) SchedulePostingsBubbleUpWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+
+	req, err := NewSchedulePostingsBubbleUpRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+
+}
+
+func (c *Client) SchedulePostingsBubbleUp(ctx context.Context, body SchedulePostingsBubbleUpJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+
+	req, err := NewSchedulePostingsBubbleUpRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
 
 }
 
@@ -8538,6 +8583,46 @@ func NewCancelPostingsBubbleUpRequest(server string, params *CancelPostingsBubbl
 	return req, nil
 }
 
+// NewSchedulePostingsBubbleUpRequest calls the generic SchedulePostingsBubbleUp builder with application/json body
+func NewSchedulePostingsBubbleUpRequest(server string, body SchedulePostingsBubbleUpJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewSchedulePostingsBubbleUpRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewSchedulePostingsBubbleUpRequestWithBody generates requests for SchedulePostingsBubbleUp with any type of body
+func NewSchedulePostingsBubbleUpRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/postings/bubble_up.json")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
 // NewBubbleUpPostingsNowRequest calls the generic BubbleUpPostingsNow builder with application/json body
 func NewBubbleUpPostingsNowRequest(server string, body BubbleUpPostingsNowJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
@@ -10166,6 +10251,7 @@ var operationMetadata = map[string]OperationMetadata{
 	"RemovePostingsFromBoxGroup": {Idempotent: true, HasSensitiveParams: false},
 	"AddPostingsToBoxGroup":      {Idempotent: false, HasSensitiveParams: false},
 	"CancelPostingsBubbleUp":     {Idempotent: true, HasSensitiveParams: false},
+	"SchedulePostingsBubbleUp":   {Idempotent: false, HasSensitiveParams: false},
 	"BubbleUpPostingsNow":        {Idempotent: false, HasSensitiveParams: false},
 	"UnfilePostings":             {Idempotent: true, HasSensitiveParams: false},
 	"FilePostings":               {Idempotent: false, HasSensitiveParams: false},
@@ -11700,6 +11786,34 @@ type ClientWithResponsesInterface interface {
 	//
 	// Returns a wrapper object for the known response body format(s).
 	CancelPostingsBubbleUpWithResponse(ctx context.Context, params *CancelPostingsBubbleUpParams, reqEditors ...RequestEditorFn) (*CancelPostingsBubbleUpResponse, error)
+
+	// SchedulePostingsBubbleUpWithBodyWithResponse performs a POST /postings/bubble_up.json (the `SchedulePostingsBubbleUp` operationId) request,
+	// with any type of body and a specified content type.
+	//
+	// Schedule a selection of postings to bubble up.
+	//
+	// HEY's scheduler takes a `slot` — today, tomorrow, weekend, next_week, surprise_me
+	// or custom — and a custom slot also carries the `date` (YYYY-MM-DD) to bubble up on,
+	// at HEY's morning hour. The today slot lands at HEY's evening hour of the current
+	// day instead, and both hours are UTC over JSON. An unknown slot, or a custom slot
+	// without a date, is a server error rather than a validation response, so callers
+	// check both first. Responds 201 Created.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	SchedulePostingsBubbleUpWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SchedulePostingsBubbleUpResponse, error)
+
+	// SchedulePostingsBubbleUpWithResponse performs a POST /postings/bubble_up.json (the `SchedulePostingsBubbleUp` operationId) request.
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Schedule a selection of postings to bubble up.
+	//
+	// HEY's scheduler takes a `slot` — today, tomorrow, weekend, next_week, surprise_me
+	// or custom — and a custom slot also carries the `date` (YYYY-MM-DD) to bubble up on,
+	// at HEY's morning hour. The today slot lands at HEY's evening hour of the current
+	// day instead, and both hours are UTC over JSON. An unknown slot, or a custom slot
+	// without a date, is a server error rather than a validation response, so callers
+	// check both first. Responds 201 Created.
+	SchedulePostingsBubbleUpWithResponse(ctx context.Context, body SchedulePostingsBubbleUpJSONRequestBody, reqEditors ...RequestEditorFn) (*SchedulePostingsBubbleUpResponse, error)
 
 	// BubbleUpPostingsNowWithBodyWithResponse performs a POST /postings/bulk_bubble_up_now.json (the `BubbleUpPostingsNow` operationId) request,
 	// with any type of body and a specified content type.
@@ -17897,6 +18011,68 @@ func (r CancelPostingsBubbleUpResponse) ContentType() string {
 	return ""
 }
 
+type SchedulePostingsBubbleUpResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *UnauthorizedErrorResponseContent
+	// JSON404 the response for an HTTP 404 `application/json` response
+	JSON404 *NotFoundErrorResponseContent
+	// JSON500 the response for an HTTP 500 `application/json` response
+	JSON500 *InternalServerErrorResponseContent
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *ServiceUnavailableErrorResponseContent
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r SchedulePostingsBubbleUpResponse) GetJSON401() *UnauthorizedErrorResponseContent {
+	return r.JSON401
+}
+
+// GetJSON404 returns the response for an HTTP 404 `application/json` response
+func (r SchedulePostingsBubbleUpResponse) GetJSON404() *NotFoundErrorResponseContent {
+	return r.JSON404
+}
+
+// GetJSON500 returns the response for an HTTP 500 `application/json` response
+func (r SchedulePostingsBubbleUpResponse) GetJSON500() *InternalServerErrorResponseContent {
+	return r.JSON500
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r SchedulePostingsBubbleUpResponse) GetJSON503() *ServiceUnavailableErrorResponseContent {
+	return r.JSON503
+}
+
+// GetBody returns the raw response body bytes
+func (r SchedulePostingsBubbleUpResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r SchedulePostingsBubbleUpResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r SchedulePostingsBubbleUpResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r SchedulePostingsBubbleUpResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type BubbleUpPostingsNowResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -21749,6 +21925,46 @@ func (c *ClientWithResponses) CancelPostingsBubbleUpWithResponse(ctx context.Con
 		return nil, err
 	}
 	return ParseCancelPostingsBubbleUpResponse(rsp)
+}
+
+// SchedulePostingsBubbleUpWithBodyWithResponse performs a POST /postings/bubble_up.json (the `SchedulePostingsBubbleUp` operationId) request,
+// with any type of body and a specified content type.
+//
+// Schedule a selection of postings to bubble up.
+//
+// HEY's scheduler takes a `slot` — today, tomorrow, weekend, next_week, surprise_me
+// or custom — and a custom slot also carries the `date` (YYYY-MM-DD) to bubble up on,
+// at HEY's morning hour. The today slot lands at HEY's evening hour of the current
+// day instead, and both hours are UTC over JSON. An unknown slot, or a custom slot
+// without a date, is a server error rather than a validation response, so callers
+// check both first. Responds 201 Created.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) SchedulePostingsBubbleUpWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SchedulePostingsBubbleUpResponse, error) {
+	rsp, err := c.SchedulePostingsBubbleUpWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSchedulePostingsBubbleUpResponse(rsp)
+}
+
+// SchedulePostingsBubbleUpWithResponse performs a POST /postings/bubble_up.json (the `SchedulePostingsBubbleUp` operationId) request.
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Schedule a selection of postings to bubble up.
+//
+// HEY's scheduler takes a `slot` — today, tomorrow, weekend, next_week, surprise_me
+// or custom — and a custom slot also carries the `date` (YYYY-MM-DD) to bubble up on,
+// at HEY's morning hour. The today slot lands at HEY's evening hour of the current
+// day instead, and both hours are UTC over JSON. An unknown slot, or a custom slot
+// without a date, is a server error rather than a validation response, so callers
+// check both first. Responds 201 Created.
+func (c *ClientWithResponses) SchedulePostingsBubbleUpWithResponse(ctx context.Context, body SchedulePostingsBubbleUpJSONRequestBody, reqEditors ...RequestEditorFn) (*SchedulePostingsBubbleUpResponse, error) {
+	rsp, err := c.SchedulePostingsBubbleUp(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSchedulePostingsBubbleUpResponse(rsp)
 }
 
 // BubbleUpPostingsNowWithBodyWithResponse performs a POST /postings/bulk_bubble_up_now.json (the `BubbleUpPostingsNow` operationId) request,
@@ -26978,6 +27194,56 @@ func ParseCancelPostingsBubbleUpResponse(rsp *http.Response) (*CancelPostingsBub
 	}
 
 	response := &CancelPostingsBubbleUpResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 200:
+		break // No content-type
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest UnauthorizedErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFoundErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest InternalServerErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+		var dest ServiceUnavailableErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON503 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseSchedulePostingsBubbleUpResponse parses an HTTP response from a SchedulePostingsBubbleUpWithResponse call
+func ParseSchedulePostingsBubbleUpResponse(rsp *http.Response) (*SchedulePostingsBubbleUpResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &SchedulePostingsBubbleUpResponse{
 		Body:         bodyBytes,
 		HTTPResponse: rsp,
 	}

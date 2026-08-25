@@ -2635,11 +2635,6 @@
     "reason": "phase-2: personal settings and preferences"
   },
   {
-    "method": "POST",
-    "path": "/postings/bubble_up",
-    "reason": "phase-2: posting bubble up"
-  },
-  {
     "method": "GET",
     "path": "/postings/bubble_up/menu",
     "reason": "phase-2: posting bubble up"

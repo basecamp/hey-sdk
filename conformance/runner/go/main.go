@@ -1209,6 +1209,13 @@ func executeOperation(client *generated.Client, ctx context.Context, tc TestCase
 	case "CancelPostingsBubbleUp":
 		params := &generated.CancelPostingsBubbleUpParams{PostingIds: getStringParam(tc.QueryParams, "posting_ids")}
 		return client.CancelPostingsBubbleUp(ctx, params)
+	case "SchedulePostingsBubbleUp":
+		body := generated.SchedulePostingsBubbleUpJSONRequestBody{
+			PostingIds: getInt64SliceParam(tc.RequestBody, "posting_ids"),
+			Slot:       getStringParam(tc.RequestBody, "slot"),
+			Date:       getStringParam(tc.RequestBody, "date"),
+		}
+		return client.SchedulePostingsBubbleUp(ctx, body)
 	case "BubbleUpPostingsNow":
 		body := generated.BubbleUpPostingsNowJSONRequestBody{
 			PostingIds: getInt64SliceParam(tc.RequestBody, "posting_ids"),

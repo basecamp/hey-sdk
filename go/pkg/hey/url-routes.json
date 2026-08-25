@@ -749,7 +749,8 @@
       "pattern": "/postings/bubble_up",
       "resource": "Postings",
       "operations": {
-        "DELETE": "CancelPostingsBubbleUp"
+        "DELETE": "CancelPostingsBubbleUp",
+        "POST": "SchedulePostingsBubbleUp"
       },
       "params": {}
     },

@@ -165,6 +165,7 @@ service HEY {
         CreateFolderForPostings
         CancelPostingsBubbleUp
         BubbleUpPostingsNow
+        SchedulePostingsBubbleUp
 
         // Topics — status and moves
         TrashTopic
@@ -3134,6 +3135,38 @@ operation CancelPostingsBubbleUp {
 operation BubbleUpPostingsNow {
     input: MarkPostingsInput
     errors: [UnauthorizedError, NotFoundError, InternalServerError, ServiceUnavailableError]
+}
+
+/// Schedule a selection of postings to bubble up.
+///
+/// HEY's scheduler takes a `slot` — today, tomorrow, weekend, next_week, surprise_me
+/// or custom — and a custom slot also carries the `date` (YYYY-MM-DD) to bubble up on,
+/// at HEY's morning hour. The today slot lands at HEY's evening hour of the current
+/// day instead, and both hours are UTC over JSON. An unknown slot, or a custom slot
+/// without a date, is a server error rather than a validation response, so callers
+/// check both first. Responds 201 Created.
+@http(method: "POST", uri: "/postings/bubble_up.json")
+@tags(["Postings"])
+@heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+operation SchedulePostingsBubbleUp {
+    input: SchedulePostingsBubbleUpInput
+    errors: [UnauthorizedError, NotFoundError, InternalServerError, ServiceUnavailableError]
+}
+
+structure SchedulePostingsBubbleUpInput {
+    @httpPayload
+    @required
+    body: SchedulePostingsBubbleUpRequestContent
+}
+
+structure SchedulePostingsBubbleUpRequestContent {
+    @required
+    posting_ids: PostingIdList
+
+    @required
+    slot: String
+
+    date: String
 }
 
 // =============================================================================

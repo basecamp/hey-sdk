@@ -1722,6 +1722,53 @@
     ]
   },
   {
+    "name": "SchedulePostingsBubbleUp uses /postings/bubble_up.json path",
+    "description": "Verifies that SchedulePostingsBubbleUp constructs the URL path /postings/bubble_up.json",
+    "operation": "SchedulePostingsBubbleUp",
+    "method": "POST",
+    "path": "/postings/bubble_up.json",
+    "requestBody": {
+      "posting_ids": [
+        1,
+        2
+      ],
+      "slot": "custom",
+      "date": "2026-09-04"
+    },
+    "mockResponses": [
+      {
+        "status": 201,
+        "body": {}
+      }
+    ],
+    "assertions": [
+      {
+        "type": "requestPath",
+        "expected": "/postings/bubble_up.json"
+      },
+      {
+        "type": "noError"
+      },
+      {
+        "type": "requestMethod",
+        "expected": "POST"
+      },
+      {
+        "type": "requestBody",
+        "expected": {
+          "posting_ids.0": 1,
+          "posting_ids.1": 2,
+          "slot": "custom",
+          "date": "2026-09-04"
+        }
+      }
+    ],
+    "tags": [
+      "path",
+      "postings"
+    ]
+  },
+  {
     "name": "BubbleUpPostingsNow uses /postings/bulk_bubble_up_now.json path",
     "description": "Verifies that BubbleUpPostingsNow constructs the URL path /postings/bulk_bubble_up_now.json",
     "operation": "BubbleUpPostingsNow",

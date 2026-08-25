@@ -263,6 +263,45 @@ func (s *PostingsService) BubbleUpNow(ctx context.Context, postingIDs ...int64) 
 	})
 }
 
+// BubbleUpSlot is one of HEY's named bubble-up schedule slots — the web app's
+// "Later today", "Tomorrow", "This weekend" and "Next week". Later today lands at
+// HEY's evening hour of the current day, the others at its morning hour of their day
+// (Saturday for the weekend, Monday for next week) — in UTC, like every hour HEY
+// reads out of a JSON request.
+type BubbleUpSlot string
+
+const (
+	BubbleUpLaterToday  BubbleUpSlot = "today"
+	BubbleUpTomorrow    BubbleUpSlot = "tomorrow"
+	BubbleUpThisWeekend BubbleUpSlot = "weekend"
+	BubbleUpNextWeek    BubbleUpSlot = "next_week"
+)
+
+// ScheduleBubbleUp schedules one or more postings to bubble up on a date, written
+// YYYY-MM-DD. HEY resurfaces them at its morning hour of that day — in UTC, like every
+// hour HEY reads out of a JSON request. HEY does not refuse a past timestamp — the
+// postings bubble up on the next scheduler run instead.
+func (s *PostingsService) ScheduleBubbleUp(ctx context.Context, date string, postingIDs ...int64) (err error) {
+	return s.scheduleBubbleUp(ctx, "custom", date, postingIDs)
+}
+
+// ScheduleBubbleUpFor schedules one or more postings to bubble up at one of HEY's
+// named slots.
+func (s *PostingsService) ScheduleBubbleUpFor(ctx context.Context, slot BubbleUpSlot, postingIDs ...int64) (err error) {
+	return s.scheduleBubbleUp(ctx, string(slot), "", postingIDs)
+}
+
+func (s *PostingsService) scheduleBubbleUp(ctx context.Context, slot, date string, postingIDs []int64) error {
+	return s.bulkAction(ctx, "SchedulePostingsBubbleUp", postingIDs, func(ctx context.Context, ids []int64) error {
+		body := generated.SchedulePostingsBubbleUpRequestContent{PostingIds: ids, Slot: slot, Date: date}
+		resp, err := s.client.genClient().SchedulePostingsBubbleUpWithResponse(ctx, body)
+		if err != nil {
+			return err
+		}
+		return CheckResponse(resp.HTTPResponse)
+	})
+}
+
 // PostingChangesCursor is where a read of a box's changes feed starts. Since is an ISO
 // 8601 timestamp with milliseconds and is exclusive; Version is the contract version the
 // caller speaks. A box's PostingChangesUrl carries the pair to begin with — read it with

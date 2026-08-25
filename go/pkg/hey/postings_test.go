@@ -120,6 +120,58 @@ func TestPostingsService_BulkEndpoints(t *testing.T) {
 	}
 }
 
+func TestPostingsService_ScheduleBubbleUp(t *testing.T) {
+	c, reqs, _ := newPostingsTestClient(t, 201)
+	if err := c.Postings().ScheduleBubbleUp(context.Background(), "2026-09-04", 11, 12); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(*reqs) != 1 {
+		t.Fatalf("expected 1 request, got %d", len(*reqs))
+	}
+	r := (*reqs)[0]
+	if r.Method != "POST" || r.Path != "/postings/bubble_up.json" {
+		t.Errorf("got %s %s, want POST /postings/bubble_up.json", r.Method, r.Path)
+	}
+	if got := idsOf(r.Body); len(got) != 2 || got[0] != 11 || got[1] != 12 {
+		t.Errorf("posting_ids = %v, want [11 12]", got)
+	}
+	if r.Body["slot"] != "custom" {
+		t.Errorf("slot = %v, want custom", r.Body["slot"])
+	}
+	if r.Body["date"] != "2026-09-04" {
+		t.Errorf("date = %v, want 2026-09-04", r.Body["date"])
+	}
+}
+
+func TestPostingsService_ScheduleBubbleUpFor(t *testing.T) {
+	for slot, want := range map[BubbleUpSlot]string{
+		BubbleUpLaterToday:  "today",
+		BubbleUpTomorrow:    "tomorrow",
+		BubbleUpThisWeekend: "weekend",
+		BubbleUpNextWeek:    "next_week",
+	} {
+		t.Run(want, func(t *testing.T) {
+			c, reqs, _ := newPostingsTestClient(t, 201)
+			if err := c.Postings().ScheduleBubbleUpFor(context.Background(), slot, 11); err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if len(*reqs) != 1 {
+				t.Fatalf("expected 1 request, got %d", len(*reqs))
+			}
+			r := (*reqs)[0]
+			if r.Method != "POST" || r.Path != "/postings/bubble_up.json" {
+				t.Errorf("got %s %s, want POST /postings/bubble_up.json", r.Method, r.Path)
+			}
+			if r.Body["slot"] != want {
+				t.Errorf("slot = %v, want %s", r.Body["slot"], want)
+			}
+			if _, present := r.Body["date"]; present {
+				t.Errorf("date = %v, want it absent", r.Body["date"])
+			}
+		})
+	}
+}
+
 func TestPostingsService_BoxKindResolvedOnce(t *testing.T) {
 	ctx := context.Background()
 	c, reqs, boxCalls := newPostingsTestClient(t, 204)
