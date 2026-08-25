@@ -3793,21 +3793,33 @@ func (c *Client) GetMessage(ctx context.Context, messageId int64, reqEditors ...
 
 }
 
-// UpdateMessageWithBody is marked as idempotent and will be retried on transient failures.
+// UpdateMessageWithBody executes the UpdateMessage operation.
 
 func (c *Client) UpdateMessageWithBody(ctx context.Context, messageId int64, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
 
-	return c.doWithRetry(ctx, func() (*http.Request, error) {
-		return NewUpdateMessageRequestWithBody(c.Server, messageId, contentType, body)
-	}, true, "UpdateMessage", reqEditors...)
+	req, err := NewUpdateMessageRequestWithBody(c.Server, messageId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
 
 }
 
 func (c *Client) UpdateMessage(ctx context.Context, messageId int64, body UpdateMessageJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 
-	return c.doWithRetry(ctx, func() (*http.Request, error) {
-		return NewUpdateMessageRequest(c.Server, messageId, body)
-	}, true, "UpdateMessage", reqEditors...)
+	req, err := NewUpdateMessageRequest(c.Server, messageId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
 
 }
 
@@ -11392,6 +11404,10 @@ type ClientWithResponsesInterface interface {
 	// from this request (an omitted scheduled delivery clears one), while recipients are
 	// replaced only when entry.addressed is present.
 	//
+	// Not naturally idempotent despite the PUT: without the drafted status this request
+	// *delivers*, so a transparent retry after an ambiguous first attempt could send the
+	// message again. The client must not retry it.
+	//
 	// Returns a wrapper object for the known response body format(s).
 	UpdateMessageWithBodyWithResponse(ctx context.Context, messageId int64, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateMessageResponse, error)
 
@@ -11404,6 +11420,10 @@ type ClientWithResponsesInterface interface {
 	// The revision is not a patch: subject, content and any scheduled delivery are rewritten
 	// from this request (an omitted scheduled delivery clears one), while recipients are
 	// replaced only when entry.addressed is present.
+	//
+	// Not naturally idempotent despite the PUT: without the drafted status this request
+	// *delivers*, so a transparent retry after an ambiguous first attempt could send the
+	// message again. The client must not retry it.
 	UpdateMessageWithResponse(ctx context.Context, messageId int64, body UpdateMessageJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateMessageResponse, error)
 
 	// GetMessageEditWithResponse performs a GET /messages/{messageId}/edit.json (the `GetMessageEdit` operationId) request.
@@ -21171,6 +21191,10 @@ func (c *ClientWithResponses) GetMessageWithResponse(ctx context.Context, messag
 // from this request (an omitted scheduled delivery clears one), while recipients are
 // replaced only when entry.addressed is present.
 //
+// Not naturally idempotent despite the PUT: without the drafted status this request
+// *delivers*, so a transparent retry after an ambiguous first attempt could send the
+// message again. The client must not retry it.
+//
 // Returns a wrapper object for the known response body format(s).
 func (c *ClientWithResponses) UpdateMessageWithBodyWithResponse(ctx context.Context, messageId int64, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateMessageResponse, error) {
 	rsp, err := c.UpdateMessageWithBody(ctx, messageId, contentType, body, reqEditors...)
@@ -21189,6 +21213,10 @@ func (c *ClientWithResponses) UpdateMessageWithBodyWithResponse(ctx context.Cont
 // The revision is not a patch: subject, content and any scheduled delivery are rewritten
 // from this request (an omitted scheduled delivery clears one), while recipients are
 // replaced only when entry.addressed is present.
+//
+// Not naturally idempotent despite the PUT: without the drafted status this request
+// *delivers*, so a transparent retry after an ambiguous first attempt could send the
+// message again. The client must not retry it.
 func (c *ClientWithResponses) UpdateMessageWithResponse(ctx context.Context, messageId int64, body UpdateMessageJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateMessageResponse, error) {
 	rsp, err := c.UpdateMessage(ctx, messageId, body, reqEditors...)
 	if err != nil {

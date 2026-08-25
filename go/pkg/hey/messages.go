@@ -235,6 +235,10 @@ func (s *MessagesService) UpdateDraft(ctx context.Context, entryID int64, draft 
 // delivery are one request, so the draft's final state rides along: subject, body and
 // recipients are replaced with what is sent, exactly as UpdateDraft replaces them.
 // Delivery needs somebody to deliver to, so at least one recipient is required.
+//
+// The request is never retried, despite the PUT: it triggers a delivery, and a retry
+// after an ambiguous first attempt could send the message twice. An ambiguous failure
+// is the caller's to resolve — read the draft (or the thread) before trying again.
 func (s *MessagesService) SendDraft(ctx context.Context, entryID int64, draft DraftContent) error {
 	if len(draft.To)+len(draft.CC)+len(draft.BCC) == 0 {
 		return ErrUsage("sending a draft needs at least one recipient (to, cc or bcc)")

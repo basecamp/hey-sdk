@@ -6287,7 +6287,7 @@
         }
       },
       "put": {
-        "description": "Revise a message entry (MessagesController#update). With entry.status \"drafted\" the\nentry is saved as a draft (204 + Location, like CreateMessage); without it a draft is\ndelivered through the undo-delay window. A trashed draft is silently restored first.\nThe revision is not a patch: subject, content and any scheduled delivery are rewritten\nfrom this request (an omitted scheduled delivery clears one), while recipients are\nreplaced only when entry.addressed is present.",
+        "description": "Revise a message entry (MessagesController#update). With entry.status \"drafted\" the\nentry is saved as a draft (204 + Location, like CreateMessage); without it a draft is\ndelivered through the undo-delay window. A trashed draft is silently restored first.\nThe revision is not a patch: subject, content and any scheduled delivery are rewritten\nfrom this request (an omitted scheduled delivery clears one), while recipients are\nreplaced only when entry.addressed is present.\n\nNot naturally idempotent despite the PUT: without the drafted status this request\n*delivers*, so a transparent retry after an ambiguous first attempt could send the\nmessage again. The client must not retry it.",
         "operationId": "UpdateMessage",
         "requestBody": {
           "content": {
@@ -6368,6 +6368,9 @@
         "tags": [
           "Messages"
         ],
+        "x-hey-idempotent": {
+          "natural": false
+        },
         "x-hey-retry": {
           "maxAttempts": 2,
           "baseDelayMs": 1000,

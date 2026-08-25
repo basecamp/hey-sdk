@@ -58,7 +58,10 @@ structure heyIdempotent {
     /// Header name for idempotency key (if supported)
     keyHeader: String
 
-    /// Whether the operation is naturally idempotent (same input = same result)
+    /// Whether the operation is naturally idempotent (same input = same result).
+    /// True opts a non-idempotent method (POST) into transparent retries; false opts
+    /// a nominally idempotent method (PUT, DELETE) out of them, for operations whose
+    /// side effects go past the resource — a PUT that triggers a delivery, say.
     natural: Boolean
 }
 

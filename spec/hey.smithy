@@ -1519,8 +1519,13 @@ structure MessagePayload {
 /// The revision is not a patch: subject, content and any scheduled delivery are rewritten
 /// from this request (an omitted scheduled delivery clears one), while recipients are
 /// replaced only when entry.addressed is present.
+///
+/// Not naturally idempotent despite the PUT: without the drafted status this request
+/// *delivers*, so a transparent retry after an ambiguous first attempt could send the
+/// message again. The client must not retry it.
 @http(method: "PUT", uri: "/messages/{messageId}")
 @tags(["Messages"])
+@heyIdempotent(natural: false)
 @heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
 operation UpdateMessage {
     input: UpdateMessageInput

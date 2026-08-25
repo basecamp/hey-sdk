@@ -248,14 +248,21 @@ type ClientInterface interface {
 {{$hasParams := .RequiresParamObject -}}
 {{$pathParams := .PathParams -}}
 {{$opid := .OperationId -}}
-{{/* Check for x-hey-idempotent extension or naturally idempotent HTTP methods */}}
+{{/* Idempotency decides retries: the HTTP method sets the default, and an
+     x-hey-idempotent extension overrides it in either direction — natural: true
+     opts a POST in, natural: false opts a PUT out (a PUT that delivers, say). */}}
 {{$isIdempotent := false -}}
 {{if or (eq .Method "GET") (eq .Method "HEAD") (eq .Method "PUT") (eq .Method "DELETE") -}}
 {{$isIdempotent = true -}}
-{{else if .Spec -}}
+{{end -}}
+{{if .Spec -}}
 {{if .Spec.Extensions -}}
-{{if index .Spec.Extensions "x-hey-idempotent" -}}
+{{with index .Spec.Extensions "x-hey-idempotent" -}}
+{{if index . "natural" -}}
 {{$isIdempotent = true -}}
+{{else -}}
+{{$isIdempotent = false -}}
+{{end -}}
 {{end -}}
 {{end -}}
 {{end -}}

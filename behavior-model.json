@@ -1571,7 +1571,7 @@
       }
     },
     "UpdateMessage": {
-      "idempotent": false,
+      "idempotent": true,
       "readonly": false,
       "retry": {
         "backoff": "exponential",
