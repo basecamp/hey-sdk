@@ -126,6 +126,11 @@
   },
   {
     "method": "DELETE",
+    "operationId": "DeleteDraft",
+    "path": "/entries/drafts/{entryId}"
+  },
+  {
+    "method": "DELETE",
     "operationId": "DeleteHabit",
     "path": "/calendar/habits/{habitId}"
   },
@@ -258,6 +263,11 @@
     "method": "GET",
     "operationId": "GetMessage",
     "path": "/messages/{messageId}"
+  },
+  {
+    "method": "GET",
+    "operationId": "GetMessageEdit",
+    "path": "/messages/{messageId}/edit.json"
   },
   {
     "method": "GET",
@@ -455,6 +465,11 @@
     "path": "/entries/{entryId}/forwards/new.json"
   },
   {
+    "method": "GET",
+    "operationId": "NewEntryReply",
+    "path": "/entries/{entryId}/replies/new.json"
+  },
+  {
     "method": "POST",
     "operationId": "PuntClearances",
     "path": "/clearances/punt.json"
@@ -568,6 +583,11 @@
     "method": "PATCH",
     "operationId": "UpdateJournalEntry",
     "path": "/calendar/days/{day}/journal_entry"
+  },
+  {
+    "method": "PUT",
+    "operationId": "UpdateMessage",
+    "path": "/messages/{messageId}"
   },
   {
     "method": "PATCH",

@@ -86,13 +86,17 @@ service HEY {
         // Messages (3 MVP)
         GetMessage
         CreateMessage
+        UpdateMessage
+        GetMessageEdit
 
         // Attachments
         CreateDirectUpload
 
         // Entries (2 MVP)
         ListDrafts
+        DeleteDraft
         CreateReply
+        NewEntryReply
 
         // Contacts (2 MVP)
         ListContacts
@@ -1473,6 +1477,9 @@ structure GetMessageOutput {
 
 /// Create a new message (start a new topic).
 /// The acting sender ID must be included; the Go SDK resolves this automatically.
+/// Every message is created drafted on HEY's side; without entry.status the server
+/// delivers it, while entry.status "drafted" leaves it as a draft and answers
+/// 204 with a Location header naming /messages/{entry_id}.
 @http(method: "POST", uri: "/messages.json")
 @tags(["Messages"])
 @heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
@@ -1504,6 +1511,74 @@ structure MessagePayload {
 
     @required
     content: String
+}
+
+/// Revise a message entry (MessagesController#update). With entry.status "drafted" the
+/// entry is saved as a draft (204 + Location, like CreateMessage); without it a draft is
+/// delivered through the undo-delay window. A trashed draft is silently restored first.
+/// The revision is not a patch: subject, content and any scheduled delivery are rewritten
+/// from this request (an omitted scheduled delivery clears one), while recipients are
+/// replaced only when entry.addressed is present.
+@http(method: "PUT", uri: "/messages/{messageId}")
+@tags(["Messages"])
+@heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+operation UpdateMessage {
+    input: UpdateMessageInput
+    errors: [UnauthorizedError, NotFoundError, UnprocessableEntityError, InternalServerError, ServiceUnavailableError]
+}
+
+structure UpdateMessageInput {
+    @httpLabel
+    @required
+    messageId: Long
+
+    @httpPayload
+    @required
+    body: CreateMessageRequestContent
+}
+
+/// A draft's editable state: content, recipients and scheduled delivery as the
+/// composer would load them (GET /messages/{id}/edit).
+@readonly
+@http(method: "GET", uri: "/messages/{messageId}/edit.json")
+@tags(["Messages"])
+@heyRetry(maxAttempts: 3, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+operation GetMessageEdit {
+    input: GetMessageEditInput
+    output: GetMessageEditOutput
+    errors: [UnauthorizedError, NotFoundError, InternalServerError, ServiceUnavailableError]
+}
+
+structure GetMessageEditInput {
+    @httpLabel
+    @required
+    messageId: Long
+}
+
+structure GetMessageEditOutput {
+    @required
+    message: MessageEditState
+}
+
+/// MessageEditState — a saved draft as the editor sees it. The same compose fields as
+/// MessageDraft, plus the identity and scheduling a saved entry carries.
+structure MessageEditState {
+    @required
+    id: Long
+
+    created_at: DateTime
+    updated_at: DateTime
+    url: String
+    creator: Contact
+    sender: Contact
+    is_reply: Boolean
+    subject: String
+    content: String
+    addressed: Addressed
+    show_addressed_selector: Boolean
+    scheduled_delivery_at: DateTime
+    posting: MessagePostingContext
+    addressed_sender: AddressedSender
 }
 
 // =============================================================================
@@ -1576,6 +1651,23 @@ structure CreateDirectUploadOutput {
 
 structure MessageEntryPayload {
     addressed: MessageAddressed
+
+    /// "drafted" saves the entry as a draft instead of delivering it. Any other value
+    /// (or omitting it) delivers through the undo-delay window.
+    status: String
+
+    /// "true" schedules delivery for the date and hour below; the entry stays drafted
+    /// with a scheduled_delivery_at until then. On an update, omitting it clears an
+    /// existing scheduled delivery.
+    scheduled_delivery: String
+
+    /// The delivery date: YYYY-MM-DD, "today" or "tomorrow", read in the identity's
+    /// time zone.
+    scheduled_delivery_at_date: String
+
+    /// The delivery hour, "0" through "23" — a string so that midnight survives
+    /// omitempty. HEY schedules to the hour.
+    scheduled_delivery_at_hour: String
 }
 
 /// Recipients per kind, each a list of email addresses.
@@ -1612,6 +1704,23 @@ structure ListDraftsOutput {
     drafts: DraftMessageList
 }
 
+/// Trash a draft (Entries::DraftsController#destroy). The id is the draft's entry id,
+/// as ListDrafts reports it.
+@idempotent
+@http(method: "DELETE", uri: "/entries/drafts/{entryId}")
+@tags(["Entries"])
+@heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+operation DeleteDraft {
+    input: DeleteDraftInput
+    errors: [UnauthorizedError, NotFoundError, InternalServerError, ServiceUnavailableError]
+}
+
+structure DeleteDraftInput {
+    @httpLabel
+    @required
+    entryId: Long
+}
+
 /// Reply to an entry
 @http(method: "POST", uri: "/entries/{entryId}/replies.json")
 @tags(["Entries"])
@@ -1619,6 +1728,24 @@ structure ListDraftsOutput {
 operation CreateReply {
     input: CreateReplyInput
     errors: [UnauthorizedError, NotFoundError, UnprocessableEntityError, InternalServerError, ServiceUnavailableError]
+}
+
+/// Get a prefilled reply to an entry: the quoted body and, in addressed, the
+/// participating contacts a reply goes to as HEY computes them — the sender moved onto
+/// the To line and the acting user's own addresses, aliases and catch-alls excluded.
+@readonly
+@http(method: "GET", uri: "/entries/{entryId}/replies/new.json")
+@tags(["Entries"])
+@heyRetry(maxAttempts: 3, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+operation NewEntryReply {
+    input: EntryStatusInput
+    output: NewEntryReplyOutput
+    errors: [UnauthorizedError, NotFoundError, InternalServerError, ServiceUnavailableError]
+}
+
+structure NewEntryReplyOutput {
+    @required
+    reply: MessageDraft
 }
 
 structure CreateReplyInput {

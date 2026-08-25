@@ -987,6 +987,18 @@ func executeOperation(client *generated.Client, ctx context.Context, tc TestCase
 			},
 		}
 		return client.CreateMessage(ctx, body)
+	case "UpdateMessage":
+		messageId := getInt64Param(tc.PathParams, "messageId")
+		body := generated.UpdateMessageJSONRequestBody{
+			Message: generated.MessagePayload{
+				Subject: getStringParam(tc.RequestBody, "subject"),
+				Content: getStringParam(tc.RequestBody, "content"),
+			},
+		}
+		return client.UpdateMessage(ctx, messageId, body)
+	case "GetMessageEdit":
+		messageId := getInt64Param(tc.PathParams, "messageId")
+		return client.GetMessageEdit(ctx, messageId)
 	case "CreateDirectUpload":
 		body := generated.CreateDirectUploadJSONRequestBody{
 			Blob: generated.DirectUploadBlob{
@@ -999,6 +1011,12 @@ func executeOperation(client *generated.Client, ctx context.Context, tc TestCase
 		return client.CreateDirectUpload(ctx, body)
 	case "ListDrafts":
 		return client.ListDrafts(ctx, nil)
+	case "DeleteDraft":
+		entryId := getInt64Param(tc.PathParams, "entryId")
+		return client.DeleteDraft(ctx, entryId)
+	case "NewEntryReply":
+		entryId := getInt64Param(tc.PathParams, "entryId")
+		return client.NewEntryReply(ctx, entryId)
 	case "CreateReply":
 		entryId := getInt64Param(tc.PathParams, "entryId")
 		body := generated.CreateReplyJSONRequestBody{

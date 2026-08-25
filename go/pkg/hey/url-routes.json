@@ -547,6 +547,19 @@
       "params": {}
     },
     {
+      "pattern": "/entries/drafts/{entryId}",
+      "resource": "Entries",
+      "operations": {
+        "DELETE": "DeleteDraft"
+      },
+      "params": {
+        "entryId": {
+          "role": "recording",
+          "type": "int64"
+        }
+      }
+    },
+    {
       "pattern": "/entries/{entryId}/forwards/new",
       "resource": "Entries",
       "operations": {
@@ -564,6 +577,19 @@
       "resource": "Entries",
       "operations": {
         "POST": "CreateReply"
+      },
+      "params": {
+        "entryId": {
+          "role": "parent",
+          "type": "int64"
+        }
+      }
+    },
+    {
+      "pattern": "/entries/{entryId}/replies/new",
+      "resource": "Entries",
+      "operations": {
+        "GET": "NewEntryReply"
       },
       "params": {
         "entryId": {
@@ -634,11 +660,25 @@
       "pattern": "/messages/{messageId}",
       "resource": "Messages",
       "operations": {
-        "GET": "GetMessage"
+        "GET": "GetMessage",
+        "PUT": "UpdateMessage"
       },
       "params": {
         "messageId": {
           "role": "recording",
+          "type": "int64"
+        }
+      }
+    },
+    {
+      "pattern": "/messages/{messageId}/edit",
+      "resource": "Messages",
+      "operations": {
+        "GET": "GetMessageEdit"
+      },
+      "params": {
+        "messageId": {
+          "role": "parent",
           "type": "int64"
         }
       }

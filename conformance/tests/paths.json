@@ -3823,5 +3823,137 @@
       "path",
       "clearances"
     ]
+  },
+  {
+    "name": "UpdateMessage uses /messages/{messageId} path",
+    "description": "Verifies that UpdateMessage constructs the URL path /messages/{messageId}",
+    "operation": "UpdateMessage",
+    "method": "PUT",
+    "path": "/messages/{messageId}",
+    "pathParams": {
+      "messageId": 456
+    },
+    "requestBody": {
+      "subject": "Quarterly planning",
+      "content": "<div>Agenda.</div>"
+    },
+    "mockResponses": [
+      {
+        "status": 200
+      }
+    ],
+    "assertions": [
+      {
+        "type": "requestPath",
+        "expected": "/messages/456"
+      },
+      {
+        "type": "noError"
+      },
+      {
+        "type": "requestMethod",
+        "expected": "PUT"
+      }
+    ],
+    "tags": [
+      "path",
+      "messages"
+    ]
+  },
+  {
+    "name": "GetMessageEdit uses /messages/{messageId}/edit.json path",
+    "description": "Verifies that GetMessageEdit constructs the URL path /messages/{messageId}/edit.json",
+    "operation": "GetMessageEdit",
+    "method": "GET",
+    "path": "/messages/{messageId}/edit.json",
+    "pathParams": {
+      "messageId": 456
+    },
+    "mockResponses": [
+      {
+        "status": 200
+      }
+    ],
+    "assertions": [
+      {
+        "type": "requestPath",
+        "expected": "/messages/456/edit.json"
+      },
+      {
+        "type": "noError"
+      },
+      {
+        "type": "requestMethod",
+        "expected": "GET"
+      }
+    ],
+    "tags": [
+      "path",
+      "messages"
+    ]
+  },
+  {
+    "name": "DeleteDraft uses /entries/drafts/{entryId} path",
+    "description": "Verifies that DeleteDraft constructs the URL path /entries/drafts/{entryId}",
+    "operation": "DeleteDraft",
+    "method": "DELETE",
+    "path": "/entries/drafts/{entryId}",
+    "pathParams": {
+      "entryId": 456
+    },
+    "mockResponses": [
+      {
+        "status": 200
+      }
+    ],
+    "assertions": [
+      {
+        "type": "requestPath",
+        "expected": "/entries/drafts/456"
+      },
+      {
+        "type": "noError"
+      },
+      {
+        "type": "requestMethod",
+        "expected": "DELETE"
+      }
+    ],
+    "tags": [
+      "path",
+      "entries"
+    ]
+  },
+  {
+    "name": "NewEntryReply uses /entries/{entryId}/replies/new.json path",
+    "description": "Verifies that NewEntryReply constructs the URL path /entries/{entryId}/replies/new.json",
+    "operation": "NewEntryReply",
+    "method": "GET",
+    "path": "/entries/{entryId}/replies/new.json",
+    "pathParams": {
+      "entryId": 456
+    },
+    "mockResponses": [
+      {
+        "status": 200
+      }
+    ],
+    "assertions": [
+      {
+        "type": "requestPath",
+        "expected": "/entries/456/replies/new.json"
+      },
+      {
+        "type": "noError"
+      },
+      {
+        "type": "requestMethod",
+        "expected": "GET"
+      }
+    ],
+    "tags": [
+      "path",
+      "entries"
+    ]
   }
 ]

@@ -791,6 +791,10 @@ type GetJournalEntryResponseContent = Recording
 // SDK response decoders normalize the nested variant to flat before decoding.
 type GetLaterboxResponseContent = BoxShowResponse
 
+// GetMessageEditResponseContent MessageEditState — a saved draft as the editor sees it. The same compose fields as
+// MessageDraft, plus the identity and scheduling a saved entry carries.
+type GetMessageEditResponseContent = MessageEditState
+
 // GetMessageResponseContent Message — full message detail
 type GetMessageResponseContent = Message
 
@@ -987,12 +991,63 @@ type MessageDraft struct {
 	Url                   string  `json:"url,omitempty"`
 }
 
+// MessageEditState MessageEditState — a saved draft as the editor sees it. The same compose fields as
+// MessageDraft, plus the identity and scheduling a saved entry carries.
+type MessageEditState struct {
+	// Addressed Addressed recipients
+	Addressed Addressed `json:"addressed,omitempty"`
+
+	// AddressedSender AddressedSender — sender context
+	AddressedSender AddressedSender `json:"addressed_sender,omitempty"`
+	Content         string          `json:"content,omitempty"`
+
+	// CreatedAt ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)
+	CreatedAt time.Time `json:"created_at,omitempty,omitzero"`
+
+	// Creator Contact — the identity of someone in HEY
+	Creator Contact `json:"creator,omitempty"`
+	Id      int64   `json:"id"`
+	IsReply bool    `json:"is_reply,omitempty"`
+
+	// Posting MessagePostingContext — posting context for a message
+	Posting MessagePostingContext `json:"posting,omitempty"`
+
+	// ScheduledDeliveryAt ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)
+	ScheduledDeliveryAt time.Time `json:"scheduled_delivery_at,omitempty,omitzero"`
+
+	// Sender Contact — the identity of someone in HEY
+	Sender                Contact `json:"sender,omitempty"`
+	ShowAddressedSelector bool    `json:"show_addressed_selector,omitempty"`
+	Subject               string  `json:"subject,omitempty"`
+
+	// UpdatedAt ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)
+	UpdatedAt time.Time `json:"updated_at,omitempty,omitzero"`
+	Url       string    `json:"url,omitempty"`
+}
+
 // MessageEntryPayload defines model for MessageEntryPayload.
 type MessageEntryPayload struct {
 	// Addressed Recipients per kind, each a list of email addresses.
 	// haystack applies Array() to each kind, so a JSON array is the correct wire format
 	// (a bare string would be treated as a single address, not split on commas).
 	Addressed *MessageAddressed `json:"addressed,omitempty"`
+
+	// ScheduledDelivery "true" schedules delivery for the date and hour below; the entry stays drafted
+	// with a scheduled_delivery_at until then. On an update, omitting it clears an
+	// existing scheduled delivery.
+	ScheduledDelivery string `json:"scheduled_delivery,omitempty"`
+
+	// ScheduledDeliveryAtDate The delivery date: YYYY-MM-DD, "today" or "tomorrow", read in the identity's
+	// time zone.
+	ScheduledDeliveryAtDate string `json:"scheduled_delivery_at_date,omitempty"`
+
+	// ScheduledDeliveryAtHour The delivery hour, "0" through "23" — a string so that midnight survives
+	// omitempty. HEY schedules to the hour.
+	ScheduledDeliveryAtHour string `json:"scheduled_delivery_at_hour,omitempty"`
+
+	// Status "drafted" saves the entry as a draft instead of delivering it. Any other value
+	// (or omitting it) delivers through the undo-delay window.
+	Status string `json:"status,omitempty"`
 }
 
 // MessagePayload defines model for MessagePayload.
@@ -1059,6 +1114,9 @@ type NewBulkReplyResponseContent = BulkReplyDraft
 
 // NewEntryForwardResponseContent MessageDraft — a prefilled compose payload (forward, reply). Unsent, so it has no id.
 type NewEntryForwardResponseContent = MessageDraft
+
+// NewEntryReplyResponseContent MessageDraft — a prefilled compose payload (forward, reply). Unsent, so it has no id.
+type NewEntryReplyResponseContent = MessageDraft
 
 // NotFoundErrorResponseContent defines model for NotFoundErrorResponseContent.
 type NotFoundErrorResponseContent struct {
@@ -1845,6 +1903,9 @@ type CreateReplyJSONRequestBody = CreateReplyRequestContent
 // CreateMessageJSONRequestBody defines body for CreateMessage for application/json ContentType.
 type CreateMessageJSONRequestBody = CreateMessageRequestContent
 
+// UpdateMessageJSONRequestBody defines body for UpdateMessage for application/json ContentType.
+type UpdateMessageJSONRequestBody = CreateMessageRequestContent
+
 // UpdateMyClearanceJSONRequestBody defines body for UpdateMyClearance for application/json ContentType.
 type UpdateMyClearanceJSONRequestBody = UpdateMyClearanceRequestContent
 
@@ -2353,6 +2414,9 @@ type ClientInterface interface {
 	// ListDrafts request
 	ListDrafts(ctx context.Context, params *ListDraftsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// DeleteDraft request
+	DeleteDraft(ctx context.Context, entryId int64, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// NewEntryForward request
 	NewEntryForward(ctx context.Context, entryId int64, reqEditors ...RequestEditorFn) (*http.Response, error)
 
@@ -2360,6 +2424,9 @@ type ClientInterface interface {
 	CreateReplyWithBody(ctx context.Context, entryId int64, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	CreateReply(ctx context.Context, entryId int64, body CreateReplyJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// NewEntryReply request
+	NewEntryReply(ctx context.Context, entryId int64, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// MarkEntrySpam request
 	MarkEntrySpam(ctx context.Context, entryId int64, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -2383,6 +2450,14 @@ type ClientInterface interface {
 
 	// GetMessage request
 	GetMessage(ctx context.Context, messageId int64, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// UpdateMessageWithBody request with any body
+	UpdateMessageWithBody(ctx context.Context, messageId int64, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	UpdateMessage(ctx context.Context, messageId int64, body UpdateMessageJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetMessageEdit request
+	GetMessageEdit(ctx context.Context, messageId int64, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// GetMyClearances request
 	GetMyClearances(ctx context.Context, params *GetMyClearancesParams, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -3568,6 +3643,16 @@ func (c *Client) ListDrafts(ctx context.Context, params *ListDraftsParams, reqEd
 
 }
 
+// DeleteDraft is marked as idempotent and will be retried on transient failures.
+
+func (c *Client) DeleteDraft(ctx context.Context, entryId int64, reqEditors ...RequestEditorFn) (*http.Response, error) {
+
+	return c.doWithRetry(ctx, func() (*http.Request, error) {
+		return NewDeleteDraftRequest(c.Server, entryId)
+	}, true, "DeleteDraft", reqEditors...)
+
+}
+
 // NewEntryForward is marked as idempotent and will be retried on transient failures.
 
 func (c *Client) NewEntryForward(ctx context.Context, entryId int64, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -3605,6 +3690,16 @@ func (c *Client) CreateReply(ctx context.Context, entryId int64, body CreateRepl
 		return nil, err
 	}
 	return c.Client.Do(req)
+
+}
+
+// NewEntryReply is marked as idempotent and will be retried on transient failures.
+
+func (c *Client) NewEntryReply(ctx context.Context, entryId int64, reqEditors ...RequestEditorFn) (*http.Response, error) {
+
+	return c.doWithRetry(ctx, func() (*http.Request, error) {
+		return NewNewEntryReplyRequest(c.Server, entryId)
+	}, true, "NewEntryReply", reqEditors...)
 
 }
 
@@ -3695,6 +3790,34 @@ func (c *Client) GetMessage(ctx context.Context, messageId int64, reqEditors ...
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
 		return NewGetMessageRequest(c.Server, messageId)
 	}, true, "GetMessage", reqEditors...)
+
+}
+
+// UpdateMessageWithBody is marked as idempotent and will be retried on transient failures.
+
+func (c *Client) UpdateMessageWithBody(ctx context.Context, messageId int64, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+
+	return c.doWithRetry(ctx, func() (*http.Request, error) {
+		return NewUpdateMessageRequestWithBody(c.Server, messageId, contentType, body)
+	}, true, "UpdateMessage", reqEditors...)
+
+}
+
+func (c *Client) UpdateMessage(ctx context.Context, messageId int64, body UpdateMessageJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+
+	return c.doWithRetry(ctx, func() (*http.Request, error) {
+		return NewUpdateMessageRequest(c.Server, messageId, body)
+	}, true, "UpdateMessage", reqEditors...)
+
+}
+
+// GetMessageEdit is marked as idempotent and will be retried on transient failures.
+
+func (c *Client) GetMessageEdit(ctx context.Context, messageId int64, reqEditors ...RequestEditorFn) (*http.Response, error) {
+
+	return c.doWithRetry(ctx, func() (*http.Request, error) {
+		return NewGetMessageEditRequest(c.Server, messageId)
+	}, true, "GetMessageEdit", reqEditors...)
 
 }
 
@@ -7416,6 +7539,40 @@ func NewListDraftsRequest(server string, params *ListDraftsParams) (*http.Reques
 	return req, nil
 }
 
+// NewDeleteDraftRequest generates requests for DeleteDraft
+func NewDeleteDraftRequest(server string, entryId int64) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "entryId", runtime.ParamLocationPath, entryId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/entries/drafts/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("DELETE", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewNewEntryForwardRequest generates requests for NewEntryForward
 func NewNewEntryForwardRequest(server string, entryId int64) (*http.Request, error) {
 	var err error
@@ -7493,6 +7650,40 @@ func NewCreateReplyRequestWithBody(server string, entryId int64, contentType str
 	}
 
 	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewNewEntryReplyRequest generates requests for NewEntryReply
+func NewNewEntryReplyRequest(server string, entryId int64) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "entryId", runtime.ParamLocationPath, entryId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/entries/%s/replies/new.json", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
 
 	return req, nil
 }
@@ -7769,6 +7960,87 @@ func NewGetMessageRequest(server string, messageId int64) (*http.Request, error)
 	}
 
 	operationPath := fmt.Sprintf("/messages/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewUpdateMessageRequest calls the generic UpdateMessage builder with application/json body
+func NewUpdateMessageRequest(server string, messageId int64, body UpdateMessageJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewUpdateMessageRequestWithBody(server, messageId, "application/json", bodyReader)
+}
+
+// NewUpdateMessageRequestWithBody generates requests for UpdateMessage with any type of body
+func NewUpdateMessageRequestWithBody(server string, messageId int64, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "messageId", runtime.ParamLocationPath, messageId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/messages/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("PUT", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewGetMessageEditRequest generates requests for GetMessageEdit
+func NewGetMessageEditRequest(server string, messageId int64) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "messageId", runtime.ParamLocationPath, messageId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/messages/%s/edit.json", pathParam0)
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -9694,8 +9966,10 @@ var operationMetadata = map[string]OperationMetadata{
 	"UpdateContactNote":          {Idempotent: false, HasSensitiveParams: false},
 	"RevealContact":              {Idempotent: false, HasSensitiveParams: false},
 	"ListDrafts":                 {Idempotent: true, HasSensitiveParams: false},
+	"DeleteDraft":                {Idempotent: true, HasSensitiveParams: false},
 	"NewEntryForward":            {Idempotent: true, HasSensitiveParams: false},
 	"CreateReply":                {Idempotent: false, HasSensitiveParams: false},
+	"NewEntryReply":              {Idempotent: true, HasSensitiveParams: false},
 	"MarkEntrySpam":              {Idempotent: true, HasSensitiveParams: false},
 	"GetFeedbox":                 {Idempotent: true, HasSensitiveParams: false},
 	"GetFolder":                  {Idempotent: true, HasSensitiveParams: false},
@@ -9703,6 +9977,8 @@ var operationMetadata = map[string]OperationMetadata{
 	"GetImbox":                   {Idempotent: true, HasSensitiveParams: false},
 	"CreateMessage":              {Idempotent: false, HasSensitiveParams: false},
 	"GetMessage":                 {Idempotent: true, HasSensitiveParams: false},
+	"UpdateMessage":              {Idempotent: true, HasSensitiveParams: false},
+	"GetMessageEdit":             {Idempotent: true, HasSensitiveParams: false},
 	"GetMyClearances":            {Idempotent: true, HasSensitiveParams: false},
 	"UpdateMyClearance":          {Idempotent: false, HasSensitiveParams: false},
 	"GetNavigation":              {Idempotent: true, HasSensitiveParams: false},
@@ -10319,6 +10595,14 @@ func (s *MessagesService) Create(ctx context.Context, body CreateMessageJSONRequ
 
 func (s *MessagesService) Get(ctx context.Context, messageId int64, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	return s.client.GetMessage(ctx, messageId, reqEditors...)
+}
+
+func (s *MessagesService) UpdateWithBody(ctx context.Context, messageId int64, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	return s.client.UpdateMessageWithBody(ctx, messageId, contentType, body, reqEditors...)
+}
+
+func (s *MessagesService) Update(ctx context.Context, messageId int64, body UpdateMessageJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	return s.client.UpdateMessage(ctx, messageId, body, reqEditors...)
 }
 
 // ClientWithResponses builds on ClientInterface to offer response payloads
@@ -10995,6 +11279,14 @@ type ClientWithResponsesInterface interface {
 	// Returns a wrapper object for the known response body format(s).
 	ListDraftsWithResponse(ctx context.Context, params *ListDraftsParams, reqEditors ...RequestEditorFn) (*ListDraftsResponse, error)
 
+	// DeleteDraftWithResponse performs a DELETE /entries/drafts/{entryId} (the `DeleteDraft` operationId) request.
+	//
+	// Trash a draft (Entries::DraftsController#destroy). The id is the draft's entry id,
+	// as ListDrafts reports it.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	DeleteDraftWithResponse(ctx context.Context, entryId int64, reqEditors ...RequestEditorFn) (*DeleteDraftResponse, error)
+
 	// NewEntryForwardWithResponse performs a GET /entries/{entryId}/forwards/new.json (the `NewEntryForward` operationId) request.
 	//
 	// Get a prefilled forward of an entry: subject, quoted body and blank recipients.
@@ -11016,6 +11308,15 @@ type ClientWithResponsesInterface interface {
 	//
 	// Reply to an entry.
 	CreateReplyWithResponse(ctx context.Context, entryId int64, body CreateReplyJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateReplyResponse, error)
+
+	// NewEntryReplyWithResponse performs a GET /entries/{entryId}/replies/new.json (the `NewEntryReply` operationId) request.
+	//
+	// Get a prefilled reply to an entry: the quoted body and, in addressed, the
+	// participating contacts a reply goes to as HEY computes them — the sender moved onto
+	// the To line and the acting user's own addresses, aliases and catch-alls excluded.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	NewEntryReplyWithResponse(ctx context.Context, entryId int64, reqEditors ...RequestEditorFn) (*NewEntryReplyResponse, error)
 
 	// MarkEntrySpamWithResponse performs a PUT /entries/{entryId}/status/spam.json (the `MarkEntrySpam` operationId) request.
 	//
@@ -11057,6 +11358,9 @@ type ClientWithResponsesInterface interface {
 	//
 	// Create a new message (start a new topic).
 	// The acting sender ID must be included; the Go SDK resolves this automatically.
+	// Every message is created drafted on HEY's side; without entry.status the server
+	// delivers it, while entry.status "drafted" leaves it as a draft and answers
+	// 204 with a Location header naming /messages/{entry_id}.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	CreateMessageWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateMessageResponse, error)
@@ -11066,6 +11370,9 @@ type ClientWithResponsesInterface interface {
 	//
 	// Create a new message (start a new topic).
 	// The acting sender ID must be included; the Go SDK resolves this automatically.
+	// Every message is created drafted on HEY's side; without entry.status the server
+	// delivers it, while entry.status "drafted" leaves it as a draft and answers
+	// 204 with a Location header naming /messages/{entry_id}.
 	CreateMessageWithResponse(ctx context.Context, body CreateMessageJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateMessageResponse, error)
 
 	// GetMessageWithResponse performs a GET /messages/{messageId} (the `GetMessage` operationId) request.
@@ -11074,6 +11381,38 @@ type ClientWithResponsesInterface interface {
 	//
 	// Returns a wrapper object for the known response body format(s).
 	GetMessageWithResponse(ctx context.Context, messageId int64, reqEditors ...RequestEditorFn) (*GetMessageResponse, error)
+
+	// UpdateMessageWithBodyWithResponse performs a PUT /messages/{messageId} (the `UpdateMessage` operationId) request,
+	// with any type of body and a specified content type.
+	//
+	// Revise a message entry (MessagesController#update). With entry.status "drafted" the
+	// entry is saved as a draft (204 + Location, like CreateMessage); without it a draft is
+	// delivered through the undo-delay window. A trashed draft is silently restored first.
+	// The revision is not a patch: subject, content and any scheduled delivery are rewritten
+	// from this request (an omitted scheduled delivery clears one), while recipients are
+	// replaced only when entry.addressed is present.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	UpdateMessageWithBodyWithResponse(ctx context.Context, messageId int64, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateMessageResponse, error)
+
+	// UpdateMessageWithResponse performs a PUT /messages/{messageId} (the `UpdateMessage` operationId) request.
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Revise a message entry (MessagesController#update). With entry.status "drafted" the
+	// entry is saved as a draft (204 + Location, like CreateMessage); without it a draft is
+	// delivered through the undo-delay window. A trashed draft is silently restored first.
+	// The revision is not a patch: subject, content and any scheduled delivery are rewritten
+	// from this request (an omitted scheduled delivery clears one), while recipients are
+	// replaced only when entry.addressed is present.
+	UpdateMessageWithResponse(ctx context.Context, messageId int64, body UpdateMessageJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateMessageResponse, error)
+
+	// GetMessageEditWithResponse performs a GET /messages/{messageId}/edit.json (the `GetMessageEdit` operationId) request.
+	//
+	// A draft's editable state: content, recipients and scheduled delivery as the
+	// composer would load them (GET /messages/{id}/edit).
+	//
+	// Returns a wrapper object for the known response body format(s).
+	GetMessageEditWithResponse(ctx context.Context, messageId int64, reqEditors ...RequestEditorFn) (*GetMessageEditResponse, error)
 
 	// GetMyClearancesWithResponse performs a GET /my/clearances.json (the `GetMyClearances` operationId) request.
 	//
@@ -15907,6 +16246,68 @@ func (r ListDraftsResponse) ContentType() string {
 	return ""
 }
 
+type DeleteDraftResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *UnauthorizedErrorResponseContent
+	// JSON404 the response for an HTTP 404 `application/json` response
+	JSON404 *NotFoundErrorResponseContent
+	// JSON500 the response for an HTTP 500 `application/json` response
+	JSON500 *InternalServerErrorResponseContent
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *ServiceUnavailableErrorResponseContent
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r DeleteDraftResponse) GetJSON401() *UnauthorizedErrorResponseContent {
+	return r.JSON401
+}
+
+// GetJSON404 returns the response for an HTTP 404 `application/json` response
+func (r DeleteDraftResponse) GetJSON404() *NotFoundErrorResponseContent {
+	return r.JSON404
+}
+
+// GetJSON500 returns the response for an HTTP 500 `application/json` response
+func (r DeleteDraftResponse) GetJSON500() *InternalServerErrorResponseContent {
+	return r.JSON500
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r DeleteDraftResponse) GetJSON503() *ServiceUnavailableErrorResponseContent {
+	return r.JSON503
+}
+
+// GetBody returns the raw response body bytes
+func (r DeleteDraftResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r DeleteDraftResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DeleteDraftResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r DeleteDraftResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type NewEntryForwardResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -16039,6 +16440,75 @@ func (r CreateReplyResponse) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r CreateReplyResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type NewEntryReplyResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *NewEntryReplyResponseContent
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *UnauthorizedErrorResponseContent
+	// JSON404 the response for an HTTP 404 `application/json` response
+	JSON404 *NotFoundErrorResponseContent
+	// JSON500 the response for an HTTP 500 `application/json` response
+	JSON500 *InternalServerErrorResponseContent
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *ServiceUnavailableErrorResponseContent
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r NewEntryReplyResponse) GetJSON200() *NewEntryReplyResponseContent {
+	return r.JSON200
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r NewEntryReplyResponse) GetJSON401() *UnauthorizedErrorResponseContent {
+	return r.JSON401
+}
+
+// GetJSON404 returns the response for an HTTP 404 `application/json` response
+func (r NewEntryReplyResponse) GetJSON404() *NotFoundErrorResponseContent {
+	return r.JSON404
+}
+
+// GetJSON500 returns the response for an HTTP 500 `application/json` response
+func (r NewEntryReplyResponse) GetJSON500() *InternalServerErrorResponseContent {
+	return r.JSON500
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r NewEntryReplyResponse) GetJSON503() *ServiceUnavailableErrorResponseContent {
+	return r.JSON503
+}
+
+// GetBody returns the raw response body bytes
+func (r NewEntryReplyResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r NewEntryReplyResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r NewEntryReplyResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r NewEntryReplyResponse) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -16487,6 +16957,144 @@ func (r GetMessageResponse) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r GetMessageResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type UpdateMessageResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *UnauthorizedErrorResponseContent
+	// JSON404 the response for an HTTP 404 `application/json` response
+	JSON404 *NotFoundErrorResponseContent
+	// JSON422 the response for an HTTP 422 `application/json` response
+	JSON422 *UnprocessableEntityErrorResponseContent
+	// JSON500 the response for an HTTP 500 `application/json` response
+	JSON500 *InternalServerErrorResponseContent
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *ServiceUnavailableErrorResponseContent
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r UpdateMessageResponse) GetJSON401() *UnauthorizedErrorResponseContent {
+	return r.JSON401
+}
+
+// GetJSON404 returns the response for an HTTP 404 `application/json` response
+func (r UpdateMessageResponse) GetJSON404() *NotFoundErrorResponseContent {
+	return r.JSON404
+}
+
+// GetJSON422 returns the response for an HTTP 422 `application/json` response
+func (r UpdateMessageResponse) GetJSON422() *UnprocessableEntityErrorResponseContent {
+	return r.JSON422
+}
+
+// GetJSON500 returns the response for an HTTP 500 `application/json` response
+func (r UpdateMessageResponse) GetJSON500() *InternalServerErrorResponseContent {
+	return r.JSON500
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r UpdateMessageResponse) GetJSON503() *ServiceUnavailableErrorResponseContent {
+	return r.JSON503
+}
+
+// GetBody returns the raw response body bytes
+func (r UpdateMessageResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r UpdateMessageResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r UpdateMessageResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r UpdateMessageResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type GetMessageEditResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *GetMessageEditResponseContent
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *UnauthorizedErrorResponseContent
+	// JSON404 the response for an HTTP 404 `application/json` response
+	JSON404 *NotFoundErrorResponseContent
+	// JSON500 the response for an HTTP 500 `application/json` response
+	JSON500 *InternalServerErrorResponseContent
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *ServiceUnavailableErrorResponseContent
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r GetMessageEditResponse) GetJSON200() *GetMessageEditResponseContent {
+	return r.JSON200
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r GetMessageEditResponse) GetJSON401() *UnauthorizedErrorResponseContent {
+	return r.JSON401
+}
+
+// GetJSON404 returns the response for an HTTP 404 `application/json` response
+func (r GetMessageEditResponse) GetJSON404() *NotFoundErrorResponseContent {
+	return r.JSON404
+}
+
+// GetJSON500 returns the response for an HTTP 500 `application/json` response
+func (r GetMessageEditResponse) GetJSON500() *InternalServerErrorResponseContent {
+	return r.JSON500
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r GetMessageEditResponse) GetJSON503() *ServiceUnavailableErrorResponseContent {
+	return r.JSON503
+}
+
+// GetBody returns the raw response body bytes
+func (r GetMessageEditResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r GetMessageEditResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetMessageEditResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r GetMessageEditResponse) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -20372,6 +20980,20 @@ func (c *ClientWithResponses) ListDraftsWithResponse(ctx context.Context, params
 	return ParseListDraftsResponse(rsp)
 }
 
+// DeleteDraftWithResponse performs a DELETE /entries/drafts/{entryId} (the `DeleteDraft` operationId) request.
+//
+// Trash a draft (Entries::DraftsController#destroy). The id is the draft's entry id,
+// as ListDrafts reports it.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) DeleteDraftWithResponse(ctx context.Context, entryId int64, reqEditors ...RequestEditorFn) (*DeleteDraftResponse, error) {
+	rsp, err := c.DeleteDraft(ctx, entryId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDeleteDraftResponse(rsp)
+}
+
 // NewEntryForwardWithResponse performs a GET /entries/{entryId}/forwards/new.json (the `NewEntryForward` operationId) request.
 //
 // Get a prefilled forward of an entry: subject, quoted body and blank recipients.
@@ -20410,6 +21032,21 @@ func (c *ClientWithResponses) CreateReplyWithResponse(ctx context.Context, entry
 		return nil, err
 	}
 	return ParseCreateReplyResponse(rsp)
+}
+
+// NewEntryReplyWithResponse performs a GET /entries/{entryId}/replies/new.json (the `NewEntryReply` operationId) request.
+//
+// Get a prefilled reply to an entry: the quoted body and, in addressed, the
+// participating contacts a reply goes to as HEY computes them — the sender moved onto
+// the To line and the acting user's own addresses, aliases and catch-alls excluded.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) NewEntryReplyWithResponse(ctx context.Context, entryId int64, reqEditors ...RequestEditorFn) (*NewEntryReplyResponse, error) {
+	rsp, err := c.NewEntryReply(ctx, entryId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseNewEntryReplyResponse(rsp)
 }
 
 // MarkEntrySpamWithResponse performs a PUT /entries/{entryId}/status/spam.json (the `MarkEntrySpam` operationId) request.
@@ -20482,6 +21119,9 @@ func (c *ClientWithResponses) GetImboxWithResponse(ctx context.Context, params *
 //
 // Create a new message (start a new topic).
 // The acting sender ID must be included; the Go SDK resolves this automatically.
+// Every message is created drafted on HEY's side; without entry.status the server
+// delivers it, while entry.status "drafted" leaves it as a draft and answers
+// 204 with a Location header naming /messages/{entry_id}.
 //
 // Returns a wrapper object for the known response body format(s).
 func (c *ClientWithResponses) CreateMessageWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateMessageResponse, error) {
@@ -20497,6 +21137,9 @@ func (c *ClientWithResponses) CreateMessageWithBodyWithResponse(ctx context.Cont
 //
 // Create a new message (start a new topic).
 // The acting sender ID must be included; the Go SDK resolves this automatically.
+// Every message is created drafted on HEY's side; without entry.status the server
+// delivers it, while entry.status "drafted" leaves it as a draft and answers
+// 204 with a Location header naming /messages/{entry_id}.
 func (c *ClientWithResponses) CreateMessageWithResponse(ctx context.Context, body CreateMessageJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateMessageResponse, error) {
 	rsp, err := c.CreateMessage(ctx, body, reqEditors...)
 	if err != nil {
@@ -20516,6 +21159,56 @@ func (c *ClientWithResponses) GetMessageWithResponse(ctx context.Context, messag
 		return nil, err
 	}
 	return ParseGetMessageResponse(rsp)
+}
+
+// UpdateMessageWithBodyWithResponse performs a PUT /messages/{messageId} (the `UpdateMessage` operationId) request,
+// with any type of body and a specified content type.
+//
+// Revise a message entry (MessagesController#update). With entry.status "drafted" the
+// entry is saved as a draft (204 + Location, like CreateMessage); without it a draft is
+// delivered through the undo-delay window. A trashed draft is silently restored first.
+// The revision is not a patch: subject, content and any scheduled delivery are rewritten
+// from this request (an omitted scheduled delivery clears one), while recipients are
+// replaced only when entry.addressed is present.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) UpdateMessageWithBodyWithResponse(ctx context.Context, messageId int64, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateMessageResponse, error) {
+	rsp, err := c.UpdateMessageWithBody(ctx, messageId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpdateMessageResponse(rsp)
+}
+
+// UpdateMessageWithResponse performs a PUT /messages/{messageId} (the `UpdateMessage` operationId) request.
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Revise a message entry (MessagesController#update). With entry.status "drafted" the
+// entry is saved as a draft (204 + Location, like CreateMessage); without it a draft is
+// delivered through the undo-delay window. A trashed draft is silently restored first.
+// The revision is not a patch: subject, content and any scheduled delivery are rewritten
+// from this request (an omitted scheduled delivery clears one), while recipients are
+// replaced only when entry.addressed is present.
+func (c *ClientWithResponses) UpdateMessageWithResponse(ctx context.Context, messageId int64, body UpdateMessageJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateMessageResponse, error) {
+	rsp, err := c.UpdateMessage(ctx, messageId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpdateMessageResponse(rsp)
+}
+
+// GetMessageEditWithResponse performs a GET /messages/{messageId}/edit.json (the `GetMessageEdit` operationId) request.
+//
+// A draft's editable state: content, recipients and scheduled delivery as the
+// composer would load them (GET /messages/{id}/edit).
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) GetMessageEditWithResponse(ctx context.Context, messageId int64, reqEditors ...RequestEditorFn) (*GetMessageEditResponse, error) {
+	rsp, err := c.GetMessageEdit(ctx, messageId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetMessageEditResponse(rsp)
 }
 
 // GetMyClearancesWithResponse performs a GET /my/clearances.json (the `GetMyClearances` operationId) request.
@@ -24782,6 +25475,56 @@ func ParseListDraftsResponse(rsp *http.Response) (*ListDraftsResponse, error) {
 	return response, nil
 }
 
+// ParseDeleteDraftResponse parses an HTTP response from a DeleteDraftWithResponse call
+func ParseDeleteDraftResponse(rsp *http.Response) (*DeleteDraftResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DeleteDraftResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 200:
+		break // No content-type
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest UnauthorizedErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFoundErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest InternalServerErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+		var dest ServiceUnavailableErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON503 = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseNewEntryForwardResponse parses an HTTP response from a NewEntryForwardWithResponse call
 func ParseNewEntryForwardResponse(rsp *http.Response) (*NewEntryForwardResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -24873,6 +25616,60 @@ func ParseCreateReplyResponse(rsp *http.Response) (*CreateReplyResponse, error) 
 			return nil, err
 		}
 		response.JSON422 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest InternalServerErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+		var dest ServiceUnavailableErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON503 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseNewEntryReplyResponse parses an HTTP response from a NewEntryReplyWithResponse call
+func ParseNewEntryReplyResponse(rsp *http.Response) (*NewEntryReplyResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &NewEntryReplyResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest NewEntryReplyResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest UnauthorizedErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFoundErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
 		var dest InternalServerErrorResponseContent
@@ -25204,6 +26001,117 @@ func ParseGetMessageResponse(rsp *http.Response) (*GetMessageResponse, error) {
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest GetMessageResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest UnauthorizedErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFoundErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest InternalServerErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+		var dest ServiceUnavailableErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON503 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseUpdateMessageResponse parses an HTTP response from a UpdateMessageWithResponse call
+func ParseUpdateMessageResponse(rsp *http.Response) (*UpdateMessageResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &UpdateMessageResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 200:
+		break // No content-type
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest UnauthorizedErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFoundErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 422:
+		var dest UnprocessableEntityErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON422 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest InternalServerErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+		var dest ServiceUnavailableErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON503 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetMessageEditResponse parses an HTTP response from a GetMessageEditWithResponse call
+func ParseGetMessageEditResponse(rsp *http.Response) (*GetMessageEditResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetMessageEditResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest GetMessageEditResponseContent
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}

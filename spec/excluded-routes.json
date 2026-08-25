@@ -1520,11 +1520,6 @@
     "reason": "phase-2: draft management"
   },
   {
-    "method": "DELETE",
-    "path": "/entries/drafts/{id}",
-    "reason": "phase-2: draft management"
-  },
-  {
     "method": "GET",
     "path": "/entries/drafts/{id}",
     "reason": "phase-2: draft management"
@@ -1766,11 +1761,6 @@
   },
   {
     "method": "PATCH",
-    "path": "/messages/{id}",
-    "reason": "phase-2: message CRUD"
-  },
-  {
-    "method": "PUT",
     "path": "/messages/{id}",
     "reason": "phase-2: message CRUD"
   },

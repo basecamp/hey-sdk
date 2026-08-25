@@ -102,6 +102,127 @@ func (s *EntriesService) MarkSpam(ctx context.Context, entryID int64) error {
 	})
 }
 
+// DraftPage is one page of drafts along with the cursor for the page after it. The
+// index pages by geared_pagination's opaque cursor out of the Link header — a page
+// number is answered with the first page forever — so NextPage is the only way to walk
+// it; empty means the last page.
+type DraftPage struct {
+	Drafts   []generated.DraftMessage
+	NextPage string
+}
+
+// ListDraftsPage answers the same drafts as ListDrafts along with the cursor for the
+// page after them.
+func (s *EntriesService) ListDraftsPage(ctx context.Context, page string) (result *DraftPage, err error) {
+	op := OperationInfo{
+		Service: "Entries", Operation: "ListDrafts",
+		ResourceType: "draft", IsMutation: false,
+	}
+
+	err = s.client.instrument(ctx, op, func(ctx context.Context) error {
+		params := &generated.ListDraftsParams{}
+		if page != "" {
+			params.Page = &page
+		}
+
+		resp, rerr := s.client.genClient().ListDraftsWithResponse(ctx, params)
+		if rerr != nil {
+			return rerr
+		}
+		if cerr := CheckResponse(resp.HTTPResponse); cerr != nil {
+			return cerr
+		}
+		result = &DraftPage{}
+		if resp.JSON200 != nil {
+			result.Drafts = *resp.JSON200
+		}
+		if resp.HTTPResponse != nil {
+			result.NextPage = gearedPageFromLink(resp.HTTPResponse.Header.Get("Link"))
+		}
+		return nil
+	})
+	return result, err
+}
+
+// DeleteDraft trashes a draft by its entry id, as ListDrafts reports it.
+func (s *EntriesService) DeleteDraft(ctx context.Context, entryID int64) error {
+	op := OperationInfo{
+		Service: "Entries", Operation: "DeleteDraft",
+		ResourceType: "draft", IsMutation: true, ResourceID: entryID,
+	}
+
+	return s.client.instrument(ctx, op, func(ctx context.Context) error {
+		resp, err := s.client.genClient().DeleteDraftWithResponse(ctx, entryID)
+		if err != nil {
+			return err
+		}
+		return CheckResponse(resp.HTTPResponse)
+	})
+}
+
+// CreateReplyDraft saves a reply to an entry as a draft instead of delivering it, and
+// answers the draft's entry id. Unlike CreateReply it needs no recipients — HEY keeps
+// whatever the draft carries — and unlike a message draft it carries no subject, since
+// a reply stays under its thread's.
+func (s *EntriesService) CreateReplyDraft(ctx context.Context, entryID int64, content string, to, cc, bcc []string) (draftEntryID int64, err error) {
+	op := OperationInfo{
+		Service: "Entries", Operation: "CreateReply",
+		ResourceType: "draft", IsMutation: true, ResourceID: entryID,
+	}
+
+	err = s.client.instrument(ctx, op, func(ctx context.Context) error {
+		senderID, serr := s.client.DefaultSenderID(ctx)
+		if serr != nil {
+			return serr
+		}
+
+		entry := &generated.MessageEntryPayload{
+			Status:    entryStatusDrafted,
+			Addressed: &generated.MessageAddressed{Directly: to, Copied: cc, Blindcopied: bcc},
+		}
+		body := generated.CreateReplyRequestContent{
+			ActingSenderId: senderID,
+			Message:        generated.ReplyMessagePayload{Content: content},
+			Entry:          entry,
+		}
+
+		resp, rerr := s.client.genClient().CreateReplyWithResponse(ctx, entryID, body)
+		if rerr != nil {
+			return rerr
+		}
+		if cerr := CheckResponse(resp.HTTPResponse); cerr != nil {
+			return cerr
+		}
+		draftEntryID, rerr = draftEntryIDFromLocation(resp.HTTPResponse)
+		return rerr
+	})
+	return draftEntryID, err
+}
+
+// NewReply returns a prefilled reply to an entry: the quoted body and, in Addressed,
+// the recipients a reply goes to as HEY computes them — the entry's sender moved onto
+// the To line and the acting user's own addresses, aliases and catch-alls excluded.
+// This is the recipient list CreateReply should be handed.
+func (s *EntriesService) NewReply(ctx context.Context, entryID int64) (result *generated.MessageDraft, err error) {
+	op := OperationInfo{
+		Service: "Entries", Operation: "NewEntryReply",
+		ResourceType: "entry", IsMutation: false, ResourceID: entryID,
+	}
+
+	err = s.client.instrument(ctx, op, func(ctx context.Context) error {
+		resp, rerr := s.client.genClient().NewEntryReplyWithResponse(ctx, entryID)
+		if rerr != nil {
+			return rerr
+		}
+		if cerr := CheckResponse(resp.HTTPResponse); cerr != nil {
+			return cerr
+		}
+		result = resp.JSON200
+		return nil
+	})
+	return result, err
+}
+
 // NewForward returns a prefilled forward of an entry: the "Fwd:" subject, the quoted body and
 // blank recipients. Fill in the recipients and send it with MessagesService.Create.
 func (s *EntriesService) NewForward(ctx context.Context, entryID int64) (result *generated.MessageDraft, err error) {
