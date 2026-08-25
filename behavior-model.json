@@ -227,6 +227,16 @@
         ]
       }
     },
+    "CreateReplyDraft": {
+      "idempotent": false,
+      "readonly": false,
+      "retry": {
+        "backoff": "constant",
+        "base_delay_ms": 1000,
+        "max": 1,
+        "retry_on": []
+      }
+    },
     "CreateSticky": {
       "idempotent": false,
       "readonly": false,
@@ -310,6 +320,16 @@
           429,
           503
         ]
+      }
+    },
+    "DeleteDraft": {
+      "idempotent": false,
+      "readonly": false,
+      "retry": {
+        "backoff": "constant",
+        "base_delay_ms": 1000,
+        "max": 1,
+        "retry_on": []
       }
     },
     "DeleteHabit": {
@@ -1503,6 +1523,16 @@
           429,
           503
         ]
+      }
+    },
+    "UpdateDraft": {
+      "idempotent": false,
+      "readonly": false,
+      "retry": {
+        "backoff": "constant",
+        "base_delay_ms": 1000,
+        "max": 1,
+        "retry_on": []
       }
     },
     "UpdateHabit": {

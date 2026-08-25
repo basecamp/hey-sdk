@@ -165,6 +165,40 @@ jq '
   )
 ' "$OPENAPI_FILE" > "${OPENAPI_FILE}.tmp" && mv "${OPENAPI_FILE}.tmp" "$OPENAPI_FILE"
 
+# Pass 6: Convert Smithy-modeled browser form operations from restJson1's JSON
+# media type to application/x-www-form-urlencoded. Inline the top-level schema
+# so oapi-codegen emits form tags, and mark operations with sensitive request
+# members so generated metadata never treats their content as loggable.
+jq '
+  . as $root |
+  (.paths // {}) |= with_entries(
+    .value |= with_entries(
+      .value |= (
+        if (.["x-hey-form-urlencoded"] != null)
+           and (.requestBody.content["application/json"] != null) then
+          .requestBody.content = {
+            "application/x-www-form-urlencoded": (
+              .requestBody.content["application/json"] as $body |
+              if ($body.schema["$ref"] // "") | startswith("#/components/schemas/") then
+                ($body.schema["$ref"] | split("/") | last) as $schema_name |
+                $body + {schema: $root.components.schemas[$schema_name]}
+              else
+                $body
+              end
+            )
+          }
+        else .
+        end |
+        if (([.requestBody.content[]?.schema.properties[]? | has("x-hey-sensitive")] | any)
+            or ([.parameters[]? | (has("x-hey-sensitive") or ((.schema // {}) | has("x-hey-sensitive")))] | any)) then
+          . + {"x-hey-sensitive": true}
+        else .
+        end
+      )
+    )
+  )
+' "$OPENAPI_FILE" > "${OPENAPI_FILE}.tmp" && mv "${OPENAPI_FILE}.tmp" "$OPENAPI_FILE"
+
 # Self-referential types are fixed via post-codegen sed in go/Makefile.
 
 echo "Enhanced $OPENAPI_FILE with Go type annotations"

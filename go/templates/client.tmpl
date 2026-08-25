@@ -82,6 +82,31 @@ func NewClient(server string, opts ...ClientOption) (*{{ $clientTypeName }}, err
     return &client, nil
 }
 
+func isFormURLEncoded(contentType string) bool {
+	mediaType, _, err := mime.ParseMediaType(contentType)
+	return err == nil && mediaType == "application/x-www-form-urlencoded"
+}
+
+// doRequest prevents a concrete *http.Client from following redirects for
+// browser-compatible form operations, allowing callers to inspect Location.
+// Custom doers and non-form requests keep their configured behavior.
+func (c *{{ $clientTypeName }}) doRequest(req *http.Request) (*http.Response, error) {
+	if !isFormURLEncoded(req.Header.Get("Content-Type")) {
+		return c.Client.Do(req)
+	}
+
+	httpClient, ok := c.Client.(*http.Client)
+	if !ok {
+		return c.Client.Do(req)
+	}
+
+	noRedirect := *httpClient
+	noRedirect.CheckRedirect = func(*http.Request, []*http.Request) error {
+		return http.ErrUseLastResponse
+	}
+	return noRedirect.Do(req)
+}
+
 // WithHTTPClient allows overriding the default Doer, which is
 // automatically created using http.Client. This is useful for tests.
 func WithHTTPClient(doer HttpRequestDoer) ClientOption {
@@ -114,6 +139,47 @@ func WithLogger(logger *slog.Logger) ClientOption {
 		c.Logger = logger
 		return nil
 	}
+}
+
+// normalizeRailsArrayFormValues converts indexed keys produced by
+// runtime.MarshalForm for explicitly bracketed Rails arrays back into repeated
+// [] keys, preserving the order of recipient values.
+func normalizeRailsArrayFormValues(values url.Values) url.Values {
+	type formValue struct {
+		key        string
+		normalized string
+		index      int
+		indexed    bool
+		items      []string
+	}
+
+	entries := make([]formValue, 0, len(values))
+	for key, items := range values {
+		entry := formValue{key: key, normalized: key, items: items}
+		if marker := strings.LastIndex(key, "[]["); marker >= 0 && strings.HasSuffix(key, "]") {
+			if index, err := strconv.Atoi(key[marker+3 : len(key)-1]); err == nil {
+				entry.normalized = key[:marker+2]
+				entry.index = index
+				entry.indexed = true
+			}
+		}
+		entries = append(entries, entry)
+	}
+	sort.Slice(entries, func(i, j int) bool {
+		if entries[i].normalized != entries[j].normalized {
+			return entries[i].normalized < entries[j].normalized
+		}
+		if entries[i].indexed && entries[j].indexed && entries[i].index != entries[j].index {
+			return entries[i].index < entries[j].index
+		}
+		return entries[i].key < entries[j].key
+	})
+
+	normalized := make(url.Values, len(values))
+	for _, entry := range entries {
+		normalized[entry.normalized] = append(normalized[entry.normalized], entry.items...)
+	}
+	return normalized
 }
 
 // isRetryableStatus returns true if the HTTP status code indicates a retryable error.
@@ -151,7 +217,7 @@ func (c *{{ $clientTypeName }}) doWithRetry(ctx context.Context, buildRequest fu
 			return nil, err
 		}
 
-		resp, err := c.Client.Do(req)
+		resp, err := c.doRequest(req)
 		if err != nil {
 			lastErr = err
 			if c.Logger != nil {
@@ -279,7 +345,7 @@ func (c *{{ $clientTypeName }}) {{$opid}}{{if .HasBody}}WithBody{{end}}(ctx cont
     if err := c.applyEditors(ctx, req, reqEditors); err != nil {
         return nil, err
     }
-    return c.Client.Do(req)
+    return c.doRequest(req)
 {{end}}
 }
 
@@ -299,7 +365,7 @@ func (c *{{ $clientTypeName }}) {{$opid}}{{.Suffix}}(ctx context.Context{{genPar
     if err := c.applyEditors(ctx, req, reqEditors); err != nil {
         return nil, err
     }
-    return c.Client.Do(req)
+    return c.doRequest(req)
 {{end}}
 }
 {{end -}}{{/* if .IsSupported */}}
@@ -329,6 +395,7 @@ func New{{$opid}}Request{{.Suffix}}(server string{{genParamArgs $pathParams}}{{i
         if err != nil {
             return nil, err
         }
+        bodyStr = normalizeRailsArrayFormValues(bodyStr)
         bodyReader = strings.NewReader(bodyStr.Encode())
     {{else if eq .NameTag "Text" -}}
         bodyReader = strings.NewReader(string(body))

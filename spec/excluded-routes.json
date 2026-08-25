@@ -1760,16 +1760,6 @@
     "reason": "phase-2: membership management"
   },
   {
-    "method": "DELETE",
-    "path": "/messages/{id}",
-    "reason": "phase-2: message CRUD"
-  },
-  {
-    "method": "PATCH",
-    "path": "/messages/{id}",
-    "reason": "phase-2: message CRUD"
-  },
-  {
     "method": "PUT",
     "path": "/messages/{id}",
     "reason": "phase-2: message CRUD"

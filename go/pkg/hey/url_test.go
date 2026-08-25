@@ -166,3 +166,35 @@ func TestRouterOperations(t *testing.T) {
 		t.Error("expected DELETE operation (UncompleteCalendarTodo)")
 	}
 }
+
+func TestRouterDistinguishesReplyDraftFromSentReply(t *testing.T) {
+	r := DefaultRouter()
+
+	draft := r.MatchPath("/entries/123/replies")
+	if draft == nil || draft.Operation != "CreateReplyDraft" {
+		t.Fatalf("draft route = %+v, want CreateReplyDraft", draft)
+	}
+
+	sent := r.MatchPath("/entries/123/replies.json")
+	if sent == nil || sent.Operation != "CreateReply" {
+		t.Fatalf("sent route = %+v, want CreateReply", sent)
+	}
+}
+
+func TestRouterIncludesBrowserDraftDeleteTransport(t *testing.T) {
+	r := DefaultRouter()
+
+	message := r.MatchPath("/messages/987")
+	if message == nil {
+		t.Fatal("expected message route")
+	}
+	if got := message.Operations["POST"]; got != "DeleteDraft" {
+		t.Fatalf("POST operation = %q, want DeleteDraft", got)
+	}
+	if got := message.Operations["PATCH"]; got != "UpdateDraft" {
+		t.Fatalf("PATCH operation = %q, want UpdateDraft", got)
+	}
+	if got := message.Operations["GET"]; got != "GetMessage" {
+		t.Fatalf("GET operation = %q, want GetMessage", got)
+	}
+}

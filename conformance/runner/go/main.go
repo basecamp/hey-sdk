@@ -632,6 +632,62 @@ func checkAssertion(testName string, a Assertion, s checkState) TestResult {
 			return fail(testName, "Expected header %q to be present, but it was not", headerName)
 		}
 
+	case "requestHeader":
+		expected, ok := a.Expected.(string)
+		if !ok {
+			return fail(testName, "requestHeader: expected a string value, got %T", a.Expected)
+		}
+		if len(s.requestHeaders) == 0 {
+			return fail(testName, "Expected request with header %q, but no requests were recorded", a.Path)
+		}
+		actual := s.requestHeaders[0].Get(a.Path)
+		if a.Path == "Content-Type" && strings.HasPrefix(actual, expected+";") {
+			break
+		}
+		if actual != expected {
+			return fail(testName, "Expected request header %s=%q, got %q", a.Path, expected, actual)
+		}
+
+	case "requestForm":
+		if len(s.requestBodies) == 0 {
+			return fail(testName, "Expected a form request, but no request bodies were recorded")
+		}
+		values, err := url.ParseQuery(string(s.requestBodies[0]))
+		if err != nil {
+			return fail(testName, "Failed to decode form request: %v", err)
+		}
+		actual := values[a.Path]
+		switch expected := a.Expected.(type) {
+		case string:
+			if len(actual) != 1 || actual[0] != expected {
+				return fail(testName, "Expected form field %s=%q, got %v", a.Path, expected, actual)
+			}
+		case []interface{}:
+			if len(actual) != len(expected) {
+				return fail(testName, "Expected %d values for form field %s, got %v", len(expected), a.Path, actual)
+			}
+			for i := range expected {
+				want, ok := expected[i].(string)
+				if !ok || actual[i] != want {
+					return fail(testName, "Expected form field %s[%d]=%q, got %q", a.Path, i, want, actual[i])
+				}
+			}
+		default:
+			return fail(testName, "requestForm: unsupported expected type %T", a.Expected)
+		}
+
+	case "responseHeader":
+		expected, ok := a.Expected.(string)
+		if !ok {
+			return fail(testName, "responseHeader: expected a string value, got %T", a.Expected)
+		}
+		if s.sdkResp == nil {
+			return fail(testName, "No HTTP response to check header %q", a.Path)
+		}
+		if actual := s.sdkResp.Header.Get(a.Path); actual != expected {
+			return fail(testName, "Expected response header %s=%q, got %q", a.Path, expected, actual)
+		}
+
 	case "responseMeta":
 		switch a.Path {
 		case "totalCount":
@@ -1007,6 +1063,55 @@ func executeOperation(client *generated.Client, ctx context.Context, tc TestCase
 			},
 		}
 		return client.CreateReply(ctx, entryId, body)
+	case "CreateReplyDraft":
+		entryId := getInt64Param(tc.PathParams, "entryId")
+		body := generated.CreateReplyDraftFormdataRequestBody{
+			ActingSenderId:            getInt64Param(tc.RequestBody, "acting_sender_id"),
+			AuthenticityToken:         getStringParam(tc.RequestBody, "authenticity_token"),
+			EntryAddressedBlindcopied: getStringSliceParam(tc.RequestBody, "bcc"),
+			EntryAddressedCopied:      getStringSliceParam(tc.RequestBody, "cc"),
+			EntryAddressedDirectly:    getStringSliceParam(tc.RequestBody, "to"),
+			EntryStatus:               "drafted",
+			MessageAutoQuoting:        getBoolPtrParam(tc.RequestBody, "auto_quoting"),
+			MessageContent:            getStringParam(tc.RequestBody, "content"),
+			MessageSubject:            getStringParam(tc.RequestBody, "subject"),
+		}
+		csrf := body.AuthenticityToken
+		return client.CreateReplyDraftWithFormdataBody(ctx, entryId, body, func(_ context.Context, req *http.Request) error {
+			req.Header.Set("Accept", "*/*")
+			if csrf != "" {
+				req.Header.Set("X-CSRF-Token", csrf)
+			}
+			return nil
+		})
+	case "UpdateDraft":
+		messageId := getInt64Param(tc.PathParams, "messageId")
+		csrf := getStringParam(tc.RequestBody, "authenticity_token")
+		params := &generated.UpdateDraftParams{XCSRFToken: csrf}
+		body := generated.UpdateDraftFormdataRequestBody{
+			ActingSenderId:            getInt64Param(tc.RequestBody, "acting_sender_id"),
+			AuthenticityToken:         csrf,
+			EntryAddressedBlindcopied: getStringSliceParam(tc.RequestBody, "bcc"),
+			EntryAddressedCopied:      getStringSliceParam(tc.RequestBody, "cc"),
+			EntryAddressedDirectly:    getStringSliceParam(tc.RequestBody, "to"),
+			EntryStatus:               "drafted",
+			MessageContent:            getStringParam(tc.RequestBody, "content"),
+			MessageSubject:            getStringParam(tc.RequestBody, "subject"),
+		}
+		return client.UpdateDraftWithFormdataBody(ctx, messageId, params, body, func(_ context.Context, req *http.Request) error {
+			req.Header.Set("Accept", "*/*")
+			req.Header.Set("X-Requested-With", "XMLHttpRequest")
+			return nil
+		})
+	case "DeleteDraft":
+		messageId := getInt64Param(tc.PathParams, "messageId")
+		csrf := getStringParam(tc.RequestBody, "authenticity_token")
+		params := &generated.DeleteDraftParams{XCSRFToken: csrf}
+		body := generated.DeleteDraftFormdataRequestBody{UnderscoreMethod: "delete", Status: "drafted"}
+		return client.DeleteDraftWithFormdataBody(ctx, messageId, params, body, func(_ context.Context, req *http.Request) error {
+			req.Header.Set("Accept", "*/*")
+			return nil
+		})
 
 	// Contacts
 	case "ListContacts":
@@ -1561,6 +1666,15 @@ func getStringPtrParam(params map[string]interface{}, key string) *string {
 	if val, ok := params[key]; ok {
 		if s, ok := val.(string); ok {
 			return &s
+		}
+	}
+	return nil
+}
+
+func getBoolPtrParam(params map[string]interface{}, key string) *bool {
+	if val, ok := params[key]; ok {
+		if b, ok := val.(bool); ok {
+			return &b
 		}
 	}
 	return nil

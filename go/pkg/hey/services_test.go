@@ -581,6 +581,225 @@ func TestEntriesService_CreateReply_RecipientsAreArrays(t *testing.T) {
 	}
 }
 
+func TestEntriesService_CreateReplyDraft(t *testing.T) {
+	const richHTML = `<div>New reply</div><ol><li>First item</li><li>Second item</li></ol><blockquote>Quoted thread</blockquote>`
+	metadata, ok := generated.GetOperationMetadata("CreateReplyDraft")
+	if !ok || metadata.Idempotent || !metadata.HasSensitiveParams {
+		t.Fatalf("unexpected CreateReplyDraft metadata: %+v, found=%t", metadata, ok)
+	}
+
+	requests := 0
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requests++
+		if r.Method != http.MethodPost || r.URL.Path != "/entries/10/replies" {
+			t.Errorf("unexpected request %s %s", r.Method, r.URL.Path)
+		}
+		if got := r.Header.Get("Accept"); got != "*/*" {
+			t.Errorf("Accept = %q, want */*", got)
+		}
+		if got := r.Header.Get("X-CSRF-Token"); got != "csrf-test-token" {
+			t.Errorf("CSRF header = %q", got)
+		}
+		if err := r.ParseForm(); err != nil {
+			t.Fatalf("parse form: %v", err)
+		}
+		if got := r.PostForm.Get("acting_sender_id"); got != "84" {
+			t.Errorf("acting_sender_id = %q", got)
+		}
+		if got := r.PostForm.Get("entry[status]"); got != "drafted" {
+			t.Errorf("entry status = %q", got)
+		}
+		if got := r.PostForm.Get("message[content]"); got != richHTML {
+			t.Errorf("rich HTML changed: %q", got)
+		}
+		if got := strings.Join(r.PostForm["entry[addressed][directly][]"], ","); got != "one@example.com,two@example.org" {
+			t.Errorf("To recipients = %q", got)
+		}
+		if got := strings.Join(r.PostForm["entry[addressed][copied][]"], ","); got != "copy@example.com" {
+			t.Errorf("CC recipients = %q", got)
+		}
+		if got := strings.Join(r.PostForm["entry[addressed][blindcopied][]"], ","); got != "blind@example.org" {
+			t.Errorf("BCC recipients = %q", got)
+		}
+		w.Header().Set("Location", "/messages/987?source=save#composer")
+		w.WriteHeader(http.StatusFound)
+	}))
+	t.Cleanup(server.Close)
+
+	autoQuoting := true
+	client := NewClient(&Config{BaseURL: server.URL}, &StaticTokenProvider{Token: "test-token"}, WithMaxRetries(2))
+	result, err := client.Entries().CreateReplyDraft(context.Background(), 10, CreateReplyDraftParams{
+		ActingSenderID:    84,
+		Content:           richHTML,
+		Subject:           "Re: Project update",
+		AutoQuoting:       &autoQuoting,
+		To:                []string{"one@example.com", "two@example.org"},
+		CC:                []string{"copy@example.com"},
+		BCC:               []string{"blind@example.org"},
+		AuthenticityToken: "csrf-test-token",
+	})
+	if err != nil {
+		t.Fatalf("CreateReplyDraft: %v", err)
+	}
+	if result.ID != 987 || result.EditURL != "/messages/987/edit" {
+		t.Fatalf("unexpected result: %+v", result)
+	}
+	if requests != 1 {
+		t.Fatalf("requests = %d, want one", requests)
+	}
+}
+
+func TestEntriesService_UpdateDraft(t *testing.T) {
+	const richHTML = `<div>Updated reply</div><blockquote>Quoted thread</blockquote>`
+	metadata, ok := generated.GetOperationMetadata("UpdateDraft")
+	if !ok || metadata.Idempotent || !metadata.HasSensitiveParams {
+		t.Fatalf("unexpected UpdateDraft metadata: %+v, found=%t", metadata, ok)
+	}
+
+	requests := 0
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requests++
+		if r.Method != http.MethodPatch || r.URL.Path != "/messages/987" {
+			t.Errorf("unexpected request %s %s", r.Method, r.URL.Path)
+		}
+		if got := r.Header.Get("X-Requested-With"); got != "XMLHttpRequest" {
+			t.Errorf("X-Requested-With = %q", got)
+		}
+		if got := r.Header.Get("X-CSRF-Token"); got != "csrf-update-token" {
+			t.Errorf("CSRF header = %q", got)
+		}
+		if err := r.ParseForm(); err != nil {
+			t.Fatalf("parse form: %v", err)
+		}
+		if got := r.PostForm.Get("message[content]"); got != richHTML {
+			t.Errorf("rich HTML changed: %q", got)
+		}
+		if got := strings.Join(r.PostForm["entry[addressed][directly][]"], ","); got != "one@example.com,two@example.org" {
+			t.Errorf("To recipients = %q", got)
+		}
+		w.Header().Set("Location", "/entries/drafts")
+		w.WriteHeader(http.StatusSeeOther)
+	}))
+	t.Cleanup(server.Close)
+
+	client := NewClient(&Config{BaseURL: server.URL}, &StaticTokenProvider{Token: "test-token"}, WithMaxRetries(2))
+	result, err := client.Entries().UpdateDraft(context.Background(), 987, UpdateDraftParams{
+		ActingSenderID:    84,
+		Content:           richHTML,
+		Subject:           "Re: Project update",
+		To:                []string{"one@example.com", "two@example.org"},
+		AuthenticityToken: "csrf-update-token",
+	})
+	if err != nil {
+		t.Fatalf("UpdateDraft: %v", err)
+	}
+	if result.ID != 987 || result.StatusCode != http.StatusSeeOther || result.EditURL != "/messages/987/edit" {
+		t.Fatalf("unexpected result: %+v", result)
+	}
+	if requests != 1 {
+		t.Fatalf("requests = %d, want one", requests)
+	}
+}
+
+func TestEntriesService_UpdateDraftValidatesInput(t *testing.T) {
+	client := NewClient(&Config{BaseURL: "https://app.hey.com"}, &StaticTokenProvider{Token: "test-token"})
+	valid := UpdateDraftParams{ActingSenderID: 42, AuthenticityToken: "token"}
+	if _, err := client.Entries().UpdateDraft(context.Background(), 0, valid); err == nil {
+		t.Fatal("expected non-positive message ID error")
+	}
+	if _, err := client.Entries().UpdateDraft(context.Background(), 1, UpdateDraftParams{AuthenticityToken: "token"}); err == nil {
+		t.Fatal("expected acting sender error")
+	}
+	if _, err := client.Entries().UpdateDraft(context.Background(), 1, UpdateDraftParams{ActingSenderID: 42}); err == nil {
+		t.Fatal("expected authenticity token error")
+	}
+}
+
+func TestEntriesService_DeleteDraft(t *testing.T) {
+	metadata, ok := generated.GetOperationMetadata("DeleteDraft")
+	if !ok || metadata.Idempotent || !metadata.HasSensitiveParams {
+		t.Fatalf("unexpected DeleteDraft metadata: %+v, found=%t", metadata, ok)
+	}
+
+	requests := 0
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requests++
+		if r.Method != http.MethodPost || r.URL.Path != "/messages/987" {
+			t.Errorf("unexpected request %s %s", r.Method, r.URL.Path)
+		}
+		if got := r.Header.Get("X-CSRF-Token"); got != "csrf-delete-token" {
+			t.Errorf("CSRF header = %q", got)
+		}
+		if err := r.ParseForm(); err != nil {
+			t.Fatalf("parse form: %v", err)
+		}
+		if got := r.PostForm.Get("_method"); got != "delete" {
+			t.Errorf("method override = %q", got)
+		}
+		if got := r.PostForm.Get("status"); got != "drafted" {
+			t.Errorf("status = %q", got)
+		}
+		if _, present := r.PostForm["authenticity_token"]; present {
+			t.Error("CSRF token must only be in the header")
+		}
+		w.Header().Set("Location", "/topics/123")
+		w.WriteHeader(http.StatusFound)
+	}))
+	t.Cleanup(server.Close)
+
+	client := NewClient(&Config{BaseURL: server.URL}, &StaticTokenProvider{Token: "test-token"}, WithMaxRetries(2))
+	result, err := client.Entries().DeleteDraft(context.Background(), 987, DeleteDraftParams{AuthenticityToken: "csrf-delete-token"})
+	if err != nil {
+		t.Fatalf("DeleteDraft: %v", err)
+	}
+	if result.StatusCode != http.StatusFound || result.Location != "/topics/123" {
+		t.Fatalf("unexpected result: %+v", result)
+	}
+	if requests != 1 {
+		t.Fatalf("requests = %d, want one", requests)
+	}
+}
+
+func TestEntriesService_DeleteDraftValidatesInput(t *testing.T) {
+	client := NewClient(&Config{BaseURL: "https://app.hey.com"}, &StaticTokenProvider{Token: "test-token"})
+	if _, err := client.Entries().DeleteDraft(context.Background(), 0, DeleteDraftParams{AuthenticityToken: "token"}); err == nil {
+		t.Fatal("expected non-positive message ID error")
+	}
+	if _, err := client.Entries().DeleteDraft(context.Background(), 1, DeleteDraftParams{}); err == nil {
+		t.Fatal("expected authenticity token error")
+	}
+}
+
+func TestReplyDraftFromLocation(t *testing.T) {
+	for _, tc := range []struct {
+		location string
+		wantID   int64
+		wantEdit string
+		wantErr  bool
+	}{
+		{location: "/entries/drafts/42", wantID: 42, wantEdit: "/entries/drafts/42/edit"},
+		{location: "https://app.hey.com/messages/103?source=save#composer", wantID: 103, wantEdit: "https://app.hey.com/messages/103/edit"},
+		{location: "/messages/104%2Fedit?source=save", wantID: 104, wantEdit: "/messages/104/edit"},
+		{location: "/topics/42", wantErr: true},
+		{location: "/messages/42/preview", wantErr: true},
+		{location: "/entries/drafts/0", wantErr: true},
+	} {
+		result, err := replyDraftFromLocation(tc.location)
+		if tc.wantErr {
+			if err == nil {
+				t.Fatalf("replyDraftFromLocation(%q) succeeded unexpectedly", tc.location)
+			}
+			continue
+		}
+		if err != nil {
+			t.Fatalf("replyDraftFromLocation(%q): %v", tc.location, err)
+		}
+		if result.ID != tc.wantID || result.EditURL != tc.wantEdit {
+			t.Fatalf("unexpected result for %q: %+v", tc.location, result)
+		}
+	}
+}
+
 // --- Contacts ---
 
 func TestContactsService_List(t *testing.T) {

@@ -91,6 +91,11 @@
   },
   {
     "method": "POST",
+    "operationId": "CreateReplyDraft",
+    "path": "/entries/{entryId}/replies"
+  },
+  {
+    "method": "POST",
     "operationId": "CreateSticky",
     "path": "/stickies.json"
   },
@@ -123,6 +128,11 @@
     "method": "DELETE",
     "operationId": "DeleteContactNote",
     "path": "/contacts/{contactId}/note.json"
+  },
+  {
+    "method": "DELETE",
+    "operationId": "DeleteDraft",
+    "path": "/messages/{messageId}"
   },
   {
     "method": "DELETE",
@@ -558,6 +568,11 @@
     "method": "PATCH",
     "operationId": "UpdateContactNote",
     "path": "/contacts/{contactId}/note.json"
+  },
+  {
+    "method": "PATCH",
+    "operationId": "UpdateDraft",
+    "path": "/messages/{messageId}"
   },
   {
     "method": "PATCH",

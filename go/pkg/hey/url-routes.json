@@ -4,7 +4,7 @@
   "generated": true,
   "routes": [
     {
-      "pattern": "/advanced_search",
+      "pattern": "/advanced_search.json",
       "resource": "Search",
       "operations": {
         "GET": "AdvancedSearch"
@@ -12,7 +12,7 @@
       "params": {}
     },
     {
-      "pattern": "/advanced_search_filters",
+      "pattern": "/advanced_search_filters.json",
       "resource": "Search",
       "operations": {
         "GET": "GetAdvancedSearchFilters"
@@ -20,7 +20,7 @@
       "params": {}
     },
     {
-      "pattern": "/boxes",
+      "pattern": "/boxes.json",
       "resource": "Boxes",
       "operations": {
         "GET": "ListBoxes"
@@ -41,7 +41,7 @@
       }
     },
     {
-      "pattern": "/boxes/{boxId}/designations",
+      "pattern": "/boxes/{boxId}/designations.json",
       "resource": "Boxes",
       "operations": {
         "POST": "CreateBoxDesignation"
@@ -71,7 +71,7 @@
       }
     },
     {
-      "pattern": "/boxes/{boxId}/groups",
+      "pattern": "/boxes/{boxId}/groups.json",
       "resource": "Boxes",
       "operations": {
         "GET": "ListBoxGroups",
@@ -102,7 +102,7 @@
       }
     },
     {
-      "pattern": "/boxes/{boxId}/observation",
+      "pattern": "/boxes/{boxId}/observation.json",
       "resource": "Boxes",
       "operations": {
         "POST": "MarkBoxSeen"
@@ -115,7 +115,7 @@
       }
     },
     {
-      "pattern": "/boxes/{boxId}/postings/changes",
+      "pattern": "/boxes/{boxId}/postings/changes.json",
       "resource": "Boxes",
       "operations": {
         "GET": "GetBoxPostingChanges"
@@ -128,7 +128,7 @@
       }
     },
     {
-      "pattern": "/bubble_up",
+      "pattern": "/bubble_up.json",
       "resource": "Boxes",
       "operations": {
         "GET": "GetBubblebox"
@@ -136,7 +136,7 @@
       "params": {}
     },
     {
-      "pattern": "/bulk_replies",
+      "pattern": "/bulk_replies.json",
       "resource": "Bulk Reply",
       "operations": {
         "POST": "CreateBulkReply"
@@ -144,7 +144,7 @@
       "params": {}
     },
     {
-      "pattern": "/bulk_replies/new",
+      "pattern": "/bulk_replies/new.json",
       "resource": "Bulk Reply",
       "operations": {
         "GET": "NewBulkReply"
@@ -152,7 +152,7 @@
       "params": {}
     },
     {
-      "pattern": "/calendar/days",
+      "pattern": "/calendar/days.json",
       "resource": "Calendar Periods",
       "operations": {
         "GET": "ListCalendarDays"
@@ -205,7 +205,7 @@
       }
     },
     {
-      "pattern": "/calendar/habits",
+      "pattern": "/calendar/habits.json",
       "resource": "Calendar Habits",
       "operations": {
         "POST": "CreateHabit"
@@ -227,7 +227,7 @@
       }
     },
     {
-      "pattern": "/calendar/habits/{habitId}/stop",
+      "pattern": "/calendar/habits/{habitId}/stop.json",
       "resource": "Calendar Habits",
       "operations": {
         "DELETE": "ResumeHabit",
@@ -249,7 +249,7 @@
       "params": {}
     },
     {
-      "pattern": "/calendar/ongoing_time_track",
+      "pattern": "/calendar/ongoing_time_track.json",
       "resource": "Calendar Time Tracks",
       "operations": {
         "GET": "GetOngoingTimeTrack",
@@ -258,7 +258,7 @@
       "params": {}
     },
     {
-      "pattern": "/calendar/time_tracks",
+      "pattern": "/calendar/time_tracks.json",
       "resource": "Calendar Time Tracks",
       "operations": {
         "GET": "ListTimeTracks",
@@ -267,7 +267,7 @@
       "params": {}
     },
     {
-      "pattern": "/calendar/time_tracks/categories",
+      "pattern": "/calendar/time_tracks/categories.json",
       "resource": "Calendar Time Tracks",
       "operations": {
         "GET": "ListTimeTrackCategories"
@@ -289,7 +289,7 @@
       }
     },
     {
-      "pattern": "/calendar/todos",
+      "pattern": "/calendar/todos.json",
       "resource": "Calendar Todos",
       "operations": {
         "POST": "CreateCalendarTodo"
@@ -325,7 +325,7 @@
       }
     },
     {
-      "pattern": "/calendar/weeks",
+      "pattern": "/calendar/weeks.json",
       "resource": "Calendar Periods",
       "operations": {
         "GET": "ListCalendarWeeks"
@@ -359,7 +359,7 @@
       }
     },
     {
-      "pattern": "/calendars",
+      "pattern": "/calendars.json",
       "resource": "Calendars",
       "operations": {
         "GET": "ListCalendars"
@@ -393,7 +393,7 @@
       }
     },
     {
-      "pattern": "/clearances",
+      "pattern": "/clearances.json",
       "resource": "Contacts",
       "operations": {
         "GET": "GetClearances"
@@ -401,7 +401,7 @@
       "params": {}
     },
     {
-      "pattern": "/clearances/bulk",
+      "pattern": "/clearances/bulk.json",
       "resource": "Contacts",
       "operations": {
         "PATCH": "BulkUpdateClearances"
@@ -409,7 +409,7 @@
       "params": {}
     },
     {
-      "pattern": "/clearances/punt",
+      "pattern": "/clearances/punt.json",
       "resource": "Contacts",
       "operations": {
         "POST": "PuntClearances"
@@ -430,7 +430,7 @@
       }
     },
     {
-      "pattern": "/clips",
+      "pattern": "/clips.json",
       "resource": "Clips",
       "operations": {
         "GET": "ListClips"
@@ -438,7 +438,7 @@
       "params": {}
     },
     {
-      "pattern": "/collections",
+      "pattern": "/collections.json",
       "resource": "Collections",
       "operations": {
         "GET": "ListCollections"
@@ -460,7 +460,7 @@
       }
     },
     {
-      "pattern": "/contacts",
+      "pattern": "/contacts.json",
       "resource": "Contacts",
       "operations": {
         "GET": "ListContacts",
@@ -484,7 +484,7 @@
       }
     },
     {
-      "pattern": "/contacts/{contactId}/bundle",
+      "pattern": "/contacts/{contactId}/bundle.json",
       "resource": "Contacts",
       "operations": {
         "DELETE": "UnbundleContact",
@@ -498,7 +498,7 @@
       }
     },
     {
-      "pattern": "/contacts/{contactId}/clearance",
+      "pattern": "/contacts/{contactId}/clearance.json",
       "resource": "Contacts",
       "operations": {
         "PATCH": "UpdateContactClearance"
@@ -511,7 +511,7 @@
       }
     },
     {
-      "pattern": "/contacts/{contactId}/note",
+      "pattern": "/contacts/{contactId}/note.json",
       "resource": "Contacts",
       "operations": {
         "DELETE": "DeleteContactNote",
@@ -526,7 +526,7 @@
       }
     },
     {
-      "pattern": "/contacts/{contactId}/reveal",
+      "pattern": "/contacts/{contactId}/reveal.json",
       "resource": "Contacts",
       "operations": {
         "POST": "RevealContact"
@@ -539,7 +539,7 @@
       }
     },
     {
-      "pattern": "/entries/drafts",
+      "pattern": "/entries/drafts.json",
       "resource": "Entries",
       "operations": {
         "GET": "ListDrafts"
@@ -547,7 +547,7 @@
       "params": {}
     },
     {
-      "pattern": "/entries/{entryId}/forwards/new",
+      "pattern": "/entries/{entryId}/forwards/new.json",
       "resource": "Entries",
       "operations": {
         "GET": "NewEntryForward"
@@ -563,6 +563,19 @@
       "pattern": "/entries/{entryId}/replies",
       "resource": "Entries",
       "operations": {
+        "POST": "CreateReplyDraft"
+      },
+      "params": {
+        "entryId": {
+          "role": "parent",
+          "type": "int64"
+        }
+      }
+    },
+    {
+      "pattern": "/entries/{entryId}/replies.json",
+      "resource": "Entries",
+      "operations": {
         "POST": "CreateReply"
       },
       "params": {
@@ -573,7 +586,7 @@
       }
     },
     {
-      "pattern": "/entries/{entryId}/status/spam",
+      "pattern": "/entries/{entryId}/status/spam.json",
       "resource": "Entries",
       "operations": {
         "PUT": "MarkEntrySpam"
@@ -586,7 +599,7 @@
       }
     },
     {
-      "pattern": "/feedbox",
+      "pattern": "/feedbox.json",
       "resource": "Boxes",
       "operations": {
         "GET": "GetFeedbox"
@@ -607,7 +620,7 @@
       }
     },
     {
-      "pattern": "/identity",
+      "pattern": "/identity.json",
       "resource": "Identity",
       "operations": {
         "GET": "GetIdentity"
@@ -615,7 +628,7 @@
       "params": {}
     },
     {
-      "pattern": "/imbox",
+      "pattern": "/imbox.json",
       "resource": "Boxes",
       "operations": {
         "GET": "GetImbox"
@@ -623,7 +636,7 @@
       "params": {}
     },
     {
-      "pattern": "/messages",
+      "pattern": "/messages.json",
       "resource": "Messages",
       "operations": {
         "POST": "CreateMessage"
@@ -634,7 +647,9 @@
       "pattern": "/messages/{messageId}",
       "resource": "Messages",
       "operations": {
-        "GET": "GetMessage"
+        "GET": "GetMessage",
+        "PATCH": "UpdateDraft",
+        "POST": "DeleteDraft"
       },
       "params": {
         "messageId": {
@@ -644,7 +659,7 @@
       }
     },
     {
-      "pattern": "/my/clearances",
+      "pattern": "/my/clearances.json",
       "resource": "Contacts",
       "operations": {
         "GET": "GetMyClearances"
@@ -665,7 +680,7 @@
       }
     },
     {
-      "pattern": "/my/navigation",
+      "pattern": "/my/navigation.json",
       "resource": "Identity",
       "operations": {
         "GET": "GetNavigation"
@@ -673,7 +688,7 @@
       "params": {}
     },
     {
-      "pattern": "/paper_trail",
+      "pattern": "/paper_trail.json",
       "resource": "Boxes",
       "operations": {
         "GET": "GetTrailbox"
@@ -681,7 +696,7 @@
       "params": {}
     },
     {
-      "pattern": "/postings/box_groups",
+      "pattern": "/postings/box_groups.json",
       "resource": "Postings",
       "operations": {
         "DELETE": "RemovePostingsFromBoxGroup",
@@ -690,7 +705,7 @@
       "params": {}
     },
     {
-      "pattern": "/postings/bubble_up",
+      "pattern": "/postings/bubble_up.json",
       "resource": "Postings",
       "operations": {
         "DELETE": "CancelPostingsBubbleUp"
@@ -698,7 +713,7 @@
       "params": {}
     },
     {
-      "pattern": "/postings/bulk_bubble_up_now",
+      "pattern": "/postings/bulk_bubble_up_now.json",
       "resource": "Postings",
       "operations": {
         "POST": "BubbleUpPostingsNow"
@@ -706,7 +721,7 @@
       "params": {}
     },
     {
-      "pattern": "/postings/filings",
+      "pattern": "/postings/filings.json",
       "resource": "Postings",
       "operations": {
         "DELETE": "UnfilePostings",
@@ -715,7 +730,7 @@
       "params": {}
     },
     {
-      "pattern": "/postings/folders",
+      "pattern": "/postings/folders.json",
       "resource": "Postings",
       "operations": {
         "POST": "CreateFolderForPostings"
@@ -723,7 +738,7 @@
       "params": {}
     },
     {
-      "pattern": "/postings/moves",
+      "pattern": "/postings/moves.json",
       "resource": "Postings",
       "operations": {
         "POST": "MovePostings"
@@ -731,7 +746,7 @@
       "params": {}
     },
     {
-      "pattern": "/postings/mutings",
+      "pattern": "/postings/mutings.json",
       "resource": "Postings",
       "operations": {
         "DELETE": "UnmutePostings",
@@ -740,7 +755,7 @@
       "params": {}
     },
     {
-      "pattern": "/postings/seen",
+      "pattern": "/postings/seen.json",
       "resource": "Postings",
       "operations": {
         "POST": "MarkPostingsSeen"
@@ -748,7 +763,7 @@
       "params": {}
     },
     {
-      "pattern": "/postings/spam",
+      "pattern": "/postings/spam.json",
       "resource": "Postings",
       "operations": {
         "POST": "MarkPostingsSpam"
@@ -756,7 +771,7 @@
       "params": {}
     },
     {
-      "pattern": "/postings/trash",
+      "pattern": "/postings/trash.json",
       "resource": "Postings",
       "operations": {
         "POST": "TrashPostings"
@@ -764,7 +779,7 @@
       "params": {}
     },
     {
-      "pattern": "/postings/unseen",
+      "pattern": "/postings/unseen.json",
       "resource": "Postings",
       "operations": {
         "POST": "MarkPostingsUnseen"
@@ -772,7 +787,7 @@
       "params": {}
     },
     {
-      "pattern": "/rails/active_storage/direct_uploads",
+      "pattern": "/rails/active_storage/direct_uploads.json",
       "resource": "Attachments",
       "operations": {
         "POST": "CreateDirectUpload"
@@ -780,7 +795,7 @@
       "params": {}
     },
     {
-      "pattern": "/reply_later",
+      "pattern": "/reply_later.json",
       "resource": "Boxes",
       "operations": {
         "GET": "GetLaterbox"
@@ -788,7 +803,7 @@
       "params": {}
     },
     {
-      "pattern": "/set_aside",
+      "pattern": "/set_aside.json",
       "resource": "Boxes",
       "operations": {
         "GET": "GetAsidebox"
@@ -796,7 +811,7 @@
       "params": {}
     },
     {
-      "pattern": "/snippets",
+      "pattern": "/snippets.json",
       "resource": "Snippets",
       "operations": {
         "GET": "ListSnippets"
@@ -804,7 +819,7 @@
       "params": {}
     },
     {
-      "pattern": "/stickies",
+      "pattern": "/stickies.json",
       "resource": "Stickies",
       "operations": {
         "GET": "ListStickies",
@@ -813,7 +828,7 @@
       "params": {}
     },
     {
-      "pattern": "/stickies/moves",
+      "pattern": "/stickies/moves.json",
       "resource": "Stickies",
       "operations": {
         "POST": "MoveSticky"
@@ -835,7 +850,7 @@
       }
     },
     {
-      "pattern": "/topics/everything",
+      "pattern": "/topics/everything.json",
       "resource": "Topics",
       "operations": {
         "GET": "GetEverythingTopics"
@@ -843,7 +858,7 @@
       "params": {}
     },
     {
-      "pattern": "/topics/sent",
+      "pattern": "/topics/sent.json",
       "resource": "Topics",
       "operations": {
         "GET": "GetSentTopics"
@@ -851,7 +866,7 @@
       "params": {}
     },
     {
-      "pattern": "/topics/spam",
+      "pattern": "/topics/spam.json",
       "resource": "Topics",
       "operations": {
         "GET": "GetSpamTopics"
@@ -859,7 +874,7 @@
       "params": {}
     },
     {
-      "pattern": "/topics/spam/all",
+      "pattern": "/topics/spam/all.json",
       "resource": "Topics",
       "operations": {
         "DELETE": "EmptySpam"
@@ -867,7 +882,7 @@
       "params": {}
     },
     {
-      "pattern": "/topics/trash",
+      "pattern": "/topics/trash.json",
       "resource": "Topics",
       "operations": {
         "GET": "GetTrashTopics"
@@ -875,7 +890,7 @@
       "params": {}
     },
     {
-      "pattern": "/topics/trash/all",
+      "pattern": "/topics/trash/all.json",
       "resource": "Topics",
       "operations": {
         "DELETE": "EmptyTrash"
@@ -909,7 +924,7 @@
       }
     },
     {
-      "pattern": "/topics/{topicId}/moves",
+      "pattern": "/topics/{topicId}/moves.json",
       "resource": "Topics",
       "operations": {
         "POST": "MoveTopic"
@@ -922,7 +937,7 @@
       }
     },
     {
-      "pattern": "/topics/{topicId}/publication",
+      "pattern": "/topics/{topicId}/publication.json",
       "resource": "Publications",
       "operations": {
         "GET": "GetTopicPublication"
@@ -935,7 +950,7 @@
       }
     },
     {
-      "pattern": "/topics/{topicId}/status/active",
+      "pattern": "/topics/{topicId}/status/active.json",
       "resource": "Topics",
       "operations": {
         "PUT": "RestoreTopic"
@@ -948,7 +963,7 @@
       }
     },
     {
-      "pattern": "/topics/{topicId}/status/ham",
+      "pattern": "/topics/{topicId}/status/ham.json",
       "resource": "Topics",
       "operations": {
         "PUT": "MarkTopicHam"
@@ -961,7 +976,7 @@
       }
     },
     {
-      "pattern": "/topics/{topicId}/status/trashed",
+      "pattern": "/topics/{topicId}/status/trashed.json",
       "resource": "Topics",
       "operations": {
         "PUT": "TrashTopic"

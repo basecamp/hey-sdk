@@ -114,3 +114,18 @@ structure heyEmptyOn {
 list HeyEmptyOnStatusCodes {
     member: Integer
 }
+
+/// Marks an operation whose Smithy payload is serialized as an
+/// application/x-www-form-urlencoded request rather than JSON.
+@trait(selector: "operation")
+@specificationExtension(as: "x-hey-form-urlencoded")
+structure heyFormUrlEncoded {}
+
+/// Marks a browser-compatible HTML form operation that uses a Rails `_method`
+/// field to select a different canonical router method.
+@trait(selector: "operation")
+@specificationExtension(as: "x-hey-form-method-override")
+structure heyFormMethodOverride {
+    @required
+    overrideMethod: String
+}

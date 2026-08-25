@@ -36,7 +36,7 @@ generate() {
     .value | to_entries[] | select(.key != "parameters") |
     {
       operationId: .value.operationId,
-      method: (.key | ascii_upcase),
+      method: ((.value["x-hey-form-method-override"].overrideMethod // .key) | ascii_upcase),
       path: $path
     }
   ] | sort_by(.operationId)' "$OPENAPI_FILE"
