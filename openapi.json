@@ -3640,6 +3640,14 @@
               "type": "string",
               "x-go-type-skip-optional-pointer": false
             }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "x-go-type-skip-optional-pointer": false
+            }
           }
         ],
         "responses": {

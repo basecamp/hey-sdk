@@ -116,8 +116,26 @@ func (s *CalendarsService) ListWithChanges(ctx context.Context) (result *Calenda
 	return result, err
 }
 
-// GetRecordings returns recordings for a specific calendar.
-func (s *CalendarsService) GetRecordings(ctx context.Context, calendarID int64, params *generated.GetCalendarRecordingsParams) (result *generated.CalendarRecordingsResponse, err error) {
+// CalendarRecordingsPage is one page of a calendar's recordings and the cursor for the
+// page after it. NextPage is empty on the last page.
+type CalendarRecordingsPage struct {
+	Recordings *generated.CalendarRecordingsResponse
+	NextPage   string
+}
+
+// GetRecordings returns one requested page of recordings for a specific calendar.
+// GetRecordingsPage also returns the cursor needed to continue through the window.
+func (s *CalendarsService) GetRecordings(ctx context.Context, calendarID int64, params *generated.GetCalendarRecordingsParams) (*generated.CalendarRecordingsResponse, error) {
+	page, err := s.GetRecordingsPage(ctx, calendarID, params)
+	if err != nil {
+		return nil, err
+	}
+	return page.Recordings, nil
+}
+
+// GetRecordingsPage returns recordings for a specific calendar along with the cursor for
+// the page after them. Leave Page empty for the first page, then set it to each NextPage.
+func (s *CalendarsService) GetRecordingsPage(ctx context.Context, calendarID int64, params *generated.GetCalendarRecordingsParams) (result *CalendarRecordingsPage, err error) {
 	op := OperationInfo{
 		Service: "Calendars", Operation: "GetCalendarRecordings",
 		ResourceType: "recording", IsMutation: false, ResourceID: calendarID,
@@ -139,5 +157,10 @@ func (s *CalendarsService) GetRecordings(ctx context.Context, calendarID int64, 
 	if err = CheckResponse(resp.HTTPResponse); err != nil {
 		return nil, err
 	}
-	return resp.JSON200, nil
+
+	result = &CalendarRecordingsPage{Recordings: resp.JSON200}
+	if resp.HTTPResponse != nil {
+		result.NextPage = gearedPageFromLink(resp.HTTPResponse.Header.Get("Link"))
+	}
+	return result, nil
 }

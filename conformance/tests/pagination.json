@@ -23,6 +23,36 @@
     "tags": ["pagination", "link-header"]
   },
   {
+    "name": "Calendar recordings carry the geared pagination cursor",
+    "description": "Verifies that calendar recording windows send their dates and the opaque cursor from the previous Link header",
+    "operation": "GetCalendarRecordings",
+    "method": "GET",
+    "path": "/calendars/{calendarId}/recordings",
+    "pathParams": {
+      "calendarId": 456
+    },
+    "queryParams": {
+      "starts_on": "2026-08-01",
+      "ends_on": "2026-08-31",
+      "page": "older-starts"
+    },
+    "mockResponses": [
+      {
+        "status": 200,
+        "body": {
+          "Calendar::Event": [{"id": 702, "title": "Weekly planning"}]
+        }
+      }
+    ],
+    "assertions": [
+      {"type": "requestCount", "expected": 1},
+      {"type": "statusCode", "expected": 200},
+      {"type": "requestQuery", "expected": {"starts_on": "2026-08-01", "ends_on": "2026-08-31", "page": "older-starts"}},
+      {"type": "noError"}
+    ],
+    "tags": ["pagination", "calendars"]
+  },
+  {
     "name": "Tracked time is read without empty pagination parameters",
     "description": "Verifies that an unfiltered first read of the tracked-time index sends neither page nor category_id, so geared_pagination is not handed a blank cursor",
     "operation": "ListTimeTracks",

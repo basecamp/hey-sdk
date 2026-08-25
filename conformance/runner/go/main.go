@@ -1038,7 +1038,12 @@ func executeOperation(client *generated.Client, ctx context.Context, tc TestCase
 		return client.ListCalendars(ctx)
 	case "GetCalendarRecordings":
 		calendarId := getInt64Param(tc.PathParams, "calendarId")
-		return client.GetCalendarRecordings(ctx, calendarId, nil)
+		params := &generated.GetCalendarRecordingsParams{
+			StartsOn: getStringPtrParam(tc.QueryParams, "starts_on"),
+			EndsOn:   getStringPtrParam(tc.QueryParams, "ends_on"),
+			Page:     getStringPtrParam(tc.QueryParams, "page"),
+		}
+		return client.GetCalendarRecordings(ctx, calendarId, params)
 
 	// Calendar Todos
 	case "CreateCalendarTodo":

@@ -2138,6 +2138,9 @@ structure GetCalendarRecordingsInput {
 
     @httpQuery("ends_on")
     ends_on: String
+
+    @httpQuery("page")
+    page: String
 }
 
 structure GetCalendarRecordingsOutput {

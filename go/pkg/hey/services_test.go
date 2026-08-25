@@ -694,6 +694,33 @@ func TestCalendarsService_GetRecordings(t *testing.T) {
 	}
 }
 
+func TestCalendarsService_GetRecordingsPage(t *testing.T) {
+	var gotPage string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotPage = r.URL.Query().Get("page")
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Link", `<http://`+r.Host+`/calendars/1/recordings.json?page=next-cursor>; rel="next"`)
+		_, _ = io.WriteString(w, `{"Calendar::Event":[{"id":1}]}`)
+	}))
+	t.Cleanup(server.Close)
+	client := NewClient(&Config{BaseURL: server.URL}, &StaticTokenProvider{Token: "t"}, WithMaxRetries(0))
+
+	cursor := "current-cursor"
+	page, err := client.Calendars().GetRecordingsPage(context.Background(), 1, &generated.GetCalendarRecordingsParams{Page: &cursor})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if gotPage != cursor {
+		t.Errorf("page = %q, want %q", gotPage, cursor)
+	}
+	if page.Recordings == nil || len((*page.Recordings)["Calendar::Event"]) != 1 {
+		t.Errorf("recordings = %+v, want the event page", page.Recordings)
+	}
+	if page.NextPage != "next-cursor" {
+		t.Errorf("next page = %q, want the Link header's cursor", page.NextPage)
+	}
+}
+
 // --- CalendarTodos ---
 
 func TestCalendarTodosService_Create(t *testing.T) {

@@ -1762,6 +1762,7 @@ type ListCalendarWeeksParams struct {
 type GetCalendarRecordingsParams struct {
 	StartsOn *string `form:"starts_on,omitempty" json:"starts_on,omitempty"`
 	EndsOn   *string `form:"ends_on,omitempty" json:"ends_on,omitempty"`
+	Page     *string `form:"page,omitempty" json:"page,omitempty"`
 }
 
 // GetClearancesParams defines parameters for GetClearances.
@@ -6773,6 +6774,22 @@ func NewGetCalendarRecordingsRequest(server string, calendarId int64, params *Ge
 		if params.EndsOn != nil {
 
 			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "ends_on", runtime.ParamLocationQuery, *params.EndsOn); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.Page != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "page", runtime.ParamLocationQuery, *params.Page); err != nil {
 				return nil, err
 			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
 				return nil, err
