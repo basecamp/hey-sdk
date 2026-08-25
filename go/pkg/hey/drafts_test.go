@@ -183,6 +183,30 @@ func TestMessagesService_UpdateDraft_ReplacesRecipientsWithWhatIsSent(t *testing
 	}
 }
 
+func TestMessagesService_UpdateDraft_PreservesExplicitSender(t *testing.T) {
+	client := newDraftTestClient(t, map[string]draftTestRoute{
+		"/messages/12345.json": {
+			method: "PUT",
+			status: http.StatusNoContent,
+			validate: func(t *testing.T, body map[string]any) {
+				t.Helper()
+				if body["acting_sender_id"] != float64(77) {
+					t.Errorf("acting_sender_id = %v, want 77", body["acting_sender_id"])
+				}
+			},
+		},
+	})
+
+	err := client.Messages().UpdateDraft(context.Background(), 12345, DraftContent{
+		ActingSenderID: 77,
+		Subject:        "Quarterly planning",
+		Content:        "<div>Agenda.</div>",
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
 func TestMessagesService_SendDraft(t *testing.T) {
 	client := newDraftTestClient(t, map[string]draftTestRoute{
 		"/messages/12345.json": {
@@ -321,6 +345,40 @@ func TestEntriesService_CreateReplyDraft(t *testing.T) {
 	}
 	if id != 777 {
 		t.Errorf("draft entry id = %d, want 777 (from Location)", id)
+	}
+}
+
+func TestEntriesService_CreateReplyDraftWithSender(t *testing.T) {
+	client := newDraftTestClient(t, map[string]draftTestRoute{
+		"/entries/10/replies.json": {
+			method:   "POST",
+			status:   http.StatusNoContent,
+			location: "https://app.hey.com/messages/778",
+			validate: func(t *testing.T, body map[string]any) {
+				t.Helper()
+				if body["acting_sender_id"] != float64(77) {
+					t.Errorf("acting_sender_id = %v, want 77", body["acting_sender_id"])
+				}
+			},
+		},
+	})
+
+	id, err := client.Entries().CreateReplyDraftWithSender(context.Background(), 10, 77,
+		"<div>Drafting a reply.</div>", []string{"maria@example.com"}, nil, nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if id != 778 {
+		t.Errorf("draft entry id = %d, want 778", id)
+	}
+}
+
+func TestEntriesService_CreateReplyDraftWithSenderRequiresPositiveID(t *testing.T) {
+	client := newDraftTestClient(t, nil)
+	_, err := client.Entries().CreateReplyDraftWithSender(context.Background(), 10, 0,
+		"<div>Drafting a reply.</div>", nil, nil, nil)
+	if e := AsError(err); e == nil || e.Code != CodeUsage {
+		t.Fatalf("expected a usage error, got %#v", err)
 	}
 }
 

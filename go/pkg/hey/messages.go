@@ -106,15 +106,25 @@ func entryPayload(to, cc, bcc []string) *generated.MessageEntryPayload {
 // whole of it — see UpdateDraft — so a caller edits by reading the draft (GetEdit),
 // changing fields and sending everything back.
 type DraftContent struct {
-	Subject string
-	Content string
-	To      []string
-	CC      []string
-	BCC     []string
+	// ActingSenderID preserves the sender already selected on an existing draft.
+	// Zero selects the identity's default sender for a new draft.
+	ActingSenderID int64
+	Subject        string
+	Content        string
+	To             []string
+	CC             []string
+	BCC            []string
 
 	// Schedule delivers the draft at an hour of a day. Nil means no scheduled
 	// delivery — and on an update, clears one already set.
 	Schedule *DraftSchedule
+}
+
+func (s *MessagesService) draftSenderID(ctx context.Context, draft DraftContent) (int64, error) {
+	if draft.ActingSenderID > 0 {
+		return draft.ActingSenderID, nil
+	}
+	return s.client.DefaultSenderID(ctx)
 }
 
 // DraftSchedule names a delivery time to the hour, read in the identity's time zone.
@@ -177,7 +187,7 @@ func (s *MessagesService) CreateDraft(ctx context.Context, draft DraftContent) (
 	}
 
 	err = s.client.instrument(ctx, op, func(ctx context.Context) error {
-		senderID, serr := s.client.DefaultSenderID(ctx)
+		senderID, serr := s.draftSenderID(ctx, draft)
 		if serr != nil {
 			return serr
 		}
@@ -212,7 +222,7 @@ func (s *MessagesService) UpdateDraft(ctx context.Context, entryID int64, draft 
 	}
 
 	return s.client.instrument(ctx, op, func(ctx context.Context) error {
-		senderID, serr := s.client.DefaultSenderID(ctx)
+		senderID, serr := s.draftSenderID(ctx, draft)
 		if serr != nil {
 			return serr
 		}
@@ -249,7 +259,7 @@ func (s *MessagesService) SendDraft(ctx context.Context, entryID int64, draft Dr
 	}
 
 	return s.client.instrument(ctx, op, func(ctx context.Context) error {
-		senderID, serr := s.client.DefaultSenderID(ctx)
+		senderID, serr := s.draftSenderID(ctx, draft)
 		if serr != nil {
 			return serr
 		}
