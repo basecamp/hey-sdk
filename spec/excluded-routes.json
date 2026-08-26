@@ -1706,11 +1706,6 @@
   },
   {
     "method": "GET",
-    "path": "/imbox/seen",
-    "reason": "phase-2: imbox management"
-  },
-  {
-    "method": "GET",
     "path": "/imbox/unseen",
     "reason": "phase-2: imbox management"
   },

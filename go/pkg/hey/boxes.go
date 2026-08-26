@@ -111,6 +111,35 @@ func (s *BoxesService) GetImbox(ctx context.Context, params *generated.GetImboxP
 	return resp.JSON200, nil
 }
 
+// GetImboxSeen returns the Imbox's Previously Seen postings, ordered by when
+// they were seen (observed_at desc). The response's next_history_url names the
+// /imbox route, but its page cursor belongs to the seen scope — extract the
+// cursor and feed it back to GetImboxSeen, never to GetImbox.
+func (s *BoxesService) GetImboxSeen(ctx context.Context, params *generated.GetImboxSeenParams) (result *generated.BoxShowResponse, err error) {
+	op := OperationInfo{
+		Service: "Boxes", Operation: "GetImboxSeen",
+		ResourceType: "box", IsMutation: false,
+	}
+	if gater, ok := s.client.hooks.(GatingHooks); ok {
+		if ctx, err = gater.OnOperationGate(ctx, op); err != nil {
+			return
+		}
+	}
+	start := time.Now()
+	ctx = s.client.hooks.OnOperationStart(ctx, op)
+	defer func() { s.client.hooks.OnOperationEnd(ctx, op, err, time.Since(start)) }()
+
+	s.client.initGeneratedClient()
+	resp, err := s.client.gen.GetImboxSeenWithResponse(ctx, params)
+	if err != nil {
+		return nil, err
+	}
+	if err = CheckResponse(resp.HTTPResponse); err != nil {
+		return nil, err
+	}
+	return resp.JSON200, nil
+}
+
 // GetFeedbox returns the Feed.
 func (s *BoxesService) GetFeedbox(ctx context.Context, params *generated.GetFeedboxParams) (result *generated.BoxShowResponse, err error) {
 	op := OperationInfo{

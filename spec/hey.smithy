@@ -71,6 +71,7 @@ service HEY {
         ListBoxes
         GetBox
         GetImbox
+        GetImboxSeen
         GetFeedbox
         GetTrailbox
         GetAsidebox
@@ -1323,6 +1324,22 @@ structure GetNamedBoxInput {
 }
 
 structure GetNamedBoxOutput {
+    @required
+    box: BoxShowResponse
+}
+
+/// Get the Imbox's Previously Seen postings
+@readonly
+@http(method: "GET", uri: "/imbox/seen.json")
+@tags(["Boxes"])
+@heyRetry(maxAttempts: 3, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+operation GetImboxSeen {
+    input: GetNamedBoxInput
+    output: GetImboxSeenOutput
+    errors: [UnauthorizedError, InternalServerError, ServiceUnavailableError]
+}
+
+structure GetImboxSeenOutput {
     @required
     box: BoxShowResponse
 }

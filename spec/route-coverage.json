@@ -256,6 +256,11 @@
   },
   {
     "method": "GET",
+    "operationId": "GetImboxSeen",
+    "path": "/imbox/seen.json"
+  },
+  {
+    "method": "GET",
     "operationId": "GetJournalEntry",
     "path": "/calendar/days/{day}/journal_entry"
   },

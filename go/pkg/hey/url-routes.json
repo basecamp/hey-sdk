@@ -665,6 +665,14 @@
       "params": {}
     },
     {
+      "pattern": "/imbox/seen",
+      "resource": "Boxes",
+      "operations": {
+        "GET": "GetImboxSeen"
+      },
+      "params": {}
+    },
+    {
       "pattern": "/messages",
       "resource": "Messages",
       "operations": {

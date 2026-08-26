@@ -808,6 +808,11 @@ type GetIdentityResponseContent = Identity
 // SDK response decoders normalize the nested variant to flat before decoding.
 type GetImboxResponseContent = BoxShowResponse
 
+// GetImboxSeenResponseContent BoxShowResponse — box detail with postings.
+// The API can return fields at root level or nested under a `box` key.
+// SDK response decoders normalize the nested variant to flat before decoding.
+type GetImboxSeenResponseContent = BoxShowResponse
+
 // GetJournalEntryResponseContent Recording — polymorphic by `type` (CalendarEvent, CalendarTodo, etc.)
 type GetJournalEntryResponseContent = Recording
 
@@ -1825,6 +1830,11 @@ type GetImboxParams struct {
 	Page *string `form:"page,omitempty" json:"page,omitempty"`
 }
 
+// GetImboxSeenParams defines parameters for GetImboxSeen.
+type GetImboxSeenParams struct {
+	Page *string `form:"page,omitempty" json:"page,omitempty"`
+}
+
 // GetMyClearancesParams defines parameters for GetMyClearances.
 type GetMyClearancesParams struct {
 	Page *string `form:"page,omitempty" json:"page,omitempty"`
@@ -2526,6 +2536,9 @@ type ClientInterface interface {
 
 	// GetImbox request
 	GetImbox(ctx context.Context, params *GetImboxParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetImboxSeen request
+	GetImboxSeen(ctx context.Context, params *GetImboxSeenParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// CreateMessageWithBody request with any body
 	CreateMessageWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -3878,6 +3891,16 @@ func (c *Client) GetImbox(ctx context.Context, params *GetImboxParams, reqEditor
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
 		return NewGetImboxRequest(c.Server, params)
 	}, true, "GetImbox", reqEditors...)
+
+}
+
+// GetImboxSeen is marked as idempotent and will be retried on transient failures.
+
+func (c *Client) GetImboxSeen(ctx context.Context, params *GetImboxSeenParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+
+	return c.doWithRetry(ctx, func() (*http.Request, error) {
+		return NewGetImboxSeenRequest(c.Server, params)
+	}, true, "GetImboxSeen", reqEditors...)
 
 }
 
@@ -8201,6 +8224,55 @@ func NewGetImboxRequest(server string, params *GetImboxParams) (*http.Request, e
 	return req, nil
 }
 
+// NewGetImboxSeenRequest generates requests for GetImboxSeen
+func NewGetImboxSeenRequest(server string, params *GetImboxSeenParams) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/imbox/seen.json")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if params.Page != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "page", runtime.ParamLocationQuery, *params.Page); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewCreateMessageRequest calls the generic CreateMessage builder with application/json body
 func NewCreateMessageRequest(server string, body CreateMessageJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
@@ -10371,6 +10443,7 @@ var operationMetadata = map[string]OperationMetadata{
 	"GetIdentity":                {Idempotent: true, HasSensitiveParams: false},
 	"UpdateTimeFormat":           {Idempotent: true, HasSensitiveParams: false},
 	"GetImbox":                   {Idempotent: true, HasSensitiveParams: false},
+	"GetImboxSeen":               {Idempotent: true, HasSensitiveParams: false},
 	"CreateMessage":              {Idempotent: false, HasSensitiveParams: false},
 	"GetMessage":                 {Idempotent: true, HasSensitiveParams: false},
 	"UpdateMessage":              {Idempotent: true, HasSensitiveParams: false},
@@ -11786,6 +11859,13 @@ type ClientWithResponsesInterface interface {
 	//
 	// Returns a wrapper object for the known response body format(s).
 	GetImboxWithResponse(ctx context.Context, params *GetImboxParams, reqEditors ...RequestEditorFn) (*GetImboxResponse, error)
+
+	// GetImboxSeenWithResponse performs a GET /imbox/seen.json (the `GetImboxSeen` operationId) request.
+	//
+	// Get the Imbox's Previously Seen postings.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	GetImboxSeenWithResponse(ctx context.Context, params *GetImboxSeenParams, reqEditors ...RequestEditorFn) (*GetImboxSeenResponse, error)
 
 	// CreateMessageWithBodyWithResponse performs a POST /messages.json (the `CreateMessage` operationId) request,
 	// with any type of body and a specified content type.
@@ -17443,6 +17523,68 @@ func (r GetImboxResponse) ContentType() string {
 	return ""
 }
 
+type GetImboxSeenResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *GetImboxSeenResponseContent
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *UnauthorizedErrorResponseContent
+	// JSON500 the response for an HTTP 500 `application/json` response
+	JSON500 *InternalServerErrorResponseContent
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *ServiceUnavailableErrorResponseContent
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r GetImboxSeenResponse) GetJSON200() *GetImboxSeenResponseContent {
+	return r.JSON200
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r GetImboxSeenResponse) GetJSON401() *UnauthorizedErrorResponseContent {
+	return r.JSON401
+}
+
+// GetJSON500 returns the response for an HTTP 500 `application/json` response
+func (r GetImboxSeenResponse) GetJSON500() *InternalServerErrorResponseContent {
+	return r.JSON500
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r GetImboxSeenResponse) GetJSON503() *ServiceUnavailableErrorResponseContent {
+	return r.JSON503
+}
+
+// GetBody returns the raw response body bytes
+func (r GetImboxSeenResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r GetImboxSeenResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetImboxSeenResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r GetImboxSeenResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type CreateMessageResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -21914,6 +22056,19 @@ func (c *ClientWithResponses) GetImboxWithResponse(ctx context.Context, params *
 		return nil, err
 	}
 	return ParseGetImboxResponse(rsp)
+}
+
+// GetImboxSeenWithResponse performs a GET /imbox/seen.json (the `GetImboxSeen` operationId) request.
+//
+// Get the Imbox's Previously Seen postings.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) GetImboxSeenWithResponse(ctx context.Context, params *GetImboxSeenParams, reqEditors ...RequestEditorFn) (*GetImboxSeenResponse, error) {
+	rsp, err := c.GetImboxSeen(ctx, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetImboxSeenResponse(rsp)
 }
 
 // CreateMessageWithBodyWithResponse performs a POST /messages.json (the `CreateMessage` operationId) request,
@@ -26871,6 +27026,53 @@ func ParseGetImboxResponse(rsp *http.Response) (*GetImboxResponse, error) {
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest GetImboxResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest UnauthorizedErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest InternalServerErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+		var dest ServiceUnavailableErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON503 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetImboxSeenResponse parses an HTTP response from a GetImboxSeenWithResponse call
+func ParseGetImboxSeenResponse(rsp *http.Response) (*GetImboxSeenResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetImboxSeenResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest GetImboxSeenResponseContent
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}

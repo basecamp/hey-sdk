@@ -6303,6 +6303,76 @@
         }
       }
     },
+    "/imbox/seen.json": {
+      "get": {
+        "description": "Get the Imbox's Previously Seen postings",
+        "operationId": "GetImboxSeen",
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "x-go-type-skip-optional-pointer": false
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "GetImboxSeen 200 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetImboxSeenResponseContent"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UnauthorizedError 401 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnauthorizedErrorResponseContent"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "InternalServerError 500 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorResponseContent"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ServiceUnavailableError 503 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceUnavailableErrorResponseContent"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Boxes"
+        ],
+        "x-hey-retry": {
+          "maxAttempts": 3,
+          "baseDelayMs": 1000,
+          "backoff": "exponential",
+          "retryOn": [
+            429,
+            503
+          ]
+        }
+      }
+    },
     "/messages.json": {
       "post": {
         "description": "Create a new message (start a new topic).\nThe acting sender ID must be included; the Go SDK resolves this automatically.\nEvery message is created drafted on HEY's side; without entry.status the server\ndelivers it, while entry.status \"drafted\" leaves it as a draft and answers\n204 with a Location header naming /messages/{entry_id}.",
@@ -11949,6 +12019,9 @@
         "$ref": "#/components/schemas/Identity"
       },
       "GetImboxResponseContent": {
+        "$ref": "#/components/schemas/BoxShowResponse"
+      },
+      "GetImboxSeenResponseContent": {
         "$ref": "#/components/schemas/BoxShowResponse"
       },
       "GetJournalEntryResponseContent": {
