@@ -121,6 +121,9 @@ type DraftContent struct {
 }
 
 func (s *MessagesService) draftSenderID(ctx context.Context, draft DraftContent) (int64, error) {
+	if draft.ActingSenderID < 0 {
+		return 0, ErrUsage("acting sender ID must be zero or a positive integer")
+	}
 	if draft.ActingSenderID > 0 {
 		return draft.ActingSenderID, nil
 	}

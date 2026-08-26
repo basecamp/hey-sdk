@@ -207,6 +207,45 @@ func TestMessagesService_UpdateDraft_PreservesExplicitSender(t *testing.T) {
 	}
 }
 
+func TestMessagesService_DraftWritesRejectNegativeSenderID(t *testing.T) {
+	client := newDraftTestClient(t, nil)
+	draft := DraftContent{
+		ActingSenderID: -1,
+		Subject:        "Quarterly planning",
+		Content:        "<div>Agenda.</div>",
+		To:             []string{"maria@example.com"},
+	}
+
+	tests := []struct {
+		name  string
+		write func() error
+	}{
+		{
+			name: "create",
+			write: func() error {
+				_, err := client.Messages().CreateDraft(context.Background(), draft)
+				return err
+			},
+		},
+		{
+			name:  "update",
+			write: func() error { return client.Messages().UpdateDraft(context.Background(), 12345, draft) },
+		},
+		{
+			name:  "send",
+			write: func() error { return client.Messages().SendDraft(context.Background(), 12345, draft) },
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if e := AsError(tt.write()); e == nil || e.Code != CodeUsage {
+				t.Fatalf("expected a usage error, got %#v", e)
+			}
+		})
+	}
+}
+
 func TestMessagesService_SendDraft(t *testing.T) {
 	client := newDraftTestClient(t, map[string]draftTestRoute{
 		"/messages/12345.json": {
