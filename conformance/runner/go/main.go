@@ -1031,7 +1031,9 @@ func executeOperation(client *generated.Client, ctx context.Context, tc TestCase
 		return client.ListContacts(ctx, nil)
 	case "GetContact":
 		contactId := getInt64Param(tc.PathParams, "contactId")
-		return client.GetContact(ctx, contactId)
+		return client.GetContact(ctx, contactId, &generated.GetContactParams{
+			Page: getStringPtrParam(tc.QueryParams, "page"),
+		})
 
 	// Calendars
 	case "ListCalendars":

@@ -664,6 +664,42 @@ func TestContactsService_Get(t *testing.T) {
 	}
 }
 
+func TestContactsService_ThreadsPage(t *testing.T) {
+	var queries []string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		queries = append(queries, r.URL.RawQuery)
+		w.Header().Set("Content-Type", "application/json")
+		if r.URL.Query().Get("page") == "" {
+			w.Header().Set("Link", `<http://`+r.Host+`/contacts/88.json?page=b2xkZXI>; rel="next"`)
+		}
+		_, _ = w.Write([]byte(`{"id":88,"name":"GitHub","entries_title":"All threads with GitHub","postings":[{"id":501,"kind":"topic","name":"Deploy failed on main","app_url":"https://app.hey.com/topics/9001"}]}`))
+	}))
+	t.Cleanup(server.Close)
+	client := NewClient(&Config{BaseURL: server.URL}, &StaticTokenProvider{Token: "test-token"}, WithMaxRetries(0))
+
+	page, err := client.Contacts().ThreadsPage(context.Background(), 88, "")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if page.Contact.EntriesTitle != "All threads with GitHub" || len(page.Contact.Postings) != 1 {
+		t.Errorf("page = %+v", page.Contact)
+	}
+	if page.NextPage != "b2xkZXI" {
+		t.Errorf("NextPage = %q, want the Link header's cursor", page.NextPage)
+	}
+
+	next, err := client.Contacts().ThreadsPage(context.Background(), 88, page.NextPage)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if next.NextPage != "" {
+		t.Errorf("NextPage = %q, want none on the last page", next.NextPage)
+	}
+	if len(queries) != 2 || queries[0] != "" || queries[1] != "page=b2xkZXI" {
+		t.Errorf("queries = %q, want the cursor passed through", queries)
+	}
+}
+
 // --- Calendars ---
 
 func TestCalendarsService_List(t *testing.T) {

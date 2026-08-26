@@ -4679,7 +4679,7 @@
         }
       },
       "get": {
-        "description": "Get a contact",
+        "description": "Get a contact, with a page of the threads they are on",
         "operationId": "GetContact",
         "parameters": [
           {
@@ -4690,6 +4690,14 @@
               "format": "int64"
             },
             "required": true
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "x-go-type-skip-optional-pointer": false
+            }
           }
         ],
         "responses": {
@@ -4747,6 +4755,10 @@
         "tags": [
           "Contacts"
         ],
+        "x-hey-pagination": {
+          "style": "link",
+          "totalCountHeader": "X-Total-Count"
+        },
         "x-hey-retry": {
           "maxAttempts": 3,
           "baseDelayMs": 1000,
@@ -11180,6 +11192,17 @@
           },
           "domain": {
             "$ref": "#/components/schemas/Domain"
+          },
+          "entries_title": {
+            "type": "string",
+            "description": "The heading HEY gives the thread list, e.g. \"All threads with GitHub\""
+          },
+          "postings": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Posting"
+            },
+            "description": "One page of the threads this contact is on, newest first"
           }
         },
         "required": [

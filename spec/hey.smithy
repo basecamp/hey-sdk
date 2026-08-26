@@ -1894,11 +1894,12 @@ structure ListContactsOutput {
     contacts: ContactList
 }
 
-/// Get a contact
+/// Get a contact, with a page of the threads they are on
 @readonly
 @http(method: "GET", uri: "/contacts/{contactId}")
 @tags(["Contacts"])
 @heyRetry(maxAttempts: 3, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+@heyPagination(style: "link", totalCountHeader: "X-Total-Count")
 operation GetContact {
     input: GetContactInput
     output: GetContactOutput
@@ -1909,6 +1910,9 @@ structure GetContactInput {
     @httpLabel
     @required
     contactId: Long
+
+    @httpQuery("page")
+    page: String
 }
 
 /// ContactDetail — extended contact with additional show fields
@@ -1929,6 +1933,12 @@ structure ContactDetail {
     clearance: Clearance
     aliases: ContactList
     domain: Domain
+
+    /// The heading HEY gives the thread list, e.g. "All threads with GitHub"
+    entries_title: String
+
+    /// One page of the threads this contact is on, newest first
+    postings: PostingList
 }
 
 structure GetContactOutput {

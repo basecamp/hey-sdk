@@ -52,6 +52,37 @@
     "tags": ["pagination", "postings"]
   },
   {
+    "name": "A contact's threads carry the geared pagination cursor",
+    "description": "Verifies that reading a contact's thread list sends the opaque cursor from the previous Link header",
+    "operation": "GetContact",
+    "method": "GET",
+    "path": "/contacts/{contactId}.json",
+    "pathParams": {
+      "contactId": 88
+    },
+    "queryParams": {
+      "page": "older-threads"
+    },
+    "mockResponses": [
+      {
+        "status": 200,
+        "body": {
+          "id": 88,
+          "name": "GitHub",
+          "entries_title": "All threads with GitHub",
+          "postings": [{"id": 501, "kind": "topic", "name": "Deploy failed on main"}]
+        }
+      }
+    ],
+    "assertions": [
+      {"type": "requestCount", "expected": 1},
+      {"type": "statusCode", "expected": 200},
+      {"type": "requestQuery", "expected": {"page": "older-threads"}},
+      {"type": "noError"}
+    ],
+    "tags": ["pagination", "contacts"]
+  },
+  {
     "name": "Calendar recordings carry the geared pagination cursor",
     "description": "Verifies that calendar recording windows send their dates and the opaque cursor from the previous Link header",
     "operation": "GetCalendarRecordings",

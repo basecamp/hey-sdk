@@ -452,10 +452,16 @@ type ContactDetail struct {
 	Domain       Domain `json:"domain,omitempty"`
 	EditAppUrl   string `json:"edit_app_url,omitempty"`
 	EmailAddress string `json:"email_address,omitempty"`
+
+	// EntriesTitle The heading HEY gives the thread list, e.g. "All threads with GitHub"
+	EntriesTitle string `json:"entries_title,omitempty"`
 	Id           int64  `json:"id"`
 	Initials     string `json:"initials,omitempty"`
 	Name         string `json:"name,omitempty"`
 	NameTag      string `json:"name_tag,omitempty"`
+
+	// Postings One page of the threads this contact is on, newest first
+	Postings []Posting `json:"postings,omitempty"`
 
 	// UpdatedAt ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)
 	UpdatedAt time.Time `json:"updated_at,omitempty,omitzero"`
@@ -1794,6 +1800,11 @@ type ListContactsParams struct {
 	Q    *string `form:"q,omitempty" json:"q,omitempty"`
 }
 
+// GetContactParams defines parameters for GetContact.
+type GetContactParams struct {
+	Page *string `form:"page,omitempty" json:"page,omitempty"`
+}
+
 // ListDraftsParams defines parameters for ListDrafts.
 type ListDraftsParams struct {
 	Page *string `form:"page,omitempty" json:"page,omitempty"`
@@ -2447,7 +2458,7 @@ type ClientInterface interface {
 	HideContact(ctx context.Context, contactId int64, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// GetContact request
-	GetContact(ctx context.Context, contactId int64, reqEditors ...RequestEditorFn) (*http.Response, error)
+	GetContact(ctx context.Context, contactId int64, params *GetContactParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// UpdateContactWithBody request with any body
 	UpdateContactWithBody(ctx context.Context, contactId int64, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -3572,10 +3583,10 @@ func (c *Client) HideContact(ctx context.Context, contactId int64, reqEditors ..
 
 // GetContact is marked as idempotent and will be retried on transient failures.
 
-func (c *Client) GetContact(ctx context.Context, contactId int64, reqEditors ...RequestEditorFn) (*http.Response, error) {
+func (c *Client) GetContact(ctx context.Context, contactId int64, params *GetContactParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
 
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
-		return NewGetContactRequest(c.Server, contactId)
+		return NewGetContactRequest(c.Server, contactId, params)
 	}, true, "GetContact", reqEditors...)
 
 }
@@ -7371,7 +7382,7 @@ func NewHideContactRequest(server string, contactId int64) (*http.Request, error
 }
 
 // NewGetContactRequest generates requests for GetContact
-func NewGetContactRequest(server string, contactId int64) (*http.Request, error) {
+func NewGetContactRequest(server string, contactId int64, params *GetContactParams) (*http.Request, error) {
 	var err error
 
 	var pathParam0 string
@@ -7394,6 +7405,28 @@ func NewGetContactRequest(server string, contactId int64) (*http.Request, error)
 	queryURL, err := serverURL.Parse(operationPath)
 	if err != nil {
 		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if params.Page != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "page", runtime.ParamLocationQuery, *params.Page); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
 	}
 
 	req, err := http.NewRequest("GET", queryURL.String(), nil)
@@ -11569,10 +11602,10 @@ type ClientWithResponsesInterface interface {
 
 	// GetContactWithResponse performs a GET /contacts/{contactId} (the `GetContact` operationId) request.
 	//
-	// Get a contact.
+	// Get a contact, with a page of the threads they are on
 	//
 	// Returns a wrapper object for the known response body format(s).
-	GetContactWithResponse(ctx context.Context, contactId int64, reqEditors ...RequestEditorFn) (*GetContactResponse, error)
+	GetContactWithResponse(ctx context.Context, contactId int64, params *GetContactParams, reqEditors ...RequestEditorFn) (*GetContactResponse, error)
 
 	// UpdateContactWithBodyWithResponse performs a PATCH /contacts/{contactId} (the `UpdateContact` operationId) request,
 	// with any type of body and a specified content type.
@@ -21548,11 +21581,11 @@ func (c *ClientWithResponses) HideContactWithResponse(ctx context.Context, conta
 
 // GetContactWithResponse performs a GET /contacts/{contactId} (the `GetContact` operationId) request.
 //
-// Get a contact.
+// # Get a contact, with a page of the threads they are on
 //
 // Returns a wrapper object for the known response body format(s).
-func (c *ClientWithResponses) GetContactWithResponse(ctx context.Context, contactId int64, reqEditors ...RequestEditorFn) (*GetContactResponse, error) {
-	rsp, err := c.GetContact(ctx, contactId, reqEditors...)
+func (c *ClientWithResponses) GetContactWithResponse(ctx context.Context, contactId int64, params *GetContactParams, reqEditors ...RequestEditorFn) (*GetContactResponse, error) {
+	rsp, err := c.GetContact(ctx, contactId, params, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
