@@ -743,6 +743,13 @@ type GetBoxResponseContent = BoxShowResponse
 // SDK response decoders normalize the nested variant to flat before decoding.
 type GetBubbleboxResponseContent = BoxShowResponse
 
+// GetBundleUnseenPostingsResponseContent defines model for GetBundleUnseenPostingsResponseContent.
+type GetBundleUnseenPostingsResponseContent struct {
+	// Contact Contact — the identity of someone in HEY
+	Contact  Contact   `json:"contact"`
+	Postings []Posting `json:"postings"`
+}
+
 // GetCalendarDayResponseContent CalendarPeriod — a day or a week: its bounds and everything in it, grouped by type.
 // Recurring events arrive expanded into the occurrences that fall inside the window,
 // which is what makes this a different answer than the recordings a calendar lists.
@@ -1842,6 +1849,11 @@ type UnmutePostingsParams struct {
 	PostingIds string `form:"posting_ids" json:"posting_ids"`
 }
 
+// GetBundleUnseenPostingsParams defines parameters for GetBundleUnseenPostings.
+type GetBundleUnseenPostingsParams struct {
+	Page *string `form:"page,omitempty" json:"page,omitempty"`
+}
+
 // GetLaterboxParams defines parameters for GetLaterbox.
 type GetLaterboxParams struct {
 	Page *string `form:"page,omitempty" json:"page,omitempty"`
@@ -2600,6 +2612,9 @@ type ClientInterface interface {
 	MarkPostingsUnseenWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	MarkPostingsUnseen(ctx context.Context, body MarkPostingsUnseenJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetBundleUnseenPostings request
+	GetBundleUnseenPostings(ctx context.Context, postingId int64, params *GetBundleUnseenPostingsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// CreateDirectUploadWithBody request with any body
 	CreateDirectUploadWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -4362,6 +4377,16 @@ func (c *Client) MarkPostingsUnseen(ctx context.Context, body MarkPostingsUnseen
 		return nil, err
 	}
 	return c.Client.Do(req)
+
+}
+
+// GetBundleUnseenPostings is marked as idempotent and will be retried on transient failures.
+
+func (c *Client) GetBundleUnseenPostings(ctx context.Context, postingId int64, params *GetBundleUnseenPostingsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+
+	return c.doWithRetry(ctx, func() (*http.Request, error) {
+		return NewGetBundleUnseenPostingsRequest(c.Server, postingId, params)
+	}, true, "GetBundleUnseenPostings", reqEditors...)
 
 }
 
@@ -9106,6 +9131,62 @@ func NewMarkPostingsUnseenRequestWithBody(server string, contentType string, bod
 	return req, nil
 }
 
+// NewGetBundleUnseenPostingsRequest generates requests for GetBundleUnseenPostings
+func NewGetBundleUnseenPostingsRequest(server string, postingId int64, params *GetBundleUnseenPostingsParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "postingId", runtime.ParamLocationPath, postingId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/postings/%s/bundles/unseen.json", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if params.Page != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "page", runtime.ParamLocationQuery, *params.Page); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewCreateDirectUploadRequest calls the generic CreateDirectUpload builder with application/json body
 func NewCreateDirectUploadRequest(server string, body CreateDirectUploadJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
@@ -10280,6 +10361,7 @@ var operationMetadata = map[string]OperationMetadata{
 	"MarkPostingsSpam":           {Idempotent: false, HasSensitiveParams: false},
 	"TrashPostings":              {Idempotent: false, HasSensitiveParams: false},
 	"MarkPostingsUnseen":         {Idempotent: false, HasSensitiveParams: false},
+	"GetBundleUnseenPostings":    {Idempotent: true, HasSensitiveParams: false},
 	"CreateDirectUpload":         {Idempotent: false, HasSensitiveParams: false},
 	"GetLaterbox":                {Idempotent: true, HasSensitiveParams: false},
 	"GetAsidebox":                {Idempotent: true, HasSensitiveParams: false},
@@ -11993,6 +12075,16 @@ type ClientWithResponsesInterface interface {
 	//
 	// Mark postings as unseen.
 	MarkPostingsUnseenWithResponse(ctx context.Context, body MarkPostingsUnseenJSONRequestBody, reqEditors ...RequestEditorFn) (*MarkPostingsUnseenResponse, error)
+
+	// GetBundleUnseenPostingsWithResponse performs a GET /postings/{postingId}/bundles/unseen.json (the `GetBundleUnseenPostings` operationId) request.
+	//
+	// List the unseen postings inside a bundle posting.
+	//
+	// A bundle posting groups one contact's unseen mail; this is its contents — the member
+	// postings, newest first, paged by cursor like a box. The posting must be a bundle.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	GetBundleUnseenPostingsWithResponse(ctx context.Context, postingId int64, params *GetBundleUnseenPostingsParams, reqEditors ...RequestEditorFn) (*GetBundleUnseenPostingsResponse, error)
 
 	// CreateDirectUploadWithBodyWithResponse performs a POST /rails/active_storage/direct_uploads.json (the `CreateDirectUpload` operationId) request,
 	// with any type of body and a specified content type.
@@ -18765,6 +18857,75 @@ func (r MarkPostingsUnseenResponse) ContentType() string {
 	return ""
 }
 
+type GetBundleUnseenPostingsResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *GetBundleUnseenPostingsResponseContent
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *UnauthorizedErrorResponseContent
+	// JSON404 the response for an HTTP 404 `application/json` response
+	JSON404 *NotFoundErrorResponseContent
+	// JSON500 the response for an HTTP 500 `application/json` response
+	JSON500 *InternalServerErrorResponseContent
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *ServiceUnavailableErrorResponseContent
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r GetBundleUnseenPostingsResponse) GetJSON200() *GetBundleUnseenPostingsResponseContent {
+	return r.JSON200
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r GetBundleUnseenPostingsResponse) GetJSON401() *UnauthorizedErrorResponseContent {
+	return r.JSON401
+}
+
+// GetJSON404 returns the response for an HTTP 404 `application/json` response
+func (r GetBundleUnseenPostingsResponse) GetJSON404() *NotFoundErrorResponseContent {
+	return r.JSON404
+}
+
+// GetJSON500 returns the response for an HTTP 500 `application/json` response
+func (r GetBundleUnseenPostingsResponse) GetJSON500() *InternalServerErrorResponseContent {
+	return r.JSON500
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r GetBundleUnseenPostingsResponse) GetJSON503() *ServiceUnavailableErrorResponseContent {
+	return r.JSON503
+}
+
+// GetBody returns the raw response body bytes
+func (r GetBundleUnseenPostingsResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r GetBundleUnseenPostingsResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetBundleUnseenPostingsResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r GetBundleUnseenPostingsResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type CreateDirectUploadResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -22264,6 +22425,22 @@ func (c *ClientWithResponses) MarkPostingsUnseenWithResponse(ctx context.Context
 		return nil, err
 	}
 	return ParseMarkPostingsUnseenResponse(rsp)
+}
+
+// GetBundleUnseenPostingsWithResponse performs a GET /postings/{postingId}/bundles/unseen.json (the `GetBundleUnseenPostings` operationId) request.
+//
+// List the unseen postings inside a bundle posting.
+//
+// A bundle posting groups one contact's unseen mail; this is its contents — the member
+// postings, newest first, paged by cursor like a box. The posting must be a bundle.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) GetBundleUnseenPostingsWithResponse(ctx context.Context, postingId int64, params *GetBundleUnseenPostingsParams, reqEditors ...RequestEditorFn) (*GetBundleUnseenPostingsResponse, error) {
+	rsp, err := c.GetBundleUnseenPostings(ctx, postingId, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetBundleUnseenPostingsResponse(rsp)
 }
 
 // CreateDirectUploadWithBodyWithResponse performs a POST /rails/active_storage/direct_uploads.json (the `CreateDirectUpload` operationId) request,
@@ -27825,6 +28002,60 @@ func ParseMarkPostingsUnseenResponse(rsp *http.Response) (*MarkPostingsUnseenRes
 			return nil, err
 		}
 		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest InternalServerErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+		var dest ServiceUnavailableErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON503 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetBundleUnseenPostingsResponse parses an HTTP response from a GetBundleUnseenPostingsWithResponse call
+func ParseGetBundleUnseenPostingsResponse(rsp *http.Response) (*GetBundleUnseenPostingsResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetBundleUnseenPostingsResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest GetBundleUnseenPostingsResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest UnauthorizedErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFoundErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
 		var dest InternalServerErrorResponseContent

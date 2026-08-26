@@ -16,6 +16,7 @@
   "GetBox": "373b5de0c686345126ca4da129f6991776936ecc1fa1e00fae00cd45cb6436e9",
   "GetBoxPostingChanges": "003137f72b12fc7232fc2127316479999c0d0edcc0f89d53cb07eed1c3854ac1",
   "GetBubblebox": "b736b44d157cb75c0e50a75feb2be37c8f9988024aa8c6503ab7bde347560cce",
+  "GetBundleUnseenPostings": "1dc0e7a2eb92b998bfee38c6e93ad8c9f417fa805c88f7acd1ed9f0711a32ec3",
   "GetCalendarDay": "65bed3aa8452bd710921a9c836d1e6a59f374fe4113171f0cd2a8df53ea288f4",
   "GetCalendarRecordings": "4ff27c9fc232cbd2f3ac3e0f4a4f7ee60e40d5c99e8c8efceefa2ea723e4b5ab",
   "GetCalendarWeek": "b7e262f22ec44f52747aca2b5f9524070802b405fddc9e18d4a1c3c42c6be508",

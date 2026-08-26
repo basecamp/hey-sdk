@@ -302,6 +302,49 @@ func (s *PostingsService) scheduleBubbleUp(ctx context.Context, slot, date strin
 	})
 }
 
+// BundlePage is one page of the unseen postings inside a bundle posting: the bundled
+// contact, the member postings newest first, and the cursor for the page below —
+// empty on the last page.
+type BundlePage struct {
+	Contact  generated.Contact
+	Postings []generated.Posting
+	NextPage string
+}
+
+// BundleUnseenPage reads one page of the unseen postings a bundle posting groups
+// (GET /postings/{id}/bundles/unseen). An empty cursor starts at the top; the next
+// page's cursor comes back on the page before it. The posting must be a bundle.
+func (s *PostingsService) BundleUnseenPage(ctx context.Context, postingID int64, cursor string) (result *BundlePage, err error) {
+	op := OperationInfo{
+		Service: "Postings", Operation: "GetBundleUnseenPostings",
+		ResourceType: "posting", IsMutation: false, ResourceID: postingID,
+	}
+
+	err = s.client.instrument(ctx, op, func(ctx context.Context) error {
+		params := &generated.GetBundleUnseenPostingsParams{}
+		if cursor != "" {
+			params.Page = &cursor
+		}
+		resp, rerr := s.client.genClient().GetBundleUnseenPostingsWithResponse(ctx, postingID, params)
+		if rerr != nil {
+			return rerr
+		}
+		if cerr := CheckResponse(resp.HTTPResponse); cerr != nil {
+			return cerr
+		}
+		result = &BundlePage{}
+		if resp.JSON200 != nil {
+			result.Contact = resp.JSON200.Contact
+			result.Postings = resp.JSON200.Postings
+		}
+		if resp.HTTPResponse != nil {
+			result.NextPage = gearedPageFromLink(resp.HTTPResponse.Header.Get("Link"))
+		}
+		return nil
+	})
+	return result, err
+}
+
 // PostingChangesCursor is where a read of a box's changes feed starts. Since is an ISO
 // 8601 timestamp with milliseconds and is exclusive; Version is the contract version the
 // caller speaks. A box's PostingChangesUrl carries the pair to begin with — read it with

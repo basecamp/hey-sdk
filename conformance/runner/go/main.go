@@ -1175,6 +1175,12 @@ func executeOperation(client *generated.Client, ctx context.Context, tc TestCase
 	case "UnmutePostings":
 		params := &generated.UnmutePostingsParams{PostingIds: getStringParam(tc.QueryParams, "posting_ids")}
 		return client.UnmutePostings(ctx, params)
+	case "GetBundleUnseenPostings":
+		postingId := getInt64Param(tc.PathParams, "postingId")
+		params := &generated.GetBundleUnseenPostingsParams{
+			Page: getStringPtrParam(tc.QueryParams, "page"),
+		}
+		return client.GetBundleUnseenPostings(ctx, postingId, params)
 	case "MarkPostingsSpam":
 		body := generated.MarkPostingsSpamJSONRequestBody{
 			PostingIds: getInt64SliceParam(tc.RequestBody, "posting_ids"),

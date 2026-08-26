@@ -829,6 +829,19 @@
       "params": {}
     },
     {
+      "pattern": "/postings/{postingId}/bundles/unseen",
+      "resource": "Postings",
+      "operations": {
+        "GET": "GetBundleUnseenPostings"
+      },
+      "params": {
+        "postingId": {
+          "role": "parent",
+          "type": "int64"
+        }
+      }
+    },
+    {
       "pattern": "/rails/active_storage/direct_uploads",
       "resource": "Attachments",
       "operations": {

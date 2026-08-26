@@ -8010,6 +8010,99 @@
         }
       }
     },
+    "/postings/{postingId}/bundles/unseen.json": {
+      "get": {
+        "description": "List the unseen postings inside a bundle posting.\n\nA bundle posting groups one contact's unseen mail; this is its contents — the member\npostings, newest first, paged by cursor like a box. The posting must be a bundle.",
+        "operationId": "GetBundleUnseenPostings",
+        "parameters": [
+          {
+            "name": "postingId",
+            "in": "path",
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "required": true
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "x-go-type-skip-optional-pointer": false
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "GetBundleUnseenPostings 200 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetBundleUnseenPostingsResponseContent"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UnauthorizedError 401 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnauthorizedErrorResponseContent"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError 404 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundErrorResponseContent"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "InternalServerError 500 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorResponseContent"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ServiceUnavailableError 503 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceUnavailableErrorResponseContent"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Postings"
+        ],
+        "x-hey-pagination": {
+          "style": "link",
+          "totalCountHeader": "X-Total-Count"
+        },
+        "x-hey-retry": {
+          "maxAttempts": 3,
+          "baseDelayMs": 1000,
+          "backoff": "exponential",
+          "retryOn": [
+            429,
+            503
+          ]
+        }
+      }
+    },
     "/rails/active_storage/direct_uploads.json": {
       "post": {
         "description": "Create an Active Storage direct upload for an outgoing attachment.\nThe returned URL is self-authenticating and accepts the raw file bytes via PUT.",
@@ -11777,6 +11870,24 @@
       },
       "GetBubbleboxResponseContent": {
         "$ref": "#/components/schemas/BoxShowResponse"
+      },
+      "GetBundleUnseenPostingsResponseContent": {
+        "type": "object",
+        "properties": {
+          "contact": {
+            "$ref": "#/components/schemas/Contact"
+          },
+          "postings": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Posting"
+            }
+          }
+        },
+        "required": [
+          "contact",
+          "postings"
+        ]
       },
       "GetCalendarDayResponseContent": {
         "$ref": "#/components/schemas/CalendarPeriod"

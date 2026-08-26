@@ -23,6 +23,35 @@
     "tags": ["pagination", "link-header"]
   },
   {
+    "name": "Bundle unseen postings carry the geared pagination cursor",
+    "description": "Verifies that reading a bundle's unseen postings sends the opaque cursor from the previous Link header",
+    "operation": "GetBundleUnseenPostings",
+    "method": "GET",
+    "path": "/postings/{postingId}/bundles/unseen.json",
+    "pathParams": {
+      "postingId": 311
+    },
+    "queryParams": {
+      "page": "older-postings"
+    },
+    "mockResponses": [
+      {
+        "status": 200,
+        "body": {
+          "contact": {"id": 88, "name": "GitHub"},
+          "postings": [{"id": 501, "kind": "topic", "name": "Deploy failed on main"}]
+        }
+      }
+    ],
+    "assertions": [
+      {"type": "requestCount", "expected": 1},
+      {"type": "statusCode", "expected": 200},
+      {"type": "requestQuery", "expected": {"page": "older-postings"}},
+      {"type": "noError"}
+    ],
+    "tags": ["pagination", "postings"]
+  },
+  {
     "name": "Calendar recordings carry the geared pagination cursor",
     "description": "Verifies that calendar recording windows send their dates and the opaque cursor from the previous Link header",
     "operation": "GetCalendarRecordings",

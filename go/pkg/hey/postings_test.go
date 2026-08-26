@@ -561,3 +561,47 @@ func TestPostingsService_ChangesRequiresACursor(t *testing.T) {
 		t.Fatal("expected error for a cursor with no since")
 	}
 }
+
+func TestPostingsService_BundleUnseenPage(t *testing.T) {
+	var queries []string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/postings/311/bundles/unseen.json" {
+			t.Errorf("path = %q", r.URL.Path)
+		}
+		queries = append(queries, r.URL.RawQuery)
+		w.Header().Set("Content-Type", "application/json")
+		if r.URL.Query().Get("page") == "" {
+			w.Header().Set("Link", `<http://`+r.Host+`/postings/311/bundles/unseen.json?page=eyJwYWdlIjoyfQ>; rel="next"`)
+			_, _ = w.Write([]byte(`{"contact":{"id":88,"name":"GitHub","email_address":"notifications@example.com"},"postings":[{"id":501,"kind":"topic","name":"Deploy failed on main","app_url":"https://app.hey.com/topics/9001"}]}`))
+		} else {
+			_, _ = w.Write([]byte(`{"contact":{"id":88,"name":"GitHub","email_address":"notifications@example.com"},"postings":[{"id":502,"kind":"topic","name":"Nightly build is green again","app_url":"https://app.hey.com/topics/9002"}]}`))
+		}
+	}))
+	t.Cleanup(server.Close)
+	c := NewClient(&Config{BaseURL: server.URL}, &StaticTokenProvider{Token: "test-token"}, WithMaxRetries(0))
+
+	page, err := c.Postings().BundleUnseenPage(context.Background(), 311, "")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if page.Contact.Name != "GitHub" || len(page.Postings) != 1 || page.Postings[0].Id != 501 {
+		t.Errorf("page = %+v", page)
+	}
+	if page.NextPage != "eyJwYWdlIjoyfQ" {
+		t.Errorf("NextPage = %q, want the Link header's cursor", page.NextPage)
+	}
+
+	next, err := c.Postings().BundleUnseenPage(context.Background(), 311, page.NextPage)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if next.NextPage != "" {
+		t.Errorf("NextPage = %q, want none on the last page", next.NextPage)
+	}
+	if len(next.Postings) != 1 || next.Postings[0].Id != 502 {
+		t.Errorf("page = %+v", next)
+	}
+	if len(queries) != 2 || queries[0] != "" || queries[1] != "page=eyJwYWdlIjoyfQ" {
+		t.Errorf("queries = %q, want the cursor passed through", queries)
+	}
+}

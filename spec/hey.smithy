@@ -156,6 +156,9 @@ service HEY {
         MutePostings
         UnmutePostings
 
+        // Postings — bundles
+        GetBundleUnseenPostings
+
         // Postings — bulk
         MarkPostingsSpam
         AddPostingsToBoxGroup
@@ -2988,6 +2991,38 @@ structure MessageDraft {
 
 /// Posting ids as a comma-joined string, for verbs that carry no body
 string PostingIdsParam
+
+/// List the unseen postings inside a bundle posting.
+///
+/// A bundle posting groups one contact's unseen mail; this is its contents — the member
+/// postings, newest first, paged by cursor like a box. The posting must be a bundle.
+@readonly
+@http(method: "GET", uri: "/postings/{postingId}/bundles/unseen.json")
+@tags(["Postings"])
+@heyRetry(maxAttempts: 3, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+@heyPagination(style: "link", totalCountHeader: "X-Total-Count")
+operation GetBundleUnseenPostings {
+    input: GetBundleUnseenPostingsInput
+    output: GetBundleUnseenPostingsOutput
+    errors: [UnauthorizedError, NotFoundError, InternalServerError, ServiceUnavailableError]
+}
+
+structure GetBundleUnseenPostingsInput {
+    @httpLabel
+    @required
+    postingId: Long
+
+    @httpQuery("page")
+    page: String
+}
+
+structure GetBundleUnseenPostingsOutput {
+    @required
+    contact: Contact
+
+    @required
+    postings: PostingList
+}
 
 // =============================================================================
 // POSTINGS — bulk actions across a selection

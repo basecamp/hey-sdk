@@ -2670,11 +2670,6 @@
     "reason": "phase-2: posting bulk bubble up"
   },
   {
-    "method": "GET",
-    "path": "/postings/{posting_id}/bundles/unseen",
-    "reason": "phase-2: posting bundles unseen"
-  },
-  {
     "method": "POST",
     "path": "/postings/collections",
     "reason": "phase-2: posting collections"

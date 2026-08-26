@@ -186,6 +186,11 @@
   },
   {
     "method": "GET",
+    "operationId": "GetBundleUnseenPostings",
+    "path": "/postings/{postingId}/bundles/unseen.json"
+  },
+  {
+    "method": "GET",
     "operationId": "GetCalendarDay",
     "path": "/calendar/days/{day}"
   },
