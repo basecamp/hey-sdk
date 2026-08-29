@@ -464,11 +464,16 @@ func updateEventValues(params UpdateCalendarEventParams) url.Values {
 			values.Set("calendar_event[all_day]", "0")
 		}
 	}
-	if params.StartTime != nil {
-		values.Set("calendar_event[starts_at_time]", *params.StartTime+":00")
-	}
-	if params.EndTime != nil {
-		values.Set("calendar_event[ends_at_time]", *params.EndTime+":00")
+	// Clock times belong on timed events only. Create already omits them for all-day
+	// events; sending "" here would become ":00" and HEY answers 400.
+	allDay := params.AllDay != nil && *params.AllDay
+	if !allDay {
+		if params.StartTime != nil && *params.StartTime != "" {
+			values.Set("calendar_event[starts_at_time]", *params.StartTime+":00")
+		}
+		if params.EndTime != nil && *params.EndTime != "" {
+			values.Set("calendar_event[ends_at_time]", *params.EndTime+":00")
+		}
 	}
 	if params.CalendarID != nil {
 		values.Set("calendar_event[calendar_id]", fmt.Sprintf("%d", *params.CalendarID))
