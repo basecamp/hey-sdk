@@ -235,13 +235,19 @@ func runTest(tc TestCase) TestResult {
 		}
 	}
 
-	// Execute the operation. Account-scoped cases exercise the hand-written
-	// client layer because account scope is an SDK behavior rather than a
-	// generated Smithy operation.
+	// Execute the operation. Cases for SDK-layer behavior exercise the hand-written client;
+	// the remaining cases exercise generated Smithy operations.
 	ctx := context.Background()
 	var sdkResp *http.Response
 	var sdkErr error
-	if _, scoped := tc.ConfigOverrides["accountId"]; scoped {
+	if layer, _ := tc.ConfigOverrides["clientLayer"].(string); layer == "hey" {
+		rootClient := hey.NewClient(
+			&hey.Config{BaseURL: server.URL},
+			&hey.StaticTokenProvider{Token: "conformance-test-token"},
+			hey.WithMaxRetries(0),
+		)
+		sdkErr = executeHEYOperation(rootClient, ctx, tc)
+	} else if _, scoped := tc.ConfigOverrides["accountId"]; scoped {
 		accountID := getInt64Param(tc.ConfigOverrides, "accountId")
 		rootClient := hey.NewClient(
 			&hey.Config{BaseURL: server.URL},
@@ -620,6 +626,34 @@ func checkAssertion(testName string, a Assertion, s checkState) TestResult {
 			}
 			if fmt.Sprint(got) != fmt.Sprint(want) {
 				return fail(testName, "Expected body key %q = %v, got %v", path, want, got)
+			}
+		}
+
+	case "requestForm":
+		// expected: {"field": value, ...}; a null value asserts the field is absent.
+		expected, ok := a.Expected.(map[string]interface{})
+		if !ok {
+			return fail(testName, "requestForm: expected an object, got %T", a.Expected)
+		}
+		if len(s.requestBodies) == 0 {
+			return fail(testName, "Expected a request, but none were recorded")
+		}
+		values, err := url.ParseQuery(string(s.requestBodies[0]))
+		if err != nil {
+			return fail(testName, "requestForm: request body is not form encoded: %v", err)
+		}
+		for field, want := range expected {
+			if want == nil {
+				if values.Has(field) {
+					return fail(testName, "Expected form field %q to be absent, got %q", field, values.Get(field))
+				}
+				continue
+			}
+			if !values.Has(field) {
+				return fail(testName, "Expected form field %q = %v, but it is absent", field, want)
+			}
+			if got := values.Get(field); got != fmt.Sprint(want) {
+				return fail(testName, "Expected form field %q = %v, got %q", field, want, got)
 			}
 		}
 
@@ -1448,6 +1482,24 @@ func executeOperation(client *generated.Client, ctx context.Context, tc TestCase
 	}
 }
 
+func executeHEYOperation(client *hey.Client, ctx context.Context, tc TestCase) error {
+	switch tc.Operation {
+	case "UpdateCalendarEvent":
+		eventID := getInt64Param(tc.PathParams, "eventId")
+		_, err := client.CalendarEvents().Update(ctx, eventID, hey.UpdateCalendarEventParams{
+			Title:     getStringPtrParam(tc.RequestBody, "title"),
+			StartsAt:  getStringPtrParam(tc.RequestBody, "starts_at"),
+			EndsAt:    getStringPtrParam(tc.RequestBody, "ends_at"),
+			AllDay:    getBoolPtrParam(tc.RequestBody, "all_day"),
+			StartTime: getStringPtrParam(tc.RequestBody, "start_time"),
+			EndTime:   getStringPtrParam(tc.RequestBody, "end_time"),
+		})
+		return err
+	default:
+		return fmt.Errorf("HEY client conformance does not support operation: %s", tc.Operation)
+	}
+}
+
 func executeAccountScopedOperation(client *hey.Client, ctx context.Context, tc TestCase) error {
 	switch tc.Operation {
 	case "ListBoxes":
@@ -1599,6 +1651,16 @@ func getStringPtrParam(params map[string]interface{}, key string) *string {
 	if val, ok := params[key]; ok {
 		if s, ok := val.(string); ok {
 			return &s
+		}
+	}
+	return nil
+}
+
+// getBoolPtrParam extracts a *bool parameter from a map.
+func getBoolPtrParam(params map[string]interface{}, key string) *bool {
+	if val, ok := params[key]; ok {
+		if b, ok := val.(bool); ok {
+			return &b
 		}
 	}
 	return nil

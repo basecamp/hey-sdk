@@ -1,0 +1,61 @@
+[
+  {
+    "name": "All-day calendar event updates omit clock times",
+    "description": "Verifies that an all-day update carries its dates without clock-time fields",
+    "operation": "UpdateCalendarEvent",
+    "method": "PATCH",
+    "path": "/calendar/events/{eventId}.json",
+    "pathParams": {
+      "eventId": 99
+    },
+    "requestBody": {
+      "title": "Sarah's birthday",
+      "starts_at": "2026-09-02",
+      "ends_at": "2026-09-02",
+      "all_day": true,
+      "start_time": "",
+      "end_time": ""
+    },
+    "mockResponses": [
+      {
+        "status": 200,
+        "body": {
+          "id": 99,
+          "title": "Sarah's birthday",
+          "type": "Calendar::Event",
+          "all_day": true
+        }
+      }
+    ],
+    "assertions": [
+      {
+        "type": "requestPath",
+        "expected": "/calendar/events/99.json"
+      },
+      {
+        "type": "requestMethod",
+        "expected": "PATCH"
+      },
+      {
+        "type": "requestForm",
+        "expected": {
+          "calendar_event[all_day]": "1",
+          "calendar_event[starts_at]": "2026-09-02",
+          "calendar_event[ends_at]": "2026-09-02",
+          "calendar_event[starts_at_time]": null,
+          "calendar_event[ends_at_time]": null
+        }
+      },
+      {
+        "type": "noError"
+      }
+    ],
+    "configOverrides": {
+      "clientLayer": "hey"
+    },
+    "tags": [
+      "calendar-events",
+      "form"
+    ]
+  }
+]
