@@ -165,15 +165,33 @@ func (s *EntriesService) DeleteDraft(ctx context.Context, entryID int64) error {
 // whatever the draft carries — and unlike a message draft it carries no subject, since
 // a reply stays under its thread's.
 func (s *EntriesService) CreateReplyDraft(ctx context.Context, entryID int64, content string, to, cc, bcc []string) (draftEntryID int64, err error) {
+	return s.createReplyDraft(ctx, entryID, 0, content, to, cc, bcc)
+}
+
+// CreateReplyDraftWithSender saves a reply draft with one exact configured sender.
+// The caller obtains the sender id from Identity and must keep it scoped to the same
+// mail account as the entry. This is intentionally separate from CreateReplyDraft so
+// existing callers retain the identity's default-sender behavior.
+func (s *EntriesService) CreateReplyDraftWithSender(ctx context.Context, entryID, actingSenderID int64, content string, to, cc, bcc []string) (draftEntryID int64, err error) {
+	if actingSenderID <= 0 {
+		return 0, ErrUsage("acting sender ID must be a positive integer")
+	}
+	return s.createReplyDraft(ctx, entryID, actingSenderID, content, to, cc, bcc)
+}
+
+func (s *EntriesService) createReplyDraft(ctx context.Context, entryID, actingSenderID int64, content string, to, cc, bcc []string) (draftEntryID int64, err error) {
 	op := OperationInfo{
 		Service: "Entries", Operation: "CreateReply",
 		ResourceType: "draft", IsMutation: true, ResourceID: entryID,
 	}
 
 	err = s.client.instrument(ctx, op, func(ctx context.Context) error {
-		senderID, serr := s.client.DefaultSenderID(ctx)
-		if serr != nil {
-			return serr
+		if actingSenderID == 0 {
+			var serr error
+			actingSenderID, serr = s.client.DefaultSenderID(ctx)
+			if serr != nil {
+				return serr
+			}
 		}
 
 		entry := &generated.MessageEntryPayload{
@@ -181,7 +199,7 @@ func (s *EntriesService) CreateReplyDraft(ctx context.Context, entryID int64, co
 			Addressed: &generated.MessageAddressed{Directly: to, Copied: cc, Blindcopied: bcc},
 		}
 		body := generated.CreateReplyRequestContent{
-			ActingSenderId: senderID,
+			ActingSenderId: actingSenderID,
 			Message:        generated.ReplyMessagePayload{Content: content},
 			Entry:          entry,
 		}
