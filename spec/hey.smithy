@@ -1863,7 +1863,7 @@ structure CreateReplyInput {
     body: CreateReplyRequestContent
 }
 
-/// Wire format: {acting_sender_id, message: {content}, entry: {addressed: {directly: [...]}}}
+/// Wire format: {acting_sender_id, message: {subject, content}, entry: {addressed: {directly: [...]}}}
 /// entry.addressed is optional on the wire but a reply posted without it is saved as a
 /// draft rather than delivered — HEY does not reply-all for the caller. Resolve the
 /// thread's recipients first and always send them.
@@ -1877,7 +1877,14 @@ structure CreateReplyRequestContent {
     entry: MessageEntryPayload
 }
 
+/// HEY does not derive a subject for a reply: a reply draft saved without message.subject
+/// reads "No subject" in Drafts. NewEntryReply hands back the prefilled subject ("Re: …") —
+/// send it here. Content is the caller's reply body alone: the server appends the quoted
+/// original at delivery (auto_quoting defaults on), so the prefill's quoted content must
+/// not be echoed back.
 structure ReplyMessagePayload {
+    subject: String
+
     @required
     content: String
 }

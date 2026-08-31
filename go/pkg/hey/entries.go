@@ -46,11 +46,14 @@ func (s *EntriesService) ListDrafts(ctx context.Context, params *generated.ListD
 // CreateReply replies to an entry (POST /entries/{entryId}/replies.json) and delivers it.
 // The acting sender ID is automatically resolved.
 //
+// Subject is the reply's own subject line — HEY does not derive one, so pass the
+// prefilled "Re: …" that NewReply hands back. Empty leaves it off the wire.
+//
 // Recipients are required. HEY does not reply-all on the caller's behalf: a reply
 // posted without entry.addressed is saved as a draft (the server answers with a
 // redirect to the thread with the draft expanded) rather than delivered. Callers
 // resolve the thread's recipients first — hey-cli reads them from the topic page.
-func (s *EntriesService) CreateReply(ctx context.Context, entryID int64, content string, to, cc, bcc []string) (err error) {
+func (s *EntriesService) CreateReply(ctx context.Context, entryID int64, subject, content string, to, cc, bcc []string) (err error) {
 	if len(to)+len(cc)+len(bcc) == 0 {
 		return ErrUsage("a reply needs at least one recipient (to, cc or bcc); HEY saves an unaddressed reply as a draft")
 	}
@@ -74,7 +77,7 @@ func (s *EntriesService) CreateReply(ctx context.Context, entryID int64, content
 
 	body := generated.CreateReplyRequestContent{
 		ActingSenderId: senderID,
-		Message:        generated.ReplyMessagePayload{Content: content},
+		Message:        generated.ReplyMessagePayload{Subject: subject, Content: content},
 		Entry:          entryPayload(to, cc, bcc),
 	}
 
@@ -162,9 +165,12 @@ func (s *EntriesService) DeleteDraft(ctx context.Context, entryID int64) error {
 
 // CreateReplyDraft saves a reply to an entry as a draft instead of delivering it, and
 // answers the draft's entry id. Unlike CreateReply it needs no recipients — HEY keeps
-// whatever the draft carries — and unlike a message draft it carries no subject, since
-// a reply stays under its thread's.
-func (s *EntriesService) CreateReplyDraft(ctx context.Context, entryID int64, content string, to, cc, bcc []string) (draftEntryID int64, err error) {
+// whatever the draft carries.
+//
+// Subject matters here: HEY does not derive one, and a reply draft saved without it
+// shows as "No subject" in Drafts. Pass the prefilled "Re: …" from NewReply. Empty
+// leaves it off the wire.
+func (s *EntriesService) CreateReplyDraft(ctx context.Context, entryID int64, subject, content string, to, cc, bcc []string) (draftEntryID int64, err error) {
 	op := OperationInfo{
 		Service: "Entries", Operation: "CreateReply",
 		ResourceType: "draft", IsMutation: true, ResourceID: entryID,
@@ -182,7 +188,7 @@ func (s *EntriesService) CreateReplyDraft(ctx context.Context, entryID int64, co
 		}
 		body := generated.CreateReplyRequestContent{
 			ActingSenderId: senderID,
-			Message:        generated.ReplyMessagePayload{Content: content},
+			Message:        generated.ReplyMessagePayload{Subject: subject, Content: content},
 			Entry:          entry,
 		}
 

@@ -307,15 +307,17 @@ func TestEntriesService_CreateReplyDraft(t *testing.T) {
 				if msg["content"] != "<div>Drafting a reply.</div>" {
 					t.Errorf("content = %v", msg["content"])
 				}
-				if _, subject := msg["subject"]; subject {
-					t.Error("a reply carries no subject; it stays under its thread's")
+				// HEY does not derive a subject for a reply: a draft saved without
+				// one shows as "No subject" in Drafts.
+				if msg["subject"] != "Re: Original subject" {
+					t.Errorf("subject = %v, want the prefilled Re: subject", msg["subject"])
 				}
 			},
 		},
 	})
 
 	// No recipients: unlike CreateReply, a reply draft is allowed to have nobody on it.
-	id, err := client.Entries().CreateReplyDraft(context.Background(), 10, "<div>Drafting a reply.</div>", nil, nil, nil)
+	id, err := client.Entries().CreateReplyDraft(context.Background(), 10, "Re: Original subject", "<div>Drafting a reply.</div>", nil, nil, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

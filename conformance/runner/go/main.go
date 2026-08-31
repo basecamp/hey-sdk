@@ -1055,6 +1055,7 @@ func executeOperation(client *generated.Client, ctx context.Context, tc TestCase
 		entryId := getInt64Param(tc.PathParams, "entryId")
 		body := generated.CreateReplyJSONRequestBody{
 			Message: generated.ReplyMessagePayload{
+				Subject: getStringParam(tc.RequestBody, "subject"),
 				Content: getStringParam(tc.RequestBody, "content"),
 			},
 		}

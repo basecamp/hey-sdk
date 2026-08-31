@@ -198,7 +198,8 @@
       "entryId": 456
     },
     "requestBody": {
-      "content": "Reply text"
+      "content": "Reply text",
+      "subject": "Re: Reply subject"
     },
     "mockResponses": [
       {
@@ -225,7 +226,8 @@
         "type": "requestBody",
         "expected": {
           "message.content": "Reply text",
-          "entry": null
+          "entry": null,
+          "message.subject": "Re: Reply subject"
         }
       }
     ],
