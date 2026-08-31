@@ -270,6 +270,12 @@ func (s *MessagesService) SendDraft(ctx context.Context, entryID int64, draft Dr
 		if rerr != nil {
 			return rerr
 		}
+		if resp.JSON422 != nil {
+			return &Error{
+				Code:       CodeValidation,
+				Message:    strings.Join(resp.JSON422.Errors, ", "),
+			}
+		}
 		return CheckResponse(resp.HTTPResponse)
 	})
 }
