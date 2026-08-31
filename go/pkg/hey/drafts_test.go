@@ -317,12 +317,32 @@ func TestEntriesService_CreateReplyDraft(t *testing.T) {
 	})
 
 	// No recipients: unlike CreateReply, a reply draft is allowed to have nobody on it.
-	id, err := client.Entries().CreateReplyDraft(context.Background(), 10, "Re: Original subject", "<div>Drafting a reply.</div>", nil, nil, nil)
+	id, err := client.Entries().CreateReplyDraft(context.Background(), 10, 0, "Re: Original subject", "<div>Drafting a reply.</div>", nil, nil, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if id != 777 {
 		t.Errorf("draft entry id = %d, want 777 (from Location)", id)
+	}
+}
+
+func TestEntriesService_CreateReplyDraft_SendsTheChosenActingSender(t *testing.T) {
+	client := newDraftTestClient(t, map[string]draftTestRoute{
+		"/entries/10/replies.json": {
+			method:   "POST",
+			status:   204,
+			location: "https://app.hey.com/messages/777",
+			validate: func(t *testing.T, body map[string]any) {
+				t.Helper()
+				if got, _ := body["acting_sender_id"].(float64); got != 4242 {
+					t.Errorf("acting_sender_id = %v, want the chosen sender 4242", body["acting_sender_id"])
+				}
+			},
+		},
+	})
+
+	if _, err := client.Entries().CreateReplyDraft(context.Background(), 10, 4242, "Re: Original subject", "<div>Drafting a reply.</div>", nil, nil, nil); err != nil {
+		t.Fatalf("unexpected error: %v", err)
 	}
 }
 

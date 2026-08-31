@@ -4,3 +4,6 @@
 # v0.x: replies carry their subject (#134).
 - (*EntriesService).CreateReply: changed from func(context.Context, int64, string, []string, []string, []string) error to func(context.Context, int64, string, string, []string, []string, []string) error
 - (*EntriesService).CreateReplyDraft: changed from func(context.Context, int64, string, []string, []string, []string) (int64, error) to func(context.Context, int64, string, string, []string, []string, []string) (int64, error)
+# v0.x: replies go out as the sender the prefill resolved, not the account default (#341 part 2).
+- (*EntriesService).CreateReply: changed from func(context.Context, int64, string, string, []string, []string, []string) error to func(context.Context, int64, int64, string, string, []string, []string, []string) error
+- (*EntriesService).CreateReplyDraft: changed from func(context.Context, int64, string, string, []string, []string, []string) (int64, error) to func(context.Context, int64, int64, string, string, []string, []string, []string) (int64, error)

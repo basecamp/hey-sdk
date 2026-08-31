@@ -702,7 +702,7 @@ func TestScopedMessageAndReplyUseAccountSender(t *testing.T) {
 	if err := client.Messages().Create(context.Background(), "Subject", "Body", []string{"jane@example.com"}, nil, nil); err != nil {
 		t.Fatal(err)
 	}
-	if err := client.Entries().CreateReply(context.Background(), 99, "Re: Subject", "Reply", []string{"jane@example.com"}, nil, nil); err != nil {
+	if err := client.Entries().CreateReply(context.Background(), 99, 0, "Re: Subject", "Reply", []string{"jane@example.com"}, nil, nil); err != nil {
 		t.Fatal(err)
 	}
 	mu.Lock()

@@ -589,7 +589,44 @@ func TestEntriesService_CreateReply(t *testing.T) {
 		`{"notice":"sent"}`,
 	)
 
-	err := client.Entries().CreateReply(context.Background(), 10, "Re: A thread", "My reply", []string{"test@example.com"}, nil, nil)
+	err := client.Entries().CreateReply(context.Background(), 10, 0, "Re: A thread", "My reply", []string{"test@example.com"}, nil, nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestEntriesService_CreateReply_SendsTheChosenActingSender(t *testing.T) {
+	// The identity a reply goes out as: HEY resolves it from the thread (a shared
+	// support address, an extension) and hands it back as NewReply's sender. The
+	// caller's choice must reach the wire untouched — not the account default.
+	client := newMutationTestClientWithValidation(t, "POST", "/entries/%s/replies.json",
+		func(t *testing.T, body map[string]any) {
+			t.Helper()
+			if got, _ := body["acting_sender_id"].(float64); got != 4242 {
+				t.Errorf("acting_sender_id = %v, want the chosen sender 4242", body["acting_sender_id"])
+			}
+		},
+		`{"notice":"sent"}`,
+	)
+
+	err := client.Entries().CreateReply(context.Background(), 10, 4242, "Re: A thread", "My reply", []string{"test@example.com"}, nil, nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestEntriesService_CreateReply_ZeroActingSenderFallsBackToDefault(t *testing.T) {
+	client := newMutationTestClientWithValidation(t, "POST", "/entries/%s/replies.json",
+		func(t *testing.T, body map[string]any) {
+			t.Helper()
+			if got, _ := body["acting_sender_id"].(float64); got != 42 {
+				t.Errorf("acting_sender_id = %v, want the account default 42", body["acting_sender_id"])
+			}
+		},
+		`{"notice":"sent"}`,
+	)
+
+	err := client.Entries().CreateReply(context.Background(), 10, 0, "Re: A thread", "My reply", []string{"test@example.com"}, nil, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -607,7 +644,7 @@ func TestEntriesService_CreateReply_EmptySubjectStaysOffTheWire(t *testing.T) {
 		`{"notice":"sent"}`,
 	)
 
-	err := client.Entries().CreateReply(context.Background(), 10, "", "My reply", []string{"test@example.com"}, nil, nil)
+	err := client.Entries().CreateReply(context.Background(), 10, 0, "", "My reply", []string{"test@example.com"}, nil, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -620,7 +657,7 @@ func TestEntriesService_CreateReply_RequiresRecipients(t *testing.T) {
 		func(t *testing.T, _ map[string]any) { t.Helper(); t.Error("no request should be sent") },
 		`{"notice":"sent"}`,
 	)
-	err := client.Entries().CreateReply(context.Background(), 10, "Re: hello", "hello", nil, nil, nil)
+	err := client.Entries().CreateReply(context.Background(), 10, 0, "Re: hello", "hello", nil, nil, nil)
 	if e := AsError(err); e == nil || e.Code != CodeUsage {
 		t.Fatalf("expected a usage error, got %#v", err)
 	}
@@ -649,7 +686,7 @@ func TestEntriesService_CreateReply_RecipientsAreArrays(t *testing.T) {
 		`{"notice":"sent"}`,
 	)
 
-	err := client.Entries().CreateReply(context.Background(), 10, "Re: hi", "hi", []string{"a@x.com"}, nil, []string{"b@x.com"})
+	err := client.Entries().CreateReply(context.Background(), 10, 0, "Re: hi", "hi", []string{"a@x.com"}, nil, []string{"b@x.com"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
