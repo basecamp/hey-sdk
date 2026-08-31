@@ -1497,6 +1497,21 @@ func executeHEYOperation(client *hey.Client, ctx context.Context, tc TestCase) e
 			EndTime:   getStringPtrParam(tc.RequestBody, "end_time"),
 		})
 		return err
+	case "CreateReply":
+		entryID := getInt64Param(tc.PathParams, "entryId")
+		return client.Entries().CreateReply(ctx, entryID,
+			getInt64Param(tc.RequestBody, "acting_sender_id"),
+			getStringParam(tc.RequestBody, "subject"),
+			getStringParam(tc.RequestBody, "content"),
+			getStringSliceParam(tc.RequestBody, "to"), nil, nil)
+	case "CreateReplyDraft":
+		entryID := getInt64Param(tc.PathParams, "entryId")
+		_, err := client.Entries().CreateReplyDraft(ctx, entryID,
+			getInt64Param(tc.RequestBody, "acting_sender_id"),
+			getStringParam(tc.RequestBody, "subject"),
+			getStringParam(tc.RequestBody, "content"),
+			getStringSliceParam(tc.RequestBody, "to"), nil, nil)
+		return err
 	default:
 		return fmt.Errorf("HEY client conformance does not support operation: %s", tc.Operation)
 	}
