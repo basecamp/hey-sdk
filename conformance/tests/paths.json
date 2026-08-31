@@ -199,7 +199,8 @@
     },
     "requestBody": {
       "content": "Reply text",
-      "subject": "Re: Reply subject"
+      "subject": "Re: Reply subject",
+      "acting_sender_id": 314
     },
     "mockResponses": [
       {
@@ -227,7 +228,8 @@
         "expected": {
           "message.content": "Reply text",
           "entry": null,
-          "message.subject": "Re: Reply subject"
+          "message.subject": "Re: Reply subject",
+          "acting_sender_id": 314
         }
       }
     ],

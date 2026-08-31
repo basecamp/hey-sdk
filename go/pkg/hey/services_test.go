@@ -615,6 +615,26 @@ func TestEntriesService_CreateReply_SendsTheChosenActingSender(t *testing.T) {
 	}
 }
 
+func TestEntriesService_CreateReply_PassesNonZeroSendersThroughUntouched(t *testing.T) {
+	// Only zero means "the account default". Anything else — a stale or even
+	// negative id — goes to the server as given; an invalid sender is the
+	// server's to reject, not this SDK's to silently rewrite.
+	client := newMutationTestClientWithValidation(t, "POST", "/entries/%s/replies.json",
+		func(t *testing.T, body map[string]any) {
+			t.Helper()
+			if got, _ := body["acting_sender_id"].(float64); got != -7 {
+				t.Errorf("acting_sender_id = %v, want -7 passed through", body["acting_sender_id"])
+			}
+		},
+		`{"notice":"sent"}`,
+	)
+
+	err := client.Entries().CreateReply(context.Background(), 10, -7, "Re: A thread", "My reply", []string{"test@example.com"}, nil, nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
 func TestEntriesService_CreateReply_ZeroActingSenderFallsBackToDefault(t *testing.T) {
 	client := newMutationTestClientWithValidation(t, "POST", "/entries/%s/replies.json",
 		func(t *testing.T, body map[string]any) {

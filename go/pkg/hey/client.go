@@ -1185,6 +1185,17 @@ func (c *Client) World() *WorldService {
 	return c.world
 }
 
+// resolveActingSenderID answers the acting sender an operation goes out as: the
+// caller's choice passed through untouched when one was made — an id the server
+// does not recognize is the server's to reject — and the account's default sender
+// for the zero value.
+func (c *Client) resolveActingSenderID(ctx context.Context, actingSenderID int64) (int64, error) {
+	if actingSenderID != 0 {
+		return actingSenderID, nil
+	}
+	return c.DefaultSenderID(ctx)
+}
+
 // DefaultSenderID returns the default sender contact ID for this client. An
 // account-scoped client selects only senders belonging to its account. An All
 // Accounts client preserves the identity-wide default sender behavior.

@@ -112,6 +112,13 @@ type DraftContent struct {
 	CC      []string
 	BCC     []string
 
+	// ActingSenderID is the sender the draft is saved — and ultimately delivered —
+	// as. Zero means the account's default sender. A caller who chose an alternate
+	// identity (the reply prefill's Sender.Id) carries it on every revision: HEY
+	// revises a draft from the whole of what is sent, so leaving it zero on an
+	// update or send hands the draft back to the default identity.
+	ActingSenderID int64
+
 	// Schedule delivers the draft at an hour of a day. Nil means no scheduled
 	// delivery — and on an update, clears one already set.
 	Schedule *DraftSchedule
@@ -177,7 +184,7 @@ func (s *MessagesService) CreateDraft(ctx context.Context, draft DraftContent) (
 	}
 
 	err = s.client.instrument(ctx, op, func(ctx context.Context) error {
-		senderID, serr := s.client.DefaultSenderID(ctx)
+		senderID, serr := s.client.resolveActingSenderID(ctx, draft.ActingSenderID)
 		if serr != nil {
 			return serr
 		}
@@ -212,7 +219,7 @@ func (s *MessagesService) UpdateDraft(ctx context.Context, entryID int64, draft 
 	}
 
 	return s.client.instrument(ctx, op, func(ctx context.Context) error {
-		senderID, serr := s.client.DefaultSenderID(ctx)
+		senderID, serr := s.client.resolveActingSenderID(ctx, draft.ActingSenderID)
 		if serr != nil {
 			return serr
 		}
@@ -249,7 +256,7 @@ func (s *MessagesService) SendDraft(ctx context.Context, entryID int64, draft Dr
 	}
 
 	return s.client.instrument(ctx, op, func(ctx context.Context) error {
-		senderID, serr := s.client.DefaultSenderID(ctx)
+		senderID, serr := s.client.resolveActingSenderID(ctx, draft.ActingSenderID)
 		if serr != nil {
 			return serr
 		}

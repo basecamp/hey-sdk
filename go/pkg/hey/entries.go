@@ -75,7 +75,7 @@ func (s *EntriesService) CreateReply(ctx context.Context, entryID, actingSenderI
 	ctx = s.client.hooks.OnOperationStart(ctx, op)
 	defer func() { s.client.hooks.OnOperationEnd(ctx, op, err, time.Since(start)) }()
 
-	senderID, err := s.resolveActingSenderID(ctx, actingSenderID)
+	senderID, err := s.client.resolveActingSenderID(ctx, actingSenderID)
 	if err != nil {
 		return err
 	}
@@ -91,15 +91,6 @@ func (s *EntriesService) CreateReply(ctx context.Context, entryID, actingSenderI
 		return err
 	}
 	return CheckResponse(resp.HTTPResponse)
-}
-
-// resolveActingSenderID answers the acting sender a reply is sent as: the caller's
-// choice when one was made, the account's default sender otherwise.
-func (s *EntriesService) resolveActingSenderID(ctx context.Context, actingSenderID int64) (int64, error) {
-	if actingSenderID > 0 {
-		return actingSenderID, nil
-	}
-	return s.client.DefaultSenderID(ctx)
 }
 
 // MarkSpam marks an entry as spam. The server denies the sender outright when every thread
@@ -195,7 +186,7 @@ func (s *EntriesService) CreateReplyDraft(ctx context.Context, entryID, actingSe
 	}
 
 	err = s.client.instrument(ctx, op, func(ctx context.Context) error {
-		senderID, serr := s.resolveActingSenderID(ctx, actingSenderID)
+		senderID, serr := s.client.resolveActingSenderID(ctx, actingSenderID)
 		if serr != nil {
 			return serr
 		}
