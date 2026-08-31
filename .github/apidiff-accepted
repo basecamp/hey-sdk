@@ -1,0 +1,6 @@
+# Deliberate API breaks, as exact apidiff -incompatible lines (grep -Fx).
+# Comment lines never match apidiff output. Entries are self-expiring once the
+# baseline moves past them; prune at leisure.
+# v0.x: replies carry their subject (#134).
+- (*EntriesService).CreateReply: changed from func(context.Context, int64, string, []string, []string, []string) error to func(context.Context, int64, string, string, []string, []string, []string) error
+- (*EntriesService).CreateReplyDraft: changed from func(context.Context, int64, string, []string, []string, []string) (int64, error) to func(context.Context, int64, string, string, []string, []string, []string) (int64, error)

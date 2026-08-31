@@ -177,6 +177,14 @@ jobs:
           # point of the release rather than a break -- and it is why version.go went
           # unbumped from v0.1.1 through v0.3.0.
           CHANGES=$(printf '%s\n' "$CHANGES" | grep -Ev '^- (Version|APIVersion|DefaultUserAgent): value changed' || true)
+
+          # Deliberate breaks ride in .github/apidiff-accepted as the exact lines
+          # apidiff prints, matched whole (-Fx). Each entry is self-expiring: it
+          # names the old signature, so once merged it can never mask a later
+          # accidental change, which apidiff reports from the new baseline.
+          if [ -f .github/apidiff-accepted ]; then
+            CHANGES=$(printf '%s\n' "$CHANGES" | grep -Fxvf .github/apidiff-accepted || true)
+          fi
           CHANGES=$(printf '%s' "$CHANGES" | sed '/^$/d')
 
           if [ -n "$CHANGES" ]; then
