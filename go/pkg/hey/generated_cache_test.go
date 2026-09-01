@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -238,6 +239,40 @@ func TestGeneratedOperationsDoNotRetryABodyTheCacheFailedToRead(t *testing.T) {
 	}
 	if hits.Load() != 1 {
 		t.Errorf("server saw %d requests, want 1: a refused body must not be retried", hits.Load())
+	}
+}
+
+// A custom transport carries no body cap, so store can read a body past the configured
+// bound. The read guard would never serve such an entry, so it is not written: the
+// answer still parses in full, and the next read goes out unconditional.
+func TestGeneratedOperationsDoNotCacheABodyPastTheBound(t *testing.T) {
+	backend := &boxServer{etag: `"v1"`,
+		body: `[{"id":7,"name":"` + strings.Repeat("x", 2048) + `"}]`}
+	server := httptest.NewServer(backend.handler())
+	t.Cleanup(server.Close)
+
+	root := NewClient(&Config{BaseURL: server.URL}, &StaticTokenProvider{Token: "token"},
+		WithHTTPClient(&http.Client{}), WithMaxResponseBodyBytes(1024),
+		WithMaxRetries(0), WithCache(NewCache(t.TempDir())))
+	client := scopedTestClient(root, 42)
+
+	for range 2 {
+		boxes, err := client.Boxes().List(context.Background())
+		if err != nil {
+			t.Fatal(err)
+		}
+		if boxes == nil || len(*boxes) != 1 {
+			t.Fatalf("boxes = %v, want the oversized box parsed in full", boxes)
+		}
+	}
+
+	backend.mu.Lock()
+	defer backend.mu.Unlock()
+	if want := []string{"", ""}; fmt.Sprint(backend.conditionals) != fmt.Sprint(want) {
+		t.Errorf("conditionals = %v, want no conditional requests for an unstored body", backend.conditionals)
+	}
+	if backend.bodiesServed != 2 {
+		t.Errorf("bodies served = %d, want every answer in full", backend.bodiesServed)
 	}
 }
 

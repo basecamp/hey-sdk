@@ -50,7 +50,7 @@ func (d *cachingDoer) Do(req *http.Request) (*http.Response, error) {
 		return cachedResponse(req, resp, cached), nil
 	case resp.StatusCode == http.StatusOK:
 		if etag := resp.Header.Get("ETag"); etag != "" {
-			d.store(key, etag, resp)
+			d.store(key, etag, resp, c.bufferBound(req))
 		}
 	}
 	return resp, nil
@@ -59,16 +59,22 @@ func (d *cachingDoer) Do(req *http.Request) (*http.Response, error) {
 // store reads the response body to cache it and hands the response back a fresh reader. A
 // read failure is kept for the caller's own read to surface: the round trip succeeded, and
 // an error returned here would send the generated retry loop after a response it already
-// has — a body that broke the limit would be refetched at full size once per attempt.
-func (d *cachingDoer) store(key, etag string, resp *http.Response) {
+// has — a body that broke the limit would be refetched at full size once per attempt. A
+// body past the bound is handed back unstored: the read guard would refuse to serve it,
+// so writing it would spend disk on an entry no request could ever use. Such a body
+// reaches here only on a client whose custom transport carries no cap; the built
+// transport fails the read at the limit first.
+func (d *cachingDoer) store(key, etag string, resp *http.Response, bound int64) {
 	body, err := io.ReadAll(resp.Body)
 	_ = resp.Body.Close()
 	if err != nil {
 		resp.Body = io.NopCloser(&errorReader{err: err})
 		return
 	}
-	_ = d.client.cache.Set(key, body, etag)
-	d.client.logger.Debug("cache stored", "etag", etag)
+	if int64(len(body)) <= bound {
+		_ = d.client.cache.Set(key, body, etag)
+		d.client.logger.Debug("cache stored", "etag", etag)
+	}
 	resp.Body = io.NopCloser(bytes.NewReader(body))
 }
 
