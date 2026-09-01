@@ -39,6 +39,10 @@ type TestCase struct {
 	Assertions      []Assertion            `json:"assertions"`
 	Tags            []string               `json:"tags"`
 	ConfigOverrides map[string]interface{} `json:"configOverrides"`
+	// RepeatOperation invokes the operation this many times against one client, for
+	// behavior that only shows across calls — a cached read revalidating, say. Zero
+	// means once.
+	RepeatOperation int `json:"repeatOperation"`
 }
 
 // MockResponse defines a single mock HTTP response.
@@ -244,12 +248,30 @@ func runTest(tc TestCase) TestResult {
 	var sdkResp *http.Response
 	var sdkErr error
 	if layer, _ := tc.ConfigOverrides["clientLayer"].(string); layer == "hey" {
+		options := []hey.ClientOption{hey.WithMaxRetries(0)}
+		if enabled, _ := tc.ConfigOverrides["cacheEnabled"].(bool); enabled {
+			cacheDir, tmpErr := os.MkdirTemp("", "hey-conformance-cache")
+			if tmpErr != nil {
+				return TestResult{
+					Name:    tc.Name,
+					Passed:  false,
+					Message: fmt.Sprintf("Failed to create cache dir: %v", tmpErr),
+				}
+			}
+			defer func() { _ = os.RemoveAll(cacheDir) }()
+			options = append(options, hey.WithCache(hey.NewCache(cacheDir)))
+		}
 		rootClient := hey.NewClient(
 			&hey.Config{BaseURL: server.URL},
 			credentials,
-			hey.WithMaxRetries(0),
+			options...,
 		)
-		sdkErr = executeHEYOperation(rootClient, ctx, tc)
+		for range max(tc.RepeatOperation, 1) {
+			sdkErr = executeHEYOperation(rootClient, ctx, tc)
+			if sdkErr != nil {
+				break
+			}
+		}
 	} else if _, scoped := tc.ConfigOverrides["accountId"]; scoped {
 		accountID := getInt64Param(tc.ConfigOverrides, "accountId")
 		rootClient := hey.NewClient(
@@ -1553,6 +1575,9 @@ func executeOperation(client *generated.Client, ctx context.Context, tc TestCase
 
 func executeHEYOperation(client *hey.Client, ctx context.Context, tc TestCase) error {
 	switch tc.Operation {
+	case "ListBoxes":
+		_, err := client.Boxes().List(ctx)
+		return err
 	case "UpdateCalendarEvent":
 		eventID := getInt64Param(tc.PathParams, "eventId")
 		_, err := client.CalendarEvents().Update(ctx, eventID, hey.UpdateCalendarEventParams{

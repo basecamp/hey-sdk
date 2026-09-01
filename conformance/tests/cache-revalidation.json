@@ -1,0 +1,173 @@
+[
+  {
+    "name": "Cache-enabled generated read revalidates and parses the 304 from the cache",
+    "description": "A cache-enabled client's second read of an unchanged resource goes out conditional on the stored ETag and parses the 304 as the cached 200",
+    "operation": "ListBoxes",
+    "method": "GET",
+    "path": "/boxes.json",
+    "configOverrides": {
+      "clientLayer": "hey",
+      "cacheEnabled": true
+    },
+    "repeatOperation": 2,
+    "mockResponses": [
+      {
+        "status": 200,
+        "headers": {
+          "ETag": "\"v1\""
+        },
+        "body": [
+          {
+            "id": 7,
+            "name": "Imbox"
+          }
+        ]
+      },
+      {
+        "status": 304,
+        "headers": {
+          "ETag": "\"v1\""
+        }
+      }
+    ],
+    "assertions": [
+      {
+        "type": "requestCount",
+        "expected": 2
+      },
+      {
+        "type": "lastRequestHeader",
+        "path": "If-None-Match",
+        "expected": "\"v1\""
+      },
+      {
+        "type": "noError"
+      }
+    ],
+    "tags": [
+      "cache",
+      "revalidation"
+    ]
+  },
+  {
+    "name": "Cache-enabled generated read follows a changed resource's new ETag",
+    "description": "A changed resource answers the conditional request with a fresh 200 and the cache follows: the next read revalidates against the new ETag",
+    "operation": "ListBoxes",
+    "method": "GET",
+    "path": "/boxes.json",
+    "configOverrides": {
+      "clientLayer": "hey",
+      "cacheEnabled": true
+    },
+    "repeatOperation": 3,
+    "mockResponses": [
+      {
+        "status": 200,
+        "headers": {
+          "ETag": "\"v1\""
+        },
+        "body": [
+          {
+            "id": 7,
+            "name": "Imbox"
+          }
+        ]
+      },
+      {
+        "status": 200,
+        "headers": {
+          "ETag": "\"v2\""
+        },
+        "body": [
+          {
+            "id": 7,
+            "name": "Imbox"
+          },
+          {
+            "id": 8,
+            "name": "The Feed"
+          }
+        ]
+      },
+      {
+        "status": 304,
+        "headers": {
+          "ETag": "\"v2\""
+        }
+      }
+    ],
+    "assertions": [
+      {
+        "type": "requestCount",
+        "expected": 3
+      },
+      {
+        "type": "lastRequestHeader",
+        "path": "If-None-Match",
+        "expected": "\"v2\""
+      },
+      {
+        "type": "noError"
+      }
+    ],
+    "tags": [
+      "cache",
+      "revalidation"
+    ]
+  },
+  {
+    "name": "Client without a cache never sends a conditional request",
+    "description": "With no cache configured, repeated generated reads carry no If-None-Match and fetch every answer in full",
+    "operation": "ListBoxes",
+    "method": "GET",
+    "path": "/boxes.json",
+    "configOverrides": {
+      "clientLayer": "hey"
+    },
+    "repeatOperation": 2,
+    "mockResponses": [
+      {
+        "status": 200,
+        "headers": {
+          "ETag": "\"v1\""
+        },
+        "body": [
+          {
+            "id": 7,
+            "name": "Imbox"
+          }
+        ]
+      },
+      {
+        "status": 200,
+        "headers": {
+          "ETag": "\"v1\""
+        },
+        "body": [
+          {
+            "id": 7,
+            "name": "Imbox"
+          }
+        ]
+      }
+    ],
+    "assertions": [
+      {
+        "type": "requestCount",
+        "expected": 2
+      },
+      {
+        "type": "lastRequestHeader",
+        "path": "If-None-Match",
+        "expected": ""
+      },
+      {
+        "type": "noError"
+      }
+    ],
+    "tags": [
+      "cache",
+      "revalidation"
+    ]
+  }
+]
