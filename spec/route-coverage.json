@@ -116,6 +116,16 @@
   },
   {
     "method": "DELETE",
+    "operationId": "DeleteCalendarEvent",
+    "path": "/calendar/events/{eventId}"
+  },
+  {
+    "method": "DELETE",
+    "operationId": "DeleteCalendarEventOccurrence",
+    "path": "/calendar/events/{eventId}/occurrences/{occurrence}"
+  },
+  {
+    "method": "DELETE",
     "operationId": "DeleteCalendarTodo",
     "path": "/calendar/todos/{todoId}"
   },
@@ -128,6 +138,11 @@
     "method": "DELETE",
     "operationId": "DeleteDraft",
     "path": "/entries/drafts/{entryId}"
+  },
+  {
+    "method": "DELETE",
+    "operationId": "DeleteExtenzion",
+    "path": "/accounts/{accountId}/domains/extenzions/{extenzionId}"
   },
   {
     "method": "DELETE",

@@ -1497,6 +1497,16 @@ func executeHEYOperation(client *hey.Client, ctx context.Context, tc TestCase) e
 			EndTime:   getStringPtrParam(tc.RequestBody, "end_time"),
 		})
 		return err
+	case "DeleteCalendarEvent":
+		return client.CalendarEvents().Delete(ctx, getInt64Param(tc.PathParams, "eventId"))
+	case "DeleteCalendarEventOccurrence":
+		occurrence, err := hey.ParseOccurrenceID(getStringParam(tc.PathParams, "occurrenceId"))
+		if err != nil {
+			return err
+		}
+		return client.CalendarEvents().DeleteOccurrence(ctx, occurrence, hey.OccurrenceScope(getStringParam(tc.RequestBody, "scope")))
+	case "DeleteExtenzion":
+		return client.Extenzions().Delete(ctx, getInt64Param(tc.PathParams, "accountId"), getInt64Param(tc.PathParams, "extenzionId"))
 	case "CreateReply":
 		entryID := getInt64Param(tc.PathParams, "entryId")
 		return client.Entries().CreateReply(ctx, entryID,

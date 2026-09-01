@@ -1837,11 +1837,31 @@ func TestCalendarEventsService_Update_OnAServerWithoutTheJSONBranch(t *testing.T
 	}
 }
 
+// newNoContentTestClient answers a JSON delete with 204 and records what it was asked for.
+func newNoContentTestClient(t *testing.T, wantMethod, wantPath string) (*Client, *url.Values) {
+	t.Helper()
+	var gotQuery url.Values
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != wantMethod {
+			t.Errorf("expected %s, got %s", wantMethod, r.Method)
+		}
+		if r.URL.Path != wantPath {
+			t.Errorf("expected path %s, got %s", wantPath, r.URL.Path)
+		}
+		if accept := r.Header.Get("Accept"); accept != "application/json" {
+			t.Errorf("expected Accept: application/json, got %q", accept)
+		}
+		gotQuery = r.URL.Query()
+		w.WriteHeader(204)
+	}))
+	t.Cleanup(server.Close)
+	return NewClient(&Config{BaseURL: server.URL}, &StaticTokenProvider{Token: "test-token"}, WithMaxRetries(0)), &gotQuery
+}
+
+// The delete asks for the JSON representation HEY serves it in — the .json path with a JSON
+// Accept — rather than the redirect its web form answers with.
 func TestCalendarEventsService_Delete(t *testing.T) {
-	client := newFormTestClient(t, "DELETE", "/calendar/events/%s",
-		nil,
-		"/calendar",
-	)
+	client, _ := newNoContentTestClient(t, "DELETE", "/calendar/events/99.json")
 
 	err := client.CalendarEvents().Delete(context.Background(), 99)
 	if err != nil {
@@ -2227,34 +2247,22 @@ func TestCalendarEventsService_Update_WithoutRepeatLeavesTheScheduleAlone(t *tes
 }
 
 // A delete carries no body, so the scope rides in the query string, as it does in HEY's own
-// occurrence links.
+// occurrence links. Both scopes are sent explicitly: the narrower one is the zero value, and
+// leaving it off would rely on the server's default instead of stating it.
 func TestCalendarEventsService_DeleteOccurrence(t *testing.T) {
 	for scope, wantApplyToFuture := range map[OccurrenceScope]string{
-		OccurrenceScopeThisEvent:        "0",
-		OccurrenceScopeThisAndFollowing: "1",
+		OccurrenceScopeThisEvent:        "false",
+		OccurrenceScopeThisAndFollowing: "true",
 	} {
-		var gotPath, gotApplyToFuture, gotMethod string
-		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			gotMethod, gotPath = r.Method, r.URL.Path
-			gotApplyToFuture = r.URL.Query().Get("apply_to_future")
-			w.WriteHeader(204)
-		}))
-		t.Cleanup(server.Close)
-		client := NewClient(&Config{BaseURL: server.URL}, &StaticTokenProvider{Token: "test-token"}, WithMaxRetries(0))
+		client, gotQuery := newNoContentTestClient(t, "DELETE", "/calendar/events/153688907/occurrences/2026-08-21.json")
 
 		err := client.CalendarEvents().DeleteOccurrence(context.Background(),
 			EventOccurrence{EventID: 153688907, Date: time.Date(2026, 8, 21, 0, 0, 0, 0, time.UTC)}, scope)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		if gotMethod != "DELETE" {
-			t.Errorf("expected DELETE, got %s", gotMethod)
-		}
-		if gotPath != "/calendar/events/153688907/occurrences/2026-08-21.json" {
-			t.Errorf("path = %q", gotPath)
-		}
-		if gotApplyToFuture != wantApplyToFuture {
-			t.Errorf("apply_to_future = %q, want %q for %s", gotApplyToFuture, wantApplyToFuture, scope)
+		if got := gotQuery.Get("apply_to_future"); got != wantApplyToFuture {
+			t.Errorf("apply_to_future = %q, want %q for %s", got, wantApplyToFuture, scope)
 		}
 	}
 }
@@ -2420,10 +2428,7 @@ func TestExtenzionsService_Update_OnAServerWithoutTheJSONBranch(t *testing.T) {
 }
 
 func TestExtenzionsService_Delete(t *testing.T) {
-	client := newFormTestClient(t, "DELETE", "/accounts/%s/domains/extenzions/%s",
-		nil,
-		"/accounts/1/domains/extenzions",
-	)
+	client, _ := newNoContentTestClient(t, "DELETE", "/accounts/1/domains/extenzions/10.json")
 
 	err := client.Extenzions().Delete(context.Background(), 1, 10)
 	if err != nil {

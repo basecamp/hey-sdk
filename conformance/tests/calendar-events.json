@@ -57,5 +57,84 @@
       "calendar-events",
       "form"
     ]
+  },
+  {
+    "name": "Calendar event deletes ask for JSON",
+    "description": "Verifies that DeleteCalendarEvent asks for the .json representation HEY answers 204 on, not the redirect its web form gets",
+    "operation": "DeleteCalendarEvent",
+    "method": "DELETE",
+    "path": "/calendar/events/{eventId}.json",
+    "pathParams": {
+      "eventId": 99
+    },
+    "mockResponses": [
+      {
+        "status": 204
+      }
+    ],
+    "assertions": [
+      {
+        "type": "requestPath",
+        "expected": "/calendar/events/99.json"
+      },
+      {
+        "type": "requestMethod",
+        "expected": "DELETE"
+      },
+      {
+        "type": "noError"
+      }
+    ],
+    "configOverrides": {
+      "clientLayer": "hey"
+    },
+    "tags": [
+      "calendar-events",
+      "json"
+    ]
+  },
+  {
+    "name": "Calendar event occurrence deletes ask for JSON with the scope in the query",
+    "description": "Verifies that DeleteCalendarEventOccurrence asks for the .json representation and carries apply_to_future explicitly",
+    "operation": "DeleteCalendarEventOccurrence",
+    "method": "DELETE",
+    "path": "/calendar/events/{eventId}/occurrences/{occurrence}.json",
+    "pathParams": {
+      "occurrenceId": "153688907_2026-08-21"
+    },
+    "requestBody": {
+      "scope": "this_and_following"
+    },
+    "mockResponses": [
+      {
+        "status": 204
+      }
+    ],
+    "assertions": [
+      {
+        "type": "requestPath",
+        "expected": "/calendar/events/153688907/occurrences/2026-08-21.json"
+      },
+      {
+        "type": "requestMethod",
+        "expected": "DELETE"
+      },
+      {
+        "type": "requestQuery",
+        "expected": {
+          "apply_to_future": "true"
+        }
+      },
+      {
+        "type": "noError"
+      }
+    ],
+    "configOverrides": {
+      "clientLayer": "hey"
+    },
+    "tags": [
+      "calendar-events",
+      "json"
+    ]
   }
 ]

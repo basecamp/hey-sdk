@@ -4,6 +4,23 @@
   "generated": true,
   "routes": [
     {
+      "pattern": "/accounts/{accountId}/domains/extenzions/{extenzionId}",
+      "resource": "Extenzions",
+      "operations": {
+        "DELETE": "DeleteExtenzion"
+      },
+      "params": {
+        "accountId": {
+          "role": "parent",
+          "type": "int64"
+        },
+        "extenzionId": {
+          "role": "recording",
+          "type": "int64"
+        }
+      }
+    },
+    {
       "pattern": "/advanced_search",
       "resource": "Search",
       "operations": {
@@ -200,6 +217,36 @@
       "params": {
         "day": {
           "role": "parent",
+          "type": "string"
+        }
+      }
+    },
+    {
+      "pattern": "/calendar/events/{eventId}",
+      "resource": "Calendar Events",
+      "operations": {
+        "DELETE": "DeleteCalendarEvent"
+      },
+      "params": {
+        "eventId": {
+          "role": "recording",
+          "type": "int64"
+        }
+      }
+    },
+    {
+      "pattern": "/calendar/events/{eventId}/occurrences/{occurrence}",
+      "resource": "Calendar Events",
+      "operations": {
+        "DELETE": "DeleteCalendarEventOccurrence"
+      },
+      "params": {
+        "eventId": {
+          "role": "parent",
+          "type": "int64"
+        },
+        "occurrence": {
+          "role": "recording",
           "type": "string"
         }
       }

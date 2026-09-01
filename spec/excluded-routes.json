@@ -520,11 +520,6 @@
     "reason": "phase-2: calendar events"
   },
   {
-    "method": "DELETE",
-    "path": "/calendar/events/{event_id}/occurrences/{occurrence}",
-    "reason": "phase-2: calendar events"
-  },
-  {
     "method": "PATCH",
     "path": "/calendar/events/{event_id}/occurrences/{occurrence}",
     "reason": "phase-2: calendar events"
@@ -537,11 +532,6 @@
   {
     "method": "POST",
     "path": "/calendar/events/{event_id}/outbound_replies",
-    "reason": "phase-2: calendar events"
-  },
-  {
-    "method": "DELETE",
-    "path": "/calendar/events/{id}",
     "reason": "phase-2: calendar events"
   },
   {

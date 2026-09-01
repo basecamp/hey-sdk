@@ -524,8 +524,11 @@ func (s *CalendarEventsService) Delete(ctx context.Context, eventID int64) (err 
 	ctx = s.client.hooks.OnOperationStart(ctx, op)
 	defer func() { s.client.hooks.OnOperationEnd(ctx, op, err, time.Since(start)) }()
 
-	_, err = s.client.DeleteForm(ctx, fmt.Sprintf("/calendar/events/%d", eventID))
-	return err
+	resp, err := s.client.genClient().DeleteCalendarEventWithResponse(ctx, eventID)
+	if err != nil {
+		return err
+	}
+	return CheckResponse(resp.HTTPResponse)
 }
 
 const occurrenceDateLayout = "2006-01-02"
@@ -595,8 +598,13 @@ const (
 	OccurrenceScopeThisAndFollowing OccurrenceScope = "this_and_following"
 )
 
+func (s OccurrenceScope) appliesToFuture() bool {
+	return s == OccurrenceScopeThisAndFollowing
+}
+
+// applyToFuture is the scope as the occurrence form takes it.
 func (s OccurrenceScope) applyToFuture() string {
-	if s == OccurrenceScopeThisAndFollowing {
+	if s.appliesToFuture() {
 		return "1"
 	}
 	return "0"
@@ -667,6 +675,11 @@ func (s *CalendarEventsService) DeleteOccurrence(ctx context.Context, occurrence
 	ctx = s.client.hooks.OnOperationStart(ctx, op)
 	defer func() { s.client.hooks.OnOperationEnd(ctx, op, err, time.Since(start)) }()
 
-	_, err = s.client.DeleteForm(ctx, occurrence.path()+"?apply_to_future="+scope.applyToFuture())
-	return err
+	applyToFuture := scope.appliesToFuture()
+	resp, err := s.client.genClient().DeleteCalendarEventOccurrenceWithResponse(ctx, occurrence.EventID, occurrence.DateParam(),
+		&generated.DeleteCalendarEventOccurrenceParams{ApplyToFuture: &applyToFuture})
+	if err != nil {
+		return err
+	}
+	return CheckResponse(resp.HTTPResponse)
 }

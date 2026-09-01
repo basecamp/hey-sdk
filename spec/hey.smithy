@@ -250,6 +250,13 @@ service HEY {
         CreateWorkflowStaging
         MoveWorkflowStaging
         GetTopicPublication
+
+        // Calendar Events
+        DeleteCalendarEvent
+        DeleteCalendarEventOccurrence
+
+        // Extenzions
+        DeleteExtenzion
     ]
 }
 
@@ -2135,6 +2142,31 @@ operation DeleteContactNote {
 }
 
 // =============================================================================
+// EXTENZION OPERATIONS
+// =============================================================================
+
+/// Delete an extenzion. The id is the extenzion's contact id, the one its app_url
+/// carries. Answers 204; forbidden when the caller cannot edit the extenzion.
+@idempotent
+@http(method: "DELETE", uri: "/accounts/{accountId}/domains/extenzions/{extenzionId}")
+@tags(["Extenzions"])
+@heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+operation DeleteExtenzion {
+    input: DeleteExtenzionInput
+    errors: [UnauthorizedError, ForbiddenError, NotFoundError, InternalServerError, ServiceUnavailableError]
+}
+
+structure DeleteExtenzionInput {
+    @httpLabel
+    @required
+    accountId: Long
+
+    @httpLabel
+    @required
+    extenzionId: Long
+}
+
+// =============================================================================
 // CALENDAR OPERATIONS
 // =============================================================================
 
@@ -2206,6 +2238,54 @@ structure ToggleCalendarInput {
 structure ToggleCalendarOutput {
     @required
     selection: CalendarSelection
+}
+
+// =============================================================================
+// CALENDAR EVENT OPERATIONS
+// =============================================================================
+
+/// Delete a calendar event, cancelling it for every attendee. Answers 204.
+@idempotent
+@http(method: "DELETE", uri: "/calendar/events/{eventId}")
+@tags(["Calendar Events"])
+@heyRetry(maxAttempts: 3, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+operation DeleteCalendarEvent {
+    input: DeleteCalendarEventInput
+    errors: [UnauthorizedError, NotFoundError, InternalServerError, ServiceUnavailableError]
+}
+
+structure DeleteCalendarEventInput {
+    @httpLabel
+    @required
+    eventId: Long
+}
+
+/// Delete one day of a repeating event, or that day and every one after it.
+/// Answers 204. A single day becomes an exception in the series' schedule; with
+/// apply_to_future the series is truncated at the day before, or destroyed if this
+/// was its first day.
+@idempotent
+@http(method: "DELETE", uri: "/calendar/events/{eventId}/occurrences/{occurrence}")
+@tags(["Calendar Events"])
+@heyRetry(maxAttempts: 3, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+operation DeleteCalendarEventOccurrence {
+    input: DeleteCalendarEventOccurrenceInput
+    errors: [UnauthorizedError, NotFoundError, InternalServerError, ServiceUnavailableError]
+}
+
+structure DeleteCalendarEventOccurrenceInput {
+    @httpLabel
+    @required
+    eventId: Long
+
+    /// The day the occurrence falls on, as YYYY-MM-DD.
+    @httpLabel
+    @required
+    occurrence: String
+
+    /// Remove this day and every one after it. Off, only this day is removed.
+    @httpQuery("apply_to_future")
+    applyToFuture: Boolean
 }
 
 // =============================================================================

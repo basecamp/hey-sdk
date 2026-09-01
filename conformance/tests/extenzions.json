@@ -1,0 +1,38 @@
+[
+  {
+    "name": "Extenzion deletes ask for JSON",
+    "description": "Verifies that DeleteExtenzion asks for the .json representation HEY answers 204 on, not the redirect its web form gets",
+    "operation": "DeleteExtenzion",
+    "method": "DELETE",
+    "path": "/accounts/{accountId}/domains/extenzions/{extenzionId}.json",
+    "pathParams": {
+      "accountId": 1,
+      "extenzionId": 10
+    },
+    "mockResponses": [
+      {
+        "status": 204
+      }
+    ],
+    "assertions": [
+      {
+        "type": "requestPath",
+        "expected": "/accounts/1/domains/extenzions/10.json"
+      },
+      {
+        "type": "requestMethod",
+        "expected": "DELETE"
+      },
+      {
+        "type": "noError"
+      }
+    ],
+    "configOverrides": {
+      "clientLayer": "hey"
+    },
+    "tags": [
+      "extenzions",
+      "json"
+    ]
+  }
+]

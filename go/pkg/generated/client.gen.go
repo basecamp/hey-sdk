@@ -1766,6 +1766,12 @@ type ListCalendarDaysParams struct {
 	StartsAt *string `form:"starts_at,omitempty" json:"starts_at,omitempty"`
 }
 
+// DeleteCalendarEventOccurrenceParams defines parameters for DeleteCalendarEventOccurrence.
+type DeleteCalendarEventOccurrenceParams struct {
+	// ApplyToFuture Remove this day and every one after it. Off, only this day is removed.
+	ApplyToFuture *bool `form:"apply_to_future,omitempty" json:"apply_to_future,omitempty"`
+}
+
 // ListJournalEntriesParams defines parameters for ListJournalEntries.
 type ListJournalEntriesParams struct {
 	Page *string `form:"page,omitempty" json:"page,omitempty"`
@@ -2280,6 +2286,9 @@ func (c *Client) doWithRetry(ctx context.Context, buildRequest func() (*http.Req
 
 // The interface specification for the client above.
 type ClientInterface interface {
+	// DeleteExtenzion request
+	DeleteExtenzion(ctx context.Context, accountId int64, extenzionId int64, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// AdvancedSearch request
 	AdvancedSearch(ctx context.Context, params *AdvancedSearchParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
@@ -2347,6 +2356,12 @@ type ClientInterface interface {
 	UpdateJournalEntryWithBody(ctx context.Context, day string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	UpdateJournalEntry(ctx context.Context, day string, body UpdateJournalEntryJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DeleteCalendarEvent request
+	DeleteCalendarEvent(ctx context.Context, eventId int64, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DeleteCalendarEventOccurrence request
+	DeleteCalendarEventOccurrence(ctx context.Context, eventId int64, occurrence string, params *DeleteCalendarEventOccurrenceParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// CreateHabitWithBody request with any body
 	CreateHabitWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -2739,6 +2754,16 @@ type ClientInterface interface {
 	GetWorkflow(ctx context.Context, workflowId int64, reqEditors ...RequestEditorFn) (*http.Response, error)
 }
 
+// DeleteExtenzion is marked as idempotent and will be retried on transient failures.
+
+func (c *Client) DeleteExtenzion(ctx context.Context, accountId int64, extenzionId int64, reqEditors ...RequestEditorFn) (*http.Response, error) {
+
+	return c.doWithRetry(ctx, func() (*http.Request, error) {
+		return NewDeleteExtenzionRequest(c.Server, accountId, extenzionId)
+	}, true, "DeleteExtenzion", reqEditors...)
+
+}
+
 // AdvancedSearch is marked as idempotent and will be retried on transient failures.
 
 func (c *Client) AdvancedSearch(ctx context.Context, params *AdvancedSearchParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -3022,6 +3047,26 @@ func (c *Client) UpdateJournalEntry(ctx context.Context, day string, body Update
 		return nil, err
 	}
 	return c.Client.Do(req)
+
+}
+
+// DeleteCalendarEvent is marked as idempotent and will be retried on transient failures.
+
+func (c *Client) DeleteCalendarEvent(ctx context.Context, eventId int64, reqEditors ...RequestEditorFn) (*http.Response, error) {
+
+	return c.doWithRetry(ctx, func() (*http.Request, error) {
+		return NewDeleteCalendarEventRequest(c.Server, eventId)
+	}, true, "DeleteCalendarEvent", reqEditors...)
+
+}
+
+// DeleteCalendarEventOccurrence is marked as idempotent and will be retried on transient failures.
+
+func (c *Client) DeleteCalendarEventOccurrence(ctx context.Context, eventId int64, occurrence string, params *DeleteCalendarEventOccurrenceParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+
+	return c.doWithRetry(ctx, func() (*http.Request, error) {
+		return NewDeleteCalendarEventOccurrenceRequest(c.Server, eventId, occurrence, params)
+	}, true, "DeleteCalendarEventOccurrence", reqEditors...)
 
 }
 
@@ -4811,6 +4856,47 @@ func (c *Client) GetWorkflow(ctx context.Context, workflowId int64, reqEditors .
 
 }
 
+// NewDeleteExtenzionRequest generates requests for DeleteExtenzion
+func NewDeleteExtenzionRequest(server string, accountId int64, extenzionId int64) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "accountId", runtime.ParamLocationPath, accountId)
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithLocation("simple", false, "extenzionId", runtime.ParamLocationPath, extenzionId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/accounts/%s/domains/extenzions/%s", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("DELETE", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewAdvancedSearchRequest generates requests for AdvancedSearch
 func NewAdvancedSearchRequest(server string, params *AdvancedSearchParams) (*http.Request, error) {
 	var err error
@@ -5882,6 +5968,103 @@ func NewUpdateJournalEntryRequestWithBody(server string, day string, contentType
 	}
 
 	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewDeleteCalendarEventRequest generates requests for DeleteCalendarEvent
+func NewDeleteCalendarEventRequest(server string, eventId int64) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "eventId", runtime.ParamLocationPath, eventId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/calendar/events/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("DELETE", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewDeleteCalendarEventOccurrenceRequest generates requests for DeleteCalendarEventOccurrence
+func NewDeleteCalendarEventOccurrenceRequest(server string, eventId int64, occurrence string, params *DeleteCalendarEventOccurrenceParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "eventId", runtime.ParamLocationPath, eventId)
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithLocation("simple", false, "occurrence", runtime.ParamLocationPath, occurrence)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/calendar/events/%s/occurrences/%s", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if params.ApplyToFuture != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "apply_to_future", runtime.ParamLocationQuery, *params.ApplyToFuture); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("DELETE", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
 
 	return req, nil
 }
@@ -10378,132 +10561,135 @@ type OperationMetadata struct {
 // This is generated from x-hey-* extensions in the OpenAPI spec.
 // GET/HEAD/PUT/DELETE operations are always considered idempotent for retry purposes.
 var operationMetadata = map[string]OperationMetadata{
-	"AdvancedSearch":             {Idempotent: true, HasSensitiveParams: false},
-	"GetAdvancedSearchFilters":   {Idempotent: true, HasSensitiveParams: false},
-	"ListBoxes":                  {Idempotent: true, HasSensitiveParams: false},
-	"GetBox":                     {Idempotent: true, HasSensitiveParams: false},
-	"CreateBoxDesignation":       {Idempotent: false, HasSensitiveParams: false},
-	"DeleteBoxDesignation":       {Idempotent: true, HasSensitiveParams: false},
-	"ListBoxGroups":              {Idempotent: true, HasSensitiveParams: false},
-	"CreateBoxGroup":             {Idempotent: false, HasSensitiveParams: false},
-	"DeleteBoxGroup":             {Idempotent: true, HasSensitiveParams: false},
-	"MarkBoxSeen":                {Idempotent: false, HasSensitiveParams: false},
-	"GetBoxPostingChanges":       {Idempotent: true, HasSensitiveParams: false},
-	"GetBubblebox":               {Idempotent: true, HasSensitiveParams: false},
-	"CreateBulkReply":            {Idempotent: false, HasSensitiveParams: false},
-	"NewBulkReply":               {Idempotent: true, HasSensitiveParams: false},
-	"ListCalendarDays":           {Idempotent: true, HasSensitiveParams: false},
-	"GetCalendarDay":             {Idempotent: true, HasSensitiveParams: false},
-	"UncompleteHabit":            {Idempotent: true, HasSensitiveParams: false},
-	"CompleteHabit":              {Idempotent: true, HasSensitiveParams: false},
-	"GetJournalEntry":            {Idempotent: true, HasSensitiveParams: false},
-	"UpdateJournalEntry":         {Idempotent: false, HasSensitiveParams: false},
-	"CreateHabit":                {Idempotent: false, HasSensitiveParams: false},
-	"DeleteHabit":                {Idempotent: true, HasSensitiveParams: false},
-	"UpdateHabit":                {Idempotent: false, HasSensitiveParams: false},
-	"ResumeHabit":                {Idempotent: true, HasSensitiveParams: false},
-	"StopHabit":                  {Idempotent: false, HasSensitiveParams: false},
-	"UpdateFirstWeekDay":         {Idempotent: true, HasSensitiveParams: false},
-	"ListJournalEntries":         {Idempotent: true, HasSensitiveParams: false},
-	"GetOngoingTimeTrack":        {Idempotent: true, HasSensitiveParams: false},
-	"StartTimeTrack":             {Idempotent: false, HasSensitiveParams: false},
-	"ListTimeTracks":             {Idempotent: true, HasSensitiveParams: false},
-	"CreateTimeTrack":            {Idempotent: false, HasSensitiveParams: false},
-	"ListTimeTrackCategories":    {Idempotent: true, HasSensitiveParams: false},
-	"DeleteTimeTrack":            {Idempotent: true, HasSensitiveParams: false},
-	"UpdateTimeTrack":            {Idempotent: true, HasSensitiveParams: false},
-	"CreateCalendarTodo":         {Idempotent: false, HasSensitiveParams: false},
-	"DeleteCalendarTodo":         {Idempotent: true, HasSensitiveParams: false},
-	"UpdateCalendarTodo":         {Idempotent: false, HasSensitiveParams: false},
-	"UncompleteCalendarTodo":     {Idempotent: true, HasSensitiveParams: false},
-	"CompleteCalendarTodo":       {Idempotent: true, HasSensitiveParams: false},
-	"ListCalendarWeeks":          {Idempotent: true, HasSensitiveParams: false},
-	"GetCalendarWeek":            {Idempotent: true, HasSensitiveParams: false},
-	"GetCalendarYear":            {Idempotent: true, HasSensitiveParams: false},
-	"ListCalendars":              {Idempotent: true, HasSensitiveParams: false},
-	"GetCalendarRecordings":      {Idempotent: true, HasSensitiveParams: false},
-	"ToggleCalendar":             {Idempotent: false, HasSensitiveParams: false},
-	"GetClearances":              {Idempotent: true, HasSensitiveParams: false},
-	"BulkUpdateClearances":       {Idempotent: false, HasSensitiveParams: false},
-	"PuntClearances":             {Idempotent: false, HasSensitiveParams: false},
-	"UpdateClearance":            {Idempotent: false, HasSensitiveParams: false},
-	"ListClips":                  {Idempotent: true, HasSensitiveParams: false},
-	"ListCollections":            {Idempotent: true, HasSensitiveParams: false},
-	"GetCollection":              {Idempotent: true, HasSensitiveParams: false},
-	"UpdateCollection":           {Idempotent: false, HasSensitiveParams: false},
-	"ListContacts":               {Idempotent: true, HasSensitiveParams: false},
-	"CreateContact":              {Idempotent: false, HasSensitiveParams: false},
-	"HideContact":                {Idempotent: true, HasSensitiveParams: false},
-	"GetContact":                 {Idempotent: true, HasSensitiveParams: false},
-	"UpdateContact":              {Idempotent: false, HasSensitiveParams: false},
-	"UnbundleContact":            {Idempotent: true, HasSensitiveParams: false},
-	"BundleContact":              {Idempotent: false, HasSensitiveParams: false},
-	"UpdateContactClearance":     {Idempotent: false, HasSensitiveParams: false},
-	"DeleteContactNote":          {Idempotent: true, HasSensitiveParams: false},
-	"GetContactNote":             {Idempotent: true, HasSensitiveParams: false},
-	"UpdateContactNote":          {Idempotent: false, HasSensitiveParams: false},
-	"RevealContact":              {Idempotent: false, HasSensitiveParams: false},
-	"ListDrafts":                 {Idempotent: true, HasSensitiveParams: false},
-	"DeleteDraft":                {Idempotent: true, HasSensitiveParams: false},
-	"NewEntryForward":            {Idempotent: true, HasSensitiveParams: false},
-	"CreateReply":                {Idempotent: false, HasSensitiveParams: false},
-	"NewEntryReply":              {Idempotent: true, HasSensitiveParams: false},
-	"MarkEntrySpam":              {Idempotent: true, HasSensitiveParams: false},
-	"GetFeedbox":                 {Idempotent: true, HasSensitiveParams: false},
-	"GetFolder":                  {Idempotent: true, HasSensitiveParams: false},
-	"GetIdentity":                {Idempotent: true, HasSensitiveParams: false},
-	"UpdateTimeFormat":           {Idempotent: true, HasSensitiveParams: false},
-	"GetImbox":                   {Idempotent: true, HasSensitiveParams: false},
-	"GetImboxSeen":               {Idempotent: true, HasSensitiveParams: false},
-	"CreateMessage":              {Idempotent: false, HasSensitiveParams: false},
-	"GetMessage":                 {Idempotent: true, HasSensitiveParams: false},
-	"UpdateMessage":              {Idempotent: true, HasSensitiveParams: false},
-	"GetMessageEdit":             {Idempotent: true, HasSensitiveParams: false},
-	"GetMyClearances":            {Idempotent: true, HasSensitiveParams: false},
-	"UpdateMyClearance":          {Idempotent: false, HasSensitiveParams: false},
-	"GetNavigation":              {Idempotent: true, HasSensitiveParams: false},
-	"GetTrailbox":                {Idempotent: true, HasSensitiveParams: false},
-	"RemovePostingsFromBoxGroup": {Idempotent: true, HasSensitiveParams: false},
-	"AddPostingsToBoxGroup":      {Idempotent: false, HasSensitiveParams: false},
-	"CancelPostingsBubbleUp":     {Idempotent: true, HasSensitiveParams: false},
-	"SchedulePostingsBubbleUp":   {Idempotent: false, HasSensitiveParams: false},
-	"BubbleUpPostingsNow":        {Idempotent: false, HasSensitiveParams: false},
-	"UnfilePostings":             {Idempotent: true, HasSensitiveParams: false},
-	"FilePostings":               {Idempotent: false, HasSensitiveParams: false},
-	"CreateFolderForPostings":    {Idempotent: false, HasSensitiveParams: false},
-	"MovePostings":               {Idempotent: false, HasSensitiveParams: false},
-	"UnmutePostings":             {Idempotent: true, HasSensitiveParams: false},
-	"MutePostings":               {Idempotent: false, HasSensitiveParams: false},
-	"MarkPostingsSeen":           {Idempotent: false, HasSensitiveParams: false},
-	"MarkPostingsSpam":           {Idempotent: false, HasSensitiveParams: false},
-	"TrashPostings":              {Idempotent: false, HasSensitiveParams: false},
-	"MarkPostingsUnseen":         {Idempotent: false, HasSensitiveParams: false},
-	"GetBundleUnseenPostings":    {Idempotent: true, HasSensitiveParams: false},
-	"CreateDirectUpload":         {Idempotent: false, HasSensitiveParams: false},
-	"GetLaterbox":                {Idempotent: true, HasSensitiveParams: false},
-	"GetAsidebox":                {Idempotent: true, HasSensitiveParams: false},
-	"ListSnippets":               {Idempotent: true, HasSensitiveParams: false},
-	"ListStickies":               {Idempotent: true, HasSensitiveParams: false},
-	"CreateSticky":               {Idempotent: false, HasSensitiveParams: false},
-	"MoveSticky":                 {Idempotent: false, HasSensitiveParams: false},
-	"DeleteSticky":               {Idempotent: true, HasSensitiveParams: false},
-	"UpdateSticky":               {Idempotent: false, HasSensitiveParams: false},
-	"GetEverythingTopics":        {Idempotent: true, HasSensitiveParams: false},
-	"GetSentTopics":              {Idempotent: true, HasSensitiveParams: false},
-	"GetSpamTopics":              {Idempotent: true, HasSensitiveParams: false},
-	"EmptySpam":                  {Idempotent: true, HasSensitiveParams: false},
-	"GetTrashTopics":             {Idempotent: true, HasSensitiveParams: false},
-	"EmptyTrash":                 {Idempotent: true, HasSensitiveParams: false},
-	"GetTopic":                   {Idempotent: true, HasSensitiveParams: false},
-	"GetTopicEntries":            {Idempotent: true, HasSensitiveParams: false},
-	"MoveTopic":                  {Idempotent: false, HasSensitiveParams: false},
-	"GetTopicPublication":        {Idempotent: true, HasSensitiveParams: false},
-	"RestoreTopic":               {Idempotent: true, HasSensitiveParams: false},
-	"MarkTopicHam":               {Idempotent: true, HasSensitiveParams: false},
-	"TrashTopic":                 {Idempotent: true, HasSensitiveParams: false},
-	"MoveWorkflowStaging":        {Idempotent: false, HasSensitiveParams: false},
-	"CreateWorkflowStaging":      {Idempotent: false, HasSensitiveParams: false},
-	"GetWorkflow":                {Idempotent: true, HasSensitiveParams: false},
+	"DeleteExtenzion":               {Idempotent: true, HasSensitiveParams: false},
+	"AdvancedSearch":                {Idempotent: true, HasSensitiveParams: false},
+	"GetAdvancedSearchFilters":      {Idempotent: true, HasSensitiveParams: false},
+	"ListBoxes":                     {Idempotent: true, HasSensitiveParams: false},
+	"GetBox":                        {Idempotent: true, HasSensitiveParams: false},
+	"CreateBoxDesignation":          {Idempotent: false, HasSensitiveParams: false},
+	"DeleteBoxDesignation":          {Idempotent: true, HasSensitiveParams: false},
+	"ListBoxGroups":                 {Idempotent: true, HasSensitiveParams: false},
+	"CreateBoxGroup":                {Idempotent: false, HasSensitiveParams: false},
+	"DeleteBoxGroup":                {Idempotent: true, HasSensitiveParams: false},
+	"MarkBoxSeen":                   {Idempotent: false, HasSensitiveParams: false},
+	"GetBoxPostingChanges":          {Idempotent: true, HasSensitiveParams: false},
+	"GetBubblebox":                  {Idempotent: true, HasSensitiveParams: false},
+	"CreateBulkReply":               {Idempotent: false, HasSensitiveParams: false},
+	"NewBulkReply":                  {Idempotent: true, HasSensitiveParams: false},
+	"ListCalendarDays":              {Idempotent: true, HasSensitiveParams: false},
+	"GetCalendarDay":                {Idempotent: true, HasSensitiveParams: false},
+	"UncompleteHabit":               {Idempotent: true, HasSensitiveParams: false},
+	"CompleteHabit":                 {Idempotent: true, HasSensitiveParams: false},
+	"GetJournalEntry":               {Idempotent: true, HasSensitiveParams: false},
+	"UpdateJournalEntry":            {Idempotent: false, HasSensitiveParams: false},
+	"DeleteCalendarEvent":           {Idempotent: true, HasSensitiveParams: false},
+	"DeleteCalendarEventOccurrence": {Idempotent: true, HasSensitiveParams: false},
+	"CreateHabit":                   {Idempotent: false, HasSensitiveParams: false},
+	"DeleteHabit":                   {Idempotent: true, HasSensitiveParams: false},
+	"UpdateHabit":                   {Idempotent: false, HasSensitiveParams: false},
+	"ResumeHabit":                   {Idempotent: true, HasSensitiveParams: false},
+	"StopHabit":                     {Idempotent: false, HasSensitiveParams: false},
+	"UpdateFirstWeekDay":            {Idempotent: true, HasSensitiveParams: false},
+	"ListJournalEntries":            {Idempotent: true, HasSensitiveParams: false},
+	"GetOngoingTimeTrack":           {Idempotent: true, HasSensitiveParams: false},
+	"StartTimeTrack":                {Idempotent: false, HasSensitiveParams: false},
+	"ListTimeTracks":                {Idempotent: true, HasSensitiveParams: false},
+	"CreateTimeTrack":               {Idempotent: false, HasSensitiveParams: false},
+	"ListTimeTrackCategories":       {Idempotent: true, HasSensitiveParams: false},
+	"DeleteTimeTrack":               {Idempotent: true, HasSensitiveParams: false},
+	"UpdateTimeTrack":               {Idempotent: true, HasSensitiveParams: false},
+	"CreateCalendarTodo":            {Idempotent: false, HasSensitiveParams: false},
+	"DeleteCalendarTodo":            {Idempotent: true, HasSensitiveParams: false},
+	"UpdateCalendarTodo":            {Idempotent: false, HasSensitiveParams: false},
+	"UncompleteCalendarTodo":        {Idempotent: true, HasSensitiveParams: false},
+	"CompleteCalendarTodo":          {Idempotent: true, HasSensitiveParams: false},
+	"ListCalendarWeeks":             {Idempotent: true, HasSensitiveParams: false},
+	"GetCalendarWeek":               {Idempotent: true, HasSensitiveParams: false},
+	"GetCalendarYear":               {Idempotent: true, HasSensitiveParams: false},
+	"ListCalendars":                 {Idempotent: true, HasSensitiveParams: false},
+	"GetCalendarRecordings":         {Idempotent: true, HasSensitiveParams: false},
+	"ToggleCalendar":                {Idempotent: false, HasSensitiveParams: false},
+	"GetClearances":                 {Idempotent: true, HasSensitiveParams: false},
+	"BulkUpdateClearances":          {Idempotent: false, HasSensitiveParams: false},
+	"PuntClearances":                {Idempotent: false, HasSensitiveParams: false},
+	"UpdateClearance":               {Idempotent: false, HasSensitiveParams: false},
+	"ListClips":                     {Idempotent: true, HasSensitiveParams: false},
+	"ListCollections":               {Idempotent: true, HasSensitiveParams: false},
+	"GetCollection":                 {Idempotent: true, HasSensitiveParams: false},
+	"UpdateCollection":              {Idempotent: false, HasSensitiveParams: false},
+	"ListContacts":                  {Idempotent: true, HasSensitiveParams: false},
+	"CreateContact":                 {Idempotent: false, HasSensitiveParams: false},
+	"HideContact":                   {Idempotent: true, HasSensitiveParams: false},
+	"GetContact":                    {Idempotent: true, HasSensitiveParams: false},
+	"UpdateContact":                 {Idempotent: false, HasSensitiveParams: false},
+	"UnbundleContact":               {Idempotent: true, HasSensitiveParams: false},
+	"BundleContact":                 {Idempotent: false, HasSensitiveParams: false},
+	"UpdateContactClearance":        {Idempotent: false, HasSensitiveParams: false},
+	"DeleteContactNote":             {Idempotent: true, HasSensitiveParams: false},
+	"GetContactNote":                {Idempotent: true, HasSensitiveParams: false},
+	"UpdateContactNote":             {Idempotent: false, HasSensitiveParams: false},
+	"RevealContact":                 {Idempotent: false, HasSensitiveParams: false},
+	"ListDrafts":                    {Idempotent: true, HasSensitiveParams: false},
+	"DeleteDraft":                   {Idempotent: true, HasSensitiveParams: false},
+	"NewEntryForward":               {Idempotent: true, HasSensitiveParams: false},
+	"CreateReply":                   {Idempotent: false, HasSensitiveParams: false},
+	"NewEntryReply":                 {Idempotent: true, HasSensitiveParams: false},
+	"MarkEntrySpam":                 {Idempotent: true, HasSensitiveParams: false},
+	"GetFeedbox":                    {Idempotent: true, HasSensitiveParams: false},
+	"GetFolder":                     {Idempotent: true, HasSensitiveParams: false},
+	"GetIdentity":                   {Idempotent: true, HasSensitiveParams: false},
+	"UpdateTimeFormat":              {Idempotent: true, HasSensitiveParams: false},
+	"GetImbox":                      {Idempotent: true, HasSensitiveParams: false},
+	"GetImboxSeen":                  {Idempotent: true, HasSensitiveParams: false},
+	"CreateMessage":                 {Idempotent: false, HasSensitiveParams: false},
+	"GetMessage":                    {Idempotent: true, HasSensitiveParams: false},
+	"UpdateMessage":                 {Idempotent: true, HasSensitiveParams: false},
+	"GetMessageEdit":                {Idempotent: true, HasSensitiveParams: false},
+	"GetMyClearances":               {Idempotent: true, HasSensitiveParams: false},
+	"UpdateMyClearance":             {Idempotent: false, HasSensitiveParams: false},
+	"GetNavigation":                 {Idempotent: true, HasSensitiveParams: false},
+	"GetTrailbox":                   {Idempotent: true, HasSensitiveParams: false},
+	"RemovePostingsFromBoxGroup":    {Idempotent: true, HasSensitiveParams: false},
+	"AddPostingsToBoxGroup":         {Idempotent: false, HasSensitiveParams: false},
+	"CancelPostingsBubbleUp":        {Idempotent: true, HasSensitiveParams: false},
+	"SchedulePostingsBubbleUp":      {Idempotent: false, HasSensitiveParams: false},
+	"BubbleUpPostingsNow":           {Idempotent: false, HasSensitiveParams: false},
+	"UnfilePostings":                {Idempotent: true, HasSensitiveParams: false},
+	"FilePostings":                  {Idempotent: false, HasSensitiveParams: false},
+	"CreateFolderForPostings":       {Idempotent: false, HasSensitiveParams: false},
+	"MovePostings":                  {Idempotent: false, HasSensitiveParams: false},
+	"UnmutePostings":                {Idempotent: true, HasSensitiveParams: false},
+	"MutePostings":                  {Idempotent: false, HasSensitiveParams: false},
+	"MarkPostingsSeen":              {Idempotent: false, HasSensitiveParams: false},
+	"MarkPostingsSpam":              {Idempotent: false, HasSensitiveParams: false},
+	"TrashPostings":                 {Idempotent: false, HasSensitiveParams: false},
+	"MarkPostingsUnseen":            {Idempotent: false, HasSensitiveParams: false},
+	"GetBundleUnseenPostings":       {Idempotent: true, HasSensitiveParams: false},
+	"CreateDirectUpload":            {Idempotent: false, HasSensitiveParams: false},
+	"GetLaterbox":                   {Idempotent: true, HasSensitiveParams: false},
+	"GetAsidebox":                   {Idempotent: true, HasSensitiveParams: false},
+	"ListSnippets":                  {Idempotent: true, HasSensitiveParams: false},
+	"ListStickies":                  {Idempotent: true, HasSensitiveParams: false},
+	"CreateSticky":                  {Idempotent: false, HasSensitiveParams: false},
+	"MoveSticky":                    {Idempotent: false, HasSensitiveParams: false},
+	"DeleteSticky":                  {Idempotent: true, HasSensitiveParams: false},
+	"UpdateSticky":                  {Idempotent: false, HasSensitiveParams: false},
+	"GetEverythingTopics":           {Idempotent: true, HasSensitiveParams: false},
+	"GetSentTopics":                 {Idempotent: true, HasSensitiveParams: false},
+	"GetSpamTopics":                 {Idempotent: true, HasSensitiveParams: false},
+	"EmptySpam":                     {Idempotent: true, HasSensitiveParams: false},
+	"GetTrashTopics":                {Idempotent: true, HasSensitiveParams: false},
+	"EmptyTrash":                    {Idempotent: true, HasSensitiveParams: false},
+	"GetTopic":                      {Idempotent: true, HasSensitiveParams: false},
+	"GetTopicEntries":               {Idempotent: true, HasSensitiveParams: false},
+	"MoveTopic":                     {Idempotent: false, HasSensitiveParams: false},
+	"GetTopicPublication":           {Idempotent: true, HasSensitiveParams: false},
+	"RestoreTopic":                  {Idempotent: true, HasSensitiveParams: false},
+	"MarkTopicHam":                  {Idempotent: true, HasSensitiveParams: false},
+	"TrashTopic":                    {Idempotent: true, HasSensitiveParams: false},
+	"MoveWorkflowStaging":           {Idempotent: false, HasSensitiveParams: false},
+	"CreateWorkflowStaging":         {Idempotent: false, HasSensitiveParams: false},
+	"GetWorkflow":                   {Idempotent: true, HasSensitiveParams: false},
 }
 
 // GetOperationMetadata returns metadata for the given operation ID.
@@ -11117,6 +11303,14 @@ func WithBaseURL(baseURL string) ClientOption {
 // ClientWithResponsesInterface is the interface specification for the client with responses above.
 type ClientWithResponsesInterface interface {
 
+	// DeleteExtenzionWithResponse performs a DELETE /accounts/{accountId}/domains/extenzions/{extenzionId} (the `DeleteExtenzion` operationId) request.
+	//
+	// Delete an extenzion. The id is the extenzion's contact id, the one its app_url
+	// carries. Answers 204; forbidden when the caller cannot edit the extenzion.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	DeleteExtenzionWithResponse(ctx context.Context, accountId int64, extenzionId int64, reqEditors ...RequestEditorFn) (*DeleteExtenzionResponse, error)
+
 	// AdvancedSearchWithResponse performs a GET /advanced_search.json (the `AdvancedSearch` operationId) request.
 	//
 	// Get the options the advanced search refine form offers.
@@ -11308,6 +11502,23 @@ type ClientWithResponsesInterface interface {
 	// Update the journal entry for a day: writes (or creates) it and answers the entry as a
 	// recording, or 204 when empty content removes it.
 	UpdateJournalEntryWithResponse(ctx context.Context, day string, body UpdateJournalEntryJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateJournalEntryResponse, error)
+
+	// DeleteCalendarEventWithResponse performs a DELETE /calendar/events/{eventId} (the `DeleteCalendarEvent` operationId) request.
+	//
+	// Delete a calendar event, cancelling it for every attendee. Answers 204.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	DeleteCalendarEventWithResponse(ctx context.Context, eventId int64, reqEditors ...RequestEditorFn) (*DeleteCalendarEventResponse, error)
+
+	// DeleteCalendarEventOccurrenceWithResponse performs a DELETE /calendar/events/{eventId}/occurrences/{occurrence} (the `DeleteCalendarEventOccurrence` operationId) request.
+	//
+	// Delete one day of a repeating event, or that day and every one after it.
+	// Answers 204. A single day becomes an exception in the series' schedule; with
+	// apply_to_future the series is truncated at the day before, or destroyed if this
+	// was its first day.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	DeleteCalendarEventOccurrenceWithResponse(ctx context.Context, eventId int64, occurrence string, params *DeleteCalendarEventOccurrenceParams, reqEditors ...RequestEditorFn) (*DeleteCalendarEventOccurrenceResponse, error)
 
 	// CreateHabitWithBodyWithResponse performs a POST /calendar/habits.json (the `CreateHabit` operationId) request,
 	// with any type of body and a specified content type.
@@ -12435,6 +12646,75 @@ type ClientWithResponsesInterface interface {
 	//
 	// Returns a wrapper object for the known response body format(s).
 	GetWorkflowWithResponse(ctx context.Context, workflowId int64, reqEditors ...RequestEditorFn) (*GetWorkflowResponse, error)
+}
+
+type DeleteExtenzionResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *UnauthorizedErrorResponseContent
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *ForbiddenErrorResponseContent
+	// JSON404 the response for an HTTP 404 `application/json` response
+	JSON404 *NotFoundErrorResponseContent
+	// JSON500 the response for an HTTP 500 `application/json` response
+	JSON500 *InternalServerErrorResponseContent
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *ServiceUnavailableErrorResponseContent
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r DeleteExtenzionResponse) GetJSON401() *UnauthorizedErrorResponseContent {
+	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r DeleteExtenzionResponse) GetJSON403() *ForbiddenErrorResponseContent {
+	return r.JSON403
+}
+
+// GetJSON404 returns the response for an HTTP 404 `application/json` response
+func (r DeleteExtenzionResponse) GetJSON404() *NotFoundErrorResponseContent {
+	return r.JSON404
+}
+
+// GetJSON500 returns the response for an HTTP 500 `application/json` response
+func (r DeleteExtenzionResponse) GetJSON500() *InternalServerErrorResponseContent {
+	return r.JSON500
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r DeleteExtenzionResponse) GetJSON503() *ServiceUnavailableErrorResponseContent {
+	return r.JSON503
+}
+
+// GetBody returns the raw response body bytes
+func (r DeleteExtenzionResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r DeleteExtenzionResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DeleteExtenzionResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r DeleteExtenzionResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
 }
 
 type AdvancedSearchResponse struct {
@@ -13769,6 +14049,130 @@ func (r UpdateJournalEntryResponse) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r UpdateJournalEntryResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type DeleteCalendarEventResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *UnauthorizedErrorResponseContent
+	// JSON404 the response for an HTTP 404 `application/json` response
+	JSON404 *NotFoundErrorResponseContent
+	// JSON500 the response for an HTTP 500 `application/json` response
+	JSON500 *InternalServerErrorResponseContent
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *ServiceUnavailableErrorResponseContent
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r DeleteCalendarEventResponse) GetJSON401() *UnauthorizedErrorResponseContent {
+	return r.JSON401
+}
+
+// GetJSON404 returns the response for an HTTP 404 `application/json` response
+func (r DeleteCalendarEventResponse) GetJSON404() *NotFoundErrorResponseContent {
+	return r.JSON404
+}
+
+// GetJSON500 returns the response for an HTTP 500 `application/json` response
+func (r DeleteCalendarEventResponse) GetJSON500() *InternalServerErrorResponseContent {
+	return r.JSON500
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r DeleteCalendarEventResponse) GetJSON503() *ServiceUnavailableErrorResponseContent {
+	return r.JSON503
+}
+
+// GetBody returns the raw response body bytes
+func (r DeleteCalendarEventResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r DeleteCalendarEventResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DeleteCalendarEventResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r DeleteCalendarEventResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type DeleteCalendarEventOccurrenceResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *UnauthorizedErrorResponseContent
+	// JSON404 the response for an HTTP 404 `application/json` response
+	JSON404 *NotFoundErrorResponseContent
+	// JSON500 the response for an HTTP 500 `application/json` response
+	JSON500 *InternalServerErrorResponseContent
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *ServiceUnavailableErrorResponseContent
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r DeleteCalendarEventOccurrenceResponse) GetJSON401() *UnauthorizedErrorResponseContent {
+	return r.JSON401
+}
+
+// GetJSON404 returns the response for an HTTP 404 `application/json` response
+func (r DeleteCalendarEventOccurrenceResponse) GetJSON404() *NotFoundErrorResponseContent {
+	return r.JSON404
+}
+
+// GetJSON500 returns the response for an HTTP 500 `application/json` response
+func (r DeleteCalendarEventOccurrenceResponse) GetJSON500() *InternalServerErrorResponseContent {
+	return r.JSON500
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r DeleteCalendarEventOccurrenceResponse) GetJSON503() *ServiceUnavailableErrorResponseContent {
+	return r.JSON503
+}
+
+// GetBody returns the raw response body bytes
+func (r DeleteCalendarEventOccurrenceResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r DeleteCalendarEventOccurrenceResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DeleteCalendarEventOccurrenceResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r DeleteCalendarEventOccurrenceResponse) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -20739,6 +21143,20 @@ func (r GetWorkflowResponse) ContentType() string {
 	return ""
 }
 
+// DeleteExtenzionWithResponse performs a DELETE /accounts/{accountId}/domains/extenzions/{extenzionId} (the `DeleteExtenzion` operationId) request.
+//
+// Delete an extenzion. The id is the extenzion's contact id, the one its app_url
+// carries. Answers 204; forbidden when the caller cannot edit the extenzion.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) DeleteExtenzionWithResponse(ctx context.Context, accountId int64, extenzionId int64, reqEditors ...RequestEditorFn) (*DeleteExtenzionResponse, error) {
+	rsp, err := c.DeleteExtenzion(ctx, accountId, extenzionId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDeleteExtenzionResponse(rsp)
+}
+
 // AdvancedSearchWithResponse performs a GET /advanced_search.json (the `AdvancedSearch` operationId) request.
 //
 // Get the options the advanced search refine form offers.
@@ -21073,6 +21491,35 @@ func (c *ClientWithResponses) UpdateJournalEntryWithResponse(ctx context.Context
 		return nil, err
 	}
 	return ParseUpdateJournalEntryResponse(rsp)
+}
+
+// DeleteCalendarEventWithResponse performs a DELETE /calendar/events/{eventId} (the `DeleteCalendarEvent` operationId) request.
+//
+// Delete a calendar event, cancelling it for every attendee. Answers 204.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) DeleteCalendarEventWithResponse(ctx context.Context, eventId int64, reqEditors ...RequestEditorFn) (*DeleteCalendarEventResponse, error) {
+	rsp, err := c.DeleteCalendarEvent(ctx, eventId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDeleteCalendarEventResponse(rsp)
+}
+
+// DeleteCalendarEventOccurrenceWithResponse performs a DELETE /calendar/events/{eventId}/occurrences/{occurrence} (the `DeleteCalendarEventOccurrence` operationId) request.
+//
+// Delete one day of a repeating event, or that day and every one after it.
+// Answers 204. A single day becomes an exception in the series' schedule; with
+// apply_to_future the series is truncated at the day before, or destroyed if this
+// was its first day.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) DeleteCalendarEventOccurrenceWithResponse(ctx context.Context, eventId int64, occurrence string, params *DeleteCalendarEventOccurrenceParams, reqEditors ...RequestEditorFn) (*DeleteCalendarEventOccurrenceResponse, error) {
+	rsp, err := c.DeleteCalendarEventOccurrence(ctx, eventId, occurrence, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDeleteCalendarEventOccurrenceResponse(rsp)
 }
 
 // CreateHabitWithBodyWithResponse performs a POST /calendar/habits.json (the `CreateHabit` operationId) request,
@@ -23054,6 +23501,63 @@ func (c *ClientWithResponses) GetWorkflowWithResponse(ctx context.Context, workf
 	return ParseGetWorkflowResponse(rsp)
 }
 
+// ParseDeleteExtenzionResponse parses an HTTP response from a DeleteExtenzionWithResponse call
+func ParseDeleteExtenzionResponse(rsp *http.Response) (*DeleteExtenzionResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DeleteExtenzionResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 200:
+		break // No content-type
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest UnauthorizedErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest ForbiddenErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFoundErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest InternalServerErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+		var dest ServiceUnavailableErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON503 = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseAdvancedSearchResponse parses an HTTP response from a AdvancedSearchWithResponse call
 func ParseAdvancedSearchResponse(rsp *http.Response) (*AdvancedSearchResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -24084,6 +24588,106 @@ func ParseUpdateJournalEntryResponse(rsp *http.Response) (*UpdateJournalEntryRes
 			return nil, err
 		}
 		response.JSON422 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest InternalServerErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+		var dest ServiceUnavailableErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON503 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDeleteCalendarEventResponse parses an HTTP response from a DeleteCalendarEventWithResponse call
+func ParseDeleteCalendarEventResponse(rsp *http.Response) (*DeleteCalendarEventResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DeleteCalendarEventResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 200:
+		break // No content-type
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest UnauthorizedErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFoundErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest InternalServerErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+		var dest ServiceUnavailableErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON503 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDeleteCalendarEventOccurrenceResponse parses an HTTP response from a DeleteCalendarEventOccurrenceWithResponse call
+func ParseDeleteCalendarEventOccurrenceResponse(rsp *http.Response) (*DeleteCalendarEventOccurrenceResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DeleteCalendarEventOccurrenceResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 200:
+		break // No content-type
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest UnauthorizedErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFoundErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
 		var dest InternalServerErrorResponseContent
