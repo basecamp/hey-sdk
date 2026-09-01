@@ -242,6 +242,36 @@ func TestGeneratedOperationsDoNotRetryABodyTheCacheFailedToRead(t *testing.T) {
 	}
 }
 
+// Change feeds advance their cursor on every read, so their URLs never repeat and a
+// cached response could never be revalidated: the posting changes feed bypasses the
+// cache the way the calendar feeds do, and a long-running watch stores nothing.
+func TestGeneratedOperationsBypassTheCacheForPostingChanges(t *testing.T) {
+	backend := &boxServer{etag: `"v1"`, body: `{"added":[],"updated":[],"deleted":[]}`}
+	server := httptest.NewServer(backend.handler())
+	t.Cleanup(server.Close)
+
+	cacheDir := t.TempDir()
+	root := NewClient(&Config{BaseURL: server.URL}, &StaticTokenProvider{Token: "token"},
+		WithMaxRetries(0), WithCache(NewCache(cacheDir)))
+	client := scopedTestClient(root, 42)
+
+	cursor := PostingChangesCursor{Since: "2026-01-01T00:00:00Z"}
+	for range 2 {
+		if _, err := client.Postings().Changes(context.Background(), 7, cursor); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	backend.mu.Lock()
+	defer backend.mu.Unlock()
+	if want := []string{"", ""}; fmt.Sprint(backend.conditionals) != fmt.Sprint(want) {
+		t.Errorf("conditionals = %v, want the changes feed uncached", backend.conditionals)
+	}
+	if entries, err := os.ReadDir(filepath.Join(cacheDir, "responses")); err == nil && len(entries) > 0 {
+		t.Errorf("cache holds %d entries, want none for an advancing cursor", len(entries))
+	}
+}
+
 // A custom transport carries no body cap, so store can read a body past the configured
 // bound. The read guard would never serve such an entry, so it is not written: the
 // answer still parses in full, and the next read goes out unconditional.

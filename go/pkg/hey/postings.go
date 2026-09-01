@@ -437,7 +437,10 @@ func (s *PostingsService) Changes(ctx context.Context, boxID int64, cursor Posti
 	defer func() { s.client.hooks.OnOperationEnd(ctx, op, err, time.Since(start)) }()
 
 	s.client.initGeneratedClient()
-	resp, err := s.client.gen.GetBoxPostingChangesWithResponse(ctx, boxID, cursor.params())
+	// Cursor URLs never repeat, so a cached response would never be revalidated —
+	// a long-running watch would grow the cache one dead entry per read. The
+	// calendar change feeds take the same stance.
+	resp, err := s.client.gen.GetBoxPostingChangesWithResponse(contextWithoutCache(ctx), boxID, cursor.params())
 	if err != nil {
 		return nil, err
 	}
