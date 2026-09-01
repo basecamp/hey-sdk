@@ -287,8 +287,16 @@ func (c *Client) initGeneratedClient() {
 			c.hooks.OnRetry(ctx, info, retry.Attempt, retryCause(retry))
 		}
 
+		// A client with a response cache sends generated requests through it, so the
+		// generated operations revalidate with If-None-Match and read 304s from the
+		// cache the way the hand-written paths do.
+		var doer generated.HttpRequestDoer = c.httpClient
+		if c.cache != nil {
+			doer = &cachingDoer{client: c}
+		}
+
 		gen, err := generated.NewClientWithResponses(serverURL,
-			generated.WithHTTPClient(c.httpClient),
+			generated.WithHTTPClient(doer),
 			generated.WithRetryConfig(retryCfg),
 			generated.WithAuthRefresher(c.refreshCredentials),
 			generated.WithRetryHook(retryHook),
