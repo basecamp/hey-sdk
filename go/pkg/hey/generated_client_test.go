@@ -363,3 +363,219 @@ func TestGeneratedOperationsSurfaceUnauthorizedWhenNothingCanRefresh(t *testing.
 		t.Errorf("expected the 401 to be surfaced on the first request, got %d requests", requests.Load())
 	}
 }
+
+// The generated retry loop reports its resends the way doRequestURL does: OnRetry before
+// each one, told the attempt that failed and the one about to be made, and the transport
+// told which attempt each send is.
+func TestGeneratedRetriesFireOnRetry(t *testing.T) {
+	var requests atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		if requests.Add(1) < 3 {
+			http.Error(w, "unavailable", http.StatusServiceUnavailable)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = io.WriteString(w, `[]`)
+	}))
+	t.Cleanup(server.Close)
+
+	hooks := &retryRecordingHooks{}
+	root := NewClient(&Config{BaseURL: server.URL}, &StaticTokenProvider{Token: "token"},
+		WithHooks(hooks), WithMaxRetries(2), WithBaseDelay(time.Millisecond))
+	client := scopedTestClient(root, 42)
+
+	if _, err := client.Boxes().List(context.Background()); err != nil {
+		t.Fatalf("expected the third attempt to succeed: %v", err)
+	}
+	retries := hooks.retryCalls()
+	if len(retries) != 2 {
+		t.Fatalf("expected OnRetry before each of the two resends, got %d calls", len(retries))
+	}
+	for i, retry := range retries {
+		failed := i + 1
+		if retry.info.Attempt != failed || retry.attempt != failed+1 {
+			t.Errorf("retry %d: told attempt %d failed and %d is next, want %d and %d", i, retry.info.Attempt, retry.attempt, failed, failed+1)
+		}
+		if retry.info.Method != http.MethodGet {
+			t.Errorf("retry %d: method = %q, want GET", i, retry.info.Method)
+		}
+		var sdkErr *Error
+		if !errors.As(retry.err, &sdkErr) || sdkErr.HTTPStatus != http.StatusServiceUnavailable || !sdkErr.Retryable {
+			t.Errorf("retry %d: expected the 503 as a retryable SDK error, got %v", i, retry.err)
+		}
+	}
+	if got := hooks.startAttempts(); len(got) != 3 || got[0] != 1 || got[1] != 2 || got[2] != 3 {
+		t.Errorf("expected the transport to see attempts 1, 2, 3, got %v", got)
+	}
+	if starts := hooks.startURLs(); retries[0].info.URL != starts[0] || !strings.Contains(retries[0].info.URL, "42") {
+		t.Errorf("expected OnRetry to carry the URL the transport sends, %q, got %q", starts[0], retries[0].info.URL)
+	}
+}
+
+// A resend after a credential refresh is a retry too, reported as attempt 2 with the
+// authentication error that prompted it...
+func TestGeneratedRefreshResendFiresOnRetry(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("Authorization") != "Bearer fresh" {
+			http.Error(w, "unauthorized", http.StatusUnauthorized)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = io.WriteString(w, `{"id":1}`)
+	}))
+	t.Cleanup(server.Close)
+
+	hooks := &retryRecordingHooks{}
+	auth := &refreshingAuth{refreshed: "fresh"}
+	auth.token.Store("stale")
+	root := NewClient(&Config{BaseURL: server.URL}, nil, WithAuthStrategy(auth), WithHooks(hooks), WithMaxRetries(0))
+	client := scopedTestClient(root, 42)
+
+	if _, err := client.Boxes().CreateGroup(context.Background(), 7, []int64{1, 2}); err != nil {
+		t.Fatalf("expected the resend after a refresh to succeed: %v", err)
+	}
+	retries := hooks.retryCalls()
+	if len(retries) != 1 {
+		t.Fatalf("expected OnRetry once, before the resend, got %d calls", len(retries))
+	}
+	retry := retries[0]
+	if retry.info.Attempt != 1 || retry.attempt != 2 || retry.info.Method != http.MethodPost {
+		t.Errorf("expected attempt 1 of the POST to be reported failed and 2 next, got %+v next %d", retry.info, retry.attempt)
+	}
+	var sdkErr *Error
+	if !errors.As(retry.err, &sdkErr) || sdkErr.Code != CodeAuth {
+		t.Errorf("expected the 401 as an authentication error, got %v", retry.err)
+	}
+	if got := hooks.startAttempts(); len(got) != 2 || got[0] != 1 || got[1] != 2 {
+		t.Errorf("expected the transport to see attempts 1, 2, got %v", got)
+	}
+}
+
+// ...and the attempts after it keep counting from where the operation was, not from 1.
+func TestGeneratedRetryAttemptsCountAcrossTheRefresh(t *testing.T) {
+	var requests atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.Header.Get("Authorization") != "Bearer fresh":
+			http.Error(w, "unauthorized", http.StatusUnauthorized)
+		case requests.Add(1) < 2:
+			http.Error(w, "unavailable", http.StatusServiceUnavailable)
+		default:
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = io.WriteString(w, `[]`)
+		}
+	}))
+	t.Cleanup(server.Close)
+
+	hooks := &retryRecordingHooks{}
+	auth := &refreshingAuth{refreshed: "fresh"}
+	auth.token.Store("stale")
+	root := NewClient(&Config{BaseURL: server.URL}, nil, WithAuthStrategy(auth), WithHooks(hooks),
+		WithMaxRetries(3), WithBaseDelay(time.Millisecond))
+	client := scopedTestClient(root, 42)
+
+	if _, err := client.Boxes().List(context.Background()); err != nil {
+		t.Fatalf("expected the operation to succeed on its third attempt: %v", err)
+	}
+	retries := hooks.retryCalls()
+	next := make([]int, 0, len(retries))
+	for _, retry := range retries {
+		next = append(next, retry.attempt)
+	}
+	if len(next) != 2 || next[0] != 2 || next[1] != 3 {
+		t.Errorf("expected OnRetry for attempts 2 and 3, got %v", next)
+	}
+	if got := hooks.startAttempts(); len(got) != 3 || got[0] != 1 || got[1] != 2 || got[2] != 3 {
+		t.Errorf("expected the transport to see attempts 1, 2, 3, got %v", got)
+	}
+}
+
+// OnRetry is for a resend that happens: a send that succeeds, a failure past the budget
+// and a 401 nothing can refresh all go unreported.
+func TestGeneratedSendsWithoutResendDoNotFireOnRetry(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		status int
+	}{
+		{name: "a first send that succeeds", status: http.StatusOK},
+		{name: "a failure with no budget to resend on", status: http.StatusServiceUnavailable},
+		{name: "a 401 nothing can refresh", status: http.StatusUnauthorized},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				if tc.status != http.StatusOK {
+					http.Error(w, http.StatusText(tc.status), tc.status)
+					return
+				}
+				w.Header().Set("Content-Type", "application/json")
+				_, _ = io.WriteString(w, `[]`)
+			}))
+			t.Cleanup(server.Close)
+
+			hooks := &retryRecordingHooks{}
+			root := NewClient(&Config{BaseURL: server.URL}, &StaticTokenProvider{Token: "token"}, WithHooks(hooks), WithMaxRetries(0))
+			client := scopedTestClient(root, 42)
+
+			_, _ = client.Boxes().List(context.Background())
+			if retries := hooks.retryCalls(); len(retries) != 0 {
+				t.Errorf("expected no OnRetry, got %d calls", len(retries))
+			}
+			if got := hooks.startAttempts(); len(got) != 1 || got[0] != 1 {
+				t.Errorf("expected one send, attempt 1, got %v", got)
+			}
+		})
+	}
+}
+
+type retryCall struct {
+	info    RequestInfo
+	attempt int
+	err     error
+}
+
+// retryRecordingHooks keeps what the hooks were told about each send and each resend.
+type retryRecordingHooks struct {
+	NoopHooks
+	mu      sync.Mutex
+	starts  []RequestInfo
+	retries []retryCall
+}
+
+func (h *retryRecordingHooks) OnRequestStart(ctx context.Context, info RequestInfo) context.Context {
+	h.mu.Lock()
+	h.starts = append(h.starts, info)
+	h.mu.Unlock()
+	return ctx
+}
+
+func (h *retryRecordingHooks) OnRetry(_ context.Context, info RequestInfo, attempt int, err error) {
+	h.mu.Lock()
+	h.retries = append(h.retries, retryCall{info: info, attempt: attempt, err: err})
+	h.mu.Unlock()
+}
+
+func (h *retryRecordingHooks) retryCalls() []retryCall {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	return append([]retryCall(nil), h.retries...)
+}
+
+func (h *retryRecordingHooks) startAttempts() []int {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	attempts := make([]int, 0, len(h.starts))
+	for _, start := range h.starts {
+		attempts = append(attempts, start.Attempt)
+	}
+	return attempts
+}
+
+func (h *retryRecordingHooks) startURLs() []string {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	urls := make([]string, 0, len(h.starts))
+	for _, start := range h.starts {
+		urls = append(urls, start.URL)
+	}
+	return urls
+}

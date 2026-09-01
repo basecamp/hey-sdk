@@ -4,6 +4,8 @@ import (
 	"context"
 	"net/http"
 	"time"
+
+	"github.com/basecamp/hey-sdk/go/pkg/generated"
 )
 
 // Default values for HTTP client configuration.
@@ -154,22 +156,16 @@ func newDefaultTransport() http.RoundTripper {
 	return t
 }
 
-// attemptKey is the context key for tracking request attempt number.
-type attemptKey struct{}
-
-// contextWithAttempt adds the request attempt number to the context.
+// contextWithAttempt adds the request attempt number to the context. The generated client
+// owns the key, since its retry loop marks its own sends and the transport underneath
+// both clients reads the one mark.
 func contextWithAttempt(ctx context.Context, attempt int) context.Context {
-	return context.WithValue(ctx, attemptKey{}, attempt)
+	return generated.ContextWithAttempt(ctx, attempt)
 }
 
 // attemptFromContext extracts the attempt number from context (defaults to 1).
 func attemptFromContext(ctx context.Context) int {
-	if v := ctx.Value(attemptKey{}); v != nil {
-		if attempt, ok := v.(int); ok {
-			return attempt
-		}
-	}
-	return 1
+	return generated.AttemptFromContext(ctx)
 }
 
 // loggingTransport wraps an http.RoundTripper to log requests and responses,

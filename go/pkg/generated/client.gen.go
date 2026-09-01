@@ -2115,8 +2115,30 @@ type Client struct {
 	// this retry is safe for non-idempotent operations too (optional).
 	AuthRefresher func(ctx context.Context) bool
 
+	// RetryHook is told about each resend before it is made (optional).
+	RetryHook RetryHook
+
 	// Logger for debug output (optional)
 	Logger *slog.Logger
+}
+
+// RetryHook is told about a resend before it is made. It is not called for a failure that
+// is not resent.
+type RetryHook func(ctx context.Context, retry Retry)
+
+// Retry describes a resend about to be made.
+type Retry struct {
+	// Request is the request that just went out, as the editors left it.
+	Request *http.Request
+	// Attempt is the number of the attempt about to be made, counting from 1 across the
+	// whole operation, refresh resend included.
+	Attempt int
+	// Response is what the last attempt was answered with, its body already closed: a
+	// status the client retries on, or the 401 a credential refresh answered. It is nil
+	// when the attempt failed in the transport instead.
+	Response *http.Response
+	// Err is the transport's error when the last attempt never got a response.
+	Err error
 }
 
 // ClientOption allows setting custom parameters during construction
@@ -2181,6 +2203,14 @@ func WithAuthRefresher(fn func(ctx context.Context) bool) ClientOption {
 	}
 }
 
+// WithRetryHook sets the callback told about each resend before it is made.
+func WithRetryHook(fn RetryHook) ClientOption {
+	return func(c *Client) error {
+		c.RetryHook = fn
+		return nil
+	}
+}
+
 // WithLogger allows setting a custom logger for debug output.
 func WithLogger(logger *slog.Logger) ClientOption {
 	return func(c *Client) error {
@@ -2216,7 +2246,7 @@ func (c *Client) doWithRetry(ctx context.Context, buildRequest func() (*http.Req
 	resp, err := c.doAttempts(ctx, func() (*http.Request, error) {
 		made++
 		return buildRequest()
-	}, maxAttempts, operationId, reqEditors...)
+	}, 1, maxAttempts, operationId, reqEditors...)
 	if err != nil || resp.StatusCode != http.StatusUnauthorized || c.AuthRefresher == nil || !c.AuthRefresher(ctx) {
 		return resp, err
 	}
@@ -2224,8 +2254,29 @@ func (c *Client) doWithRetry(ctx context.Context, buildRequest func() (*http.Req
 	if c.Logger != nil {
 		c.Logger.Debug("credentials refreshed, retrying", "operation", operationId)
 	}
-	return c.doAttempts(ctx, buildRequest, max(maxAttempts-made, 1), operationId, reqEditors...)
+	if c.RetryHook != nil {
+		c.RetryHook(ctx, Retry{Request: resp.Request, Attempt: made + 1, Response: resp})
+	}
+	return c.doAttempts(ctx, buildRequest, made+1, made+max(maxAttempts-made, 1), operationId, reqEditors...)
 }
+
+// ContextWithAttempt marks the context a request is sent with as the given attempt of its
+// operation, counting from 1, so a transport underneath the client can tell a resend from
+// a first send.
+func ContextWithAttempt(ctx context.Context, attempt int) context.Context {
+	return context.WithValue(ctx, attemptKey{}, attempt)
+}
+
+// AttemptFromContext reports which attempt of its operation a request is, or 1 when the
+// context does not say.
+func AttemptFromContext(ctx context.Context) int {
+	if attempt, ok := ctx.Value(attemptKey{}).(int); ok {
+		return attempt
+	}
+	return 1
+}
+
+type attemptKey struct{}
 
 // resendableBody makes a request body good for more than one send, since every attempt
 // builds its request afresh from the same reader: a seekable body is rewound to where it
@@ -2269,20 +2320,20 @@ func resendableBody(body io.Reader) (io.Reader, func() error, func()) {
 // as the request body as-is and so hands its closing to the transport.
 type readOnly struct{ io.Reader }
 
-// doAttempts runs the retry loop for up to maxAttempts sends, retrying transient
-// failures with backoff between them.
-func (c *Client) doAttempts(ctx context.Context, buildRequest func() (*http.Request, error), maxAttempts int, operationId string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+// doAttempts runs the retry loop for the sends numbered first through last, retrying
+// transient failures with backoff between them.
+func (c *Client) doAttempts(ctx context.Context, buildRequest func() (*http.Request, error), first, last int, operationId string, reqEditors ...RequestEditorFn) (*http.Response, error) {
 
 	var lastResp *http.Response
 	var lastErr error
 	delay := c.RetryConfig.BaseDelay
 
-	for attempt := 1; attempt <= maxAttempts; attempt++ {
+	for attempt := first; attempt <= last; attempt++ {
 		req, err := buildRequest()
 		if err != nil {
 			return nil, err
 		}
-		req = req.WithContext(ctx)
+		req = req.WithContext(ContextWithAttempt(ctx, attempt))
 		if err := c.applyEditors(ctx, req, reqEditors); err != nil {
 			return nil, err
 		}
@@ -2298,16 +2349,11 @@ func (c *Client) doAttempts(ctx context.Context, buildRequest func() (*http.Requ
 				)
 			}
 			// Network errors are retryable while attempts remain
-			if attempt < maxAttempts {
-				select {
-				case <-ctx.Done():
-					return nil, ctx.Err()
-				case <-time.After(delay + time.Duration(rand.Int63n(int64(100*time.Millisecond)))):
+			if attempt < last {
+				if err := c.resend(ctx, Retry{Request: req, Attempt: attempt + 1, Err: err}, delay); err != nil {
+					return nil, err
 				}
-				delay = time.Duration(float64(delay) * c.RetryConfig.Multiplier)
-				if delay > c.RetryConfig.MaxDelay {
-					delay = c.RetryConfig.MaxDelay
-				}
+				delay = c.nextDelay(delay)
 				continue
 			}
 			return nil, err
@@ -2328,7 +2374,7 @@ func (c *Client) doAttempts(ctx context.Context, buildRequest func() (*http.Requ
 		}
 
 		// Don't retry past the last attempt
-		if attempt >= maxAttempts {
+		if attempt >= last {
 			return resp, nil
 		}
 
@@ -2345,21 +2391,41 @@ func (c *Client) doAttempts(ctx context.Context, buildRequest func() (*http.Requ
 			}
 		}
 
-		select {
-		case <-ctx.Done():
-			return nil, ctx.Err()
-		case <-time.After(retryDelay + time.Duration(rand.Int63n(int64(100*time.Millisecond)))):
+		if err := c.resend(ctx, Retry{Request: req, Attempt: attempt + 1, Response: resp}, retryDelay); err != nil {
+			return nil, err
 		}
-		delay = time.Duration(float64(delay) * c.RetryConfig.Multiplier)
-		if delay > c.RetryConfig.MaxDelay {
-			delay = c.RetryConfig.MaxDelay
-		}
+		delay = c.nextDelay(delay)
 	}
 
 	if lastErr != nil {
 		return nil, lastErr
 	}
 	return lastResp, nil
+}
+
+// resend announces the attempt about to be made to the RetryHook and waits out the delay
+// before it, with jitter, unless the context is done first.
+func (c *Client) resend(ctx context.Context, retry Retry, delay time.Duration) error {
+	if c.RetryHook != nil {
+		c.RetryHook(ctx, retry)
+	}
+	// The hook may have cancelled the context. A select with both cases ready picks one
+	// pseudo-randomly, so with an already-elapsed delay the timer could win and one more
+	// request go out on a dead context; check the context first, where nothing competes.
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-time.After(delay + time.Duration(rand.Int63n(int64(100*time.Millisecond)))):
+		return nil
+	}
+}
+
+// nextDelay grows the backoff delay for the following resend, up to the configured ceiling.
+func (c *Client) nextDelay(delay time.Duration) time.Duration {
+	return min(time.Duration(float64(delay)*c.RetryConfig.Multiplier), c.RetryConfig.MaxDelay)
 }
 
 // The interface specification for the client above.
