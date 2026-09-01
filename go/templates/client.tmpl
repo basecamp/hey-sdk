@@ -51,6 +51,12 @@ type {{ $clientTypeName }} struct {
 	// RetryConfig for idempotent operations
 	RetryConfig RetryConfig
 
+	// AuthRefresher is asked once when a response is 401. It renews whatever the request
+	// editors authenticate with and reports whether it could; when it could, the request
+	// is built and sent once more. A 401 means the server did not act on the request, so
+	// this retry is safe for non-idempotent operations too (optional).
+	AuthRefresher func(ctx context.Context) bool
+
 	// Logger for debug output (optional)
 	Logger *slog.Logger
 }
@@ -108,6 +114,15 @@ func WithRetryConfig(cfg RetryConfig) ClientOption {
 	}
 }
 
+// WithAuthRefresher sets the callback a 401 response consults before the request is
+// sent once more with renewed credentials.
+func WithAuthRefresher(fn func(ctx context.Context) bool) ClientOption {
+	return func(c *{{ $clientTypeName }}) error {
+		c.AuthRefresher = fn
+		return nil
+	}
+}
+
 // WithLogger allows setting a custom logger for debug output.
 func WithLogger(logger *slog.Logger) ClientOption {
 	return func(c *{{ $clientTypeName }}) error {
@@ -130,8 +145,50 @@ func isRetryableStatus(statusCode int) bool {
 	}
 }
 
-// doWithRetry executes a request with retry logic for idempotent operations.
+// doWithRetry executes a request with retry logic for idempotent operations, and sends
+// it once more after a 401 the AuthRefresher was able to answer.
 func (c *{{ $clientTypeName }}) doWithRetry(ctx context.Context, buildRequest func() (*http.Request, error), isIdempotent bool, operationId string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	resp, err := c.doAttempts(ctx, buildRequest, isIdempotent, operationId, reqEditors...)
+	if err != nil || resp.StatusCode != http.StatusUnauthorized || c.AuthRefresher == nil || !c.AuthRefresher(ctx) {
+		return resp, err
+	}
+	_ = resp.Body.Close()
+	if c.Logger != nil {
+		c.Logger.Debug("credentials refreshed, retrying", "operation", operationId)
+	}
+	return c.doAttempts(ctx, buildRequest, isIdempotent, operationId, reqEditors...)
+}
+
+// resendableBody makes a request body good for more than one send, since every attempt
+// builds its request afresh from the same reader: a seekable body is rewound to where it
+// started, and any other body is held in memory. The returned rewind runs before each build.
+func resendableBody(body io.Reader) (io.Reader, func() error) {
+	if body == nil {
+		return nil, func() error { return nil }
+	}
+	if seeker, ok := body.(io.ReadSeeker); ok {
+		start, err := seeker.Seek(0, io.SeekCurrent)
+		if err == nil {
+			return seeker, func() error {
+				_, err := seeker.Seek(start, io.SeekStart)
+				return err
+			}
+		}
+	}
+	buf, err := io.ReadAll(body)
+	held := bytes.NewReader(buf)
+	return held, func() error {
+		if err != nil {
+			return err
+		}
+		_, err := held.Seek(0, io.SeekStart)
+		return err
+	}
+}
+
+// doAttempts runs the retry loop: one attempt for a non-idempotent operation, up to
+// RetryConfig.MaxRetries+1 for an idempotent one.
+func (c *{{ $clientTypeName }}) doAttempts(ctx context.Context, buildRequest func() (*http.Request, error), isIdempotent bool, operationId string, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	maxAttempts := 1
 	if isIdempotent {
 		maxAttempts = c.RetryConfig.MaxRetries + 1
@@ -273,41 +330,21 @@ type ClientInterface interface {
 // {{$opid}}{{if .HasBody}}WithBody{{end}} executes the {{$opid}} operation.
 {{end}}
 func (c *{{ $clientTypeName }}) {{$opid}}{{if .HasBody}}WithBody{{end}}(ctx context.Context{{genParamArgs $pathParams}}{{if $hasParams}}, params *{{$opid}}Params{{end}}{{if .HasBody}}, contentType string, body io.Reader{{end}}, reqEditors... RequestEditorFn) (*http.Response, error) {
-{{if $isIdempotent}}
-    return c.doWithRetry(ctx, func() (*http.Request, error) {
-        return New{{$opid}}Request{{if .HasBody}}WithBody{{end}}(c.Server{{genParamNames .PathParams}}{{if $hasParams}}, params{{end}}{{if .HasBody}}, contentType, body{{end}})
-    }, true, "{{$opid}}", reqEditors...)
-{{else}}
-    req, err := New{{$opid}}Request{{if .HasBody}}WithBody{{end}}(c.Server{{genParamNames .PathParams}}{{if $hasParams}}, params{{end}}{{if .HasBody}}, contentType, body{{end}})
-    if err != nil {
-        return nil, err
-    }
-    req = req.WithContext(ctx)
-    if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-        return nil, err
-    }
-    return c.Client.Do(req)
-{{end}}
+{{if .HasBody}}    body, rewind := resendableBody(body)
+{{end}}    return c.doWithRetry(ctx, func() (*http.Request, error) {
+{{if .HasBody}}        if err := rewind(); err != nil {
+            return nil, err
+        }
+{{end}}        return New{{$opid}}Request{{if .HasBody}}WithBody{{end}}(c.Server{{genParamNames .PathParams}}{{if $hasParams}}, params{{end}}{{if .HasBody}}, contentType, body{{end}})
+    }, {{$isIdempotent}}, "{{$opid}}", reqEditors...)
 }
 
 {{range .Bodies}}
 {{if .IsSupportedByClient -}}
 func (c *{{ $clientTypeName }}) {{$opid}}{{.Suffix}}(ctx context.Context{{genParamArgs $pathParams}}{{if $hasParams}}, params *{{$opid}}Params{{end}}, body {{$opid}}{{.NameTag}}RequestBody, reqEditors... RequestEditorFn) (*http.Response, error) {
-{{if $isIdempotent}}
     return c.doWithRetry(ctx, func() (*http.Request, error) {
         return New{{$opid}}Request{{.Suffix}}(c.Server{{genParamNames $pathParams}}{{if $hasParams}}, params{{end}}, body)
-    }, true, "{{$opid}}", reqEditors...)
-{{else}}
-    req, err := New{{$opid}}Request{{.Suffix}}(c.Server{{genParamNames $pathParams}}{{if $hasParams}}, params{{end}}, body)
-    if err != nil {
-        return nil, err
-    }
-    req = req.WithContext(ctx)
-    if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-        return nil, err
-    }
-    return c.Client.Do(req)
-{{end}}
+    }, {{$isIdempotent}}, "{{$opid}}", reqEditors...)
 }
 {{end -}}{{/* if .IsSupported */}}
 {{end}}{{/* range .Bodies */}}

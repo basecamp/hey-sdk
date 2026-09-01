@@ -2109,6 +2109,12 @@ type Client struct {
 	// RetryConfig for idempotent operations
 	RetryConfig RetryConfig
 
+	// AuthRefresher is asked once when a response is 401. It renews whatever the request
+	// editors authenticate with and reports whether it could; when it could, the request
+	// is built and sent once more. A 401 means the server did not act on the request, so
+	// this retry is safe for non-idempotent operations too (optional).
+	AuthRefresher func(ctx context.Context) bool
+
 	// Logger for debug output (optional)
 	Logger *slog.Logger
 }
@@ -2166,6 +2172,15 @@ func WithRetryConfig(cfg RetryConfig) ClientOption {
 	}
 }
 
+// WithAuthRefresher sets the callback a 401 response consults before the request is
+// sent once more with renewed credentials.
+func WithAuthRefresher(fn func(ctx context.Context) bool) ClientOption {
+	return func(c *Client) error {
+		c.AuthRefresher = fn
+		return nil
+	}
+}
+
 // WithLogger allows setting a custom logger for debug output.
 func WithLogger(logger *slog.Logger) ClientOption {
 	return func(c *Client) error {
@@ -2188,8 +2203,50 @@ func isRetryableStatus(statusCode int) bool {
 	}
 }
 
-// doWithRetry executes a request with retry logic for idempotent operations.
+// doWithRetry executes a request with retry logic for idempotent operations, and sends
+// it once more after a 401 the AuthRefresher was able to answer.
 func (c *Client) doWithRetry(ctx context.Context, buildRequest func() (*http.Request, error), isIdempotent bool, operationId string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	resp, err := c.doAttempts(ctx, buildRequest, isIdempotent, operationId, reqEditors...)
+	if err != nil || resp.StatusCode != http.StatusUnauthorized || c.AuthRefresher == nil || !c.AuthRefresher(ctx) {
+		return resp, err
+	}
+	_ = resp.Body.Close()
+	if c.Logger != nil {
+		c.Logger.Debug("credentials refreshed, retrying", "operation", operationId)
+	}
+	return c.doAttempts(ctx, buildRequest, isIdempotent, operationId, reqEditors...)
+}
+
+// resendableBody makes a request body good for more than one send, since every attempt
+// builds its request afresh from the same reader: a seekable body is rewound to where it
+// started, and any other body is held in memory. The returned rewind runs before each build.
+func resendableBody(body io.Reader) (io.Reader, func() error) {
+	if body == nil {
+		return nil, func() error { return nil }
+	}
+	if seeker, ok := body.(io.ReadSeeker); ok {
+		start, err := seeker.Seek(0, io.SeekCurrent)
+		if err == nil {
+			return seeker, func() error {
+				_, err := seeker.Seek(start, io.SeekStart)
+				return err
+			}
+		}
+	}
+	buf, err := io.ReadAll(body)
+	held := bytes.NewReader(buf)
+	return held, func() error {
+		if err != nil {
+			return err
+		}
+		_, err := held.Seek(0, io.SeekStart)
+		return err
+	}
+}
+
+// doAttempts runs the retry loop: one attempt for a non-idempotent operation, up to
+// RetryConfig.MaxRetries+1 for an idempotent one.
+func (c *Client) doAttempts(ctx context.Context, buildRequest func() (*http.Request, error), isIdempotent bool, operationId string, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	maxAttempts := 1
 	if isIdempotent {
 		maxAttempts = c.RetryConfig.MaxRetries + 1
@@ -2757,2103 +2814,1433 @@ type ClientInterface interface {
 // DeleteExtenzion is marked as idempotent and will be retried on transient failures.
 
 func (c *Client) DeleteExtenzion(ctx context.Context, accountId int64, extenzionId int64, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
 		return NewDeleteExtenzionRequest(c.Server, accountId, extenzionId)
 	}, true, "DeleteExtenzion", reqEditors...)
-
 }
 
 // AdvancedSearch is marked as idempotent and will be retried on transient failures.
 
 func (c *Client) AdvancedSearch(ctx context.Context, params *AdvancedSearchParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
 		return NewAdvancedSearchRequest(c.Server, params)
 	}, true, "AdvancedSearch", reqEditors...)
-
 }
 
 // GetAdvancedSearchFilters is marked as idempotent and will be retried on transient failures.
 
 func (c *Client) GetAdvancedSearchFilters(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
 		return NewGetAdvancedSearchFiltersRequest(c.Server)
 	}, true, "GetAdvancedSearchFilters", reqEditors...)
-
 }
 
 // ListBoxes is marked as idempotent and will be retried on transient failures.
 
 func (c *Client) ListBoxes(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
 		return NewListBoxesRequest(c.Server)
 	}, true, "ListBoxes", reqEditors...)
-
 }
 
 // GetBox is marked as idempotent and will be retried on transient failures.
 
 func (c *Client) GetBox(ctx context.Context, boxId int64, params *GetBoxParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
 		return NewGetBoxRequest(c.Server, boxId, params)
 	}, true, "GetBox", reqEditors...)
-
 }
 
 // CreateBoxDesignationWithBody executes the CreateBoxDesignation operation.
 
 func (c *Client) CreateBoxDesignationWithBody(ctx context.Context, boxId int64, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
-	req, err := NewCreateBoxDesignationRequestWithBody(c.Server, boxId, contentType, body)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
-
+	body, rewind := resendableBody(body)
+	return c.doWithRetry(ctx, func() (*http.Request, error) {
+		if err := rewind(); err != nil {
+			return nil, err
+		}
+		return NewCreateBoxDesignationRequestWithBody(c.Server, boxId, contentType, body)
+	}, false, "CreateBoxDesignation", reqEditors...)
 }
 
 func (c *Client) CreateBoxDesignation(ctx context.Context, boxId int64, body CreateBoxDesignationJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
-	req, err := NewCreateBoxDesignationRequest(c.Server, boxId, body)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
-
+	return c.doWithRetry(ctx, func() (*http.Request, error) {
+		return NewCreateBoxDesignationRequest(c.Server, boxId, body)
+	}, false, "CreateBoxDesignation", reqEditors...)
 }
 
 // DeleteBoxDesignation is marked as idempotent and will be retried on transient failures.
 
 func (c *Client) DeleteBoxDesignation(ctx context.Context, boxId int64, designationId int64, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
 		return NewDeleteBoxDesignationRequest(c.Server, boxId, designationId)
 	}, true, "DeleteBoxDesignation", reqEditors...)
-
 }
 
 // ListBoxGroups is marked as idempotent and will be retried on transient failures.
 
 func (c *Client) ListBoxGroups(ctx context.Context, boxId int64, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
 		return NewListBoxGroupsRequest(c.Server, boxId)
 	}, true, "ListBoxGroups", reqEditors...)
-
 }
 
 // CreateBoxGroupWithBody executes the CreateBoxGroup operation.
 
 func (c *Client) CreateBoxGroupWithBody(ctx context.Context, boxId int64, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
-	req, err := NewCreateBoxGroupRequestWithBody(c.Server, boxId, contentType, body)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
-
+	body, rewind := resendableBody(body)
+	return c.doWithRetry(ctx, func() (*http.Request, error) {
+		if err := rewind(); err != nil {
+			return nil, err
+		}
+		return NewCreateBoxGroupRequestWithBody(c.Server, boxId, contentType, body)
+	}, false, "CreateBoxGroup", reqEditors...)
 }
 
 func (c *Client) CreateBoxGroup(ctx context.Context, boxId int64, body CreateBoxGroupJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
-	req, err := NewCreateBoxGroupRequest(c.Server, boxId, body)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
-
+	return c.doWithRetry(ctx, func() (*http.Request, error) {
+		return NewCreateBoxGroupRequest(c.Server, boxId, body)
+	}, false, "CreateBoxGroup", reqEditors...)
 }
 
 // DeleteBoxGroup is marked as idempotent and will be retried on transient failures.
 
 func (c *Client) DeleteBoxGroup(ctx context.Context, boxId int64, groupId int64, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
 		return NewDeleteBoxGroupRequest(c.Server, boxId, groupId)
 	}, true, "DeleteBoxGroup", reqEditors...)
-
 }
 
 // MarkBoxSeen executes the MarkBoxSeen operation.
 
 func (c *Client) MarkBoxSeen(ctx context.Context, boxId int64, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
-	req, err := NewMarkBoxSeenRequest(c.Server, boxId)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
-
+	return c.doWithRetry(ctx, func() (*http.Request, error) {
+		return NewMarkBoxSeenRequest(c.Server, boxId)
+	}, false, "MarkBoxSeen", reqEditors...)
 }
 
 // GetBoxPostingChanges is marked as idempotent and will be retried on transient failures.
 
 func (c *Client) GetBoxPostingChanges(ctx context.Context, boxId int64, params *GetBoxPostingChangesParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
 		return NewGetBoxPostingChangesRequest(c.Server, boxId, params)
 	}, true, "GetBoxPostingChanges", reqEditors...)
-
 }
 
 // GetBubblebox is marked as idempotent and will be retried on transient failures.
 
 func (c *Client) GetBubblebox(ctx context.Context, params *GetBubbleboxParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
 		return NewGetBubbleboxRequest(c.Server, params)
 	}, true, "GetBubblebox", reqEditors...)
-
 }
 
 // CreateBulkReplyWithBody executes the CreateBulkReply operation.
 
 func (c *Client) CreateBulkReplyWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
-	req, err := NewCreateBulkReplyRequestWithBody(c.Server, contentType, body)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
-
+	body, rewind := resendableBody(body)
+	return c.doWithRetry(ctx, func() (*http.Request, error) {
+		if err := rewind(); err != nil {
+			return nil, err
+		}
+		return NewCreateBulkReplyRequestWithBody(c.Server, contentType, body)
+	}, false, "CreateBulkReply", reqEditors...)
 }
 
 func (c *Client) CreateBulkReply(ctx context.Context, body CreateBulkReplyJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
-	req, err := NewCreateBulkReplyRequest(c.Server, body)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
-
+	return c.doWithRetry(ctx, func() (*http.Request, error) {
+		return NewCreateBulkReplyRequest(c.Server, body)
+	}, false, "CreateBulkReply", reqEditors...)
 }
 
 // NewBulkReply is marked as idempotent and will be retried on transient failures.
 
 func (c *Client) NewBulkReply(ctx context.Context, params *NewBulkReplyParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
 		return NewNewBulkReplyRequest(c.Server, params)
 	}, true, "NewBulkReply", reqEditors...)
-
 }
 
 // ListCalendarDays is marked as idempotent and will be retried on transient failures.
 
 func (c *Client) ListCalendarDays(ctx context.Context, params *ListCalendarDaysParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
 		return NewListCalendarDaysRequest(c.Server, params)
 	}, true, "ListCalendarDays", reqEditors...)
-
 }
 
 // GetCalendarDay is marked as idempotent and will be retried on transient failures.
 
 func (c *Client) GetCalendarDay(ctx context.Context, day string, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
 		return NewGetCalendarDayRequest(c.Server, day)
 	}, true, "GetCalendarDay", reqEditors...)
-
 }
 
 // UncompleteHabit is marked as idempotent and will be retried on transient failures.
 
 func (c *Client) UncompleteHabit(ctx context.Context, day string, habitId int64, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
 		return NewUncompleteHabitRequest(c.Server, day, habitId)
 	}, true, "UncompleteHabit", reqEditors...)
-
 }
 
 // CompleteHabit is marked as idempotent and will be retried on transient failures.
 
 func (c *Client) CompleteHabit(ctx context.Context, day string, habitId int64, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
 		return NewCompleteHabitRequest(c.Server, day, habitId)
 	}, true, "CompleteHabit", reqEditors...)
-
 }
 
 // GetJournalEntry is marked as idempotent and will be retried on transient failures.
 
 func (c *Client) GetJournalEntry(ctx context.Context, day string, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
 		return NewGetJournalEntryRequest(c.Server, day)
 	}, true, "GetJournalEntry", reqEditors...)
-
 }
 
 // UpdateJournalEntryWithBody executes the UpdateJournalEntry operation.
 
 func (c *Client) UpdateJournalEntryWithBody(ctx context.Context, day string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
-	req, err := NewUpdateJournalEntryRequestWithBody(c.Server, day, contentType, body)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
-
+	body, rewind := resendableBody(body)
+	return c.doWithRetry(ctx, func() (*http.Request, error) {
+		if err := rewind(); err != nil {
+			return nil, err
+		}
+		return NewUpdateJournalEntryRequestWithBody(c.Server, day, contentType, body)
+	}, false, "UpdateJournalEntry", reqEditors...)
 }
 
 func (c *Client) UpdateJournalEntry(ctx context.Context, day string, body UpdateJournalEntryJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
-	req, err := NewUpdateJournalEntryRequest(c.Server, day, body)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
-
+	return c.doWithRetry(ctx, func() (*http.Request, error) {
+		return NewUpdateJournalEntryRequest(c.Server, day, body)
+	}, false, "UpdateJournalEntry", reqEditors...)
 }
 
 // DeleteCalendarEvent is marked as idempotent and will be retried on transient failures.
 
 func (c *Client) DeleteCalendarEvent(ctx context.Context, eventId int64, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
 		return NewDeleteCalendarEventRequest(c.Server, eventId)
 	}, true, "DeleteCalendarEvent", reqEditors...)
-
 }
 
 // DeleteCalendarEventOccurrence is marked as idempotent and will be retried on transient failures.
 
 func (c *Client) DeleteCalendarEventOccurrence(ctx context.Context, eventId int64, occurrence string, params *DeleteCalendarEventOccurrenceParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
 		return NewDeleteCalendarEventOccurrenceRequest(c.Server, eventId, occurrence, params)
 	}, true, "DeleteCalendarEventOccurrence", reqEditors...)
-
 }
 
 // CreateHabitWithBody executes the CreateHabit operation.
 
 func (c *Client) CreateHabitWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
-	req, err := NewCreateHabitRequestWithBody(c.Server, contentType, body)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
-
+	body, rewind := resendableBody(body)
+	return c.doWithRetry(ctx, func() (*http.Request, error) {
+		if err := rewind(); err != nil {
+			return nil, err
+		}
+		return NewCreateHabitRequestWithBody(c.Server, contentType, body)
+	}, false, "CreateHabit", reqEditors...)
 }
 
 func (c *Client) CreateHabit(ctx context.Context, body CreateHabitJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
-	req, err := NewCreateHabitRequest(c.Server, body)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
-
+	return c.doWithRetry(ctx, func() (*http.Request, error) {
+		return NewCreateHabitRequest(c.Server, body)
+	}, false, "CreateHabit", reqEditors...)
 }
 
 // DeleteHabit is marked as idempotent and will be retried on transient failures.
 
 func (c *Client) DeleteHabit(ctx context.Context, habitId int64, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
 		return NewDeleteHabitRequest(c.Server, habitId)
 	}, true, "DeleteHabit", reqEditors...)
-
 }
 
 // UpdateHabitWithBody executes the UpdateHabit operation.
 
 func (c *Client) UpdateHabitWithBody(ctx context.Context, habitId int64, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
-	req, err := NewUpdateHabitRequestWithBody(c.Server, habitId, contentType, body)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
-
+	body, rewind := resendableBody(body)
+	return c.doWithRetry(ctx, func() (*http.Request, error) {
+		if err := rewind(); err != nil {
+			return nil, err
+		}
+		return NewUpdateHabitRequestWithBody(c.Server, habitId, contentType, body)
+	}, false, "UpdateHabit", reqEditors...)
 }
 
 func (c *Client) UpdateHabit(ctx context.Context, habitId int64, body UpdateHabitJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
-	req, err := NewUpdateHabitRequest(c.Server, habitId, body)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
-
+	return c.doWithRetry(ctx, func() (*http.Request, error) {
+		return NewUpdateHabitRequest(c.Server, habitId, body)
+	}, false, "UpdateHabit", reqEditors...)
 }
 
 // ResumeHabit is marked as idempotent and will be retried on transient failures.
 
 func (c *Client) ResumeHabit(ctx context.Context, habitId int64, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
 		return NewResumeHabitRequest(c.Server, habitId)
 	}, true, "ResumeHabit", reqEditors...)
-
 }
 
 // StopHabit executes the StopHabit operation.
 
 func (c *Client) StopHabit(ctx context.Context, habitId int64, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
-	req, err := NewStopHabitRequest(c.Server, habitId)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
-
+	return c.doWithRetry(ctx, func() (*http.Request, error) {
+		return NewStopHabitRequest(c.Server, habitId)
+	}, false, "StopHabit", reqEditors...)
 }
 
 // UpdateFirstWeekDayWithBody is marked as idempotent and will be retried on transient failures.
 
 func (c *Client) UpdateFirstWeekDayWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
+	body, rewind := resendableBody(body)
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
+		if err := rewind(); err != nil {
+			return nil, err
+		}
 		return NewUpdateFirstWeekDayRequestWithBody(c.Server, contentType, body)
 	}, true, "UpdateFirstWeekDay", reqEditors...)
-
 }
 
 func (c *Client) UpdateFirstWeekDay(ctx context.Context, body UpdateFirstWeekDayJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
 		return NewUpdateFirstWeekDayRequest(c.Server, body)
 	}, true, "UpdateFirstWeekDay", reqEditors...)
-
 }
 
 // ListJournalEntries is marked as idempotent and will be retried on transient failures.
 
 func (c *Client) ListJournalEntries(ctx context.Context, params *ListJournalEntriesParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
 		return NewListJournalEntriesRequest(c.Server, params)
 	}, true, "ListJournalEntries", reqEditors...)
-
 }
 
 // GetOngoingTimeTrack is marked as idempotent and will be retried on transient failures.
 
 func (c *Client) GetOngoingTimeTrack(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
 		return NewGetOngoingTimeTrackRequest(c.Server)
 	}, true, "GetOngoingTimeTrack", reqEditors...)
-
 }
 
 // StartTimeTrack executes the StartTimeTrack operation.
 
 func (c *Client) StartTimeTrack(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
-	req, err := NewStartTimeTrackRequest(c.Server)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
-
+	return c.doWithRetry(ctx, func() (*http.Request, error) {
+		return NewStartTimeTrackRequest(c.Server)
+	}, false, "StartTimeTrack", reqEditors...)
 }
 
 // ListTimeTracks is marked as idempotent and will be retried on transient failures.
 
 func (c *Client) ListTimeTracks(ctx context.Context, params *ListTimeTracksParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
 		return NewListTimeTracksRequest(c.Server, params)
 	}, true, "ListTimeTracks", reqEditors...)
-
 }
 
 // CreateTimeTrackWithBody executes the CreateTimeTrack operation.
 
 func (c *Client) CreateTimeTrackWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
-	req, err := NewCreateTimeTrackRequestWithBody(c.Server, contentType, body)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
-
+	body, rewind := resendableBody(body)
+	return c.doWithRetry(ctx, func() (*http.Request, error) {
+		if err := rewind(); err != nil {
+			return nil, err
+		}
+		return NewCreateTimeTrackRequestWithBody(c.Server, contentType, body)
+	}, false, "CreateTimeTrack", reqEditors...)
 }
 
 func (c *Client) CreateTimeTrack(ctx context.Context, body CreateTimeTrackJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
-	req, err := NewCreateTimeTrackRequest(c.Server, body)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
-
+	return c.doWithRetry(ctx, func() (*http.Request, error) {
+		return NewCreateTimeTrackRequest(c.Server, body)
+	}, false, "CreateTimeTrack", reqEditors...)
 }
 
 // ListTimeTrackCategories is marked as idempotent and will be retried on transient failures.
 
 func (c *Client) ListTimeTrackCategories(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
 		return NewListTimeTrackCategoriesRequest(c.Server)
 	}, true, "ListTimeTrackCategories", reqEditors...)
-
 }
 
 // DeleteTimeTrack is marked as idempotent and will be retried on transient failures.
 
 func (c *Client) DeleteTimeTrack(ctx context.Context, timeTrackId int64, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
 		return NewDeleteTimeTrackRequest(c.Server, timeTrackId)
 	}, true, "DeleteTimeTrack", reqEditors...)
-
 }
 
 // UpdateTimeTrackWithBody is marked as idempotent and will be retried on transient failures.
 
 func (c *Client) UpdateTimeTrackWithBody(ctx context.Context, timeTrackId int64, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
+	body, rewind := resendableBody(body)
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
+		if err := rewind(); err != nil {
+			return nil, err
+		}
 		return NewUpdateTimeTrackRequestWithBody(c.Server, timeTrackId, contentType, body)
 	}, true, "UpdateTimeTrack", reqEditors...)
-
 }
 
 func (c *Client) UpdateTimeTrack(ctx context.Context, timeTrackId int64, body UpdateTimeTrackJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
 		return NewUpdateTimeTrackRequest(c.Server, timeTrackId, body)
 	}, true, "UpdateTimeTrack", reqEditors...)
-
 }
 
 // CreateCalendarTodoWithBody executes the CreateCalendarTodo operation.
 
 func (c *Client) CreateCalendarTodoWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
-	req, err := NewCreateCalendarTodoRequestWithBody(c.Server, contentType, body)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
-
+	body, rewind := resendableBody(body)
+	return c.doWithRetry(ctx, func() (*http.Request, error) {
+		if err := rewind(); err != nil {
+			return nil, err
+		}
+		return NewCreateCalendarTodoRequestWithBody(c.Server, contentType, body)
+	}, false, "CreateCalendarTodo", reqEditors...)
 }
 
 func (c *Client) CreateCalendarTodo(ctx context.Context, body CreateCalendarTodoJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
-	req, err := NewCreateCalendarTodoRequest(c.Server, body)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
-
+	return c.doWithRetry(ctx, func() (*http.Request, error) {
+		return NewCreateCalendarTodoRequest(c.Server, body)
+	}, false, "CreateCalendarTodo", reqEditors...)
 }
 
 // DeleteCalendarTodo is marked as idempotent and will be retried on transient failures.
 
 func (c *Client) DeleteCalendarTodo(ctx context.Context, todoId int64, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
 		return NewDeleteCalendarTodoRequest(c.Server, todoId)
 	}, true, "DeleteCalendarTodo", reqEditors...)
-
 }
 
 // UpdateCalendarTodoWithBody executes the UpdateCalendarTodo operation.
 
 func (c *Client) UpdateCalendarTodoWithBody(ctx context.Context, todoId int64, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
-	req, err := NewUpdateCalendarTodoRequestWithBody(c.Server, todoId, contentType, body)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
-
+	body, rewind := resendableBody(body)
+	return c.doWithRetry(ctx, func() (*http.Request, error) {
+		if err := rewind(); err != nil {
+			return nil, err
+		}
+		return NewUpdateCalendarTodoRequestWithBody(c.Server, todoId, contentType, body)
+	}, false, "UpdateCalendarTodo", reqEditors...)
 }
 
 func (c *Client) UpdateCalendarTodo(ctx context.Context, todoId int64, body UpdateCalendarTodoJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
-	req, err := NewUpdateCalendarTodoRequest(c.Server, todoId, body)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
-
+	return c.doWithRetry(ctx, func() (*http.Request, error) {
+		return NewUpdateCalendarTodoRequest(c.Server, todoId, body)
+	}, false, "UpdateCalendarTodo", reqEditors...)
 }
 
 // UncompleteCalendarTodo is marked as idempotent and will be retried on transient failures.
 
 func (c *Client) UncompleteCalendarTodo(ctx context.Context, todoId int64, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
 		return NewUncompleteCalendarTodoRequest(c.Server, todoId)
 	}, true, "UncompleteCalendarTodo", reqEditors...)
-
 }
 
 // CompleteCalendarTodo is marked as idempotent and will be retried on transient failures.
 
 func (c *Client) CompleteCalendarTodo(ctx context.Context, todoId int64, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
 		return NewCompleteCalendarTodoRequest(c.Server, todoId)
 	}, true, "CompleteCalendarTodo", reqEditors...)
-
 }
 
 // ListCalendarWeeks is marked as idempotent and will be retried on transient failures.
 
 func (c *Client) ListCalendarWeeks(ctx context.Context, params *ListCalendarWeeksParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
 		return NewListCalendarWeeksRequest(c.Server, params)
 	}, true, "ListCalendarWeeks", reqEditors...)
-
 }
 
 // GetCalendarWeek is marked as idempotent and will be retried on transient failures.
 
 func (c *Client) GetCalendarWeek(ctx context.Context, week string, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
 		return NewGetCalendarWeekRequest(c.Server, week)
 	}, true, "GetCalendarWeek", reqEditors...)
-
 }
 
 // GetCalendarYear is marked as idempotent and will be retried on transient failures.
 
 func (c *Client) GetCalendarYear(ctx context.Context, year string, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
 		return NewGetCalendarYearRequest(c.Server, year)
 	}, true, "GetCalendarYear", reqEditors...)
-
 }
 
 // ListCalendars is marked as idempotent and will be retried on transient failures.
 
 func (c *Client) ListCalendars(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
 		return NewListCalendarsRequest(c.Server)
 	}, true, "ListCalendars", reqEditors...)
-
 }
 
 // GetCalendarRecordings is marked as idempotent and will be retried on transient failures.
 
 func (c *Client) GetCalendarRecordings(ctx context.Context, calendarId int64, params *GetCalendarRecordingsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
 		return NewGetCalendarRecordingsRequest(c.Server, calendarId, params)
 	}, true, "GetCalendarRecordings", reqEditors...)
-
 }
 
 // ToggleCalendar executes the ToggleCalendar operation.
 
 func (c *Client) ToggleCalendar(ctx context.Context, calendarId int64, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
-	req, err := NewToggleCalendarRequest(c.Server, calendarId)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
-
+	return c.doWithRetry(ctx, func() (*http.Request, error) {
+		return NewToggleCalendarRequest(c.Server, calendarId)
+	}, false, "ToggleCalendar", reqEditors...)
 }
 
 // GetClearances is marked as idempotent and will be retried on transient failures.
 
 func (c *Client) GetClearances(ctx context.Context, params *GetClearancesParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
 		return NewGetClearancesRequest(c.Server, params)
 	}, true, "GetClearances", reqEditors...)
-
 }
 
 // BulkUpdateClearancesWithBody executes the BulkUpdateClearances operation.
 
 func (c *Client) BulkUpdateClearancesWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
-	req, err := NewBulkUpdateClearancesRequestWithBody(c.Server, contentType, body)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
-
+	body, rewind := resendableBody(body)
+	return c.doWithRetry(ctx, func() (*http.Request, error) {
+		if err := rewind(); err != nil {
+			return nil, err
+		}
+		return NewBulkUpdateClearancesRequestWithBody(c.Server, contentType, body)
+	}, false, "BulkUpdateClearances", reqEditors...)
 }
 
 func (c *Client) BulkUpdateClearances(ctx context.Context, body BulkUpdateClearancesJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
-	req, err := NewBulkUpdateClearancesRequest(c.Server, body)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
-
+	return c.doWithRetry(ctx, func() (*http.Request, error) {
+		return NewBulkUpdateClearancesRequest(c.Server, body)
+	}, false, "BulkUpdateClearances", reqEditors...)
 }
 
 // PuntClearances executes the PuntClearances operation.
 
 func (c *Client) PuntClearances(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
-	req, err := NewPuntClearancesRequest(c.Server)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
-
+	return c.doWithRetry(ctx, func() (*http.Request, error) {
+		return NewPuntClearancesRequest(c.Server)
+	}, false, "PuntClearances", reqEditors...)
 }
 
 // UpdateClearanceWithBody executes the UpdateClearance operation.
 
 func (c *Client) UpdateClearanceWithBody(ctx context.Context, clearanceId int64, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
-	req, err := NewUpdateClearanceRequestWithBody(c.Server, clearanceId, contentType, body)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
-
+	body, rewind := resendableBody(body)
+	return c.doWithRetry(ctx, func() (*http.Request, error) {
+		if err := rewind(); err != nil {
+			return nil, err
+		}
+		return NewUpdateClearanceRequestWithBody(c.Server, clearanceId, contentType, body)
+	}, false, "UpdateClearance", reqEditors...)
 }
 
 func (c *Client) UpdateClearance(ctx context.Context, clearanceId int64, body UpdateClearanceJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
-	req, err := NewUpdateClearanceRequest(c.Server, clearanceId, body)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
-
+	return c.doWithRetry(ctx, func() (*http.Request, error) {
+		return NewUpdateClearanceRequest(c.Server, clearanceId, body)
+	}, false, "UpdateClearance", reqEditors...)
 }
 
 // ListClips is marked as idempotent and will be retried on transient failures.
 
 func (c *Client) ListClips(ctx context.Context, params *ListClipsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
 		return NewListClipsRequest(c.Server, params)
 	}, true, "ListClips", reqEditors...)
-
 }
 
 // ListCollections is marked as idempotent and will be retried on transient failures.
 
 func (c *Client) ListCollections(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
 		return NewListCollectionsRequest(c.Server)
 	}, true, "ListCollections", reqEditors...)
-
 }
 
 // GetCollection is marked as idempotent and will be retried on transient failures.
 
 func (c *Client) GetCollection(ctx context.Context, collectionId int64, params *GetCollectionParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
 		return NewGetCollectionRequest(c.Server, collectionId, params)
 	}, true, "GetCollection", reqEditors...)
-
 }
 
 // UpdateCollectionWithBody executes the UpdateCollection operation.
 
 func (c *Client) UpdateCollectionWithBody(ctx context.Context, collectionId int64, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
-	req, err := NewUpdateCollectionRequestWithBody(c.Server, collectionId, contentType, body)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
-
+	body, rewind := resendableBody(body)
+	return c.doWithRetry(ctx, func() (*http.Request, error) {
+		if err := rewind(); err != nil {
+			return nil, err
+		}
+		return NewUpdateCollectionRequestWithBody(c.Server, collectionId, contentType, body)
+	}, false, "UpdateCollection", reqEditors...)
 }
 
 func (c *Client) UpdateCollection(ctx context.Context, collectionId int64, body UpdateCollectionJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
-	req, err := NewUpdateCollectionRequest(c.Server, collectionId, body)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
-
+	return c.doWithRetry(ctx, func() (*http.Request, error) {
+		return NewUpdateCollectionRequest(c.Server, collectionId, body)
+	}, false, "UpdateCollection", reqEditors...)
 }
 
 // ListContacts is marked as idempotent and will be retried on transient failures.
 
 func (c *Client) ListContacts(ctx context.Context, params *ListContactsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
 		return NewListContactsRequest(c.Server, params)
 	}, true, "ListContacts", reqEditors...)
-
 }
 
 // CreateContactWithBody executes the CreateContact operation.
 
 func (c *Client) CreateContactWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
-	req, err := NewCreateContactRequestWithBody(c.Server, contentType, body)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
-
+	body, rewind := resendableBody(body)
+	return c.doWithRetry(ctx, func() (*http.Request, error) {
+		if err := rewind(); err != nil {
+			return nil, err
+		}
+		return NewCreateContactRequestWithBody(c.Server, contentType, body)
+	}, false, "CreateContact", reqEditors...)
 }
 
 func (c *Client) CreateContact(ctx context.Context, body CreateContactJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
-	req, err := NewCreateContactRequest(c.Server, body)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
-
+	return c.doWithRetry(ctx, func() (*http.Request, error) {
+		return NewCreateContactRequest(c.Server, body)
+	}, false, "CreateContact", reqEditors...)
 }
 
 // HideContact is marked as idempotent and will be retried on transient failures.
 
 func (c *Client) HideContact(ctx context.Context, contactId int64, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
 		return NewHideContactRequest(c.Server, contactId)
 	}, true, "HideContact", reqEditors...)
-
 }
 
 // GetContact is marked as idempotent and will be retried on transient failures.
 
 func (c *Client) GetContact(ctx context.Context, contactId int64, params *GetContactParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
 		return NewGetContactRequest(c.Server, contactId, params)
 	}, true, "GetContact", reqEditors...)
-
 }
 
 // UpdateContactWithBody executes the UpdateContact operation.
 
 func (c *Client) UpdateContactWithBody(ctx context.Context, contactId int64, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
-	req, err := NewUpdateContactRequestWithBody(c.Server, contactId, contentType, body)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
-
+	body, rewind := resendableBody(body)
+	return c.doWithRetry(ctx, func() (*http.Request, error) {
+		if err := rewind(); err != nil {
+			return nil, err
+		}
+		return NewUpdateContactRequestWithBody(c.Server, contactId, contentType, body)
+	}, false, "UpdateContact", reqEditors...)
 }
 
 func (c *Client) UpdateContact(ctx context.Context, contactId int64, body UpdateContactJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
-	req, err := NewUpdateContactRequest(c.Server, contactId, body)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
-
+	return c.doWithRetry(ctx, func() (*http.Request, error) {
+		return NewUpdateContactRequest(c.Server, contactId, body)
+	}, false, "UpdateContact", reqEditors...)
 }
 
 // UnbundleContact is marked as idempotent and will be retried on transient failures.
 
 func (c *Client) UnbundleContact(ctx context.Context, contactId int64, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
 		return NewUnbundleContactRequest(c.Server, contactId)
 	}, true, "UnbundleContact", reqEditors...)
-
 }
 
 // BundleContact executes the BundleContact operation.
 
 func (c *Client) BundleContact(ctx context.Context, contactId int64, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
-	req, err := NewBundleContactRequest(c.Server, contactId)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
-
+	return c.doWithRetry(ctx, func() (*http.Request, error) {
+		return NewBundleContactRequest(c.Server, contactId)
+	}, false, "BundleContact", reqEditors...)
 }
 
 // UpdateContactClearanceWithBody executes the UpdateContactClearance operation.
 
 func (c *Client) UpdateContactClearanceWithBody(ctx context.Context, contactId int64, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
-	req, err := NewUpdateContactClearanceRequestWithBody(c.Server, contactId, contentType, body)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
-
+	body, rewind := resendableBody(body)
+	return c.doWithRetry(ctx, func() (*http.Request, error) {
+		if err := rewind(); err != nil {
+			return nil, err
+		}
+		return NewUpdateContactClearanceRequestWithBody(c.Server, contactId, contentType, body)
+	}, false, "UpdateContactClearance", reqEditors...)
 }
 
 func (c *Client) UpdateContactClearance(ctx context.Context, contactId int64, body UpdateContactClearanceJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
-	req, err := NewUpdateContactClearanceRequest(c.Server, contactId, body)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
-
+	return c.doWithRetry(ctx, func() (*http.Request, error) {
+		return NewUpdateContactClearanceRequest(c.Server, contactId, body)
+	}, false, "UpdateContactClearance", reqEditors...)
 }
 
 // DeleteContactNote is marked as idempotent and will be retried on transient failures.
 
 func (c *Client) DeleteContactNote(ctx context.Context, contactId int64, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
 		return NewDeleteContactNoteRequest(c.Server, contactId)
 	}, true, "DeleteContactNote", reqEditors...)
-
 }
 
 // GetContactNote is marked as idempotent and will be retried on transient failures.
 
 func (c *Client) GetContactNote(ctx context.Context, contactId int64, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
 		return NewGetContactNoteRequest(c.Server, contactId)
 	}, true, "GetContactNote", reqEditors...)
-
 }
 
 // UpdateContactNoteWithBody executes the UpdateContactNote operation.
 
 func (c *Client) UpdateContactNoteWithBody(ctx context.Context, contactId int64, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
-	req, err := NewUpdateContactNoteRequestWithBody(c.Server, contactId, contentType, body)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
-
+	body, rewind := resendableBody(body)
+	return c.doWithRetry(ctx, func() (*http.Request, error) {
+		if err := rewind(); err != nil {
+			return nil, err
+		}
+		return NewUpdateContactNoteRequestWithBody(c.Server, contactId, contentType, body)
+	}, false, "UpdateContactNote", reqEditors...)
 }
 
 func (c *Client) UpdateContactNote(ctx context.Context, contactId int64, body UpdateContactNoteJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
-	req, err := NewUpdateContactNoteRequest(c.Server, contactId, body)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
-
+	return c.doWithRetry(ctx, func() (*http.Request, error) {
+		return NewUpdateContactNoteRequest(c.Server, contactId, body)
+	}, false, "UpdateContactNote", reqEditors...)
 }
 
 // RevealContact executes the RevealContact operation.
 
 func (c *Client) RevealContact(ctx context.Context, contactId int64, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
-	req, err := NewRevealContactRequest(c.Server, contactId)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
-
+	return c.doWithRetry(ctx, func() (*http.Request, error) {
+		return NewRevealContactRequest(c.Server, contactId)
+	}, false, "RevealContact", reqEditors...)
 }
 
 // ListDrafts is marked as idempotent and will be retried on transient failures.
 
 func (c *Client) ListDrafts(ctx context.Context, params *ListDraftsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
 		return NewListDraftsRequest(c.Server, params)
 	}, true, "ListDrafts", reqEditors...)
-
 }
 
 // DeleteDraft is marked as idempotent and will be retried on transient failures.
 
 func (c *Client) DeleteDraft(ctx context.Context, entryId int64, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
 		return NewDeleteDraftRequest(c.Server, entryId)
 	}, true, "DeleteDraft", reqEditors...)
-
 }
 
 // NewEntryForward is marked as idempotent and will be retried on transient failures.
 
 func (c *Client) NewEntryForward(ctx context.Context, entryId int64, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
 		return NewNewEntryForwardRequest(c.Server, entryId)
 	}, true, "NewEntryForward", reqEditors...)
-
 }
 
 // CreateReplyWithBody executes the CreateReply operation.
 
 func (c *Client) CreateReplyWithBody(ctx context.Context, entryId int64, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
-	req, err := NewCreateReplyRequestWithBody(c.Server, entryId, contentType, body)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
-
+	body, rewind := resendableBody(body)
+	return c.doWithRetry(ctx, func() (*http.Request, error) {
+		if err := rewind(); err != nil {
+			return nil, err
+		}
+		return NewCreateReplyRequestWithBody(c.Server, entryId, contentType, body)
+	}, false, "CreateReply", reqEditors...)
 }
 
 func (c *Client) CreateReply(ctx context.Context, entryId int64, body CreateReplyJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
-	req, err := NewCreateReplyRequest(c.Server, entryId, body)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
-
+	return c.doWithRetry(ctx, func() (*http.Request, error) {
+		return NewCreateReplyRequest(c.Server, entryId, body)
+	}, false, "CreateReply", reqEditors...)
 }
 
 // NewEntryReply is marked as idempotent and will be retried on transient failures.
 
 func (c *Client) NewEntryReply(ctx context.Context, entryId int64, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
 		return NewNewEntryReplyRequest(c.Server, entryId)
 	}, true, "NewEntryReply", reqEditors...)
-
 }
 
 // MarkEntrySpam is marked as idempotent and will be retried on transient failures.
 
 func (c *Client) MarkEntrySpam(ctx context.Context, entryId int64, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
 		return NewMarkEntrySpamRequest(c.Server, entryId)
 	}, true, "MarkEntrySpam", reqEditors...)
-
 }
 
 // GetFeedbox is marked as idempotent and will be retried on transient failures.
 
 func (c *Client) GetFeedbox(ctx context.Context, params *GetFeedboxParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
 		return NewGetFeedboxRequest(c.Server, params)
 	}, true, "GetFeedbox", reqEditors...)
-
 }
 
 // GetFolder is marked as idempotent and will be retried on transient failures.
 
 func (c *Client) GetFolder(ctx context.Context, folderId int64, params *GetFolderParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
 		return NewGetFolderRequest(c.Server, folderId, params)
 	}, true, "GetFolder", reqEditors...)
-
 }
 
 // GetIdentity is marked as idempotent and will be retried on transient failures.
 
 func (c *Client) GetIdentity(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
 		return NewGetIdentityRequest(c.Server)
 	}, true, "GetIdentity", reqEditors...)
-
 }
 
 // UpdateTimeFormatWithBody is marked as idempotent and will be retried on transient failures.
 
 func (c *Client) UpdateTimeFormatWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
+	body, rewind := resendableBody(body)
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
+		if err := rewind(); err != nil {
+			return nil, err
+		}
 		return NewUpdateTimeFormatRequestWithBody(c.Server, contentType, body)
 	}, true, "UpdateTimeFormat", reqEditors...)
-
 }
 
 func (c *Client) UpdateTimeFormat(ctx context.Context, body UpdateTimeFormatJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
 		return NewUpdateTimeFormatRequest(c.Server, body)
 	}, true, "UpdateTimeFormat", reqEditors...)
-
 }
 
 // GetImbox is marked as idempotent and will be retried on transient failures.
 
 func (c *Client) GetImbox(ctx context.Context, params *GetImboxParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
 		return NewGetImboxRequest(c.Server, params)
 	}, true, "GetImbox", reqEditors...)
-
 }
 
 // GetImboxSeen is marked as idempotent and will be retried on transient failures.
 
 func (c *Client) GetImboxSeen(ctx context.Context, params *GetImboxSeenParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
 		return NewGetImboxSeenRequest(c.Server, params)
 	}, true, "GetImboxSeen", reqEditors...)
-
 }
 
 // CreateMessageWithBody executes the CreateMessage operation.
 
 func (c *Client) CreateMessageWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
-	req, err := NewCreateMessageRequestWithBody(c.Server, contentType, body)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
-
+	body, rewind := resendableBody(body)
+	return c.doWithRetry(ctx, func() (*http.Request, error) {
+		if err := rewind(); err != nil {
+			return nil, err
+		}
+		return NewCreateMessageRequestWithBody(c.Server, contentType, body)
+	}, false, "CreateMessage", reqEditors...)
 }
 
 func (c *Client) CreateMessage(ctx context.Context, body CreateMessageJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
-	req, err := NewCreateMessageRequest(c.Server, body)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
-
+	return c.doWithRetry(ctx, func() (*http.Request, error) {
+		return NewCreateMessageRequest(c.Server, body)
+	}, false, "CreateMessage", reqEditors...)
 }
 
 // GetMessage is marked as idempotent and will be retried on transient failures.
 
 func (c *Client) GetMessage(ctx context.Context, messageId int64, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
 		return NewGetMessageRequest(c.Server, messageId)
 	}, true, "GetMessage", reqEditors...)
-
 }
 
 // UpdateMessageWithBody executes the UpdateMessage operation.
 
 func (c *Client) UpdateMessageWithBody(ctx context.Context, messageId int64, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
-	req, err := NewUpdateMessageRequestWithBody(c.Server, messageId, contentType, body)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
-
+	body, rewind := resendableBody(body)
+	return c.doWithRetry(ctx, func() (*http.Request, error) {
+		if err := rewind(); err != nil {
+			return nil, err
+		}
+		return NewUpdateMessageRequestWithBody(c.Server, messageId, contentType, body)
+	}, false, "UpdateMessage", reqEditors...)
 }
 
 func (c *Client) UpdateMessage(ctx context.Context, messageId int64, body UpdateMessageJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
-	req, err := NewUpdateMessageRequest(c.Server, messageId, body)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
-
+	return c.doWithRetry(ctx, func() (*http.Request, error) {
+		return NewUpdateMessageRequest(c.Server, messageId, body)
+	}, false, "UpdateMessage", reqEditors...)
 }
 
 // GetMessageEdit is marked as idempotent and will be retried on transient failures.
 
 func (c *Client) GetMessageEdit(ctx context.Context, messageId int64, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
 		return NewGetMessageEditRequest(c.Server, messageId)
 	}, true, "GetMessageEdit", reqEditors...)
-
 }
 
 // GetMyClearances is marked as idempotent and will be retried on transient failures.
 
 func (c *Client) GetMyClearances(ctx context.Context, params *GetMyClearancesParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
 		return NewGetMyClearancesRequest(c.Server, params)
 	}, true, "GetMyClearances", reqEditors...)
-
 }
 
 // UpdateMyClearanceWithBody executes the UpdateMyClearance operation.
 
 func (c *Client) UpdateMyClearanceWithBody(ctx context.Context, clearanceId int64, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
-	req, err := NewUpdateMyClearanceRequestWithBody(c.Server, clearanceId, contentType, body)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
-
+	body, rewind := resendableBody(body)
+	return c.doWithRetry(ctx, func() (*http.Request, error) {
+		if err := rewind(); err != nil {
+			return nil, err
+		}
+		return NewUpdateMyClearanceRequestWithBody(c.Server, clearanceId, contentType, body)
+	}, false, "UpdateMyClearance", reqEditors...)
 }
 
 func (c *Client) UpdateMyClearance(ctx context.Context, clearanceId int64, body UpdateMyClearanceJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
-	req, err := NewUpdateMyClearanceRequest(c.Server, clearanceId, body)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
-
+	return c.doWithRetry(ctx, func() (*http.Request, error) {
+		return NewUpdateMyClearanceRequest(c.Server, clearanceId, body)
+	}, false, "UpdateMyClearance", reqEditors...)
 }
 
 // GetNavigation is marked as idempotent and will be retried on transient failures.
 
 func (c *Client) GetNavigation(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
 		return NewGetNavigationRequest(c.Server)
 	}, true, "GetNavigation", reqEditors...)
-
 }
 
 // GetTrailbox is marked as idempotent and will be retried on transient failures.
 
 func (c *Client) GetTrailbox(ctx context.Context, params *GetTrailboxParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
 		return NewGetTrailboxRequest(c.Server, params)
 	}, true, "GetTrailbox", reqEditors...)
-
 }
 
 // RemovePostingsFromBoxGroup is marked as idempotent and will be retried on transient failures.
 
 func (c *Client) RemovePostingsFromBoxGroup(ctx context.Context, params *RemovePostingsFromBoxGroupParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
 		return NewRemovePostingsFromBoxGroupRequest(c.Server, params)
 	}, true, "RemovePostingsFromBoxGroup", reqEditors...)
-
 }
 
 // AddPostingsToBoxGroupWithBody executes the AddPostingsToBoxGroup operation.
 
 func (c *Client) AddPostingsToBoxGroupWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
-	req, err := NewAddPostingsToBoxGroupRequestWithBody(c.Server, contentType, body)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
-
+	body, rewind := resendableBody(body)
+	return c.doWithRetry(ctx, func() (*http.Request, error) {
+		if err := rewind(); err != nil {
+			return nil, err
+		}
+		return NewAddPostingsToBoxGroupRequestWithBody(c.Server, contentType, body)
+	}, false, "AddPostingsToBoxGroup", reqEditors...)
 }
 
 func (c *Client) AddPostingsToBoxGroup(ctx context.Context, body AddPostingsToBoxGroupJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
-	req, err := NewAddPostingsToBoxGroupRequest(c.Server, body)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
-
+	return c.doWithRetry(ctx, func() (*http.Request, error) {
+		return NewAddPostingsToBoxGroupRequest(c.Server, body)
+	}, false, "AddPostingsToBoxGroup", reqEditors...)
 }
 
 // CancelPostingsBubbleUp is marked as idempotent and will be retried on transient failures.
 
 func (c *Client) CancelPostingsBubbleUp(ctx context.Context, params *CancelPostingsBubbleUpParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
 		return NewCancelPostingsBubbleUpRequest(c.Server, params)
 	}, true, "CancelPostingsBubbleUp", reqEditors...)
-
 }
 
 // SchedulePostingsBubbleUpWithBody executes the SchedulePostingsBubbleUp operation.
 
 func (c *Client) SchedulePostingsBubbleUpWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
-	req, err := NewSchedulePostingsBubbleUpRequestWithBody(c.Server, contentType, body)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
-
+	body, rewind := resendableBody(body)
+	return c.doWithRetry(ctx, func() (*http.Request, error) {
+		if err := rewind(); err != nil {
+			return nil, err
+		}
+		return NewSchedulePostingsBubbleUpRequestWithBody(c.Server, contentType, body)
+	}, false, "SchedulePostingsBubbleUp", reqEditors...)
 }
 
 func (c *Client) SchedulePostingsBubbleUp(ctx context.Context, body SchedulePostingsBubbleUpJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
-	req, err := NewSchedulePostingsBubbleUpRequest(c.Server, body)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
-
+	return c.doWithRetry(ctx, func() (*http.Request, error) {
+		return NewSchedulePostingsBubbleUpRequest(c.Server, body)
+	}, false, "SchedulePostingsBubbleUp", reqEditors...)
 }
 
 // BubbleUpPostingsNowWithBody executes the BubbleUpPostingsNow operation.
 
 func (c *Client) BubbleUpPostingsNowWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
-	req, err := NewBubbleUpPostingsNowRequestWithBody(c.Server, contentType, body)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
-
+	body, rewind := resendableBody(body)
+	return c.doWithRetry(ctx, func() (*http.Request, error) {
+		if err := rewind(); err != nil {
+			return nil, err
+		}
+		return NewBubbleUpPostingsNowRequestWithBody(c.Server, contentType, body)
+	}, false, "BubbleUpPostingsNow", reqEditors...)
 }
 
 func (c *Client) BubbleUpPostingsNow(ctx context.Context, body BubbleUpPostingsNowJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
-	req, err := NewBubbleUpPostingsNowRequest(c.Server, body)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
-
+	return c.doWithRetry(ctx, func() (*http.Request, error) {
+		return NewBubbleUpPostingsNowRequest(c.Server, body)
+	}, false, "BubbleUpPostingsNow", reqEditors...)
 }
 
 // UnfilePostings is marked as idempotent and will be retried on transient failures.
 
 func (c *Client) UnfilePostings(ctx context.Context, params *UnfilePostingsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
 		return NewUnfilePostingsRequest(c.Server, params)
 	}, true, "UnfilePostings", reqEditors...)
-
 }
 
 // FilePostingsWithBody executes the FilePostings operation.
 
 func (c *Client) FilePostingsWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
-	req, err := NewFilePostingsRequestWithBody(c.Server, contentType, body)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
-
+	body, rewind := resendableBody(body)
+	return c.doWithRetry(ctx, func() (*http.Request, error) {
+		if err := rewind(); err != nil {
+			return nil, err
+		}
+		return NewFilePostingsRequestWithBody(c.Server, contentType, body)
+	}, false, "FilePostings", reqEditors...)
 }
 
 func (c *Client) FilePostings(ctx context.Context, body FilePostingsJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
-	req, err := NewFilePostingsRequest(c.Server, body)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
-
+	return c.doWithRetry(ctx, func() (*http.Request, error) {
+		return NewFilePostingsRequest(c.Server, body)
+	}, false, "FilePostings", reqEditors...)
 }
 
 // CreateFolderForPostingsWithBody executes the CreateFolderForPostings operation.
 
 func (c *Client) CreateFolderForPostingsWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
-	req, err := NewCreateFolderForPostingsRequestWithBody(c.Server, contentType, body)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
-
+	body, rewind := resendableBody(body)
+	return c.doWithRetry(ctx, func() (*http.Request, error) {
+		if err := rewind(); err != nil {
+			return nil, err
+		}
+		return NewCreateFolderForPostingsRequestWithBody(c.Server, contentType, body)
+	}, false, "CreateFolderForPostings", reqEditors...)
 }
 
 func (c *Client) CreateFolderForPostings(ctx context.Context, body CreateFolderForPostingsJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
-	req, err := NewCreateFolderForPostingsRequest(c.Server, body)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
-
+	return c.doWithRetry(ctx, func() (*http.Request, error) {
+		return NewCreateFolderForPostingsRequest(c.Server, body)
+	}, false, "CreateFolderForPostings", reqEditors...)
 }
 
 // MovePostingsWithBody executes the MovePostings operation.
 
 func (c *Client) MovePostingsWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
-	req, err := NewMovePostingsRequestWithBody(c.Server, contentType, body)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
-
+	body, rewind := resendableBody(body)
+	return c.doWithRetry(ctx, func() (*http.Request, error) {
+		if err := rewind(); err != nil {
+			return nil, err
+		}
+		return NewMovePostingsRequestWithBody(c.Server, contentType, body)
+	}, false, "MovePostings", reqEditors...)
 }
 
 func (c *Client) MovePostings(ctx context.Context, body MovePostingsJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
-	req, err := NewMovePostingsRequest(c.Server, body)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
-
+	return c.doWithRetry(ctx, func() (*http.Request, error) {
+		return NewMovePostingsRequest(c.Server, body)
+	}, false, "MovePostings", reqEditors...)
 }
 
 // UnmutePostings is marked as idempotent and will be retried on transient failures.
 
 func (c *Client) UnmutePostings(ctx context.Context, params *UnmutePostingsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
 		return NewUnmutePostingsRequest(c.Server, params)
 	}, true, "UnmutePostings", reqEditors...)
-
 }
 
 // MutePostingsWithBody executes the MutePostings operation.
 
 func (c *Client) MutePostingsWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
-	req, err := NewMutePostingsRequestWithBody(c.Server, contentType, body)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
-
+	body, rewind := resendableBody(body)
+	return c.doWithRetry(ctx, func() (*http.Request, error) {
+		if err := rewind(); err != nil {
+			return nil, err
+		}
+		return NewMutePostingsRequestWithBody(c.Server, contentType, body)
+	}, false, "MutePostings", reqEditors...)
 }
 
 func (c *Client) MutePostings(ctx context.Context, body MutePostingsJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
-	req, err := NewMutePostingsRequest(c.Server, body)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
-
+	return c.doWithRetry(ctx, func() (*http.Request, error) {
+		return NewMutePostingsRequest(c.Server, body)
+	}, false, "MutePostings", reqEditors...)
 }
 
 // MarkPostingsSeenWithBody executes the MarkPostingsSeen operation.
 
 func (c *Client) MarkPostingsSeenWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
-	req, err := NewMarkPostingsSeenRequestWithBody(c.Server, contentType, body)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
-
+	body, rewind := resendableBody(body)
+	return c.doWithRetry(ctx, func() (*http.Request, error) {
+		if err := rewind(); err != nil {
+			return nil, err
+		}
+		return NewMarkPostingsSeenRequestWithBody(c.Server, contentType, body)
+	}, false, "MarkPostingsSeen", reqEditors...)
 }
 
 func (c *Client) MarkPostingsSeen(ctx context.Context, body MarkPostingsSeenJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
-	req, err := NewMarkPostingsSeenRequest(c.Server, body)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
-
+	return c.doWithRetry(ctx, func() (*http.Request, error) {
+		return NewMarkPostingsSeenRequest(c.Server, body)
+	}, false, "MarkPostingsSeen", reqEditors...)
 }
 
 // MarkPostingsSpamWithBody executes the MarkPostingsSpam operation.
 
 func (c *Client) MarkPostingsSpamWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
-	req, err := NewMarkPostingsSpamRequestWithBody(c.Server, contentType, body)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
-
+	body, rewind := resendableBody(body)
+	return c.doWithRetry(ctx, func() (*http.Request, error) {
+		if err := rewind(); err != nil {
+			return nil, err
+		}
+		return NewMarkPostingsSpamRequestWithBody(c.Server, contentType, body)
+	}, false, "MarkPostingsSpam", reqEditors...)
 }
 
 func (c *Client) MarkPostingsSpam(ctx context.Context, body MarkPostingsSpamJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
-	req, err := NewMarkPostingsSpamRequest(c.Server, body)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
-
+	return c.doWithRetry(ctx, func() (*http.Request, error) {
+		return NewMarkPostingsSpamRequest(c.Server, body)
+	}, false, "MarkPostingsSpam", reqEditors...)
 }
 
 // TrashPostingsWithBody executes the TrashPostings operation.
 
 func (c *Client) TrashPostingsWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
-	req, err := NewTrashPostingsRequestWithBody(c.Server, contentType, body)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
-
+	body, rewind := resendableBody(body)
+	return c.doWithRetry(ctx, func() (*http.Request, error) {
+		if err := rewind(); err != nil {
+			return nil, err
+		}
+		return NewTrashPostingsRequestWithBody(c.Server, contentType, body)
+	}, false, "TrashPostings", reqEditors...)
 }
 
 func (c *Client) TrashPostings(ctx context.Context, body TrashPostingsJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
-	req, err := NewTrashPostingsRequest(c.Server, body)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
-
+	return c.doWithRetry(ctx, func() (*http.Request, error) {
+		return NewTrashPostingsRequest(c.Server, body)
+	}, false, "TrashPostings", reqEditors...)
 }
 
 // MarkPostingsUnseenWithBody executes the MarkPostingsUnseen operation.
 
 func (c *Client) MarkPostingsUnseenWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
-	req, err := NewMarkPostingsUnseenRequestWithBody(c.Server, contentType, body)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
-
+	body, rewind := resendableBody(body)
+	return c.doWithRetry(ctx, func() (*http.Request, error) {
+		if err := rewind(); err != nil {
+			return nil, err
+		}
+		return NewMarkPostingsUnseenRequestWithBody(c.Server, contentType, body)
+	}, false, "MarkPostingsUnseen", reqEditors...)
 }
 
 func (c *Client) MarkPostingsUnseen(ctx context.Context, body MarkPostingsUnseenJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
-	req, err := NewMarkPostingsUnseenRequest(c.Server, body)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
-
+	return c.doWithRetry(ctx, func() (*http.Request, error) {
+		return NewMarkPostingsUnseenRequest(c.Server, body)
+	}, false, "MarkPostingsUnseen", reqEditors...)
 }
 
 // GetBundleUnseenPostings is marked as idempotent and will be retried on transient failures.
 
 func (c *Client) GetBundleUnseenPostings(ctx context.Context, postingId int64, params *GetBundleUnseenPostingsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
 		return NewGetBundleUnseenPostingsRequest(c.Server, postingId, params)
 	}, true, "GetBundleUnseenPostings", reqEditors...)
-
 }
 
 // CreateDirectUploadWithBody executes the CreateDirectUpload operation.
 
 func (c *Client) CreateDirectUploadWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
-	req, err := NewCreateDirectUploadRequestWithBody(c.Server, contentType, body)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
-
+	body, rewind := resendableBody(body)
+	return c.doWithRetry(ctx, func() (*http.Request, error) {
+		if err := rewind(); err != nil {
+			return nil, err
+		}
+		return NewCreateDirectUploadRequestWithBody(c.Server, contentType, body)
+	}, false, "CreateDirectUpload", reqEditors...)
 }
 
 func (c *Client) CreateDirectUpload(ctx context.Context, body CreateDirectUploadJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
-	req, err := NewCreateDirectUploadRequest(c.Server, body)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
-
+	return c.doWithRetry(ctx, func() (*http.Request, error) {
+		return NewCreateDirectUploadRequest(c.Server, body)
+	}, false, "CreateDirectUpload", reqEditors...)
 }
 
 // GetLaterbox is marked as idempotent and will be retried on transient failures.
 
 func (c *Client) GetLaterbox(ctx context.Context, params *GetLaterboxParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
 		return NewGetLaterboxRequest(c.Server, params)
 	}, true, "GetLaterbox", reqEditors...)
-
 }
 
 // GetAsidebox is marked as idempotent and will be retried on transient failures.
 
 func (c *Client) GetAsidebox(ctx context.Context, params *GetAsideboxParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
 		return NewGetAsideboxRequest(c.Server, params)
 	}, true, "GetAsidebox", reqEditors...)
-
 }
 
 // ListSnippets is marked as idempotent and will be retried on transient failures.
 
 func (c *Client) ListSnippets(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
 		return NewListSnippetsRequest(c.Server)
 	}, true, "ListSnippets", reqEditors...)
-
 }
 
 // ListStickies is marked as idempotent and will be retried on transient failures.
 
 func (c *Client) ListStickies(ctx context.Context, params *ListStickiesParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
 		return NewListStickiesRequest(c.Server, params)
 	}, true, "ListStickies", reqEditors...)
-
 }
 
 // CreateStickyWithBody executes the CreateSticky operation.
 
 func (c *Client) CreateStickyWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
-	req, err := NewCreateStickyRequestWithBody(c.Server, contentType, body)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
-
+	body, rewind := resendableBody(body)
+	return c.doWithRetry(ctx, func() (*http.Request, error) {
+		if err := rewind(); err != nil {
+			return nil, err
+		}
+		return NewCreateStickyRequestWithBody(c.Server, contentType, body)
+	}, false, "CreateSticky", reqEditors...)
 }
 
 func (c *Client) CreateSticky(ctx context.Context, body CreateStickyJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
-	req, err := NewCreateStickyRequest(c.Server, body)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
-
+	return c.doWithRetry(ctx, func() (*http.Request, error) {
+		return NewCreateStickyRequest(c.Server, body)
+	}, false, "CreateSticky", reqEditors...)
 }
 
 // MoveStickyWithBody executes the MoveSticky operation.
 
 func (c *Client) MoveStickyWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
-	req, err := NewMoveStickyRequestWithBody(c.Server, contentType, body)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
-
+	body, rewind := resendableBody(body)
+	return c.doWithRetry(ctx, func() (*http.Request, error) {
+		if err := rewind(); err != nil {
+			return nil, err
+		}
+		return NewMoveStickyRequestWithBody(c.Server, contentType, body)
+	}, false, "MoveSticky", reqEditors...)
 }
 
 func (c *Client) MoveSticky(ctx context.Context, body MoveStickyJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
-	req, err := NewMoveStickyRequest(c.Server, body)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
-
+	return c.doWithRetry(ctx, func() (*http.Request, error) {
+		return NewMoveStickyRequest(c.Server, body)
+	}, false, "MoveSticky", reqEditors...)
 }
 
 // DeleteSticky is marked as idempotent and will be retried on transient failures.
 
 func (c *Client) DeleteSticky(ctx context.Context, stickyId int64, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
 		return NewDeleteStickyRequest(c.Server, stickyId)
 	}, true, "DeleteSticky", reqEditors...)
-
 }
 
 // UpdateStickyWithBody executes the UpdateSticky operation.
 
 func (c *Client) UpdateStickyWithBody(ctx context.Context, stickyId int64, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
-	req, err := NewUpdateStickyRequestWithBody(c.Server, stickyId, contentType, body)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
-
+	body, rewind := resendableBody(body)
+	return c.doWithRetry(ctx, func() (*http.Request, error) {
+		if err := rewind(); err != nil {
+			return nil, err
+		}
+		return NewUpdateStickyRequestWithBody(c.Server, stickyId, contentType, body)
+	}, false, "UpdateSticky", reqEditors...)
 }
 
 func (c *Client) UpdateSticky(ctx context.Context, stickyId int64, body UpdateStickyJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
-	req, err := NewUpdateStickyRequest(c.Server, stickyId, body)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
-
+	return c.doWithRetry(ctx, func() (*http.Request, error) {
+		return NewUpdateStickyRequest(c.Server, stickyId, body)
+	}, false, "UpdateSticky", reqEditors...)
 }
 
 // GetEverythingTopics is marked as idempotent and will be retried on transient failures.
 
 func (c *Client) GetEverythingTopics(ctx context.Context, params *GetEverythingTopicsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
 		return NewGetEverythingTopicsRequest(c.Server, params)
 	}, true, "GetEverythingTopics", reqEditors...)
-
 }
 
 // GetSentTopics is marked as idempotent and will be retried on transient failures.
 
 func (c *Client) GetSentTopics(ctx context.Context, params *GetSentTopicsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
 		return NewGetSentTopicsRequest(c.Server, params)
 	}, true, "GetSentTopics", reqEditors...)
-
 }
 
 // GetSpamTopics is marked as idempotent and will be retried on transient failures.
 
 func (c *Client) GetSpamTopics(ctx context.Context, params *GetSpamTopicsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
 		return NewGetSpamTopicsRequest(c.Server, params)
 	}, true, "GetSpamTopics", reqEditors...)
-
 }
 
 // EmptySpam is marked as idempotent and will be retried on transient failures.
 
 func (c *Client) EmptySpam(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
 		return NewEmptySpamRequest(c.Server)
 	}, true, "EmptySpam", reqEditors...)
-
 }
 
 // GetTrashTopics is marked as idempotent and will be retried on transient failures.
 
 func (c *Client) GetTrashTopics(ctx context.Context, params *GetTrashTopicsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
 		return NewGetTrashTopicsRequest(c.Server, params)
 	}, true, "GetTrashTopics", reqEditors...)
-
 }
 
 // EmptyTrash is marked as idempotent and will be retried on transient failures.
 
 func (c *Client) EmptyTrash(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
 		return NewEmptyTrashRequest(c.Server)
 	}, true, "EmptyTrash", reqEditors...)
-
 }
 
 // GetTopic is marked as idempotent and will be retried on transient failures.
 
 func (c *Client) GetTopic(ctx context.Context, topicId int64, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
 		return NewGetTopicRequest(c.Server, topicId)
 	}, true, "GetTopic", reqEditors...)
-
 }
 
 // GetTopicEntries is marked as idempotent and will be retried on transient failures.
 
 func (c *Client) GetTopicEntries(ctx context.Context, topicId int64, params *GetTopicEntriesParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
 		return NewGetTopicEntriesRequest(c.Server, topicId, params)
 	}, true, "GetTopicEntries", reqEditors...)
-
 }
 
 // MoveTopicWithBody executes the MoveTopic operation.
 
 func (c *Client) MoveTopicWithBody(ctx context.Context, topicId int64, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
-	req, err := NewMoveTopicRequestWithBody(c.Server, topicId, contentType, body)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
-
+	body, rewind := resendableBody(body)
+	return c.doWithRetry(ctx, func() (*http.Request, error) {
+		if err := rewind(); err != nil {
+			return nil, err
+		}
+		return NewMoveTopicRequestWithBody(c.Server, topicId, contentType, body)
+	}, false, "MoveTopic", reqEditors...)
 }
 
 func (c *Client) MoveTopic(ctx context.Context, topicId int64, body MoveTopicJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
-	req, err := NewMoveTopicRequest(c.Server, topicId, body)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
-
+	return c.doWithRetry(ctx, func() (*http.Request, error) {
+		return NewMoveTopicRequest(c.Server, topicId, body)
+	}, false, "MoveTopic", reqEditors...)
 }
 
 // GetTopicPublication is marked as idempotent and will be retried on transient failures.
 
 func (c *Client) GetTopicPublication(ctx context.Context, topicId int64, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
 		return NewGetTopicPublicationRequest(c.Server, topicId)
 	}, true, "GetTopicPublication", reqEditors...)
-
 }
 
 // RestoreTopic is marked as idempotent and will be retried on transient failures.
 
 func (c *Client) RestoreTopic(ctx context.Context, topicId int64, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
 		return NewRestoreTopicRequest(c.Server, topicId)
 	}, true, "RestoreTopic", reqEditors...)
-
 }
 
 // MarkTopicHam is marked as idempotent and will be retried on transient failures.
 
 func (c *Client) MarkTopicHam(ctx context.Context, topicId int64, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
 		return NewMarkTopicHamRequest(c.Server, topicId)
 	}, true, "MarkTopicHam", reqEditors...)
-
 }
 
 // TrashTopic is marked as idempotent and will be retried on transient failures.
 
 func (c *Client) TrashTopic(ctx context.Context, topicId int64, params *TrashTopicParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
 		return NewTrashTopicRequest(c.Server, topicId, params)
 	}, true, "TrashTopic", reqEditors...)
-
 }
 
 // MoveWorkflowStagingWithBody executes the MoveWorkflowStaging operation.
 
 func (c *Client) MoveWorkflowStagingWithBody(ctx context.Context, topicId int64, workflowId int64, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
-	req, err := NewMoveWorkflowStagingRequestWithBody(c.Server, topicId, workflowId, contentType, body)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
-
+	body, rewind := resendableBody(body)
+	return c.doWithRetry(ctx, func() (*http.Request, error) {
+		if err := rewind(); err != nil {
+			return nil, err
+		}
+		return NewMoveWorkflowStagingRequestWithBody(c.Server, topicId, workflowId, contentType, body)
+	}, false, "MoveWorkflowStaging", reqEditors...)
 }
 
 func (c *Client) MoveWorkflowStaging(ctx context.Context, topicId int64, workflowId int64, body MoveWorkflowStagingJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
-	req, err := NewMoveWorkflowStagingRequest(c.Server, topicId, workflowId, body)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
-
+	return c.doWithRetry(ctx, func() (*http.Request, error) {
+		return NewMoveWorkflowStagingRequest(c.Server, topicId, workflowId, body)
+	}, false, "MoveWorkflowStaging", reqEditors...)
 }
 
 // CreateWorkflowStaging executes the CreateWorkflowStaging operation.
 
 func (c *Client) CreateWorkflowStaging(ctx context.Context, topicId int64, workflowId int64, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
-	req, err := NewCreateWorkflowStagingRequest(c.Server, topicId, workflowId)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
-
+	return c.doWithRetry(ctx, func() (*http.Request, error) {
+		return NewCreateWorkflowStagingRequest(c.Server, topicId, workflowId)
+	}, false, "CreateWorkflowStaging", reqEditors...)
 }
 
 // GetWorkflow is marked as idempotent and will be retried on transient failures.
 
 func (c *Client) GetWorkflow(ctx context.Context, workflowId int64, reqEditors ...RequestEditorFn) (*http.Response, error) {
-
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
 		return NewGetWorkflowRequest(c.Server, workflowId)
 	}, true, "GetWorkflow", reqEditors...)
-
 }
 
 // NewDeleteExtenzionRequest generates requests for DeleteExtenzion

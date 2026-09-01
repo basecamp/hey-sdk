@@ -232,7 +232,6 @@ func NewClient(cfg *Config, tokenProvider TokenProvider, opts ...ClientOption) *
 	return c
 }
 
-// initGeneratedClient initializes the generated OpenAPI client for this account scope.
 // refreshCredentials renews what the next request will authenticate with, and reports
 // whether anything was able to. The strategy is asked before the token provider because a
 // client given both is authenticated by the strategy, so the strategy is what holds the
@@ -247,6 +246,7 @@ func (c *Client) refreshCredentials(ctx context.Context) bool {
 	return false
 }
 
+// initGeneratedClient initializes the generated OpenAPI client for this account scope.
 func (c *Client) initGeneratedClient() {
 	c.genOnce.Do(func() {
 		serverURL := strings.TrimSuffix(c.cfg.BaseURL, "/")
@@ -264,8 +264,19 @@ func (c *Client) initGeneratedClient() {
 			req.Header.Set("Accept", "application/json")
 			return nil
 		}
+		// The generated client runs its own retry loop, so it has to be told what
+		// WithMaxRetries and WithBaseDelay configured or it runs on its own defaults.
+		// Idempotency still gates it: a non-idempotent operation gets one attempt no
+		// matter the count. BaseDelay is held under the generated MaxDelay ceiling since
+		// that loop sleeps BaseDelay verbatim before its first retry.
+		retryCfg := generated.DefaultRetryConfig()
+		retryCfg.MaxRetries = max(c.httpOpts.MaxRetries, 0)
+		retryCfg.BaseDelay = min(max(c.httpOpts.BaseDelay, 0), retryCfg.MaxDelay)
+
 		gen, err := generated.NewClientWithResponses(serverURL,
 			generated.WithHTTPClient(c.httpClient),
+			generated.WithRetryConfig(retryCfg),
+			generated.WithAuthRefresher(c.refreshCredentials),
 			generated.WithRequestEditorFn(authEditor))
 		if err != nil {
 			panic(fmt.Sprintf("hey: failed to create generated client: %v", err))
