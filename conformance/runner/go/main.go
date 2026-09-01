@@ -292,7 +292,9 @@ func runTest(tc TestCase) TestResult {
 
 	// Capture response body for responseBody assertions
 	var responseBodyBytes []byte
-	if heyResult != nil {
+	// A failed read hands back a typed nil, which is a non-nil interface: only a
+	// successful operation's result is a response body.
+	if sdkErr == nil && heyResult != nil {
 		responseBodyBytes, _ = json.Marshal(heyResult)
 	}
 	if sdkResp != nil && sdkResp.Body != nil {
