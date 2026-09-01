@@ -448,13 +448,26 @@ func (c *Client) doFormRequest(ctx context.Context, method, path string, values 
 
 // doBodyRequest executes a request whose response is a redirect rather than a document, and
 // captures that redirect instead of following it. The body is held as bytes so a retry after
-// a token refresh can send it again.
+// a token refresh can send it again. Like doRequestURL's mutations, it retries exactly once,
+// and only after a 401 that a refresh answered.
 func (c *Client) doBodyRequest(ctx context.Context, method, path, contentType string, body []byte) (*FormResponse, error) {
 	reqURL, err := c.buildURL(path)
 	if err != nil {
 		return nil, err
 	}
 
+	resp, err := c.sendBodyRequest(ctx, method, reqURL, contentType, body, 1)
+	if apiErr, ok := err.(*Error); ok && apiErr.Retryable && apiErr.Code == CodeAuth {
+		c.logger.Debug("token refreshed, retrying form request", "method", method)
+		return c.sendBodyRequest(ctx, method, reqURL, contentType, body, 2)
+	}
+	return resp, err
+}
+
+// sendBodyRequest sends one attempt of doBodyRequest. A 401 on the first attempt that a
+// credential refresh answers comes back as a retryable auth error, as singleRequest reports
+// it, so the caller decides whether to resend; any other 401 is surfaced as the failure.
+func (c *Client) sendBodyRequest(ctx context.Context, method, reqURL, contentType string, body []byte, attempt int) (*FormResponse, error) {
 	var bodyReader io.Reader
 	if body != nil {
 		bodyReader = bytes.NewReader(body)
@@ -511,9 +524,12 @@ func (c *Client) doBodyRequest(ctx context.Context, method, path, contentType st
 		return &FormResponse{StatusCode: resp.StatusCode, Body: string(responseBody)}, nil
 
 	case resp.StatusCode == http.StatusUnauthorized:
-		// Try token refresh and retry once
-		if c.refreshCredentials(ctx) {
-			return c.doBodyRequest(ctx, method, path, contentType, body)
+		if attempt == 1 && c.refreshCredentials(ctx) {
+			return nil, &Error{
+				Code:      CodeAuth,
+				Message:   "Token refreshed",
+				Retryable: true,
+			}
 		}
 		return nil, ErrAuth("Authentication failed")
 

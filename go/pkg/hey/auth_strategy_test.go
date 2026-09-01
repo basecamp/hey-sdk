@@ -2,8 +2,11 @@ package hey
 
 import (
 	"context"
+	"errors"
+	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"sync/atomic"
 	"testing"
 )
@@ -72,5 +75,75 @@ func TestUnauthorizedIsSurfacedWhenNothingCanRefresh(t *testing.T) {
 	}
 	if requests.Load() != 1 {
 		t.Errorf("expected the 401 to be surfaced on the first request, got %d requests", requests.Load())
+	}
+}
+
+// The form path holds its body as bytes so the one resend after a refresh carries it again.
+func TestFormUnauthorizedIsRetriedAfterTheStrategyRefreshes(t *testing.T) {
+	var seen []string
+	var bodies []string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		seen = append(seen, r.Header.Get("Authorization"))
+		body, _ := io.ReadAll(r.Body)
+		bodies = append(bodies, string(body))
+		if r.Header.Get("Authorization") != "Bearer fresh" {
+			http.Error(w, "unauthorized", http.StatusUnauthorized)
+			return
+		}
+		http.Redirect(w, r, "/things/42", http.StatusSeeOther)
+	}))
+	t.Cleanup(srv.Close)
+
+	auth := &refreshingAuth{refreshed: "fresh"}
+	auth.token.Store("stale")
+	client := NewClient(&Config{BaseURL: srv.URL}, nil, WithAuthStrategy(auth))
+
+	resp, err := client.PostForm(context.Background(), "/things", url.Values{"name": {"x"}})
+	if err != nil {
+		t.Fatalf("expected the retry after a refresh to succeed: %v", err)
+	}
+	if id, err := resp.ExtractID(); err != nil || id != 42 {
+		t.Errorf("expected the redirect to be captured, got %+v (%v)", resp, err)
+	}
+	if refreshes := auth.refreshes.Load(); refreshes != 1 {
+		t.Errorf("expected one refresh, got %d", refreshes)
+	}
+	if len(seen) != 2 || seen[0] != "Bearer stale" || seen[1] != "Bearer fresh" {
+		t.Errorf("expected the stale token then the fresh one, got %v", seen)
+	}
+	if len(bodies) != 2 || bodies[0] != "name=x" || bodies[1] != "name=x" {
+		t.Errorf("expected the body to be sent again on the retry, got %q", bodies)
+	}
+}
+
+// A refresh that does not help gets no second refresh on the form path either: the 401 is
+// surfaced after one resend rather than recursing for as long as refreshes keep succeeding.
+func TestFormUnauthorizedIsSurfacedAfterOneRefresh(t *testing.T) {
+	var requests atomic.Int64
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		// Answer anything past the one permitted resend with a status the test can tell
+		// apart from the 401, so an unbounded retry fails instead of hanging.
+		if requests.Add(1) > 2 {
+			http.Error(w, "too many attempts", http.StatusTeapot)
+			return
+		}
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+	}))
+	t.Cleanup(srv.Close)
+
+	auth := &refreshingAuth{refreshed: "fresh"}
+	auth.token.Store("stale")
+	client := NewClient(&Config{BaseURL: srv.URL}, nil, WithAuthStrategy(auth))
+
+	_, err := client.PostForm(context.Background(), "/things", url.Values{"name": {"x"}})
+	var apiErr *Error
+	if !errors.As(err, &apiErr) || apiErr.Code != CodeAuth {
+		t.Fatalf("expected an authentication error, got %v", err)
+	}
+	if refreshes := auth.refreshes.Load(); refreshes != 1 {
+		t.Errorf("expected one refresh, got %d", refreshes)
+	}
+	if requests.Load() != 2 {
+		t.Errorf("expected the original request and one resend, got %d requests", requests.Load())
 	}
 }
