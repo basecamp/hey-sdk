@@ -184,11 +184,7 @@ func (c *{{ $clientTypeName }}) doWithRetry(ctx context.Context, buildRequest fu
 	if isIdempotent {
 		maxAttempts = c.RetryConfig.MaxRetries + 1
 	}
-	made := 0
-	resp, err := c.doAttempts(ctx, func() (*http.Request, error) {
-		made++
-		return buildRequest()
-	}, 1, maxAttempts, operationId, reqEditors...)
+	resp, req, err := c.doAttempts(ctx, buildRequest, 1, maxAttempts, operationId, reqEditors...)
 	if err != nil || resp.StatusCode != http.StatusUnauthorized || c.AuthRefresher == nil || !c.AuthRefresher(ctx) {
 		return resp, err
 	}
@@ -196,10 +192,12 @@ func (c *{{ $clientTypeName }}) doWithRetry(ctx context.Context, buildRequest fu
 	if c.Logger != nil {
 		c.Logger.Debug("credentials refreshed, retrying", "operation", operationId)
 	}
-	if c.RetryHook != nil {
-		c.RetryHook(ctx, Retry{Request: resp.Request, Attempt: made + 1, Response: resp})
+	failed := AttemptFromContext(req.Context())
+	if err := c.announce(ctx, Retry{Request: req, Attempt: failed + 1, Response: resp}); err != nil {
+		return nil, err
 	}
-	return c.doAttempts(ctx, buildRequest, made+1, made+max(maxAttempts-made, 1), operationId, reqEditors...)
+	resp, _, err = c.doAttempts(ctx, buildRequest, failed+1, failed+max(maxAttempts-failed, 1), operationId, reqEditors...)
+	return resp, err
 }
 
 // ContextWithAttempt marks the context a request is sent with as the given attempt of its
@@ -263,22 +261,26 @@ func resendableBody(body io.Reader) (io.Reader, func() error, func()) {
 type readOnly struct{ io.Reader }
 
 // doAttempts runs the retry loop for the sends numbered first through last, retrying
-// transient failures with backoff between them.
-func (c *{{ $clientTypeName }}) doAttempts(ctx context.Context, buildRequest func() (*http.Request, error), first, last int, operationId string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+// transient failures with backoff between them. Along with the last response it returns
+// the request that response answered, as the editors left it: a transport is free to
+// leave Response.Request unset, so the loop does not rely on it.
+func (c *{{ $clientTypeName }}) doAttempts(ctx context.Context, buildRequest func() (*http.Request, error), first, last int, operationId string, reqEditors ...RequestEditorFn) (*http.Response, *http.Request, error) {
 
 	var lastResp *http.Response
+	var lastReq *http.Request
 	var lastErr error
 	delay := c.RetryConfig.BaseDelay
 
 	for attempt := first; attempt <= last; attempt++ {
 		req, err := buildRequest()
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		req = req.WithContext(ContextWithAttempt(ctx, attempt))
 		if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-			return nil, err
+			return nil, nil, err
 		}
+		lastReq = req
 
 		resp, err := c.Client.Do(req)
 		if err != nil {
@@ -293,17 +295,17 @@ func (c *{{ $clientTypeName }}) doAttempts(ctx context.Context, buildRequest fun
 			// Network errors are retryable while attempts remain
 			if attempt < last {
 				if err := c.resend(ctx, Retry{Request: req, Attempt: attempt + 1, Err: err}, delay); err != nil {
-					return nil, err
+					return nil, nil, err
 				}
 				delay = c.nextDelay(delay)
 				continue
 			}
-			return nil, err
+			return nil, nil, err
 		}
 
 		// Success or non-retryable status
 		if !isRetryableStatus(resp.StatusCode) {
-			return resp, nil
+			return resp, req, nil
 		}
 
 		lastResp = resp
@@ -317,7 +319,7 @@ func (c *{{ $clientTypeName }}) doAttempts(ctx context.Context, buildRequest fun
 
 		// Don't retry past the last attempt
 		if attempt >= last {
-			return resp, nil
+			return resp, req, nil
 		}
 
 		// Close body before retry
@@ -334,27 +336,33 @@ func (c *{{ $clientTypeName }}) doAttempts(ctx context.Context, buildRequest fun
 		}
 
 		if err := c.resend(ctx, Retry{Request: req, Attempt: attempt + 1, Response: resp}, retryDelay); err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		delay = c.nextDelay(delay)
 	}
 
 	if lastErr != nil {
-		return nil, lastErr
+		return nil, nil, lastErr
 	}
-	return lastResp, nil
+	return lastResp, lastReq, nil
+}
+
+// announce tells the RetryHook about the attempt about to be made, and reports the context
+// done if the hook cancelled it, so that no request goes out on a dead context.
+func (c *{{ $clientTypeName }}) announce(ctx context.Context, retry Retry) error {
+	if c.RetryHook != nil {
+		c.RetryHook(ctx, retry)
+	}
+	return ctx.Err()
 }
 
 // resend announces the attempt about to be made to the RetryHook and waits out the delay
 // before it, with jitter, unless the context is done first.
 func (c *{{ $clientTypeName }}) resend(ctx context.Context, retry Retry, delay time.Duration) error {
-	if c.RetryHook != nil {
-		c.RetryHook(ctx, retry)
-	}
-	// The hook may have cancelled the context. A select with both cases ready picks one
-	// pseudo-randomly, so with an already-elapsed delay the timer could win and one more
-	// request go out on a dead context; check the context first, where nothing competes.
-	if err := ctx.Err(); err != nil {
+	// A select with both cases ready picks one pseudo-randomly, so with an already-elapsed
+	// delay the timer could win over a context the hook cancelled; announce checks the
+	// context first, where nothing competes.
+	if err := c.announce(ctx, retry); err != nil {
 		return err
 	}
 	select {

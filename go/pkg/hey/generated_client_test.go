@@ -443,11 +443,125 @@ func TestGeneratedRefreshResendFiresOnRetry(t *testing.T) {
 		t.Errorf("expected attempt 1 of the POST to be reported failed and 2 next, got %+v next %d", retry.info, retry.attempt)
 	}
 	var sdkErr *Error
-	if !errors.As(retry.err, &sdkErr) || sdkErr.Code != CodeAuth {
-		t.Errorf("expected the 401 as an authentication error, got %v", retry.err)
+	if !errors.As(retry.err, &sdkErr) || sdkErr.Code != CodeAuth || !sdkErr.Retryable {
+		t.Errorf("expected the 401 as a retryable authentication error, as doRequestURL reports its refresh, got %v", retry.err)
 	}
 	if got := hooks.startAttempts(); len(got) != 2 || got[0] != 1 || got[1] != 2 {
 		t.Errorf("expected the transport to see attempts 1, 2, got %v", got)
+	}
+}
+
+// A failure in the transport is reported as the SDK's network error, as doRequestURL
+// reports it, so a hook can classify it and see it marked retryable.
+func TestGeneratedTransportFailuresFireOnRetryAsNetworkErrors(t *testing.T) {
+	transport := &scriptedTransport{turns: []func() (*http.Response, error){
+		func() (*http.Response, error) { return nil, errors.New("connection reset") },
+		func() (*http.Response, error) { return scriptedResponse(http.StatusOK, `[]`), nil },
+	}}
+	hooks := &retryRecordingHooks{}
+	root := NewClient(&Config{BaseURL: "https://app.hey.test"}, &StaticTokenProvider{Token: "token"},
+		WithTransport(transport), WithHooks(hooks), WithMaxRetries(1), WithBaseDelay(time.Millisecond))
+	client := scopedTestClient(root, 42)
+
+	if _, err := client.Boxes().List(context.Background()); err != nil {
+		t.Fatalf("expected the second attempt to succeed: %v", err)
+	}
+	retries := hooks.retryCalls()
+	if len(retries) != 1 {
+		t.Fatalf("expected OnRetry once, before the resend, got %d calls", len(retries))
+	}
+	retry := retries[0]
+	if retry.info.Attempt != 1 || retry.attempt != 2 || retry.info.Method != http.MethodGet {
+		t.Errorf("expected attempt 1 of the GET to be reported failed and 2 next, got %+v next %d", retry.info, retry.attempt)
+	}
+	var sdkErr *Error
+	if !errors.As(retry.err, &sdkErr) || sdkErr.Code != CodeNetwork || !sdkErr.Retryable {
+		t.Errorf("expected the transport failure as a retryable network error, got %v", retry.err)
+	}
+	if !strings.Contains(retry.err.Error(), "connection reset") {
+		t.Errorf("expected the network error to carry the transport's cause, got %v", retry.err)
+	}
+}
+
+// A transport is free to leave Response.Request unset, as a test or adapter transport
+// that builds its own responses does; the refresh resend reports the request it sent
+// regardless.
+func TestGeneratedRefreshResendFiresOnRetryWhenTheTransportDropsTheRequest(t *testing.T) {
+	transport := &scriptedTransport{turns: []func() (*http.Response, error){
+		func() (*http.Response, error) { return scriptedResponse(http.StatusUnauthorized, `unauthorized`), nil },
+		func() (*http.Response, error) { return scriptedResponse(http.StatusOK, `[]`), nil },
+	}}
+	hooks := &retryRecordingHooks{}
+	auth := &refreshingAuth{refreshed: "fresh"}
+	auth.token.Store("stale")
+	root := NewClient(&Config{BaseURL: "https://app.hey.test"}, nil,
+		WithTransport(transport), WithAuthStrategy(auth), WithHooks(hooks), WithMaxRetries(0))
+	client := scopedTestClient(root, 42)
+
+	if _, err := client.Boxes().List(context.Background()); err != nil {
+		t.Fatalf("expected the resend after a refresh to succeed: %v", err)
+	}
+	retries := hooks.retryCalls()
+	if len(retries) != 1 {
+		t.Fatalf("expected OnRetry once, before the resend, got %d calls", len(retries))
+	}
+	retry := retries[0]
+	if retry.info.Method != http.MethodGet || !strings.Contains(retry.info.URL, "42") || retry.attempt != 2 {
+		t.Errorf("expected the GET the transport was sent, scoped to the account, as attempt 2, got %+v next %d", retry.info, retry.attempt)
+	}
+}
+
+// A hook that cancels the context on the refresh resend stops it before the transport
+// is asked, as it does an ordinary retry.
+func TestGeneratedRefreshResendStopsWhenTheHookCancels(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+	}))
+	t.Cleanup(server.Close)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+	hooks := &retryRecordingHooks{onRetry: func() { cancel() }}
+	auth := &refreshingAuth{refreshed: "fresh"}
+	auth.token.Store("stale")
+	root := NewClient(&Config{BaseURL: server.URL}, nil, WithAuthStrategy(auth), WithHooks(hooks), WithMaxRetries(0))
+	client := scopedTestClient(root, 42)
+
+	_, err := client.Boxes().List(ctx)
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("expected the cancellation to be surfaced, got %v", err)
+	}
+	if got := hooks.startAttempts(); len(got) != 1 || got[0] != 1 {
+		t.Errorf("expected the transport to see only the first send, got %v", got)
+	}
+	if retries := hooks.retryCalls(); len(retries) != 1 {
+		t.Errorf("expected OnRetry once, for the resend that was then cancelled, got %d calls", len(retries))
+	}
+}
+
+// scriptedTransport answers each round trip from a script, the way a test or adapter
+// transport does: responses it built itself, with Response.Request unset, or errors.
+type scriptedTransport struct {
+	mu    sync.Mutex
+	turns []func() (*http.Response, error)
+}
+
+func (t *scriptedTransport) RoundTrip(*http.Request) (*http.Response, error) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	if len(t.turns) == 0 {
+		return nil, errors.New("scriptedTransport: no turn left")
+	}
+	turn := t.turns[0]
+	t.turns = t.turns[1:]
+	return turn()
+}
+
+func scriptedResponse(status int, body string) *http.Response {
+	return &http.Response{
+		StatusCode: status,
+		Header:     http.Header{"Content-Type": {"application/json"}},
+		Body:       io.NopCloser(strings.NewReader(body)),
 	}
 }
 
@@ -539,6 +653,7 @@ type retryRecordingHooks struct {
 	mu      sync.Mutex
 	starts  []RequestInfo
 	retries []retryCall
+	onRetry func()
 }
 
 func (h *retryRecordingHooks) OnRequestStart(ctx context.Context, info RequestInfo) context.Context {
@@ -552,6 +667,9 @@ func (h *retryRecordingHooks) OnRetry(_ context.Context, info RequestInfo, attem
 	h.mu.Lock()
 	h.retries = append(h.retries, retryCall{info: info, attempt: attempt, err: err})
 	h.mu.Unlock()
+	if h.onRetry != nil {
+		h.onRetry()
+	}
 }
 
 func (h *retryRecordingHooks) retryCalls() []retryCall {
