@@ -2,12 +2,14 @@ package hey
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"sync"
+	"sync/atomic"
 	"testing"
 )
 
@@ -217,6 +219,64 @@ func TestGeneratedOperationsCacheEachAccountSeparately(t *testing.T) {
 		if fmt.Sprint(requests) != fmt.Sprint(want) {
 			t.Errorf("account %s conditionals = %v, want %v", account, requests, want)
 		}
+	}
+}
+
+// A body the cap refuses fails inside store's read, and the failure is kept for the
+// generated parser's own read to surface: the caller gets the error after exactly one
+// request, because an error from Do would send the retry loop after a response it
+// already has.
+func TestGeneratedOperationsDoNotRetryABodyTheCacheFailedToRead(t *testing.T) {
+	client, hits := newCappedTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("ETag", `"v1"`)
+		serveOversizedJSON(false)(w, r)
+	}, WithCache(NewCache(t.TempDir())))
+
+	_, err := client.Messages().Get(context.Background(), 1)
+	if !errors.Is(err, ErrResponseTooLarge) {
+		t.Fatalf("err = %v, want ErrResponseTooLarge through the cache-enabled generated client", err)
+	}
+	if hits.Load() != 1 {
+		t.Errorf("server saw %d requests, want 1: a refused body must not be retried", hits.Load())
+	}
+}
+
+// HEY regenerates pagination headers on every response — geared_pagination sets
+// X-Total-Count and Link in an after_action that runs on 304s too — so a revalidated
+// read takes its pagination state from the 304 itself and the synthesized 200
+// carries it through to the wrappers that parse those headers.
+func TestGeneratedOperationsReadPaginationHeadersFromTheRevalidation(t *testing.T) {
+	var bodiesServed atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("ETag", `"v1"`)
+		w.Header().Set("X-Total-Count", "7")
+		w.Header().Set("Link", `<http://`+r.Host+r.URL.Path+`?page=abc123>; rel="next"`)
+		if r.Header.Get("If-None-Match") == `"v1"` {
+			w.WriteHeader(http.StatusNotModified)
+			return
+		}
+		bodiesServed.Add(1)
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = fmt.Fprint(w, `{"id":1,"name":"Receipts"}`)
+	}))
+	t.Cleanup(server.Close)
+
+	root := NewClient(&Config{BaseURL: server.URL}, &StaticTokenProvider{Token: "token"},
+		WithMaxRetries(0), WithCache(NewCache(t.TempDir())))
+	client := scopedTestClient(root, 42)
+
+	for call := range 2 {
+		page, err := client.Folders().GetPage(context.Background(), 1, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if page.TotalCount != 7 || page.NextPage != "abc123" {
+			t.Errorf("call %d: TotalCount = %d, NextPage = %q, want 7 and %q",
+				call, page.TotalCount, page.NextPage, "abc123")
+		}
+	}
+	if bodiesServed.Load() != 1 {
+		t.Errorf("bodies served = %d, want the second read answered from the cache", bodiesServed.Load())
 	}
 }
 
