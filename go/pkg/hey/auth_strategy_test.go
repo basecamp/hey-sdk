@@ -78,7 +78,19 @@ func TestUnauthorizedIsSurfacedWhenNothingCanRefresh(t *testing.T) {
 	}
 }
 
-// The form path holds its body as bytes so the one resend after a refresh carries it again.
+// attemptRecordingHooks keeps the attempt number each request went out with.
+type attemptRecordingHooks struct {
+	NoopHooks
+	attempts []int
+}
+
+func (h *attemptRecordingHooks) OnRequestStart(ctx context.Context, info RequestInfo) context.Context {
+	h.attempts = append(h.attempts, info.Attempt)
+	return ctx
+}
+
+// The form path holds its body as bytes so the one resend after a refresh carries it again,
+// and reports itself as the second attempt.
 func TestFormUnauthorizedIsRetriedAfterTheStrategyRefreshes(t *testing.T) {
 	var seen []string
 	var bodies []string
@@ -96,11 +108,15 @@ func TestFormUnauthorizedIsRetriedAfterTheStrategyRefreshes(t *testing.T) {
 
 	auth := &refreshingAuth{refreshed: "fresh"}
 	auth.token.Store("stale")
-	client := NewClient(&Config{BaseURL: srv.URL}, nil, WithAuthStrategy(auth))
+	hooks := &attemptRecordingHooks{}
+	client := NewClient(&Config{BaseURL: srv.URL}, nil, WithAuthStrategy(auth), WithHooks(hooks))
 
 	resp, err := client.PostForm(context.Background(), "/things", url.Values{"name": {"x"}})
 	if err != nil {
 		t.Fatalf("expected the retry after a refresh to succeed: %v", err)
+	}
+	if len(hooks.attempts) != 2 || hooks.attempts[0] != 1 || hooks.attempts[1] != 2 {
+		t.Errorf("expected the requests to report attempts 1 and 2, got %v", hooks.attempts)
 	}
 	if id, err := resp.ExtractID(); err != nil || id != 42 {
 		t.Errorf("expected the redirect to be captured, got %+v (%v)", resp, err)

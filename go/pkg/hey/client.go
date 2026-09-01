@@ -468,6 +468,8 @@ func (c *Client) doBodyRequest(ctx context.Context, method, path, contentType st
 // credential refresh answers comes back as a retryable auth error, as singleRequest reports
 // it, so the caller decides whether to resend; any other 401 is surfaced as the failure.
 func (c *Client) sendBodyRequest(ctx context.Context, method, reqURL, contentType string, body []byte, attempt int) (*FormResponse, error) {
+	ctx = contextWithAttempt(ctx, attempt)
+
 	var bodyReader io.Reader
 	if body != nil {
 		bodyReader = bytes.NewReader(body)
