@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -203,6 +204,42 @@ func TestGeneratedSeekableClosingBodiesSurviveTheRetry(t *testing.T) {
 	}
 	if err := file.Close(); !errors.Is(err, os.ErrClosed) {
 		t.Errorf("expected the body to be closed once the response was in, got %v", err)
+	}
+}
+
+// A body that cannot seek is held in memory for the resend, and the first send draining
+// the original reader is no loss.
+func TestGeneratedNonSeekableBodiesSurviveTheRetry(t *testing.T) {
+	var mu sync.Mutex
+	var bodies []string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, _ := io.ReadAll(r.Body)
+		mu.Lock()
+		bodies = append(bodies, string(body))
+		mu.Unlock()
+		if r.Header.Get("Authorization") != "Bearer fresh" {
+			http.Error(w, "unauthorized", http.StatusUnauthorized)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = io.WriteString(w, `{"id":1}`)
+	}))
+	t.Cleanup(server.Close)
+
+	auth := &refreshingAuth{refreshed: "fresh"}
+	auth.token.Store("stale")
+	root := NewClient(&Config{BaseURL: server.URL}, nil, WithAuthStrategy(auth), WithMaxRetries(0))
+	client := scopedTestClient(root, 42)
+	client.initGeneratedClient()
+
+	body := struct{ io.Reader }{strings.NewReader(`{"title":"Renew","due_on":"2026-09-01"}`)}
+	resp, err := client.gen.CreateCalendarTodoWithBody(context.Background(), "application/json", body)
+	if err != nil {
+		t.Fatalf("expected the retry after a refresh to succeed: %v", err)
+	}
+	_ = resp.Body.Close()
+	if len(bodies) != 2 || bodies[0] == "" || bodies[0] != bodies[1] {
+		t.Errorf("expected the same body on both sends, got %q", bodies)
 	}
 }
 
