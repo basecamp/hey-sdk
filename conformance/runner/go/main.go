@@ -1503,14 +1503,18 @@ func executeHEYOperation(client *hey.Client, ctx context.Context, tc TestCase) e
 			getInt64Param(tc.RequestBody, "acting_sender_id"),
 			getStringParam(tc.RequestBody, "subject"),
 			getStringParam(tc.RequestBody, "content"),
-			getStringSliceParam(tc.RequestBody, "to"), nil, nil)
+			getStringSliceParam(tc.RequestBody, "to"),
+			getStringSliceParam(tc.RequestBody, "cc"),
+			getStringSliceParam(tc.RequestBody, "bcc"))
 	case "CreateReplyDraft":
 		entryID := getInt64Param(tc.PathParams, "entryId")
 		_, err := client.Entries().CreateReplyDraft(ctx, entryID,
 			getInt64Param(tc.RequestBody, "acting_sender_id"),
 			getStringParam(tc.RequestBody, "subject"),
 			getStringParam(tc.RequestBody, "content"),
-			getStringSliceParam(tc.RequestBody, "to"), nil, nil)
+			getStringSliceParam(tc.RequestBody, "to"),
+			getStringSliceParam(tc.RequestBody, "cc"),
+			getStringSliceParam(tc.RequestBody, "bcc"))
 		return err
 	case "CreateDraft":
 		_, err := client.Messages().CreateDraft(ctx, draftContentParam(tc.RequestBody))
