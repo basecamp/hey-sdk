@@ -2204,9 +2204,19 @@ func isRetryableStatus(statusCode int) bool {
 }
 
 // doWithRetry executes a request with retry logic for idempotent operations, and sends
-// it once more after a 401 the AuthRefresher was able to answer.
+// it once more after a 401 the AuthRefresher was able to answer. That resend draws on
+// whatever retry budget the operation has left rather than starting a fresh one, and is
+// always granted at least the one attempt.
 func (c *Client) doWithRetry(ctx context.Context, buildRequest func() (*http.Request, error), isIdempotent bool, operationId string, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	resp, err := c.doAttempts(ctx, buildRequest, isIdempotent, operationId, reqEditors...)
+	maxAttempts := 1
+	if isIdempotent {
+		maxAttempts = c.RetryConfig.MaxRetries + 1
+	}
+	made := 0
+	resp, err := c.doAttempts(ctx, func() (*http.Request, error) {
+		made++
+		return buildRequest()
+	}, maxAttempts, operationId, reqEditors...)
 	if err != nil || resp.StatusCode != http.StatusUnauthorized || c.AuthRefresher == nil || !c.AuthRefresher(ctx) {
 		return resp, err
 	}
@@ -2214,23 +2224,34 @@ func (c *Client) doWithRetry(ctx context.Context, buildRequest func() (*http.Req
 	if c.Logger != nil {
 		c.Logger.Debug("credentials refreshed, retrying", "operation", operationId)
 	}
-	return c.doAttempts(ctx, buildRequest, isIdempotent, operationId, reqEditors...)
+	return c.doAttempts(ctx, buildRequest, max(maxAttempts-made, 1), operationId, reqEditors...)
 }
 
 // resendableBody makes a request body good for more than one send, since every attempt
 // builds its request afresh from the same reader: a seekable body is rewound to where it
-// started, and any other body is held in memory. The returned rewind runs before each build.
-func resendableBody(body io.Reader) (io.Reader, func() error) {
+// started, and any other body is held in memory. The returned rewind runs before each
+// build. The returned finish runs once the last response is in and closes a body that
+// closes: the transport closes whatever body it is handed after each send, so a body
+// that has to survive a resend is kept from it and closed here instead.
+func resendableBody(body io.Reader) (io.Reader, func() error, func()) {
+	finish := func() {
+		if closer, ok := body.(io.Closer); ok {
+			_ = closer.Close()
+		}
+	}
 	if body == nil {
-		return nil, func() error { return nil }
+		return nil, func() error { return nil }, finish
 	}
 	if seeker, ok := body.(io.ReadSeeker); ok {
-		start, err := seeker.Seek(0, io.SeekCurrent)
-		if err == nil {
-			return seeker, func() error {
+		if start, err := seeker.Seek(0, io.SeekCurrent); err == nil {
+			rewind := func() error {
 				_, err := seeker.Seek(start, io.SeekStart)
 				return err
 			}
+			if _, closes := body.(io.Closer); closes {
+				return readOnly{seeker}, rewind, finish
+			}
+			return seeker, rewind, finish
 		}
 	}
 	buf, err := io.ReadAll(body)
@@ -2241,16 +2262,16 @@ func resendableBody(body io.Reader) (io.Reader, func() error) {
 		}
 		_, err := held.Seek(0, io.SeekStart)
 		return err
-	}
+	}, finish
 }
 
-// doAttempts runs the retry loop: one attempt for a non-idempotent operation, up to
-// RetryConfig.MaxRetries+1 for an idempotent one.
-func (c *Client) doAttempts(ctx context.Context, buildRequest func() (*http.Request, error), isIdempotent bool, operationId string, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	maxAttempts := 1
-	if isIdempotent {
-		maxAttempts = c.RetryConfig.MaxRetries + 1
-	}
+// readOnly hides a body's Close from http.NewRequest, which installs an io.ReadCloser
+// as the request body as-is and so hands its closing to the transport.
+type readOnly struct{ io.Reader }
+
+// doAttempts runs the retry loop for up to maxAttempts sends, retrying transient
+// failures with backoff between them.
+func (c *Client) doAttempts(ctx context.Context, buildRequest func() (*http.Request, error), maxAttempts int, operationId string, reqEditors ...RequestEditorFn) (*http.Response, error) {
 
 	var lastResp *http.Response
 	var lastErr error
@@ -2276,8 +2297,8 @@ func (c *Client) doAttempts(ctx context.Context, buildRequest func() (*http.Requ
 					"error", err,
 				)
 			}
-			// Network errors are retryable for idempotent operations
-			if isIdempotent && attempt < maxAttempts {
+			// Network errors are retryable while attempts remain
+			if attempt < maxAttempts {
 				select {
 				case <-ctx.Done():
 					return nil, ctx.Err()
@@ -2306,8 +2327,8 @@ func (c *Client) doAttempts(ctx context.Context, buildRequest func() (*http.Requ
 			)
 		}
 
-		// Don't retry if not idempotent or last attempt
-		if !isIdempotent || attempt >= maxAttempts {
+		// Don't retry past the last attempt
+		if attempt >= maxAttempts {
 			return resp, nil
 		}
 
@@ -2854,7 +2875,8 @@ func (c *Client) GetBox(ctx context.Context, boxId int64, params *GetBoxParams, 
 // CreateBoxDesignationWithBody executes the CreateBoxDesignation operation.
 
 func (c *Client) CreateBoxDesignationWithBody(ctx context.Context, boxId int64, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	body, rewind := resendableBody(body)
+	body, rewind, finish := resendableBody(body)
+	defer finish()
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
 		if err := rewind(); err != nil {
 			return nil, err
@@ -2888,7 +2910,8 @@ func (c *Client) ListBoxGroups(ctx context.Context, boxId int64, reqEditors ...R
 // CreateBoxGroupWithBody executes the CreateBoxGroup operation.
 
 func (c *Client) CreateBoxGroupWithBody(ctx context.Context, boxId int64, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	body, rewind := resendableBody(body)
+	body, rewind, finish := resendableBody(body)
+	defer finish()
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
 		if err := rewind(); err != nil {
 			return nil, err
@@ -2938,7 +2961,8 @@ func (c *Client) GetBubblebox(ctx context.Context, params *GetBubbleboxParams, r
 // CreateBulkReplyWithBody executes the CreateBulkReply operation.
 
 func (c *Client) CreateBulkReplyWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	body, rewind := resendableBody(body)
+	body, rewind, finish := resendableBody(body)
+	defer finish()
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
 		if err := rewind(); err != nil {
 			return nil, err
@@ -3004,7 +3028,8 @@ func (c *Client) GetJournalEntry(ctx context.Context, day string, reqEditors ...
 // UpdateJournalEntryWithBody executes the UpdateJournalEntry operation.
 
 func (c *Client) UpdateJournalEntryWithBody(ctx context.Context, day string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	body, rewind := resendableBody(body)
+	body, rewind, finish := resendableBody(body)
+	defer finish()
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
 		if err := rewind(); err != nil {
 			return nil, err
@@ -3038,7 +3063,8 @@ func (c *Client) DeleteCalendarEventOccurrence(ctx context.Context, eventId int6
 // CreateHabitWithBody executes the CreateHabit operation.
 
 func (c *Client) CreateHabitWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	body, rewind := resendableBody(body)
+	body, rewind, finish := resendableBody(body)
+	defer finish()
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
 		if err := rewind(); err != nil {
 			return nil, err
@@ -3064,7 +3090,8 @@ func (c *Client) DeleteHabit(ctx context.Context, habitId int64, reqEditors ...R
 // UpdateHabitWithBody executes the UpdateHabit operation.
 
 func (c *Client) UpdateHabitWithBody(ctx context.Context, habitId int64, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	body, rewind := resendableBody(body)
+	body, rewind, finish := resendableBody(body)
+	defer finish()
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
 		if err := rewind(); err != nil {
 			return nil, err
@@ -3098,7 +3125,8 @@ func (c *Client) StopHabit(ctx context.Context, habitId int64, reqEditors ...Req
 // UpdateFirstWeekDayWithBody is marked as idempotent and will be retried on transient failures.
 
 func (c *Client) UpdateFirstWeekDayWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	body, rewind := resendableBody(body)
+	body, rewind, finish := resendableBody(body)
+	defer finish()
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
 		if err := rewind(); err != nil {
 			return nil, err
@@ -3148,7 +3176,8 @@ func (c *Client) ListTimeTracks(ctx context.Context, params *ListTimeTracksParam
 // CreateTimeTrackWithBody executes the CreateTimeTrack operation.
 
 func (c *Client) CreateTimeTrackWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	body, rewind := resendableBody(body)
+	body, rewind, finish := resendableBody(body)
+	defer finish()
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
 		if err := rewind(); err != nil {
 			return nil, err
@@ -3182,7 +3211,8 @@ func (c *Client) DeleteTimeTrack(ctx context.Context, timeTrackId int64, reqEdit
 // UpdateTimeTrackWithBody is marked as idempotent and will be retried on transient failures.
 
 func (c *Client) UpdateTimeTrackWithBody(ctx context.Context, timeTrackId int64, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	body, rewind := resendableBody(body)
+	body, rewind, finish := resendableBody(body)
+	defer finish()
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
 		if err := rewind(); err != nil {
 			return nil, err
@@ -3200,7 +3230,8 @@ func (c *Client) UpdateTimeTrack(ctx context.Context, timeTrackId int64, body Up
 // CreateCalendarTodoWithBody executes the CreateCalendarTodo operation.
 
 func (c *Client) CreateCalendarTodoWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	body, rewind := resendableBody(body)
+	body, rewind, finish := resendableBody(body)
+	defer finish()
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
 		if err := rewind(); err != nil {
 			return nil, err
@@ -3226,7 +3257,8 @@ func (c *Client) DeleteCalendarTodo(ctx context.Context, todoId int64, reqEditor
 // UpdateCalendarTodoWithBody executes the UpdateCalendarTodo operation.
 
 func (c *Client) UpdateCalendarTodoWithBody(ctx context.Context, todoId int64, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	body, rewind := resendableBody(body)
+	body, rewind, finish := resendableBody(body)
+	defer finish()
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
 		if err := rewind(); err != nil {
 			return nil, err
@@ -3316,7 +3348,8 @@ func (c *Client) GetClearances(ctx context.Context, params *GetClearancesParams,
 // BulkUpdateClearancesWithBody executes the BulkUpdateClearances operation.
 
 func (c *Client) BulkUpdateClearancesWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	body, rewind := resendableBody(body)
+	body, rewind, finish := resendableBody(body)
+	defer finish()
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
 		if err := rewind(); err != nil {
 			return nil, err
@@ -3342,7 +3375,8 @@ func (c *Client) PuntClearances(ctx context.Context, reqEditors ...RequestEditor
 // UpdateClearanceWithBody executes the UpdateClearance operation.
 
 func (c *Client) UpdateClearanceWithBody(ctx context.Context, clearanceId int64, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	body, rewind := resendableBody(body)
+	body, rewind, finish := resendableBody(body)
+	defer finish()
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
 		if err := rewind(); err != nil {
 			return nil, err
@@ -3384,7 +3418,8 @@ func (c *Client) GetCollection(ctx context.Context, collectionId int64, params *
 // UpdateCollectionWithBody executes the UpdateCollection operation.
 
 func (c *Client) UpdateCollectionWithBody(ctx context.Context, collectionId int64, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	body, rewind := resendableBody(body)
+	body, rewind, finish := resendableBody(body)
+	defer finish()
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
 		if err := rewind(); err != nil {
 			return nil, err
@@ -3410,7 +3445,8 @@ func (c *Client) ListContacts(ctx context.Context, params *ListContactsParams, r
 // CreateContactWithBody executes the CreateContact operation.
 
 func (c *Client) CreateContactWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	body, rewind := resendableBody(body)
+	body, rewind, finish := resendableBody(body)
+	defer finish()
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
 		if err := rewind(); err != nil {
 			return nil, err
@@ -3444,7 +3480,8 @@ func (c *Client) GetContact(ctx context.Context, contactId int64, params *GetCon
 // UpdateContactWithBody executes the UpdateContact operation.
 
 func (c *Client) UpdateContactWithBody(ctx context.Context, contactId int64, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	body, rewind := resendableBody(body)
+	body, rewind, finish := resendableBody(body)
+	defer finish()
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
 		if err := rewind(); err != nil {
 			return nil, err
@@ -3478,7 +3515,8 @@ func (c *Client) BundleContact(ctx context.Context, contactId int64, reqEditors 
 // UpdateContactClearanceWithBody executes the UpdateContactClearance operation.
 
 func (c *Client) UpdateContactClearanceWithBody(ctx context.Context, contactId int64, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	body, rewind := resendableBody(body)
+	body, rewind, finish := resendableBody(body)
+	defer finish()
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
 		if err := rewind(); err != nil {
 			return nil, err
@@ -3512,7 +3550,8 @@ func (c *Client) GetContactNote(ctx context.Context, contactId int64, reqEditors
 // UpdateContactNoteWithBody executes the UpdateContactNote operation.
 
 func (c *Client) UpdateContactNoteWithBody(ctx context.Context, contactId int64, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	body, rewind := resendableBody(body)
+	body, rewind, finish := resendableBody(body)
+	defer finish()
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
 		if err := rewind(); err != nil {
 			return nil, err
@@ -3562,7 +3601,8 @@ func (c *Client) NewEntryForward(ctx context.Context, entryId int64, reqEditors 
 // CreateReplyWithBody executes the CreateReply operation.
 
 func (c *Client) CreateReplyWithBody(ctx context.Context, entryId int64, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	body, rewind := resendableBody(body)
+	body, rewind, finish := resendableBody(body)
+	defer finish()
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
 		if err := rewind(); err != nil {
 			return nil, err
@@ -3620,7 +3660,8 @@ func (c *Client) GetIdentity(ctx context.Context, reqEditors ...RequestEditorFn)
 // UpdateTimeFormatWithBody is marked as idempotent and will be retried on transient failures.
 
 func (c *Client) UpdateTimeFormatWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	body, rewind := resendableBody(body)
+	body, rewind, finish := resendableBody(body)
+	defer finish()
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
 		if err := rewind(); err != nil {
 			return nil, err
@@ -3654,7 +3695,8 @@ func (c *Client) GetImboxSeen(ctx context.Context, params *GetImboxSeenParams, r
 // CreateMessageWithBody executes the CreateMessage operation.
 
 func (c *Client) CreateMessageWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	body, rewind := resendableBody(body)
+	body, rewind, finish := resendableBody(body)
+	defer finish()
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
 		if err := rewind(); err != nil {
 			return nil, err
@@ -3680,7 +3722,8 @@ func (c *Client) GetMessage(ctx context.Context, messageId int64, reqEditors ...
 // UpdateMessageWithBody executes the UpdateMessage operation.
 
 func (c *Client) UpdateMessageWithBody(ctx context.Context, messageId int64, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	body, rewind := resendableBody(body)
+	body, rewind, finish := resendableBody(body)
+	defer finish()
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
 		if err := rewind(); err != nil {
 			return nil, err
@@ -3714,7 +3757,8 @@ func (c *Client) GetMyClearances(ctx context.Context, params *GetMyClearancesPar
 // UpdateMyClearanceWithBody executes the UpdateMyClearance operation.
 
 func (c *Client) UpdateMyClearanceWithBody(ctx context.Context, clearanceId int64, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	body, rewind := resendableBody(body)
+	body, rewind, finish := resendableBody(body)
+	defer finish()
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
 		if err := rewind(); err != nil {
 			return nil, err
@@ -3756,7 +3800,8 @@ func (c *Client) RemovePostingsFromBoxGroup(ctx context.Context, params *RemoveP
 // AddPostingsToBoxGroupWithBody executes the AddPostingsToBoxGroup operation.
 
 func (c *Client) AddPostingsToBoxGroupWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	body, rewind := resendableBody(body)
+	body, rewind, finish := resendableBody(body)
+	defer finish()
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
 		if err := rewind(); err != nil {
 			return nil, err
@@ -3782,7 +3827,8 @@ func (c *Client) CancelPostingsBubbleUp(ctx context.Context, params *CancelPosti
 // SchedulePostingsBubbleUpWithBody executes the SchedulePostingsBubbleUp operation.
 
 func (c *Client) SchedulePostingsBubbleUpWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	body, rewind := resendableBody(body)
+	body, rewind, finish := resendableBody(body)
+	defer finish()
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
 		if err := rewind(); err != nil {
 			return nil, err
@@ -3800,7 +3846,8 @@ func (c *Client) SchedulePostingsBubbleUp(ctx context.Context, body SchedulePost
 // BubbleUpPostingsNowWithBody executes the BubbleUpPostingsNow operation.
 
 func (c *Client) BubbleUpPostingsNowWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	body, rewind := resendableBody(body)
+	body, rewind, finish := resendableBody(body)
+	defer finish()
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
 		if err := rewind(); err != nil {
 			return nil, err
@@ -3826,7 +3873,8 @@ func (c *Client) UnfilePostings(ctx context.Context, params *UnfilePostingsParam
 // FilePostingsWithBody executes the FilePostings operation.
 
 func (c *Client) FilePostingsWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	body, rewind := resendableBody(body)
+	body, rewind, finish := resendableBody(body)
+	defer finish()
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
 		if err := rewind(); err != nil {
 			return nil, err
@@ -3844,7 +3892,8 @@ func (c *Client) FilePostings(ctx context.Context, body FilePostingsJSONRequestB
 // CreateFolderForPostingsWithBody executes the CreateFolderForPostings operation.
 
 func (c *Client) CreateFolderForPostingsWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	body, rewind := resendableBody(body)
+	body, rewind, finish := resendableBody(body)
+	defer finish()
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
 		if err := rewind(); err != nil {
 			return nil, err
@@ -3862,7 +3911,8 @@ func (c *Client) CreateFolderForPostings(ctx context.Context, body CreateFolderF
 // MovePostingsWithBody executes the MovePostings operation.
 
 func (c *Client) MovePostingsWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	body, rewind := resendableBody(body)
+	body, rewind, finish := resendableBody(body)
+	defer finish()
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
 		if err := rewind(); err != nil {
 			return nil, err
@@ -3888,7 +3938,8 @@ func (c *Client) UnmutePostings(ctx context.Context, params *UnmutePostingsParam
 // MutePostingsWithBody executes the MutePostings operation.
 
 func (c *Client) MutePostingsWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	body, rewind := resendableBody(body)
+	body, rewind, finish := resendableBody(body)
+	defer finish()
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
 		if err := rewind(); err != nil {
 			return nil, err
@@ -3906,7 +3957,8 @@ func (c *Client) MutePostings(ctx context.Context, body MutePostingsJSONRequestB
 // MarkPostingsSeenWithBody executes the MarkPostingsSeen operation.
 
 func (c *Client) MarkPostingsSeenWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	body, rewind := resendableBody(body)
+	body, rewind, finish := resendableBody(body)
+	defer finish()
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
 		if err := rewind(); err != nil {
 			return nil, err
@@ -3924,7 +3976,8 @@ func (c *Client) MarkPostingsSeen(ctx context.Context, body MarkPostingsSeenJSON
 // MarkPostingsSpamWithBody executes the MarkPostingsSpam operation.
 
 func (c *Client) MarkPostingsSpamWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	body, rewind := resendableBody(body)
+	body, rewind, finish := resendableBody(body)
+	defer finish()
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
 		if err := rewind(); err != nil {
 			return nil, err
@@ -3942,7 +3995,8 @@ func (c *Client) MarkPostingsSpam(ctx context.Context, body MarkPostingsSpamJSON
 // TrashPostingsWithBody executes the TrashPostings operation.
 
 func (c *Client) TrashPostingsWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	body, rewind := resendableBody(body)
+	body, rewind, finish := resendableBody(body)
+	defer finish()
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
 		if err := rewind(); err != nil {
 			return nil, err
@@ -3960,7 +4014,8 @@ func (c *Client) TrashPostings(ctx context.Context, body TrashPostingsJSONReques
 // MarkPostingsUnseenWithBody executes the MarkPostingsUnseen operation.
 
 func (c *Client) MarkPostingsUnseenWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	body, rewind := resendableBody(body)
+	body, rewind, finish := resendableBody(body)
+	defer finish()
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
 		if err := rewind(); err != nil {
 			return nil, err
@@ -3986,7 +4041,8 @@ func (c *Client) GetBundleUnseenPostings(ctx context.Context, postingId int64, p
 // CreateDirectUploadWithBody executes the CreateDirectUpload operation.
 
 func (c *Client) CreateDirectUploadWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	body, rewind := resendableBody(body)
+	body, rewind, finish := resendableBody(body)
+	defer finish()
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
 		if err := rewind(); err != nil {
 			return nil, err
@@ -4036,7 +4092,8 @@ func (c *Client) ListStickies(ctx context.Context, params *ListStickiesParams, r
 // CreateStickyWithBody executes the CreateSticky operation.
 
 func (c *Client) CreateStickyWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	body, rewind := resendableBody(body)
+	body, rewind, finish := resendableBody(body)
+	defer finish()
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
 		if err := rewind(); err != nil {
 			return nil, err
@@ -4054,7 +4111,8 @@ func (c *Client) CreateSticky(ctx context.Context, body CreateStickyJSONRequestB
 // MoveStickyWithBody executes the MoveSticky operation.
 
 func (c *Client) MoveStickyWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	body, rewind := resendableBody(body)
+	body, rewind, finish := resendableBody(body)
+	defer finish()
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
 		if err := rewind(); err != nil {
 			return nil, err
@@ -4080,7 +4138,8 @@ func (c *Client) DeleteSticky(ctx context.Context, stickyId int64, reqEditors ..
 // UpdateStickyWithBody executes the UpdateSticky operation.
 
 func (c *Client) UpdateStickyWithBody(ctx context.Context, stickyId int64, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	body, rewind := resendableBody(body)
+	body, rewind, finish := resendableBody(body)
+	defer finish()
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
 		if err := rewind(); err != nil {
 			return nil, err
@@ -4162,7 +4221,8 @@ func (c *Client) GetTopicEntries(ctx context.Context, topicId int64, params *Get
 // MoveTopicWithBody executes the MoveTopic operation.
 
 func (c *Client) MoveTopicWithBody(ctx context.Context, topicId int64, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	body, rewind := resendableBody(body)
+	body, rewind, finish := resendableBody(body)
+	defer finish()
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
 		if err := rewind(); err != nil {
 			return nil, err
@@ -4212,7 +4272,8 @@ func (c *Client) TrashTopic(ctx context.Context, topicId int64, params *TrashTop
 // MoveWorkflowStagingWithBody executes the MoveWorkflowStaging operation.
 
 func (c *Client) MoveWorkflowStagingWithBody(ctx context.Context, topicId int64, workflowId int64, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	body, rewind := resendableBody(body)
+	body, rewind, finish := resendableBody(body)
+	defer finish()
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
 		if err := rewind(); err != nil {
 			return nil, err

@@ -6,10 +6,13 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/basecamp/hey-sdk/go/pkg/generated"
 )
 
 // Generated operations run the generated client's own retry loop, so what WithMaxRetries
@@ -147,6 +150,131 @@ func TestGeneratedReaderBodiesSurviveTheRetry(t *testing.T) {
 	}
 	if len(bodies) != 2 || bodies[0] == "" || bodies[0] != bodies[1] {
 		t.Errorf("expected the same body on both sends, got %q", bodies)
+	}
+}
+
+// A body that both seeks and closes, an *os.File say, is kept from the transport so the
+// first send does not close it out from under the resend; it is closed once the last
+// response is in, as the transport would have.
+func TestGeneratedSeekableClosingBodiesSurviveTheRetry(t *testing.T) {
+	var mu sync.Mutex
+	var bodies []string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, _ := io.ReadAll(r.Body)
+		mu.Lock()
+		bodies = append(bodies, string(body))
+		mu.Unlock()
+		if r.Header.Get("Authorization") != "Bearer fresh" {
+			http.Error(w, "unauthorized", http.StatusUnauthorized)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = io.WriteString(w, `{"id":1}`)
+	}))
+	t.Cleanup(server.Close)
+
+	file, err := os.CreateTemp(t.TempDir(), "body")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := file.WriteString(`{"title":"Renew","due_on":"2026-09-01"}`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := file.Seek(0, io.SeekStart); err != nil {
+		t.Fatal(err)
+	}
+
+	auth := &refreshingAuth{refreshed: "fresh"}
+	auth.token.Store("stale")
+	root := NewClient(&Config{BaseURL: server.URL}, nil, WithAuthStrategy(auth), WithMaxRetries(0))
+	client := scopedTestClient(root, 42)
+	client.initGeneratedClient()
+
+	resp, err := client.gen.CreateCalendarTodoWithBody(context.Background(), "application/json", file)
+	if err != nil {
+		t.Fatalf("expected the retry after a refresh to succeed: %v", err)
+	}
+	_ = resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Errorf("status = %d, want 200", resp.StatusCode)
+	}
+	if len(bodies) != 2 || bodies[0] == "" || bodies[0] != bodies[1] {
+		t.Errorf("expected the same body on both sends, got %q", bodies)
+	}
+	if err := file.Close(); !errors.Is(err, os.ErrClosed) {
+		t.Errorf("expected the body to be closed once the response was in, got %v", err)
+	}
+}
+
+// The resend after a refresh draws on the retry budget the operation has left rather
+// than starting a fresh one, and always gets at least the one attempt.
+func TestGeneratedRefreshResendSharesTheRetryBudget(t *testing.T) {
+	for _, tc := range []struct {
+		name       string
+		maxRetries int
+		statuses   []int
+		succeeds   bool
+	}{
+		{name: "the budget remaining after the 401 carries the resend's transient failures", maxRetries: 3, statuses: []int{401, 503, 503, 200}, succeeds: true},
+		{name: "a budget spent before the 401 still grants the one resend", maxRetries: 1, statuses: []int{503, 401, 200}, succeeds: true},
+		{name: "the resend does not get a budget of its own", maxRetries: 1, statuses: []int{401, 503, 200}, succeeds: false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var requests atomic.Int32
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				n := int(requests.Add(1))
+				status := http.StatusInternalServerError
+				if n <= len(tc.statuses) {
+					status = tc.statuses[n-1]
+				}
+				if status != http.StatusOK {
+					http.Error(w, http.StatusText(status), status)
+					return
+				}
+				w.Header().Set("Content-Type", "application/json")
+				_, _ = io.WriteString(w, `[]`)
+			}))
+			t.Cleanup(server.Close)
+
+			auth := &refreshingAuth{refreshed: "fresh"}
+			auth.token.Store("stale")
+			root := NewClient(&Config{BaseURL: server.URL}, nil, WithAuthStrategy(auth),
+				WithMaxRetries(tc.maxRetries), WithBaseDelay(time.Millisecond))
+			client := scopedTestClient(root, 42)
+
+			_, err := client.Boxes().List(context.Background())
+			if tc.succeeds && err != nil {
+				t.Fatalf("expected the resend to succeed within the budget: %v", err)
+			}
+			if !tc.succeeds && err == nil {
+				t.Fatal("expected the resend's failure to surface once the budget was spent")
+			}
+			wantRequests := int32(len(tc.statuses))
+			if !tc.succeeds {
+				wantRequests--
+			}
+			if got := requests.Load(); got != wantRequests {
+				t.Errorf("requests = %d, want %d", got, wantRequests)
+			}
+		})
+	}
+}
+
+// WithBaseDelay is honored verbatim by the generated loop, which sleeps BaseDelay before
+// its first retry: a delay above the generated MaxDelay ceiling lifts the ceiling rather
+// than being cut down to it.
+func TestGeneratedRetriesHonorBaseDelayAboveTheDefaultCeiling(t *testing.T) {
+	root := NewClient(&Config{BaseURL: "https://example.test"}, &StaticTokenProvider{Token: "token"},
+		WithBaseDelay(45*time.Second))
+	client := scopedTestClient(root, 42)
+	client.initGeneratedClient()
+
+	cfg := client.gen.ClientInterface.(*generated.Client).RetryConfig
+	if cfg.BaseDelay != 45*time.Second {
+		t.Errorf("BaseDelay = %v, want 45s", cfg.BaseDelay)
+	}
+	if cfg.MaxDelay < cfg.BaseDelay {
+		t.Errorf("MaxDelay = %v, below the configured BaseDelay %v", cfg.MaxDelay, cfg.BaseDelay)
 	}
 }
 

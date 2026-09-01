@@ -214,6 +214,7 @@ func runTest(tc TestCase) TestResult {
 	defer server.Close()
 
 	// Create generated client pointing to mock server with auth header
+	credentials := newConformanceCredentials(tc)
 	client, err := generated.NewClient(server.URL,
 		generated.WithRetryConfig(generated.RetryConfig{
 			MaxRetries: 3,
@@ -221,8 +222,10 @@ func runTest(tc TestCase) TestResult {
 			MaxDelay:   30 * time.Second,
 			Multiplier: 2.0,
 		}),
-		generated.WithRequestEditorFn(func(_ context.Context, req *http.Request) error {
-			req.Header.Set("Authorization", "Bearer conformance-test-token")
+		generated.WithAuthRefresher(credentials.refresh),
+		generated.WithRequestEditorFn(func(ctx context.Context, req *http.Request) error {
+			token, _ := credentials.AccessToken(ctx)
+			req.Header.Set("Authorization", "Bearer "+token)
 			req.Header.Set("User-Agent", "hey-sdk-go/conformance")
 			return nil
 		}),
@@ -243,7 +246,7 @@ func runTest(tc TestCase) TestResult {
 	if layer, _ := tc.ConfigOverrides["clientLayer"].(string); layer == "hey" {
 		rootClient := hey.NewClient(
 			&hey.Config{BaseURL: server.URL},
-			&hey.StaticTokenProvider{Token: "conformance-test-token"},
+			credentials,
 			hey.WithMaxRetries(0),
 		)
 		sdkErr = executeHEYOperation(rootClient, ctx, tc)
@@ -251,7 +254,7 @@ func runTest(tc TestCase) TestResult {
 		accountID := getInt64Param(tc.ConfigOverrides, "accountId")
 		rootClient := hey.NewClient(
 			&hey.Config{BaseURL: server.URL},
-			&hey.StaticTokenProvider{Token: "conformance-test-token"},
+			credentials,
 			hey.WithMaxRetries(0),
 		)
 		scopedClient, accountErr := rootClient.ForAccount(ctx, accountID)
@@ -335,6 +338,46 @@ func runTest(tc TestCase) TestResult {
 		Passed:  true,
 		Message: "All assertions passed",
 	}
+}
+
+const (
+	conformanceToken          = "conformance-test-token"
+	conformanceRefreshedToken = "conformance-refreshed-token"
+)
+
+// conformanceCredentials is the token every request goes out with. A case that marks
+// its credentials refreshable (configOverrides.refreshableCredentials) has a 401
+// answered by swapping in the refreshed token; for any other case the refresh fails
+// and the 401 stands.
+type conformanceCredentials struct {
+	mu          sync.Mutex
+	token       string
+	refreshable bool
+}
+
+func newConformanceCredentials(tc TestCase) *conformanceCredentials {
+	refreshable, _ := tc.ConfigOverrides["refreshableCredentials"].(bool)
+	return &conformanceCredentials{token: conformanceToken, refreshable: refreshable}
+}
+
+func (c *conformanceCredentials) AccessToken(context.Context) (string, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.token, nil
+}
+
+func (c *conformanceCredentials) Refresh(context.Context) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if !c.refreshable {
+		return fmt.Errorf("credentials are not refreshable")
+	}
+	c.token = conformanceRefreshedToken
+	return nil
+}
+
+func (c *conformanceCredentials) refresh(ctx context.Context) bool {
+	return c.Refresh(ctx) == nil
 }
 
 // runConfigOverrideTest handles tests that override client configuration
@@ -664,6 +707,19 @@ func checkAssertion(testName string, a Assertion, s checkState) TestResult {
 		}
 		if s.requestHeaders[0].Get(headerName) == "" {
 			return fail(testName, "Expected header %q to be present, but it was not", headerName)
+		}
+
+	case "lastRequestHeader":
+		headerName := a.Path
+		expected, ok := a.Expected.(string)
+		if !ok {
+			return fail(testName, "lastRequestHeader: expected a string value, got %T", a.Expected)
+		}
+		if len(s.requestHeaders) == 0 {
+			return fail(testName, "Expected request with header %q, but no requests were recorded", headerName)
+		}
+		if got := s.requestHeaders[len(s.requestHeaders)-1].Get(headerName); got != expected {
+			return fail(testName, "Expected last request header %q = %q, got %q", headerName, expected, got)
 		}
 
 	case "responseMeta":

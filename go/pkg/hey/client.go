@@ -267,11 +267,13 @@ func (c *Client) initGeneratedClient() {
 		// The generated client runs its own retry loop, so it has to be told what
 		// WithMaxRetries and WithBaseDelay configured or it runs on its own defaults.
 		// Idempotency still gates it: a non-idempotent operation gets one attempt no
-		// matter the count. BaseDelay is held under the generated MaxDelay ceiling since
-		// that loop sleeps BaseDelay verbatim before its first retry.
+		// matter the count. The generated MaxDelay ceiling is lifted to the configured
+		// BaseDelay when that is higher, since the hand-written paths sleep BaseDelay
+		// verbatim and the generated loop must not sleep less than asked.
 		retryCfg := generated.DefaultRetryConfig()
 		retryCfg.MaxRetries = max(c.httpOpts.MaxRetries, 0)
-		retryCfg.BaseDelay = min(max(c.httpOpts.BaseDelay, 0), retryCfg.MaxDelay)
+		retryCfg.BaseDelay = max(c.httpOpts.BaseDelay, 0)
+		retryCfg.MaxDelay = max(retryCfg.MaxDelay, retryCfg.BaseDelay)
 
 		gen, err := generated.NewClientWithResponses(serverURL,
 			generated.WithHTTPClient(c.httpClient),
