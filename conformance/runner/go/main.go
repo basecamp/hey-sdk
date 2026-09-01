@@ -672,32 +672,22 @@ func checkAssertion(testName string, a Assertion, s checkState) TestResult {
 			}
 		}
 
-	case "requestForm":
+	case "requestForm", "lastRequestForm":
 		// expected: {"field": value, ...}; a null value asserts the field is absent.
+		// requestForm reads the first request's body, lastRequestForm the last's.
 		expected, ok := a.Expected.(map[string]interface{})
 		if !ok {
-			return fail(testName, "requestForm: expected an object, got %T", a.Expected)
+			return fail(testName, "%s: expected an object, got %T", a.Type, a.Expected)
 		}
 		if len(s.requestBodies) == 0 {
 			return fail(testName, "Expected a request, but none were recorded")
 		}
-		values, err := url.ParseQuery(string(s.requestBodies[0]))
-		if err != nil {
-			return fail(testName, "requestForm: request body is not form encoded: %v", err)
+		body := s.requestBodies[0]
+		if a.Type == "lastRequestForm" {
+			body = s.requestBodies[len(s.requestBodies)-1]
 		}
-		for field, want := range expected {
-			if want == nil {
-				if values.Has(field) {
-					return fail(testName, "Expected form field %q to be absent, got %q", field, values.Get(field))
-				}
-				continue
-			}
-			if !values.Has(field) {
-				return fail(testName, "Expected form field %q = %v, but it is absent", field, want)
-			}
-			if got := values.Get(field); got != fmt.Sprint(want) {
-				return fail(testName, "Expected form field %q = %v, got %q", field, want, got)
-			}
+		if err := matchFormFields(body, expected); err != nil {
+			return fail(testName, "%s: %v", a.Type, err)
 		}
 
 	case "headerPresent":
@@ -908,6 +898,27 @@ func compareValues(testName, label string, expected, actual interface{}) *TestRe
 	default:
 		r := fail(testName, "Unsupported type combination for %s: expected %T, actual %T", label, expected, actual)
 		return &r
+	}
+	return nil
+}
+
+// matchFormFields checks a form-encoded body against expected fields; a nil expectation
+// asserts the field is absent.
+func matchFormFields(body []byte, expected map[string]interface{}) error {
+	values, err := url.ParseQuery(string(body))
+	if err != nil {
+		return fmt.Errorf("request body is not form encoded: %w", err)
+	}
+	for field, want := range expected {
+		switch {
+		case want == nil && values.Has(field):
+			return fmt.Errorf("expected form field %q to be absent, got %q", field, values.Get(field))
+		case want == nil:
+		case !values.Has(field):
+			return fmt.Errorf("expected form field %q = %v, but it is absent", field, want)
+		case values.Get(field) != fmt.Sprint(want):
+			return fmt.Errorf("expected form field %q = %v, got %q", field, want, values.Get(field))
+		}
 	}
 	return nil
 }
