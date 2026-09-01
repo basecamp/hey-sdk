@@ -273,36 +273,51 @@ func TestGeneratedOperationsBypassTheCacheForPostingChanges(t *testing.T) {
 }
 
 // A custom transport carries no body cap, so store can read a body past the configured
-// bound. The read guard would never serve such an entry, so it is not written: the
-// answer still parses in full, and the next read goes out unconditional.
+// bound. The read guard would never serve such an entry, so it is not written — and an
+// entry the key held from a smaller earlier answer is dropped with it: the answer still
+// parses in full, the cache is left empty, and the next read goes out unconditional.
 func TestGeneratedOperationsDoNotCacheABodyPastTheBound(t *testing.T) {
-	backend := &boxServer{etag: `"v1"`,
-		body: `[{"id":7,"name":"` + strings.Repeat("x", 2048) + `"}]`}
+	backend := &boxServer{etag: `"v1"`, body: `[{"id":7,"name":"Imbox"}]`}
 	server := httptest.NewServer(backend.handler())
 	t.Cleanup(server.Close)
 
+	cacheDir := t.TempDir()
 	root := NewClient(&Config{BaseURL: server.URL}, &StaticTokenProvider{Token: "token"},
 		WithHTTPClient(&http.Client{}), WithMaxResponseBodyBytes(1024),
-		WithMaxRetries(0), WithCache(NewCache(t.TempDir())))
+		WithMaxRetries(0), WithCache(NewCache(cacheDir)))
 	client := scopedTestClient(root, 42)
+
+	if _, err := client.Boxes().List(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	backend.mu.Lock()
+	backend.etag = `"v2"`
+	backend.body = `[{"id":7,"name":"` + strings.Repeat("x", 2048) + `"}]`
+	backend.mu.Unlock()
 
 	for range 2 {
 		boxes, err := client.Boxes().List(context.Background())
 		if err != nil {
 			t.Fatal(err)
 		}
-		if boxes == nil || len(*boxes) != 1 {
+		if boxes == nil || len(*boxes) != 1 || len((*boxes)[0].Name) != 2048 {
 			t.Fatalf("boxes = %v, want the oversized box parsed in full", boxes)
 		}
 	}
 
 	backend.mu.Lock()
 	defer backend.mu.Unlock()
-	if want := []string{"", ""}; fmt.Sprint(backend.conditionals) != fmt.Sprint(want) {
-		t.Errorf("conditionals = %v, want no conditional requests for an unstored body", backend.conditionals)
+	if want := []string{"", `"v1"`, ""}; fmt.Sprint(backend.conditionals) != fmt.Sprint(want) {
+		t.Errorf("conditionals = %v, want %v: an unstored body leaves nothing to revalidate", backend.conditionals, want)
 	}
-	if backend.bodiesServed != 2 {
+	if backend.bodiesServed != 3 {
 		t.Errorf("bodies served = %d, want every answer in full", backend.bodiesServed)
+	}
+	if entries, err := os.ReadDir(filepath.Join(cacheDir, "responses")); err == nil && len(entries) > 0 {
+		t.Errorf("cache holds %d entries, want none after a body past the bound", len(entries))
+	}
+	if etag := root.cache.GetETag(root.cache.Key(server.URL+"/boxes.json?"+filteredAccountIDParameter+"=42", "Bearer token")); etag != "" {
+		t.Errorf("cached etag = %q, want the earlier entry dropped", etag)
 	}
 }
 

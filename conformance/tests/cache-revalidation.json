@@ -1,7 +1,7 @@
 [
   {
     "name": "Cache-enabled generated read revalidates and parses the 304 from the cache",
-    "description": "A cache-enabled client's second read of an unchanged resource goes out conditional on the stored ETag and parses the 304 as the cached 200",
+    "description": "A cache-enabled client's second read of an unchanged resource goes out conditional on the stored ETag and parses the 304 as the cached 200, answering with the stored boxes",
     "operation": "ListBoxes",
     "method": "GET",
     "path": "/boxes.json",
@@ -41,6 +41,16 @@
         "expected": "\"v1\""
       },
       {
+        "type": "responseBody",
+        "path": "0.id",
+        "expected": 7
+      },
+      {
+        "type": "responseBody",
+        "path": "0.name",
+        "expected": "Imbox"
+      },
+      {
         "type": "noError"
       }
     ],
@@ -51,7 +61,7 @@
   },
   {
     "name": "Cache-enabled generated read follows a changed resource's new ETag",
-    "description": "A changed resource answers the conditional request with a fresh 200 and the cache follows: the next read revalidates against the new ETag",
+    "description": "A changed resource answers the conditional request with a fresh 200 and the cache follows: the next read revalidates against the new ETag and answers with the new body",
     "operation": "ListBoxes",
     "method": "GET",
     "path": "/boxes.json",
@@ -105,6 +115,16 @@
         "type": "lastRequestHeader",
         "path": "If-None-Match",
         "expected": "\"v2\""
+      },
+      {
+        "type": "responseBody",
+        "path": "1.id",
+        "expected": 8
+      },
+      {
+        "type": "responseBody",
+        "path": "1.name",
+        "expected": "The Feed"
       },
       {
         "type": "noError"

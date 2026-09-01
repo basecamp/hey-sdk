@@ -247,6 +247,7 @@ func runTest(tc TestCase) TestResult {
 	ctx := context.Background()
 	var sdkResp *http.Response
 	var sdkErr error
+	var heyResult interface{}
 	if layer, _ := tc.ConfigOverrides["clientLayer"].(string); layer == "hey" {
 		options := []hey.ClientOption{hey.WithMaxRetries(0)}
 		if enabled, _ := tc.ConfigOverrides["cacheEnabled"].(bool); enabled {
@@ -267,7 +268,7 @@ func runTest(tc TestCase) TestResult {
 			options...,
 		)
 		for range max(tc.RepeatOperation, 1) {
-			sdkErr = executeHEYOperation(rootClient, ctx, tc)
+			heyResult, sdkErr = executeHEYOperation(rootClient, ctx, tc)
 			if sdkErr != nil {
 				break
 			}
@@ -291,6 +292,9 @@ func runTest(tc TestCase) TestResult {
 
 	// Capture response body for responseBody assertions
 	var responseBodyBytes []byte
+	if heyResult != nil {
+		responseBodyBytes, _ = json.Marshal(heyResult)
+	}
 	if sdkResp != nil && sdkResp.Body != nil {
 		var readErr error
 		responseBodyBytes, readErr = io.ReadAll(sdkResp.Body)
@@ -1573,11 +1577,12 @@ func executeOperation(client *generated.Client, ctx context.Context, tc TestCase
 	}
 }
 
-func executeHEYOperation(client *hey.Client, ctx context.Context, tc TestCase) error {
+// executeHEYOperation runs a HEY-layer operation. A read hands back what it parsed so a
+// responseBody assertion can see it; a mutation hands back nil.
+func executeHEYOperation(client *hey.Client, ctx context.Context, tc TestCase) (interface{}, error) {
 	switch tc.Operation {
 	case "ListBoxes":
-		_, err := client.Boxes().List(ctx)
-		return err
+		return client.Boxes().List(ctx)
 	case "UpdateCalendarEvent":
 		eventID := getInt64Param(tc.PathParams, "eventId")
 		_, err := client.CalendarEvents().Update(ctx, eventID, hey.UpdateCalendarEventParams{
@@ -1588,20 +1593,20 @@ func executeHEYOperation(client *hey.Client, ctx context.Context, tc TestCase) e
 			StartTime: getStringPtrParam(tc.RequestBody, "start_time"),
 			EndTime:   getStringPtrParam(tc.RequestBody, "end_time"),
 		})
-		return err
+		return nil, err
 	case "DeleteCalendarEvent":
-		return client.CalendarEvents().Delete(ctx, getInt64Param(tc.PathParams, "eventId"))
+		return nil, client.CalendarEvents().Delete(ctx, getInt64Param(tc.PathParams, "eventId"))
 	case "DeleteCalendarEventOccurrence":
 		occurrence, err := hey.ParseOccurrenceID(getStringParam(tc.PathParams, "occurrenceId"))
 		if err != nil {
-			return err
+			return nil, err
 		}
-		return client.CalendarEvents().DeleteOccurrence(ctx, occurrence, hey.OccurrenceScope(getStringParam(tc.RequestBody, "scope")))
+		return nil, client.CalendarEvents().DeleteOccurrence(ctx, occurrence, hey.OccurrenceScope(getStringParam(tc.RequestBody, "scope")))
 	case "DeleteExtenzion":
-		return client.Extenzions().Delete(ctx, getInt64Param(tc.PathParams, "accountId"), getInt64Param(tc.PathParams, "extenzionId"))
+		return nil, client.Extenzions().Delete(ctx, getInt64Param(tc.PathParams, "accountId"), getInt64Param(tc.PathParams, "extenzionId"))
 	case "CreateReply":
 		entryID := getInt64Param(tc.PathParams, "entryId")
-		return client.Entries().CreateReply(ctx, entryID,
+		return nil, client.Entries().CreateReply(ctx, entryID,
 			getInt64Param(tc.RequestBody, "acting_sender_id"),
 			getStringParam(tc.RequestBody, "subject"),
 			getStringParam(tc.RequestBody, "content"),
@@ -1617,18 +1622,18 @@ func executeHEYOperation(client *hey.Client, ctx context.Context, tc TestCase) e
 			getStringSliceParam(tc.RequestBody, "to"),
 			getStringSliceParam(tc.RequestBody, "cc"),
 			getStringSliceParam(tc.RequestBody, "bcc"))
-		return err
+		return nil, err
 	case "CreateDraft":
 		_, err := client.Messages().CreateDraft(ctx, draftContentParam(tc.RequestBody))
-		return err
+		return nil, err
 	case "UpdateDraft":
 		entryID := getInt64Param(tc.PathParams, "entryId")
-		return client.Messages().UpdateDraft(ctx, entryID, draftContentParam(tc.RequestBody))
+		return nil, client.Messages().UpdateDraft(ctx, entryID, draftContentParam(tc.RequestBody))
 	case "SendDraft":
 		entryID := getInt64Param(tc.PathParams, "entryId")
-		return client.Messages().SendDraft(ctx, entryID, draftContentParam(tc.RequestBody))
+		return nil, client.Messages().SendDraft(ctx, entryID, draftContentParam(tc.RequestBody))
 	default:
-		return fmt.Errorf("HEY client conformance does not support operation: %s", tc.Operation)
+		return nil, fmt.Errorf("HEY client conformance does not support operation: %s", tc.Operation)
 	}
 }
 
