@@ -921,6 +921,102 @@
             503
           ]
         }
+      },
+      "get": {
+        "description": "Read one Set Aside group with the postings in it.\n\nThe postings are paged like a folder's: newest observed first, 30 to a page, with the\nnext page in the Link header and the total in X-Total-Count.",
+        "operationId": "GetBoxGroup",
+        "parameters": [
+          {
+            "name": "boxId",
+            "in": "path",
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "required": true
+          },
+          {
+            "name": "groupId",
+            "in": "path",
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "required": true
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "x-go-type-skip-optional-pointer": false
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "GetBoxGroup 200 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetBoxGroupResponseContent"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UnauthorizedError 401 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnauthorizedErrorResponseContent"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError 404 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundErrorResponseContent"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "InternalServerError 500 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorResponseContent"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ServiceUnavailableError 503 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceUnavailableErrorResponseContent"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Boxes"
+        ],
+        "x-hey-retry": {
+          "maxAttempts": 3,
+          "baseDelayMs": 1000,
+          "backoff": "exponential",
+          "retryOn": [
+            429,
+            503
+          ]
+        }
       }
     },
     "/boxes/{boxId}/observation.json": {
@@ -10632,6 +10728,29 @@
           "id"
         ]
       },
+      "BoxGroupWithPostings": {
+        "type": "object",
+        "description": "BoxGroupWithPostings — a Set Aside group with one page of the postings in it",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "box_id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "postings": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Posting"
+            }
+          }
+        },
+        "required": [
+          "id"
+        ]
+      },
       "BoxGroupsResponse": {
         "type": "object",
         "description": "BoxGroupsResponse — the wrapper the groups index answers with",
@@ -12195,6 +12314,9 @@
       },
       "GetAsideboxResponseContent": {
         "$ref": "#/components/schemas/BoxShowResponse"
+      },
+      "GetBoxGroupResponseContent": {
+        "$ref": "#/components/schemas/BoxGroupWithPostings"
       },
       "GetBoxPostingChangesResponseContent": {
         "type": "object",

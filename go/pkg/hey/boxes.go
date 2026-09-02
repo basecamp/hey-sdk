@@ -293,6 +293,48 @@ func (s *BoxesService) ListGroups(ctx context.Context, boxID int64) (result *gen
 	return result, err
 }
 
+// BoxGroupPage is one page of a Set Aside group's postings with the cursor to the next page
+// and the group's total posting count.
+type BoxGroupPage struct {
+	Group      *generated.BoxGroupWithPostings
+	NextPage   string
+	TotalCount int
+}
+
+// GetGroup returns a Set Aside group with the requested page of its postings.
+func (s *BoxesService) GetGroup(ctx context.Context, boxID, groupID int64, params *generated.GetBoxGroupParams) (*generated.BoxGroupWithPostings, error) {
+	page, err := s.GetGroupPage(ctx, boxID, groupID, params)
+	if err != nil || page == nil {
+		return nil, err
+	}
+	return page.Group, nil
+}
+
+// GetGroupPage returns a Set Aside group page with its next cursor and total posting count.
+func (s *BoxesService) GetGroupPage(ctx context.Context, boxID, groupID int64, params *generated.GetBoxGroupParams) (result *BoxGroupPage, err error) {
+	op := OperationInfo{
+		Service: "Boxes", Operation: "GetBoxGroup",
+		ResourceType: "box_group", IsMutation: false, ResourceID: groupID,
+	}
+
+	err = s.client.instrument(ctx, op, func(ctx context.Context) error {
+		resp, rerr := s.client.genClient().GetBoxGroupWithResponse(ctx, boxID, groupID, params)
+		if rerr != nil {
+			return rerr
+		}
+		if cerr := CheckResponse(resp.HTTPResponse); cerr != nil {
+			return cerr
+		}
+		result = &BoxGroupPage{Group: resp.JSON200}
+		if resp.HTTPResponse != nil {
+			result.TotalCount, _ = strconv.Atoi(resp.HTTPResponse.Header.Get("X-Total-Count"))
+			result.NextPage = gearedPageFromLink(resp.HTTPResponse.Header.Get("Link"))
+		}
+		return nil
+	})
+	return result, err
+}
+
 // CreateGroup gathers a selection of postings into a new Set Aside group.
 func (s *BoxesService) CreateGroup(ctx context.Context, boxID int64, postingIDs []int64) (result *generated.BoxGroup, err error) {
 	op := OperationInfo{

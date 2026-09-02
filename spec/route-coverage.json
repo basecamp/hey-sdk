@@ -191,6 +191,11 @@
   },
   {
     "method": "GET",
+    "operationId": "GetBoxGroup",
+    "path": "/boxes/{boxId}/groups/{groupId}"
+  },
+  {
+    "method": "GET",
     "operationId": "GetBoxPostingChanges",
     "path": "/boxes/{boxId}/postings/changes.json"
   },

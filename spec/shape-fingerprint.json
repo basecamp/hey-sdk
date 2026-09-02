@@ -14,6 +14,7 @@
   "GetAdvancedSearchFilters": "b0cde27b441e5b00a350a4942174e9b4f82791f1c4c236eaf7fc9d7a5d514881",
   "GetAsidebox": "675d22b32c429ae536d4a4248a0c0c30d62adca2852fbb1d0defb12b7563521f",
   "GetBox": "373b5de0c686345126ca4da129f6991776936ecc1fa1e00fae00cd45cb6436e9",
+  "GetBoxGroup": "e6f66a509d16f42616f114b5ace017cc7d2163e8fa9939b66d2eae9fc0d1b925",
   "GetBoxPostingChanges": "003137f72b12fc7232fc2127316479999c0d0edcc0f89d53cb07eed1c3854ac1",
   "GetBubblebox": "b736b44d157cb75c0e50a75feb2be37c8f9988024aa8c6503ab7bde347560cce",
   "GetBundleUnseenPostings": "1dc0e7a2eb92b998bfee38c6e93ad8c9f417fa805c88f7acd1ed9f0711a32ec3",
