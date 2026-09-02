@@ -105,7 +105,8 @@
       "pattern": "/boxes/{boxId}/groups/{groupId}",
       "resource": "Boxes",
       "operations": {
-        "DELETE": "DeleteBoxGroup"
+        "DELETE": "DeleteBoxGroup",
+        "GET": "GetBoxGroup"
       },
       "params": {
         "boxId": {

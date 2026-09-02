@@ -214,6 +214,7 @@ service HEY {
         CreateBoxDesignation
         DeleteBoxDesignation
         ListBoxGroups
+        GetBoxGroup
         CreateBoxGroup
         DeleteBoxGroup
         MarkBoxSeen
@@ -3069,6 +3070,15 @@ structure BoxGroupsResponse {
     box_groups: BoxGroupList
 }
 
+/// BoxGroupWithPostings — a Set Aside group with one page of the postings in it
+structure BoxGroupWithPostings {
+    @required
+    id: Long
+
+    box_id: Long
+    postings: PostingList
+}
+
 /// FolderWithPostings — folder detail with the postings filed in it
 structure FolderWithPostings {
     @required
@@ -3897,6 +3907,39 @@ structure BoxGroupsInput {
 structure ListBoxGroupsOutput {
     @required
     response: BoxGroupsResponse
+}
+
+/// Read one Set Aside group with the postings in it.
+///
+/// The postings are paged like a folder's: newest observed first, 30 to a page, with the
+/// next page in the Link header and the total in X-Total-Count.
+@readonly
+@http(method: "GET", uri: "/boxes/{boxId}/groups/{groupId}")
+@tags(["Boxes"])
+@heyRetry(maxAttempts: 3, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+@heyPagination(style: "link", totalCountHeader: "X-Total-Count")
+operation GetBoxGroup {
+    input: GetBoxGroupInput
+    output: GetBoxGroupOutput
+    errors: [UnauthorizedError, NotFoundError, InternalServerError, ServiceUnavailableError]
+}
+
+structure GetBoxGroupInput {
+    @httpLabel
+    @required
+    boxId: Long
+
+    @httpLabel
+    @required
+    groupId: Long
+
+    @httpQuery("page")
+    page: String
+}
+
+structure GetBoxGroupOutput {
+    @required
+    group: BoxGroupWithPostings
 }
 
 /// Create a Set Aside group out of a selection of postings.

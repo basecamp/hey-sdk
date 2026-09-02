@@ -1482,6 +1482,10 @@ func executeOperation(client *generated.Client, ctx context.Context, tc TestCase
 	case "ListBoxGroups":
 		boxId := getInt64Param(tc.PathParams, "boxId")
 		return client.ListBoxGroups(ctx, boxId)
+	case "GetBoxGroup":
+		boxId := getInt64Param(tc.PathParams, "boxId")
+		groupId := getInt64Param(tc.PathParams, "groupId")
+		return client.GetBoxGroup(ctx, boxId, groupId, nil)
 	case "CreateBoxGroup":
 		boxId := getInt64Param(tc.PathParams, "boxId")
 		body := generated.CreateBoxGroupJSONRequestBody{

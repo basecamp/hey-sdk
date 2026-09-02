@@ -2821,6 +2821,49 @@ func TestBoxesService_ListGroups(t *testing.T) {
 	}
 }
 
+func TestBoxesService_GetGroupPage(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/boxes/5/groups/11.json" {
+			t.Errorf("path = %q, want /boxes/5/groups/11.json", r.URL.Path)
+		}
+		if page := r.URL.Query().Get("page"); page != "current-cursor" {
+			t.Errorf("page = %q, want current-cursor", page)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("X-Total-Count", "150")
+		w.Header().Set("Link", `<http://`+r.Host+`/boxes/5/groups/11.json?page=next-cursor>; rel="next"`)
+		_, _ = io.WriteString(w, `{"id":11,"box_id":5,"postings":[{"id":1,"kind":"topic","box_group_id":11}]}`)
+	}))
+	t.Cleanup(server.Close)
+
+	client := NewClient(&Config{BaseURL: server.URL}, &StaticTokenProvider{Token: "test-token"}, WithMaxRetries(0))
+	cursor := "current-cursor"
+	page, err := client.Boxes().GetGroupPage(context.Background(), 5, 11, &generated.GetBoxGroupParams{Page: &cursor})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if page.Group == nil || page.Group.Id != 11 || page.Group.BoxId != 5 || page.TotalCount != 150 || page.NextPage != "next-cursor" {
+		t.Errorf("unexpected group page: %+v", page)
+	}
+	if len(page.Group.Postings) != 1 || page.Group.Postings[0].BoxGroupId != 11 {
+		t.Errorf("unexpected postings: %+v", page.Group.Postings)
+	}
+}
+
+func TestBoxesService_GetGroup(t *testing.T) {
+	client := newServiceTestClient(t, map[string]string{
+		"/boxes/%s/groups/%s.json": `{"id":11,"box_id":5,"postings":[]}`,
+	})
+
+	group, err := client.Boxes().GetGroup(context.Background(), 5, 11, nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if group.Id != 11 || len(group.Postings) != 0 {
+		t.Errorf("expected empty group 11, got %+v", group)
+	}
+}
+
 func TestBoxesService_CreateGroup(t *testing.T) {
 	client := newRequestTestClient(t, "POST", "/boxes/%s/groups.json", func(t *testing.T, r *http.Request) {
 		t.Helper()

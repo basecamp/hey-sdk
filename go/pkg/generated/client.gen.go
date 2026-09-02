@@ -110,6 +110,13 @@ type BoxGroup struct {
 	Id int64 `json:"id"`
 }
 
+// BoxGroupWithPostings BoxGroupWithPostings — a Set Aside group with one page of the postings in it
+type BoxGroupWithPostings struct {
+	BoxId    int64     `json:"box_id,omitempty"`
+	Id       int64     `json:"id"`
+	Postings []Posting `json:"postings,omitempty"`
+}
+
 // BoxGroupsResponse BoxGroupsResponse — the wrapper the groups index answers with
 type BoxGroupsResponse struct {
 	BoxGroups []BoxGroup `json:"box_groups,omitempty"`
@@ -737,6 +744,9 @@ type GetAdvancedSearchFiltersResponseContent = AdvancedSearchFilters
 // The API can return fields at root level or nested under a `box` key.
 // SDK response decoders normalize the nested variant to flat before decoding.
 type GetAsideboxResponseContent = BoxShowResponse
+
+// GetBoxGroupResponseContent BoxGroupWithPostings — a Set Aside group with one page of the postings in it
+type GetBoxGroupResponseContent = BoxGroupWithPostings
 
 // GetBoxPostingChangesResponseContent defines model for GetBoxPostingChangesResponseContent.
 type GetBoxPostingChangesResponseContent struct {
@@ -1741,6 +1751,11 @@ type GetBoxParams struct {
 	Page *string `form:"page,omitempty" json:"page,omitempty"`
 }
 
+// GetBoxGroupParams defines parameters for GetBoxGroup.
+type GetBoxGroupParams struct {
+	Page *string `form:"page,omitempty" json:"page,omitempty"`
+}
+
 // GetBoxPostingChangesParams defines parameters for GetBoxPostingChanges.
 type GetBoxPostingChangesParams struct {
 	Since   string  `form:"since" json:"since"`
@@ -2472,6 +2487,9 @@ type ClientInterface interface {
 	// DeleteBoxGroup request
 	DeleteBoxGroup(ctx context.Context, boxId int64, groupId int64, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// GetBoxGroup request
+	GetBoxGroup(ctx context.Context, boxId int64, groupId int64, params *GetBoxGroupParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// MarkBoxSeen request
 	MarkBoxSeen(ctx context.Context, boxId int64, reqEditors ...RequestEditorFn) (*http.Response, error)
 
@@ -3006,6 +3024,14 @@ func (c *Client) DeleteBoxGroup(ctx context.Context, boxId int64, groupId int64,
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
 		return NewDeleteBoxGroupRequest(c.Server, boxId, groupId)
 	}, true, "DeleteBoxGroup", reqEditors...)
+}
+
+// GetBoxGroup is marked as idempotent and will be retried on transient failures.
+
+func (c *Client) GetBoxGroup(ctx context.Context, boxId int64, groupId int64, params *GetBoxGroupParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	return c.doWithRetry(ctx, func() (*http.Request, error) {
+		return NewGetBoxGroupRequest(c.Server, boxId, groupId, params)
+	}, true, "GetBoxGroup", reqEditors...)
 }
 
 // MarkBoxSeen executes the MarkBoxSeen operation.
@@ -4973,6 +4999,69 @@ func NewDeleteBoxGroupRequest(server string, boxId int64, groupId int64) (*http.
 	}
 
 	req, err := http.NewRequest("DELETE", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetBoxGroupRequest generates requests for GetBoxGroup
+func NewGetBoxGroupRequest(server string, boxId int64, groupId int64, params *GetBoxGroupParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "boxId", runtime.ParamLocationPath, boxId)
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithLocation("simple", false, "groupId", runtime.ParamLocationPath, groupId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/boxes/%s/groups/%s", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if params.Page != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "page", runtime.ParamLocationQuery, *params.Page); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -10093,6 +10182,7 @@ var operationMetadata = map[string]OperationMetadata{
 	"ListBoxGroups":                 {Idempotent: true, HasSensitiveParams: false},
 	"CreateBoxGroup":                {Idempotent: false, HasSensitiveParams: false},
 	"DeleteBoxGroup":                {Idempotent: true, HasSensitiveParams: false},
+	"GetBoxGroup":                   {Idempotent: true, HasSensitiveParams: false},
 	"MarkBoxSeen":                   {Idempotent: false, HasSensitiveParams: false},
 	"GetBoxPostingChanges":          {Idempotent: true, HasSensitiveParams: false},
 	"GetBubblebox":                  {Idempotent: true, HasSensitiveParams: false},
@@ -10918,6 +11008,16 @@ type ClientWithResponsesInterface interface {
 	//
 	// Returns a wrapper object for the known response body format(s).
 	DeleteBoxGroupWithResponse(ctx context.Context, boxId int64, groupId int64, reqEditors ...RequestEditorFn) (*DeleteBoxGroupResponse, error)
+
+	// GetBoxGroupWithResponse performs a GET /boxes/{boxId}/groups/{groupId} (the `GetBoxGroup` operationId) request.
+	//
+	// Read one Set Aside group with the postings in it.
+	//
+	// The postings are paged like a folder's: newest observed first, 30 to a page, with the
+	// next page in the Link header and the total in X-Total-Count.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	GetBoxGroupWithResponse(ctx context.Context, boxId int64, groupId int64, params *GetBoxGroupParams, reqEditors ...RequestEditorFn) (*GetBoxGroupResponse, error)
 
 	// MarkBoxSeenWithResponse performs a POST /boxes/{boxId}/observation.json (the `MarkBoxSeen` operationId) request.
 	//
@@ -12819,6 +12919,75 @@ func (r DeleteBoxGroupResponse) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r DeleteBoxGroupResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type GetBoxGroupResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *GetBoxGroupResponseContent
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *UnauthorizedErrorResponseContent
+	// JSON404 the response for an HTTP 404 `application/json` response
+	JSON404 *NotFoundErrorResponseContent
+	// JSON500 the response for an HTTP 500 `application/json` response
+	JSON500 *InternalServerErrorResponseContent
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *ServiceUnavailableErrorResponseContent
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r GetBoxGroupResponse) GetJSON200() *GetBoxGroupResponseContent {
+	return r.JSON200
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r GetBoxGroupResponse) GetJSON401() *UnauthorizedErrorResponseContent {
+	return r.JSON401
+}
+
+// GetJSON404 returns the response for an HTTP 404 `application/json` response
+func (r GetBoxGroupResponse) GetJSON404() *NotFoundErrorResponseContent {
+	return r.JSON404
+}
+
+// GetJSON500 returns the response for an HTTP 500 `application/json` response
+func (r GetBoxGroupResponse) GetJSON500() *InternalServerErrorResponseContent {
+	return r.JSON500
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r GetBoxGroupResponse) GetJSON503() *ServiceUnavailableErrorResponseContent {
+	return r.JSON503
+}
+
+// GetBody returns the raw response body bytes
+func (r GetBoxGroupResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r GetBoxGroupResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetBoxGroupResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r GetBoxGroupResponse) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -20831,6 +21000,22 @@ func (c *ClientWithResponses) DeleteBoxGroupWithResponse(ctx context.Context, bo
 	return ParseDeleteBoxGroupResponse(rsp)
 }
 
+// GetBoxGroupWithResponse performs a GET /boxes/{boxId}/groups/{groupId} (the `GetBoxGroup` operationId) request.
+//
+// Read one Set Aside group with the postings in it.
+//
+// The postings are paged like a folder's: newest observed first, 30 to a page, with the
+// next page in the Link header and the total in X-Total-Count.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) GetBoxGroupWithResponse(ctx context.Context, boxId int64, groupId int64, params *GetBoxGroupParams, reqEditors ...RequestEditorFn) (*GetBoxGroupResponse, error) {
+	rsp, err := c.GetBoxGroup(ctx, boxId, groupId, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetBoxGroupResponse(rsp)
+}
+
 // MarkBoxSeenWithResponse performs a POST /boxes/{boxId}/observation.json (the `MarkBoxSeen` operationId) request.
 //
 // Mark everything in a box as seen. The work is queued, so the effect is eventually consistent.
@@ -23506,6 +23691,60 @@ func ParseDeleteBoxGroupResponse(rsp *http.Response) (*DeleteBoxGroupResponse, e
 	switch {
 	case rsp.StatusCode == 200:
 		break // No content-type
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest UnauthorizedErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFoundErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest InternalServerErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+		var dest ServiceUnavailableErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON503 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetBoxGroupResponse parses an HTTP response from a GetBoxGroupWithResponse call
+func ParseGetBoxGroupResponse(rsp *http.Response) (*GetBoxGroupResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetBoxGroupResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest GetBoxGroupResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
 		var dest UnauthorizedErrorResponseContent

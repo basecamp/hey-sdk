@@ -2687,6 +2687,40 @@
     ]
   },
   {
+    "name": "GetBoxGroup uses /boxes/{boxId}/groups/{groupId} path",
+    "description": "Verifies that GetBoxGroup constructs the URL path /boxes/{boxId}/groups/{groupId}",
+    "operation": "GetBoxGroup",
+    "method": "GET",
+    "path": "/boxes/{boxId}/groups/{groupId}",
+    "pathParams": {
+      "boxId": 24090,
+      "groupId": 9
+    },
+    "mockResponses": [
+      {
+        "status": 200,
+        "body": {
+          "id": 9,
+          "box_id": 24090,
+          "postings": []
+        }
+      }
+    ],
+    "assertions": [
+      {
+        "type": "requestPath",
+        "expected": "/boxes/24090/groups/9"
+      },
+      {
+        "type": "noError"
+      }
+    ],
+    "tags": [
+      "path",
+      "boxes"
+    ]
+  },
+  {
     "name": "DeleteBoxGroup uses /boxes/{boxId}/groups/{groupId} path",
     "description": "Verifies that DeleteBoxGroup constructs the URL path /boxes/{boxId}/groups/{groupId}",
     "operation": "DeleteBoxGroup",
