@@ -1008,6 +1008,10 @@
         "tags": [
           "Boxes"
         ],
+        "x-hey-pagination": {
+          "style": "link",
+          "totalCountHeader": "X-Total-Count"
+        },
         "x-hey-retry": {
           "maxAttempts": 3,
           "baseDelayMs": 1000,

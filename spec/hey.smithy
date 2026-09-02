@@ -3917,6 +3917,7 @@ structure ListBoxGroupsOutput {
 @http(method: "GET", uri: "/boxes/{boxId}/groups/{groupId}")
 @tags(["Boxes"])
 @heyRetry(maxAttempts: 3, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+@heyPagination(style: "link", totalCountHeader: "X-Total-Count")
 operation GetBoxGroup {
     input: GetBoxGroupInput
     output: GetBoxGroupOutput

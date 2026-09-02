@@ -483,6 +483,10 @@
     },
     "GetBoxGroup": {
       "idempotent": false,
+      "pagination": {
+        "style": "link",
+        "totalCountHeader": "X-Total-Count"
+      },
       "readonly": true,
       "retry": {
         "backoff": "exponential",
