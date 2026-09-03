@@ -3744,6 +3744,34 @@ func TestWorkflowsService_Stages(t *testing.T) {
 	}
 }
 
+func TestWorkflowsService_GetStage(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet || r.URL.Path != "/workflows/8801/stages/5512" {
+			t.Fatalf("unexpected request %s %s", r.Method, r.URL.Path)
+		}
+		if got := r.Header.Get("Accept"); got != "text/html" {
+			t.Fatalf("expected Accept text/html, got %q", got)
+		}
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		_, _ = w.Write([]byte(`<section id="container_workflow_stage_5512"><h2>Applied<span class="u-for-screen-reader"> stage</span></h2><div class="workflow__card" id="topic_4471829" data-identifier="91"><h3>Application<span class="u-for-screen-reader">Thread: Application</span></h3><p class="card__detail"><span class="u-for-screen-reader">,</span>3 emails</p></div><div class="workflow__card" id="topic_4471830" data-identifier="92"></div><div id="topic_not-a-number" data-identifier="93"></div><div id="topic_4471831" data-identifier="not-a-number"></div></section>`))
+	}))
+	t.Cleanup(server.Close)
+	client := NewClient(&Config{BaseURL: server.URL}, &StaticTokenProvider{Token: "test-token"}, WithMaxRetries(0))
+	stage, err := client.Workflows().GetStage(context.Background(), 8801, 5512)
+	if err != nil {
+		t.Fatalf("GetStage: %v", err)
+	}
+	if stage == nil || stage.ID != 5512 || stage.Name != "Applied" || len(stage.Topics) != 2 {
+		t.Fatalf("unexpected stage: %+v", stage)
+	}
+	if topic := stage.Topics[0]; topic.TopicID != 4471829 || topic.StagingID != 91 || topic.Subject != "Application" || topic.EntryCount != 3 {
+		t.Errorf("unexpected topic: %+v", topic)
+	}
+	if topic := stage.Topics[1]; topic.TopicID != 4471830 || topic.StagingID != 92 || topic.Subject != "" || topic.EntryCount != 0 {
+		t.Errorf("unexpected sparse topic: %+v", topic)
+	}
+}
+
 func TestWorkflowsService_Writes(t *testing.T) {
 	creator := newFormTestClient(t, "POST", "/workflows", func(t *testing.T, values url.Values) {
 		t.Helper()

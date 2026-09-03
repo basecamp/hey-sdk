@@ -3508,6 +3508,51 @@
     ]
   },
   {
+    "name": "GetWorkflowStage uses the HTML workflow stage path",
+    "description": "Verifies that GetWorkflowStage requests a stage as HTML through the generated route.",
+    "operation": "GetWorkflowStage",
+    "method": "GET",
+    "path": "/workflows/{workflowId}/stages/{stageId}",
+    "pathParams": {
+      "workflowId": 8801,
+      "stageId": 5512
+    },
+    "configOverrides": {
+      "clientLayer": "hey"
+    },
+    "mockResponses": [
+      {
+        "status": 200,
+        "headers": {
+          "Content-Type": "text/html; charset=utf-8"
+        },
+        "body": "<section id=\"container_workflow_stage_5512\"></section>"
+      }
+    ],
+    "assertions": [
+      {
+        "type": "requestPath",
+        "expected": "/workflows/8801/stages/5512"
+      },
+      {
+        "type": "requestMethod",
+        "expected": "GET"
+      },
+      {
+        "type": "lastRequestHeader",
+        "path": "Accept",
+        "expected": "text/html"
+      },
+      {
+        "type": "noError"
+      }
+    ],
+    "tags": [
+      "path",
+      "workflows"
+    ]
+  },
+  {
     "name": "CreateWorkflowStaging uses the topic workflow stagings path",
     "description": "Verifies that CreateWorkflowStaging adds a topic through its workflow staging resource",
     "operation": "CreateWorkflowStaging",

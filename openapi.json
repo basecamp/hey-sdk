@@ -10471,6 +10471,87 @@
           ]
         }
       }
+    },
+    "/workflows/{workflowId}/stages/{stageId}": {
+      "get": {
+        "description": "A workflow stage and its cards, served as HTML by HEY.",
+        "operationId": "GetWorkflowStage",
+        "parameters": [
+          {
+            "name": "workflowId",
+            "in": "path",
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "required": true
+          },
+          {
+            "name": "stageId",
+            "in": "path",
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "GetWorkflowStage 200 response",
+            "content": {
+              "text/html": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetWorkflowStageOutputPayload"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UnauthorizedError 401 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnauthorizedErrorResponseContent"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError 404 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundErrorResponseContent"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "InternalServerError 500 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorResponseContent"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ServiceUnavailableError 503 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceUnavailableErrorResponseContent"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Workflows"
+        ]
+      }
     }
   },
   "components": {
@@ -12458,6 +12539,10 @@
       },
       "GetWorkflowResponseContent": {
         "$ref": "#/components/schemas/Workflow"
+      },
+      "GetWorkflowStageOutputPayload": {
+        "type": "string",
+        "contentEncoding": "byte"
       },
       "HabitPayload": {
         "type": "object",

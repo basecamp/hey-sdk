@@ -879,6 +879,9 @@ type GetTrashTopicsResponseContent = TopicListResponse
 // GetWorkflowResponseContent Workflow — email workflow/label
 type GetWorkflowResponseContent = Workflow
 
+// GetWorkflowStageOutputPayload defines model for GetWorkflowStageOutputPayload.
+type GetWorkflowStageOutputPayload = string
+
 // HabitPayload defines model for HabitPayload.
 type HabitPayload struct {
 	Color string `json:"color,omitempty"`
@@ -2922,6 +2925,9 @@ type ClientInterface interface {
 
 	// GetWorkflow request
 	GetWorkflow(ctx context.Context, workflowId int64, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetWorkflowStage request
+	GetWorkflowStage(ctx context.Context, workflowId int64, stageId int64, reqEditors ...RequestEditorFn) (*http.Response, error)
 }
 
 // DeleteExtenzion is marked as idempotent and will be retried on transient failures.
@@ -4402,6 +4408,14 @@ func (c *Client) GetWorkflow(ctx context.Context, workflowId int64, reqEditors .
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
 		return NewGetWorkflowRequest(c.Server, workflowId)
 	}, true, "GetWorkflow", reqEditors...)
+}
+
+// GetWorkflowStage is marked as idempotent and will be retried on transient failures.
+
+func (c *Client) GetWorkflowStage(ctx context.Context, workflowId int64, stageId int64, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	return c.doWithRetry(ctx, func() (*http.Request, error) {
+		return NewGetWorkflowStageRequest(c.Server, workflowId, stageId)
+	}, true, "GetWorkflowStage", reqEditors...)
 }
 
 // NewDeleteExtenzionRequest generates requests for DeleteExtenzion
@@ -10146,6 +10160,47 @@ func NewGetWorkflowRequest(server string, workflowId int64) (*http.Request, erro
 	return req, nil
 }
 
+// NewGetWorkflowStageRequest generates requests for GetWorkflowStage
+func NewGetWorkflowStageRequest(server string, workflowId int64, stageId int64) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "workflowId", runtime.ParamLocationPath, workflowId)
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithLocation("simple", false, "stageId", runtime.ParamLocationPath, stageId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/workflows/%s/stages/%s", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 func (c *Client) applyEditors(ctx context.Context, req *http.Request, additionalEditors []RequestEditorFn) error {
 	for _, r := range c.RequestEditors {
 		if err := r(ctx, req); err != nil {
@@ -10302,6 +10357,7 @@ var operationMetadata = map[string]OperationMetadata{
 	"MoveWorkflowStaging":           {Idempotent: false, HasSensitiveParams: false},
 	"CreateWorkflowStaging":         {Idempotent: false, HasSensitiveParams: false},
 	"GetWorkflow":                   {Idempotent: true, HasSensitiveParams: false},
+	"GetWorkflowStage":              {Idempotent: true, HasSensitiveParams: false},
 }
 
 // GetOperationMetadata returns metadata for the given operation ID.
@@ -12268,6 +12324,13 @@ type ClientWithResponsesInterface interface {
 	//
 	// Returns a wrapper object for the known response body format(s).
 	GetWorkflowWithResponse(ctx context.Context, workflowId int64, reqEditors ...RequestEditorFn) (*GetWorkflowResponse, error)
+
+	// GetWorkflowStageWithResponse performs a GET /workflows/{workflowId}/stages/{stageId} (the `GetWorkflowStage` operationId) request.
+	//
+	// A workflow stage and its cards, served as HTML by HEY.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	GetWorkflowStageWithResponse(ctx context.Context, workflowId int64, stageId int64, reqEditors ...RequestEditorFn) (*GetWorkflowStageResponse, error)
 }
 
 type DeleteExtenzionResponse struct {
@@ -20834,6 +20897,68 @@ func (r GetWorkflowResponse) ContentType() string {
 	return ""
 }
 
+type GetWorkflowStageResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *UnauthorizedErrorResponseContent
+	// JSON404 the response for an HTTP 404 `application/json` response
+	JSON404 *NotFoundErrorResponseContent
+	// JSON500 the response for an HTTP 500 `application/json` response
+	JSON500 *InternalServerErrorResponseContent
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *ServiceUnavailableErrorResponseContent
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r GetWorkflowStageResponse) GetJSON401() *UnauthorizedErrorResponseContent {
+	return r.JSON401
+}
+
+// GetJSON404 returns the response for an HTTP 404 `application/json` response
+func (r GetWorkflowStageResponse) GetJSON404() *NotFoundErrorResponseContent {
+	return r.JSON404
+}
+
+// GetJSON500 returns the response for an HTTP 500 `application/json` response
+func (r GetWorkflowStageResponse) GetJSON500() *InternalServerErrorResponseContent {
+	return r.JSON500
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r GetWorkflowStageResponse) GetJSON503() *ServiceUnavailableErrorResponseContent {
+	return r.JSON503
+}
+
+// GetBody returns the raw response body bytes
+func (r GetWorkflowStageResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r GetWorkflowStageResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetWorkflowStageResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r GetWorkflowStageResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 // DeleteExtenzionWithResponse performs a DELETE /accounts/{accountId}/domains/extenzions/{extenzionId} (the `DeleteExtenzion` operationId) request.
 //
 // Delete an extenzion. The id is the extenzion's contact id, the one its app_url
@@ -23206,6 +23331,19 @@ func (c *ClientWithResponses) GetWorkflowWithResponse(ctx context.Context, workf
 		return nil, err
 	}
 	return ParseGetWorkflowResponse(rsp)
+}
+
+// GetWorkflowStageWithResponse performs a GET /workflows/{workflowId}/stages/{stageId} (the `GetWorkflowStage` operationId) request.
+//
+// A workflow stage and its cards, served as HTML by HEY.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) GetWorkflowStageWithResponse(ctx context.Context, workflowId int64, stageId int64, reqEditors ...RequestEditorFn) (*GetWorkflowStageResponse, error) {
+	rsp, err := c.GetWorkflowStage(ctx, workflowId, stageId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetWorkflowStageResponse(rsp)
 }
 
 // ParseDeleteExtenzionResponse parses an HTTP response from a DeleteExtenzionWithResponse call
@@ -29936,6 +30074,53 @@ func ParseGetWorkflowResponse(rsp *http.Response) (*GetWorkflowResponse, error) 
 		}
 		response.JSON200 = &dest
 
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest UnauthorizedErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFoundErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest InternalServerErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+		var dest ServiceUnavailableErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON503 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetWorkflowStageResponse parses an HTTP response from a GetWorkflowStageWithResponse call
+func ParseGetWorkflowStageResponse(rsp *http.Response) (*GetWorkflowStageResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetWorkflowStageResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
 		var dest UnauthorizedErrorResponseContent
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {

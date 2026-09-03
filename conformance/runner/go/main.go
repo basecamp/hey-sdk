@@ -209,8 +209,14 @@ func runTest(tc TestCase) TestResult {
 		// Set status code
 		w.WriteHeader(status)
 
-		// Write body
+		// Write body. HTML fixtures are already wire text; JSON fixtures are structured values.
 		if resp.Body != nil {
+			if strings.HasPrefix(w.Header().Get("Content-Type"), "text/html") {
+				if html, ok := resp.Body.(string); ok {
+					_, _ = io.WriteString(w, html)
+					return
+				}
+			}
 			bodyBytes, _ := json.Marshal(resp.Body)
 			_, _ = w.Write(bodyBytes)
 		}
@@ -1253,6 +1259,8 @@ func executeOperation(client *generated.Client, ctx context.Context, tc TestCase
 		return client.ListSnippets(ctx)
 	case "GetWorkflow":
 		return client.GetWorkflow(ctx, getInt64Param(tc.PathParams, "workflowId"))
+	case "GetWorkflowStage":
+		return client.GetWorkflowStage(ctx, getInt64Param(tc.PathParams, "workflowId"), getInt64Param(tc.PathParams, "stageId"))
 	case "CreateWorkflowStaging":
 		return client.CreateWorkflowStaging(
 			ctx,
@@ -1589,6 +1597,8 @@ func executeHEYOperation(client *hey.Client, ctx context.Context, tc TestCase) (
 	switch tc.Operation {
 	case "ListBoxes":
 		return client.Boxes().List(ctx)
+	case "GetWorkflowStage":
+		return client.Workflows().GetStage(ctx, getInt64Param(tc.PathParams, "workflowId"), getInt64Param(tc.PathParams, "stageId"))
 	case "UpdateCalendarEvent":
 		eventID := getInt64Param(tc.PathParams, "eventId")
 		_, err := client.CalendarEvents().Update(ctx, eventID, hey.UpdateCalendarEventParams{
