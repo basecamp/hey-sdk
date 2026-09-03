@@ -234,6 +234,12 @@ func (s *MessagesService) UpdateDraft(ctx context.Context, entryID int64, draft 
 		if rerr != nil {
 			return rerr
 		}
+		if resp.JSON422 != nil {
+			return &Error{
+				Code:       CodeValidation,
+				Message:    strings.Join(resp.JSON422.Errors, ", "),
+			}
+		}
 		return CheckResponse(resp.HTTPResponse)
 	})
 }
@@ -270,6 +276,12 @@ func (s *MessagesService) SendDraft(ctx context.Context, entryID int64, draft Dr
 		resp, rerr := s.client.genClient().UpdateMessageWithResponse(ctx, entryID, body)
 		if rerr != nil {
 			return rerr
+		}
+		if resp.JSON422 != nil {
+			return &Error{
+				Code:       CodeValidation,
+				Message:    strings.Join(resp.JSON422.Errors, ", "),
+			}
 		}
 		return CheckResponse(resp.HTTPResponse)
 	})
