@@ -365,7 +365,7 @@
     "mockResponses": [
       {
         "status": 200,
-        "body": []
+        "body": {}
       }
     ],
     "assertions": [
@@ -866,7 +866,7 @@
         "body": [
           {
             "id": 123,
-            "type": "CalendarJournalEntry",
+            "type": "Calendar::JournalEntry",
             "content": "Quarterly planning"
           }
         ]
@@ -3262,8 +3262,12 @@
     },
     "mockResponses": [
       {
-        "status": 204,
-        "body": {}
+        "status": 200,
+        "body": {
+          "id": 789,
+          "type": "Calendar::Habit",
+          "name": "Evening run"
+        }
       }
     ],
     "assertions": [
@@ -3956,7 +3960,10 @@
     },
     "mockResponses": [
       {
-        "status": 200
+        "status": 200,
+        "body": {
+          "id": 456
+        }
       }
     ],
     "assertions": [
@@ -4020,7 +4027,11 @@
     },
     "mockResponses": [
       {
-        "status": 200
+        "status": 200,
+        "body": {
+          "subject": "Re: Hello",
+          "is_reply": true
+        }
       }
     ],
     "assertions": [

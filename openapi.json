@@ -482,6 +482,10 @@
         "tags": [
           "Boxes"
         ],
+        "x-hey-pagination": {
+          "style": "link",
+          "totalCountHeader": "X-Total-Count"
+        },
         "x-hey-retry": {
           "maxAttempts": 3,
           "baseDelayMs": 1000,
@@ -1858,7 +1862,7 @@
         }
       },
       "patch": {
-        "description": "Update the journal entry for a day: writes (or creates) it and answers the entry as a\nrecording, or 204 when empty content removes it.",
+        "description": "Update the journal entry for a day: writes it, creating it if the day has none, and\nanswers the entry as a recording. Empty content removes the entry instead, and HEY then\nanswers 204 with no body — which is not this shape, so send that through the SDK's own\njournal wrapper rather than here.",
         "operationId": "UpdateJournalEntry",
         "requestBody": {
           "content": {
@@ -12797,6 +12801,12 @@
           },
           "show_addressed_selector": {
             "type": "boolean"
+          },
+          "posting": {
+            "$ref": "#/components/schemas/MessagePostingContext"
+          },
+          "addressed_sender": {
+            "$ref": "#/components/schemas/AddressedSender"
           }
         }
       },
@@ -13284,7 +13294,7 @@
       },
       "Recording": {
         "type": "object",
-        "description": "Recording — polymorphic by `type` (CalendarEvent, CalendarTodo, etc.)",
+        "description": "Recording — polymorphic by `type` (Calendar::Event, Calendar::Todo, etc.)",
         "properties": {
           "id": {
             "type": "integer",
@@ -13345,7 +13355,7 @@
           },
           "type": {
             "type": "string",
-            "description": "Discriminator: CalendarEvent, CalendarTodo, etc."
+            "description": "Discriminator — the recordable's Ruby class name: Calendar::Event, Calendar::Todo,\nCalendar::JournalEntry, Calendar::Habit, Calendar::TimeTrack, Calendar::Countdown,\nCalendar::DayBackground, Calendar::DayTitle or Calendar::Habit::Completion."
           },
           "parent": {
             "$ref": "#/components/schemas/Recording"
@@ -13486,7 +13496,7 @@
         "x-hey-polymorphic": {
           "discriminator": "type",
           "variants": {
-            "CalendarEvent": [
+            "Calendar::Event": [
               "edit_url",
               "summary",
               "url",
@@ -13500,27 +13510,27 @@
               "join_link",
               "attached_entry"
             ],
-            "CalendarTodo": [
+            "Calendar::Todo": [
               "position"
             ],
-            "CalendarJournalEntry": [
+            "Calendar::JournalEntry": [
               "content"
             ],
-            "CalendarHabit": [
+            "Calendar::Habit": [
               "color",
               "icon",
               "days",
               "icon_url",
               "stopped_at"
             ],
-            "CalendarTimeTrack": [
+            "Calendar::TimeTrack": [
               "notes",
               "category"
             ],
-            "CalendarCountdown": [
+            "Calendar::Countdown": [
               "label"
             ],
-            "CalendarDayBackground": [
+            "Calendar::DayBackground": [
               "image_url"
             ]
           }

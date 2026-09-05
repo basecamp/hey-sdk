@@ -13,13 +13,13 @@ const dayJSON = `{
   "ends_at": "2026-08-22T23:59:59Z",
   "kind": "day",
   "recordings": {
-    "CalendarEvent": [
-      { "id": 161645836, "type": "CalendarEvent", "title": "Weekly Catchup",
+    "Calendar::Event": [
+      { "id": 161645836, "type": "Calendar::Event", "title": "Weekly Catchup",
         "starts_at": "2026-08-22T14:00:00Z", "ends_at": "2026-08-22T14:30:00Z",
         "recurring": true, "occurrence_id": "161645836_2026-08-22" }
     ],
-    "CalendarTodo": [
-      { "id": 90210, "type": "CalendarTodo", "title": "Renew the domain",
+    "Calendar::Todo": [
+      { "id": 90210, "type": "Calendar::Todo", "title": "Renew the domain",
         "starts_at": "2026-08-22T00:00:00Z", "ends_at": "2026-08-22T23:59:59Z" }
     ]
   }
@@ -55,7 +55,7 @@ func TestCalendarPeriodsDayAnswersOnePeriod(t *testing.T) {
 	if want := time.Date(2026, 8, 22, 0, 0, 0, 0, time.UTC); !day.StartsAt.Equal(want) {
 		t.Errorf("starts_at = %v, want %v", day.StartsAt, want)
 	}
-	events := day.Recordings["CalendarEvent"]
+	events := day.Recordings["Calendar::Event"]
 	if len(events) != 1 {
 		t.Fatalf("expected 1 event, got %d", len(events))
 	}
@@ -64,7 +64,7 @@ func TestCalendarPeriodsDayAnswersOnePeriod(t *testing.T) {
 	if events[0].OccurrenceId != "161645836_2026-08-22" {
 		t.Errorf("occurrence_id = %q", events[0].OccurrenceId)
 	}
-	if todos := day.Recordings["CalendarTodo"]; len(todos) != 1 || todos[0].Title != "Renew the domain" {
+	if todos := day.Recordings["Calendar::Todo"]; len(todos) != 1 || todos[0].Title != "Renew the domain" {
 		t.Errorf("todos = %+v", todos)
 	}
 }
@@ -188,7 +188,7 @@ func TestCalendarPeriodsYearAnswersTheGrid(t *testing.T) {
 		    { "starts_at": "2026-01-02T00:00:00Z", "backgrounded": true }
 		  ],
 		  "spanned_events": [
-		    { "id": 5150, "type": "CalendarEvent", "title": "Summer Break", "all_day": true,
+		    { "id": 5150, "type": "Calendar::Event", "title": "Summer Break", "all_day": true,
 		      "starts_at": "2026-07-06T00:00:00Z", "ends_at": "2026-07-17T23:59:59Z" }
 		  ]
 		}`))

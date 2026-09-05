@@ -4,6 +4,7 @@
 
 - Smithy CLI
 - Go 1.26+
+- Rust 1.88+ (with `rustfmt` and `clippy`)
 - Make
 - jq
 
@@ -23,9 +24,11 @@
    (`make url-routes`, `./scripts/generate-shape-fingerprint`, `./scripts/generate-route-coverage`)
 3. Run `make go-generate` to regenerate the Go client, then add or update the hand-written
    service in `go/pkg/hey`
-4. Add unit tests
-5. Add conformance tests if the operation has behavioral requirements
-6. Run `make check`
+4. Run `make rs-generate` to regenerate the Rust crate
+5. Add unit tests
+6. Add conformance tests if the operation has behavioral requirements, with dispatch arms in
+   the Go and Rust runners
+7. Run `make check`
 
 The full step-by-step, including how the drift gates work, is in [AGENTS.md](AGENTS.md).
 
@@ -34,13 +37,15 @@ The full step-by-step, including how the drift gates work, is in [AGENTS.md](AGE
 Two steps, in this order.
 
 ```bash
-make bump VERSION=x.y.z     # rewrites go/pkg/hey/version.go
+make bump VERSION=x.y.z     # rewrites go/pkg/hey/version.go and rust/hey-sdk/Cargo.toml
 # commit that, open a PR, merge it
 make release VERSION=x.y.z  # runs the gate, then tags vx.y.z and go/vx.y.z
 ```
 
 The bump has to land on main *before* the tag, because the release workflow checks that
-`version.go` matches the tag it was pushed for and refuses to publish otherwise.
+`version.go` matches the tag it was pushed for and refuses to publish otherwise. The Rust
+crate is not published to crates.io; consumers depend on it by git tag, so the same
+`vx.y.z` tag is what they pin.
 `make release` checks the same thing up front, so a forgotten bump fails locally in a
 second rather than on GitHub after the tags are already pushed.
 

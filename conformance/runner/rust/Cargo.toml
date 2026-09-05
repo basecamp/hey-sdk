@@ -1,0 +1,20 @@
+[workspace]
+
+[package]
+name = "hey-conformance"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+[[bin]]
+name = "hey-conformance"
+path = "src/main.rs"
+
+[dependencies]
+async-trait = "0.1"
+axum = "0.8"
+hey-sdk = { path = "../../../rust/hey-sdk" }
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1", features = ["arbitrary_precision"] }
+tokio = { version = "1", features = ["macros", "net", "rt-multi-thread", "time"] }
+url = "2"

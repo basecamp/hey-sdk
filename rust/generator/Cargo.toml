@@ -1,0 +1,18 @@
+[package]
+name = "hey-sdk-generator"
+version = "0.0.0"
+description = "Generates the Rust HEY SDK's types, operations and route table from openapi.json"
+publish = false
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[[bin]]
+name = "hey-sdk-generator"
+path = "src/main.rs"
+
+[dependencies]
+heck = "0.5"
+serde = { workspace = true }
+serde_json = { workspace = true, features = ["preserve_order"] }
+toml = "0.9"

@@ -30,6 +30,10 @@ conformance/runner/go/conformance-runner
 conformance/runner/go/go
 conformance/runner/ruby/Gemfile.lock
 conformance/runner/typescript/node_modules/
+conformance/runner/rust/target/
+
+# Rust SDK build artifacts
+rust/target/
 
 # Claude Code session files (except skills)
 .claude/*

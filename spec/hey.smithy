@@ -914,20 +914,20 @@ structure AttachedEntry {
     app_url: String
 }
 
-/// Recording — polymorphic by `type` (CalendarEvent, CalendarTodo, etc.)
+/// Recording — polymorphic by `type` (Calendar::Event, Calendar::Todo, etc.)
 @heyPolymorphic(
     discriminator: "type"
     variants: {
-        "CalendarEvent": ["edit_url", "summary", "url", "location",
-                         "manage_attendance", "attendance_status", "organizer",
-                         "attendances", "attendances_summary", "description",
-                         "join_link", "attached_entry"]
-        "CalendarTodo": ["position"]
-        "CalendarJournalEntry": ["content"]
-        "CalendarHabit": ["color", "icon", "days", "icon_url", "stopped_at"]
-        "CalendarTimeTrack": ["notes", "category"]
-        "CalendarCountdown": ["label"]
-        "CalendarDayBackground": ["image_url"]
+        "Calendar::Event": ["edit_url", "summary", "url", "location",
+                            "manage_attendance", "attendance_status", "organizer",
+                            "attendances", "attendances_summary", "description",
+                            "join_link", "attached_entry"]
+        "Calendar::Todo": ["position"]
+        "Calendar::JournalEntry": ["content"]
+        "Calendar::Habit": ["color", "icon", "days", "icon_url", "stopped_at"]
+        "Calendar::TimeTrack": ["notes", "category"]
+        "Calendar::Countdown": ["label"]
+        "Calendar::DayBackground": ["image_url"]
     }
 )
 structure Recording {
@@ -943,7 +943,9 @@ structure Recording {
     created_at: DateTime
     updated_at: DateTime
 
-    /// Discriminator: CalendarEvent, CalendarTodo, etc.
+    /// Discriminator — the recordable's Ruby class name: Calendar::Event, Calendar::Todo,
+    /// Calendar::JournalEntry, Calendar::Habit, Calendar::TimeTrack, Calendar::Countdown,
+    /// Calendar::DayBackground, Calendar::DayTitle or Calendar::Habit::Completion.
     @required
     type: String
 
@@ -1295,6 +1297,7 @@ structure ListBoxesOutput {
 @http(method: "GET", uri: "/boxes/{boxId}")
 @tags(["Boxes"])
 @heyRetry(maxAttempts: 3, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+@heyPagination(style: "link", totalCountHeader: "X-Total-Count")
 operation GetBox {
     input: GetBoxInput
     output: GetBoxOutput
@@ -2781,8 +2784,10 @@ structure GetJournalEntryOutput {
     recording: Recording
 }
 
-/// Update the journal entry for a day: writes (or creates) it and answers the entry as a
-/// recording, or 204 when empty content removes it.
+/// Update the journal entry for a day: writes it, creating it if the day has none, and
+/// answers the entry as a recording. Empty content removes the entry instead, and HEY then
+/// answers 204 with no body — which is not this shape, so send that through the SDK's own
+/// journal wrapper rather than here.
 @http(method: "PATCH", uri: "/calendar/days/{day}/journal_entry")
 @tags(["Calendar Journal"])
 @heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
@@ -3111,6 +3116,8 @@ structure MessageDraft {
     content: String
     addressed: Addressed
     show_addressed_selector: Boolean
+    posting: MessagePostingContext
+    addressed_sender: AddressedSender
 }
 
 /// Posting ids as a comma-joined string, for verbs that carry no body

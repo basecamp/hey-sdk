@@ -1,0 +1,46 @@
+[package]
+name = "hey-sdk"
+version = "0.29.0"
+description = "Rust client for the HEY API, generated from the Smithy model in spec/"
+readme = "README.md"
+publish = false
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[lib]
+name = "hey_sdk"
+path = "src/lib.rs"
+
+[dependencies]
+async-trait = "0.1"
+base64 = "0.23"
+bytes = "1"
+chrono = { version = "0.4", default-features = false, features = ["clock", "serde", "std"] }
+futures-util = { version = "0.3", default-features = false, features = ["std"] }
+# The default "v1" feature is the all-in-one store: Keychain on macOS, the Credential
+# Manager on Windows, and the Secret Service over pure-Rust zbus on the other Unixes, so
+# nothing here needs a C D-Bus at build time.
+keyring = "4"
+# Active Storage checks an upload's integrity with a base64-encoded MD5, so the SDK has to
+# speak MD5 whatever anyone thinks of it as a hash.
+md5 = "0.8"
+percent-encoding = "2"
+rand = "0.10"
+reqwest = { version = "0.13", default-features = false, features = ["rustls", "json", "http2", "charset"] }
+serde = { workspace = true }
+serde_json = { workspace = true }
+sha2 = "0.11"
+thiserror = "2"
+tokio = { version = "1", features = ["io-util", "time", "sync"] }
+tracing = "0.1"
+url = "2"
+
+[dev-dependencies]
+# The error tests classify responses, which is stated in reqwest's own status, method and
+# header types. Default features are off so this resolves to the same build as the
+# dependency above rather than a second one.
+reqwest = { version = "0.13", default-features = false }
+tokio = { version = "1", features = ["macros", "net", "rt-multi-thread", "time", "sync"] }
+wiremock = "0.6"

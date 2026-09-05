@@ -405,10 +405,10 @@ type CollectionWithPostings struct {
 	UpdatedAt time.Time `json:"updated_at,omitempty,omitzero"`
 }
 
-// CompleteCalendarTodoResponseContent Recording — polymorphic by `type` (CalendarEvent, CalendarTodo, etc.)
+// CompleteCalendarTodoResponseContent Recording — polymorphic by `type` (Calendar::Event, Calendar::Todo, etc.)
 type CompleteCalendarTodoResponseContent = Recording
 
-// CompleteHabitResponseContent Recording — polymorphic by `type` (CalendarEvent, CalendarTodo, etc.)
+// CompleteHabitResponseContent Recording — polymorphic by `type` (Calendar::Event, Calendar::Todo, etc.)
 type CompleteHabitResponseContent = Recording
 
 // ConflictErrorResponseContent The request conflicts with current state, e.g. starting a time track while one is
@@ -527,7 +527,7 @@ type CreateCalendarTodoRequestContent struct {
 	CalendarTodo CalendarTodoPayload `json:"calendar_todo"`
 }
 
-// CreateCalendarTodoResponseContent Recording — polymorphic by `type` (CalendarEvent, CalendarTodo, etc.)
+// CreateCalendarTodoResponseContent Recording — polymorphic by `type` (Calendar::Event, Calendar::Todo, etc.)
 type CreateCalendarTodoResponseContent = Recording
 
 // CreateContactRequestContent Wire format: {acting_user_id, contact: {...}} — creating also has to say which account
@@ -553,7 +553,7 @@ type CreateFolderForPostingsRequestContent struct {
 	PostingIds []int64       `json:"posting_ids"`
 }
 
-// CreateHabitResponseContent Recording — polymorphic by `type` (CalendarEvent, CalendarTodo, etc.)
+// CreateHabitResponseContent Recording — polymorphic by `type` (Calendar::Event, Calendar::Todo, etc.)
 type CreateHabitResponseContent = Recording
 
 // CreateMessageRequestContent Wire format: {acting_sender_id, message: {subject, content}, entry: {addressed: {directly: "..."}}}
@@ -582,7 +582,7 @@ type CreateReplyRequestContent struct {
 // CreateStickyResponseContent Sticky — a note on the stickies board
 type CreateStickyResponseContent = Sticky
 
-// CreateTimeTrackResponseContent Recording — polymorphic by `type` (CalendarEvent, CalendarTodo, etc.)
+// CreateTimeTrackResponseContent Recording — polymorphic by `type` (Calendar::Event, Calendar::Todo, etc.)
 type CreateTimeTrackResponseContent = Recording
 
 // DeletedPosting DeletedPosting — the stub the changes feed answers with for a posting that is gone
@@ -829,7 +829,7 @@ type GetImboxResponseContent = BoxShowResponse
 // SDK response decoders normalize the nested variant to flat before decoding.
 type GetImboxSeenResponseContent = BoxShowResponse
 
-// GetJournalEntryResponseContent Recording — polymorphic by `type` (CalendarEvent, CalendarTodo, etc.)
+// GetJournalEntryResponseContent Recording — polymorphic by `type` (Calendar::Event, Calendar::Todo, etc.)
 type GetJournalEntryResponseContent = Recording
 
 // GetLaterboxResponseContent BoxShowResponse — box detail with postings.
@@ -850,7 +850,7 @@ type GetMyClearancesResponseContent = ClearanceListResponse
 // GetNavigationResponseContent NavigationResponse
 type GetNavigationResponseContent = NavigationResponse
 
-// GetOngoingTimeTrackResponseContent Recording — polymorphic by `type` (CalendarEvent, CalendarTodo, etc.)
+// GetOngoingTimeTrackResponseContent Recording — polymorphic by `type` (Calendar::Event, Calendar::Todo, etc.)
 type GetOngoingTimeTrackResponseContent = Recording
 
 // GetSentTopicsResponseContent TopicListResponse — wrapped topic list (sent, spam, trash, everything)
@@ -1024,11 +1024,17 @@ type MessageAddressed struct {
 type MessageDraft struct {
 	// Addressed Addressed recipients
 	Addressed Addressed `json:"addressed,omitempty"`
-	Content   string    `json:"content,omitempty"`
+
+	// AddressedSender AddressedSender — sender context
+	AddressedSender AddressedSender `json:"addressed_sender,omitempty"`
+	Content         string          `json:"content,omitempty"`
 
 	// Creator Contact — the identity of someone in HEY
 	Creator Contact `json:"creator,omitempty"`
 	IsReply bool    `json:"is_reply,omitempty"`
+
+	// Posting MessagePostingContext — posting context for a message
+	Posting MessagePostingContext `json:"posting,omitempty"`
 
 	// Sender Contact — the identity of someone in HEY
 	Sender                Contact `json:"sender,omitempty"`
@@ -1235,7 +1241,7 @@ type PostingNote struct {
 	Id      int64  `json:"id"`
 }
 
-// Recording Recording — polymorphic by `type` (CalendarEvent, CalendarTodo, etc.)
+// Recording Recording — polymorphic by `type` (Calendar::Event, Calendar::Todo, etc.)
 type Recording struct {
 	AllDay bool `json:"all_day,omitempty"`
 
@@ -1285,7 +1291,7 @@ type Recording struct {
 	// Organizer Organizer — calendar event organizer
 	Organizer Organizer `json:"organizer,omitempty"`
 
-	// Parent Recording — polymorphic by `type` (CalendarEvent, CalendarTodo, etc.)
+	// Parent Recording — polymorphic by `type` (Calendar::Event, Calendar::Todo, etc.)
 	Parent   *Recording `json:"parent,omitempty"`
 	ParentId int64      `json:"parent_id,omitempty"`
 	Position int32      `json:"position,omitempty"`
@@ -1305,7 +1311,9 @@ type Recording struct {
 	Summary   string    `json:"summary,omitempty"`
 	Title     string    `json:"title,omitempty"`
 
-	// Type Discriminator: CalendarEvent, CalendarTodo, etc.
+	// Type Discriminator — the recordable's Ruby class name: Calendar::Event, Calendar::Todo,
+	// Calendar::JournalEntry, Calendar::Habit, Calendar::TimeTrack, Calendar::Countdown,
+	// Calendar::DayBackground, Calendar::DayTitle or Calendar::Habit::Completion.
 	Type string `json:"type"`
 
 	// UpdatedAt ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)
@@ -1410,7 +1418,7 @@ type Snippet struct {
 	UpdatedAt time.Time `json:"updated_at,omitempty,omitzero"`
 }
 
-// StartTimeTrackResponseContent Recording — polymorphic by `type` (CalendarEvent, CalendarTodo, etc.)
+// StartTimeTrackResponseContent Recording — polymorphic by `type` (Calendar::Event, Calendar::Todo, etc.)
 type StartTimeTrackResponseContent = Recording
 
 // Sticky Sticky — a note on the stickies board
@@ -1533,10 +1541,10 @@ type UnauthorizedErrorResponseContent struct {
 	Message string `json:"message"`
 }
 
-// UncompleteCalendarTodoResponseContent Recording — polymorphic by `type` (CalendarEvent, CalendarTodo, etc.)
+// UncompleteCalendarTodoResponseContent Recording — polymorphic by `type` (Calendar::Event, Calendar::Todo, etc.)
 type UncompleteCalendarTodoResponseContent = Recording
 
-// UncompleteHabitResponseContent Recording — polymorphic by `type` (CalendarEvent, CalendarTodo, etc.)
+// UncompleteHabitResponseContent Recording — polymorphic by `type` (Calendar::Event, Calendar::Todo, etc.)
 type UncompleteHabitResponseContent = Recording
 
 // UnprocessableEntityErrorResponseContent The server rejected what was sent. HEY answers {"errors": ["..."]} — the messages
@@ -1552,7 +1560,7 @@ type UpdateCalendarTodoRequestContent struct {
 	CalendarTodo CalendarTodoChanges `json:"calendar_todo"`
 }
 
-// UpdateCalendarTodoResponseContent Recording — polymorphic by `type` (CalendarEvent, CalendarTodo, etc.)
+// UpdateCalendarTodoResponseContent Recording — polymorphic by `type` (Calendar::Event, Calendar::Todo, etc.)
 type UpdateCalendarTodoResponseContent = Recording
 
 // UpdateClearanceRequestContent Wire format: {status: "approved"|"denied"} — top level, not nested under a clearance key.
@@ -1593,7 +1601,7 @@ type UpdateFirstWeekDayRequestContent struct {
 // UpdateFirstWeekDayResponseContent defines model for UpdateFirstWeekDayResponseContent.
 type UpdateFirstWeekDayResponseContent = FirstWeekDayPreference
 
-// UpdateHabitResponseContent Recording — polymorphic by `type` (CalendarEvent, CalendarTodo, etc.)
+// UpdateHabitResponseContent Recording — polymorphic by `type` (Calendar::Event, Calendar::Todo, etc.)
 type UpdateHabitResponseContent = Recording
 
 // UpdateJournalEntryRequestContent Wire format: {calendar_journal_entry: {content}}
@@ -1601,7 +1609,7 @@ type UpdateJournalEntryRequestContent struct {
 	CalendarJournalEntry JournalEntryPayload `json:"calendar_journal_entry"`
 }
 
-// UpdateJournalEntryResponseContent Recording — polymorphic by `type` (CalendarEvent, CalendarTodo, etc.)
+// UpdateJournalEntryResponseContent Recording — polymorphic by `type` (Calendar::Event, Calendar::Todo, etc.)
 type UpdateJournalEntryResponseContent = Recording
 
 // UpdateMyClearanceRequestContent defines model for UpdateMyClearanceRequestContent.
@@ -1655,7 +1663,7 @@ type UpdateTimeTrackRequestContent struct {
 	CalendarTimeTrack UpdateTimeTrackPayload `json:"calendar_time_track"`
 }
 
-// UpdateTimeTrackResponseContent Recording — polymorphic by `type` (CalendarEvent, CalendarTodo, etc.)
+// UpdateTimeTrackResponseContent Recording — polymorphic by `type` (Calendar::Event, Calendar::Todo, etc.)
 type UpdateTimeTrackResponseContent = Recording
 
 // UpdatesChannel UpdatesChannel — streaming channel for a box
@@ -11112,8 +11120,10 @@ type ClientWithResponsesInterface interface {
 	// UpdateJournalEntryWithBodyWithResponse performs a PATCH /calendar/days/{day}/journal_entry (the `UpdateJournalEntry` operationId) request,
 	// with any type of body and a specified content type.
 	//
-	// Update the journal entry for a day: writes (or creates) it and answers the entry as a
-	// recording, or 204 when empty content removes it.
+	// Update the journal entry for a day: writes it, creating it if the day has none, and
+	// answers the entry as a recording. Empty content removes the entry instead, and HEY then
+	// answers 204 with no body — which is not this shape, so send that through the SDK's own
+	// journal wrapper rather than here.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	UpdateJournalEntryWithBodyWithResponse(ctx context.Context, day string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateJournalEntryResponse, error)
@@ -11121,8 +11131,10 @@ type ClientWithResponsesInterface interface {
 	// UpdateJournalEntryWithResponse performs a PATCH /calendar/days/{day}/journal_entry (the `UpdateJournalEntry` operationId) request.
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
-	// Update the journal entry for a day: writes (or creates) it and answers the entry as a
-	// recording, or 204 when empty content removes it.
+	// Update the journal entry for a day: writes it, creating it if the day has none, and
+	// answers the entry as a recording. Empty content removes the entry instead, and HEY then
+	// answers 204 with no body — which is not this shape, so send that through the SDK's own
+	// journal wrapper rather than here.
 	UpdateJournalEntryWithResponse(ctx context.Context, day string, body UpdateJournalEntryJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateJournalEntryResponse, error)
 
 	// DeleteCalendarEventWithResponse performs a DELETE /calendar/events/{eventId} (the `DeleteCalendarEvent` operationId) request.
@@ -21175,8 +21187,10 @@ func (c *ClientWithResponses) GetJournalEntryWithResponse(ctx context.Context, d
 // UpdateJournalEntryWithBodyWithResponse performs a PATCH /calendar/days/{day}/journal_entry (the `UpdateJournalEntry` operationId) request,
 // with any type of body and a specified content type.
 //
-// Update the journal entry for a day: writes (or creates) it and answers the entry as a
-// recording, or 204 when empty content removes it.
+// Update the journal entry for a day: writes it, creating it if the day has none, and
+// answers the entry as a recording. Empty content removes the entry instead, and HEY then
+// answers 204 with no body — which is not this shape, so send that through the SDK's own
+// journal wrapper rather than here.
 //
 // Returns a wrapper object for the known response body format(s).
 func (c *ClientWithResponses) UpdateJournalEntryWithBodyWithResponse(ctx context.Context, day string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateJournalEntryResponse, error) {
@@ -21190,8 +21204,10 @@ func (c *ClientWithResponses) UpdateJournalEntryWithBodyWithResponse(ctx context
 // UpdateJournalEntryWithResponse performs a PATCH /calendar/days/{day}/journal_entry (the `UpdateJournalEntry` operationId) request.
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
-// Update the journal entry for a day: writes (or creates) it and answers the entry as a
-// recording, or 204 when empty content removes it.
+// Update the journal entry for a day: writes it, creating it if the day has none, and
+// answers the entry as a recording. Empty content removes the entry instead, and HEY then
+// answers 204 with no body — which is not this shape, so send that through the SDK's own
+// journal wrapper rather than here.
 func (c *ClientWithResponses) UpdateJournalEntryWithResponse(ctx context.Context, day string, body UpdateJournalEntryJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateJournalEntryResponse, error) {
 	rsp, err := c.UpdateJournalEntry(ctx, day, body, reqEditors...)
 	if err != nil {

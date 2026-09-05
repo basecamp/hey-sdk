@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Bumps SDK version across Go implementation.
+# Bumps the SDK version in every language: go/pkg/hey/version.go and rust/hey-sdk/Cargo.toml.
 # Usage: scripts/bump-version.sh <version>
 # Example: scripts/bump-version.sh 0.3.0
 set -euo pipefail
@@ -28,4 +28,18 @@ if ! grep -Fq "const Version = \"$VERSION\"" "$VERSION_FILE"; then
   exit 1
 fi
 
-echo "Done. Bumped 1 file to $VERSION."
+CARGO_FILE="$REPO_ROOT/rust/hey-sdk/Cargo.toml"
+sedi "s/^version = \".*\"/version = \"$VERSION\"/" "$CARGO_FILE"
+
+if ! grep -Fxq "version = \"$VERSION\"" "$CARGO_FILE"; then
+  echo "ERROR: Version substitution did not match in $CARGO_FILE" >&2
+  exit 1
+fi
+
+# Cargo.lock records the package version too; refresh it so a --locked build still agrees.
+if command -v cargo >/dev/null 2>&1; then
+  (cd "$REPO_ROOT/rust" && cargo update -q -w --offline) || true
+  (cd "$REPO_ROOT/conformance/runner/rust" && cargo update -q -w --offline) || true
+fi
+
+echo "Done. Bumped 2 files to $VERSION."
