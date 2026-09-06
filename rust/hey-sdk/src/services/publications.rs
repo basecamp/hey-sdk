@@ -3,11 +3,10 @@
 //! Publishing has no JSON surface: both writes are browser form posts that redirect, and
 //! the public link only appears once the publication is read back.
 
-use reqwest::Method;
-
 use crate::error::Error;
 use crate::generated::routes;
 use crate::generated::types::TopicPublication;
+use crate::http::Method;
 use crate::services::write_info;
 
 pub use crate::generated::services::publications::*;

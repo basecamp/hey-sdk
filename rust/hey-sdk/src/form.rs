@@ -6,11 +6,11 @@
 //! sends it. The raw verbs — [`Client::post_form`] and its neighbours — are those two
 //! together for the common shapes.
 
-use reqwest::{Method, StatusCode};
 use url::Url;
 
 use crate::client::{Client, Response};
 use crate::error::Error;
+use crate::http::{Method, StatusCode};
 use crate::operation::Operation;
 
 impl Client {

@@ -11,12 +11,11 @@ use std::fmt;
 use std::str::FromStr;
 use std::time::Duration;
 
-use reqwest::Method;
-
 use crate::client::Response;
 use crate::error::Error;
 use crate::form::FormResponse;
 use crate::generated::types::Recording;
+use crate::http::Method;
 use crate::observability::OperationInfo;
 use crate::services::write_info;
 use crate::types::Date;

@@ -2,11 +2,7 @@ use std::fmt::Display;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use bytes::{Bytes, BytesMut};
-use reqwest::header::{
-    ACCEPT, AUTHORIZATION, CONTENT_TYPE, HeaderMap, HeaderValue, IF_NONE_MATCH, USER_AGENT,
-};
-use reqwest::{Method, Request, StatusCode};
+use bytes::Bytes;
 use serde::de::DeserializeOwned;
 use tokio::sync::Mutex;
 use url::Url;
@@ -14,7 +10,14 @@ use url::Url;
 use crate::auth::{AuthStrategy, BearerAuth, TokenProvider};
 use crate::cache::{CachedResponse, FileCache, ResponseCache, cache_key};
 use crate::config::Config;
-use crate::error::{Error, retry_after_seconds};
+use crate::error::{Error, ErrorCode, retry_after_seconds};
+use crate::http::header::{
+    ACCEPT, AUTHORIZATION, CONTENT_LENGTH, CONTENT_TYPE, COOKIE, IF_NONE_MATCH,
+    PROXY_AUTHORIZATION, USER_AGENT,
+};
+use crate::http::{
+    Body, HeaderMap, HeaderValue, HttpClient, Method, Request, Response as HttpResponse, StatusCode,
+};
 use crate::observability::{
     Hooks, NoopHooks, OperationInfo, OperationState, RequestInfo, RequestResult,
 };
@@ -47,6 +50,9 @@ pub const MAX_RESPONSE_BODY_BYTES: usize = 50 << 20;
 
 const RETRYABLE_STATUSES: &[u16] = &[429, 500, 502, 503, 504];
 const ACCOUNT_FILTER_PARAMETER: &str = "filtered_account_id";
+/// How many redirects one request may go through before the client gives up on it, which
+/// is what reqwest allowed when it was the one following them.
+const MAX_REDIRECTS: usize = 10;
 
 /// A HEY client: one authenticated identity, presenting mail from All Accounts unless
 /// derived for one linked account with [`Client::for_account`].
@@ -62,11 +68,7 @@ pub struct Client {
 pub(crate) struct Shared {
     pub(crate) config: Config,
     pub(crate) base_url: Url,
-    pub(crate) http: reqwest::Client,
-    /// The same client told not to follow redirects, for the form requests whose answer
-    /// *is* the redirect. Redirect policy belongs to a `reqwest::Client`, so capturing one
-    /// takes a second client rather than a per-request setting.
-    pub(crate) http_capturing_redirects: reqwest::Client,
+    pub(crate) http: Arc<dyn HttpClient>,
     pub(crate) auth: Arc<dyn AuthStrategy>,
     pub(crate) user_agent: String,
     pub(crate) max_retries: u32,
@@ -119,8 +121,7 @@ impl Response {
 pub struct ClientBuilder {
     config: Config,
     auth: Option<Arc<dyn AuthStrategy>>,
-    http: Option<reqwest::Client>,
-    http_capturing_redirects: Option<reqwest::Client>,
+    http: Option<Arc<dyn HttpClient>>,
     user_agent: String,
     timeout: Duration,
     max_retries: u32,
@@ -139,7 +140,6 @@ impl ClientBuilder {
             config,
             auth: None,
             http: None,
-            http_capturing_redirects: None,
             user_agent: default_user_agent(),
             timeout: DEFAULT_TIMEOUT,
             max_retries: DEFAULT_MAX_RETRIES,
@@ -162,30 +162,12 @@ impl ClientBuilder {
         self
     }
 
-    /// Replaces the HTTP client every request but a form one goes out on. The timeout set
-    /// here is then ignored; set it on the client you pass.
-    ///
-    /// The form requests HEY answers with a redirect need a client that does not follow
-    /// one, and that is a second `reqwest::Client` — redirect policy belongs to the client
-    /// rather than to a request. This does not become it: the SDK builds a default
-    /// capturing client alongside, so a proxy, a certificate or any other setting meant for
-    /// both has to be given to [`ClientBuilder::http_client_capturing_redirects`] as well.
-    pub fn http_client(mut self, http: reqwest::Client) -> ClientBuilder {
-        self.http = Some(http);
-        self
-    }
-
-    /// Replaces the HTTP client the form requests go out on — the ones whose answer *is* the
-    /// redirect, which this client must therefore be built with
-    /// `redirect(reqwest::redirect::Policy::none())`. One that follows redirects loses the
-    /// `Location` the request was made for, and the SDK cannot tell that it did.
-    ///
-    /// It is a client of its own, not a variant of the one
-    /// [`ClientBuilder::http_client`] takes, so a proxy, a certificate or any other setting
-    /// meant for both has to be given to both. The timeout set on the builder is ignored
-    /// here too.
-    pub fn http_client_capturing_redirects(mut self, http: reqwest::Client) -> ClientBuilder {
-        self.http_capturing_redirects = Some(http);
+    /// Replaces the HTTP client every request goes out on, including the attachment bytes
+    /// that go to the storage service. The one supplied must not follow redirects; see
+    /// [`HttpClient`]. The timeout set on the builder is then ignored — a timeout belongs to
+    /// the client that can enforce it.
+    pub fn http_client(mut self, http: impl HttpClient + 'static) -> ClientBuilder {
+        self.http = Some(Arc::new(http));
         self
     }
 
@@ -194,6 +176,8 @@ impl ClientBuilder {
         self
     }
 
+    /// How long the HTTP client the SDK ships gives an answer to arrive. It has no effect on
+    /// one supplied with [`ClientBuilder::http_client`].
     pub fn timeout(mut self, timeout: Duration) -> ClientBuilder {
         self.timeout = timeout;
         self
@@ -259,11 +243,7 @@ impl ClientBuilder {
         }
         let http = match self.http {
             Some(http) => http,
-            None => http_client(self.timeout, reqwest::redirect::Policy::limited(10))?,
-        };
-        let http_capturing_redirects = match self.http_capturing_redirects {
-            Some(http) => http,
-            None => http_client(self.timeout, reqwest::redirect::Policy::none())?,
+            None => shipped_http_client(self.timeout)?,
         };
         let cache =
             match (self.cache, self.config.cache_enabled) {
@@ -280,7 +260,6 @@ impl ClientBuilder {
             config: self.config,
             base_url,
             http,
-            http_capturing_redirects,
             auth,
             user_agent: self.user_agent,
             max_retries: self.max_retries,
@@ -305,7 +284,10 @@ impl Client {
         ClientBuilder::new(config)
     }
 
-    /// A client with the default settings and a bearer token.
+    /// A client with the default settings and a bearer token, on the HTTP client the SDK
+    /// ships. Without the `reqwest` feature there is no such client, and a
+    /// [`ClientBuilder`] with an [`HttpClient`] of the application's own is the way in.
+    #[cfg(feature = "reqwest")]
     pub fn new(config: Config, provider: impl TokenProvider + 'static) -> Result<Client, Error> {
         Client::builder(config).token_provider(provider).build()
     }
@@ -327,12 +309,12 @@ impl Client {
         self.shared.max_pages
     }
 
-    /// The HTTP client every request but a form one goes out on, for the one request the
-    /// SDK makes outside HEY: the attachment blob that goes to the storage service the
-    /// direct upload named. It shares the connection pool and the settings the caller
-    /// configured, and carries no credentials of its own — those go on per request.
-    pub(crate) fn http(&self) -> &reqwest::Client {
-        &self.shared.http
+    /// The HTTP client every request goes out on, for the one request the SDK makes outside
+    /// HEY: the attachment blob that goes to the storage service the direct upload named. It
+    /// shares the connection pool and the settings the caller configured, and carries no
+    /// credentials of its own — those go on per request.
+    pub(crate) fn http(&self) -> &dyn HttpClient {
+        self.shared.http.as_ref()
     }
 
     /// Starts a request for one of the modelled routes. Generated service methods call
@@ -435,7 +417,7 @@ impl Client {
     /// [`Client::execute`]'s doing — the gate, the credentials, the account scope, the
     /// retries, the resend after a refreshed 401 — and nothing is resent once the answer
     /// is in hand, since its bytes may already be on their way out.
-    pub(crate) async fn stream(&self, operation: Operation) -> Result<reqwest::Response, Error> {
+    pub(crate) async fn stream(&self, operation: Operation) -> Result<HttpResponse<Body>, Error> {
         self.instrument(&operation, self.streamed(&operation)).await
     }
 
@@ -477,7 +459,13 @@ impl Client {
         let answered = self.attempt(operation, &url).await?;
         let status = answered.response.status();
         let finished = self
-            .finish(operation, &url, answered.response, answered.cached)
+            .finish(
+                operation,
+                &url,
+                answered.url,
+                answered.response,
+                answered.cached,
+            )
             .await;
         self.shared.hooks.on_request_end(
             &answered.info,
@@ -494,7 +482,7 @@ impl Client {
     }
 
     /// Hands the answer over unread, once its status says there is a body worth reading.
-    async fn streamed(&self, operation: &Operation) -> Result<reqwest::Response, Error> {
+    async fn streamed(&self, operation: &Operation) -> Result<HttpResponse<Body>, Error> {
         let url = self.url_for(operation)?;
         let answered = self.attempt(operation, &url).await?;
         let status = answered.response.status();
@@ -543,12 +531,11 @@ impl Client {
             };
             hooks.on_request_start(&info);
             let started = Instant::now();
-            let sent = self.http_for(operation).execute(request).await;
+            let sent = self.transmit(operation, url.clone(), request).await;
             let duration = started.elapsed();
 
             match sent {
                 Err(error) => {
-                    let error = Error::network(error);
                     hooks.on_request_end(
                         &info,
                         &RequestResult {
@@ -570,7 +557,7 @@ impl Client {
                         return Err(error);
                     }
                 }
-                Ok(response) => {
+                Ok((final_url, response)) => {
                     let status = response.status();
                     let retryable = RETRYABLE_STATUSES.contains(&status.as_u16());
                     let retry_after = retry_after_asked(status, response.headers());
@@ -628,6 +615,7 @@ impl Client {
                         attempt += 1;
                     } else {
                         return Ok(Answered {
+                            url: final_url,
                             response,
                             cached: cached.take(),
                             info,
@@ -679,14 +667,18 @@ impl Client {
         operation: &Operation,
         url: &Url,
         cached: &mut Option<(String, CachedResponse)>,
-    ) -> Result<Request, Error> {
-        let mut request = Request::new(operation.method.clone(), url.clone());
+    ) -> Result<Request<Bytes>, Error> {
+        let mut request = Request::builder()
+            .method(operation.method.clone())
+            .uri(url.as_str())
+            .body(Bytes::new())
+            .map_err(Error::from_std)?;
         let headers = request.headers_mut();
         headers.insert(USER_AGENT, header_value(&self.shared.user_agent)?);
         headers.insert(ACCEPT, HeaderValue::from_static(operation.accept));
         if let Some(body) = &operation.body {
             headers.insert(CONTENT_TYPE, header_value(&body.content_type)?);
-            *request.body_mut() = Some(reqwest::Body::from(body.bytes.clone()));
+            *request.body_mut() = body.bytes.clone();
         }
         self.shared.auth.authenticate(&mut request).await?;
 
@@ -762,11 +754,52 @@ impl Client {
         }
     }
 
-    fn http_for(&self, operation: &Operation) -> &reqwest::Client {
-        if operation.capture_redirects {
-            &self.shared.http_capturing_redirects
-        } else {
-            &self.shared.http
+    /// Sends one request and follows the redirects it is answered with, up to
+    /// [`MAX_REDIRECTS`] hops, unless the operation is one that takes the redirect for its
+    /// answer. Hands back the URL the answer came from along with the answer.
+    ///
+    /// Credentials stay on the origin they were meant for: a hop to another origin goes out
+    /// without the `Authorization`, the way a browser would send it, which is how a blob
+    /// request ends up at the storage service without HEY's token. A 301, 302 or 303 turns
+    /// anything but a GET or HEAD into a GET without its body; a 307 or 308 keeps both.
+    async fn transmit(
+        &self,
+        operation: &Operation,
+        mut url: Url,
+        mut request: Request<Bytes>,
+    ) -> Result<(Url, HttpResponse<Body>), Error> {
+        let mut hops = 0;
+        loop {
+            let outgoing = (
+                request.method().clone(),
+                request.headers().clone(),
+                request.body().clone(),
+            );
+            let response = self.shared.http.send(request).await?;
+            let next = if operation.capture_redirects {
+                None
+            } else {
+                redirect_target(&url, &response)
+            };
+            match next {
+                None => return Ok((url, response)),
+                Some(_) if hops == MAX_REDIRECTS => {
+                    return Err(Error::new(
+                        ErrorCode::Network,
+                        format!(
+                            "{} redirected more than {MAX_REDIRECTS} times",
+                            operation.id
+                        ),
+                    )
+                    .retryable());
+                }
+                Some(next) => {
+                    require_secure_endpoint(&next)?;
+                    request = redirected(outgoing, response.status(), &url, &next)?;
+                    url = next;
+                    hops += 1;
+                }
+            }
         }
     }
 
@@ -788,12 +821,12 @@ impl Client {
         &self,
         operation: &Operation,
         url: &Url,
-        response: reqwest::Response,
+        final_url: Url,
+        response: HttpResponse<Body>,
         cached: Option<(String, CachedResponse)>,
     ) -> Result<Response, Error> {
         let status = response.status();
         let headers = response.headers().clone();
-        let final_url = response.url().clone();
 
         if status == StatusCode::NOT_MODIFIED {
             return match cached {
@@ -813,7 +846,8 @@ impl Client {
         }
 
         let bound = self.buffer_bound(operation);
-        let body = match read_body(response, bound, &operation.method, url.path()).await {
+        let body = match read_body(response.into_body(), bound, &operation.method, url.path()).await
+        {
             Ok(body) => body,
             Err(refusal) if status.is_success() => return Err(refusal),
             // The status is what matters about a failure, and a body the client would not
@@ -909,10 +943,12 @@ impl Drop for Running<'_> {
     }
 }
 
-/// One answer from HEY with its body unread: what the retry loop settled on, and what the
-/// hooks still have to be told about it once the body has been dealt with.
+/// One answer from HEY with its body unread: what the retry loop settled on, the URL it
+/// came from once any redirects were followed, and what the hooks still have to be told
+/// about it once the body has been dealt with.
 struct Answered {
-    response: reqwest::Response,
+    url: Url,
+    response: HttpResponse<Body>,
     cached: Option<(String, CachedResponse)>,
     info: RequestInfo,
     duration: Duration,
@@ -946,15 +982,64 @@ async fn cache_invalidate(cache: &Arc<dyn ResponseCache>, key: &str) {
     let _ = tokio::task::spawn_blocking(move || cache.invalidate(&key)).await;
 }
 
-fn http_client(
-    timeout: Duration,
-    redirect: reqwest::redirect::Policy,
-) -> Result<reqwest::Client, Error> {
-    reqwest::Client::builder()
-        .timeout(timeout)
-        .redirect(redirect)
-        .build()
-        .map_err(|error| Error::usage(format!("HTTP client: {error}")))
+#[cfg(feature = "reqwest")]
+fn shipped_http_client(timeout: Duration) -> Result<Arc<dyn HttpClient>, Error> {
+    Ok(Arc::new(crate::http::ReqwestClient::with_timeout(timeout)?))
+}
+
+#[cfg(not(feature = "reqwest"))]
+fn shipped_http_client(_timeout: Duration) -> Result<Arc<dyn HttpClient>, Error> {
+    Err(Error::usage(
+        "no HTTP client: supply one with ClientBuilder::http_client, or enable the reqwest feature",
+    ))
+}
+
+/// Where a redirect points, when the answer is one and says where. A 3xx without a
+/// `Location`, or with one that is not a URL, is handed back as the answer it is.
+fn redirect_target(url: &Url, response: &HttpResponse<Body>) -> Option<Url> {
+    let status = response.status();
+    if status.is_redirection() && status != StatusCode::NOT_MODIFIED {
+        response
+            .headers()
+            .get("location")
+            .and_then(|value| value.to_str().ok())
+            .and_then(|location| url.join(location).ok())
+    } else {
+        None
+    }
+}
+
+/// The request to send to `next` on the way there from `from`: the same one, less the
+/// credentials when the origin changes, and reduced to a GET when the status asks for it.
+fn redirected(
+    (method, mut headers, body): (Method, HeaderMap, Bytes),
+    status: StatusCode,
+    from: &Url,
+    next: &Url,
+) -> Result<Request<Bytes>, Error> {
+    let keeps_method = method == Method::GET
+        || method == Method::HEAD
+        || status == StatusCode::TEMPORARY_REDIRECT
+        || status == StatusCode::PERMANENT_REDIRECT;
+    let (method, body) = if keeps_method {
+        (method, body)
+    } else {
+        headers.remove(CONTENT_TYPE);
+        headers.remove(CONTENT_LENGTH);
+        (Method::GET, Bytes::new())
+    };
+    if !is_same_origin(next, from) {
+        headers.remove(AUTHORIZATION);
+        headers.remove(COOKIE);
+        headers.remove(PROXY_AUTHORIZATION);
+    }
+    let mut request = Request::builder()
+        .method(method)
+        .uri(next.as_str())
+        .body(body)
+        .map_err(Error::from_std)?;
+    *request.headers_mut() = headers;
+    Ok(request)
 }
 
 fn parse_base_url(base_url: &str) -> Result<Url, Error> {
@@ -1009,30 +1094,182 @@ fn is_parsed(accept: &str) -> bool {
 /// Reads a body up to the bound and refuses it on the first byte past. A body exactly at
 /// the bound reads whole; one declared past it never starts.
 pub(crate) async fn read_body(
-    mut response: reqwest::Response,
+    body: Body,
     limit: usize,
     method: &Method,
     path: &str,
 ) -> Result<Bytes, Error> {
-    if response
-        .content_length()
-        .is_some_and(|length| length > limit as u64)
-    {
-        return Err(Error::response_too_large(limit, method, path));
-    }
-    let mut body = BytesMut::new();
-    while let Some(chunk) = response.chunk().await.map_err(Error::network)? {
-        if body.len() + chunk.len() > limit {
-            return Err(Error::response_too_large(limit, method, path));
-        }
-        body.extend_from_slice(&chunk);
-    }
-    Ok(body.freeze())
+    body.collect(limit, || Error::response_too_large(limit, method, path))
+        .await
 }
 
 #[cfg(test)]
 mod tests {
+    use std::sync::Mutex;
+
+    use async_trait::async_trait;
+    use serde_json::Value;
+
     use super::*;
+    use crate::auth::StaticTokenProvider;
+
+    /// An [`HttpClient`] with no network behind it: it answers each request from a closure
+    /// and keeps what it was sent. This is the second implementation the trait exists for,
+    /// so the client is exercised here with no `reqwest` in the picture.
+    struct Canned {
+        answer: Box<Answer>,
+        sent: Mutex<Vec<(Method, String, HeaderMap)>>,
+    }
+
+    type Answer = dyn Fn(&Request<Bytes>) -> HttpResponse<Body> + Send + Sync;
+
+    impl Canned {
+        fn new(
+            answer: impl Fn(&Request<Bytes>) -> HttpResponse<Body> + Send + Sync + 'static,
+        ) -> Arc<Canned> {
+            Arc::new(Canned {
+                answer: Box::new(answer),
+                sent: Mutex::new(Vec::new()),
+            })
+        }
+
+        fn sent(&self) -> Vec<(Method, String, HeaderMap)> {
+            self.sent.lock().unwrap().clone()
+        }
+    }
+
+    #[async_trait]
+    impl HttpClient for Arc<Canned> {
+        async fn send(&self, request: Request<Bytes>) -> Result<HttpResponse<Body>, Error> {
+            self.sent.lock().unwrap().push((
+                request.method().clone(),
+                request.uri().to_string(),
+                request.headers().clone(),
+            ));
+            Ok((self.answer)(&request))
+        }
+    }
+
+    fn answer(status: u16, body: &'static str) -> HttpResponse<Body> {
+        let mut response = HttpResponse::new(Body::from(body));
+        *response.status_mut() = StatusCode::from_u16(status).unwrap();
+        response
+    }
+
+    fn redirect(location: &str) -> HttpResponse<Body> {
+        let mut response = answer(302, "");
+        response
+            .headers_mut()
+            .insert("location", HeaderValue::from_str(location).unwrap());
+        response
+    }
+
+    fn client_over(http: Arc<Canned>) -> Client {
+        Client::builder(Config::default().with_base_url("https://hey.test"))
+            .token_provider(StaticTokenProvider::new("secret"))
+            .http_client(http)
+            .max_retries(0)
+            .build()
+            .unwrap()
+    }
+
+    #[tokio::test]
+    async fn a_request_goes_out_on_the_supplied_http_client_with_credentials() {
+        let http = Canned::new(|_| answer(200, r#"{"ok":true}"#));
+        let client = client_over(http.clone());
+
+        let body: Value = client
+            .send(client.request(Method::GET, "/boxes"))
+            .await
+            .unwrap();
+
+        assert_eq!(body, serde_json::json!({ "ok": true }));
+        let sent = http.sent();
+        assert_eq!(sent.len(), 1);
+        assert_eq!(sent[0].0, Method::GET);
+        assert_eq!(sent[0].1, "https://hey.test/boxes.json");
+        assert_eq!(sent[0].2[AUTHORIZATION], "Bearer secret");
+    }
+
+    #[tokio::test]
+    async fn a_redirect_on_the_same_origin_is_followed_with_credentials() {
+        let http = Canned::new(|request| {
+            if request.uri().path() == "/old.json" {
+                redirect("/new.json")
+            } else {
+                answer(200, r#"{"moved":true}"#)
+            }
+        });
+        let client = client_over(http.clone());
+
+        let response = client
+            .execute(client.request(Method::GET, "/old"))
+            .await
+            .unwrap();
+
+        assert_eq!(response.url.as_str(), "https://hey.test/new.json");
+        assert_eq!(response.body, r#"{"moved":true}"#);
+        let sent = http.sent();
+        assert_eq!(sent.len(), 2);
+        assert_eq!(sent[1].1, "https://hey.test/new.json");
+        assert_eq!(sent[1].2[AUTHORIZATION], "Bearer secret");
+    }
+
+    #[tokio::test]
+    async fn a_redirect_off_the_origin_is_followed_without_credentials() {
+        let http = Canned::new(|request| {
+            if request.uri().host() == Some("hey.test") {
+                redirect("https://storage.test/blobs/1")
+            } else {
+                answer(200, "the bytes")
+            }
+        });
+        let client = client_over(http.clone());
+
+        let response = client.get_blob("/blobs/1").await.unwrap();
+
+        assert_eq!(response.body, "the bytes");
+        let sent = http.sent();
+        assert_eq!(sent.len(), 2);
+        assert_eq!(sent[1].1, "https://storage.test/blobs/1");
+        assert!(sent[1].2.get(AUTHORIZATION).is_none());
+    }
+
+    #[tokio::test]
+    async fn a_redirect_to_plain_http_elsewhere_is_refused() {
+        let http = Canned::new(|_| redirect("http://evil.test/"));
+        let client = client_over(http.clone());
+
+        let error = client.get("/anything").await.unwrap_err();
+
+        assert_eq!(error.code(), ErrorCode::Usage);
+        assert_eq!(http.sent().len(), 1);
+    }
+
+    #[tokio::test]
+    async fn a_redirect_loop_is_given_up_on() {
+        let http = Canned::new(|_| redirect("/again"));
+        let client = client_over(http.clone());
+
+        let error = client.get("/again").await.unwrap_err();
+
+        assert_eq!(error.code(), ErrorCode::Network);
+        assert_eq!(http.sent().len(), MAX_REDIRECTS + 1);
+    }
+
+    #[tokio::test]
+    async fn a_form_request_keeps_its_redirect_rather_than_following_it() {
+        let http = Canned::new(|_| redirect("/workflows/8801"));
+        let client = client_over(http.clone());
+
+        let created = client
+            .post_form("/workflows", &[("workflow[name]", "Launch")])
+            .await
+            .unwrap();
+
+        assert_eq!(created.location.as_deref(), Some("/workflows/8801"));
+        assert_eq!(http.sent().len(), 1);
+    }
 
     #[test]
     fn json_extension_is_added_only_where_missing() {

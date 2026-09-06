@@ -87,7 +87,7 @@ pub use world::WORLD_ADDRESS;
 ///
 /// ```no_run
 /// # use hey_sdk::services::write_info;
-/// # use reqwest::Method;
+/// # use hey_sdk::http::Method;
 /// # async fn rename(client: &hey_sdk::Client, workflow_id: i64) -> Result<(), hey_sdk::Error> {
 /// let mut operation = client.form(Method::PATCH, &format!("/workflows/{workflow_id}"))?;
 /// operation.info(write_info(

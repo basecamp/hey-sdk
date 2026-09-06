@@ -7,13 +7,12 @@
 
 use std::borrow::Cow;
 
-use reqwest::Method;
-
 use crate::client::Response;
 use crate::error::Error;
 use crate::form::FormResponse;
 use crate::generated::routes;
 use crate::generated::types::{Extenzion as ExtenzionPayload, NavigationItem, NavigationResponse};
+use crate::http::Method;
 use crate::observability::OperationInfo;
 use crate::services::write_info;
 

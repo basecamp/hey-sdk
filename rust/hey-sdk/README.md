@@ -176,8 +176,8 @@ browser's `Accept`, the redirect captured rather than followed, and never retrie
 `Client::send_form` sends it:
 
 ```rust
+use hey_sdk::http::Method;
 use hey_sdk::services::write_info;
-use reqwest::Method;
 
 let mut operation = client.form(Method::POST, "/workflows")?;
 operation.info(write_info("Workflows", "CreateWorkflow", "workflow", None));
@@ -287,6 +287,47 @@ honouring `Retry-After` on a 429. Any operation is resent once after a 401 that 
 provider's `refresh` could answer. With a `ResponseCache` (`InMemoryCache`, `FileCache`, or
 `config.cache_enabled`), JSON reads revalidate with `If-None-Match` and a 304 is answered from
 the cache. Response bodies are capped at `max_response_body_bytes` (16 MiB by default).
+
+### Bring your own HTTP client
+
+Everything the SDK sends — API calls, OAuth token requests, the attachment bytes that go to
+the storage service — goes out through one `http::HttpClient`. The `reqwest` feature, on by
+default, ships `ReqwestClient` over rustls and HTTP/2, and that is what `Client::new` and
+`OAuthClient::default()` use. To configure it, build it from reqwest's own builder:
+
+```rust
+use hey_sdk::http::ReqwestClient;
+
+let http = ReqwestClient::from_builder(reqwest::Client::builder().proxy(proxy))?;
+let client = Client::builder(config).token_provider(provider).http_client(http).build()?;
+```
+
+To replace it — a mobile shell on the platform's own stack, a test on canned answers —
+implement the trait. It is one method over the `http` crate's types, re-exported at
+`hey_sdk::http`:
+
+```rust
+use async_trait::async_trait;
+use bytes::Bytes;
+use hey_sdk::http::{Body, HttpClient, Request, Response};
+
+struct PlatformHttp;
+
+#[async_trait]
+impl HttpClient for PlatformHttp {
+    async fn send(&self, request: Request<Bytes>) -> Result<Response<Body>, hey_sdk::Error> {
+        // hand the request to the platform, answer with its status, headers and a Body
+        // built from the byte stream it gives back
+    }
+}
+```
+
+An implementation must not follow redirects: the SDK follows them itself, dropping the
+credentials on a hop off the HEY origin and giving up after ten, and a form request's redirect
+is its answer. Timeouts are the implementation's to enforce. With `default-features = false`
+there is no shipped client, and `ClientBuilder::http_client` is the only way to build a
+`Client`. The Go SDK takes an `*http.Client` instead; the trait is a deliberate divergence, so
+the SDK never forces a second HTTP stack into a binary that already has one.
 
 ### Resilience
 

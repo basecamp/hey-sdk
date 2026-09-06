@@ -1,6 +1,6 @@
 use std::ops::Deref;
 
-use reqwest::Method;
+use crate::http::Method;
 use serde_json::Value;
 use url::Url;
 

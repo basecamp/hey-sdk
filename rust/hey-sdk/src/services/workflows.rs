@@ -5,11 +5,10 @@
 
 use std::borrow::Cow;
 
-use reqwest::Method;
-
 use crate::error::Error;
 use crate::generated::routes;
 use crate::generated::types::WorkflowStage;
+use crate::http::Method;
 use crate::observability::OperationInfo;
 use crate::services::write_info;
 

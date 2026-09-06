@@ -3,9 +3,8 @@
 //! Clips have no JSON surface for writes: a write answers with a Turbo Stream rather than a
 //! record, so both of them are browser form posts.
 
-use reqwest::Method;
-
 use crate::error::Error;
+use crate::http::Method;
 use crate::services::write_info;
 
 pub use crate::generated::services::clips::*;

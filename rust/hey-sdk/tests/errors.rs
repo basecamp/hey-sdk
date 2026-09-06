@@ -2,9 +2,8 @@ use hey_sdk::error::{
     EXIT_AMBIGUOUS, EXIT_API, EXIT_AUTH, EXIT_FORBIDDEN, EXIT_NETWORK, EXIT_NOT_FOUND,
     EXIT_RATE_LIMIT, EXIT_USAGE, EXIT_VALIDATION, MAX_ERROR_BODY_BYTES, MAX_ERROR_MESSAGE_BYTES,
 };
+use hey_sdk::http::{HeaderMap, HeaderName, Method, StatusCode};
 use hey_sdk::{Error, ErrorCode};
-use reqwest::header::HeaderMap;
-use reqwest::{Method, StatusCode};
 use serde_json::{Value, json};
 
 #[test]
@@ -360,7 +359,7 @@ fn respond(status: u16, method: &Method, headers: &[(&str, &str)], body: &[u8]) 
     let mut map = HeaderMap::new();
     for (name, value) in headers {
         map.insert(
-            reqwest::header::HeaderName::from_bytes(name.as_bytes()).unwrap(),
+            HeaderName::from_bytes(name.as_bytes()).unwrap(),
             value.parse().unwrap(),
         );
     }

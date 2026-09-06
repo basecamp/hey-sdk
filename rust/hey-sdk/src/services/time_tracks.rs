@@ -8,11 +8,11 @@ use std::borrow::Cow;
 
 use bytes::Bytes;
 use chrono::Utc;
-use reqwest::Method;
 
 use crate::error::Error;
 use crate::generated::routes;
 use crate::generated::types::{Recording, UpdateTimeTrackPayload, UpdateTimeTrackRequestContent};
+use crate::http::Method;
 use crate::observability::OperationInfo;
 use crate::services::write_info;
 

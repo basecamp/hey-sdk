@@ -1,8 +1,8 @@
 use std::borrow::Cow;
 use std::fmt::Display;
 
+use crate::http::Method;
 use bytes::Bytes;
-use reqwest::Method;
 use serde::Serialize;
 use url::Url;
 

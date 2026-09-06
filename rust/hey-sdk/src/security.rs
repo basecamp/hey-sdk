@@ -1,7 +1,7 @@
-use reqwest::header::{HeaderMap, HeaderValue};
 use url::Url;
 
 use crate::error::Error;
+use crate::http::{HeaderMap, HeaderValue};
 
 const SENSITIVE_HEADERS: &[&str] = &["authorization", "cookie", "set-cookie", "x-csrf-token"];
 

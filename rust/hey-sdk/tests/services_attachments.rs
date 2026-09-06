@@ -1,6 +1,7 @@
 mod support;
 
 use hey_sdk::ErrorCode;
+use hey_sdk::http::{HeaderMap, ReqwestClient};
 use serde_json::{Value, json};
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
@@ -207,14 +208,12 @@ async fn the_bytes_go_out_on_the_clients_own_http_client() {
         ResponseTemplate::new(200).set_body_json(direct_upload(&storage.uri())),
     )
     .await;
-    let mut configured = reqwest::header::HeaderMap::new();
+    let mut configured = HeaderMap::new();
     configured.insert("x-through-the-proxy", "yes".parse().unwrap());
 
     builder(&server)
         .http_client(
-            reqwest::Client::builder()
-                .default_headers(configured)
-                .build()
+            ReqwestClient::from_builder(reqwest::Client::builder().default_headers(configured))
                 .unwrap(),
         )
         .build()

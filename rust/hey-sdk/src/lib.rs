@@ -2,7 +2,9 @@
 //!
 //! Types, routes and service methods are generated from the Smithy model in the
 //! repository's `spec/` directory; everything else in this crate is the plumbing they
-//! share: authentication, retries, the response cache, pagination and account scope.
+//! share: authentication, retries, redirects, the response cache, pagination and account
+//! scope. All of it sends through one [`http::HttpClient`], which an application may
+//! replace with its own; the `reqwest` feature, on by default, ships one.
 //!
 //! ```no_run
 //! use hey_sdk::{Client, Config, StaticTokenProvider};
@@ -24,6 +26,7 @@ pub mod config;
 pub mod error;
 pub mod form;
 mod generated;
+pub mod http;
 pub mod oauth;
 pub mod observability;
 pub mod operation;
@@ -42,6 +45,7 @@ pub use client::{Client, ClientBuilder, Response};
 pub use config::Config;
 pub use error::{Error, ErrorCode};
 pub use form::FormResponse;
+pub use http::HttpClient;
 pub use operation::Operation;
 pub use pagination::Page;
 pub use types::{Date, DateTime, SensitiveString};

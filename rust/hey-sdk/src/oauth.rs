@@ -1,14 +1,17 @@
+use std::fmt;
+use std::sync::Arc;
+
 use base64::Engine;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use bytes::{Bytes, BytesMut};
 use chrono::{DateTime, TimeDelta, Utc};
-use reqwest::StatusCode;
-use reqwest::header::{ACCEPT, CONTENT_TYPE};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use url::{Url, form_urlencoded};
 
 use crate::error::{Error, MAX_ERROR_MESSAGE_BYTES, truncate};
+use crate::http::header::{ACCEPT, CONTENT_TYPE};
+use crate::http::{Body, HttpClient, Method, Request, Response, StatusCode};
 use crate::security::require_secure_endpoint;
 use crate::types::SensitiveString;
 
@@ -152,16 +155,19 @@ pub struct RefreshRequest {
 
 /// Talks to an OAuth 2.0 server: discovery, code exchange and refresh.
 ///
-/// [`Default`] builds it over a plain HTTP client, so an application need not depend on
-/// `reqwest` itself; [`new`](OAuthClient::new) is for one that has a client to share.
-#[derive(Debug, Clone, Default)]
+/// It sends on any [`HttpClient`]. With the `reqwest` feature, [`Default`] builds it over
+/// the one the SDK ships, so an application need not depend on `reqwest` itself;
+/// [`new`](OAuthClient::new) is for one that has a client of its own to share.
+#[derive(Clone)]
 pub struct OAuthClient {
-    http: reqwest::Client,
+    http: Arc<dyn HttpClient>,
 }
 
 impl OAuthClient {
-    pub fn new(http: reqwest::Client) -> OAuthClient {
-        OAuthClient { http }
+    pub fn new(http: impl HttpClient + 'static) -> OAuthClient {
+        OAuthClient {
+            http: Arc::new(http),
+        }
     }
 
     pub async fn discover(&self, base_url: &str) -> Result<ServerMetadata, Error> {
@@ -169,12 +175,13 @@ impl OAuthClient {
             "{}/.well-known/oauth-authorization-server",
             base_url.trim_end_matches('/')
         );
-        let response = self
-            .http
-            .get(&url)
+        let request = Request::builder()
+            .method(Method::GET)
+            .uri(url)
             .header(ACCEPT, "application/json")
-            .send()
-            .await?;
+            .body(Bytes::new())
+            .map_err(Error::from_std)?;
+        let response = self.http.send(request).await?;
 
         let status = response.status();
         if status == StatusCode::OK {
@@ -214,14 +221,14 @@ impl OAuthClient {
         let url = Url::parse(token_endpoint)?;
         require_secure_endpoint(&url)?;
 
-        let response = self
-            .http
-            .post(url)
+        let request = Request::builder()
+            .method(Method::POST)
+            .uri(url.as_str())
             .header(ACCEPT, "application/json")
             .header(CONTENT_TYPE, FORM_CONTENT_TYPE)
-            .body(form)
-            .send()
-            .await?;
+            .body(Bytes::from(form))
+            .map_err(Error::from_std)?;
+        let response = self.http.send(request).await?;
 
         let status = response.status();
         let body = read_capped(response, MAX_TOKEN_RESPONSE_BYTES).await?;
@@ -273,30 +280,35 @@ fn refresh_form(request: &RefreshRequest) -> String {
     form.finish()
 }
 
-async fn read_capped(mut response: reqwest::Response, limit: usize) -> Result<Bytes, Error> {
-    let too_large = || Error::api(0, format!("OAuth response body exceeds {limit} bytes"));
-    if response
-        .content_length()
-        .is_some_and(|length| length > limit as u64)
-    {
-        return Err(too_large());
+impl fmt::Debug for OAuthClient {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("OAuthClient").finish_non_exhaustive()
     }
-    let mut body = BytesMut::new();
-    while let Some(chunk) = response.chunk().await.map_err(Error::network)? {
-        if body.len() + chunk.len() > limit {
-            return Err(too_large());
-        }
-        body.extend_from_slice(&chunk);
+}
+
+#[cfg(feature = "reqwest")]
+impl Default for OAuthClient {
+    fn default() -> OAuthClient {
+        OAuthClient::new(crate::http::ReqwestClient::default())
     }
-    Ok(body.freeze())
+}
+
+async fn read_capped(response: Response<Body>, limit: usize) -> Result<Bytes, Error> {
+    response
+        .into_body()
+        .collect(limit, || {
+            Error::api(0, format!("OAuth response body exceeds {limit} bytes"))
+        })
+        .await
 }
 
 /// Reads up to `limit` bytes for an error message, giving up on whatever it has when the
 /// body itself fails to arrive.
-async fn read_truncated(mut response: reqwest::Response, limit: usize) -> String {
+async fn read_truncated(response: Response<Body>, limit: usize) -> String {
+    let mut stream = response.into_body();
     let mut body = BytesMut::new();
     while body.len() < limit {
-        match response.chunk().await {
+        match stream.chunk().await {
             Ok(Some(chunk)) => body.extend_from_slice(&chunk),
             Ok(None) | Err(_) => break,
         }
@@ -456,7 +468,7 @@ mod tests {
             .mount(&server)
             .await;
 
-        let metadata = OAuthClient::new(reqwest::Client::new())
+        let metadata = OAuthClient::default()
             .discover(&server.uri())
             .await
             .unwrap();
@@ -477,7 +489,7 @@ mod tests {
             .mount(&server)
             .await;
 
-        let error = OAuthClient::new(reqwest::Client::new())
+        let error = OAuthClient::default()
             .discover(&server.uri())
             .await
             .unwrap_err();
@@ -515,10 +527,7 @@ mod tests {
             code_verifier: "verifier-1".into(),
             install_id: "install-1".to_string(),
         };
-        let token = OAuthClient::new(reqwest::Client::new())
-            .exchange(&request)
-            .await
-            .unwrap();
+        let token = OAuthClient::default().exchange(&request).await.unwrap();
 
         assert_eq!("access-1", token.access_token.expose());
         assert_eq!(
@@ -549,10 +558,7 @@ mod tests {
             code_verifier: "verifier-1".into(),
             install_id: "install-1".to_string(),
         };
-        let error = OAuthClient::new(reqwest::Client::new())
-            .exchange(&request)
-            .await
-            .unwrap_err();
+        let error = OAuthClient::default().exchange(&request).await.unwrap_err();
 
         assert_eq!(crate::error::ErrorCode::Auth, error.code());
         assert_eq!("token error: invalid_grant", error.message());
@@ -562,7 +568,7 @@ mod tests {
 
     #[tokio::test]
     async fn exchange_wants_its_required_fields() {
-        let error = OAuthClient::new(reqwest::Client::new())
+        let error = OAuthClient::default()
             .exchange(&ExchangeRequest::default())
             .await
             .unwrap_err();
@@ -582,10 +588,7 @@ mod tests {
             code_verifier: "verifier-1".into(),
             install_id: String::new(),
         };
-        let error = OAuthClient::new(reqwest::Client::new())
-            .exchange(&request)
-            .await
-            .unwrap_err();
+        let error = OAuthClient::default().exchange(&request).await.unwrap_err();
 
         assert_eq!(crate::error::ErrorCode::Usage, error.code());
         assert_eq!("install ID is required", error.message());
@@ -615,10 +618,7 @@ mod tests {
             client_secret: None,
             install_id: "install-1".to_string(),
         };
-        let token = OAuthClient::new(reqwest::Client::new())
-            .refresh(&request)
-            .await
-            .unwrap();
+        let token = OAuthClient::default().refresh(&request).await.unwrap();
 
         assert_eq!("access-2", token.access_token.expose());
         assert_eq!(None, token.refresh_token);
@@ -640,10 +640,7 @@ mod tests {
             client_secret: None,
             install_id: "install-1".to_string(),
         };
-        let error = OAuthClient::new(reqwest::Client::new())
-            .refresh(&request)
-            .await
-            .unwrap_err();
+        let error = OAuthClient::default().refresh(&request).await.unwrap_err();
 
         assert_eq!(
             "token request failed with status 503 Service Unavailable",
@@ -661,10 +658,7 @@ mod tests {
             client_secret: None,
             install_id: "install-1".to_string(),
         };
-        let error = OAuthClient::new(reqwest::Client::new())
-            .refresh(&request)
-            .await
-            .unwrap_err();
+        let error = OAuthClient::default().refresh(&request).await.unwrap_err();
 
         assert_eq!(crate::error::ErrorCode::Usage, error.code());
     }

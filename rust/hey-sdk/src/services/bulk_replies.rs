@@ -1,7 +1,6 @@
 //! Sending one reply to many threads, and calling a delayed one back, on top of the
 //! generated bulk reply routes.
 
-use reqwest::Method;
 use url::Url;
 
 use crate::error::Error;
@@ -9,6 +8,7 @@ use crate::generated::types::{
     BulkReplyMessagePayload, BulkReplyRequestContent, CreateBulkReplyResponseContent,
     NewBulkReplyResponseContent,
 };
+use crate::http::Method;
 use crate::services::write_info;
 
 pub use crate::generated::services::bulk_replies::*;

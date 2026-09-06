@@ -5,8 +5,6 @@
 use base64::Engine;
 use base64::engine::general_purpose::STANDARD;
 use bytes::Bytes;
-use reqwest::Method;
-use reqwest::header::{AUTHORIZATION, HeaderMap, HeaderName, HeaderValue};
 use url::Url;
 
 use crate::client::{Client, MAX_RESPONSE_BODY_BYTES, read_body};
@@ -14,6 +12,8 @@ use crate::error::Error;
 use crate::generated::types::{
     CreateDirectUploadRequestContent, DirectUpload, DirectUploadBlob, DirectUploadTarget,
 };
+use crate::http::header::AUTHORIZATION;
+use crate::http::{HeaderMap, HeaderName, HeaderValue, Method, Request};
 use crate::security::require_secure_endpoint;
 
 pub use crate::generated::services::attachments::*;
@@ -75,8 +75,8 @@ fn reserved(upload: DirectUpload) -> Result<DirectUpload, Error> {
 /// authenticates itself and takes exactly the headers HEY named — including any
 /// `Authorization` the storage service wants, which is why the HEY credentials must not
 /// ride along. Going through [`crate::Client::execute`] would attach them, so the request
-/// is built here and sent on the client's own `reqwest::Client`, which carries the
-/// connection pool, the timeout and whatever else the caller configured.
+/// is built here and sent on the client's own [`crate::http::HttpClient`], which carries
+/// the connection pool, the timeout and whatever else the caller configured.
 ///
 /// A storage service answers a failure with a document of its own, and that is all this
 /// reads: the answer is held to [`MAX_RESPONSE_BODY_BYTES`] so a service saying too much
@@ -87,18 +87,23 @@ async fn store(client: &Client, target: &DirectUploadTarget, content: Bytes) -> 
         .map_err(|error| Error::usage(format!("unsafe attachment upload target: {error}")))?;
 
     let path = url.path().to_string();
-    let answered = client
-        .http()
-        .put(url)
-        .headers(storage_headers(target)?)
+    let mut request = Request::builder()
+        .method(Method::PUT)
+        .uri(url.as_str())
         .body(content)
-        .send()
-        .await
-        .map_err(Error::network)?;
+        .map_err(Error::from_std)?;
+    *request.headers_mut() = storage_headers(target)?;
+    let answered = client.http().send(request).await?;
 
     let status = answered.status();
     let headers = answered.headers().clone();
-    let body = read_body(answered, MAX_RESPONSE_BODY_BYTES, &Method::PUT, &path).await?;
+    let body = read_body(
+        answered.into_body(),
+        MAX_RESPONSE_BODY_BYTES,
+        &Method::PUT,
+        &path,
+    )
+    .await?;
     if status.is_success() {
         Ok(())
     } else {

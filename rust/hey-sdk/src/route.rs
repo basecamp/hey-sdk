@@ -1,7 +1,7 @@
 use std::fmt::Display;
 
+use crate::http::Method;
 use percent_encoding::{AsciiSet, NON_ALPHANUMERIC, utf8_percent_encode};
-use reqwest::Method;
 
 /// One API operation: its method, its path template and the behaviour the Smithy model
 /// attaches to it. Every route the SDK knows lives in [`crate::routes`].

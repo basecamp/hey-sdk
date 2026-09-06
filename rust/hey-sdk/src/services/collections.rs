@@ -3,10 +3,9 @@
 //!
 //! HEY serves no JSON endpoint for any of these, so each one is a browser form post.
 
-use reqwest::Method;
-
 use crate::error::Error;
 use crate::generated::types::{CollectionPayload, UpdateCollectionRequestContent};
+use crate::http::Method;
 use crate::services::write_info;
 
 pub use crate::generated::services::collections::*;

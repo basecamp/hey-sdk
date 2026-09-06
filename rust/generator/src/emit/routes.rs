@@ -6,7 +6,7 @@ use crate::naming::constant_name;
 
 pub fn render(model: &Model) -> String {
     let mut out = String::from(HEADER);
-    out.push_str("use reqwest::Method;\n\n");
+    out.push_str("use crate::http::Method;\n");
     out.push_str(
         "use crate::route::{Pagination, ParamKind, ParamRole, Retry, Route, RouteParam};\n\n",
     );

@@ -12,7 +12,6 @@
 use std::borrow::Cow;
 use std::collections::{BTreeMap, HashSet};
 
-use reqwest::Method;
 use serde::{Deserialize, Serialize};
 use url::Url;
 
@@ -20,6 +19,7 @@ use crate::client::Response;
 use crate::error::Error;
 use crate::generated::services::calendars::Calendars;
 use crate::generated::types::{Calendar, Recording};
+use crate::http::Method;
 use crate::observability::OperationInfo;
 use crate::operation::Operation;
 use crate::pagination::next_link;

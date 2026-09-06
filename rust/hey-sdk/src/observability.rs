@@ -6,8 +6,8 @@ use std::borrow::Cow;
 use std::sync::Arc;
 use std::time::Duration;
 
+use crate::http::{Method, StatusCode};
 use async_trait::async_trait;
-use reqwest::{Method, StatusCode};
 use url::Url;
 
 use crate::error::Error;

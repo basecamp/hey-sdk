@@ -1,7 +1,9 @@
 mod support;
 
 use async_trait::async_trait;
+use bytes::Bytes;
 use hey_sdk::cache::InMemoryCache;
+use hey_sdk::http::Request;
 use hey_sdk::{AuthStrategy, Client, Config, Error, ErrorCode};
 use serde_json::json;
 use wiremock::matchers::{method, path};
@@ -284,7 +286,7 @@ struct Anonymous;
 
 #[async_trait]
 impl AuthStrategy for Anonymous {
-    async fn authenticate(&self, _request: &mut reqwest::Request) -> Result<(), Error> {
+    async fn authenticate(&self, _request: &mut Request<Bytes>) -> Result<(), Error> {
         Ok(())
     }
 }

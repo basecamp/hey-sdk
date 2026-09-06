@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 use std::sync::OnceLock;
 
-use reqwest::Method;
+use crate::http::Method;
 use url::Url;
 
 use crate::generated::routes::ROUTES;

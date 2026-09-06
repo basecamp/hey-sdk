@@ -8,8 +8,6 @@
 //! around.
 
 use bytes::Bytes;
-use reqwest::Method;
-use reqwest::header::HeaderMap;
 use serde::Serialize;
 use tokio::io::{AsyncWrite, AsyncWriteExt};
 use url::Url;
@@ -17,6 +15,7 @@ use url::Url;
 use crate::client::{Client, Response};
 use crate::error::Error;
 use crate::form::FormResponse;
+use crate::http::{HeaderMap, Method};
 use crate::operation::Operation;
 use crate::security::is_same_origin;
 
@@ -61,10 +60,11 @@ impl Client {
         path: &str,
         destination: &mut (impl AsyncWrite + Unpin),
     ) -> Result<(u64, HeaderMap), Error> {
-        let mut response = self.stream(self.blob(path)?).await?;
+        let response = self.stream(self.blob(path)?).await?;
         let headers = response.headers().clone();
+        let mut body = response.into_body();
         let mut written = 0;
-        while let Some(chunk) = response.chunk().await.map_err(Error::network)? {
+        while let Some(chunk) = body.chunk().await? {
             destination
                 .write_all(&chunk)
                 .await
@@ -185,9 +185,8 @@ impl Client {
     }
 
     /// A blob is read from the HEY origin and nowhere else: the request carries the
-    /// credentials, and only a redirect — which the HTTP client strips them before
-    /// following — may lead off it. The response cache is for JSON documents, so a blob
-    /// goes past it.
+    /// credentials, and only a redirect — which the client strips them before following —
+    /// may lead off it. The response cache is for JSON documents, so a blob goes past it.
     fn blob(&self, path: &str) -> Result<Operation, Error> {
         let mut operation = self.raw(Method::GET, path)?;
         if let Some(url) = &operation.url

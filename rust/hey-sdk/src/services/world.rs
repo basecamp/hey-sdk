@@ -7,10 +7,10 @@ use std::borrow::Cow;
 
 use bytes::{Bytes, BytesMut};
 use percent_encoding::{AsciiSet, NON_ALPHANUMERIC, utf8_percent_encode};
-use reqwest::Method;
 
 use crate::client::Client;
 use crate::error::Error;
+use crate::http::Method;
 use crate::observability::OperationInfo;
 use crate::services::write_info;
 

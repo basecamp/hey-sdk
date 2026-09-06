@@ -4,8 +4,8 @@ use std::sync::Mutex;
 
 use async_trait::async_trait;
 use bytes::Bytes;
+use hey_sdk::http::{ReqwestClient, StatusCode};
 use hey_sdk::{Error, ErrorCode, FormResponse, TokenProvider};
-use reqwest::StatusCode;
 use wiremock::matchers::{header, method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
@@ -217,7 +217,7 @@ fn the_id_is_the_rightmost_numeric_segment_of_the_redirect() {
 /// form requests use: that one has to refuse redirects, and a caller supplying a client that
 /// follows them would otherwise silently lose the `Location` every form write is made for.
 #[tokio::test]
-async fn a_supplied_http_client_does_not_become_the_redirect_capturing_one() {
+async fn a_supplied_http_client_still_has_its_redirects_captured() {
     let server = MockServer::start().await;
     Mock::given(method("POST"))
         .and(path("/workflows"))
@@ -231,7 +231,7 @@ async fn a_supplied_http_client_does_not_become_the_redirect_capturing_one() {
         .await;
 
     let created = builder(&server)
-        .http_client(reqwest::Client::new())
+        .http_client(ReqwestClient::from_builder(reqwest::Client::builder()).unwrap())
         .build()
         .unwrap()
         .post_form("/workflows", &[("workflow[name]", "Launch")])

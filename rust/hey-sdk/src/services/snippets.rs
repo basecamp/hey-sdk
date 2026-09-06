@@ -4,9 +4,8 @@
 //! Snippets have no JSON surface for writes: every one of them redirects, so they are
 //! browser form posts.
 
-use reqwest::Method;
-
 use crate::error::Error;
+use crate::http::Method;
 use crate::services::write_info;
 
 pub use crate::generated::services::snippets::*;

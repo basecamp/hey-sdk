@@ -4,6 +4,7 @@ use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
 use async_trait::async_trait;
+use hey_sdk::http::Method;
 use hey_sdk::models::{
     ContactPayload, CreateContactRequestContent, CreateMessageRequestContent, MessagePayload,
 };
@@ -13,7 +14,6 @@ use hey_sdk::version::default_user_agent;
 use hey_sdk::{
     API_VERSION, Client, Config, Error, ErrorCode, StaticTokenProvider, TokenProvider, VERSION,
 };
-use reqwest::Method;
 use serde_json::{Value, json};
 use wiremock::matchers::{header, method, path, query_param, query_param_is_missing};
 use wiremock::{Mock, MockServer, ResponseTemplate};

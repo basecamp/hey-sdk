@@ -1,8 +1,9 @@
 use async_trait::async_trait;
-use reqwest::Request;
-use reqwest::header::{AUTHORIZATION, HeaderValue};
+use bytes::Bytes;
 
 use crate::error::Error;
+use crate::http::header::AUTHORIZATION;
+use crate::http::{HeaderValue, Request};
 use crate::types::SensitiveString;
 
 /// Supplies the access token each request goes out with.
@@ -47,7 +48,7 @@ impl TokenProvider for StaticTokenProvider {
 /// header from a [`TokenProvider`]; anything else can plug in here.
 #[async_trait]
 pub trait AuthStrategy: Send + Sync {
-    async fn authenticate(&self, request: &mut Request) -> Result<(), Error>;
+    async fn authenticate(&self, request: &mut Request<Bytes>) -> Result<(), Error>;
 
     /// Asked once when a request is answered with 401; see [`TokenProvider::refresh`].
     async fn refresh(&self) -> bool {
@@ -67,7 +68,7 @@ impl<P: TokenProvider> BearerAuth<P> {
 
 #[async_trait]
 impl<P: TokenProvider> AuthStrategy for BearerAuth<P> {
-    async fn authenticate(&self, request: &mut Request) -> Result<(), Error> {
+    async fn authenticate(&self, request: &mut Request<Bytes>) -> Result<(), Error> {
         let token = self.provider.access_token().await?;
         let value = HeaderValue::from_str(&format!("Bearer {token}"))
             .map_err(|_| Error::auth("access token is not a valid header value"))?;

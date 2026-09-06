@@ -1,8 +1,8 @@
 use std::fmt;
 
-use reqwest::header::HeaderMap;
-use reqwest::{Method, StatusCode};
 use serde::de::DeserializeOwned;
+
+use crate::http::{HeaderMap, Method, StatusCode};
 
 /// The call succeeded.
 pub const EXIT_OK: i32 = 0;
@@ -434,18 +434,6 @@ impl std::error::Error for Error {
         self.source
             .as_deref()
             .map(|source| source as &(dyn std::error::Error + 'static))
-    }
-}
-
-impl From<reqwest::Error> for Error {
-    fn from(error: reqwest::Error) -> Error {
-        if error.is_decode() {
-            Error::api(0, "unreadable response")
-                .with_hint(error.to_string())
-                .with_source(error)
-        } else {
-            Error::network(error)
-        }
     }
 }
 
