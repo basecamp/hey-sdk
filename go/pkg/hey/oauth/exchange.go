@@ -40,6 +40,9 @@ func (e *Exchanger) Exchange(ctx context.Context, req ExchangeRequest) (*Token, 
 	if req.ClientID == "" {
 		return nil, fmt.Errorf("client ID is required")
 	}
+	if req.InstallID == "" {
+		return nil, fmt.Errorf("install ID is required")
+	}
 
 	data := url.Values{}
 	data.Set("grant_type", "authorization_code")
@@ -52,6 +55,7 @@ func (e *Exchanger) Exchange(ctx context.Context, req ExchangeRequest) (*Token, 
 	if req.CodeVerifier != "" {
 		data.Set("code_verifier", req.CodeVerifier)
 	}
+	data.Set("install_id", req.InstallID)
 
 	return e.doTokenRequest(ctx, req.TokenEndpoint, data)
 }
@@ -64,6 +68,9 @@ func (e *Exchanger) Refresh(ctx context.Context, req RefreshRequest) (*Token, er
 	if req.RefreshToken == "" {
 		return nil, fmt.Errorf("refresh token is required")
 	}
+	if req.InstallID == "" {
+		return nil, fmt.Errorf("install ID is required")
+	}
 
 	data := url.Values{}
 	data.Set("grant_type", "refresh_token")
@@ -74,6 +81,7 @@ func (e *Exchanger) Refresh(ctx context.Context, req RefreshRequest) (*Token, er
 	if req.ClientSecret != "" {
 		data.Set("client_secret", req.ClientSecret)
 	}
+	data.Set("install_id", req.InstallID)
 
 	return e.doTokenRequest(ctx, req.TokenEndpoint, data)
 }

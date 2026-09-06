@@ -28,6 +28,22 @@ pub struct ServerMetadata {
     pub scopes_supported: Option<Vec<String>>,
 }
 
+impl ServerMetadata {
+    /// HEY's endpoints under `base_url`. HEY publishes no well-known document, so
+    /// [`OAuthClient::discover`] has nothing to find there; this is where hey-cli sends
+    /// people and tokens.
+    pub fn for_hey(base_url: &str) -> ServerMetadata {
+        let origin = base_url.trim_end_matches('/');
+        ServerMetadata {
+            issuer: origin.to_string(),
+            authorization_endpoint: format!("{origin}/oauth/authorizations/new"),
+            token_endpoint: format!("{origin}/oauth/tokens"),
+            registration_endpoint: None,
+            scopes_supported: None,
+        }
+    }
+}
+
 /// A token response. `expires_at` is worked out from `expires_in` when the token arrives,
 /// so it survives being stored.
 ///
@@ -73,6 +89,12 @@ pub fn generate_state() -> String {
 }
 
 /// The URL to send someone to so they can approve the client.
+///
+/// HEY's authorization endpoint is not quite RFC 6749: it dispatches on `grant_type`
+/// rather than `response_type`, and it wants the `install_id` that identifies this
+/// installation as a device, on this request and on every token request after it. The
+/// Go SDK sends neither and cannot complete a login against HEY; this is the URL hey-cli
+/// sends, which can.
 pub fn authorization_url(
     metadata: &ServerMetadata,
     client_id: &str,
@@ -80,12 +102,13 @@ pub fn authorization_url(
     scope: Option<&str>,
     state: &str,
     pkce: &Pkce,
+    install_id: &str,
 ) -> Result<Url, Error> {
     let mut url = Url::parse(&metadata.authorization_endpoint)?;
     {
         let mut query = url.query_pairs_mut();
-        query.append_pair("response_type", "code");
         query.append_pair("client_id", client_id);
+        query.append_pair("grant_type", "authorization_code");
         query.append_pair("redirect_uri", redirect_uri);
         if let Some(scope) = scope {
             query.append_pair("scope", scope);
@@ -93,6 +116,7 @@ pub fn authorization_url(
         query.append_pair("state", state);
         query.append_pair("code_challenge", &pkce.challenge);
         query.append_pair("code_challenge_method", "S256");
+        query.append_pair("install_id", install_id);
     }
     Ok(url)
 }
@@ -109,6 +133,9 @@ pub struct ExchangeRequest {
     /// The verifier [`generate_pkce`] drew, which redeems the code and so is a secret of the
     /// same weight.
     pub code_verifier: SensitiveString,
+    /// The same installation identifier the authorization URL carried. HEY refuses the
+    /// exchange without it.
+    pub install_id: String,
 }
 
 /// Trades a refresh token for a new access token.
@@ -118,10 +145,16 @@ pub struct RefreshRequest {
     pub refresh_token: SensitiveString,
     pub client_id: String,
     pub client_secret: Option<SensitiveString>,
+    /// The installation identifier the tokens were issued to. HEY refuses the refresh
+    /// without it.
+    pub install_id: String,
 }
 
 /// Talks to an OAuth 2.0 server: discovery, code exchange and refresh.
-#[derive(Debug, Clone)]
+///
+/// [`Default`] builds it over a plain HTTP client, so an application need not depend on
+/// `reqwest` itself; [`new`](OAuthClient::new) is for one that has a client to share.
+#[derive(Debug, Clone, Default)]
 pub struct OAuthClient {
     http: reqwest::Client,
 }
@@ -162,6 +195,7 @@ impl OAuthClient {
         require(request.code.expose(), "authorization code is required")?;
         require(&request.redirect_uri, "redirect URI is required")?;
         require(&request.client_id, "client ID is required")?;
+        require(&request.install_id, "install ID is required")?;
 
         self.post_token_request(&request.token_endpoint, exchange_form(request))
             .await
@@ -170,6 +204,7 @@ impl OAuthClient {
     pub async fn refresh(&self, request: &RefreshRequest) -> Result<Token, Error> {
         require(&request.token_endpoint, "token endpoint is required")?;
         require(request.refresh_token.expose(), "refresh token is required")?;
+        require(&request.install_id, "install ID is required")?;
 
         self.post_token_request(&request.token_endpoint, refresh_form(request))
             .await
@@ -220,6 +255,7 @@ fn exchange_form(request: &ExchangeRequest) -> String {
     if !request.code_verifier.is_empty() {
         form.append_pair("code_verifier", request.code_verifier.expose());
     }
+    form.append_pair("install_id", &request.install_id);
     form.finish()
 }
 
@@ -233,6 +269,7 @@ fn refresh_form(request: &RefreshRequest) -> String {
     if let Some(secret) = &request.client_secret {
         form.append_pair("client_secret", secret.expose());
     }
+    form.append_pair("install_id", &request.install_id);
     form.finish()
 }
 
@@ -339,7 +376,7 @@ mod tests {
     }
 
     #[test]
-    fn authorization_url_carries_the_challenge_and_state() {
+    fn authorization_url_carries_the_challenge_state_and_install_id() {
         let pkce = generate_pkce();
         let url = authorization_url(
             &metadata("https://auth.example.com"),
@@ -348,6 +385,7 @@ mod tests {
             Some("read write"),
             "state-1",
             &pkce,
+            "install-1",
         )
         .unwrap();
 
@@ -359,8 +397,8 @@ mod tests {
         assert_eq!("/authorize", url.path());
         assert_eq!(
             vec![
-                ("response_type".to_string(), "code".to_string()),
                 ("client_id".to_string(), "client-1".to_string()),
+                ("grant_type".to_string(), "authorization_code".to_string()),
                 (
                     "redirect_uri".to_string(),
                     "http://127.0.0.1:9000/callback".to_string()
@@ -369,9 +407,22 @@ mod tests {
                 ("state".to_string(), "state-1".to_string()),
                 ("code_challenge".to_string(), pkce.challenge.clone()),
                 ("code_challenge_method".to_string(), "S256".to_string()),
+                ("install_id".to_string(), "install-1".to_string()),
             ],
             query
         );
+    }
+
+    #[test]
+    fn hey_metadata_points_at_its_oauth_routes() {
+        let metadata = ServerMetadata::for_hey("https://app.hey.com/");
+
+        assert_eq!("https://app.hey.com", metadata.issuer);
+        assert_eq!(
+            "https://app.hey.com/oauth/authorizations/new",
+            metadata.authorization_endpoint
+        );
+        assert_eq!("https://app.hey.com/oauth/tokens", metadata.token_endpoint);
     }
 
     #[test]
@@ -383,6 +434,7 @@ mod tests {
             None,
             "state-1",
             &generate_pkce(),
+            "install-1",
         )
         .unwrap();
 
@@ -443,6 +495,7 @@ mod tests {
             .and(body_string_contains("grant_type=authorization_code"))
             .and(body_string_contains("code_verifier=verifier-1"))
             .and(body_string_contains("code=code-1"))
+            .and(body_string_contains("install_id=install-1"))
             .respond_with(ResponseTemplate::new(200).set_body_json(json!({
                 "access_token": "access-1",
                 "refresh_token": "refresh-1",
@@ -460,6 +513,7 @@ mod tests {
             client_id: "client-1".to_string(),
             client_secret: None,
             code_verifier: "verifier-1".into(),
+            install_id: "install-1".to_string(),
         };
         let token = OAuthClient::new(reqwest::Client::new())
             .exchange(&request)
@@ -493,6 +547,7 @@ mod tests {
             client_id: "client-1".to_string(),
             client_secret: None,
             code_verifier: "verifier-1".into(),
+            install_id: "install-1".to_string(),
         };
         let error = OAuthClient::new(reqwest::Client::new())
             .exchange(&request)
@@ -517,6 +572,26 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn exchange_wants_an_install_id() {
+        let request = ExchangeRequest {
+            token_endpoint: "https://auth.example.com/token".to_string(),
+            code: "code-1".into(),
+            redirect_uri: "http://127.0.0.1:9000/callback".to_string(),
+            client_id: "client-1".to_string(),
+            client_secret: None,
+            code_verifier: "verifier-1".into(),
+            install_id: String::new(),
+        };
+        let error = OAuthClient::new(reqwest::Client::new())
+            .exchange(&request)
+            .await
+            .unwrap_err();
+
+        assert_eq!(crate::error::ErrorCode::Usage, error.code());
+        assert_eq!("install ID is required", error.message());
+    }
+
+    #[tokio::test]
     async fn refresh_trades_a_refresh_token_for_a_token() {
         let server = MockServer::start().await;
         Mock::given(method("POST"))
@@ -524,6 +599,7 @@ mod tests {
             .and(body_string_contains("grant_type=refresh_token"))
             .and(body_string_contains("refresh_token=refresh-1"))
             .and(body_string_contains("client_id=client-1"))
+            .and(body_string_contains("install_id=install-1"))
             .respond_with(ResponseTemplate::new(200).set_body_json(json!({
                 "access_token": "access-2",
                 "token_type": "Bearer",
@@ -537,6 +613,7 @@ mod tests {
             refresh_token: "refresh-1".into(),
             client_id: "client-1".to_string(),
             client_secret: None,
+            install_id: "install-1".to_string(),
         };
         let token = OAuthClient::new(reqwest::Client::new())
             .refresh(&request)
@@ -561,6 +638,7 @@ mod tests {
             refresh_token: "refresh-1".into(),
             client_id: "client-1".to_string(),
             client_secret: None,
+            install_id: "install-1".to_string(),
         };
         let error = OAuthClient::new(reqwest::Client::new())
             .refresh(&request)
@@ -581,6 +659,7 @@ mod tests {
             refresh_token: "refresh-1".into(),
             client_id: "client-1".to_string(),
             client_secret: None,
+            install_id: "install-1".to_string(),
         };
         let error = OAuthClient::new(reqwest::Client::new())
             .refresh(&request)

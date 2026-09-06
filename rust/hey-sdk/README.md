@@ -24,25 +24,34 @@ use hey_sdk::{Client, Config, StaticTokenProvider};
 let client = Client::new(Config::default(), StaticTokenProvider::new(std::env::var("HEY_TOKEN")?))?;
 ```
 
-OAuth 2.0 with PKCE, for user-facing apps: `hey_sdk::oauth` does discovery, PKCE, the code
-exchange and refresh, and `hey_sdk::credentials::AuthManager` keeps the resulting credentials in
-a `CredentialStore` and refreshes them as needed. `AuthManager` is a `TokenProvider`, so it
-plugs straight into the client:
+OAuth 2.0 with PKCE, for user-facing apps: `hey_sdk::oauth` speaks the protocol — discovery,
+PKCE, the authorization URL, the code exchange and refresh. HEY wants an `install_id` on all
+three requests, a stable identifier the application mints once per installation, so every
+call takes one.
 
 ```rust
-use std::sync::Arc;
+use hey_sdk::oauth::{self, ExchangeRequest, OAuthClient, ServerMetadata};
 
-use hey_sdk::credentials::{AuthManager, DefaultCredentialStore};
-
-let store = Arc::new(DefaultCredentialStore::default_location());
-let auth = AuthManager::new(Config::default(), reqwest::Client::new(), store);
-let client = Client::new(Config::default(), auth)?;
+let oauth = OAuthClient::default();
+let metadata = ServerMetadata::for_hey(&config.base_url);   // HEY publishes no well-known document
+let pkce = oauth::generate_pkce();
+let state = oauth::generate_state();
+let url = oauth::authorization_url(&metadata, &config.oauth_client_id, redirect_uri, None, &state, &pkce, install_id)?;
+// Send the person to `url`, receive the code on `redirect_uri`, then:
+let token = oauth.exchange(&ExchangeRequest {
+    token_endpoint: metadata.token_endpoint,
+    code,
+    redirect_uri: redirect_uri.to_string(),
+    client_id: config.oauth_client_id.clone(),
+    client_secret: None,
+    code_verifier: pkce.verifier,
+    install_id: install_id.to_string(),
+}).await?;
 ```
 
-`DefaultCredentialStore` uses the platform's secret store where it answers and a private JSON
-file under the config directory where it does not; `KeyringCredentialStore`,
-`FileCredentialStore` and `InMemoryCredentialStore` pick one outright. Anything else implements
-`TokenProvider`, or `AuthStrategy` to control the request headers outright.
+Where the tokens live between runs, and when to refresh them, is the application's business:
+it implements `TokenProvider` over its own store and hands that to `Client::new`. Anything
+that wants the request headers outright implements `AuthStrategy` instead.
 
 ## Use it
 

@@ -2,7 +2,7 @@
 //!
 //! Types, routes and service methods are generated from the Smithy model in the
 //! repository's `spec/` directory; everything else in this crate is the plumbing they
-//! share: credentials, retries, the response cache, pagination and account scope.
+//! share: authentication, retries, the response cache, pagination and account scope.
 //!
 //! ```no_run
 //! use hey_sdk::{Client, Config, StaticTokenProvider};
@@ -21,7 +21,6 @@ pub mod auth;
 pub mod cache;
 pub mod client;
 pub mod config;
-pub mod credentials;
 pub mod error;
 pub mod form;
 mod generated;
