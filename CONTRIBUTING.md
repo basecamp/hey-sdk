@@ -5,6 +5,7 @@
 - Smithy CLI
 - Go 1.26+
 - Rust 1.88+ (with `rustfmt` and `clippy`)
+- Node 22.12+, 24 or 26 and npm; `make ts-install` uses the frozen lockfile
 - Make
 - jq
 
@@ -24,8 +25,8 @@
    (`make url-routes`, `./scripts/generate-shape-fingerprint`, `./scripts/generate-route-coverage`)
 3. Run `make go-generate` to regenerate the Go client, then add or update the hand-written
    service in `go/pkg/hey`
-4. Run `make rs-generate` to regenerate the Rust crate
-5. Add unit tests
+4. Run `make rs-generate` and `make ts-generate` to regenerate Rust and TypeScript
+5. Add Go, Rust and TypeScript tests
 6. Add conformance tests if the operation has behavioral requirements, with dispatch arms in
    the Go and Rust runners
 7. Run `make check`
@@ -37,7 +38,7 @@ The full step-by-step, including how the drift gates work, is in [AGENTS.md](AGE
 Two steps, in this order.
 
 ```bash
-make bump VERSION=x.y.z     # rewrites go/pkg/hey/version.go and rust/hey-sdk/Cargo.toml
+make bump VERSION=x.y.z     # rewrites Go, Rust and TypeScript versions and lockfiles
 # commit that, open a PR, merge it
 make release VERSION=x.y.z  # runs the gate, then tags vx.y.z and go/vx.y.z
 ```
@@ -56,3 +57,9 @@ subdirectory.
 `Version` is not decorative — it goes out on every request as part of the User-Agent,
 alongside `APIVersion`, which is how HEY sees which SDK and which contract a client is
 working from.
+
+TypeScript publishing is inactive until human npm/environment provisioning is complete.
+Read [TypeScript release setup](TYPESCRIPT_RELEASE.md) before changing
+`.github/typescript-publish-enabled` to `true`; `false` preserves Go-only release
+orchestration and means **npm is not published**. Manual TypeScript release dispatch is
+always a credential-free dry-run.

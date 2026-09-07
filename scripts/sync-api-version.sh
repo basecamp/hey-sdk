@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Syncs API_VERSION constants from openapi.json info.version to Go SDK.
+# Syncs API_VERSION constants from openapi.json info.version to Go and TypeScript SDKs.
 # Usage: scripts/sync-api-version.sh [--check] [openapi.json]
 set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
@@ -30,6 +30,7 @@ CURRENT=$(sed -n 's/^const APIVersion = "\(.*\)"/\1/p' "$VERSION_FILE")
 
 if [ "$CHECK" = true ]; then
   if [ "$CURRENT" = "$API_VERSION" ]; then
+    node "$REPO_ROOT/scripts/sync-typescript-versions.mjs" --check --api-version "$API_VERSION"
     echo "API version is in sync: $API_VERSION"
     exit 0
   else
@@ -49,4 +50,5 @@ if ! grep -Fq "const APIVersion = \"$API_VERSION\"" "$VERSION_FILE"; then
   exit 1
 fi
 
+node "$REPO_ROOT/scripts/sync-typescript-versions.mjs" --api-version "$API_VERSION"
 echo "Done."

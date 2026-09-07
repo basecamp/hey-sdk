@@ -18,6 +18,15 @@ updates:
       semver-minor-days: 3
       semver-patch-days: 2
       default-days: 7
+  - package-ecosystem: npm
+    directory: /typescript
+    schedule:
+      interval: weekly
+    groups:
+      typescript-dev:
+        dependency-type: development
+    cooldown:
+      default-days: 7
   - package-ecosystem: github-actions
     directory: "/"
     groups:

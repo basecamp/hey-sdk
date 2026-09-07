@@ -1,19 +1,20 @@
 # HEY SDK -- Agent Instructions
 
-Go and Rust clients for the HEY API, generated from the Smithy spec in `spec/`.
+Go, Rust and TypeScript clients for the HEY API, generated from the Smithy spec in `spec/`.
 
-**This repo ships Go and Rust.** The Makefile still carries `ts-`, `rb-`, `swift-` and `kt-`
-targets inherited from the shared SDK seed. They `cd` into `typescript/`, `ruby/`,
-`swift/` and `kotlin/`, none of which exist here, so they fail immediately -- as does
-`make check-full`, which invokes them. `make check` is the gate that works.
+**Shipped SDKs: Go, Rust and TypeScript.** Run `make ts-install` once (`npm ci`), then
+`make check` for all three languages. Ruby/Swift/Kotlin Makefile targets remain inherited
+placeholders; do not enable `make check-full`, which invokes missing SDKs. TypeScript
+operations, types, routes and metadata are generated; do not hand-edit
+`typescript/src/generated`. See `typescript/README.md` and `TYPESCRIPT_RELEASE.md`.
 
 ## Hard rules
 
 1. **Never hand-write API methods.** Operations are generated from the Smithy spec.
 2. **Never construct URL paths manually.** Use the generated route table -- no
    `fmt.Sprintf` or `format!` for paths.
-3. **Every new operation needs tests.** Go and Rust unit tests, plus a conformance test
-   when the change is behavioral.
+3. **Every new operation needs tests.** Go, Rust and TypeScript unit/operation-coverage
+   tests, plus a conformance test when the change is behavioral.
 4. **Run `make check` before committing.**
 
 ## Pipeline
@@ -113,15 +114,17 @@ for a read-back made inside another operation — `Publications::publish` and
 5. Add or update the hand-written wrapper in `go/pkg/hey` so the operation is reachable
 6. `make rs-generate` -- regenerates `rust/hey-sdk/src/generated`. If the generator
    refuses a method name, add an override to `rust/generator/names.toml`.
-7. Add Go unit tests, Rust tests where the change touches hand-written Rust, and a
-   conformance case under `conformance/tests/` for behavioral changes. A conformance case
-   also needs a dispatch arm in both `conformance/runner/go/main.go` and
-   `conformance/runner/rust/src/operations.rs`.
-8. `make check`
+7. Run `make ts-generate` to refresh all TypeScript generated artifacts.
+8. Add Go and TypeScript unit tests, Rust tests where the change touches hand-written
+   Rust, and a conformance case under `conformance/tests/` for behavioral changes. A
+   conformance case also needs a dispatch arm in both `conformance/runner/go/main.go`
+   and `conformance/runner/rust/src/operations.rs`.
+9. `make check`
 
 `make check` resolves to `check-mvp`: `smithy-check`, `behavior-model-check`,
 `drift-check-mvp`, `url-routes-check`, `go-check`, `go-check-drift`, `rs-check`,
-`rs-check-drift` and `conformance-mvp` (the Go and Rust runners). `drift-check-mvp` is coverage freshness + forward (every modelled
+`rs-check-drift`, `ts-check`, `sync-api-version-check` and `conformance-mvp` (Go, Rust
+and TypeScript). `drift-check-mvp` is coverage freshness + forward (every modelled
 route exists in `spec/route-snapshot.json`) + reverse (every JSON-capable snapshot
 route is modelled or listed in `spec/excluded-routes.json` with a reason) + shape
 fingerprint. Adding an operation for a route that haystack does not serve, or

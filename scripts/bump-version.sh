@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Bumps the SDK version in every language: go/pkg/hey/version.go and rust/hey-sdk/Cargo.toml.
+# Bumps the SDK version across Go, Rust and TypeScript implementations.
 # Usage: scripts/bump-version.sh <version>
 # Example: scripts/bump-version.sh 0.3.0
 set -euo pipefail
@@ -46,5 +46,6 @@ fi
 
 (cd "$REPO_ROOT/rust" && cargo update -q -w --offline)
 (cd "$REPO_ROOT/conformance/runner/rust" && cargo update -q -w --offline)
+node "$REPO_ROOT/scripts/sync-typescript-versions.mjs" --sdk-version "$VERSION"
 
-echo "Done. Bumped 2 files to $VERSION."
+echo "Done. Bumped Go, Rust and TypeScript to $VERSION."

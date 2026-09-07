@@ -25,4 +25,6 @@ jobs:
         with:
           version: ${{ github.event.inputs.tag || github.ref_name }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          languages: go
+          # The same activation boundary as release-typescript.yml. Unset means
+          # npm is NOT published and cannot block the existing Go release.
+          languages: ${{ vars.HEY_TYPESCRIPT_PUBLISH_ENABLED == 'true' && 'go,typescript' || 'go' }}
