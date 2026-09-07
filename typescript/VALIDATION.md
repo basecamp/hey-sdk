@@ -12,16 +12,91 @@ review and eventual current-head CI are still required.
 | Criterion | Evidence |
 |---|---|
 | Full modeled API, types, routes | `src/generated/coverage.json`: 130 operations; `tests/generator.test.ts` invokes every generated method against Fetch and checks OpenAPI-derived method/path/query/body. Byte-for-byte regeneration checks schemas, operations, guards and coverage. No Smithy, OpenAPI or Go client edits. |
-| HEY runtime behavior | 183 tests across 6 files: generation, precision/null/optional values, safe retries, no mutation replay, refresh, errors/body caps, URL safety, redirects, Link envelopes/window boundaries, account selection/isolation, signed upload isolation, OAuth forms/PKCE, conformance fail-closed contract and version scripts. |
+| HEY runtime behavior | 190 tests across 6 files: generation, precision/null/optional values, safe retries, no mutation replay, refresh, errors/body caps, URL safety, redirects, Link envelopes/window boundaries, account selection/isolation, signed upload isolation, OAuth forms/PKCE, conformance fail-closed contract and version scripts. |
 | Shared conformance | Real loopback HTTP through generated SDK methods: **184 passed / 184 applicable**. Exactly 3 named unmodeled Go calendar-update form fixtures excluded, 187 total; explicit checked identity inventory and applicability reasons. Unknown assertions/operations/configuration, empty tests and stale exclusions fail. |
-| Node support | Node **22.12.0**, **24.20.0**, **26.7.0** each built, typechecked, ran all 183 tests and all 184 applicable conformance fixtures, and isolated package smoke. |
+| Node support | Node **22.12.0**, **24.20.0**, **26.7.0** each built, typechecked, ran all 190 tests and all 184 applicable conformance fixtures, and isolated package smoke. |
 | Installable artifact | 23-file npm tarball installed offline outside the repository; ESM root and OAuth subpath imports, real SDK int64 request/response and consumer TypeScript positive/negative typechecks passed. Exact packed tarball smoke also passed. |
 | Existing Go preserved | `make check`: Go vet/lint/tests and 187 Go conformance cases, Smithy/route/shape freshness plus Go wrapper drift, TypeScript checks/conformance and API-version sync. |
 | Delivery security | actionlint + shellcheck and zizmor passed; `npm audit` found zero vulnerabilities. Credential-free `npm publish --dry-run --provenance` passed. OIDC/registry ownership remain unverified and publishing disabled by default. |
 
-## Exact commands and results
+## Review corrections and regression evidence
 
-Executed from the feature worktree (unless a command changes directory):
+All three recovered independent review findings are addressed, with no scope or Go API
+changes. The original prose review artifacts were empty, **not clean reviews**; the
+supervisor recovered their `needs_fixes` findings from native structured outputs.
+
+| Finding | Correction | Regression evidence in `tests/client.test.ts` |
+|---|---|---|
+| P1: timeout/caller cancellation hung on `getToken()` or shared `refresh()` | Per-request abort-aware credential waits remove their abort listener on settlement; the underlying provider/shared refresh is not cancelled. Cancellation is rechecked before Fetch and renewal. | Four hanging-provider tests cover timeout and caller abort for both methods; shared-refresh test proves cancelling one waiter leaves the other successful with one rotation and no cancelled replay; token-acquisition/cancellation race test proves no dispatch. |
+| P2: delayed old-token read was stamped with the post-refresh generation | Capture generation before awaiting the provider read. | Deferred old read resolves after another request has completed renewal; old-token 401 resends with the new token and refresh remains exactly once. |
+| P2: transport User-Agent test pinned an API date outside version synchronization | Assert the complete literal SDK identifier plus imported `VERSION` and `API_VERSION`, not a fixed date. | Updated authorization/Accept/User-Agent test and unchanged `tests/version-scripts.test.ts` both pass. |
+
+### Failing before / passing after
+
+With all seven new regressions present but **before modifying `src/client.ts`**, ran:
+
+```sh
+npm --prefix typescript test -- tests/client.test.ts tests/version-scripts.test.ts
+# FAIL: 7 failed, 41 passed (2 files).
+# - Both hanging getToken cases and both hanging refresh cases timed out at 1000ms.
+# - Cancelling one shared-refresh waiter also timed out at 1000ms.
+# - Token acquisition cancellation dispatched anyway (TypeError, not AbortError).
+# - Delayed old token triggered 2 refresh calls; expected 1.
+```
+
+After the runtime fix, the **same command passed all 48 tests** (2 files).
+The updated User-Agent assertion was already present in the red run; that finding is
+source-proven by the removed fixed-date literal and the separate synchronization test,
+not one of the seven failing runtime regressions.
+
+### Post-fix checks
+
+Executed from the feature worktree; no checks were loosened and no publication occurred:
+
+```sh
+npm --prefix typescript test -- tests/client.test.ts tests/version-scripts.test.ts
+# PASS: 48 tests (2 files)
+npm --prefix typescript run typecheck
+# PASS: source, tests, conformance runner
+
+npx --yes --package=node@22.12.0 -c 'node --version && make ts-check ts-smoke conformance-ts'
+npx --yes --package=node@24 -c 'node --version && make ts-check ts-smoke conformance-ts'
+(node --version && make ts-check ts-smoke conformance-ts)
+# Each PASS on v22.12.0 / v24.20.0 / v26.7.0 respectively:
+# 190 tests, 130-operation generation freshness, build/typecheck, package smoke,
+# 184/184 applicable conformance cases; 3 explicitly not applicable.
+
+env -u GOROOT GOWORK=off \
+  PATH="/home/rzolkos/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.7.linux-amd64/bin:$PATH" \
+  make check
+# PASS before correction commit: MVP gate passed; Go lint 0 issues,
+# Go tests and 187/187 Go fixtures; 190 TS tests, 184/184 applicable TS fixtures.
+
+actionlint -shellcheck /home/rzolkos/.local/share/mise/installs/shellcheck/0.11.0/shellcheck-v0.11.0/shellcheck
+# PASS: no diagnostics
+zizmor --no-progress .github/workflows
+# PASS: no findings (3 ignored, 8 suppressed; unchanged suppressions)
+npm --prefix typescript audit --audit-level=high
+# PASS: zero vulnerabilities
+
+(cd typescript && npm run build && TARBALL=$(npm pack --silent) && \
+  npm run smoke -- "$TARBALL" && \
+  env -u NODE_AUTH_TOKEN -u NPM_TOKEN NPM_CONFIG_USERCONFIG=/dev/null \
+    npm publish "$TARBALL" --access public --tag latest --dry-run --provenance)
+# PASS: isolated exact-artifact smoke and credential-free dry-run, 23 package files.
+# Authentication warning expected; npm NOT published.
+```
+
+Provider work cannot be forcibly stopped through the existing no-signal provider API;
+request cancellation now settles independently and intentionally leaves shared renewal
+available to other callers. A never-settling renewal remains shared, but every request
+can now time out/cancel rather than hang. Live npm/OIDC and remote workflow execution
+remain human prerequisites, not claims established by these local checks.
+
+## Initial implementation commands and results
+
+The following historical runs preceded the review corrections (183 tests). Post-fix
+results above supersede them. Executed from the feature worktree (unless a command changes directory):
 
 ```sh
 npm --prefix typescript ci

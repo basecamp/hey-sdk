@@ -1,6 +1,14 @@
 import { describe, it, expect, vi } from "vitest";
 import { HeyClient, HeyError } from "../src/index.js";
 import { nextLink, parseJSON, stringifyJSON } from "../src/security.js";
+import { VERSION, API_VERSION } from "../src/version.js";
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((r) => {
+    resolve = r;
+  });
+  return { promise, resolve };
+}
 const json = (
   body: unknown,
   status = 200,
@@ -76,8 +84,8 @@ describe("HEY transport", () => {
     await new HeyClient({ token: "secret", fetch: m.fetch }).listBoxes();
     expect(m.requests[0]!.headers.get("Authorization")).toBe("Bearer secret");
     expect(m.requests[0]!.headers.get("Accept")).toBe("application/json");
-    expect(m.requests[0]!.headers.get("User-Agent")).toMatch(
-      /hey-sdk-typescript\/.*API 2026-08-21/,
+    expect(m.requests[0]!.headers.get("User-Agent")).toBe(
+      `hey-sdk-typescript/${VERSION} (API ${API_VERSION})`,
     );
   });
   it.each([301, 302, 303, 307, 308])(
@@ -267,6 +275,134 @@ describe("HEY transport", () => {
     await expect(failed.listBoxes()).rejects.toMatchObject({
       code: "auth_required",
     });
+  });
+  it.each(["timeout", "caller abort"])(
+    "settles a hanging getToken on %s without sending",
+    async (cancellation) => {
+      const started = deferred<void>();
+      const controller = new AbortController();
+      const fetch = vi.fn();
+      const c = new HeyClient({
+        token: {
+          getToken: () => {
+            started.resolve();
+            return new Promise<string>(() => {});
+          },
+        },
+        fetch,
+        timeoutMs: cancellation === "timeout" ? 10 : 30_000,
+      });
+      const request = c.listBoxes({}, { signal: controller.signal });
+      const rejected = expect(request).rejects.toMatchObject({
+        name: cancellation === "timeout" ? "TimeoutError" : "AbortError",
+      });
+      await started.promise;
+      if (cancellation === "caller abort") controller.abort();
+      await rejected;
+      expect(fetch).not.toHaveBeenCalled();
+    },
+    1000,
+  );
+  it.each(["timeout", "caller abort"])(
+    "settles a hanging refresh on %s without replaying",
+    async (cancellation) => {
+      const started = deferred<void>();
+      const controller = new AbortController();
+      const refresh = vi.fn(() => {
+        started.resolve();
+        return new Promise<void>(() => {});
+      });
+      const m = mock([json({}, 401)]);
+      const c = new HeyClient({
+        token: { getToken: () => "old", refresh },
+        fetch: m.fetch,
+        timeoutMs: cancellation === "timeout" ? 10 : 30_000,
+      });
+      const request = c.listBoxes({}, { signal: controller.signal });
+      const rejected = expect(request).rejects.toMatchObject({
+        name: cancellation === "timeout" ? "TimeoutError" : "AbortError",
+      });
+      await started.promise;
+      if (cancellation === "caller abort") controller.abort();
+      await rejected;
+      expect(refresh).toHaveBeenCalledTimes(1);
+      expect(m.requests).toHaveLength(1);
+    },
+    1000,
+  );
+  it("cancels one refresh waiter without cancelling another or replaying the cancelled request", async () => {
+    const renewal = deferred<void>();
+    let token = "old";
+    const refresh = vi.fn(async () => {
+      await renewal.promise;
+      token = "new";
+    });
+    const fetch = vi.fn<typeof globalThis.fetch>(async (_url, init) =>
+      new Headers(init?.headers).get("Authorization") === "Bearer old"
+        ? json({}, 401)
+        : json([]),
+    );
+    const c = new HeyClient({
+      token: { getToken: () => token, refresh },
+      fetch,
+    });
+    const controller = new AbortController();
+    const cancelled = c.listBoxes({}, { signal: controller.signal });
+    const rejected = expect(cancelled).rejects.toMatchObject({
+      name: "AbortError",
+    });
+    const other = c.listBoxes();
+    await new Promise((r) => setImmediate(r));
+    expect(fetch).toHaveBeenCalledTimes(2);
+    expect(refresh).toHaveBeenCalledTimes(1);
+    controller.abort();
+    await rejected;
+    renewal.resolve();
+    expect((await other).data).toEqual([]);
+    expect(refresh).toHaveBeenCalledTimes(1);
+    expect(fetch).toHaveBeenCalledTimes(3);
+  }, 1000);
+  it("does not dispatch when cancellation coincides with token acquisition", async () => {
+    const controller = new AbortController();
+    const fetch = vi.fn();
+    const c = new HeyClient({
+      token: {
+        getToken: async () => {
+          controller.abort();
+          return "token";
+        },
+      },
+      fetch,
+    });
+    await expect(
+      c.listBoxes({}, { signal: controller.signal }),
+    ).rejects.toMatchObject({ name: "AbortError" });
+    expect(fetch).not.toHaveBeenCalled();
+  });
+  it("does not rotate again when an old async token read resolves after a completed refresh", async () => {
+    const oldRead = deferred<string>();
+    let token = "old";
+    const getToken = vi.fn((): string | Promise<string> => token)
+      .mockImplementationOnce(() => oldRead.promise);
+    const refresh = vi.fn(() => {
+      token = "new";
+    });
+    const authorization: string[] = [];
+    const fetch: typeof globalThis.fetch = async (_url, init) => {
+      const value = new Headers(init?.headers).get("Authorization")!;
+      authorization.push(value);
+      return value === "Bearer old" ? json({}, 401) : json([]);
+    };
+    const c = new HeyClient({ token: { getToken, refresh }, fetch });
+    const delayed = c.listBoxes();
+    expect((await c.listBoxes()).data).toEqual([]);
+    expect(refresh).toHaveBeenCalledTimes(1);
+    oldRead.resolve("old");
+    expect((await delayed).data).toEqual([]);
+    expect(authorization).toEqual([
+      "Bearer old", "Bearer new", "Bearer old", "Bearer new",
+    ]);
+    expect(refresh).toHaveBeenCalledTimes(1);
   });
   it("aborts before sending or while waiting for a retry", async () => {
     const controller = new AbortController();

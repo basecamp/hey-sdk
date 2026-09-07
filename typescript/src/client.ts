@@ -71,14 +71,41 @@ type RawInput = {
   query?: Record<string, unknown>;
   body?: unknown;
 };
+/** Cancel only this wait, not the provider work shared with other requests. */
+function waitForCredentials<T>(
+  pending: Promise<T>,
+  signal: AbortSignal,
+): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const cleanup = () => signal.removeEventListener("abort", aborted);
+    const aborted = () => {
+      cleanup();
+      reject(signal.reason);
+    };
+    signal.addEventListener("abort", aborted, { once: true });
+    if (signal.aborted) aborted();
+    pending.then(
+      (value) => {
+        cleanup();
+        resolve(value);
+      },
+      (error: unknown) => {
+        cleanup();
+        reject(error);
+      },
+    );
+  });
+}
 class Credentials {
   private refreshing?: Promise<void>;
   private generation = 0;
   constructor(readonly provider: TokenProvider) {}
   async token() {
+    // An asynchronous read may return an old token after another request renews.
+    const generation = this.generation;
     return {
       value: await this.provider.getToken(),
-      generation: this.generation,
+      generation,
     };
   }
   async refresh(generation: number) {
@@ -211,7 +238,7 @@ class HttpTransport implements Transport {
     );
     for (let attempt = 0; ; attempt++) {
       signal.throwIfAborted();
-      const token = await this.credentials.token();
+      const token = await waitForCredentials(this.credentials.token(), signal);
       if (!token.value)
         throw new HeyError("auth_required", "A HEY access token is required");
       const headers = new Headers({
@@ -226,6 +253,7 @@ class HttpTransport implements Transport {
       const cached = cacheable ? this.cache.get(cacheKey) : undefined;
       if (cached) headers.set("If-None-Match", cached.headers.get("ETag")!);
       let response: Response;
+      signal.throwIfAborted();
       try {
         response = await this.fetch(url, {
           method: meta.method,
@@ -254,7 +282,11 @@ class HttpTransport implements Transport {
         this.credentials.provider.refresh
       ) {
         refreshed = true;
-        await this.credentials.refresh(token.generation);
+        signal.throwIfAborted();
+        await waitForCredentials(
+          this.credentials.refresh(token.generation),
+          signal,
+        );
         attempt--;
         continue;
       }
