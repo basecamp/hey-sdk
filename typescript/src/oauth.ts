@@ -72,7 +72,8 @@ async function request(
   try {
     body = parseJSON(text);
   } catch {
-    throw new HeyError("api_error", "Invalid OAuth response", response.status);
+    if (response.ok)
+      throw new HeyError("api_error", "Invalid OAuth response", response.status);
   }
   if (!response.ok) throw responseError(response, body);
   return body;
@@ -120,6 +121,8 @@ async function tokenRequest(
   )) as OAuthToken;
   if (!token?.access_token || typeof token.access_token !== "string")
     throw new HeyError("api_error", "OAuth response has no access token");
+  if (!token.token_type || typeof token.token_type !== "string")
+    throw new HeyError("api_error", "OAuth response has no token type");
   return token;
 }
 export function exchangeCode(
