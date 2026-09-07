@@ -31,6 +31,95 @@ it("bumps SDK manifests/constants/lock roots and syncs/checks API versions witho
       mkdirSync(join(target, ".."), { recursive: true });
       cpSync(new URL(file, root), target);
     }
+    const versionFiles = [
+      "go/pkg/hey/version.go",
+      "typescript/src/version.ts",
+      "typescript/package.json",
+      "typescript/package-lock.json",
+      "conformance/runner/typescript/package.json",
+      "conformance/runner/typescript/package-lock.json",
+    ];
+    const snapshot = () =>
+      versionFiles.map((file) => readFileSync(join(temp, file), "utf8"));
+    for (const invalid of ["", "01.2.3", "1.02.3", "1.2.03", "v1.2.3", "1.2.3-beta"]) {
+      const before = snapshot();
+      expect(() =>
+        execFileSync("bash", ["scripts/bump-version.sh", invalid], {
+          cwd: temp,
+          stdio: "pipe",
+        }),
+      ).toThrow();
+      expect(snapshot()).toEqual(before);
+      expect(() =>
+        execFileSync(
+          process.execPath,
+          ["scripts/sync-typescript-versions.mjs", "--sdk-version", invalid],
+          { cwd: temp, stdio: "pipe" },
+        ),
+      ).toThrow();
+      expect(snapshot()).toEqual(before);
+    }
+
+    const lateLock = join(
+      temp,
+      "conformance/runner/typescript/package-lock.json",
+    );
+    const validLateLock = readFileSync(lateLock, "utf8");
+    writeFileSync(lateLock, "{ malformed");
+    const beforeMalformedTarget = snapshot();
+    expect(() =>
+      execFileSync("bash", ["scripts/bump-version.sh", "2.3.4"], {
+        cwd: temp,
+        stdio: "pipe",
+      }),
+    ).toThrow();
+    expect(snapshot()).toEqual(beforeMalformedTarget);
+    writeFileSync(lateLock, validLateLock);
+
+    const openapiPath = join(temp, "openapi.json");
+    const validOpenAPI = readFileSync(openapiPath, "utf8");
+    const invalidSpec = JSON.parse(validOpenAPI);
+    invalidSpec.info.version = "not-a-date";
+    writeFileSync(openapiPath, JSON.stringify(invalidSpec));
+    const beforeInvalidAPI = snapshot();
+    expect(() =>
+      execFileSync("bash", ["scripts/sync-api-version.sh"], {
+        cwd: temp,
+        stdio: "pipe",
+      }),
+    ).toThrow();
+    expect(snapshot()).toEqual(beforeInvalidAPI);
+    writeFileSync(openapiPath, validOpenAPI);
+
+    const goVersionPath = join(temp, "go/pkg/hey/version.go");
+    const validGoVersion = readFileSync(goVersionPath, "utf8");
+    writeFileSync(
+      goVersionPath,
+      validGoVersion.replace("const Version =", "const MissingVersion ="),
+    );
+    expect(() =>
+      execFileSync(
+        process.execPath,
+        ["scripts/sync-typescript-versions.mjs", "--check"],
+        { cwd: temp, stdio: "pipe" },
+      ),
+    ).toThrow();
+    writeFileSync(goVersionPath, validGoVersion);
+
+    const missingInfo = JSON.parse(validOpenAPI);
+    delete missingInfo.info.version;
+    writeFileSync(openapiPath, JSON.stringify(missingInfo));
+    expect(() =>
+      execFileSync(
+        process.execPath,
+        ["scripts/sync-typescript-versions.mjs", "--check"],
+        { cwd: temp, stdio: "pipe" },
+      ),
+    ).toThrow();
+    writeFileSync(openapiPath, validOpenAPI);
+
+    execFileSync("bash", ["scripts/bump-version.sh", "0.0.0"], { cwd: temp });
+    expect(JSON.parse(readFileSync(join(temp, "typescript/package.json"), "utf8")).version).toBe("0.0.0");
     execFileSync("bash", ["scripts/bump-version.sh", "1.2.3"], { cwd: temp });
     for (const dir of ["typescript", "conformance/runner/typescript"]) {
       expect(

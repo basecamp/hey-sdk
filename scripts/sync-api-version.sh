@@ -26,29 +26,22 @@ if [ -z "$API_VERSION" ] || [ "$API_VERSION" = "null" ]; then
 fi
 
 VERSION_FILE="$REPO_ROOT/go/pkg/hey/version.go"
-CURRENT=$(sed -n 's/^const APIVersion = "\(.*\)"/\1/p' "$VERSION_FILE")
 
 if [ "$CHECK" = true ]; then
-  if [ "$CURRENT" = "$API_VERSION" ]; then
-    node "$REPO_ROOT/scripts/sync-typescript-versions.mjs" --check --api-version "$API_VERSION"
-    echo "API version is in sync: $API_VERSION"
-    exit 0
-  else
-    echo "ERROR: API version mismatch. openapi.json=$API_VERSION, version.go=$CURRENT" >&2
-    echo "Run 'make sync-api-version' to fix." >&2
-    exit 1
-  fi
+  node "$REPO_ROOT/scripts/sync-typescript-versions.mjs" --check --api-version "$API_VERSION"
+  echo "API version is in sync: $API_VERSION"
+  exit 0
 fi
 
 echo "Syncing API version: $API_VERSION"
 
-ESCAPED_VERSION=$(printf '%s\n' "$API_VERSION" | sed 's/[&/\]/\\&/g')
-sedi "s/^const APIVersion = \".*\"/const APIVersion = \"$ESCAPED_VERSION\"/" "$VERSION_FILE"
+# One transaction updates the Go and TypeScript constants after every target
+# has been read and validated.
+node "$REPO_ROOT/scripts/sync-typescript-versions.mjs" --api-version "$API_VERSION"
 
 if ! grep -Fq "const APIVersion = \"$API_VERSION\"" "$VERSION_FILE"; then
-  echo "ERROR: API version substitution did not match in $VERSION_FILE" >&2
+  echo "ERROR: API version synchronization did not update $VERSION_FILE" >&2
   exit 1
 fi
 
-node "$REPO_ROOT/scripts/sync-typescript-versions.mjs" --api-version "$API_VERSION"
 echo "Done."

@@ -13480,7 +13480,10 @@
             "type": "string"
           },
           "category": {
-            "type": "string"
+            "type": "string",
+            "description": "HEY emits explicit JSON null when a time track has no category.",
+            "x-hey-nullable": {},
+            "nullable": true
           },
           "label": {
             "type": "string"

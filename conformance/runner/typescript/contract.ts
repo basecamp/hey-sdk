@@ -7,6 +7,18 @@ const text: Check = value => typeof value === "string";
 const nonempty: Check = value => text(value) && (value as string).length > 0;
 const nonnegative: Check = value => typeof value === "number" && Number.isFinite(value) && value >= 0;
 const integer: Check = value => nonnegative(value) && Number.isSafeInteger(value);
+const positiveAccountId: Check = value =>
+  (typeof value === "bigint" && value > 0n) ||
+  (typeof value === "number" && Number.isSafeInteger(value) && value > 0);
+const baseUrl: Check = value => {
+  if (!nonempty(value)) return false;
+  try {
+    new URL(value as string);
+    return true;
+  } catch {
+    return false;
+  }
+};
 const scalar: Check = value => value === null || text(value) || typeof value === "boolean" ||
   typeof value === "bigint" || (typeof value === "number" && Number.isFinite(value));
 // Fixture JSON is parsed losslessly, so large integer literals arrive as bigint.
@@ -38,17 +50,23 @@ const errorFields: Record<string, Check> = {
   httpStatus: integer, retryable: value => typeof value === "boolean", requestId: text,
 };
 const responseMetadata: Record<string, Check> = { totalCount: integer, nextPage: text };
-const configKeys = new Set([
-  "accountId",
-  "baseUrl",
-  "cacheEnabled",
-  "clientLayer",
-  "refreshableCredentials",
-]);
+const config: Record<string, Check> = {
+  accountId: positiveAccountId,
+  // Insecure but syntactically valid URLs remain valid fixtures: they exercise rejection.
+  baseUrl,
+  cacheEnabled: value => typeof value === "boolean",
+  clientLayer: value => value === "hey",
+  refreshableCredentials: value => typeof value === "boolean",
+};
+export function repetitionCount(value: unknown): number {
+  assert.ok(integer(value), "repeatOperation must be a nonnegative safe integer");
+  return value === 0 ? 1 : (value as number);
+}
 export function validateFixture(tc: {
   name: string;
   assertions: unknown[];
   configOverrides?: Record<string, unknown>;
+  repeatOperation?: unknown;
 }) {
   assert.ok(
     tc.name && Array.isArray(tc.assertions) && tc.assertions.length,
@@ -79,7 +97,14 @@ export function validateFixture(tc: {
       assert.ok(paths[path]!(a.expected), `Invalid ${a.type} expected value for ${path}`);
     }
   }
-  for (const key of Object.keys(tc.configOverrides ?? {}))
-    if (!configKeys.has(key))
-      throw new Error(`Unknown config override: ${key}`);
+  if (tc.configOverrides !== undefined) {
+    assert.ok(record(tc.configOverrides), "configOverrides must be an object");
+    for (const [key, value] of Object.entries(tc.configOverrides)) {
+      if (!Object.hasOwn(config, key))
+        throw new Error(`Unknown config override: ${key}`);
+      assert.ok(config[key]!(value), `Invalid config override: ${key}`);
+    }
+  }
+  if (Object.hasOwn(tc, "repeatOperation"))
+    repetitionCount((tc as { repeatOperation?: unknown }).repeatOperation);
 }

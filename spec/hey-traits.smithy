@@ -77,6 +77,12 @@ structure heySensitive {
     redact: Boolean
 }
 
+/// Marks an observed response member that can be explicitly JSON null.
+/// Keep this narrow: omission alone is already represented by an optional member.
+@trait(selector: "structure > member")
+@specificationExtension(as: "x-hey-nullable")
+structure heyNullable {}
+
 /// Polymorphic shape metadata for types discriminated by a field.
 /// Emits x-hey-polymorphic extension to OpenAPI for SDK code generators.
 ///

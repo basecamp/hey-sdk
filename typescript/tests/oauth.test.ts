@@ -156,3 +156,73 @@ it("refuses insecure discovery/token targets and token redirects, limits bodies"
     }),
   ).rejects.toMatchObject({ code: "response_too_large" });
 });
+
+for (const [name, invoke] of Object.entries(entryPoints)) {
+  it.each(["fetch", "stream"])(`${name} normalizes %s network failures with causes`, async failure => {
+    const fetch = failure === "fetch"
+      ? async () => { throw new Error("private OAuth transport detail"); }
+      : async () => new Response(new ReadableStream({
+          start(controller) { controller.error(new Error("private OAuth stream detail")); },
+        }));
+    const error = await invoke({ fetch }).catch((value: unknown) => value);
+    expect(error).toMatchObject({
+      code: "network", message: "Network request failed", cause: expect.any(Error),
+    });
+  });
+}
+
+for (const [name, invoke] of Object.entries(entryPoints)) {
+  it(`${name} does not start Fetch for an already-aborted request`, async () => {
+    const controller = new AbortController();
+    controller.abort();
+    const fetch = vi.fn();
+    await expect(invoke({ fetch, signal: controller.signal })).rejects.toMatchObject({
+      name: "AbortError",
+    });
+    expect(fetch).not.toHaveBeenCalled();
+  });
+}
+
+for (const [name, invoke] of Object.entries(grants)) {
+  it.each([undefined, "", 123, null, false, {}])(`${name} rejects malformed access_token %j`, async access_token => {
+    await expect(invoke({ fetch: async () => Response.json({ access_token, token_type: "Bearer" }) }))
+      .rejects.toMatchObject({ code: "api_error", message: "OAuth response has no access token" });
+  });
+  it.each([" ", "\t\n"])(`${name} rejects whitespace-only token_type %j`, async token_type => {
+    await expect(invoke({ fetch: async () => Response.json({ access_token: "token", token_type }) }))
+      .rejects.toMatchObject({ code: "api_error", message: "OAuth response has no token type" });
+  });
+  it.each([
+    { refresh_token: null }, { refresh_token: 1 }, { scope: null }, { scope: [] },
+    { expires_in: null }, { expires_in: "3600" }, { expires_in: -1 },
+  ])(`${name} rejects malformed optional token fields %#`, async malformed => {
+    await expect(invoke({ fetch: async () => Response.json({ access_token: "token", token_type: "Bearer", ...malformed }) }))
+      .rejects.toMatchObject({ code: "api_error", message: "Invalid OAuth token response" });
+  });
+  it(`${name} accepts the complete valid token contract`, async () => {
+    const token = {
+      access_token: "token", token_type: "Bearer", refresh_token: "", scope: "", expires_in: 0,
+    };
+    await expect(invoke({ fetch: async () => Response.json(token) })).resolves.toEqual(token);
+  });
+}
+
+it("validates optional discovery fields while allowing cross-origin HTTPS metadata", async () => {
+  const valid = {
+    issuer: "https://issuer.example",
+    authorization_endpoint: "https://authorize.example/oauth",
+    token_endpoint: "https://token.example/oauth",
+    registration_endpoint: "https://register.example/oauth",
+    scopes_supported: ["read", "write"],
+  };
+  await expect(discover(undefined, { fetch: async () => Response.json(valid) })).resolves.toEqual(valid);
+  for (const malformed of [
+    { registration_endpoint: 1 },
+    { registration_endpoint: "http://evil.example/register" },
+    { scopes_supported: "read" },
+    { scopes_supported: ["read", 1] },
+  ])
+    await expect(discover(undefined, {
+      fetch: async () => Response.json({ ...valid, ...malformed }),
+    })).rejects.toMatchObject({ code: "api_error" });
+});

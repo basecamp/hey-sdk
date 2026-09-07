@@ -1,7 +1,12 @@
 /** HEY OAuth discovery and RFC 7636 PKCE; no Basecamp/Launchpad hosts or grant types. */
 import { randomBytes, createHash } from "node:crypto";
 import { HeyError, responseError } from "./errors.js";
-import { secureURL, parseJSON, readBounded } from "./security.js";
+import {
+  networkFailure,
+  secureURL,
+  parseJSON,
+  readBounded,
+} from "./security.js";
 export interface OAuthConfig {
   issuer: string;
   authorization_endpoint: string;
@@ -59,15 +64,22 @@ async function request(
   init: RequestInit,
   options: OAuthOptions,
 ): Promise<unknown> {
-  const response = await (options.fetch ?? globalThis.fetch)(url, {
-    ...init,
-    redirect: "manual",
-    signal: AbortSignal.any([
-      AbortSignal.timeout(30_000),
-      ...(options.signal ? [options.signal] : []),
-    ]),
-  });
-  const text = await readBounded(response, 1024 * 1024);
+  const signal = AbortSignal.any([
+    AbortSignal.timeout(30_000),
+    ...(options.signal ? [options.signal] : []),
+  ]);
+  signal.throwIfAborted();
+  let response: Response;
+  try {
+    response = await (options.fetch ?? globalThis.fetch)(url, {
+      ...init,
+      redirect: "manual",
+      signal,
+    });
+  } catch (cause) {
+    networkFailure(cause, signal);
+  }
+  const text = await readBounded(response, 1024 * 1024, signal);
   let body: unknown;
   try {
     body = parseJSON(text);
@@ -88,15 +100,34 @@ export async function discover(
     { headers: { Accept: "application/json" } },
     options,
   )) as OAuthConfig;
+  if (!config || typeof config !== "object" || Array.isArray(config))
+    throw new HeyError("api_error", "Invalid OAuth discovery response");
+  const value = config as unknown as Record<string, unknown>;
+  for (const field of ["issuer", "authorization_endpoint", "token_endpoint"])
+    if (typeof value[field] !== "string" || value[field] === "")
+      throw new HeyError("api_error", "Incomplete OAuth discovery response");
   if (
-    !config?.issuer ||
-    !config.authorization_endpoint ||
-    !config.token_endpoint
+    value.registration_endpoint !== undefined &&
+    typeof value.registration_endpoint !== "string"
   )
-    throw new HeyError("api_error", "Incomplete OAuth discovery response");
-  secureURL(config.issuer);
-  secureURL(config.authorization_endpoint);
-  secureURL(config.token_endpoint);
+    throw new HeyError("api_error", "Invalid OAuth discovery response");
+  if (
+    value.scopes_supported !== undefined &&
+    (!Array.isArray(value.scopes_supported) ||
+      !value.scopes_supported.every((scope) => typeof scope === "string"))
+  )
+    throw new HeyError("api_error", "Invalid OAuth discovery response");
+  try {
+    secureURL(config.issuer);
+    secureURL(config.authorization_endpoint);
+    secureURL(config.token_endpoint);
+    if (config.registration_endpoint !== undefined)
+      secureURL(config.registration_endpoint);
+  } catch (cause) {
+    throw new HeyError("api_error", "Invalid OAuth discovery response", 0, false, "", "", {
+      cause,
+    });
+  }
   return config;
 }
 async function tokenRequest(
@@ -119,10 +150,29 @@ async function tokenRequest(
     },
     options,
   )) as OAuthToken;
-  if (!token?.access_token || typeof token.access_token !== "string")
+  if (
+    !token ||
+    typeof token !== "object" ||
+    Array.isArray(token) ||
+    typeof token.access_token !== "string" ||
+    token.access_token.length === 0
+  )
     throw new HeyError("api_error", "OAuth response has no access token");
-  if (!token.token_type || typeof token.token_type !== "string")
+  if (
+    typeof token.token_type !== "string" ||
+    token.token_type.trim().length === 0
+  )
     throw new HeyError("api_error", "OAuth response has no token type");
+  if (
+    (token.refresh_token !== undefined &&
+      typeof token.refresh_token !== "string") ||
+    (token.scope !== undefined && typeof token.scope !== "string") ||
+    (token.expires_in !== undefined &&
+      (typeof token.expires_in !== "number" ||
+        !Number.isFinite(token.expires_in) ||
+        token.expires_in < 0))
+  )
+    throw new HeyError("api_error", "Invalid OAuth token response");
   return token;
 }
 export function exchangeCode(

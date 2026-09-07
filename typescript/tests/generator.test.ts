@@ -13,6 +13,7 @@ import {
   HeyClient,
   isPostingBundle,
   isRecordingCalendarTodo,
+  type components,
 } from "../src/index.js";
 const spec = JSON.parse(
   readFileSync(new URL("../../openapi.json", import.meta.url), "utf8"),
@@ -54,6 +55,26 @@ it("fails on missing behavior, duplicate operations and unsupported request medi
     "text/plain": { schema: { type: "string" } },
   };
   expect(() => generateOperations(m, behavior)).toThrow("media");
+});
+it("models Recording.category as narrowly nullable at runtime and compile time", async () => {
+  const category: components["schemas"]["Recording"]["category"] = null;
+  expect(category).toBeNull();
+  const response = await new HeyClient({
+    token: "test",
+    fetch: async () =>
+      Response.json({
+        time_tracks: [
+          { id: 1, type: "Calendar::TimeTrack", category: null },
+        ],
+        categories: [],
+      }),
+  }).listTimeTracks();
+  expect(response.data?.time_tracks?.[0]?.category).toBeNull();
+  const requestCategory: components["schemas"]["UpdateTimeTrackPayload"]["category_title"] = "work";
+  expect(requestCategory).toBe("work");
+  // @ts-expect-error Request category titles are strings, not nullable response fields.
+  const invalidRequestCategory: components["schemas"]["UpdateTimeTrackPayload"]["category_title"] = null;
+  expect(invalidRequestCategory).toBeNull();
 });
 it("preserves polymorphic optional fields while narrowing discriminators", () => {
   expect(isPostingBundle({ id: 1, kind: "bundle" })).toBe(true);

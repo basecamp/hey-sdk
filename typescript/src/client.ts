@@ -16,6 +16,7 @@ import type {
 import { HeyError, responseError } from "./errors.js";
 import {
   assertSafeNumbers,
+  networkFailure,
   nextLink,
   parseJSON,
   readBounded,
@@ -150,6 +151,11 @@ class HttpTransport implements Transport {
     for (const value of [this.maxPages, this.maxBytes, this.timeout])
       if (!Number.isSafeInteger(value) || value <= 0)
         throw new HeyError("usage", "Limits must be positive safe integers");
+    if (this.timeout > 2_147_483_647)
+      throw new HeyError(
+        "usage",
+        "timeoutMs exceeds the reliable Node.js timer maximum",
+      );
     if (
       options.maxRetries !== undefined &&
       (!Number.isSafeInteger(options.maxRetries) || options.maxRetries < 0)
@@ -263,19 +269,10 @@ class HttpTransport implements Transport {
           redirect: "manual",
         });
       } catch (cause) {
-        if (signal.aborted) throw signal.reason;
         // No replay after an ambiguous network failure, even on a mutation with a key.
-        throw new HeyError(
-          "network",
-          "Network request failed",
-          0,
-          true,
-          "",
-          "",
-          { cause },
-        );
+        networkFailure(cause, signal);
       }
-      let text = await readBounded(response, this.maxBytes);
+      let text = await readBounded(response, this.maxBytes, signal);
       if (
         response.status === 401 &&
         !refreshed &&
@@ -287,7 +284,6 @@ class HttpTransport implements Transport {
           this.credentials.refresh(token.generation),
           signal,
         );
-        attempt--;
         continue;
       }
       if (
@@ -298,13 +294,19 @@ class HttpTransport implements Transport {
         const retryAfter = response.headers.get("Retry-After");
         let ms = (meta.retry?.baseDelayMs ?? 1000) * 2 ** attempt;
         if (retryAfter !== null) {
-          const seconds = /^\d+$/.test(retryAfter.trim())
-            ? Number(retryAfter)
-            : NaN;
-          const parsed = Number.isFinite(seconds)
-            ? seconds * 1000
-            : Date.parse(retryAfter) - Date.now();
-          if (Number.isFinite(parsed) && parsed >= 0) ms = parsed;
+          const value = retryAfter.trim();
+          if (/^\d+$/.test(value)) {
+            const seconds = Number(value);
+            if (
+              !Number.isFinite(seconds) ||
+              seconds > Math.floor(2_147_483_647 / 1000)
+            )
+              throw responseError(response, undefined);
+            ms = seconds * 1000;
+          } else {
+            const parsed = Date.parse(value) - Date.now();
+            if (Number.isFinite(parsed) && parsed >= 0) ms = parsed;
+          }
         }
         // Never retry earlier than Retry-After, nor overflow the platform timer.
         if (ms > 2_147_483_647) throw responseError(response, undefined);
@@ -497,17 +499,24 @@ export class HeyClient extends GeneratedOperations {
     const headers = new Headers(target.headers);
     headers.delete("Authorization");
     headers.delete("Cookie");
-    const response = await this.http.fetch(url, {
-      method: "PUT",
-      headers,
-      body: Buffer.from(bytes),
-      redirect: "manual",
-      signal: AbortSignal.any([
-        AbortSignal.timeout(this.http.timeout),
-        ...(options.signal ? [options.signal] : []),
-      ]),
-    });
-    await readBounded(response, this.http.maxBytes);
+    const signal = AbortSignal.any([
+      AbortSignal.timeout(this.http.timeout),
+      ...(options.signal ? [options.signal] : []),
+    ]);
+    signal.throwIfAborted();
+    let response: Response;
+    try {
+      response = await this.http.fetch(url, {
+        method: "PUT",
+        headers,
+        body: Buffer.from(bytes),
+        redirect: "manual",
+        signal,
+      });
+    } catch (cause) {
+      networkFailure(cause, signal);
+    }
+    await readBounded(response, this.http.maxBytes, signal);
     if (!response.ok) throw responseError(response, undefined);
   }
 }

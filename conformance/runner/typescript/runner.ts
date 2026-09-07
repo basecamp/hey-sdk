@@ -1,6 +1,7 @@
 // Fixture argument adapters mirror the Go harness, not SDK API implementations.
 // All network behavior, retries, parsing, security and assertions use the real SDK.
-import { validateFixture } from "./contract.js";
+import { repetitionCount, validateFixture } from "./contract.js";
+import { assertBodyFields } from "./assertions.js";
 import { readFile, readdir } from "node:fs/promises";
 import assert from "node:assert/strict";
 import { createServer, type IncomingMessage } from "node:http";
@@ -124,10 +125,6 @@ function adapt(tc: Fixture): { operation: OperationName; input: RecordValue } {
 function at(value: any, path: string): any {
   return path.split(".").reduce((v, k) => v?.[k], value);
 }
-function fields(actual: any, expected: RecordValue) {
-  for (const [key, value] of Object.entries(expected))
-    assert.deepEqual(at(actual, key) ?? null, value);
-}
 function queryFields(query: URLSearchParams, expected: RecordValue) {
   for (const [key, value] of Object.entries(expected)) {
     assert.equal(query.get(key), value === null ? null : String(value));
@@ -191,7 +188,11 @@ async function run(tc: Fixture) {
     if (tc.configOverrides?.accountId)
       client = await client.forAccount(tc.configOverrides.accountId);
     const method = operation[0]!.toLowerCase() + operation.slice(1);
-    for (let repeat = 0; repeat < (tc.repeatOperation ?? 1); repeat++) {
+    for (
+      let repeat = 0;
+      repeat < repetitionCount(tc.repeatOperation ?? 0);
+      repeat++
+    ) {
       result = await (client as any)[method](
         input,
         tc.configOverrides?.clientLayer === "hey" ? { format: "json" } : {},
@@ -258,7 +259,7 @@ async function run(tc: Fixture) {
         break;
       case "requestBody":
         assert.ok(first);
-        fields(parseJSON(first.body), a.expected);
+        assertBodyFields(parseJSON(first.body), a.expected);
         break;
       case "requestForm":
       case "lastRequestForm": {

@@ -49,6 +49,7 @@ use hey.traits#heyRetry
 use hey.traits#heyPagination
 use hey.traits#heyIdempotent
 use hey.traits#heySensitive
+use hey.traits#heyNullable
 use hey.traits#heyPolymorphic
 use hey.traits#heyEmptyOn
 
@@ -993,6 +994,8 @@ structure Recording {
 
     // CalendarTimeTrack fields
     notes: String
+    /// HEY emits explicit JSON null when a time track has no category.
+    @heyNullable
     category: String
 
     // CalendarCountdown fields

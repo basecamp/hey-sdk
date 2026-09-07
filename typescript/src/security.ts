@@ -66,9 +66,17 @@ export function stringifyJSON(value: unknown): string {
   assertSafeNumbers(value);
   return stringify(value) ?? "";
 }
+export function networkFailure(cause: unknown, signal?: AbortSignal): never {
+  if (signal?.aborted) throw signal.reason;
+  if (cause instanceof HeyError) throw cause;
+  throw new HeyError("network", "Network request failed", 0, true, "", "", {
+    cause,
+  });
+}
 export async function readBounded(
   response: Response,
   max: number,
+  signal?: AbortSignal,
 ): Promise<string> {
   if (!response.body) return "";
   const reader = response.body.getReader();
@@ -80,33 +88,72 @@ export async function readBounded(
       if (done) break;
       size += value.byteLength;
       if (size > max) {
-        await reader.cancel();
-        throw new HeyError(
+        const error = new HeyError(
           "response_too_large",
           `Response exceeds ${max} bytes`,
           response.status,
           false,
           response.headers.get("X-Request-Id") ?? "",
         );
+        try {
+          await reader.cancel();
+        } catch {
+          // The size violation remains authoritative if stream cancellation also fails.
+        }
+        throw error;
       }
       chunks.push(value);
     }
+    return Buffer.concat(chunks).toString("utf8");
+  } catch (cause) {
+    networkFailure(cause, signal);
   } finally {
     reader.releaseLock();
   }
-  return Buffer.concat(chunks).toString("utf8");
 }
-/** RFC Link relation matching; commas in URLs are not separators. */
+function splitOutsideQuotes(value: string, separator: string): string[] {
+  const parts: string[] = [];
+  let start = 0;
+  let quoted = false;
+  let escaped = false;
+  let angled = false;
+  for (let i = 0; i < value.length; i++) {
+    const char = value[i]!;
+    if (escaped) {
+      escaped = false;
+      continue;
+    }
+    if (quoted && char === "\\") {
+      escaped = true;
+      continue;
+    }
+    if (char === '"') quoted = !quoted;
+    else if (!quoted && char === "<") angled = true;
+    else if (!quoted && char === ">") angled = false;
+    else if (!quoted && !angled && char === separator) {
+      parts.push(value.slice(start, i));
+      start = i + 1;
+    }
+  }
+  parts.push(value.slice(start));
+  return parts;
+}
+/** RFC 8288 Link relation matching with quoted-string and URI delimiters respected. */
 export function nextLink(header: string | null): string | undefined {
-  for (const match of (header ?? "").matchAll(/<([^>]*)>([^<]*)/g)) {
-    for (const part of match[2]!.split(";")) {
-      const rel = /^\s*rel\s*=\s*(?:"([^"]*)"|([^,\s]+))/i.exec(part);
-      if (
-        (rel?.[1] ?? rel?.[2] ?? "")
-          .split(/\s+/)
-          .some((v) => v.toLowerCase() === "next")
-      )
-        return match[1];
+  for (const value of splitOutsideQuotes(header ?? "", ",")) {
+    const target = /^\s*<([^>]*)>/.exec(value);
+    if (!target) continue;
+    for (const parameter of splitOutsideQuotes(value.slice(target[0].length), ";")) {
+      const match = /^\s*([^=\s]+)\s*=\s*(.*?)\s*$/.exec(parameter);
+      if (!match || match[1]!.toLowerCase() !== "rel") continue;
+      let relation = match[2]!;
+      if (relation.startsWith('"')) {
+        const quoted = /^"((?:\\.|[^"\\])*)"\s*$/.exec(relation);
+        if (!quoted) continue;
+        relation = quoted[1]!.replace(/\\(.)/g, "$1");
+      } else if (!/^[^\s;,]+$/.test(relation)) continue;
+      if (relation.split(/\s+/).some((v) => v.toLowerCase() === "next"))
+        return target[1];
     }
   }
   return undefined;

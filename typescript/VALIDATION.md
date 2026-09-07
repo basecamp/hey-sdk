@@ -11,15 +11,67 @@ review and eventual current-head CI are still required.
 
 | Criterion | Evidence |
 |---|---|
-| Full modeled API, types, routes | `src/generated/coverage.json`: 130 operations; `tests/generator.test.ts` invokes every generated method against Fetch and checks OpenAPI-derived method/path/query/body. Byte-for-byte regeneration checks schemas, operations, guards and coverage. No Smithy, OpenAPI or Go client edits. |
-| HEY runtime behavior and artifact checks | 410 tests across 8 files: generation, precision/null/optional values, safe retries, no mutation replay, refresh, errors/body caps, URL safety, redirects, Link envelopes/window boundaries, account selection/isolation, signed upload isolation, OAuth forms/PKCE, conformance fail-closed contract and version scripts. |
+| Full modeled API, types, routes | `src/generated/coverage.json`: 130 operations; `tests/generator.test.ts` invokes every generated method against Fetch and checks OpenAPI-derived method/path/query/body. Byte-for-byte regeneration checks schemas, operations, guards and coverage. The narrow source `@heyNullable` member trait represents HEY's explicit null time-track category and regenerates OpenAPI plus both SDKs. |
+| HEY runtime behavior and artifact checks | 463 tests across 9 files: generation, precision/null/optional values, safe retries, no mutation replay, refresh, errors/body caps, URL safety, redirects, Link envelopes/window boundaries, account selection/isolation, signed upload isolation, OAuth forms/PKCE, release idempotency, conformance fail-closed contract and transactional version scripts. |
 | Shared conformance | Real loopback HTTP through generated SDK methods: **184 passed / 184 applicable**. Exactly 3 named unmodeled Go calendar-update form fixtures excluded, 187 total; explicit checked identity inventory and applicability reasons. Unknown assertions/operations/configuration, empty tests and stale exclusions fail. |
-| Node support | Node **22.12.0**, **24.20.0**, **26.7.0** each built, typechecked, ran all 410 tests and all 184 applicable conformance fixtures, and isolated package smoke. |
+| Node support | Node **22.12.0**, **24.20.0**, **26.7.0** each built, typechecked, ran all 463 tests and all 184 applicable conformance fixtures, and passed isolated package smoke. Renewed remote CI is required after commit. |
 | Installable artifact | 23-file npm tarball installed offline outside the repository; ESM root and OAuth subpath imports, real SDK int64 request/response and consumer TypeScript positive/negative typechecks passed. Exact packed tarball smoke also passed. |
 | Existing Go preserved | `make check`: Go vet/lint/tests and 187 Go conformance cases, Smithy/route/shape freshness plus Go wrapper drift, TypeScript checks/conformance and API-version sync. |
 | Delivery security | actionlint + shellcheck and zizmor passed; `npm audit` found zero vulnerabilities. Credential-free `npm publish --dry-run --provenance` passed. OIDC/registry ownership remain unverified and publishing disabled by default. |
 
-## PR #144 feedback corrections (current local validation)
+## Senior-maintainer review corrections after `2818e80`
+
+A full base-to-head review found ten runtime, contract, conformance and release defects.
+Two independent fresh-context reviews of the correction found four additional boundary
+failures; those were corrected before the final gate. The resulting changes:
+
+- charge a 401 refresh resend to the remaining retry budget; reject non-finite and
+  timer-overflowing `Retry-After` values; validate operation timeouts before credentials;
+- normalize Fetch and response-stream failures for generated calls, OAuth and signed
+  uploads while preserving cancellation and bounded-response errors;
+- parse RFC 8288 Link parameters without treating quoted text as relations, including
+  optional whitespace before delimiters;
+- represent HEY's explicit null uncategorized time-track response through a narrow
+  Smithy member trait and regenerated OpenAPI/Go/TypeScript artifacts;
+- validate complete OAuth token/discovery shapes and reject already-aborted calls before
+  Fetch;
+- make conformance body-absence assertions presence-aware, validate configuration values,
+  and preserve the shared zero-repeat-means-once contract;
+- make npm dry-run/publish idempotency use exact structured E404 and integrity checks,
+  rejecting malformed or incidental registry diagnostics;
+- require canonical SDK versions and stage every Go/TypeScript version replacement before
+  transactional installation, with rollback and fail-closed source extraction; and
+- remove generated trailing whitespace at the generator boundary.
+
+Named regressions live in `tests/client.test.ts`, `tests/account-scope.test.ts`,
+`tests/oauth.test.ts`, `tests/generator.test.ts`, `tests/conformance-contract.test.ts`,
+`tests/release-workflow.test.ts` and `tests/version-scripts.test.ts`. Final local results:
+
+```sh
+npm --prefix typescript test                 # PASS: 463 tests / 9 files
+npm --prefix typescript run typecheck         # PASS
+npm --prefix typescript run conformance       # PASS: 184/184 applicable; 3 exclusions
+make ts-smoke                                 # PASS: 23-file isolated artifact
+node scripts/npm-publish-artifact.mjs --dry-run … # PASS: exact packed artifact; no publish
+npm --prefix typescript audit --audit-level=high # PASS: 0 vulnerabilities
+npx --yes --package=node@22.12.0 -c 'make ts-check ts-smoke conformance-ts' # PASS
+npx --yes --package=node@24 -c 'make ts-check ts-smoke conformance-ts'       # PASS
+# Native Node 26.7.0 passed the same checks through make check + make ts-smoke.
+actionlint -shellcheck /home/rzolkos/.local/share/mise/installs/shellcheck/0.11.0/shellcheck-v0.11.0/shellcheck # PASS
+zizmor --no-progress .github/workflows     # PASS: no findings
+
+env -u GOROOT GOWORK=off PATH="/home/rzolkos/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.7.linux-amd64/bin:$PATH" make check
+# PASS: complete Go + TypeScript gate; 187 Go fixtures, 184 TypeScript fixtures
+git diff --check                              # PASS
+```
+
+The npm helper's E404 path was additionally exercised against the public registry using a
+nonexistent tarball: the structured absence check reached dry-run and then failed locally
+with ENOENT, so no publication was possible. Hermetic tests cover identical/conflicting
+integrity, structured E404, E500 mentioning E404, malformed errors, dry-run and publish
+command selection. Live ownership/OIDC publication remains unverified and inactive.
+
+## PR #144 feedback corrections at `2818e80`
 
 These focused corrections follow reviewed head
 `4bb1bab98347863037cda15cc59065c0a5b78a61`. Earlier independent reviews and remote

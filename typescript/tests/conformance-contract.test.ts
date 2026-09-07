@@ -1,5 +1,9 @@
 import { it, expect } from "vitest";
-import { validateFixture } from "../../conformance/runner/typescript/contract.js";
+import {
+  repetitionCount,
+  validateFixture,
+} from "../../conformance/runner/typescript/contract.js";
+import { assertBodyFields } from "../../conformance/runner/typescript/assertions.js";
 const legitimate: Record<string, unknown>[] = [
   { type: "requestCount", expected: 0 },
   { type: "delayBetweenRequests", min: 0 },
@@ -71,6 +75,44 @@ it.each([
   { type: "responseBody", path: "id", expected: { nested: undefined } },
 ])("rejects malformed assertion %#", assertion => {
   expect(() => validate(assertion)).toThrow();
+});
+
+it("treats null request-body expectations as absence rather than present null", () => {
+  expect(() => assertBodyFields({ kept: 1 }, { absent: null, kept: 1 })).not.toThrow();
+  expect(() => assertBodyFields({ absent: null }, { absent: null })).toThrow();
+});
+
+it("validates configuration domains and shares zero-means-once repetition", () => {
+  const assertion = [{ type: "noError" }];
+  for (const configOverrides of [
+    { accountId: 0 },
+    { accountId: 1.5 },
+    { accountId: Number.MAX_SAFE_INTEGER + 1 },
+    { accountId: "42" },
+    { baseUrl: 1 },
+    { baseUrl: "not a URL" },
+    { cacheEnabled: 1 },
+    { refreshableCredentials: "true" },
+    { clientLayer: "generated" },
+  ])
+    expect(() =>
+      validateFixture({ name: "test", assertions: assertion, configOverrides }),
+    ).toThrow();
+  for (const configOverrides of [
+    { accountId: 42 },
+    { accountId: 9007199254740993n },
+    { baseUrl: "http://evil.example.com" },
+    { cacheEnabled: false, refreshableCredentials: true, clientLayer: "hey" },
+  ])
+    expect(() =>
+      validateFixture({ name: "test", assertions: assertion, configOverrides }),
+    ).not.toThrow();
+  for (const repeatOperation of [-1, 1.5, Number.MAX_SAFE_INTEGER + 1, "1"])
+    expect(() =>
+      validateFixture({ name: "test", assertions: assertion, repeatOperation }),
+    ).toThrow();
+  expect(repetitionCount(0)).toBe(1);
+  expect(repetitionCount(2)).toBe(2);
 });
 
 it("fails closed on unknown assertions, fields, configurations and empty assertions even for exclusions", () => {

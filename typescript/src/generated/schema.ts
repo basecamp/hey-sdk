@@ -3074,7 +3074,8 @@ export interface components {
              */
             stopped_at?: string;
             notes?: string;
-            category?: string;
+            /** @description HEY emits explicit JSON null when a time track has no category. */
+            category?: string | null;
             label?: string;
             image_url?: string;
         };

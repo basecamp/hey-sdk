@@ -82,8 +82,13 @@ export function generateOperations(spec: Spec, behavior: Behavior) {
       };
       const required = body?.required || op.parameters?.some((p) => p.required);
       const name = id[0]!.toLowerCase() + id.slice(1);
+      const description = (op.description ?? id)
+        .replaceAll("*/", "* /")
+        .split("\n")
+        .map((line) => line.trimEnd())
+        .join("\n   * ");
       methods.push(
-        `  /** ${(op.description ?? id).replaceAll("*/", "* /").replaceAll("\n", "\n   * ")} */\n  ${name}(input: OperationInput<${JSON.stringify(id)}>${required ? "" : " = {}"}, options?: RequestOptions): Promise<OperationResponse<${JSON.stringify(id)}>> {\n    return this.transport.execute(${JSON.stringify(id)}, input, options);\n  }`,
+        `  /** ${description} */\n  ${name}(input: OperationInput<${JSON.stringify(id)}>${required ? "" : " = {}"}, options?: RequestOptions): Promise<OperationResponse<${JSON.stringify(id)}>> {\n    return this.transport.execute(${JSON.stringify(id)}, input, options);\n  }`,
       );
     }
   }
@@ -144,10 +149,11 @@ export async function generate(check = false) {
   await mkdir(directory, { recursive: true });
   for (const [name, content] of Object.entries(output)) {
     const target = new URL(name, directory);
+    const normalized = content.replace(/[ \t]+$/gm, "");
     if (check) {
-      if ((await readFile(target, "utf8")) !== content)
+      if ((await readFile(target, "utf8")) !== normalized)
         throw new Error(`Stale ${fileURLToPath(target)}; run make ts-generate`);
-    } else await writeFile(target, content);
+    } else await writeFile(target, normalized);
   }
   console.log(
     `${check ? "Verified" : "Generated"} ${Object.keys(behavior.operations).length} HEY operations, types, guards and coverage`,

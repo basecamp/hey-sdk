@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # enhance-openapi-go-types.sh — Post-process openapi.json with Go-specific type hints
 #
-# Adds x-go-type annotations for oapi-codegen:
+# Adds source-derived OpenAPI/Go annotations for downstream generators:
+#   - x-hey-nullable member traits → nullable schemas
 #   - *_at fields → time.Time
 #   - *_on fields → types.Date
 #   - Optional booleans in request bodies → *bool (nil vs false distinction)
@@ -15,15 +16,20 @@ if ! command -v jq &> /dev/null; then
     exit 1
 fi
 
-# Pass 1: Time and date type hints for all properties
+# Pass 1: Nullable members plus time and date type hints for all properties
 jq '
   # Walk all properties in schemas
   (.components.schemas // {}) |= with_entries(
     .value |= (
       if .properties then
         .properties |= with_entries(
+          # A narrow Smithy member trait records observed explicit JSON nulls.
+          if .value["x-hey-nullable"] != null then
+            .value += {"nullable": true}
+          else .
+          end
           # Timestamp fields: *_at → time.Time
-          if (.key | test("_at$")) and (.value.type == "string") then
+          | if (.key | test("_at$")) and (.value.type == "string") then
             .value += {"x-go-type": "time.Time", "x-go-type-import": {"path": "time"}}
           # Date fields: *_on → types.Date
           elif (.key | test("_on$")) and (.value.type == "string") then

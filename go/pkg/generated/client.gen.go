@@ -1253,8 +1253,10 @@ type Recording struct {
 
 	// Calendar Calendar
 	Calendar Calendar `json:"calendar,omitempty"`
-	Category string   `json:"category,omitempty"`
-	Color    string   `json:"color,omitempty"`
+
+	// Category HEY emits explicit JSON null when a time track has no category.
+	Category string `json:"category,omitempty"`
+	Color    string `json:"color,omitempty"`
 
 	// CompletedAt ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)
 	CompletedAt time.Time `json:"completed_at,omitempty,omitzero"`

@@ -3317,7 +3317,7 @@ export class GeneratedOperations {
   }
 
   /** Get the options the advanced search refine form offers.
-   * 
+   *
    * Advanced search: message matches grouped by topic as the search page shows them —
    * the topic, its posting id, and the matching entries as summaries (no bodies; read a
    * message with GetMessage). Refinements are the same query parameters the page uses.
@@ -3357,7 +3357,7 @@ export class GeneratedOperations {
   }
 
   /** Create a Set Aside group out of a selection of postings.
-   * 
+   *
    * This endpoint does not split a comma-joined posting_ids string — send an array. */
   createBoxGroup(input: OperationInput<"CreateBoxGroup">, options?: RequestOptions): Promise<OperationResponse<"CreateBoxGroup">> {
     return this.transport.execute("CreateBoxGroup", input, options);
@@ -3369,7 +3369,7 @@ export class GeneratedOperations {
   }
 
   /** Read one Set Aside group with the postings in it.
-   * 
+   *
    * The postings are paged like a folder's: newest observed first, 30 to a page, with the
    * next page in the Link header and the total in X-Total-Count. */
   getBoxGroup(input: OperationInput<"GetBoxGroup">, options?: RequestOptions): Promise<OperationResponse<"GetBoxGroup">> {
@@ -3382,7 +3382,7 @@ export class GeneratedOperations {
   }
 
   /** Read what changed among a box's postings since a point in time.
-   * 
+   *
    * This is the incremental sync feed the mail clients follow rather than re-reading a
    * box. `since` is an ISO 8601 timestamp with milliseconds and is exclusive, and `v` is
    * the client's contract version — the server answers 409 when the caller is too far
@@ -3509,14 +3509,14 @@ export class GeneratedOperations {
   }
 
   /** List tracked time — completed tracks only, newest-ended first.
-   * 
+   *
    * A running track is not here; read that with GetOngoingTimeTrack. The next page, if
    * any, is a Link header, and the last page carries none, so a nil Link is the end of
    * the list rather than an error.
-   * 
+   *
    * category_id narrows the list to one category and 404s if the calendar has no
    * category by that id.
-   * 
+   *
    * The calendar's categories come back alongside the tracks, so showing or applying the
    * filter does not need ListTimeTrackCategories as well. */
   listTimeTracks(input: OperationInput<"ListTimeTracks"> = {}, options?: RequestOptions): Promise<OperationResponse<"ListTimeTracks">> {
@@ -3524,7 +3524,7 @@ export class GeneratedOperations {
   }
 
   /** Record a finished stretch of time.
-   * 
+   *
    * JSON callers send the fields flat; Rails wraps them into calendar_time_track itself. */
   createTimeTrack(input: OperationInput<"CreateTimeTrack">, options?: RequestOptions): Promise<OperationResponse<"CreateTimeTrack">> {
     return this.transport.execute("CreateTimeTrack", input, options);
@@ -3541,10 +3541,10 @@ export class GeneratedOperations {
   }
 
   /** Update a time track (stop by setting ends_at to current time).
-   * 
+   *
    * Every update completes the track, whether or not ends_at is sent, so this cannot
    * be used to adjust a running track: it stops it.
-   * 
+   *
    * Only the fields sent are written, so a partial update leaves the rest of the track
    * alone. A starts_at or ends_at the server cannot parse is a 400, not a 422. */
   updateTimeTrack(input: OperationInput<"UpdateTimeTrack">, options?: RequestOptions): Promise<OperationResponse<"UpdateTimeTrack">> {
@@ -3626,7 +3626,7 @@ export class GeneratedOperations {
   }
 
   /** Screen a sender in or out of the Screener
-   * 
+   *
    * designation_box_id files everything they send into that box instead of the Imbox.
    * spam marks what is already waiting as spam and trains the filter on it. */
   updateClearance(input: OperationInput<"UpdateClearance">, options?: RequestOptions): Promise<OperationResponse<"UpdateClearance">> {
@@ -3801,7 +3801,7 @@ export class GeneratedOperations {
    * The revision is not a patch: subject, content and any scheduled delivery are rewritten
    * from this request (an omitted scheduled delivery clears one), while recipients are
    * replaced only when entry.addressed is present.
-   * 
+   *
    * Not naturally idempotent despite the PUT: without the drafted status this request
    * *delivers*, so a transparent retry after an ambiguous first attempt could send the
    * message again. The client must not retry it. */
@@ -3851,7 +3851,7 @@ export class GeneratedOperations {
   }
 
   /** Schedule a selection of postings to bubble up.
-   * 
+   *
    * HEY's scheduler takes a `slot` — today, tomorrow, weekend, next_week, surprise_me
    * or custom — and a custom slot also carries the `date` (YYYY-MM-DD) to bubble up on,
    * at HEY's morning hour. The today slot lands at HEY's evening hour of the current
@@ -3909,7 +3909,7 @@ export class GeneratedOperations {
   }
 
   /** Mark a selection of postings as spam.
-   * 
+   *
    * Over ten postings the server hands the work to a background job, so the effect is
    * eventually consistent. */
   markPostingsSpam(input: OperationInput<"MarkPostingsSpam">, options?: RequestOptions): Promise<OperationResponse<"MarkPostingsSpam">> {
@@ -3930,7 +3930,7 @@ export class GeneratedOperations {
   }
 
   /** List the unseen postings inside a bundle posting.
-   * 
+   *
    * A bundle posting groups one contact's unseen mail; this is its contents — the member
    * postings, newest first, paged by cursor like a box. The posting must be a bundle. */
   getBundleUnseenPostings(input: OperationInput<"GetBundleUnseenPostings">, options?: RequestOptions): Promise<OperationResponse<"GetBundleUnseenPostings">> {
@@ -4024,7 +4024,7 @@ export class GeneratedOperations {
   }
 
   /** Move a topic to another box.
-   * 
+   *
    * Answers 204 without moving anything when the acting user has no posting for the topic. */
   moveTopic(input: OperationInput<"MoveTopic">, options?: RequestOptions): Promise<OperationResponse<"MoveTopic">> {
     return this.transport.execute("MoveTopic", input, options);
@@ -4046,7 +4046,7 @@ export class GeneratedOperations {
   }
 
   /** Trash a topic.
-   * 
+   *
    * A shared topic redirects to the removal confirmation page unless confirm_destroy is set,
    * so always pass it when trashing something that might be shared. */
   trashTopic(input: OperationInput<"TrashTopic">, options?: RequestOptions): Promise<OperationResponse<"TrashTopic">> {

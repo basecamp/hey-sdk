@@ -1,4 +1,4 @@
-import { it, expect } from "vitest";
+import { it, expect, vi } from "vitest";
 import { HeyClient } from "../src/index.js";
 const identity = {
   accounts: [
@@ -125,6 +125,23 @@ it("uploads exact bytes/headers to signed URLs without HEY credentials, scope or
   expect(new Uint8Array(await request.arrayBuffer())).toEqual(
     new Uint8Array([0, 1, 255]),
   );
+});
+it("does not start a direct upload for an already-aborted request", async () => {
+  const controller = new AbortController();
+  controller.abort();
+  const fetch = vi.fn();
+  await expect(
+    new HeyClient({ token: "a", fetch }).uploadBytes(
+      {
+        direct_upload: { url: "https://storage.example/upload", headers: {} },
+        signed_id: "s",
+        attachable_sgid: "a",
+      },
+      new Uint8Array([1]),
+      { signal: controller.signal },
+    ),
+  ).rejects.toMatchObject({ name: "AbortError" });
+  expect(fetch).not.toHaveBeenCalled();
 });
 it("partitions ETag revalidation by current credentials and evicts no-store", async () => {
   let token = "a";

@@ -226,6 +226,43 @@ describe("HEY transport", () => {
       expect(m.requests).toHaveLength(1);
     }
   });
+  it("rejects non-finite Retry-After seconds without an early resend", async () => {
+    const m = mock([
+      json({}, 429, { "Retry-After": "9".repeat(400) }),
+      json([]),
+    ]);
+    await expect(
+      new HeyClient({ token: "secret", fetch: m.fetch }).listBoxes(),
+    ).rejects.toMatchObject({ code: "rate_limit", httpStatus: 429 });
+    expect(m.requests).toHaveLength(1);
+  });
+  it("normalizes generated Fetch and response-stream failures without retrying", async () => {
+    const failures = [
+      vi.fn(async () => {
+        throw new Error("secret socket detail");
+      }),
+      vi.fn(async () =>
+        new Response(
+          new ReadableStream({
+            start(controller) {
+              controller.error(new Error("secret stream detail"));
+            },
+          }),
+        ),
+      ),
+    ];
+    for (const fetch of failures) {
+      const error = await new HeyClient({ token: "secret", fetch })
+        .listBoxes()
+        .catch((value: unknown) => value);
+      expect(error).toMatchObject({
+        code: "network",
+        message: "Network request failed",
+        cause: expect.any(Error),
+      });
+      expect(fetch).toHaveBeenCalledTimes(1);
+    }
+  });
   it("does not replay ambiguous network failures", async () => {
     const fetch = vi.fn(async () => {
       throw new Error("socket closed");
@@ -236,6 +273,17 @@ describe("HEY transport", () => {
       }),
     ).rejects.toMatchObject({ code: "network" });
     expect(fetch).toHaveBeenCalledTimes(1);
+  });
+  it("charges a refresh resend to the remaining retry budget", async () => {
+    const m = mock([json({}, 401), json({}, 503), json([])]);
+    await expect(
+      new HeyClient({
+        token: { getToken: () => "token", refresh: vi.fn() },
+        fetch: m.fetch,
+        maxRetries: 1,
+      }).listBoxes(),
+    ).rejects.toMatchObject({ httpStatus: 503 });
+    expect(m.requests).toHaveLength(2);
   });
   it("refreshes once on a definite 401 and replays exact mutation body", async () => {
     let token = "old";
@@ -422,12 +470,35 @@ describe("HEY transport", () => {
   });
 });
 describe("HEY pagination", () => {
-  it("parses complex Link relations", () => {
+  it("parses complex Link relations without mistaking quoted parameter text for rel", () => {
     expect(
       nextLink(
         '<https://app.hey.com/contacts.json?x=1,2>; rel="prev NEXT"; title="a,b", </old>; rel=prev',
       ),
     ).toBe("https://app.hey.com/contacts.json?x=1,2");
+    expect(
+      nextLink(
+        '</fake>; title="not a relation; rel=next; \\"still quoted\\"", </real?page=2>; title="ok; still ok"; rel="next"',
+      ),
+    ).toBe("/real?page=2");
+    expect(
+      nextLink('</contacts.json?page=2>; rel=next   ; title=page'),
+    ).toBe("/contacts.json?page=2");
+  });
+  it("follows the real next link after fake rel text in a quoted parameter", async () => {
+    const m = mock([
+      json([], 200, {
+        Link: '</fake>; title="ignore; rel=next; \\"quoted\\"", </contacts.json?page=2>; rel=next   ; title=page',
+      }),
+      json([]),
+    ]);
+    const pages = new HeyClient({ token: "secret", fetch: m.fetch }).pages(
+      "ListContacts",
+      {},
+    );
+    await pages.next();
+    await pages.next();
+    expect(new URL(m.requests[1]!.url).searchParams.get("page")).toBe("2");
   });
   it("follows full relative URLs and preserves envelopes instead of treating bookmarks as pages", async () => {
     const m = mock([
@@ -487,6 +558,47 @@ it("rejects unsafe exponential integer encodings rather than rounding IDs", asyn
       path: { boxId: 1 },
     }),
   ).rejects.toMatchObject({ message: "Invalid JSON response" });
+});
+it("accepts the reliable timer maximum and rejects larger timeouts before credentials", async () => {
+  const token = vi.fn(() => "token");
+  expect(
+    () => new HeyClient({ token: { getToken: token }, timeoutMs: 2_147_483_647 }),
+  ).not.toThrow();
+  expect(
+    () => new HeyClient({ token: { getToken: token }, timeoutMs: 2_147_483_648 }),
+  ).toThrow(/timer maximum/);
+  expect(token).not.toHaveBeenCalled();
+});
+it("normalizes upload Fetch and response-stream failures without leaking details", async () => {
+  const upload = {
+    signed_id: "signed",
+    attachable_sgid: "attachable",
+    direct_upload: { url: "https://uploads.example/file" },
+  };
+  for (const fetch of [
+    vi.fn(async () => {
+      throw new Error("private upload socket");
+    }),
+    vi.fn(async () =>
+      new Response(
+        new ReadableStream({
+          start(controller) {
+            controller.error(new Error("private upload stream"));
+          },
+        }),
+      ),
+    ),
+  ]) {
+    const error = await new HeyClient({ token: "x", fetch })
+      .uploadBytes(upload, new Uint8Array([1]))
+      .catch((value: unknown) => value);
+    expect(error).toMatchObject({
+      code: "network",
+      message: "Network request failed",
+      cause: expect.any(Error),
+    });
+    expect(fetch).toHaveBeenCalledTimes(1);
+  }
 });
 it("applies operation deadlines to Fetch", async () => {
   const fetch: typeof globalThis.fetch = async (_url, init) =>

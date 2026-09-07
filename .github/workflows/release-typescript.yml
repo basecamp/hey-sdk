@@ -79,21 +79,25 @@ jobs:
           npm run build
           TARBALL=$(npm pack --silent)
           npm run smoke -- "$TARBALL"
+          cp ../scripts/npm-publish-artifact.mjs npm-publish-artifact.mjs
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "tarball=$TARBALL" >> "$GITHUB_OUTPUT"
       - name: Credential-free dry run (also runs before an activated publish)
         env:
+          VERSION: ${{ steps.pack.outputs.version }}
           TARBALL: ${{ steps.pack.outputs.tarball }}
           ENABLED: ${{ vars.HEY_TYPESCRIPT_PUBLISH_ENABLED }}
         run: |
-          npm publish "$TARBALL" --access public --tag latest --dry-run --provenance
+          node ../scripts/npm-publish-artifact.mjs --dry-run '@37signals/hey' "$VERSION" "$TARBALL"
           if [ "$ENABLED" != true ]; then
             echo '::notice::TypeScript publishing disabled: npm NOT published; Go release remains independent.'
           fi
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: hey-npm-tarball
-          path: typescript/*.tgz
+          path: |
+            typescript/*.tgz
+            typescript/npm-publish-artifact.mjs
           if-no-files-found: error
           retention-days: 7
 
@@ -125,16 +129,4 @@ jobs:
           TARBALL: ${{ needs.build.outputs.tarball }}
         run: |
           case "$TARBALL" in 37signals-hey-*.tgz) ;; *) echo 'Unexpected tarball'; exit 1 ;; esac
-          if npm view "@37signals/hey@$VERSION" dist.integrity --json > registry.json 2> registry.err; then
-            EXPECTED="sha512-$(openssl dgst -sha512 -binary "$TARBALL" | openssl base64 -A)"
-            ACTUAL=$(jq -er 'select(type == "string")' registry.json)
-            test "$EXPECTED" = "$ACTUAL" || { echo '::error::Existing npm version differs from artifact'; exit 1; }
-            echo '::notice::Identical version already published; nothing to do.'
-          elif jq -e '.error.code == "E404"' registry.json >/dev/null 2>&1; then
-            npm publish "$TARBALL" --access public --tag latest --provenance --ignore-scripts
-          else
-            cat registry.err
-            cat registry.json
-            echo '::error::Registry query failed; refusing to treat it as an unpublished version.'
-            exit 1
-          fi
+          node npm-publish-artifact.mjs --publish '@37signals/hey' "$VERSION" "$TARBALL"
