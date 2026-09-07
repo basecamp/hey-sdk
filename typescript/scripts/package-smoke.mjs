@@ -2,9 +2,10 @@
 import { mkdtempSync, writeFileSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve, dirname } from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { execFileSync } from "node:child_process";
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const temp = mkdtempSync(join(tmpdir(), "hey-npm-smoke-"));
 try {
@@ -48,20 +49,39 @@ try {
   assert(
     !paths.some((p) => p.includes("node_modules") || p.endsWith(".test.js")),
   );
+  // npm ci caches locked tarballs, not registry metadata. Seed a consumer lock
+  // with the frozen production graph so this install also works on a cold CI
+  // runner without network access or a developer's warmed metadata cache.
+  const packedManifest = JSON.parse(
+    execFileSync("tar", ["-xOf", tarball, "package/package.json"], {
+      encoding: "utf8",
+    }),
+  );
+  const lock = JSON.parse(readFileSync(join(root, "package-lock.json"), "utf8"));
+  assert.deepEqual(packedManifest.dependencies, lock.packages[""].dependencies);
+  const consumer = {
+    private: true,
+    type: "module",
+    dependencies: { [packedManifest.name]: pathToFileURL(tarball).href },
+  };
+  const packages = Object.fromEntries(
+    Object.entries(lock.packages).filter(([path, entry]) => path && !entry.dev),
+  );
+  packages[""] = consumer;
+  packages[`node_modules/${packedManifest.name}`] = {
+    version: packedManifest.version,
+    resolved: pathToFileURL(tarball).href,
+    integrity: `sha512-${createHash("sha512").update(readFileSync(tarball)).digest("base64")}`,
+    dependencies: packedManifest.dependencies,
+  };
+  writeFileSync(join(temp, "package.json"), JSON.stringify(consumer));
   writeFileSync(
-    join(temp, "package.json"),
-    '{"private":true,"type":"module"}\n',
+    join(temp, "package-lock.json"),
+    JSON.stringify({ lockfileVersion: 3, requires: true, packages }),
   );
   execFileSync(
     "npm",
-    [
-      "install",
-      "--ignore-scripts",
-      "--offline",
-      "--no-audit",
-      "--no-fund",
-      tarball,
-    ],
+    ["ci", "--ignore-scripts", "--offline", "--no-audit", "--no-fund"],
     { cwd: temp, stdio: "pipe" },
   );
   const manifest = JSON.parse(

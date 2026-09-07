@@ -93,6 +93,56 @@ available to other callers. A never-settling renewal remains shared, but every r
 can now time out/cancel rather than hang. Live npm/OIDC and remote workflow execution
 remain human prerequisites, not claims established by these local checks.
 
+## PR CI correction: offline smoke with a cold npm cache
+
+The first pushed head `fe546990e450a986529b7be0367d60875adb6d0d` passed all
+190 tests/build/typechecks remotely, but all three Node jobs failed package smoke:
+[initial GitHub Test run](https://github.com/basecamp/hey-sdk/actions/runs/34141520489).
+`npm ci` caches lockfile tarballs, not registry packument metadata; the isolated
+`npm install --offline` incorrectly depended on a developer's warmed metadata cache.
+Aggregate conformance correctly skipped because its upstream matrix failed.
+
+The smoke script now constructs an isolated consumer lock from the frozen production
+entries plus the exact tested SDK tarball's SHA-512 integrity, verifies the packed
+manifest's dependencies match the frozen root, and uses `npm ci --offline`. No runtime,
+API, package dependency, workflow or gate changed. The artifact still installs outside
+the repository with no network, lifecycle scripts or local-source resolution.
+
+Reproduction and passing-after commands (executed locally):
+
+```sh
+CACHE=$(mktemp -d /tmp/hey-ts-cold-cache-XXXXXX)
+echo "$CACHE" > /tmp/hey-ts-cold-cache-path
+npm_config_cache="$CACHE" npm --prefix typescript ci
+npm_config_cache="$CACHE" make ts-smoke
+# Before script correction: FAIL, ENOTCACHED for lossless-json registry metadata.
+# After correction, same cache and command: PASS, 23-file isolated package smoke.
+
+npx --yes --package=node@22.12.0 -c 'node --version && npm_config_cache="$(cat /tmp/hey-ts-cold-cache-path)" make ts-check ts-smoke conformance-ts'
+npx --yes --package=node@24 -c 'node --version && npm_config_cache="$(cat /tmp/hey-ts-cold-cache-path)" make ts-check ts-smoke conformance-ts'
+(node --version && npm_config_cache="$(cat /tmp/hey-ts-cold-cache-path)" make ts-check ts-smoke conformance-ts)
+# Each PASS: Node 22.12.0 / 24.20.0 / 26.7.0, 190 tests, generated freshness,
+# build/typecheck, offline package smoke and 184/184 applicable fixtures.
+
+(cd typescript && npm run build && TARBALL=$(npm pack --silent) && \
+  npm_config_cache="$(cat /tmp/hey-ts-cold-cache-path)" npm run smoke -- "$TARBALL" && \
+  env -u NODE_AUTH_TOKEN -u NPM_TOKEN NPM_CONFIG_USERCONFIG=/dev/null \
+    npm publish "$TARBALL" --access public --tag latest --dry-run --provenance)
+# PASS: exact-artifact offline smoke and dry-run only; npm NOT published.
+```
+
+Additional manual negative probes passed: repacking the artifact with
+`lossless-json: 0.0.0` fails the manifest/lock assertion before installation;
+using a wholly empty npm cache (no dependency tarball) fails with `ENOTCACHED`,
+proving no online fallback. An initial synthetic repack included directory entries
+and was rejected by the existing file whitelist; repeating with only package files
+exercised the intended dependency assertion. No test or whitelist was loosened.
+
+Pre-commit `make check` **passed**, using the same coherent Go invocation documented
+above: MVP gate passed, 190 TS tests, 184 applicable TS fixtures and 187 Go fixtures,
+plus all shared freshness/lint/version gates. The prior independent review does not
+cover this new smoke-script correction; renewed review is required.
+
 ## Initial implementation commands and results
 
 The following historical runs preceded the review corrections (183 tests). Post-fix
