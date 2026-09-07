@@ -58,7 +58,36 @@ try {
     }),
   );
   const lock = JSON.parse(readFileSync(join(root, "package-lock.json"), "utf8"));
-  assert.deepEqual(packedManifest.dependencies, lock.packages[""].dependencies);
+  // This consumer-lock fixture supports HEY's plain dependency graph only.
+  // Fail closed if a manifest introduces graph/platform semantics we do not
+  // reproduce; otherwise npm ci could validate a different install than npm users.
+  for (const field of [
+    "optionalDependencies",
+    "peerDependencies",
+    "peerDependenciesMeta",
+    "bundleDependencies",
+    "bundledDependencies",
+    "overrides",
+    "workspaces",
+    "os",
+    "cpu",
+    "libc",
+  ]) {
+    assert(
+      !Object.hasOwn(packedManifest, field) && !Object.hasOwn(lock.packages[""], field),
+      `Unsupported package smoke manifest field: ${field}`,
+    );
+  }
+  assert.deepEqual(
+    packedManifest.dependencies,
+    lock.packages[""].dependencies,
+    "Packed dependencies differ from frozen lock",
+  );
+  assert.deepEqual(
+    packedManifest.engines,
+    lock.packages[""].engines,
+    "Packed engines differ from frozen lock",
+  );
   const consumer = {
     private: true,
     type: "module",
@@ -73,6 +102,7 @@ try {
     resolved: pathToFileURL(tarball).href,
     integrity: `sha512-${createHash("sha512").update(readFileSync(tarball)).digest("base64")}`,
     dependencies: packedManifest.dependencies,
+    engines: packedManifest.engines,
   };
   writeFileSync(join(temp, "package.json"), JSON.stringify(consumer));
   writeFileSync(

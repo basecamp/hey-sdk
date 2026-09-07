@@ -12,9 +12,9 @@ review and eventual current-head CI are still required.
 | Criterion | Evidence |
 |---|---|
 | Full modeled API, types, routes | `src/generated/coverage.json`: 130 operations; `tests/generator.test.ts` invokes every generated method against Fetch and checks OpenAPI-derived method/path/query/body. Byte-for-byte regeneration checks schemas, operations, guards and coverage. No Smithy, OpenAPI or Go client edits. |
-| HEY runtime behavior | 190 tests across 6 files: generation, precision/null/optional values, safe retries, no mutation replay, refresh, errors/body caps, URL safety, redirects, Link envelopes/window boundaries, account selection/isolation, signed upload isolation, OAuth forms/PKCE, conformance fail-closed contract and version scripts. |
+| HEY runtime behavior and artifact checks | 203 tests across 7 files: generation, precision/null/optional values, safe retries, no mutation replay, refresh, errors/body caps, URL safety, redirects, Link envelopes/window boundaries, account selection/isolation, signed upload isolation, OAuth forms/PKCE, conformance fail-closed contract and version scripts. |
 | Shared conformance | Real loopback HTTP through generated SDK methods: **184 passed / 184 applicable**. Exactly 3 named unmodeled Go calendar-update form fixtures excluded, 187 total; explicit checked identity inventory and applicability reasons. Unknown assertions/operations/configuration, empty tests and stale exclusions fail. |
-| Node support | Node **22.12.0**, **24.20.0**, **26.7.0** each built, typechecked, ran all 190 tests and all 184 applicable conformance fixtures, and isolated package smoke. |
+| Node support | Node **22.12.0**, **24.20.0**, **26.7.0** each built, typechecked, ran all 203 tests and all 184 applicable conformance fixtures, and isolated package smoke. |
 | Installable artifact | 23-file npm tarball installed offline outside the repository; ESM root and OAuth subpath imports, real SDK int64 request/response and consumer TypeScript positive/negative typechecks passed. Exact packed tarball smoke also passed. |
 | Existing Go preserved | `make check`: Go vet/lint/tests and 187 Go conformance cases, Smithy/route/shape freshness plus Go wrapper drift, TypeScript checks/conformance and API-version sync. |
 | Delivery security | actionlint + shellcheck and zizmor passed; `npm audit` found zero vulnerabilities. Credential-free `npm publish --dry-run --provenance` passed. OIDC/registry ownership remain unverified and publishing disabled by default. |
@@ -142,6 +142,45 @@ Pre-commit `make check` **passed**, using the same coherent Go invocation docume
 above: MVP gate passed, 190 TS tests, 184 applicable TS fixtures and 187 Go fixtures,
 plus all shared freshness/lint/version gates. The prior independent review does not
 cover this new smoke-script correction; renewed review is required.
+
+### Renewed review: reject unsupported artifact install semantics
+
+The first CI correction (`eb5931e002a9e55b82cb45813cd2b25d7bf72503`) passed
+[remote Test CI](https://github.com/basecamp/hey-sdk/actions/runs/34142233197), but
+renewed independent review demonstrated a false-positive: adding an optional override
+of `lossless-json` or a nonexistent required peer still passed, because the synthetic
+consumer lock omitted those manifest semantics. Green CI did not establish correctness.
+
+The smoke now explicitly rejects optional/peer dependencies and peer metadata,
+both bundled-dependency spellings, overrides, workspaces and OS/CPU/libc restrictions
+in the artifact or frozen root. These are unsupported by this smoke fixture, not
+unsupported by npm; HEY currently uses none of them. It verifies engine equality
+against the frozen Node contract and preserves engines in the consumer lock. Future
+adoption of these manifest features must extend the fixture deliberately; it cannot
+silently smoke a different installation graph. The ordinary dependency equality,
+SHA-512 integrity, offline install, lifecycle-script refusal, package whitelist,
+isolated imports/int64 behavior and consumer typechecks remain intact.
+
+New automated `tests/package-smoke.test.ts` builds/packs the real package, confirms
+the unmodified artifact passes, and performs file-only adversarial repacks changing
+only the manifest. Executed with the same cold tarball-only cache:
+
+```sh
+npm_config_cache="$(cat /tmp/hey-ts-cold-cache-path)" \
+  npm --prefix typescript test -- tests/package-smoke.test.ts
+# Before runtime-script correction: 12 failed / 1 passed.
+# Ten unsupported-field artifacts plus an impossible Node engine falsely passed.
+# Dependency-drift artifact already failed, but lacked the new precise diagnostic.
+# After correction, same command: 13/13 passed.
+```
+
+Re-executed the exact three Node matrix commands and exact-artifact dry-run command
+in the preceding section: **all passed**, now **203 tests across 7 files**, generation,
+build/typecheck, 23-file offline smoke, and **184 applicable fixtures** on each of
+22.12.0 / 24.20.0 / 26.7.0. npm was not published. No API/runtime code, dependency
+versions, workflow settings or coverage exclusions changed. The same coherent-Go
+`make check` command also **passed before commit**, now with 203 TS tests, 184 TS
+fixtures, 187 Go fixtures and all shared gates (`MVP gate passed`).
 
 ## Initial implementation commands and results
 
