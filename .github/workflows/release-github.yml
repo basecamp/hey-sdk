@@ -21,10 +21,14 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.tag || github.sha }}
+      - name: Read versioned publication state
+        id: activation
+        run: echo "enabled=$(bash scripts/typescript-publish-state.sh)" >> "$GITHUB_OUTPUT"
       - uses: basecamp/sdk/actions/release-orchestrate@main # zizmor: ignore[unpinned-uses] -- internal composite action tracking main; subpath actions cannot be SHA-pinned
         with:
           version: ${{ github.event.inputs.tag || github.ref_name }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          # The same activation boundary as release-typescript.yml. Unset means
-          # npm is NOT published and cannot block the existing Go release.
-          languages: ${{ vars.HEY_TYPESCRIPT_PUBLISH_ENABLED == 'true' && 'go,typescript' || 'go' }}
+          # The tagged commit provides the same immutable activation decision to
+          # release-typescript.yml and this orchestrator.
+          languages: ${{ steps.activation.outputs.enabled == 'true' && 'go,typescript' || 'go' }}

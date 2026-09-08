@@ -42,6 +42,16 @@ function repack(field: string, value: unknown) {
   return artifact;
 }
 
+function repackReadme(content: string) {
+  const readmePath = join(temp, "package/README.md");
+  const original = readFileSync(readmePath, "utf8");
+  writeFileSync(readmePath, content);
+  const artifact = join(temp, "readme.tgz");
+  execFileSync("tar", ["-czf", artifact, "-C", temp, ...files]);
+  writeFileSync(readmePath, original);
+  return artifact;
+}
+
 it("installs and exercises the real packed artifact offline", () => {
   const result = smoke(tarball);
   expect(result.error).toBeUndefined();
@@ -65,6 +75,12 @@ it.each([
   expect(result.error).toBeUndefined();
   expect(result.status).not.toBe(0);
   expect(result.stderr).toContain(`Unsupported package smoke manifest field: ${field}`);
+});
+
+it("rejects README links to files absent from the package", () => {
+  const result = smoke(repackReadme("See [missing example](examples/oauth.ts)."));
+  expect(result.status).not.toBe(0);
+  expect(result.stderr).toContain("README link is absent from package: examples/oauth.ts");
 });
 
 it("rejects packed dependency drift from the frozen graph", () => {

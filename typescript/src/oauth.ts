@@ -177,11 +177,16 @@ async function tokenRequest(
     throw new HeyError("api_error", "OAuth response has unsupported token type");
   if (
     (token.refresh_token !== undefined &&
-      typeof token.refresh_token !== "string") ||
-    (token.scope !== undefined && typeof token.scope !== "string") ||
+      (typeof token.refresh_token !== "string" ||
+        !/^[\x20-\x7e]+$/.test(token.refresh_token))) ||
+    (token.scope !== undefined &&
+      (typeof token.scope !== "string" ||
+        !/^[\x21\x23-\x5b\x5d-\x7e]+(?: [\x21\x23-\x5b\x5d-\x7e]+)*$/.test(
+          token.scope,
+        ))) ||
     (token.expires_in !== undefined &&
       (typeof token.expires_in !== "number" ||
-        !Number.isFinite(token.expires_in) ||
+        !Number.isSafeInteger(token.expires_in) ||
         token.expires_in < 0))
   )
     throw new HeyError("api_error", "Invalid OAuth token response");

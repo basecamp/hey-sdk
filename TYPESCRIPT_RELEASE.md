@@ -6,9 +6,10 @@ change does not configure live repository, npm, environments, credentials or set
 
 ## Safe activation boundary
 
-Both `release-typescript.yml` and `release-github.yml` use the **same repository
-variable `HEY_TYPESCRIPT_PUBLISH_ENABLED`, exactly the string `true`**. Unset or any
-other value means:
+Both `release-typescript.yml` and `release-github.yml` read
+**`.github/typescript-publish-enabled` from the tagged commit**. The file contains
+exactly `true` or `false`; its value is immutable for the complete release. `false`
+means:
 
 - Tag/manual TypeScript workflows still validate, test all supported Node versions,
   run conformance, build, smoke-test and pack an artifact, and dry-run publishing.
@@ -17,8 +18,7 @@ other value means:
   It does not claim a completed TypeScript publication.
 
 Once enabled, tag pushes permit the protected publish job and GitHub orchestration
-waits for `go,typescript`. Do not toggle activation during a release: both workflows
-must observe the same value. Manual `workflow_dispatch` is **always dry-run**, even
+waits for `go,typescript`. Manual `workflow_dispatch` is **always dry-run**, even
 when enabled, with no environment approval or OIDC permission. An npm failure after
 activation intentionally blocks the combined release; Go module tags remain compatible.
 
@@ -40,11 +40,12 @@ activation intentionally blocks the combined release; Go module tags remain comp
 5. Run `Release TypeScript SDK` manually at the intended main commit. Inspect tests,
    conformance, package smoke, dry-run file list and downloadable tarball. This
    credential-free run cannot prove ownership, OIDC identity or provenance minting.
-6. Only after verification, set repository variable `HEY_TYPESCRIPT_PUBLISH_ENABLED`
-   to `true`. Then release a **new**, synchronized version from main via the normal
-   human-owned release procedure. Do not reuse an already-published bootstrap version
-   with a different tarball. Observe npm provenance and actual installation after
-   the first publish, and GitHub orchestration waiting for both SDK workflows.
+6. Only after verification, change `.github/typescript-publish-enabled` to `true`
+   and replace the README's pending-provisioning notice in the same reviewed commit.
+   Then release a **new**, synchronized version from main via the normal human-owned
+   release procedure. Do not reuse an already-published bootstrap version with a
+   different tarball. Observe npm provenance and actual installation after the first
+   publish, and GitHub orchestration waiting for both SDK workflows.
 
 ## Versioning and release mechanics
 
@@ -69,10 +70,11 @@ release semantics are not redesigned here.
 ## Monitoring and rollback
 
 Monitor `Release TypeScript SDK`, `Release GitHub`, npm integrity/provenance and a real
-consumer install after activation. To stop future publication, unset the activation
-variable **between releases** and disable pending deployments as a human administrator;
-never assume changing a variable cancels an already-running job. Existing npm packages
-cannot be rolled back by this workflow: consumers pin a prior good version, and fixes
-ship in a new reviewed version. No migrations, backfills, data writers, scheduled app
-jobs, registry secrets or live HEY API credentials are introduced. Security scanning
-and Dependabot cover the new npm dependency graph.
+consumer install after activation. To stop future publication, change
+`.github/typescript-publish-enabled` to `false`, merge that reviewed commit before the
+next tag, and disable pending deployments as a human administrator. The state recorded
+in an existing tag remains authoritative for its release. Existing npm packages cannot
+be rolled back by this workflow: consumers pin a prior good version, and fixes ship in
+a new reviewed version. No migrations, backfills, data writers, scheduled app jobs,
+registry secrets or live HEY API credentials are introduced. Security scanning and
+Dependabot cover the new npm dependency graph.

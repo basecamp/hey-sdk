@@ -46,6 +46,7 @@ jobs:
     outputs:
       version: ${{ steps.pack.outputs.version }}
       tarball: ${{ steps.pack.outputs.tarball }}
+      publish_enabled: ${{ steps.activation.outputs.enabled }}
     defaults:
       run:
         working-directory: typescript
@@ -59,6 +60,9 @@ jobs:
         run: |
           git fetch origin main
           git merge-base --is-ancestor "$GITHUB_SHA" origin/main
+      - name: Read versioned publication state
+        id: activation
+        run: echo "enabled=$(bash ../scripts/typescript-publish-state.sh)" >> "$GITHUB_OUTPUT"
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           package-manager-cache: false
@@ -86,7 +90,7 @@ jobs:
         env:
           VERSION: ${{ steps.pack.outputs.version }}
           TARBALL: ${{ steps.pack.outputs.tarball }}
-          ENABLED: ${{ vars.HEY_TYPESCRIPT_PUBLISH_ENABLED }}
+          ENABLED: ${{ steps.activation.outputs.enabled }}
         run: |
           node ../scripts/npm-publish-artifact.mjs --dry-run '@37signals/hey' "$VERSION" "$TARBALL"
           if [ "$ENABLED" != true ]; then
@@ -104,7 +108,7 @@ jobs:
   publish:
     name: Publish to npm (human-provisioned OIDC)
     needs: build
-    if: github.event_name == 'push' && vars.HEY_TYPESCRIPT_PUBLISH_ENABLED == 'true'
+    if: github.event_name == 'push' && needs.build.outputs.publish_enabled == 'true'
     runs-on: ubuntu-latest
     environment: release-npm
     permissions:

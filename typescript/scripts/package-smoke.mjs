@@ -1,7 +1,7 @@
 // Install the packed artifact outside the repository: never resolve local src/dist.
 import { mkdtempSync, writeFileSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join, resolve, dirname } from "node:path";
+import { join, resolve, dirname, posix } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { execFileSync } from "node:child_process";
 import assert from "node:assert/strict";
@@ -49,6 +49,30 @@ try {
   assert(
     !paths.some((p) => p.includes("node_modules") || p.endsWith(".test.js")),
   );
+  const readme = execFileSync(
+    "tar",
+    ["-xOf", tarball, "package/README.md"],
+    { encoding: "utf8" },
+  );
+  for (const match of readme.matchAll(/\]\(([^)]+)\)/g)) {
+    const target = match[1].split(/[?#]/, 1)[0];
+    if (/^(?:[a-z][a-z0-9+.-]*:|#)/i.test(match[1])) continue;
+    const linkedPath = posix.normalize(target);
+    assert(
+      !linkedPath.startsWith("../") && paths.includes(linkedPath),
+      `README link is absent from package: ${match[1]}`,
+    );
+  }
+  const publishing = readFileSync(
+    join(root, "../.github/typescript-publish-enabled"),
+    "utf8",
+  ).trim();
+  assert(["true", "false"].includes(publishing), "Invalid TypeScript publish state");
+  if (publishing === "true")
+    assert(
+      !/Registry provisioning is pending|locally built `npm pack` tarball/i.test(readme),
+      "Published README still contains pending-provisioning instructions",
+    );
   // npm ci caches locked tarballs, not registry metadata. Seed a consumer lock
   // with the frozen production graph so this install also works on a cold CI
   // runner without network access or a developer's warmed metadata cache.

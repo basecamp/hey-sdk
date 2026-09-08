@@ -12,9 +12,9 @@ review and eventual current-head CI are still required.
 | Criterion | Evidence |
 |---|---|
 | Full modeled API, types, routes | `src/generated/coverage.json`: 130 operations; `tests/generator.test.ts` invokes every generated method against Fetch and checks OpenAPI-derived method/path/query/body. Byte-for-byte regeneration checks schemas, operations, guards and coverage. The narrow source `@heyNullable` member trait represents HEY's explicit null time-track category and regenerates OpenAPI plus both SDKs. |
-| HEY runtime behavior and artifact checks | 474 tests across 9 files: generation, precision/null/optional values, safe retries, no mutation replay, refresh, errors/body caps, URL safety, redirects, Link envelopes/window and incremental-sync boundaries, account selection/isolation, signed upload isolation, OAuth forms/PKCE/issuer validation, release idempotency, conformance fail-closed contract and transactional version scripts. |
+| HEY runtime behavior and artifact checks | 487 tests across 9 files: generation, precision/null/optional values, safe retries, no mutation replay, refresh, errors/body caps, URL safety, redirects, Link envelopes/window and incremental-sync boundaries, account selection/isolation, signed upload isolation, OAuth forms/PKCE/issuer validation, release idempotency, package documentation, conformance fail-closed contract and transactional version scripts. |
 | Shared conformance | Real loopback HTTP through generated SDK methods: **184 passed / 184 applicable**. Exactly 3 named unmodeled Go calendar-update form fixtures excluded, 187 total; explicit checked identity inventory and applicability reasons. Unknown assertions/operations/configuration, empty tests and stale exclusions fail. |
-| Node support | Node **22.12.0**, **24.20.0**, **26.7.0** previously passed the complete matrix. The current correction passed all 474 tests, typechecking, 184 applicable conformance fixtures and isolated package smoke on Node 26.7.0; renewed exact-head CI verifies Node 22 and 24 after push. |
+| Node support | Node **22.12.0**, **24.20.0**, **26.7.0** passed the complete matrix. The current correction passed all 487 tests, typechecking, 184 applicable conformance fixtures and isolated package smoke on Node 26.7.0; the tag workflow tests all three supported Node lines. |
 | Installable artifact | 23-file npm tarball installed offline outside the repository; ESM root and OAuth subpath imports, real SDK int64 request/response and consumer TypeScript positive/negative typechecks passed. Exact packed tarball smoke also passed. |
 | Existing Go preserved | `make check`: Go vet/lint/tests and 187 Go conformance cases, Smithy/route/shape freshness plus Go wrapper drift, TypeScript checks/conformance and API-version sync. |
 | Delivery security | actionlint + shellcheck and zizmor passed; `npm audit` found zero vulnerabilities. Credential-free `npm publish --dry-run --provenance` passed. OIDC/registry ownership remain unverified and publishing disabled by default. |
@@ -30,7 +30,7 @@ types, required acting senders and bodyless null fixtures.
 
 ```sh
 env -u GOROOT GOWORK=off PATH="/home/rzolkos/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.7.linux-amd64/bin:$PATH" make check
-# PASS: 474 TypeScript tests, 187 Go fixtures, 184/184 applicable TypeScript fixtures,
+# PASS: 487 TypeScript tests, 187 Go fixtures, 184/184 applicable TypeScript fixtures,
 # generated/drift/version/type checks and all Go checks.
 npm --prefix typescript run smoke # PASS: 23-file isolated artifact
 ```
@@ -64,7 +64,7 @@ Named regressions live in `tests/client.test.ts`, `tests/account-scope.test.ts`,
 `tests/release-workflow.test.ts` and `tests/version-scripts.test.ts`. Final local results:
 
 ```sh
-npm --prefix typescript test                 # PASS: 474 tests / 9 files
+npm --prefix typescript test                 # PASS: 487 tests / 9 files
 npm --prefix typescript run typecheck         # PASS
 npm --prefix typescript run conformance       # PASS: 184/184 applicable; 3 exclusions
 make ts-smoke                                 # PASS: 23-file isolated artifact
@@ -413,5 +413,6 @@ release jobs retain tested tarballs once actually run. There are no data migrati
 backfills or live service changes. The feature originates from the user's implementation
 request; there is no external issue/design link. Human npm ownership/bootstrap, protected
 environment and trusted-publisher provisioning remain prerequisites to **activation**,
-not assumptions satisfied by the dry-run. Read the release setup checklist before enabling
-`HEY_TYPESCRIPT_PUBLISH_ENABLED`; unset means npm **NOT published** and Go-only orchestration.
+not assumptions satisfied by the dry-run. Read the release setup checklist before changing
+`.github/typescript-publish-enabled` to `true`; `false` keeps npm publication disabled and
+selects Go-only orchestration for every workflow triggered by that tagged commit.

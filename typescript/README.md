@@ -11,7 +11,8 @@ npm install @37signals/hey
 
 **Registry provisioning is pending:** the proposed name is `@37signals/hey`; until
 maintainers activate publishing, install a locally built `npm pack` tarball instead.
-A repository release does not imply this package is on npm. See [release setup](../TYPESCRIPT_RELEASE.md).
+A repository release does not imply this package is on npm. See the
+[release setup](https://github.com/basecamp/hey-sdk/blob/main/TYPESCRIPT_RELEASE.md).
 
 Supported: **Node.js 22.12+ (22.x), 24.x and 26.x**, native ESM, TypeScript 5.9+.
 CI tests those Node majors. No browser, React Native, Deno, Bun or CommonJS support is claimed.
@@ -109,7 +110,8 @@ provides HEY discovery, PKCE, authorization URL, code exchange and refresh helpe
 standard `authorization_code`/`refresh_token` form grants, exact issuer validation and
 Bearer access tokens, not Basecamp's auth hosts. Verify the returned OAuth `state` in
 your callback before exchanging the code; persist
-rotated refresh tokens and use provider `refresh` to renew them. See [example](examples/oauth.ts).
+rotated refresh tokens and use provider `refresh` to renew them. See the
+[OAuth example](https://github.com/basecamp/hey-sdk/blob/main/typescript/examples/oauth.ts).
 
 `HeyError` has `code`, `httpStatus`, `retryable`, `requestId`, `hint` and `cause`.
 Error messages are bounded and HTML error pages are not echoed. `retryable` describes

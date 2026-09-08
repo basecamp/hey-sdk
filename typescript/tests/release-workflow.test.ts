@@ -11,6 +11,50 @@ import { delimiter, join } from "node:path";
 import { execFileSync } from "node:child_process";
 import { it, expect } from "vitest";
 
+it("uses one versioned publication decision for publishing and orchestration", () => {
+  const state = readFileSync(
+    new URL("../../.github/typescript-publish-enabled", import.meta.url),
+    "utf8",
+  ).trim();
+  const typescriptWorkflow = readFileSync(
+    new URL("../../.github/workflows/release-typescript.yml", import.meta.url),
+    "utf8",
+  );
+  const githubWorkflow = readFileSync(
+    new URL("../../.github/workflows/release-github.yml", import.meta.url),
+    "utf8",
+  );
+  expect(["true", "false"]).toContain(state);
+  expect(typescriptWorkflow).toContain("needs.build.outputs.publish_enabled == 'true'");
+  expect(typescriptWorkflow).toContain("bash ../scripts/typescript-publish-state.sh");
+  expect(githubWorkflow).toContain("bash scripts/typescript-publish-state.sh");
+  expect(githubWorkflow).toContain("steps.activation.outputs.enabled == 'true'");
+  expect(`${typescriptWorkflow}\n${githubWorkflow}`).not.toContain(
+    "HEY_TYPESCRIPT_PUBLISH_ENABLED",
+  );
+});
+
+it("rejects malformed versioned publication state", () => {
+  const temp = mkdtempSync(join(tmpdir(), "hey-publish-state-"));
+  try {
+    const state = join(temp, "state");
+    writeFileSync(state, "enabled\n");
+    expect(() =>
+      execFileSync(
+        "bash",
+        [
+          new URL("../../scripts/typescript-publish-state.sh", import.meta.url)
+            .pathname,
+          state,
+        ],
+        { stdio: "pipe" },
+      ),
+    ).toThrow();
+  } finally {
+    rmSync(temp, { recursive: true, force: true });
+  }
+});
+
 it("queries public npm integrity and only skips identical artifact bytes", () => {
   const temp = mkdtempSync(join(tmpdir(), "hey-npm-release-"));
   try {

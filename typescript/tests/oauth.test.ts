@@ -193,15 +193,18 @@ for (const [name, invoke] of Object.entries(grants)) {
       .rejects.toMatchObject({ code: "api_error", message: "OAuth response has unsupported token type" });
   });
   it.each([
-    { refresh_token: null }, { refresh_token: 1 }, { scope: null }, { scope: [] },
-    { expires_in: null }, { expires_in: "3600" }, { expires_in: -1 },
+    { refresh_token: null }, { refresh_token: 1 }, { refresh_token: "" },
+    { refresh_token: "refresh\ntoken" }, { scope: null }, { scope: [] },
+    { scope: "" }, { scope: "read  write" }, { expires_in: null },
+    { expires_in: "3600" }, { expires_in: -1 }, { expires_in: 1.5 },
   ])(`${name} rejects malformed optional token fields %#`, async malformed => {
     await expect(invoke({ fetch: async () => Response.json({ access_token: "token", token_type: "Bearer", ...malformed }) }))
       .rejects.toMatchObject({ code: "api_error", message: "Invalid OAuth token response" });
   });
   it(`${name} accepts the complete valid token contract`, async () => {
     const token = {
-      access_token: "token", token_type: "Bearer", refresh_token: "", scope: "", expires_in: 0,
+      access_token: "token", token_type: "Bearer", refresh_token: "refresh",
+      scope: "read write", expires_in: 0,
     };
     await expect(invoke({ fetch: async () => Response.json(token) })).resolves.toEqual(token);
   });
