@@ -36,10 +36,15 @@ if ! grep -Fxq "version = \"$VERSION\"" "$CARGO_FILE"; then
   exit 1
 fi
 
-# Cargo.lock records the package version too; refresh it so a --locked build still agrees.
-if command -v cargo >/dev/null 2>&1; then
-  (cd "$REPO_ROOT/rust" && cargo update -q -w --offline) || true
-  (cd "$REPO_ROOT/conformance/runner/rust" && cargo update -q -w --offline) || true
+# Cargo.lock records the package version too, and both lockfiles are checked in, so a
+# --locked build only agrees once they carry the new one. A bump that cannot refresh them
+# is a bump that breaks the build, so cargo is required and neither update may fail.
+if ! command -v cargo >/dev/null 2>&1; then
+  echo "ERROR: cargo is required to refresh the Rust lockfiles" >&2
+  exit 1
 fi
+
+(cd "$REPO_ROOT/rust" && cargo update -q -w --offline)
+(cd "$REPO_ROOT/conformance/runner/rust" && cargo update -q -w --offline)
 
 echo "Done. Bumped 2 files to $VERSION."

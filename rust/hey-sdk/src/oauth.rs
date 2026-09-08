@@ -47,8 +47,14 @@ impl ServerMetadata {
     }
 }
 
-/// A token response. `expires_at` is worked out from `expires_in` when the token arrives,
-/// so it survives being stored.
+/// A token response. `expires_in` is a lifetime that starts decaying the moment the server
+/// answers, so `expires_at` is worked out from it on arrival and is the field to keep: a
+/// moment stays true however long it is held. The server never sends it, so it defaults to
+/// `None` when it is missing and is written back out with the rest.
+///
+/// The SDK stores nothing itself. Whoever keeps a token between runs stores this or their
+/// own shape, and either way carries `expires_at` with it, or the next run has no idea
+/// when the token is spent.
 ///
 /// The two tokens are [`SensitiveString`]s: serde-transparent, so the wire is what the
 /// server sent, but `[REDACTED]` under `{:?}`.
@@ -63,7 +69,7 @@ pub struct Token {
     pub expires_in: Option<u64>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub scope: Option<String>,
-    #[serde(skip)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub expires_at: Option<DateTime<Utc>>,
 }
 
@@ -536,6 +542,26 @@ mod tests {
         );
         assert_eq!(Some(3600), token.expires_in);
         assert!(token.expires_at.unwrap() > Utc::now());
+    }
+
+    #[test]
+    fn a_token_keeps_the_moment_it_expires_across_being_stored() {
+        let answered = serde_json::from_value::<Token>(json!({
+            "access_token": "access-1",
+            "token_type": "Bearer",
+            "expires_in": 3600
+        }))
+        .unwrap();
+        assert_eq!(None, answered.expires_at);
+
+        let mut token = answered;
+        token.expires_at = Utc::now().checked_add_signed(TimeDelta::seconds(3600));
+
+        let stored = serde_json::to_string(&token).unwrap();
+        let restored: Token = serde_json::from_str(&stored).unwrap();
+
+        assert_eq!(token, restored);
+        assert_eq!(token.expires_at, restored.expires_at);
     }
 
     #[tokio::test]
