@@ -1,13 +1,14 @@
 import {
   mkdtempSync,
   cpSync,
+  chmodSync,
   mkdirSync,
   readFileSync,
   writeFileSync,
   rmSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { delimiter, join } from "node:path";
 import { execFileSync } from "node:child_process";
 import { it, expect } from "vitest";
 it("bumps SDK manifests/constants/lock roots and syncs/checks API versions without touching generation", () => {
@@ -20,6 +21,7 @@ it("bumps SDK manifests/constants/lock roots and syncs/checks API versions witho
       "scripts/sync-api-version.sh",
       "scripts/sync-typescript-versions.mjs",
       "go/pkg/hey/version.go",
+      "rust/hey-sdk/Cargo.toml",
       "typescript/src/version.ts",
       "typescript/package.json",
       "typescript/package-lock.json",
@@ -31,8 +33,19 @@ it("bumps SDK manifests/constants/lock roots and syncs/checks API versions witho
       mkdirSync(join(target, ".."), { recursive: true });
       cpSync(new URL(file, root), target);
     }
+    const bin = join(temp, "bin");
+    mkdirSync(bin);
+    const cargo = join(bin, "cargo");
+    writeFileSync(cargo, "#!/bin/sh\nexit 0\n");
+    chmodSync(cargo, 0o755);
+    mkdirSync(join(temp, "conformance/runner/rust"), { recursive: true });
+    const bumpEnvironment = {
+      ...process.env,
+      PATH: `${bin}${delimiter}${process.env.PATH}`,
+    };
     const versionFiles = [
       "go/pkg/hey/version.go",
+      "rust/hey-sdk/Cargo.toml",
       "typescript/src/version.ts",
       "typescript/package.json",
       "typescript/package-lock.json",
@@ -46,6 +59,7 @@ it("bumps SDK manifests/constants/lock roots and syncs/checks API versions witho
       expect(() =>
         execFileSync("bash", ["scripts/bump-version.sh", invalid], {
           cwd: temp,
+          env: bumpEnvironment,
           stdio: "pipe",
         }),
       ).toThrow();
@@ -70,6 +84,7 @@ it("bumps SDK manifests/constants/lock roots and syncs/checks API versions witho
     expect(() =>
       execFileSync("bash", ["scripts/bump-version.sh", "2.3.4"], {
         cwd: temp,
+        env: bumpEnvironment,
         stdio: "pipe",
       }),
     ).toThrow();
@@ -118,9 +133,15 @@ it("bumps SDK manifests/constants/lock roots and syncs/checks API versions witho
     ).toThrow();
     writeFileSync(openapiPath, validOpenAPI);
 
-    execFileSync("bash", ["scripts/bump-version.sh", "0.0.0"], { cwd: temp });
+    execFileSync("bash", ["scripts/bump-version.sh", "0.0.0"], {
+      cwd: temp,
+      env: bumpEnvironment,
+    });
     expect(JSON.parse(readFileSync(join(temp, "typescript/package.json"), "utf8")).version).toBe("0.0.0");
-    execFileSync("bash", ["scripts/bump-version.sh", "1.2.3"], { cwd: temp });
+    execFileSync("bash", ["scripts/bump-version.sh", "1.2.3"], {
+      cwd: temp,
+      env: bumpEnvironment,
+    });
     for (const dir of ["typescript", "conformance/runner/typescript"]) {
       expect(
         JSON.parse(readFileSync(join(temp, dir, "package.json"), "utf8"))
@@ -134,6 +155,9 @@ it("bumps SDK manifests/constants/lock roots and syncs/checks API versions witho
     }
     expect(readFileSync(join(temp, "go/pkg/hey/version.go"), "utf8")).toContain(
       'const Version = "1.2.3"',
+    );
+    expect(readFileSync(join(temp, "rust/hey-sdk/Cargo.toml"), "utf8")).toMatch(
+      /^version = "1\.2\.3"$/m,
     );
     expect(
       readFileSync(join(temp, "typescript/src/version.ts"), "utf8"),
