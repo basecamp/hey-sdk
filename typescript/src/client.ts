@@ -64,7 +64,7 @@ type Metadata = {
     backoff: string;
     retryOn: readonly number[];
   };
-  pagination?: { style: string };
+  pagination?: { style: string; pageParameter?: string };
   emptyOn?: readonly number[];
 };
 type RawInput = {
@@ -482,7 +482,14 @@ export class HeyClient extends GeneratedOperations {
         options,
       )) as OperationResponse<K>;
       yield result;
-      url = result.nextUrl ? new URL(result.nextUrl) : undefined;
+      const next = result.nextUrl ? new URL(result.nextUrl) : undefined;
+      if (
+        next &&
+        meta.pagination.pageParameter &&
+        !next.searchParams.has(meta.pagination.pageParameter)
+      )
+        return;
+      url = next;
     }
     if (url) throw new HeyError("api_error", "Pagination exceeded maxPages");
   }

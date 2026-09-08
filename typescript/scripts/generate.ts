@@ -101,12 +101,39 @@ export function generateOperations(spec: Spec, behavior: Behavior) {
   const guards: string[] = [];
   for (const [name, s] of Object.entries(spec.components.schemas)) {
     const poly = s["x-hey-polymorphic"] as
-      | { discriminator: string; variants: Record<string, string[]> }
+      | {
+          discriminator: string;
+          variants: Record<string, string[]>;
+          discriminatorValues?: Record<string, string[]>;
+        }
       | undefined;
     if (!poly) continue;
+    for (const key of Object.keys(poly.discriminatorValues ?? {}))
+      if (!Object.hasOwn(poly.variants, key))
+        throw new Error(`Unknown discriminator value variant ${name}.${key}`);
     for (const variant of Object.keys(poly.variants)) {
+      const guardName = variant
+        .split(/[^A-Za-z0-9]+/)
+        .filter(Boolean)
+        .map((part) => part[0]!.toUpperCase() + part.slice(1))
+        .join("");
+      if (guardName.length === 0)
+        throw new Error(`Invalid discriminator variant ${name}.${variant}`);
+      const values = poly.discriminatorValues?.[variant] ?? [variant];
+      if (
+        values.length === 0 ||
+        !values.every((value) => typeof value === "string" && value.length > 0)
+      )
+        throw new Error(`Invalid discriminator values for ${name}.${variant}`);
+      const narrowed = values.map((value) => JSON.stringify(value)).join(" | ");
+      const checks = values
+        .map(
+          (value) =>
+            `value[${JSON.stringify(poly.discriminator)}] === ${JSON.stringify(value)}`,
+        )
+        .join(" || ");
       guards.push(
-        `export function is${name}${variant[0]!.toUpperCase() + variant.slice(1)}(value: components['schemas'][${JSON.stringify(name)}]): value is components['schemas'][${JSON.stringify(name)}] & { ${JSON.stringify(poly.discriminator)}: ${JSON.stringify(variant)} } {\n  return value[${JSON.stringify(poly.discriminator)}] === ${JSON.stringify(variant)};\n}`,
+        `export function is${name}${guardName}(value: components['schemas'][${JSON.stringify(name)}]): value is components['schemas'][${JSON.stringify(name)}] & { ${JSON.stringify(poly.discriminator)}: ${narrowed} } {\n  return ${checks};\n}`,
       );
     }
   }

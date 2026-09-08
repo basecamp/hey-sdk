@@ -3,7 +3,10 @@ import {
   repetitionCount,
   validateFixture,
 } from "../../conformance/runner/typescript/contract.js";
-import { assertBodyFields } from "../../conformance/runner/typescript/assertions.js";
+import {
+  assertBodyFields,
+  serializeMockResponseBody,
+} from "../../conformance/runner/typescript/assertions.js";
 const legitimate: Record<string, unknown>[] = [
   { type: "requestCount", expected: 0 },
   { type: "delayBetweenRequests", min: 0 },
@@ -80,6 +83,12 @@ it.each([
 it("treats null request-body expectations as absence rather than present null", () => {
   expect(() => assertBodyFields({ kept: 1 }, { absent: null, kept: 1 })).not.toThrow();
   expect(() => assertBodyFields({ absent: null }, { absent: null })).toThrow();
+});
+
+it("serializes fixture null and omission as bodyless responses", () => {
+  expect(serializeMockResponseBody(undefined)).toBeUndefined();
+  expect(serializeMockResponseBody(null)).toBeUndefined();
+  expect(serializeMockResponseBody({ id: 1 })).toBe('{"id":1}');
 });
 
 it("validates configuration domains and shares zero-means-once repetition", () => {

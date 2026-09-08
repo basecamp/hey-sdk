@@ -521,6 +521,30 @@ describe("HEY pagination", () => {
       "opaque+",
     );
   });
+  it("stops a changes-feed page sequence at its terminal sync cursor", async () => {
+    const m = mock([
+      json({ added: [{ id: 1 }] }, 200, {
+        Link: "<?since=start&page=page-2>; rel=next",
+      }),
+      json({ added: [{ id: 2 }] }, 200, {
+        Link: "<?since=next-sync>; rel=next",
+      }),
+    ]);
+    const pages = [];
+    for await (const page of new HeyClient({
+      token: "secret",
+      fetch: m.fetch,
+    }).pages("GetBoxPostingChanges", {
+      path: { boxId: 1 },
+      query: { since: "start" },
+    }))
+      pages.push(page);
+    expect(m.requests).toHaveLength(2);
+    expect(pages).toHaveLength(2);
+    expect(new URL(pages[1]!.nextUrl!).searchParams.get("since")).toBe(
+      "next-sync",
+    );
+  });
   it.each([
     "https://evil.example/x",
     "//evil.example/x",

@@ -48,11 +48,11 @@ for (const [name, invoke] of Object.entries(entryPoints)) {
 }
 
 for (const [name, invoke] of Object.entries(grants)) {
-  it.each([undefined, "", 123, null, false, {}])(`${name} rejects malformed token_type %j`, async token_type => {
+  it.each([undefined, "", 123, null, false, {}, "Custom", "DPoP"])(`${name} rejects unsupported token_type %j`, async token_type => {
     await expect(invoke({ fetch: async () => Response.json({ access_token: "token", token_type }) }))
-      .rejects.toMatchObject({ code: "api_error", message: "OAuth response has no token type" });
+      .rejects.toMatchObject({ code: "api_error", message: "OAuth response has unsupported token type" });
   });
-  it.each(["Bearer", "Custom"])(`${name} accepts non-empty token_type %s`, async token_type => {
+  it.each(["Bearer", "bearer", "BEARER"])(`${name} accepts supported token_type %s`, async token_type => {
     const token = { access_token: "token", token_type, refresh_token: "rotated" };
     await expect(invoke({ fetch: async () => Response.json(token) })).resolves.toEqual(token);
   });
@@ -188,9 +188,9 @@ for (const [name, invoke] of Object.entries(grants)) {
     await expect(invoke({ fetch: async () => Response.json({ access_token, token_type: "Bearer" }) }))
       .rejects.toMatchObject({ code: "api_error", message: "OAuth response has no access token" });
   });
-  it.each([" ", "\t\n"])(`${name} rejects whitespace-only token_type %j`, async token_type => {
+  it.each([" ", "\t\n", " Bearer "])(`${name} rejects malformed token_type %j`, async token_type => {
     await expect(invoke({ fetch: async () => Response.json({ access_token: "token", token_type }) }))
-      .rejects.toMatchObject({ code: "api_error", message: "OAuth response has no token type" });
+      .rejects.toMatchObject({ code: "api_error", message: "OAuth response has unsupported token type" });
   });
   it.each([
     { refresh_token: null }, { refresh_token: 1 }, { scope: null }, { scope: [] },
@@ -207,15 +207,21 @@ for (const [name, invoke] of Object.entries(grants)) {
   });
 }
 
-it("validates optional discovery fields while allowing cross-origin HTTPS metadata", async () => {
+it("validates the discovery issuer and optional fields while allowing cross-origin HTTPS endpoints", async () => {
   const valid = {
-    issuer: "https://issuer.example",
+    issuer: "https://app.hey.com",
     authorization_endpoint: "https://authorize.example/oauth",
     token_endpoint: "https://token.example/oauth",
     registration_endpoint: "https://register.example/oauth",
     scopes_supported: ["read", "write"],
   };
   await expect(discover(undefined, { fetch: async () => Response.json(valid) })).resolves.toEqual(valid);
+  await expect(discover(undefined, {
+    fetch: async () => Response.json({ ...valid, issuer: "https://issuer.example" }),
+  })).rejects.toMatchObject({
+    code: "api_error",
+    message: "OAuth discovery issuer does not match",
+  });
   for (const malformed of [
     { registration_endpoint: 1 },
     { registration_endpoint: "http://evil.example/register" },
@@ -225,4 +231,23 @@ it("validates optional discovery fields while allowing cross-origin HTTPS metada
     await expect(discover(undefined, {
       fetch: async () => Response.json({ ...valid, ...malformed }),
     })).rejects.toMatchObject({ code: "api_error" });
+});
+
+it("inserts the metadata suffix before an issuer path", async () => {
+  let requested: URL | undefined;
+  const issuer = "https://issuer.example/tenant";
+  await discover(issuer, {
+    fetch: async (input) => {
+      requested =
+        input instanceof Request ? new URL(input.url) : new URL(input);
+      return Response.json({
+        issuer,
+        authorization_endpoint: "https://issuer.example/authorize",
+        token_endpoint: "https://issuer.example/token",
+      });
+    },
+  });
+  expect(requested?.href).toBe(
+    "https://issuer.example/.well-known/oauth-authorization-server/tenant",
+  );
 });

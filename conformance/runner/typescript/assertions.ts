@@ -1,4 +1,10 @@
 import assert from "node:assert/strict";
+import { stringifyJSON } from "../../../typescript/src/security.js";
+
+/** Fixture null and omission both represent a response without body bytes. */
+export function serializeMockResponseBody(value: unknown): string | undefined {
+  return value === null || value === undefined ? undefined : stringifyJSON(value);
+}
 
 function lookup(value: unknown, path: string): { present: boolean; value?: unknown } {
   let current = value;

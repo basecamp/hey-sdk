@@ -12,12 +12,28 @@ review and eventual current-head CI are still required.
 | Criterion | Evidence |
 |---|---|
 | Full modeled API, types, routes | `src/generated/coverage.json`: 130 operations; `tests/generator.test.ts` invokes every generated method against Fetch and checks OpenAPI-derived method/path/query/body. Byte-for-byte regeneration checks schemas, operations, guards and coverage. The narrow source `@heyNullable` member trait represents HEY's explicit null time-track category and regenerates OpenAPI plus both SDKs. |
-| HEY runtime behavior and artifact checks | 463 tests across 9 files: generation, precision/null/optional values, safe retries, no mutation replay, refresh, errors/body caps, URL safety, redirects, Link envelopes/window boundaries, account selection/isolation, signed upload isolation, OAuth forms/PKCE, release idempotency, conformance fail-closed contract and transactional version scripts. |
+| HEY runtime behavior and artifact checks | 474 tests across 9 files: generation, precision/null/optional values, safe retries, no mutation replay, refresh, errors/body caps, URL safety, redirects, Link envelopes/window and incremental-sync boundaries, account selection/isolation, signed upload isolation, OAuth forms/PKCE/issuer validation, release idempotency, conformance fail-closed contract and transactional version scripts. |
 | Shared conformance | Real loopback HTTP through generated SDK methods: **184 passed / 184 applicable**. Exactly 3 named unmodeled Go calendar-update form fixtures excluded, 187 total; explicit checked identity inventory and applicability reasons. Unknown assertions/operations/configuration, empty tests and stale exclusions fail. |
-| Node support | Node **22.12.0**, **24.20.0**, **26.7.0** each built, typechecked, ran all 463 tests and all 184 applicable conformance fixtures, and passed isolated package smoke. Renewed remote CI is required after commit. |
+| Node support | Node **22.12.0**, **24.20.0**, **26.7.0** previously passed the complete matrix. The current correction passed all 474 tests, typechecking, 184 applicable conformance fixtures and isolated package smoke on Node 26.7.0; renewed exact-head CI verifies Node 22 and 24 after push. |
 | Installable artifact | 23-file npm tarball installed offline outside the repository; ESM root and OAuth subpath imports, real SDK int64 request/response and consumer TypeScript positive/negative typechecks passed. Exact packed tarball smoke also passed. |
 | Existing Go preserved | `make check`: Go vet/lint/tests and 187 Go conformance cases, Smithy/route/shape freshness plus Go wrapper drift, TypeScript checks/conformance and API-version sync. |
 | Delivery security | actionlint + shellcheck and zizmor passed; `npm audit` found zero vulnerabilities. Credential-free `npm publish --dry-run --provenance` passed. OIDC/registry ownership remain unverified and publishing disabled by default. |
+
+## Final maintainer corrections after `e16c989`
+
+The final review corrections preserve incremental-sync checkpoints, accept both observed
+calendar discriminator spellings, validate OAuth issuer identity and Bearer token
+compatibility, and align TypeScript conformance request/response fixture adaptation with
+the shared Go contract. Regression coverage includes terminal `since` Links, namespaced
+Recording guards, path-based discovery issuers, mismatched metadata, unsupported token
+types, required acting senders and bodyless null fixtures.
+
+```sh
+env -u GOROOT GOWORK=off PATH="/home/rzolkos/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.7.linux-amd64/bin:$PATH" make check
+# PASS: 474 TypeScript tests, 187 Go fixtures, 184/184 applicable TypeScript fixtures,
+# generated/drift/version/type checks and all Go checks.
+npm --prefix typescript run smoke # PASS: 23-file isolated artifact
+```
 
 ## Senior-maintainer review corrections after `2818e80`
 
@@ -48,7 +64,7 @@ Named regressions live in `tests/client.test.ts`, `tests/account-scope.test.ts`,
 `tests/release-workflow.test.ts` and `tests/version-scripts.test.ts`. Final local results:
 
 ```sh
-npm --prefix typescript test                 # PASS: 463 tests / 9 files
+npm --prefix typescript test                 # PASS: 474 tests / 9 files
 npm --prefix typescript run typecheck         # PASS
 npm --prefix typescript run conformance       # PASS: 184/184 applicable; 3 exclusions
 make ts-smoke                                 # PASS: 23-file isolated artifact
@@ -83,7 +99,7 @@ operations, retry budget, release workflow or applicability exclusions changed.
 | Finding / acceptance criterion | Correction and named regression coverage | Failing before → passing after |
 |---|---|---|
 | [A: OAuth HTTP errors](https://github.com/basecamp/hey-sdk/pull/144#discussion_r3951430383) retain status mapping with empty/malformed bodies | `tests/oauth.test.ts`: `preserves HTTP error metadata` exercises public discovery, code exchange and refresh for 401/403/429/500/503 × empty/HTML/broken JSON. Checks code, status, retryability, request ID, hints and sanitized fallback message. `rejects malformed successful JSON` and `preserves structured error messages and bounds error bodies` pin success parsing, valid errors and the existing 1 MiB cap. Existing redirect/insecure-target tests remain. | With A tests added before the runtime edit: **45 failed / 12 passed**. Same file after A: **57 passed**. |
-| B: successful grants require the public `token_type` string | `tests/oauth.test.ts`: both grant helpers `reject malformed token_type` for missing, empty, numeric, null, boolean and object values; `accept non-empty token_type` preserves Bearer and a custom scheme (no new scheme restriction). | With B tests added after A, before the token guard: **12 failed / 61 passed**. Same file after B: **73 passed**. |
+| B: successful grants require a supported public `token_type` string | `tests/oauth.test.ts`: both grant helpers reject missing, malformed and unsupported token types. Case-insensitive Bearer values are accepted because `HeyClient` applies Bearer authentication; custom and DPoP tokens are rejected rather than used with the wrong scheme. | The original malformed-token regressions pass, with final-review coverage for unsupported schemes. |
 | [C: assertion shapes fail closed](https://github.com/basecamp/hey-sdk/pull/144#discussion_r3951430307) | `tests/conformance-contract.test.ts`: `accepts legitimate assertion`, `rejects extra, missing and inherited fields`, `rejects malformed assertion` cover all 19 supported kinds, min/max delay variants, path-specific value types, null/empty-string/boolean/nested/lossless-bigint values, the reported `expectd` typo and required own fields. Existing unknown-kind/path/config/empty-list checks remain. Real runner passes all existing fixtures. | Before validator edit: **83 failed / 35 passed**. After: **118 passed**, plus **184/184** applicable fixtures. |
 | [D: declared Node support matches documentation](https://github.com/basecamp/hey-sdk/pull/144#discussion_r3951430349) | `tests/node-engines.test.ts`: `declares support for Node` evaluates the actual manifest with pinned dev-only `semver@7.7.4` (`satisfies`); 19 boundary/major/prerelease cases plus SDK/runner manifest and frozen-lock equality. `tests/package-smoke.test.ts` preserves offline artifact graph and packed-engine consistency checks. Range: `^22.12.0 || ^24.0.0 || ^26.0.0`. No production dependency changed. | Before engine/lock correction: **8 failed / 12 passed**. After: **20 passed**, or **33 passed** including existing smoke tests. |
 

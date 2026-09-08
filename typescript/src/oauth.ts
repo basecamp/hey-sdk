@@ -95,8 +95,18 @@ export async function discover(
   options: OAuthOptions = {},
 ): Promise<OAuthConfig> {
   const base = secureURL(baseUrl);
+  if (base.protocol !== "https:" || base.search)
+    throw new HeyError(
+      "usage",
+      "OAuth issuer must use HTTPS without a query or fragment",
+    );
+  const issuerPath =
+    base.pathname === "/" ? "" : base.pathname.replace(/\/$/, "");
+  const metadataUrl = new URL(
+    `${base.origin}/.well-known/oauth-authorization-server${issuerPath}`,
+  );
   const config = (await request(
-    new URL("/.well-known/oauth-authorization-server", base),
+    metadataUrl,
     { headers: { Accept: "application/json" } },
     options,
   )) as OAuthConfig;
@@ -128,6 +138,8 @@ export async function discover(
       cause,
     });
   }
+  if (config.issuer !== baseUrl)
+    throw new HeyError("api_error", "OAuth discovery issuer does not match");
   return config;
 }
 async function tokenRequest(
@@ -160,9 +172,9 @@ async function tokenRequest(
     throw new HeyError("api_error", "OAuth response has no access token");
   if (
     typeof token.token_type !== "string" ||
-    token.token_type.trim().length === 0
+    !/^Bearer$/i.test(token.token_type)
   )
-    throw new HeyError("api_error", "OAuth response has no token type");
+    throw new HeyError("api_error", "OAuth response has unsupported token type");
   if (
     (token.refresh_token !== undefined &&
       typeof token.refresh_token !== "string") ||

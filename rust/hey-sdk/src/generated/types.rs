@@ -1761,7 +1761,7 @@ pub struct PostingNote {
     pub content: Option<String>,
 }
 
-/// Recording — polymorphic by `type` (Calendar::Event, Calendar::Todo, etc.)
+/// Recording — polymorphic by `type`, with direct and namespaced calendar wire values
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct Recording {
     #[serde(
@@ -1789,9 +1789,7 @@ pub struct Recording {
     /// ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub updated_at: Option<DateTime>,
-    /// Discriminator — the recordable's Ruby class name: Calendar::Event, Calendar::Todo,
-    /// Calendar::JournalEntry, Calendar::Habit, Calendar::TimeTrack, Calendar::Countdown,
-    /// Calendar::DayBackground, Calendar::DayTitle or Calendar::Habit::Completion.
+    /// Discriminator with direct (`CalendarTodo`) and namespaced (`Calendar::Todo`) values.
     #[serde(
         default,
         deserialize_with = "crate::types::null_as_default::deserialize"
@@ -1865,6 +1863,7 @@ pub struct Recording {
     pub stopped_at: Option<DateTime>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub notes: Option<String>,
+    /// HEY emits explicit JSON null when a time track has no category.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub category: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]

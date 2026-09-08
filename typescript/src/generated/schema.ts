@@ -346,8 +346,10 @@ export interface paths {
         options?: never;
         head?: never;
         /**
-         * @description Update the journal entry for a day: writes (or creates) it and answers the entry as a
-         *     recording, or 204 when empty content removes it.
+         * @description Update the journal entry for a day: writes it, creating it if the day has none, and
+         *     answers the entry as a recording. Empty content removes the entry instead, and HEY then
+         *     answers 204 with no body — which is not this shape, so send that through the SDK's own
+         *     journal wrapper rather than here.
          */
         patch: operations["UpdateJournalEntry"];
         trace?: never;
@@ -2816,6 +2818,8 @@ export interface components {
             content?: string;
             addressed?: components["schemas"]["Addressed"];
             show_addressed_selector?: boolean;
+            posting?: components["schemas"]["MessagePostingContext"];
+            addressed_sender?: components["schemas"]["AddressedSender"];
         };
         /**
          * @description MessageEditState — a saved draft as the editor sees it. The same compose fields as
@@ -2998,7 +3002,7 @@ export interface components {
             id: number | bigint;
             content?: string;
         };
-        /** @description Recording — polymorphic by `type` (CalendarEvent, CalendarTodo, etc.) */
+        /** @description Recording — polymorphic by `type`, with direct and namespaced calendar wire values */
         Recording: {
             /** Format: int64 */
             id: number | bigint;
@@ -3027,7 +3031,7 @@ export interface components {
              * @description ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)
              */
             updated_at?: string;
-            /** @description Discriminator: CalendarEvent, CalendarTodo, etc. */
+            /** @description Discriminator with direct (`CalendarTodo`) and namespaced (`Calendar::Todo`) values. */
             type: string;
             parent?: components["schemas"]["Recording"];
             starts_at_time_zone?: string;

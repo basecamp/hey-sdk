@@ -43,6 +43,10 @@ structure heyPagination {
     /// Name of the response header containing total count
     totalCountHeader: String
 
+    /// Query parameter present only while a finite page sequence continues.
+    /// A next link without this parameter remains available as a checkpoint.
+    pageParameter: String
+
     /// Maximum items per page (server default)
     maxPageSize: Integer
 }
@@ -95,14 +99,26 @@ structure heyPolymorphic {
     @required
     discriminator: String
 
-    /// Map of discriminator values to lists of variant-specific field names
+    /// Map of variant names to lists of variant-specific field names
     @required
     variants: HeyPolymorphicVariants
+
+    /// Accepted wire discriminator values for variants with multiple observed spellings.
+    discriminatorValues: HeyPolymorphicDiscriminatorValues
 }
 
 map HeyPolymorphicVariants {
     key: String
     value: HeyPolymorphicFieldList
+}
+
+map HeyPolymorphicDiscriminatorValues {
+    key: String
+    value: HeyPolymorphicDiscriminatorValueList
+}
+
+list HeyPolymorphicDiscriminatorValueList {
+    member: String
 }
 
 list HeyPolymorphicFieldList {

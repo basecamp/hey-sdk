@@ -405,10 +405,10 @@ type CollectionWithPostings struct {
 	UpdatedAt time.Time `json:"updated_at,omitempty,omitzero"`
 }
 
-// CompleteCalendarTodoResponseContent Recording — polymorphic by `type` (Calendar::Event, Calendar::Todo, etc.)
+// CompleteCalendarTodoResponseContent Recording — polymorphic by `type`, with direct and namespaced calendar wire values
 type CompleteCalendarTodoResponseContent = Recording
 
-// CompleteHabitResponseContent Recording — polymorphic by `type` (Calendar::Event, Calendar::Todo, etc.)
+// CompleteHabitResponseContent Recording — polymorphic by `type`, with direct and namespaced calendar wire values
 type CompleteHabitResponseContent = Recording
 
 // ConflictErrorResponseContent The request conflicts with current state, e.g. starting a time track while one is
@@ -527,7 +527,7 @@ type CreateCalendarTodoRequestContent struct {
 	CalendarTodo CalendarTodoPayload `json:"calendar_todo"`
 }
 
-// CreateCalendarTodoResponseContent Recording — polymorphic by `type` (Calendar::Event, Calendar::Todo, etc.)
+// CreateCalendarTodoResponseContent Recording — polymorphic by `type`, with direct and namespaced calendar wire values
 type CreateCalendarTodoResponseContent = Recording
 
 // CreateContactRequestContent Wire format: {acting_user_id, contact: {...}} — creating also has to say which account
@@ -553,7 +553,7 @@ type CreateFolderForPostingsRequestContent struct {
 	PostingIds []int64       `json:"posting_ids"`
 }
 
-// CreateHabitResponseContent Recording — polymorphic by `type` (Calendar::Event, Calendar::Todo, etc.)
+// CreateHabitResponseContent Recording — polymorphic by `type`, with direct and namespaced calendar wire values
 type CreateHabitResponseContent = Recording
 
 // CreateMessageRequestContent Wire format: {acting_sender_id, message: {subject, content}, entry: {addressed: {directly: "..."}}}
@@ -582,7 +582,7 @@ type CreateReplyRequestContent struct {
 // CreateStickyResponseContent Sticky — a note on the stickies board
 type CreateStickyResponseContent = Sticky
 
-// CreateTimeTrackResponseContent Recording — polymorphic by `type` (Calendar::Event, Calendar::Todo, etc.)
+// CreateTimeTrackResponseContent Recording — polymorphic by `type`, with direct and namespaced calendar wire values
 type CreateTimeTrackResponseContent = Recording
 
 // DeletedPosting DeletedPosting — the stub the changes feed answers with for a posting that is gone
@@ -829,7 +829,7 @@ type GetImboxResponseContent = BoxShowResponse
 // SDK response decoders normalize the nested variant to flat before decoding.
 type GetImboxSeenResponseContent = BoxShowResponse
 
-// GetJournalEntryResponseContent Recording — polymorphic by `type` (Calendar::Event, Calendar::Todo, etc.)
+// GetJournalEntryResponseContent Recording — polymorphic by `type`, with direct and namespaced calendar wire values
 type GetJournalEntryResponseContent = Recording
 
 // GetLaterboxResponseContent BoxShowResponse — box detail with postings.
@@ -850,7 +850,7 @@ type GetMyClearancesResponseContent = ClearanceListResponse
 // GetNavigationResponseContent NavigationResponse
 type GetNavigationResponseContent = NavigationResponse
 
-// GetOngoingTimeTrackResponseContent Recording — polymorphic by `type` (Calendar::Event, Calendar::Todo, etc.)
+// GetOngoingTimeTrackResponseContent Recording — polymorphic by `type`, with direct and namespaced calendar wire values
 type GetOngoingTimeTrackResponseContent = Recording
 
 // GetSentTopicsResponseContent TopicListResponse — wrapped topic list (sent, spam, trash, everything)
@@ -1241,7 +1241,7 @@ type PostingNote struct {
 	Id      int64  `json:"id"`
 }
 
-// Recording Recording — polymorphic by `type` (Calendar::Event, Calendar::Todo, etc.)
+// Recording Recording — polymorphic by `type`, with direct and namespaced calendar wire values
 type Recording struct {
 	AllDay bool `json:"all_day,omitempty"`
 
@@ -1293,7 +1293,7 @@ type Recording struct {
 	// Organizer Organizer — calendar event organizer
 	Organizer Organizer `json:"organizer,omitempty"`
 
-	// Parent Recording — polymorphic by `type` (Calendar::Event, Calendar::Todo, etc.)
+	// Parent Recording — polymorphic by `type`, with direct and namespaced calendar wire values
 	Parent   *Recording `json:"parent,omitempty"`
 	ParentId int64      `json:"parent_id,omitempty"`
 	Position int32      `json:"position,omitempty"`
@@ -1313,9 +1313,7 @@ type Recording struct {
 	Summary   string    `json:"summary,omitempty"`
 	Title     string    `json:"title,omitempty"`
 
-	// Type Discriminator — the recordable's Ruby class name: Calendar::Event, Calendar::Todo,
-	// Calendar::JournalEntry, Calendar::Habit, Calendar::TimeTrack, Calendar::Countdown,
-	// Calendar::DayBackground, Calendar::DayTitle or Calendar::Habit::Completion.
+	// Type Discriminator with direct (`CalendarTodo`) and namespaced (`Calendar::Todo`) values.
 	Type string `json:"type"`
 
 	// UpdatedAt ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)
@@ -1420,7 +1418,7 @@ type Snippet struct {
 	UpdatedAt time.Time `json:"updated_at,omitempty,omitzero"`
 }
 
-// StartTimeTrackResponseContent Recording — polymorphic by `type` (Calendar::Event, Calendar::Todo, etc.)
+// StartTimeTrackResponseContent Recording — polymorphic by `type`, with direct and namespaced calendar wire values
 type StartTimeTrackResponseContent = Recording
 
 // Sticky Sticky — a note on the stickies board
@@ -1543,10 +1541,10 @@ type UnauthorizedErrorResponseContent struct {
 	Message string `json:"message"`
 }
 
-// UncompleteCalendarTodoResponseContent Recording — polymorphic by `type` (Calendar::Event, Calendar::Todo, etc.)
+// UncompleteCalendarTodoResponseContent Recording — polymorphic by `type`, with direct and namespaced calendar wire values
 type UncompleteCalendarTodoResponseContent = Recording
 
-// UncompleteHabitResponseContent Recording — polymorphic by `type` (Calendar::Event, Calendar::Todo, etc.)
+// UncompleteHabitResponseContent Recording — polymorphic by `type`, with direct and namespaced calendar wire values
 type UncompleteHabitResponseContent = Recording
 
 // UnprocessableEntityErrorResponseContent The server rejected what was sent. HEY answers {"errors": ["..."]} — the messages
@@ -1562,7 +1560,7 @@ type UpdateCalendarTodoRequestContent struct {
 	CalendarTodo CalendarTodoChanges `json:"calendar_todo"`
 }
 
-// UpdateCalendarTodoResponseContent Recording — polymorphic by `type` (Calendar::Event, Calendar::Todo, etc.)
+// UpdateCalendarTodoResponseContent Recording — polymorphic by `type`, with direct and namespaced calendar wire values
 type UpdateCalendarTodoResponseContent = Recording
 
 // UpdateClearanceRequestContent Wire format: {status: "approved"|"denied"} — top level, not nested under a clearance key.
@@ -1603,7 +1601,7 @@ type UpdateFirstWeekDayRequestContent struct {
 // UpdateFirstWeekDayResponseContent defines model for UpdateFirstWeekDayResponseContent.
 type UpdateFirstWeekDayResponseContent = FirstWeekDayPreference
 
-// UpdateHabitResponseContent Recording — polymorphic by `type` (Calendar::Event, Calendar::Todo, etc.)
+// UpdateHabitResponseContent Recording — polymorphic by `type`, with direct and namespaced calendar wire values
 type UpdateHabitResponseContent = Recording
 
 // UpdateJournalEntryRequestContent Wire format: {calendar_journal_entry: {content}}
@@ -1611,7 +1609,7 @@ type UpdateJournalEntryRequestContent struct {
 	CalendarJournalEntry JournalEntryPayload `json:"calendar_journal_entry"`
 }
 
-// UpdateJournalEntryResponseContent Recording — polymorphic by `type` (Calendar::Event, Calendar::Todo, etc.)
+// UpdateJournalEntryResponseContent Recording — polymorphic by `type`, with direct and namespaced calendar wire values
 type UpdateJournalEntryResponseContent = Recording
 
 // UpdateMyClearanceRequestContent defines model for UpdateMyClearanceRequestContent.
@@ -1665,7 +1663,7 @@ type UpdateTimeTrackRequestContent struct {
 	CalendarTimeTrack UpdateTimeTrackPayload `json:"calendar_time_track"`
 }
 
-// UpdateTimeTrackResponseContent Recording — polymorphic by `type` (Calendar::Event, Calendar::Todo, etc.)
+// UpdateTimeTrackResponseContent Recording — polymorphic by `type`, with direct and namespaced calendar wire values
 type UpdateTimeTrackResponseContent = Recording
 
 // UpdatesChannel UpdatesChannel — streaming channel for a box

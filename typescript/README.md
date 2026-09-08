@@ -85,10 +85,12 @@ for await (const page of hey.pages('ListContacts', { query: { q: 'Jane' } })) {
 ```
 
 Only Link-paginated operations support `pages`. Calendar window queries are single
-requests; pass `starts_on`, `ends_on` and optionally `page` yourself. Sync bookmark
-fields such as `next_history_url` are data, never pagination. Foreign-origin links,
-credential-bearing links, cycles and exceeding `maxPages` (default 100) throw rather
-than silently truncate. This differs intentionally from Go's automatic aggregation.
+requests; pass `starts_on`, `ends_on` and optionally `page` yourself. Sync bookmarks
+remain checkpoints rather than pages: fields such as `next_history_url` stay in data,
+and a changes feed's terminal `since` Link remains in `nextUrl` without being followed.
+Foreign-origin links, credential-bearing links, cycles and exceeding `maxPages`
+(default 100) throw rather than silently truncate. This differs intentionally from Go's
+automatic aggregation.
 
 64-bit integers use `number | bigint`: safe values are numbers, larger integer JSON
 literals are bigints. Supply bigint for large IDs; unsafe input numbers are rejected
@@ -104,8 +106,9 @@ objects without making optional variant fields required.
 one refresh and resend, even for mutations; concurrent refreshes coalesce. Refresh
 failure propagates. Store OAuth credentials outside the SDK. `@37signals/hey/oauth`
 provides HEY discovery, PKCE, authorization URL, code exchange and refresh helpers:
-standard `authorization_code`/`refresh_token` form grants, not Basecamp's auth hosts.
-Verify the returned OAuth `state` in your callback before exchanging the code; persist
+standard `authorization_code`/`refresh_token` form grants, exact issuer validation and
+Bearer access tokens, not Basecamp's auth hosts. Verify the returned OAuth `state` in
+your callback before exchanging the code; persist
 rotated refresh tokens and use provider `refresh` to renew them. See [example](examples/oauth.ts).
 
 `HeyError` has `code`, `httpStatus`, `retryable`, `requestId`, `hint` and `cause`.

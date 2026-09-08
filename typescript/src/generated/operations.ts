@@ -201,6 +201,10 @@ export const operationMetadata = {
         503
       ]
     },
+    "pagination": {
+      "style": "link",
+      "totalCountHeader": "X-Total-Count"
+    },
     "actingSender": false,
     "actingUser": false
   },
@@ -455,7 +459,8 @@ export const operationMetadata = {
     },
     "pagination": {
       "style": "link",
-      "totalCountHeader": "X-Total-Count"
+      "totalCountHeader": "X-Total-Count",
+      "pageParameter": "page"
     },
     "actingSender": false,
     "actingUser": false
@@ -3438,8 +3443,10 @@ export class GeneratedOperations {
     return this.transport.execute("GetJournalEntry", input, options);
   }
 
-  /** Update the journal entry for a day: writes (or creates) it and answers the entry as a
-   * recording, or 204 when empty content removes it. */
+  /** Update the journal entry for a day: writes it, creating it if the day has none, and
+   * answers the entry as a recording. Empty content removes the entry instead, and HEY then
+   * answers 204 with no body — which is not this shape, so send that through the SDK's own
+   * journal wrapper rather than here. */
   updateJournalEntry(input: OperationInput<"UpdateJournalEntry">, options?: RequestOptions): Promise<OperationResponse<"UpdateJournalEntry">> {
     return this.transport.execute("UpdateJournalEntry", input, options);
   }

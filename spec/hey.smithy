@@ -915,7 +915,7 @@ structure AttachedEntry {
     app_url: String
 }
 
-/// Recording — polymorphic by `type` (Calendar::Event, Calendar::Todo, etc.)
+/// Recording — polymorphic by `type`, with direct and namespaced calendar wire values
 @heyPolymorphic(
     discriminator: "type"
     variants: {
@@ -929,6 +929,15 @@ structure AttachedEntry {
         "Calendar::TimeTrack": ["notes", "category"]
         "Calendar::Countdown": ["label"]
         "Calendar::DayBackground": ["image_url"]
+    }
+    discriminatorValues: {
+        "Calendar::Event": ["CalendarEvent", "Calendar::Event"]
+        "Calendar::Todo": ["CalendarTodo", "Calendar::Todo"]
+        "Calendar::JournalEntry": ["CalendarJournalEntry", "Calendar::JournalEntry"]
+        "Calendar::Habit": ["CalendarHabit", "Calendar::Habit"]
+        "Calendar::TimeTrack": ["CalendarTimeTrack", "Calendar::TimeTrack"]
+        "Calendar::Countdown": ["CalendarCountdown", "Calendar::Countdown"]
+        "Calendar::DayBackground": ["CalendarDayBackground", "Calendar::DayBackground"]
     }
 )
 structure Recording {
@@ -944,9 +953,7 @@ structure Recording {
     created_at: DateTime
     updated_at: DateTime
 
-    /// Discriminator — the recordable's Ruby class name: Calendar::Event, Calendar::Todo,
-    /// Calendar::JournalEntry, Calendar::Habit, Calendar::TimeTrack, Calendar::Countdown,
-    /// Calendar::DayBackground, Calendar::DayTitle or Calendar::Habit::Completion.
+    /// Discriminator with direct (`CalendarTodo`) and namespaced (`Calendar::Todo`) values.
     @required
     type: String
 
@@ -3850,7 +3857,7 @@ structure DeleteBoxDesignationInput {
 @http(method: "GET", uri: "/boxes/{boxId}/postings/changes.json")
 @tags(["Boxes"])
 @heyRetry(maxAttempts: 3, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
-@heyPagination(style: "link", totalCountHeader: "X-Total-Count")
+@heyPagination(style: "link", totalCountHeader: "X-Total-Count", pageParameter: "page")
 operation GetBoxPostingChanges {
     input: GetBoxPostingChangesInput
     output: GetBoxPostingChangesOutput

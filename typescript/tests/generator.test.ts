@@ -12,6 +12,7 @@ import {
 import {
   HeyClient,
   isPostingBundle,
+  isRecordingCalendarTimeTrack,
   isRecordingCalendarTodo,
   type components,
 } from "../src/index.js";
@@ -80,6 +81,13 @@ it("preserves polymorphic optional fields while narrowing discriminators", () =>
   expect(isPostingBundle({ id: 1, kind: "bundle" })).toBe(true);
   expect(isPostingBundle({ id: 1, kind: "topic" })).toBe(false);
   expect(isRecordingCalendarTodo({ id: 1, type: "CalendarTodo" })).toBe(true);
+  expect(isRecordingCalendarTodo({ id: 1, type: "Calendar::Todo" })).toBe(true);
+  expect(
+    isRecordingCalendarTimeTrack({ id: 1, type: "Calendar::TimeTrack" }),
+  ).toBe(true);
+  expect(isRecordingCalendarTimeTrack({ id: 1, type: "Calendar::Todo" })).toBe(
+    false,
+  );
 });
 // Independent OpenAPI-driven request coverage. Every generated method must reach the
 // real transport with the modeled method/path/query/body; new operations join automatically.

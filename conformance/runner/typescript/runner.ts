@@ -1,7 +1,10 @@
 // Fixture argument adapters mirror the Go harness, not SDK API implementations.
 // All network behavior, retries, parsing, security and assertions use the real SDK.
 import { repetitionCount, validateFixture } from "./contract.js";
-import { assertBodyFields } from "./assertions.js";
+import {
+  assertBodyFields,
+  serializeMockResponseBody,
+} from "./assertions.js";
 import { readFile, readdir } from "node:fs/promises";
 import assert from "node:assert/strict";
 import { createServer, type IncomingMessage } from "node:http";
@@ -11,7 +14,7 @@ import {
   type OperationName,
 } from "../../../typescript/src/index.js";
 import { operationMetadata } from "../../../typescript/src/generated/operations.js";
-import { parseJSON, stringifyJSON } from "../../../typescript/src/security.js";
+import { parseJSON } from "../../../typescript/src/security.js";
 
 type RecordValue = Record<string, any>;
 interface Fixture extends RecordValue {
@@ -100,8 +103,7 @@ function adapt(tc: Fixture): { operation: OperationName; input: RecordValue } {
     input.body = {
       message: { subject: values.subject ?? "", content: values.content ?? "" },
     };
-    if (values.acting_sender_id !== undefined || operation === "CreateReply")
-      input.body.acting_sender_id = values.acting_sender_id ?? 0;
+    input.body.acting_sender_id = values.acting_sender_id ?? 0;
     if (tc.operation.includes("Draft") && tc.operation !== "SendDraft")
       input.body.entry = { status: "drafted" };
     if (values.to)
@@ -160,7 +162,7 @@ async function run(tc: Fixture) {
         "Content-Type": "application/json",
         ...mock.headers,
       });
-      res.end(mock.body === undefined ? undefined : stringifyJSON(mock.body));
+      res.end(serializeMockResponseBody(mock.body));
     } catch (error) {
       serverFailure = error as Error;
       res.writeHead(500);
