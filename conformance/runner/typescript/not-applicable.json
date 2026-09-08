@@ -1,0 +1,20 @@
+[
+  {
+    "file": "calendar-events.json",
+    "name": "All-day calendar event updates omit clock times",
+    "operation": "UpdateCalendarEvent",
+    "reason": "Go-only handwritten calendar-event form update; PATCH/PUT excluded in spec/excluded-routes.json and absent from Smithy/OpenAPI. Not part of the TypeScript modeled surface."
+  },
+  {
+    "file": "credential-refresh.json",
+    "name": "A 401 on an SDK form request is answered by a refresh and one resend",
+    "operation": "UpdateCalendarEvent",
+    "reason": "Go-only handwritten calendar-event form update; PATCH/PUT excluded in spec/excluded-routes.json and absent from Smithy/OpenAPI. Not part of the TypeScript modeled surface."
+  },
+  {
+    "file": "credential-refresh.json",
+    "name": "A 401 that outlives the refresh on an SDK form request is surfaced after the one resend",
+    "operation": "UpdateCalendarEvent",
+    "reason": "Go-only handwritten calendar-event form update; PATCH/PUT excluded in spec/excluded-routes.json and absent from Smithy/OpenAPI. Not part of the TypeScript modeled surface."
+  }
+]

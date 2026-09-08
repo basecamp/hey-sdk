@@ -1,16 +1,18 @@
 # HEY SDK
 
-The SDKs for the [HEY](https://www.hey.com) API, generated from a Smithy model of the API in
-`spec/`, so what an SDK offers is what HEY actually serves.
+Go, Rust and TypeScript SDKs for the [HEY](https://www.hey.com) API, generated from a
+Smithy model of the API in `spec/`, so what an SDK offers is what HEY actually serves.
 
-The repository ships a Go module, `github.com/basecamp/hey-sdk/go`, which is the library behind
-[hey-cli](https://github.com/basecamp/hey-cli), and a Rust crate, `hey-sdk` in `rust/`, which
-is documented in [rust/hey-sdk/README.md](rust/hey-sdk/README.md). The rest of this page is
-about Go.
+The Go module, `github.com/basecamp/hey-sdk/go`, is the library behind
+[hey-cli](https://github.com/basecamp/hey-cli). The Rust crate, `hey-sdk` in `rust/`, is
+documented in [rust/hey-sdk/README.md](rust/hey-sdk/README.md). The proposed TypeScript
+package is `@37signals/hey`; see the [TypeScript guide](typescript/README.md) for
+installation, Node support, all modeled operations, pagination and examples. TypeScript
+registry provisioning is pending; [maintainer activation](TYPESCRIPT_RELEASE.md) is
+required before npm publication. The rest of this page is about Go.
 
-TypeScript, Ruby, Swift and Kotlin SDKs will be added in future updates, generated from the
-same Smithy model; the Makefile already reserves targets for them (`ts-`, `rb-`, `swift-`,
-`kt-`), which fail until those SDKs exist.
+Ruby, Swift and Kotlin remain unimplemented; their inherited Makefile targets are not gates.
+The Go usage guide follows; a [per-language entry point](go/README.md) is also available.
 
 ## Install
 
@@ -154,6 +156,9 @@ spec/hey.smithy ──► openapi.json ──► oapi-codegen ──► go/pkg/g
                                           hand-written conveniences in rust/hey-sdk/src/services
 ```
 
+TypeScript generates types, operation methods, route/behavior metadata and guards from
+`openapi.json` + `behavior-model.json` into `typescript/src/generated/`.
+
 The Smithy model is the source of truth for routes and payloads. `openapi.json`,
 `behavior-model.json`, `client.gen.go`, `go/pkg/hey/url-routes.json`, everything under
 `rust/hey-sdk/src/generated/` and the files under `spec/` that describe coverage are all
@@ -172,14 +177,15 @@ in unnoticed.
 A handful of services (`Clips`, `Snippets`, `Workflows`, `Publications`, `World`,
 `Extenzions`, `CalendarEvents`, and parts of `Contacts` and `Search`) still talk to HEY the
 way the web UI does — form posts, and for a few reads, the HTML page — because those
-endpoints have no JSON yet. Both SDKs cover them: Go through `PostForm` and its neighbours,
-Rust through `Client::form`/`Client::send_form` and the same hand-written services. They are
+endpoints have no JSON yet. Go covers them through `PostForm` and its neighbours, while
+Rust uses `Client::form`/`Client::send_form` and the same hand-written services. They are
 marked as such in the code and are being replaced as HEY grows JSON for them.
 
 ## Develop
 
 ```bash
-make check      # Smithy validate/build, drift gates, Go and Rust lint/tests, conformance
+make ts-install # frozen TypeScript dependency install (npm ci)
+make check      # Smithy/drift, Go + Rust + TypeScript checks and conformance runners
 ```
 
 `make check` is the gate; see [AGENTS.md](AGENTS.md) for the pipeline, the exact steps for

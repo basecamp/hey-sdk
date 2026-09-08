@@ -1,0 +1,136 @@
+name: Release TypeScript SDK
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch: # Always credential-free rehearsal; cannot publish.
+
+permissions: {}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  smithy:
+    uses: ./.github/workflows/smithy-verify.yml
+    permissions:
+      contents: read
+
+  test:
+    name: Test TypeScript (Node ${{ matrix.node }})
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ['22.12.0', '24', '26']
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          package-manager-cache: false
+          node-version: ${{ matrix.node }}
+      - run: npm ci --prefix typescript
+      - run: make ts-check conformance-ts ts-smoke
+
+  build:
+    name: Pack and rehearse npm artifact
+    needs: [smithy, test]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      version: ${{ steps.pack.outputs.version }}
+      tarball: ${{ steps.pack.outputs.tarball }}
+      publish_enabled: ${{ steps.activation.outputs.enabled }}
+    defaults:
+      run:
+        working-directory: typescript
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Verify tag on main
+        if: github.event_name == 'push'
+        run: |
+          git fetch origin main
+          git merge-base --is-ancestor "$GITHUB_SHA" origin/main
+      - name: Read versioned publication state
+        id: activation
+        run: echo "enabled=$(bash ../scripts/typescript-publish-state.sh)" >> "$GITHUB_OUTPUT"
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          package-manager-cache: false
+          node-version: '24'
+      - run: npm ci
+      - name: Verify versions and pack
+        id: pack
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          node ../scripts/sync-typescript-versions.mjs --check
+          VERSION=$(node -p "require('./package.json').version")
+          if [ "$EVENT_NAME" = push ] && [ "$GITHUB_REF_NAME" != "v$VERSION" ]; then
+            echo '::error::Tag and package versions differ'
+            exit 1
+          fi
+          npm run check:generated
+          npm run build
+          TARBALL=$(npm pack --silent)
+          npm run smoke -- "$TARBALL"
+          cp ../scripts/npm-publish-artifact.mjs npm-publish-artifact.mjs
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tarball=$TARBALL" >> "$GITHUB_OUTPUT"
+      - name: Credential-free dry run (also runs before an activated publish)
+        env:
+          VERSION: ${{ steps.pack.outputs.version }}
+          TARBALL: ${{ steps.pack.outputs.tarball }}
+          ENABLED: ${{ steps.activation.outputs.enabled }}
+        run: |
+          node ../scripts/npm-publish-artifact.mjs --dry-run '@37signals/hey' "$VERSION" "$TARBALL"
+          if [ "$ENABLED" != true ]; then
+            echo '::notice::TypeScript publishing disabled: npm NOT published; Go release remains independent.'
+          fi
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: hey-npm-tarball
+          path: |
+            typescript/*.tgz
+            typescript/npm-publish-artifact.mjs
+          if-no-files-found: error
+          retention-days: 7
+
+  publish:
+    name: Publish to npm (human-provisioned OIDC)
+    needs: build
+    if: github.event_name == 'push' && needs.build.outputs.publish_enabled == 'true'
+    runs-on: ubuntu-latest
+    environment: release-npm
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: hey-npm-tarball
+          path: artifact
+      # No checkout, npm ci, build scripts, or dependency cache in this job.
+      # Node 24 bundles npm >=11.5.1, required for trusted OIDC publishing.
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          package-manager-cache: false
+          node-version: '24'
+          registry-url: https://registry.npmjs.org
+      - name: Publish exact tested artifact, or verify identical existing version
+        working-directory: artifact
+        env:
+          VERSION: ${{ needs.build.outputs.version }}
+          TARBALL: ${{ needs.build.outputs.tarball }}
+        run: |
+          case "$TARBALL" in 37signals-hey-*.tgz) ;; *) echo 'Unexpected tarball'; exit 1 ;; esac
+          node npm-publish-artifact.mjs --publish '@37signals/hey' "$VERSION" "$TARBALL"

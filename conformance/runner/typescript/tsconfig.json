@@ -1,0 +1,5 @@
+{
+  "extends": "../../../typescript/tsconfig.json",
+  "compilerOptions": {"rootDir": "../../..", "noEmit": true, "typeRoots": ["../../../typescript/node_modules/@types"]},
+  "include": ["runner.ts", "../../../typescript/src/**/*.ts"]
+}

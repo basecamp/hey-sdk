@@ -37,6 +37,14 @@ sdk/common's `pagination.json` conformance tests apply as-is. No custom `paginat
 
 ### Gate targets
 
-- **`conformance-mvp`**: runs MVP behavioral tests (including pagination) for Go only.
+- **`conformance-mvp`**: runs MVP behavioral tests (including pagination) for shipped Go and TypeScript SDKs.
 - **`conformance-full`**: runs MVP + full-surface tests for all 5 languages.
-- Bare `conformance` alias maps to `conformance-full`.
+- Bare `conformance` alias maps to `conformance-mvp`; missing-language full targets stay inactive.
+
+### TypeScript page envelope
+
+TypeScript methods fetch one page and expose validated Link metadata. `pages(operation,
+input)` explicitly iterates Link-style response envelopes without guessing the array key;
+window-style calendar queries and sync bookmark fields are not automatically followed.
+Unlike Go's wrappers, TypeScript does not implicitly aggregate data or silently truncate
+at a page cap. See the TypeScript README for this public contract.

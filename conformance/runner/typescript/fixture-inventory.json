@@ -1,0 +1,784 @@
+{
+  "account-scope.json": [
+    {
+      "name": "Account-scoped client filters generated operations",
+      "operation": "ListBoxes"
+    }
+  ],
+  "auth.json": [
+    {
+      "name": "Bearer token injected in Authorization header",
+      "operation": "ListBoxes"
+    },
+    {
+      "name": "User-Agent header includes SDK identifier",
+      "operation": "ListBoxes"
+    }
+  ],
+  "cache-revalidation.json": [
+    {
+      "name": "Cache-enabled generated read revalidates and parses the 304 from the cache",
+      "operation": "ListBoxes"
+    },
+    {
+      "name": "Cache-enabled generated read follows a changed resource's new ETag",
+      "operation": "ListBoxes"
+    },
+    {
+      "name": "Client without a cache never sends a conditional request",
+      "operation": "ListBoxes"
+    }
+  ],
+  "calendar-events.json": [
+    {
+      "name": "All-day calendar event updates omit clock times",
+      "operation": "UpdateCalendarEvent"
+    },
+    {
+      "name": "Calendar event deletes ask for JSON",
+      "operation": "DeleteCalendarEvent"
+    },
+    {
+      "name": "Calendar event occurrence deletes ask for JSON with the scope in the query",
+      "operation": "DeleteCalendarEventOccurrence"
+    }
+  ],
+  "credential-refresh.json": [
+    {
+      "name": "A 401 on a generated read is answered by a refresh and one resend",
+      "operation": "ListBoxes"
+    },
+    {
+      "name": "A 401 on a generated mutation is answered by a refresh and one resend",
+      "operation": "CreateContact"
+    },
+    {
+      "name": "A 401 that outlives the refresh is surfaced after the one resend",
+      "operation": "ListBoxes"
+    },
+    {
+      "name": "A 401 is not resent when the credentials cannot be refreshed",
+      "operation": "ListBoxes"
+    },
+    {
+      "name": "SDK mutations reach the generated refresh path",
+      "operation": "CreateDraft"
+    },
+    {
+      "name": "A 401 on an SDK form request is answered by a refresh and one resend",
+      "operation": "UpdateCalendarEvent"
+    },
+    {
+      "name": "A 401 that outlives the refresh on an SDK form request is surfaced after the one resend",
+      "operation": "UpdateCalendarEvent"
+    }
+  ],
+  "draft-lifecycle.json": [
+    {
+      "name": "CreateDraft saves as the chosen acting sender",
+      "operation": "CreateDraft"
+    },
+    {
+      "name": "UpdateDraft keeps the chosen acting sender through a revision",
+      "operation": "UpdateDraft"
+    },
+    {
+      "name": "SendDraft delivers as the chosen acting sender",
+      "operation": "SendDraft"
+    }
+  ],
+  "empty-on-404.json": [
+    {
+      "name": "GetOngoingTimeTrack returns nil on 404 (empty-on-404)",
+      "operation": "GetOngoingTimeTrack"
+    },
+    {
+      "name": "GetOngoingTimeTrack returns data on 200",
+      "operation": "GetOngoingTimeTrack"
+    },
+    {
+      "name": "GetOngoingTimeTrack still errors on 500",
+      "operation": "GetOngoingTimeTrack"
+    },
+    {
+      "name": "GetOngoingTimeTrack still errors on 401",
+      "operation": "GetOngoingTimeTrack"
+    }
+  ],
+  "error-mapping.json": [
+    {
+      "name": "401 maps to auth_required error code",
+      "operation": "ListBoxes"
+    },
+    {
+      "name": "403 maps to forbidden error code",
+      "operation": "GetBox"
+    },
+    {
+      "name": "404 maps to not_found error code",
+      "operation": "GetBox"
+    },
+    {
+      "name": "422 maps to validation error code",
+      "operation": "CreateMessage"
+    },
+    {
+      "name": "429 maps to rate_limit error code",
+      "operation": "ListBoxes"
+    },
+    {
+      "name": "500 maps to api_error error code",
+      "operation": "GetBox"
+    },
+    {
+      "name": "X-Request-Id header extracted into error",
+      "operation": "GetBox"
+    }
+  ],
+  "extenzions.json": [
+    {
+      "name": "Extenzion deletes ask for JSON",
+      "operation": "DeleteExtenzion"
+    }
+  ],
+  "idempotency.json": [
+    {
+      "name": "POST operation does NOT retry (not idempotent)",
+      "operation": "CreateMessage"
+    },
+    {
+      "name": "Idempotent GET retries on 503",
+      "operation": "ListBoxes"
+    },
+    {
+      "name": "Idempotent POST (no body) retries on 503",
+      "operation": "CompleteCalendarTodo"
+    },
+    {
+      "name": "PUT operation is naturally idempotent",
+      "operation": "UpdateTimeTrack"
+    },
+    {
+      "name": "DELETE operation is naturally idempotent",
+      "operation": "DeleteCalendarTodo"
+    },
+    {
+      "name": "UpdateMessage does NOT retry despite being a PUT",
+      "operation": "UpdateMessage"
+    }
+  ],
+  "integer-precision.json": [
+    {
+      "name": "Large integer IDs preserved without precision loss",
+      "operation": "GetBox"
+    }
+  ],
+  "pagination.json": [
+    {
+      "name": "List operation returns first page with Link header",
+      "operation": "ListBoxes"
+    },
+    {
+      "name": "Bundle unseen postings carry the geared pagination cursor",
+      "operation": "GetBundleUnseenPostings"
+    },
+    {
+      "name": "A contact's threads carry the geared pagination cursor",
+      "operation": "GetContact"
+    },
+    {
+      "name": "Calendar recordings carry the geared pagination cursor",
+      "operation": "GetCalendarRecordings"
+    },
+    {
+      "name": "Tracked time is read without empty pagination parameters",
+      "operation": "ListTimeTracks"
+    },
+    {
+      "name": "Total count header is accessible",
+      "operation": "ListContacts"
+    },
+    {
+      "name": "Collection detail contract exposes postings and pagination metadata",
+      "operation": "GetCollection"
+    }
+  ],
+  "paths.json": [
+    {
+      "name": "CompleteCalendarTodo uses /calendar/todos/{todoId}/completions path",
+      "operation": "CompleteCalendarTodo"
+    },
+    {
+      "name": "CompleteHabit uses /calendar/days/{day}/habits/{habitId}/completions path",
+      "operation": "CompleteHabit"
+    },
+    {
+      "name": "CreateCalendarTodo uses /calendar/todos.json path",
+      "operation": "CreateCalendarTodo"
+    },
+    {
+      "name": "CreateDirectUpload uses /rails/active_storage/direct_uploads.json path",
+      "operation": "CreateDirectUpload"
+    },
+    {
+      "name": "CreateMessage uses /messages.json path",
+      "operation": "CreateMessage"
+    },
+    {
+      "name": "CreateReply uses /entries/{entryId}/replies.json path",
+      "operation": "CreateReply"
+    },
+    {
+      "name": "DeleteCalendarTodo uses /calendar/todos/{todoId} path",
+      "operation": "DeleteCalendarTodo"
+    },
+    {
+      "name": "GetAsidebox uses /set_aside.json path",
+      "operation": "GetAsidebox"
+    },
+    {
+      "name": "GetBox uses /boxes/{boxId} path",
+      "operation": "GetBox"
+    },
+    {
+      "name": "GetBubblebox uses /bubble_up.json path",
+      "operation": "GetBubblebox"
+    },
+    {
+      "name": "GetCalendarRecordings uses /calendars/{calendarId}/recordings path",
+      "operation": "GetCalendarRecordings"
+    },
+    {
+      "name": "GetContact uses /contacts/{contactId} path",
+      "operation": "GetContact"
+    },
+    {
+      "name": "GetEverythingTopics uses /topics/everything.json path",
+      "operation": "GetEverythingTopics"
+    },
+    {
+      "name": "GetFeedbox uses /feedbox.json path",
+      "operation": "GetFeedbox"
+    },
+    {
+      "name": "GetIdentity uses /identity.json path",
+      "operation": "GetIdentity"
+    },
+    {
+      "name": "GetImbox uses /imbox.json path",
+      "operation": "GetImbox"
+    },
+    {
+      "name": "GetJournalEntry uses /calendar/days/{day}/journal_entry path",
+      "operation": "GetJournalEntry"
+    },
+    {
+      "name": "GetLaterbox uses /reply_later.json path",
+      "operation": "GetLaterbox"
+    },
+    {
+      "name": "GetMessage uses /messages/{messageId} path",
+      "operation": "GetMessage"
+    },
+    {
+      "name": "GetNavigation uses /my/navigation.json path",
+      "operation": "GetNavigation"
+    },
+    {
+      "name": "GetOngoingTimeTrack uses /calendar/ongoing_time_track.json path",
+      "operation": "GetOngoingTimeTrack"
+    },
+    {
+      "name": "GetSentTopics uses /topics/sent.json path",
+      "operation": "GetSentTopics"
+    },
+    {
+      "name": "GetSpamTopics uses /topics/spam.json path",
+      "operation": "GetSpamTopics"
+    },
+    {
+      "name": "GetTopic uses /topics/{topicId} path",
+      "operation": "GetTopic"
+    },
+    {
+      "name": "GetTopicEntries uses /topics/{topicId}/entries path",
+      "operation": "GetTopicEntries"
+    },
+    {
+      "name": "GetTrailbox uses /paper_trail.json path",
+      "operation": "GetTrailbox"
+    },
+    {
+      "name": "GetTrashTopics uses /topics/trash.json path",
+      "operation": "GetTrashTopics"
+    },
+    {
+      "name": "ListBoxes uses /boxes.json path",
+      "operation": "ListBoxes"
+    },
+    {
+      "name": "ListJournalEntries uses /calendar/journal_entries path",
+      "operation": "ListJournalEntries"
+    },
+    {
+      "name": "ListCalendars uses /calendars.json path",
+      "operation": "ListCalendars"
+    },
+    {
+      "name": "ListContacts uses /contacts.json path",
+      "operation": "ListContacts"
+    },
+    {
+      "name": "ListDrafts uses /entries/drafts.json path",
+      "operation": "ListDrafts"
+    },
+    {
+      "name": "GetAdvancedSearchFilters uses /advanced_search_filters.json path",
+      "operation": "GetAdvancedSearchFilters"
+    },
+    {
+      "name": "StartTimeTrack uses /calendar/ongoing_time_track.json path",
+      "operation": "StartTimeTrack"
+    },
+    {
+      "name": "UncompleteCalendarTodo uses /calendar/todos/{todoId}/completions path",
+      "operation": "UncompleteCalendarTodo"
+    },
+    {
+      "name": "UncompleteHabit uses /calendar/days/{day}/habits/{habitId}/completions path",
+      "operation": "UncompleteHabit"
+    },
+    {
+      "name": "UpdateJournalEntry uses /calendar/days/{day}/journal_entry path",
+      "operation": "UpdateJournalEntry"
+    },
+    {
+      "name": "UpdateTimeTrack uses /calendar/time_tracks/{timeTrackId} path",
+      "operation": "UpdateTimeTrack"
+    },
+    {
+      "name": "MarkPostingsSeen uses /postings/seen.json path",
+      "operation": "MarkPostingsSeen"
+    },
+    {
+      "name": "MarkPostingsUnseen uses /postings/unseen.json path",
+      "operation": "MarkPostingsUnseen"
+    },
+    {
+      "name": "MovePostings uses /postings/moves.json path",
+      "operation": "MovePostings"
+    },
+    {
+      "name": "TrashPostings uses /postings/trash.json path",
+      "operation": "TrashPostings"
+    },
+    {
+      "name": "MutePostings uses /postings/mutings.json path",
+      "operation": "MutePostings"
+    },
+    {
+      "name": "UnmutePostings uses /postings/mutings.json path",
+      "operation": "UnmutePostings"
+    },
+    {
+      "name": "MarkPostingsSpam uses /postings/spam.json path",
+      "operation": "MarkPostingsSpam"
+    },
+    {
+      "name": "AddPostingsToBoxGroup uses /postings/box_groups.json path",
+      "operation": "AddPostingsToBoxGroup"
+    },
+    {
+      "name": "RemovePostingsFromBoxGroup uses /postings/box_groups.json path",
+      "operation": "RemovePostingsFromBoxGroup"
+    },
+    {
+      "name": "FilePostings uses /postings/filings.json path",
+      "operation": "FilePostings"
+    },
+    {
+      "name": "UnfilePostings uses /postings/filings.json path",
+      "operation": "UnfilePostings"
+    },
+    {
+      "name": "CreateFolderForPostings uses /postings/folders.json path",
+      "operation": "CreateFolderForPostings"
+    },
+    {
+      "name": "CancelPostingsBubbleUp uses /postings/bubble_up.json path",
+      "operation": "CancelPostingsBubbleUp"
+    },
+    {
+      "name": "SchedulePostingsBubbleUp uses /postings/bubble_up.json path",
+      "operation": "SchedulePostingsBubbleUp"
+    },
+    {
+      "name": "BubbleUpPostingsNow uses /postings/bulk_bubble_up_now.json path",
+      "operation": "BubbleUpPostingsNow"
+    },
+    {
+      "name": "TrashTopic uses /topics/{topicId}/status/trashed.json path",
+      "operation": "TrashTopic"
+    },
+    {
+      "name": "RestoreTopic uses /topics/{topicId}/status/active.json path",
+      "operation": "RestoreTopic"
+    },
+    {
+      "name": "MarkTopicHam uses /topics/{topicId}/status/ham.json path",
+      "operation": "MarkTopicHam"
+    },
+    {
+      "name": "EmptyTrash uses /topics/trash/all.json path",
+      "operation": "EmptyTrash"
+    },
+    {
+      "name": "EmptySpam uses /topics/spam/all.json path",
+      "operation": "EmptySpam"
+    },
+    {
+      "name": "MoveTopic uses /topics/{topicId}/moves.json path",
+      "operation": "MoveTopic"
+    },
+    {
+      "name": "MarkEntrySpam uses /entries/{entryId}/status/spam.json path",
+      "operation": "MarkEntrySpam"
+    },
+    {
+      "name": "NewEntryForward uses /entries/{entryId}/forwards/new.json path",
+      "operation": "NewEntryForward"
+    },
+    {
+      "name": "NewBulkReply uses /bulk_replies/new.json path",
+      "operation": "NewBulkReply"
+    },
+    {
+      "name": "CreateBulkReply uses /bulk_replies.json path",
+      "operation": "CreateBulkReply"
+    },
+    {
+      "name": "BundleContact uses /contacts/{contactId}/bundle.json path",
+      "operation": "BundleContact"
+    },
+    {
+      "name": "UnbundleContact uses /contacts/{contactId}/bundle.json path",
+      "operation": "UnbundleContact"
+    },
+    {
+      "name": "UpdateContactClearance uses /contacts/{contactId}/clearance.json path",
+      "operation": "UpdateContactClearance"
+    },
+    {
+      "name": "GetClearances uses /clearances.json path",
+      "operation": "GetClearances"
+    },
+    {
+      "name": "CreateContact uses /contacts.json path",
+      "operation": "CreateContact"
+    },
+    {
+      "name": "UpdateContact uses /contacts/{contactId} path",
+      "operation": "UpdateContact"
+    },
+    {
+      "name": "HideContact uses /contacts/{contactId} path",
+      "operation": "HideContact"
+    },
+    {
+      "name": "RevealContact uses /contacts/{contactId}/reveal.json path",
+      "operation": "RevealContact"
+    },
+    {
+      "name": "GetContactNote uses /contacts/{contactId}/note.json path",
+      "operation": "GetContactNote"
+    },
+    {
+      "name": "UpdateContactNote uses /contacts/{contactId}/note.json path",
+      "operation": "UpdateContactNote"
+    },
+    {
+      "name": "DeleteContactNote uses /contacts/{contactId}/note.json path",
+      "operation": "DeleteContactNote"
+    },
+    {
+      "name": "CreateBoxDesignation uses /boxes/{boxId}/designations.json path",
+      "operation": "CreateBoxDesignation"
+    },
+    {
+      "name": "DeleteBoxDesignation uses /boxes/{boxId}/designations/{designationId} path",
+      "operation": "DeleteBoxDesignation"
+    },
+    {
+      "name": "ListBoxGroups uses /boxes/{boxId}/groups.json path",
+      "operation": "ListBoxGroups"
+    },
+    {
+      "name": "CreateBoxGroup uses /boxes/{boxId}/groups.json path",
+      "operation": "CreateBoxGroup"
+    },
+    {
+      "name": "GetBoxGroup uses /boxes/{boxId}/groups/{groupId} path",
+      "operation": "GetBoxGroup"
+    },
+    {
+      "name": "DeleteBoxGroup uses /boxes/{boxId}/groups/{groupId} path",
+      "operation": "DeleteBoxGroup"
+    },
+    {
+      "name": "MarkBoxSeen uses /boxes/{boxId}/observation.json path",
+      "operation": "MarkBoxSeen"
+    },
+    {
+      "name": "GetFolder uses /folders/{folderId} path",
+      "operation": "GetFolder"
+    },
+    {
+      "name": "ListCollections uses /collections.json path",
+      "operation": "ListCollections"
+    },
+    {
+      "name": "GetCollection uses /collections/{collectionId} path",
+      "operation": "GetCollection"
+    },
+    {
+      "name": "UpdateCollection uses /collections/{collectionId} path",
+      "operation": "UpdateCollection"
+    },
+    {
+      "name": "ListStickies uses /stickies.json path",
+      "operation": "ListStickies"
+    },
+    {
+      "name": "CreateSticky uses /stickies.json path",
+      "operation": "CreateSticky"
+    },
+    {
+      "name": "UpdateSticky uses /stickies/{stickyId} path",
+      "operation": "UpdateSticky"
+    },
+    {
+      "name": "DeleteSticky uses /stickies/{stickyId} path",
+      "operation": "DeleteSticky"
+    },
+    {
+      "name": "MoveSticky uses /stickies/moves.json path",
+      "operation": "MoveSticky"
+    },
+    {
+      "name": "CreateTimeTrack uses /calendar/time_tracks.json path",
+      "operation": "CreateTimeTrack"
+    },
+    {
+      "name": "DeleteTimeTrack uses /calendar/time_tracks/{timeTrackId} path",
+      "operation": "DeleteTimeTrack"
+    },
+    {
+      "name": "CreateHabit uses /calendar/habits.json path",
+      "operation": "CreateHabit"
+    },
+    {
+      "name": "UpdateHabit uses /calendar/habits/{habitId} path",
+      "operation": "UpdateHabit"
+    },
+    {
+      "name": "DeleteHabit uses /calendar/habits/{habitId} path",
+      "operation": "DeleteHabit"
+    },
+    {
+      "name": "StopHabit uses /calendar/habits/{habitId}/stop.json path",
+      "operation": "StopHabit"
+    },
+    {
+      "name": "ResumeHabit uses /calendar/habits/{habitId}/stop.json path",
+      "operation": "ResumeHabit"
+    },
+    {
+      "name": "AdvancedSearch uses /advanced_search.json path",
+      "operation": "AdvancedSearch"
+    },
+    {
+      "name": "ListClips uses /clips.json path",
+      "operation": "ListClips"
+    },
+    {
+      "name": "ListSnippets uses /snippets.json path",
+      "operation": "ListSnippets"
+    },
+    {
+      "name": "GetWorkflow uses /workflows/{workflowId} path",
+      "operation": "GetWorkflow"
+    },
+    {
+      "name": "CreateWorkflowStaging uses the topic workflow stagings path",
+      "operation": "CreateWorkflowStaging"
+    },
+    {
+      "name": "MoveWorkflowStaging uses the topic workflow stagings path",
+      "operation": "MoveWorkflowStaging"
+    },
+    {
+      "name": "ListTimeTracks uses /calendar/time_tracks.json path",
+      "operation": "ListTimeTracks"
+    },
+    {
+      "name": "ListTimeTrackCategories uses /calendar/time_tracks/categories.json path",
+      "operation": "ListTimeTrackCategories"
+    },
+    {
+      "name": "GetTopicPublication uses /topics/{topicId}/publication.json path",
+      "operation": "GetTopicPublication"
+    },
+    {
+      "name": "GetBoxPostingChanges uses /boxes/{boxId}/postings/changes.json path",
+      "operation": "GetBoxPostingChanges"
+    },
+    {
+      "name": "UpdateClearance uses /clearances/{clearanceId} path",
+      "operation": "UpdateClearance"
+    },
+    {
+      "name": "BulkUpdateClearances uses /clearances/bulk.json path",
+      "operation": "BulkUpdateClearances"
+    },
+    {
+      "name": "PuntClearances uses /clearances/punt.json path",
+      "operation": "PuntClearances"
+    },
+    {
+      "name": "GetMyClearances uses /my/clearances.json path",
+      "operation": "GetMyClearances"
+    },
+    {
+      "name": "UpdateMyClearance uses /my/clearances/{clearanceId} path",
+      "operation": "UpdateMyClearance"
+    },
+    {
+      "name": "UpdateMessage uses /messages/{messageId} path",
+      "operation": "UpdateMessage"
+    },
+    {
+      "name": "GetMessageEdit uses /messages/{messageId}/edit.json path",
+      "operation": "GetMessageEdit"
+    },
+    {
+      "name": "DeleteDraft uses /entries/drafts/{entryId} path",
+      "operation": "DeleteDraft"
+    },
+    {
+      "name": "NewEntryReply uses /entries/{entryId}/replies/new.json path",
+      "operation": "NewEntryReply"
+    }
+  ],
+  "replies.json": [
+    {
+      "name": "CreateReply wrapper sends the chosen acting sender untouched",
+      "operation": "CreateReply"
+    },
+    {
+      "name": "CreateReplyDraft wrapper sends the chosen acting sender untouched",
+      "operation": "CreateReplyDraft"
+    }
+  ],
+  "retry.json": [
+    {
+      "name": "GET operation retries on 503",
+      "operation": "ListBoxes"
+    },
+    {
+      "name": "GET operation retries on 429 with Retry-After",
+      "operation": "GetBox"
+    },
+    {
+      "name": "POST operation does NOT retry (not idempotent)",
+      "operation": "CreateMessage"
+    },
+    {
+      "name": "Non-retryable error not retried",
+      "operation": "GetBox"
+    }
+  ],
+  "security.json": [
+    {
+      "name": "Cross-origin Link header rejected",
+      "operation": "ListBoxes"
+    },
+    {
+      "name": "HTTPS enforced for non-localhost requests",
+      "operation": "ListBoxes"
+    },
+    {
+      "name": "HTTP allowed for localhost",
+      "operation": "ListBoxes"
+    },
+    {
+      "name": "Same-origin Link header is accepted",
+      "operation": "ListBoxes"
+    },
+    {
+      "name": "Protocol downgrade in Link header rejected",
+      "operation": "ListBoxes"
+    }
+  ],
+  "status-codes.json": [
+    {
+      "name": "GET returns 200 OK on success",
+      "operation": "GetBox"
+    },
+    {
+      "name": "PATCH returns 200 OK on success",
+      "operation": "UpdateJournalEntry"
+    },
+    {
+      "name": "PUT returns 200 OK on success",
+      "operation": "UpdateTimeTrack"
+    },
+    {
+      "name": "POST create returns 200 OK",
+      "operation": "CreateMessage"
+    },
+    {
+      "name": "DELETE returns 200 OK",
+      "operation": "DeleteCalendarTodo"
+    },
+    {
+      "name": "List operation returns 200 OK with collection",
+      "operation": "ListBoxes"
+    },
+    {
+      "name": "404 Not Found error is surfaced",
+      "operation": "GetBox"
+    },
+    {
+      "name": "422 Validation Error is surfaced",
+      "operation": "CreateMessage"
+    },
+    {
+      "name": "401 Unauthorized error is surfaced",
+      "operation": "ListBoxes"
+    },
+    {
+      "name": "403 Forbidden error is surfaced",
+      "operation": "GetBox"
+    },
+    {
+      "name": "429 Rate Limit error is surfaced after retries exhausted",
+      "operation": "GetBox"
+    },
+    {
+      "name": "409 Conflict on the changes feed means read the box in full",
+      "operation": "GetBoxPostingChanges"
+    },
+    {
+      "name": "500 Internal Server Error is surfaced",
+      "operation": "GetBox"
+    },
+    {
+      "name": "Non-retryable client errors are not retried",
+      "operation": "GetBox"
+    },
+    {
+      "name": "422 on create is not retried",
+      "operation": "CreateMessage"
+    }
+  ]
+}

@@ -178,6 +178,7 @@
       {
         "type": "requestBody",
         "expected": {
+          "acting_sender_id": 0,
           "message.subject": "Test",
           "message.content": "Hello"
         }

@@ -1,0 +1,58 @@
+{
+  "name": "@37signals/hey",
+  "version": "0.29.0",
+  "description": "TypeScript SDK for the HEY API",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./oauth": {
+      "types": "./dist/oauth.d.ts",
+      "import": "./dist/oauth.js"
+    }
+  },
+  "files": [
+    "dist",
+    "LICENSE",
+    "README.md"
+  ],
+  "engines": {
+    "node": "^22.12.0 || ^24.0.0 || ^26.0.0"
+  },
+  "license": "MIT",
+  "author": "37signals",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/basecamp/hey-sdk.git",
+    "directory": "typescript"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "generate": "tsx scripts/generate.ts",
+    "generate-services": "npm run generate",
+    "check:generated": "tsx scripts/generate.ts --check && node ../conformance/runner/typescript/generate-inventory.mjs --check",
+    "build": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\" && tsc",
+    "typecheck": "tsc --noEmit && tsc -p tsconfig.test.json --noEmit && tsc -p ../conformance/runner/typescript/tsconfig.json --noEmit",
+    "test": "vitest run",
+    "conformance": "node ../conformance/runner/typescript/generate-inventory.mjs --check && tsx ../conformance/runner/typescript/runner.ts",
+    "smoke": "node scripts/package-smoke.mjs",
+    "prepublishOnly": "npm run build"
+  },
+  "dependencies": {
+    "lossless-json": "4.3.0"
+  },
+  "devDependencies": {
+    "@types/node": "26.1.0",
+    "openapi-typescript": "7.13.0",
+    "semver": "7.7.4",
+    "tsx": "4.23.13",
+    "typescript": "5.9.3",
+    "vitest": "4.1.11"
+  }
+}

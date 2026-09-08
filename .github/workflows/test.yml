@@ -73,6 +73,25 @@ jobs:
       - name: Check generated code is up to date
         run: make rs-check-drift
 
+  test-typescript:
+    name: TypeScript (Node ${{ matrix.node }})
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ['22.12.0', '24', '26']
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: ${{ matrix.node }}
+      - run: npm ci --prefix typescript
+      - run: make ts-check ts-smoke
+
   lint-go:
     name: Go Lint
     runs-on: ubuntu-latest
@@ -116,11 +135,11 @@ jobs:
           advanced-security: false
 
   conformance:
-    name: Conformance Tests
+    name: Conformance Tests (Go and TypeScript)
     runs-on: ubuntu-latest
     permissions:
       contents: read
-    needs: [test-go]
+    needs: [test-go, test-typescript]
     defaults:
       run:
         working-directory: conformance/runner/go
@@ -135,8 +154,14 @@ jobs:
           go-version-file: 'conformance/runner/go/go.mod'
           cache-dependency-path: 'conformance/runner/go/go.sum'
 
-      - name: Run conformance tests
-        run: go run .
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '24'
+      - run: npm ci --prefix typescript
+        working-directory: .
+      - name: Run Go and TypeScript conformance tests
+        run: make conformance-go conformance-ts
+        working-directory: .
 
   conformance-rust:
     name: Conformance Tests (Rust)

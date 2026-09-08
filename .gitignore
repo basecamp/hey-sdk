@@ -63,3 +63,6 @@ kotlin/conformance/build/
 
 # TypeScript SDK build artifacts
 typescript/coverage/
+
+# Packed npm artifacts
+*.tgz
