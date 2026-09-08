@@ -30,6 +30,9 @@ type ExchangeRequest struct {
 	ClientID      string
 	ClientSecret  string
 	CodeVerifier  string
+	// InstallID identifies this installation to HEY as a device. It is the same value the
+	// authorization URL carried, and HEY refuses the exchange without it.
+	InstallID string
 }
 
 // RefreshRequest contains parameters for refreshing an access token.
@@ -38,4 +41,7 @@ type RefreshRequest struct {
 	RefreshToken  string
 	ClientID      string
 	ClientSecret  string
+	// InstallID identifies the installation the tokens were issued to. HEY refuses the
+	// refresh without it.
+	InstallID string
 }

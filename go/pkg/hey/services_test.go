@@ -852,7 +852,7 @@ func TestCalendarTodosService_Create(t *testing.T) {
 				t.Error("missing starts_at")
 			}
 		},
-		`{"id":1,"type":"CalendarTodo"}`,
+		`{"id":1,"type":"Calendar::Todo"}`,
 	)
 
 	result, err := client.CalendarTodos().Create(context.Background(), "Do something", "2026-03-13")
@@ -883,7 +883,7 @@ func TestCalendarTodosService_Update(t *testing.T) {
 				t.Errorf("a rename sent focused: %v", todo)
 			}
 		},
-		`{"id":1,"type":"CalendarTodo","title":"Renew the passport"}`,
+		`{"id":1,"type":"Calendar::Todo","title":"Renew the passport"}`,
 	)
 
 	result, err := client.CalendarTodos().Update(context.Background(), 1, TodoChanges{Title: "Renew the passport"})
@@ -913,7 +913,7 @@ func TestCalendarTodosService_UpdateSendsABareDate(t *testing.T) {
 				t.Errorf("focused = %v", todo["focused"])
 			}
 		},
-		`{"id":1,"type":"CalendarTodo"}`,
+		`{"id":1,"type":"Calendar::Todo"}`,
 	)
 
 	if _, err := client.CalendarTodos().Update(context.Background(), 1, TodoChanges{
@@ -941,7 +941,7 @@ func TestCalendarTodosService_Complete(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(200)
-		w.Write([]byte(`{"id":1,"type":"CalendarTodo"}`))
+		w.Write([]byte(`{"id":1,"type":"Calendar::Todo"}`))
 	}))
 	defer server.Close()
 
@@ -961,7 +961,7 @@ func TestCalendarTodosService_Uncomplete(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(200)
-		w.Write([]byte(`{"id":1,"type":"CalendarTodo"}`))
+		w.Write([]byte(`{"id":1,"type":"Calendar::Todo"}`))
 	}))
 	defer server.Close()
 

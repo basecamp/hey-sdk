@@ -17,7 +17,7 @@ func TestJournalServiceListPage(t *testing.T) {
 		gotQuery = r.URL.Query().Get("q")
 		w.Header().Set("Content-Type", "application/json")
 		w.Header().Set("Link", `<http://`+r.Host+`/calendar/journal_entries.json?page=eyJwYWdlIjozfQ&q=meetings+%26+notes>; rel="next"`)
-		_, _ = w.Write([]byte(`[{"id":13,"type":"CalendarJournalEntry","content":"Quarterly planning","starts_at":"2026-08-19T00:00:00Z"}]`))
+		_, _ = w.Write([]byte(`[{"id":13,"type":"Calendar::JournalEntry","content":"Quarterly planning","starts_at":"2026-08-19T00:00:00Z"}]`))
 	}))
 	t.Cleanup(srv.Close)
 	client := NewClient(&Config{BaseURL: srv.URL}, &StaticTokenProvider{Token: "t"}, WithMaxRetries(0))
@@ -46,7 +46,7 @@ func TestJournalServiceListPageOnLastPage(t *testing.T) {
 			t.Errorf("expected no empty query parameters on the first unfiltered read, got %q", r.URL.RawQuery)
 		}
 		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`[{"id":13,"type":"CalendarJournalEntry","content":"Quarterly planning"}]`))
+		_, _ = w.Write([]byte(`[{"id":13,"type":"Calendar::JournalEntry","content":"Quarterly planning"}]`))
 	}))
 	t.Cleanup(srv.Close)
 	client := NewClient(&Config{BaseURL: srv.URL}, &StaticTokenProvider{Token: "t"}, WithMaxRetries(0))

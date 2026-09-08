@@ -1,0 +1,112 @@
+# Naming overrides for the Rust generator.
+#
+# Services come from OpenAPI tags, snake_cased, with a leading "Calendar " dropped where the
+# tag would otherwise repeat what the calendar module already says. Method names come from the
+# operationId with the service's own noun removed (ListBoxes -> boxes().list()). The generator
+# fails when two operations in one service end up with the same method name, or when a name
+# is a Rust keyword, and this file is where those are settled.
+
+[services]
+"Bulk Reply" = "bulk_replies"
+"Calendar Habits" = "habits"
+"Calendar Journal" = "journal"
+"Calendar Time Tracks" = "time_tracks"
+
+# Operations that belong to a different service than their tag says. Every SDK files an
+# operation under the same service, so these follow Go's own placement.
+[operation_services]
+BulkUpdateClearances = "clearances"
+CreateBoxDesignation = "designations"
+DeleteBoxDesignation = "designations"
+GetBoxPostingChanges = "postings"
+GetClearances = "clearances"
+GetMyClearances = "clearances"
+PuntClearances = "clearances"
+UpdateClearance = "clearances"
+UpdateMyClearance = "clearances"
+
+# Schemas whose Smithy name collides with something Rust already has. The rename reaches
+# every place the generator writes the type — the struct, the aliases built from it, the
+# service signatures — and nowhere else: a type name never goes on the wire.
+[type_names]
+Box = "Mailbox"
+
+[operation_methods]
+CreateBoxDesignation = "create"
+CreateFolderForPostings = "create_folder"
+DeleteBoxDesignation = "delete"
+GetTopicPublication = "get"
+MovePostings = "move_postings"
+MoveSticky = "move_sticky"
+MoveTopic = "move_topic"
+MoveWorkflowStaging = "move_staging"
+NewBulkReply = "new_bulk_reply"
+
+# The noun each service's operations act on, as the hooks report it. Nothing in OpenAPI
+# says it, and every HEY SDK has to name it the same way, so it is written down here. The
+# generator fails when a service has no entry.
+[resource_types]
+attachments = "attachment"
+boxes = "box"
+bulk_replies = "bulk_reply"
+calendar_events = "calendar_event"
+calendar_periods = "calendar_period"
+calendar_todos = "calendar_todo"
+calendars = "calendar"
+clearances = "clearance"
+clips = "clip"
+collections = "collection"
+contacts = "contact"
+designations = "designation"
+entries = "entry"
+extenzions = "extenzion"
+folders = "folder"
+habits = "habit"
+identity = "identity"
+journal = "journal_entry"
+messages = "message"
+postings = "posting"
+publications = "publication"
+search = "search"
+snippets = "snippet"
+stickies = "sticky"
+time_tracks = "time_track"
+topics = "topic"
+workflows = "workflow"
+
+# Operations that act on something other than their service's noun.
+[operation_resource_types]
+CreateBoxGroup = "box_group"
+CreateReply = "reply"
+CreateTimeTrackCategory = "category"
+CreateTopicCollecting = "collecting"
+CreateWorkflowStage = "workflow_stage"
+CreateWorkflowStaging = "workflow_staging"
+DeleteBoxGroup = "box_group"
+DeleteContactNote = "note"
+DeleteDraft = "draft"
+DeleteTimeTrackCategory = "category"
+DeleteTopicCollecting = "collecting"
+DeleteWorkflowStage = "workflow_stage"
+DeleteWorkflowStaging = "workflow_staging"
+GetBoxGroup = "box_group"
+GetBoxPostingChanges = "posting"
+GetCalendarDay = "calendar_day"
+GetCalendarRecordingChanges = "recording"
+GetCalendarRecordings = "recording"
+GetCalendarWeek = "calendar_week"
+GetCalendarYear = "calendar_year"
+GetContactNote = "note"
+GetMessageEdit = "draft"
+GetNavigation = "navigation"
+GetTopicEntries = "entry"
+ListBoxGroups = "box_group"
+ListCalendarDays = "calendar_day"
+ListCalendarWeeks = "calendar_week"
+ListDrafts = "draft"
+ListTimeTrackCategories = "category"
+MoveWorkflowStaging = "workflow_staging"
+UpdateContactNote = "note"
+UpdateMyClearance = "clearance"
+UpdateTimeTrackCategory = "category"
+UpdateWorkflowStage = "workflow_stage"
