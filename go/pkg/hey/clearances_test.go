@@ -37,6 +37,39 @@ func TestClearancesService_PendingCountAsksForTheCountAlone(t *testing.T) {
 	}
 }
 
+// The Screener's stream name comes with the count, so a client can follow it without a
+// second read — and without the queue either.
+func TestClearancesService_SummaryCarriesTheStreamToFollow(t *testing.T) {
+	var gotQuery string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet || r.URL.Path != "/clearances.json" {
+			t.Errorf("expected GET /clearances.json, got %s %s", r.Method, r.URL.Path)
+		}
+		gotQuery = r.URL.RawQuery
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"pending_clearances_count":3,"signed_stream_name":"eyJpZGVudGl0eSI6MX0--sig"}`))
+	}))
+	t.Cleanup(srv.Close)
+	client := NewClient(&Config{BaseURL: srv.URL}, &StaticTokenProvider{Token: "t"}, WithMaxRetries(0))
+
+	summary, err := client.Clearances().Summary(context.Background())
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if summary.PendingClearancesCount != 3 {
+		t.Errorf("expected 3 pending, got %d", summary.PendingClearancesCount)
+	}
+	if summary.SignedStreamName != "eyJpZGVudGl0eSI6MX0--sig" {
+		t.Errorf("stream name = %q", summary.SignedStreamName)
+	}
+	if len(summary.Clearances) != 0 {
+		t.Errorf("expected no queue, got %d clearances", len(summary.Clearances))
+	}
+	if gotQuery != "" {
+		t.Errorf("expected no query, got %q", gotQuery)
+	}
+}
+
 func TestClearancesService_Pending(t *testing.T) {
 	var gotInclude, gotPage string
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -76,6 +109,77 @@ func TestClearancesService_Pending(t *testing.T) {
 	}
 	if clearance.MostRecentEntry.TopicId != 81 {
 		t.Errorf("expected the topic to reply to, got %d", clearance.MostRecentEntry.TopicId)
+	}
+}
+
+func TestClearancesService_PendingPage(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if page := r.URL.Query().Get("page"); page != "eyJwYWdlIjoyfQ" {
+			t.Errorf("expected the page token to be passed through, got %q", page)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Link", `<http://`+r.Host+`/clearances.json?page=eyJwYWdlIjozfQ>; rel="next"`)
+		_, _ = w.Write([]byte(`{"pending_clearances_count":24,"clearances":[
+			{"id":91,"status":"pending","petitioner":{"id":51,"name":"Hollis Heimboch"}}]}`))
+	}))
+	t.Cleanup(srv.Close)
+	client := NewClient(&Config{BaseURL: srv.URL}, &StaticTokenProvider{Token: "t"}, WithMaxRetries(0))
+
+	page, err := client.Clearances().PendingPage(context.Background(), "eyJwYWdlIjoyfQ")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(page.Clearances) != 1 || page.Clearances[0].Id != 91 {
+		t.Errorf("expected clearance 91, got %+v", page.Clearances)
+	}
+	if page.PendingCount != 24 {
+		t.Errorf("expected 24 waiting, got %d", page.PendingCount)
+	}
+	if page.NextPage != "eyJwYWdlIjozfQ" {
+		t.Errorf("expected the cursor for the next page, got %q", page.NextPage)
+	}
+}
+
+// The queue's last page carries no Link header, which is how a caller walking it is told
+// it has reached the end.
+func TestClearancesService_PendingPageOnLastPage(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"pending_clearances_count":1,"clearances":[{"id":91,"status":"pending"}]}`))
+	}))
+	t.Cleanup(srv.Close)
+	client := NewClient(&Config{BaseURL: srv.URL}, &StaticTokenProvider{Token: "t"}, WithMaxRetries(0))
+
+	page, err := client.Clearances().PendingPage(context.Background(), "")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if page.NextPage != "" {
+		t.Errorf("next page = %q, want none", page.NextPage)
+	}
+}
+
+func TestClearancesService_ScreenedPage(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet || r.URL.Path != "/my/clearances.json" {
+			t.Errorf("expected GET /my/clearances.json, got %s %s", r.Method, r.URL.Path)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Link", `<http://`+r.Host+`/my/clearances.json?page=eyJwYWdlIjoyfQ>; rel="next"`)
+		_, _ = w.Write([]byte(`{"clearances":[{"id":91,"status":"approved","petitioner":{"id":51,"name":"Glenn"}}]}`))
+	}))
+	t.Cleanup(srv.Close)
+	client := NewClient(&Config{BaseURL: srv.URL}, &StaticTokenProvider{Token: "t"}, WithMaxRetries(0))
+
+	page, err := client.Clearances().ScreenedPage(context.Background(), "")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(page.Clearances) != 1 || page.Clearances[0].Petitioner.Name != "Glenn" {
+		t.Errorf("expected Glenn's decision, got %+v", page.Clearances)
+	}
+	if page.NextPage != "eyJwYWdlIjoyfQ" {
+		t.Errorf("expected the cursor for the next page, got %q", page.NextPage)
 	}
 }
 

@@ -2,6 +2,7 @@ package hey
 
 import (
 	"context"
+	"strconv"
 	"time"
 
 	"github.com/basecamp/hey-sdk/go/pkg/generated"
@@ -43,30 +44,45 @@ func (s *BoxesService) List(ctx context.Context) (result *generated.ListBoxesRes
 	return resp.JSON200, nil
 }
 
+// BoxPage contains one page of a box and its pagination state.
+type BoxPage struct {
+	Box        *generated.BoxShowResponse
+	NextPage   string
+	TotalCount int
+}
+
 // Get returns a specific mailbox by ID.
-func (s *BoxesService) Get(ctx context.Context, boxID int64, params *generated.GetBoxParams) (result *generated.BoxShowResponse, err error) {
+func (s *BoxesService) Get(ctx context.Context, boxID int64, params *generated.GetBoxParams) (*generated.BoxShowResponse, error) {
+	page, err := s.GetPage(ctx, boxID, params)
+	if err != nil || page == nil {
+		return nil, err
+	}
+	return page.Box, nil
+}
+
+// GetPage returns a box page with its next cursor and total posting count.
+func (s *BoxesService) GetPage(ctx context.Context, boxID int64, params *generated.GetBoxParams) (result *BoxPage, err error) {
 	op := OperationInfo{
 		Service: "Boxes", Operation: "GetBox",
 		ResourceType: "box", IsMutation: false, ResourceID: boxID,
 	}
-	if gater, ok := s.client.hooks.(GatingHooks); ok {
-		if ctx, err = gater.OnOperationGate(ctx, op); err != nil {
-			return
-		}
-	}
-	start := time.Now()
-	ctx = s.client.hooks.OnOperationStart(ctx, op)
-	defer func() { s.client.hooks.OnOperationEnd(ctx, op, err, time.Since(start)) }()
 
-	s.client.initGeneratedClient()
-	resp, err := s.client.gen.GetBoxWithResponse(ctx, boxID, params)
-	if err != nil {
-		return nil, err
-	}
-	if err = CheckResponse(resp.HTTPResponse); err != nil {
-		return nil, err
-	}
-	return resp.JSON200, nil
+	err = s.client.instrument(ctx, op, func(ctx context.Context) error {
+		resp, rerr := s.client.genClient().GetBoxWithResponse(ctx, boxID, params)
+		if rerr != nil {
+			return rerr
+		}
+		if cerr := CheckResponse(resp.HTTPResponse); cerr != nil {
+			return cerr
+		}
+		result = &BoxPage{Box: resp.JSON200}
+		if resp.HTTPResponse != nil {
+			result.TotalCount, _ = strconv.Atoi(resp.HTTPResponse.Header.Get("X-Total-Count"))
+			result.NextPage = gearedPageFromLink(resp.HTTPResponse.Header.Get("Link"))
+		}
+		return nil
+	})
+	return result, err
 }
 
 // GetImbox returns the Imbox.
@@ -86,6 +102,35 @@ func (s *BoxesService) GetImbox(ctx context.Context, params *generated.GetImboxP
 
 	s.client.initGeneratedClient()
 	resp, err := s.client.gen.GetImboxWithResponse(ctx, params)
+	if err != nil {
+		return nil, err
+	}
+	if err = CheckResponse(resp.HTTPResponse); err != nil {
+		return nil, err
+	}
+	return resp.JSON200, nil
+}
+
+// GetImboxSeen returns the Imbox's Previously Seen postings, ordered by when
+// they were seen (observed_at desc). The response's next_history_url names the
+// /imbox route, but its page cursor belongs to the seen scope — extract the
+// cursor and feed it back to GetImboxSeen, never to GetImbox.
+func (s *BoxesService) GetImboxSeen(ctx context.Context, params *generated.GetImboxSeenParams) (result *generated.BoxShowResponse, err error) {
+	op := OperationInfo{
+		Service: "Boxes", Operation: "GetImboxSeen",
+		ResourceType: "box", IsMutation: false,
+	}
+	if gater, ok := s.client.hooks.(GatingHooks); ok {
+		if ctx, err = gater.OnOperationGate(ctx, op); err != nil {
+			return
+		}
+	}
+	start := time.Now()
+	ctx = s.client.hooks.OnOperationStart(ctx, op)
+	defer func() { s.client.hooks.OnOperationEnd(ctx, op, err, time.Since(start)) }()
+
+	s.client.initGeneratedClient()
+	resp, err := s.client.gen.GetImboxSeenWithResponse(ctx, params)
 	if err != nil {
 		return nil, err
 	}
@@ -243,6 +288,48 @@ func (s *BoxesService) ListGroups(ctx context.Context, boxID int64) (result *gen
 			return cerr
 		}
 		result = resp.JSON200
+		return nil
+	})
+	return result, err
+}
+
+// BoxGroupPage is one page of a Set Aside group's postings with the cursor to the next page
+// and the group's total posting count.
+type BoxGroupPage struct {
+	Group      *generated.BoxGroupWithPostings
+	NextPage   string
+	TotalCount int
+}
+
+// GetGroup returns a Set Aside group with the requested page of its postings.
+func (s *BoxesService) GetGroup(ctx context.Context, boxID, groupID int64, params *generated.GetBoxGroupParams) (*generated.BoxGroupWithPostings, error) {
+	page, err := s.GetGroupPage(ctx, boxID, groupID, params)
+	if err != nil || page == nil {
+		return nil, err
+	}
+	return page.Group, nil
+}
+
+// GetGroupPage returns a Set Aside group page with its next cursor and total posting count.
+func (s *BoxesService) GetGroupPage(ctx context.Context, boxID, groupID int64, params *generated.GetBoxGroupParams) (result *BoxGroupPage, err error) {
+	op := OperationInfo{
+		Service: "Boxes", Operation: "GetBoxGroup",
+		ResourceType: "box_group", IsMutation: false, ResourceID: groupID,
+	}
+
+	err = s.client.instrument(ctx, op, func(ctx context.Context) error {
+		resp, rerr := s.client.genClient().GetBoxGroupWithResponse(ctx, boxID, groupID, params)
+		if rerr != nil {
+			return rerr
+		}
+		if cerr := CheckResponse(resp.HTTPResponse); cerr != nil {
+			return cerr
+		}
+		result = &BoxGroupPage{Group: resp.JSON200}
+		if resp.HTTPResponse != nil {
+			result.TotalCount, _ = strconv.Atoi(resp.HTTPResponse.Header.Get("X-Total-Count"))
+			result.NextPage = gearedPageFromLink(resp.HTTPResponse.Header.Get("Link"))
+		}
 		return nil
 	})
 	return result, err

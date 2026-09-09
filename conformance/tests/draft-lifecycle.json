@@ -1,0 +1,148 @@
+[
+  {
+    "name": "CreateDraft saves as the chosen acting sender",
+    "description": "Verifies MessagesService.CreateDraft carries DraftContent.ActingSenderID to the wire instead of resolving the account default",
+    "operation": "CreateDraft",
+    "method": "POST",
+    "path": "/messages.json",
+    "requestBody": {
+      "acting_sender_id": 314,
+      "subject": "From the support address",
+      "content": "Draft body"
+    },
+    "mockResponses": [
+      {
+        "status": 204,
+        "headers": {
+          "Location": "https://app.hey.com/messages/777"
+        }
+      }
+    ],
+    "assertions": [
+      {
+        "type": "requestCount",
+        "expected": 1
+      },
+      {
+        "type": "requestPath",
+        "expected": "/messages.json"
+      },
+      {
+        "type": "requestBody",
+        "expected": {
+          "acting_sender_id": 314,
+          "entry.status": "drafted"
+        }
+      },
+      {
+        "type": "noError"
+      }
+    ],
+    "configOverrides": {
+      "clientLayer": "hey"
+    },
+    "tags": [
+      "drafts",
+      "acting-sender"
+    ]
+  },
+  {
+    "name": "UpdateDraft keeps the chosen acting sender through a revision",
+    "description": "Verifies MessagesService.UpdateDraft says the chosen acting_sender_id back on a rewrite, since HEY revises a draft from the whole request",
+    "operation": "UpdateDraft",
+    "method": "PUT",
+    "path": "/messages/{entryId}.json",
+    "pathParams": {
+      "entryId": 777
+    },
+    "requestBody": {
+      "acting_sender_id": 314,
+      "subject": "From the support address (v2)",
+      "content": "Rewritten body"
+    },
+    "mockResponses": [
+      {
+        "status": 204
+      }
+    ],
+    "assertions": [
+      {
+        "type": "requestCount",
+        "expected": 1
+      },
+      {
+        "type": "requestPath",
+        "expected": "/messages/777.json"
+      },
+      {
+        "type": "requestBody",
+        "expected": {
+          "acting_sender_id": 314,
+          "entry.status": "drafted"
+        }
+      },
+      {
+        "type": "noError"
+      }
+    ],
+    "configOverrides": {
+      "clientLayer": "hey"
+    },
+    "tags": [
+      "drafts",
+      "acting-sender"
+    ]
+  },
+  {
+    "name": "SendDraft delivers as the chosen acting sender",
+    "description": "Verifies MessagesService.SendDraft carries the chosen acting_sender_id on the final delivery instead of handing the draft back to the account default",
+    "operation": "SendDraft",
+    "method": "PUT",
+    "path": "/messages/{entryId}.json",
+    "pathParams": {
+      "entryId": 777
+    },
+    "requestBody": {
+      "acting_sender_id": 314,
+      "subject": "From the support address",
+      "content": "Final body",
+      "to": ["someone@example.com"]
+    },
+    "mockResponses": [
+      {
+        "status": 200,
+        "body": {
+          "id": 777
+        }
+      }
+    ],
+    "assertions": [
+      {
+        "type": "requestCount",
+        "expected": 1
+      },
+      {
+        "type": "requestPath",
+        "expected": "/messages/777.json"
+      },
+      {
+        "type": "requestBody",
+        "expected": {
+          "acting_sender_id": 314,
+          "entry.status": null,
+          "entry.addressed.directly.0": "someone@example.com"
+        }
+      },
+      {
+        "type": "noError"
+      }
+    ],
+    "configOverrides": {
+      "clientLayer": "hey"
+    },
+    "tags": [
+      "drafts",
+      "acting-sender"
+    ]
+  }
+]

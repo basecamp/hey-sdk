@@ -1,0 +1,101 @@
+[
+  {
+    "name": "CreateReply wrapper sends the chosen acting sender untouched",
+    "description": "Verifies the hand-written EntriesService.CreateReply carries a caller-chosen acting_sender_id to the wire instead of resolving the account default",
+    "operation": "CreateReply",
+    "method": "POST",
+    "path": "/entries/{entryId}/replies.json",
+    "pathParams": {
+      "entryId": 456
+    },
+    "requestBody": {
+      "acting_sender_id": 314,
+      "subject": "Re: From the support address",
+      "content": "Reply text",
+      "to": ["someone@example.com"]
+    },
+    "mockResponses": [
+      {
+        "status": 200,
+        "body": {
+          "notice": "sent"
+        }
+      }
+    ],
+    "assertions": [
+      {
+        "type": "requestCount",
+        "expected": 1
+      },
+      {
+        "type": "requestPath",
+        "expected": "/entries/456/replies.json"
+      },
+      {
+        "type": "requestBody",
+        "expected": {
+          "acting_sender_id": 314,
+          "message.subject": "Re: From the support address",
+          "message.content": "Reply text",
+          "entry.addressed.directly.0": "someone@example.com"
+        }
+      },
+      {
+        "type": "noError"
+      }
+    ],
+    "configOverrides": {
+      "clientLayer": "hey"
+    },
+    "tags": [
+      "replies",
+      "acting-sender"
+    ]
+  },
+  {
+    "name": "CreateReplyDraft wrapper sends the chosen acting sender untouched",
+    "description": "Verifies the hand-written EntriesService.CreateReplyDraft saves the draft as the caller-chosen acting_sender_id instead of resolving the account default",
+    "operation": "CreateReplyDraft",
+    "method": "POST",
+    "path": "/entries/{entryId}/replies.json",
+    "pathParams": {
+      "entryId": 456
+    },
+    "requestBody": {
+      "acting_sender_id": 314,
+      "subject": "Re: From the support address",
+      "content": "Draft text"
+    },
+    "mockResponses": [
+      {
+        "status": 204,
+        "headers": {
+          "Location": "https://app.hey.com/messages/777"
+        }
+      }
+    ],
+    "assertions": [
+      {
+        "type": "requestCount",
+        "expected": 1
+      },
+      {
+        "type": "requestBody",
+        "expected": {
+          "acting_sender_id": 314,
+          "entry.status": "drafted"
+        }
+      },
+      {
+        "type": "noError"
+      }
+    ],
+    "configOverrides": {
+      "clientLayer": "hey"
+    },
+    "tags": [
+      "replies",
+      "acting-sender"
+    ]
+  }
+]

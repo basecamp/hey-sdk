@@ -39,6 +39,10 @@ type TestCase struct {
 	Assertions      []Assertion            `json:"assertions"`
 	Tags            []string               `json:"tags"`
 	ConfigOverrides map[string]interface{} `json:"configOverrides"`
+	// RepeatOperation invokes the operation this many times against one client, for
+	// behavior that only shows across calls — a cached read revalidating, say. Zero
+	// means once.
+	RepeatOperation int `json:"repeatOperation"`
 }
 
 // MockResponse defines a single mock HTTP response.
@@ -151,6 +155,12 @@ func runTest(tc TestCase) TestResult {
 	// Create mock server that serves responses in sequence
 	responseIndex := 0
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// The conformance server serves API operation routes; HEY has no root operation.
+		if r.URL.Path == "/" {
+			http.NotFound(w, r)
+			return
+		}
+
 		mu.Lock()
 		requestCount++
 		requestTimes = append(requestTimes, time.Now())
@@ -208,6 +218,7 @@ func runTest(tc TestCase) TestResult {
 	defer server.Close()
 
 	// Create generated client pointing to mock server with auth header
+	credentials := newConformanceCredentials(tc)
 	client, err := generated.NewClient(server.URL,
 		generated.WithRetryConfig(generated.RetryConfig{
 			MaxRetries: 3,
@@ -215,8 +226,10 @@ func runTest(tc TestCase) TestResult {
 			MaxDelay:   30 * time.Second,
 			Multiplier: 2.0,
 		}),
-		generated.WithRequestEditorFn(func(_ context.Context, req *http.Request) error {
-			req.Header.Set("Authorization", "Bearer conformance-test-token")
+		generated.WithAuthRefresher(credentials.refresh),
+		generated.WithRequestEditorFn(func(ctx context.Context, req *http.Request) error {
+			token, _ := credentials.AccessToken(ctx)
+			req.Header.Set("Authorization", "Bearer "+token)
 			req.Header.Set("User-Agent", "hey-sdk-go/conformance")
 			return nil
 		}),
@@ -229,17 +242,42 @@ func runTest(tc TestCase) TestResult {
 		}
 	}
 
-	// Execute the operation. Account-scoped cases exercise the hand-written
-	// client layer because account scope is an SDK behavior rather than a
-	// generated Smithy operation.
+	// Execute the operation. Cases for SDK-layer behavior exercise the hand-written client;
+	// the remaining cases exercise generated Smithy operations.
 	ctx := context.Background()
 	var sdkResp *http.Response
 	var sdkErr error
-	if _, scoped := tc.ConfigOverrides["accountId"]; scoped {
+	var heyResult interface{}
+	if layer, _ := tc.ConfigOverrides["clientLayer"].(string); layer == "hey" {
+		options := []hey.ClientOption{hey.WithMaxRetries(0)}
+		if enabled, _ := tc.ConfigOverrides["cacheEnabled"].(bool); enabled {
+			cacheDir, tmpErr := os.MkdirTemp("", "hey-conformance-cache")
+			if tmpErr != nil {
+				return TestResult{
+					Name:    tc.Name,
+					Passed:  false,
+					Message: fmt.Sprintf("Failed to create cache dir: %v", tmpErr),
+				}
+			}
+			defer func() { _ = os.RemoveAll(cacheDir) }()
+			options = append(options, hey.WithCache(hey.NewCache(cacheDir)))
+		}
+		rootClient := hey.NewClient(
+			&hey.Config{BaseURL: server.URL},
+			credentials,
+			options...,
+		)
+		for range max(tc.RepeatOperation, 1) {
+			heyResult, sdkErr = executeHEYOperation(rootClient, ctx, tc)
+			if sdkErr != nil {
+				break
+			}
+		}
+	} else if _, scoped := tc.ConfigOverrides["accountId"]; scoped {
 		accountID := getInt64Param(tc.ConfigOverrides, "accountId")
 		rootClient := hey.NewClient(
 			&hey.Config{BaseURL: server.URL},
-			&hey.StaticTokenProvider{Token: "conformance-test-token"},
+			credentials,
 			hey.WithMaxRetries(0),
 		)
 		scopedClient, accountErr := rootClient.ForAccount(ctx, accountID)
@@ -254,6 +292,11 @@ func runTest(tc TestCase) TestResult {
 
 	// Capture response body for responseBody assertions
 	var responseBodyBytes []byte
+	// A failed read hands back a typed nil, which is a non-nil interface: only a
+	// successful operation's result is a response body.
+	if sdkErr == nil && heyResult != nil {
+		responseBodyBytes, _ = json.Marshal(heyResult)
+	}
 	if sdkResp != nil && sdkResp.Body != nil {
 		var readErr error
 		responseBodyBytes, readErr = io.ReadAll(sdkResp.Body)
@@ -323,6 +366,46 @@ func runTest(tc TestCase) TestResult {
 		Passed:  true,
 		Message: "All assertions passed",
 	}
+}
+
+const (
+	conformanceToken          = "conformance-test-token"
+	conformanceRefreshedToken = "conformance-refreshed-token"
+)
+
+// conformanceCredentials is the token every request goes out with. A case that marks
+// its credentials refreshable (configOverrides.refreshableCredentials) has a 401
+// answered by swapping in the refreshed token; for any other case the refresh fails
+// and the 401 stands.
+type conformanceCredentials struct {
+	mu          sync.Mutex
+	token       string
+	refreshable bool
+}
+
+func newConformanceCredentials(tc TestCase) *conformanceCredentials {
+	refreshable, _ := tc.ConfigOverrides["refreshableCredentials"].(bool)
+	return &conformanceCredentials{token: conformanceToken, refreshable: refreshable}
+}
+
+func (c *conformanceCredentials) AccessToken(context.Context) (string, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.token, nil
+}
+
+func (c *conformanceCredentials) Refresh(context.Context) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if !c.refreshable {
+		return fmt.Errorf("credentials are not refreshable")
+	}
+	c.token = conformanceRefreshedToken
+	return nil
+}
+
+func (c *conformanceCredentials) refresh(ctx context.Context) bool {
+	return c.Refresh(ctx) == nil
 }
 
 // runConfigOverrideTest handles tests that override client configuration
@@ -617,6 +700,24 @@ func checkAssertion(testName string, a Assertion, s checkState) TestResult {
 			}
 		}
 
+	case "requestForm", "lastRequestForm":
+		// expected: {"field": value, ...}; a null value asserts the field is absent.
+		// requestForm reads the first request's body, lastRequestForm the last's.
+		expected, ok := a.Expected.(map[string]interface{})
+		if !ok {
+			return fail(testName, "%s: expected an object, got %T", a.Type, a.Expected)
+		}
+		if len(s.requestBodies) == 0 {
+			return fail(testName, "Expected a request, but none were recorded")
+		}
+		body := s.requestBodies[0]
+		if a.Type == "lastRequestForm" {
+			body = s.requestBodies[len(s.requestBodies)-1]
+		}
+		if err := matchFormFields(body, expected); err != nil {
+			return fail(testName, "%s: %v", a.Type, err)
+		}
+
 	case "headerPresent":
 		headerName := a.Path
 		if len(s.requestHeaders) == 0 {
@@ -624,6 +725,19 @@ func checkAssertion(testName string, a Assertion, s checkState) TestResult {
 		}
 		if s.requestHeaders[0].Get(headerName) == "" {
 			return fail(testName, "Expected header %q to be present, but it was not", headerName)
+		}
+
+	case "lastRequestHeader":
+		headerName := a.Path
+		expected, ok := a.Expected.(string)
+		if !ok {
+			return fail(testName, "lastRequestHeader: expected a string value, got %T", a.Expected)
+		}
+		if len(s.requestHeaders) == 0 {
+			return fail(testName, "Expected request with header %q, but no requests were recorded", headerName)
+		}
+		if got := s.requestHeaders[len(s.requestHeaders)-1].Get(headerName); got != expected {
+			return fail(testName, "Expected last request header %q = %q, got %q", headerName, expected, got)
 		}
 
 	case "responseMeta":
@@ -646,6 +760,22 @@ func checkAssertion(testName string, a Assertion, s checkState) TestResult {
 			}
 			if actual != expected {
 				return fail(testName, "Expected X-Total-Count=%d, got %d", expected, actual)
+			}
+		case "nextPage":
+			if s.sdkResp == nil {
+				return fail(testName, "No HTTP response to check Link header")
+			}
+			next := extractNextLinkURL(s.sdkResp.Header.Get("Link"))
+			parsed, err := url.Parse(next)
+			if err != nil || next == "" {
+				return fail(testName, "Link header does not contain a valid next URL")
+			}
+			expected, ok := a.Expected.(string)
+			if !ok {
+				return fail(testName, "responseMeta.nextPage: expected a string, got %T", a.Expected)
+			}
+			if actual := parsed.Query().Get("page"); actual != expected {
+				return fail(testName, "Expected next page %q, got %q", expected, actual)
 			}
 		default:
 			return fail(testName, "Unknown responseMeta path: %s", a.Path)
@@ -689,13 +819,13 @@ func checkAssertion(testName string, a Assertion, s checkState) TestResult {
 		if len(s.responseBodyBytes) == 0 {
 			return fail(testName, "Expected responseBody.%s, but no response body captured", fieldPath)
 		}
-		var resultMap map[string]interface{}
+		var responseBody interface{}
 		dec := json.NewDecoder(bytes.NewReader(s.responseBodyBytes))
 		dec.UseNumber()
-		if err := dec.Decode(&resultMap); err != nil {
+		if err := dec.Decode(&responseBody); err != nil {
 			return fail(testName, "Failed to decode response body for responseBody assertion: %v", err)
 		}
-		actual, ok := resultMap[fieldPath]
+		actual, ok := lookupJSONPath(responseBody, fieldPath)
 		if !ok {
 			return fail(testName, "Expected responseBody.%s, but field not present", fieldPath)
 		}
@@ -796,6 +926,27 @@ func compareValues(testName, label string, expected, actual interface{}) *TestRe
 	default:
 		r := fail(testName, "Unsupported type combination for %s: expected %T, actual %T", label, expected, actual)
 		return &r
+	}
+	return nil
+}
+
+// matchFormFields checks a form-encoded body against expected fields; a nil expectation
+// asserts the field is absent.
+func matchFormFields(body []byte, expected map[string]interface{}) error {
+	values, err := url.ParseQuery(string(body))
+	if err != nil {
+		return fmt.Errorf("request body is not form encoded: %w", err)
+	}
+	for field, want := range expected {
+		switch {
+		case want == nil && values.Has(field):
+			return fmt.Errorf("expected form field %q to be absent, got %q", field, values.Get(field))
+		case want == nil:
+		case !values.Has(field):
+			return fmt.Errorf("expected form field %q = %v, but it is absent", field, want)
+		case values.Get(field) != fmt.Sprint(want):
+			return fmt.Errorf("expected form field %q = %v, got %q", field, want, values.Get(field))
+		}
 	}
 	return nil
 }
@@ -965,6 +1116,18 @@ func executeOperation(client *generated.Client, ctx context.Context, tc TestCase
 			},
 		}
 		return client.CreateMessage(ctx, body)
+	case "UpdateMessage":
+		messageId := getInt64Param(tc.PathParams, "messageId")
+		body := generated.UpdateMessageJSONRequestBody{
+			Message: generated.MessagePayload{
+				Subject: getStringParam(tc.RequestBody, "subject"),
+				Content: getStringParam(tc.RequestBody, "content"),
+			},
+		}
+		return client.UpdateMessage(ctx, messageId, body)
+	case "GetMessageEdit":
+		messageId := getInt64Param(tc.PathParams, "messageId")
+		return client.GetMessageEdit(ctx, messageId)
 	case "CreateDirectUpload":
 		body := generated.CreateDirectUploadJSONRequestBody{
 			Blob: generated.DirectUploadBlob{
@@ -977,10 +1140,18 @@ func executeOperation(client *generated.Client, ctx context.Context, tc TestCase
 		return client.CreateDirectUpload(ctx, body)
 	case "ListDrafts":
 		return client.ListDrafts(ctx, nil)
+	case "DeleteDraft":
+		entryId := getInt64Param(tc.PathParams, "entryId")
+		return client.DeleteDraft(ctx, entryId)
+	case "NewEntryReply":
+		entryId := getInt64Param(tc.PathParams, "entryId")
+		return client.NewEntryReply(ctx, entryId)
 	case "CreateReply":
 		entryId := getInt64Param(tc.PathParams, "entryId")
 		body := generated.CreateReplyJSONRequestBody{
+			ActingSenderId: getInt64Param(tc.RequestBody, "acting_sender_id"),
 			Message: generated.ReplyMessagePayload{
+				Subject: getStringParam(tc.RequestBody, "subject"),
 				Content: getStringParam(tc.RequestBody, "content"),
 			},
 		}
@@ -991,14 +1162,21 @@ func executeOperation(client *generated.Client, ctx context.Context, tc TestCase
 		return client.ListContacts(ctx, nil)
 	case "GetContact":
 		contactId := getInt64Param(tc.PathParams, "contactId")
-		return client.GetContact(ctx, contactId)
+		return client.GetContact(ctx, contactId, &generated.GetContactParams{
+			Page: getStringPtrParam(tc.QueryParams, "page"),
+		})
 
 	// Calendars
 	case "ListCalendars":
 		return client.ListCalendars(ctx)
 	case "GetCalendarRecordings":
 		calendarId := getInt64Param(tc.PathParams, "calendarId")
-		return client.GetCalendarRecordings(ctx, calendarId, nil)
+		params := &generated.GetCalendarRecordingsParams{
+			StartsOn: getStringPtrParam(tc.QueryParams, "starts_on"),
+			EndsOn:   getStringPtrParam(tc.QueryParams, "ends_on"),
+			Page:     getStringPtrParam(tc.QueryParams, "page"),
+		}
+		return client.GetCalendarRecordings(ctx, calendarId, params)
 
 	// Calendar Todos
 	case "CreateCalendarTodo":
@@ -1041,6 +1219,8 @@ func executeOperation(client *generated.Client, ctx context.Context, tc TestCase
 		return client.UpdateTimeTrack(ctx, timeTrackId, body)
 
 	// Journal
+	case "ListJournalEntries":
+		return client.ListJournalEntries(ctx, nil)
 	case "GetJournalEntry":
 		day := getStringParam(tc.PathParams, "day")
 		return client.GetJournalEntry(ctx, day)
@@ -1073,6 +1253,26 @@ func executeOperation(client *generated.Client, ctx context.Context, tc TestCase
 		return client.ListSnippets(ctx)
 	case "GetWorkflow":
 		return client.GetWorkflow(ctx, getInt64Param(tc.PathParams, "workflowId"))
+	case "CreateWorkflowStaging":
+		return client.CreateWorkflowStaging(
+			ctx,
+			getInt64Param(tc.PathParams, "topicId"),
+			getInt64Param(tc.PathParams, "workflowId"),
+		)
+	case "MoveWorkflowStaging":
+		body := generated.MoveWorkflowStagingJSONRequestBody{
+			WorkflowStaging: generated.WorkflowStagingPayload{
+				WorkflowStageId: getInt64Param(tc.RequestBody, "workflow_stage_id"),
+			},
+		}
+		return client.MoveWorkflowStaging(
+			ctx,
+			getInt64Param(tc.PathParams, "topicId"),
+			getInt64Param(tc.PathParams, "workflowId"),
+			body,
+		)
+	case "ListTimeTracks":
+		return client.ListTimeTracks(ctx, nil)
 	case "ListTimeTrackCategories":
 		return client.ListTimeTrackCategories(ctx)
 	case "GetTopicPublication":
@@ -1108,6 +1308,12 @@ func executeOperation(client *generated.Client, ctx context.Context, tc TestCase
 	case "UnmutePostings":
 		params := &generated.UnmutePostingsParams{PostingIds: getStringParam(tc.QueryParams, "posting_ids")}
 		return client.UnmutePostings(ctx, params)
+	case "GetBundleUnseenPostings":
+		postingId := getInt64Param(tc.PathParams, "postingId")
+		params := &generated.GetBundleUnseenPostingsParams{
+			Page: getStringPtrParam(tc.QueryParams, "page"),
+		}
+		return client.GetBundleUnseenPostings(ctx, postingId, params)
 	case "MarkPostingsSpam":
 		body := generated.MarkPostingsSpamJSONRequestBody{
 			PostingIds: getInt64SliceParam(tc.RequestBody, "posting_ids"),
@@ -1147,6 +1353,13 @@ func executeOperation(client *generated.Client, ctx context.Context, tc TestCase
 	case "CancelPostingsBubbleUp":
 		params := &generated.CancelPostingsBubbleUpParams{PostingIds: getStringParam(tc.QueryParams, "posting_ids")}
 		return client.CancelPostingsBubbleUp(ctx, params)
+	case "SchedulePostingsBubbleUp":
+		body := generated.SchedulePostingsBubbleUpJSONRequestBody{
+			PostingIds: getInt64SliceParam(tc.RequestBody, "posting_ids"),
+			Slot:       getStringParam(tc.RequestBody, "slot"),
+			Date:       getStringParam(tc.RequestBody, "date"),
+		}
+		return client.SchedulePostingsBubbleUp(ctx, body)
 	case "BubbleUpPostingsNow":
 		body := generated.BubbleUpPostingsNowJSONRequestBody{
 			PostingIds: getInt64SliceParam(tc.RequestBody, "posting_ids"),
@@ -1269,6 +1482,10 @@ func executeOperation(client *generated.Client, ctx context.Context, tc TestCase
 	case "ListBoxGroups":
 		boxId := getInt64Param(tc.PathParams, "boxId")
 		return client.ListBoxGroups(ctx, boxId)
+	case "GetBoxGroup":
+		boxId := getInt64Param(tc.PathParams, "boxId")
+		groupId := getInt64Param(tc.PathParams, "groupId")
+		return client.GetBoxGroup(ctx, boxId, groupId, nil)
 	case "CreateBoxGroup":
 		boxId := getInt64Param(tc.PathParams, "boxId")
 		body := generated.CreateBoxGroupJSONRequestBody{
@@ -1291,6 +1508,14 @@ func executeOperation(client *generated.Client, ctx context.Context, tc TestCase
 	// Collections
 	case "ListCollections":
 		return client.ListCollections(ctx)
+	case "GetCollection":
+		collectionId := getInt64Param(tc.PathParams, "collectionId")
+		params := &generated.GetCollectionParams{}
+		if _, ok := tc.QueryParams["page"]; ok {
+			page := getStringParam(tc.QueryParams, "page")
+			params.Page = &page
+		}
+		return client.GetCollection(ctx, collectionId, params)
 	case "UpdateCollection":
 		collectionId := getInt64Param(tc.PathParams, "collectionId")
 		body := generated.UpdateCollectionJSONRequestBody{
@@ -1355,6 +1580,79 @@ func executeOperation(client *generated.Client, ctx context.Context, tc TestCase
 
 	default:
 		return nil, fmt.Errorf("unknown operation: %s", tc.Operation)
+	}
+}
+
+// executeHEYOperation runs a HEY-layer operation. A read hands back what it parsed so a
+// responseBody assertion can see it; a mutation hands back nil.
+func executeHEYOperation(client *hey.Client, ctx context.Context, tc TestCase) (interface{}, error) {
+	switch tc.Operation {
+	case "ListBoxes":
+		return client.Boxes().List(ctx)
+	case "UpdateCalendarEvent":
+		eventID := getInt64Param(tc.PathParams, "eventId")
+		_, err := client.CalendarEvents().Update(ctx, eventID, hey.UpdateCalendarEventParams{
+			Title:     getStringPtrParam(tc.RequestBody, "title"),
+			StartsAt:  getStringPtrParam(tc.RequestBody, "starts_at"),
+			EndsAt:    getStringPtrParam(tc.RequestBody, "ends_at"),
+			AllDay:    getBoolPtrParam(tc.RequestBody, "all_day"),
+			StartTime: getStringPtrParam(tc.RequestBody, "start_time"),
+			EndTime:   getStringPtrParam(tc.RequestBody, "end_time"),
+		})
+		return nil, err
+	case "DeleteCalendarEvent":
+		return nil, client.CalendarEvents().Delete(ctx, getInt64Param(tc.PathParams, "eventId"))
+	case "DeleteCalendarEventOccurrence":
+		occurrence, err := hey.ParseOccurrenceID(getStringParam(tc.PathParams, "occurrenceId"))
+		if err != nil {
+			return nil, err
+		}
+		return nil, client.CalendarEvents().DeleteOccurrence(ctx, occurrence, hey.OccurrenceScope(getStringParam(tc.RequestBody, "scope")))
+	case "DeleteExtenzion":
+		return nil, client.Extenzions().Delete(ctx, getInt64Param(tc.PathParams, "accountId"), getInt64Param(tc.PathParams, "extenzionId"))
+	case "CreateReply":
+		entryID := getInt64Param(tc.PathParams, "entryId")
+		return nil, client.Entries().CreateReply(ctx, entryID,
+			getInt64Param(tc.RequestBody, "acting_sender_id"),
+			getStringParam(tc.RequestBody, "subject"),
+			getStringParam(tc.RequestBody, "content"),
+			getStringSliceParam(tc.RequestBody, "to"),
+			getStringSliceParam(tc.RequestBody, "cc"),
+			getStringSliceParam(tc.RequestBody, "bcc"))
+	case "CreateReplyDraft":
+		entryID := getInt64Param(tc.PathParams, "entryId")
+		_, err := client.Entries().CreateReplyDraft(ctx, entryID,
+			getInt64Param(tc.RequestBody, "acting_sender_id"),
+			getStringParam(tc.RequestBody, "subject"),
+			getStringParam(tc.RequestBody, "content"),
+			getStringSliceParam(tc.RequestBody, "to"),
+			getStringSliceParam(tc.RequestBody, "cc"),
+			getStringSliceParam(tc.RequestBody, "bcc"))
+		return nil, err
+	case "CreateDraft":
+		_, err := client.Messages().CreateDraft(ctx, draftContentParam(tc.RequestBody))
+		return nil, err
+	case "UpdateDraft":
+		entryID := getInt64Param(tc.PathParams, "entryId")
+		return nil, client.Messages().UpdateDraft(ctx, entryID, draftContentParam(tc.RequestBody))
+	case "SendDraft":
+		entryID := getInt64Param(tc.PathParams, "entryId")
+		return nil, client.Messages().SendDraft(ctx, entryID, draftContentParam(tc.RequestBody))
+	default:
+		return nil, fmt.Errorf("HEY client conformance does not support operation: %s", tc.Operation)
+	}
+}
+
+// draftContentParam builds the DraftContent a lifecycle case sends, acting sender
+// included — the wire behavior the HEY-layer draft cases exist to pin down.
+func draftContentParam(requestBody map[string]interface{}) hey.DraftContent {
+	return hey.DraftContent{
+		ActingSenderID: getInt64Param(requestBody, "acting_sender_id"),
+		Subject:        getStringParam(requestBody, "subject"),
+		Content:        getStringParam(requestBody, "content"),
+		To:             getStringSliceParam(requestBody, "to"),
+		CC:             getStringSliceParam(requestBody, "cc"),
+		BCC:            getStringSliceParam(requestBody, "bcc"),
 	}
 }
 
@@ -1509,6 +1807,16 @@ func getStringPtrParam(params map[string]interface{}, key string) *string {
 	if val, ok := params[key]; ok {
 		if s, ok := val.(string); ok {
 			return &s
+		}
+	}
+	return nil
+}
+
+// getBoolPtrParam extracts a *bool parameter from a map.
+func getBoolPtrParam(params map[string]interface{}, key string) *bool {
+	if val, ok := params[key]; ok {
+		if b, ok := val.(bool); ok {
+			return &b
 		}
 	}
 	return nil

@@ -120,6 +120,58 @@ func TestPostingsService_BulkEndpoints(t *testing.T) {
 	}
 }
 
+func TestPostingsService_ScheduleBubbleUp(t *testing.T) {
+	c, reqs, _ := newPostingsTestClient(t, 201)
+	if err := c.Postings().ScheduleBubbleUp(context.Background(), "2026-09-04", 11, 12); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(*reqs) != 1 {
+		t.Fatalf("expected 1 request, got %d", len(*reqs))
+	}
+	r := (*reqs)[0]
+	if r.Method != "POST" || r.Path != "/postings/bubble_up.json" {
+		t.Errorf("got %s %s, want POST /postings/bubble_up.json", r.Method, r.Path)
+	}
+	if got := idsOf(r.Body); len(got) != 2 || got[0] != 11 || got[1] != 12 {
+		t.Errorf("posting_ids = %v, want [11 12]", got)
+	}
+	if r.Body["slot"] != "custom" {
+		t.Errorf("slot = %v, want custom", r.Body["slot"])
+	}
+	if r.Body["date"] != "2026-09-04" {
+		t.Errorf("date = %v, want 2026-09-04", r.Body["date"])
+	}
+}
+
+func TestPostingsService_ScheduleBubbleUpFor(t *testing.T) {
+	for slot, want := range map[BubbleUpSlot]string{
+		BubbleUpLaterToday:  "today",
+		BubbleUpTomorrow:    "tomorrow",
+		BubbleUpThisWeekend: "weekend",
+		BubbleUpNextWeek:    "next_week",
+	} {
+		t.Run(want, func(t *testing.T) {
+			c, reqs, _ := newPostingsTestClient(t, 201)
+			if err := c.Postings().ScheduleBubbleUpFor(context.Background(), slot, 11); err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if len(*reqs) != 1 {
+				t.Fatalf("expected 1 request, got %d", len(*reqs))
+			}
+			r := (*reqs)[0]
+			if r.Method != "POST" || r.Path != "/postings/bubble_up.json" {
+				t.Errorf("got %s %s, want POST /postings/bubble_up.json", r.Method, r.Path)
+			}
+			if r.Body["slot"] != want {
+				t.Errorf("slot = %v, want %s", r.Body["slot"], want)
+			}
+			if _, present := r.Body["date"]; present {
+				t.Errorf("date = %v, want it absent", r.Body["date"])
+			}
+		})
+	}
+}
+
 func TestPostingsService_BoxKindResolvedOnce(t *testing.T) {
 	ctx := context.Background()
 	c, reqs, boxCalls := newPostingsTestClient(t, 204)
@@ -214,6 +266,24 @@ func TestTimeTracksService_StopAnnouncesItself(t *testing.T) {
 	}
 	if len(rec.ops) != 1 || rec.ops[0] != "StopTimeTrack" {
 		t.Errorf("hooks saw %v, want exactly [StopTimeTrack] (not UpdateTimeTrack, and not both)", rec.ops)
+	}
+}
+
+// Filing on the way out is still stopping, so a gating policy that allows a stop allows
+// this too — it must not arrive as UpdateTimeTrack.
+func TestTimeTracksService_StopAndFileAnnouncesItselfAsStopping(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"id":1,"type":"TimeTrack"}`))
+	}))
+	t.Cleanup(srv.Close)
+	rec := &opRecorder{}
+	c := NewClient(&Config{BaseURL: srv.URL}, &StaticTokenProvider{Token: "t"}, WithMaxRetries(0), WithHooks(rec))
+	if err := c.TimeTracks().StopAndFile(context.Background(), 1, "Client work"); err != nil {
+		t.Fatal(err)
+	}
+	if len(rec.ops) != 1 || rec.ops[0] != "StopTimeTrack" {
+		t.Errorf("hooks saw %v, want exactly [StopTimeTrack]", rec.ops)
 	}
 }
 
@@ -489,5 +559,49 @@ func TestPostingsService_ChangesRequiresACursor(t *testing.T) {
 
 	if _, err := c.Postings().Changes(context.Background(), 24088, PostingChangesCursor{}); err == nil {
 		t.Fatal("expected error for a cursor with no since")
+	}
+}
+
+func TestPostingsService_BundleUnseenPage(t *testing.T) {
+	var queries []string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/postings/311/bundles/unseen.json" {
+			t.Errorf("path = %q", r.URL.Path)
+		}
+		queries = append(queries, r.URL.RawQuery)
+		w.Header().Set("Content-Type", "application/json")
+		if r.URL.Query().Get("page") == "" {
+			w.Header().Set("Link", `<http://`+r.Host+`/postings/311/bundles/unseen.json?page=eyJwYWdlIjoyfQ>; rel="next"`)
+			_, _ = w.Write([]byte(`{"contact":{"id":88,"name":"GitHub","email_address":"notifications@example.com"},"postings":[{"id":501,"kind":"topic","name":"Deploy failed on main","app_url":"https://app.hey.com/topics/9001"}]}`))
+		} else {
+			_, _ = w.Write([]byte(`{"contact":{"id":88,"name":"GitHub","email_address":"notifications@example.com"},"postings":[{"id":502,"kind":"topic","name":"Nightly build is green again","app_url":"https://app.hey.com/topics/9002"}]}`))
+		}
+	}))
+	t.Cleanup(server.Close)
+	c := NewClient(&Config{BaseURL: server.URL}, &StaticTokenProvider{Token: "test-token"}, WithMaxRetries(0))
+
+	page, err := c.Postings().BundleUnseenPage(context.Background(), 311, "")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if page.Contact.Name != "GitHub" || len(page.Postings) != 1 || page.Postings[0].Id != 501 {
+		t.Errorf("page = %+v", page)
+	}
+	if page.NextPage != "eyJwYWdlIjoyfQ" {
+		t.Errorf("NextPage = %q, want the Link header's cursor", page.NextPage)
+	}
+
+	next, err := c.Postings().BundleUnseenPage(context.Background(), 311, page.NextPage)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if next.NextPage != "" {
+		t.Errorf("NextPage = %q, want none on the last page", next.NextPage)
+	}
+	if len(next.Postings) != 1 || next.Postings[0].Id != 502 {
+		t.Errorf("page = %+v", next)
+	}
+	if len(queries) != 2 || queries[0] != "" || queries[1] != "page=eyJwYWdlIjoyfQ" {
+		t.Errorf("queries = %q, want the cursor passed through", queries)
 	}
 }

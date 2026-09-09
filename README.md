@@ -1,10 +1,12 @@
 # HEY SDK
 
-The Go SDK for the [HEY](https://www.hey.com) API. It is the library behind
-[hey-cli](https://github.com/basecamp/hey-cli), and it is generated from a Smithy model of
-the API in `spec/`, so what the SDK offers is what HEY actually serves.
+The SDKs for the [HEY](https://www.hey.com) API, generated from a Smithy model of the API in
+`spec/`, so what an SDK offers is what HEY actually serves.
 
-Today the repository ships a single Go module, `github.com/basecamp/hey-sdk/go`.
+The repository ships a Go module, `github.com/basecamp/hey-sdk/go`, which is the library behind
+[hey-cli](https://github.com/basecamp/hey-cli), and a Rust crate, `hey-sdk` in `rust/`, which
+is documented in [rust/hey-sdk/README.md](rust/hey-sdk/README.md). The rest of this page is
+about Go.
 
 TypeScript, Ruby, Swift and Kotlin SDKs will be added in future updates, generated from the
 same Smithy model; the Makefile already reserves targets for them (`ts-`, `rb-`, `swift-`,
@@ -17,6 +19,12 @@ go get github.com/basecamp/hey-sdk/go@latest
 ```
 
 Requires Go 1.26 or newer.
+
+The Rust crate is not published; depend on it from the repository:
+
+```toml
+hey-sdk = { git = "https://github.com/basecamp/hey-sdk", version = "0.29" }
+```
 
 ## Authenticate
 
@@ -44,7 +52,18 @@ imbox, _ := client.Boxes().GetImbox(ctx, nil)   // postings in the Imbox
 
 // Sending: recipients are required — HEY saves an unaddressed reply as a draft.
 _ = client.Messages().Create(ctx, "Subject", "Body", []string{"someone@example.com"}, nil, nil)
-_ = client.Entries().CreateReply(ctx, entryID, "Reply body", []string{"someone@example.com"}, nil, nil)
+
+// Replying: start from the NewReply prefill — it carries the reply's subject, its
+// acting sender (0 = the account default) and the recipients HEY resolved.
+prefill, err := client.Entries().NewReply(ctx, entryID)
+if err != nil {
+	return err // nothing to reply with
+}
+var to []string
+for _, contact := range prefill.Addressed.Directly {
+	to = append(to, contact.EmailAddress)
+}
+_ = client.Entries().CreateReply(ctx, entryID, prefill.Sender.Id, prefill.Subject, "Reply body", to, nil, nil)
 
 // Postings are bulk operations, as they are in HEY.
 _ = client.Postings().MoveToSetAside(ctx, postingID)
@@ -105,6 +124,14 @@ are configured with `WithResilience`, `WithCircuitBreaker`, `WithBulkhead` and
 `WithRateLimit`; HTTP caching with `WithCache`. Response caching is active for requests with
 an `Authorization` header, which gives each authenticated identity a stable cache partition.
 
+JSON and HTML answers are capped in the transport at `WithMaxResponseBodyBytes` (16 MiB of
+decompressed body by default; the cap can be raised but not removed), success and error
+responses alike. A body past it fails with an error that `errors.Is(err,
+hey.ErrResponseTooLarge)`, and is not retried; a refused error response still carries its
+status in the `*hey.Error`. Buffered blobs and CSV exports (`GetBlob`, `GetCSV`) are bounded
+by the 50 MiB `hey.MaxResponseBodyBytes` constant instead; only `DownloadBlob` streams
+without a bound.
+
 ### Errors
 
 Calls return `*hey.Error` with a stable `Code` (`hey.CodeNotFound`, `hey.CodeAuth`,
@@ -119,16 +146,22 @@ Paged reads follow HEY's `Link` headers automatically, up to `WithMaxPages`.
 
 ```
 spec/hey.smithy ──► openapi.json ──► oapi-codegen ──► go/pkg/generated/client.gen.go
+                        │                                       │
+                        │                     hand-written services in go/pkg/hey call into it
+                        │
+                        └─────────► rust/generator ──► rust/hey-sdk/src/generated/
                                                                 │
-                              hand-written services in go/pkg/hey call into it
+                                          hand-written conveniences in rust/hey-sdk/src/services
 ```
 
 The Smithy model is the source of truth for routes and payloads. `openapi.json`,
-`behavior-model.json`, `client.gen.go`, `go/pkg/hey/url-routes.json` and the files under
-`spec/` that describe coverage are all regenerated from it — editing them by hand is lost on
-the next build. The services in `go/pkg/hey` are written by hand and add the things a
-generated client cannot know: which recipients a reply needs, that HEY answers a shared
-topic's trash request with a confirmation page, that starting a time track takes no body.
+`behavior-model.json`, `client.gen.go`, `go/pkg/hey/url-routes.json`, everything under
+`rust/hey-sdk/src/generated/` and the files under `spec/` that describe coverage are all
+regenerated from it — editing them by hand is lost on the next build. The services in
+`go/pkg/hey` are written by hand and add the things a generated client cannot know: which
+recipients a reply needs, that HEY answers a shared topic's trash request with a confirmation
+page, that starting a time track takes no body. The Rust crate generates its service methods
+too, and adds those same conveniences by hand in `rust/hey-sdk/src/services`.
 
 `make check` verifies the model against a snapshot of HEY's own routes
 (`spec/route-snapshot.json`, pinned in `spec/api-provenance.json`): every modelled route
@@ -139,13 +172,14 @@ in unnoticed.
 A handful of services (`Clips`, `Snippets`, `Workflows`, `Publications`, `World`,
 `Extenzions`, `CalendarEvents`, and parts of `Contacts` and `Search`) still talk to HEY the
 way the web UI does — form posts, and for a few reads, the HTML page — because those
-endpoints have no JSON yet. They are marked as such in the code and are being replaced as
-HEY grows JSON for them.
+endpoints have no JSON yet. Both SDKs cover them: Go through `PostForm` and its neighbours,
+Rust through `Client::form`/`Client::send_form` and the same hand-written services. They are
+marked as such in the code and are being replaced as HEY grows JSON for them.
 
 ## Develop
 
 ```bash
-make check      # Smithy validate/build, drift gates, Go vet/lint/tests, conformance
+make check      # Smithy validate/build, drift gates, Go and Rust lint/tests, conformance
 ```
 
 `make check` is the gate; see [AGENTS.md](AGENTS.md) for the pipeline, the exact steps for

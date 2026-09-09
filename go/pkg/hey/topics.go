@@ -46,6 +46,11 @@ func (s *TopicsService) Get(ctx context.Context, topicID int64) (result *generat
 }
 
 // GetEntries returns entries for a specific topic.
+//
+// The entry index is paginated by geared_pagination, so the page in params is a cursor out
+// of the previous answer's Link header rather than an offset — a number is ignored and
+// answered with the first page. This throws that header away; use GetEntriesPage to walk
+// the thread.
 func (s *TopicsService) GetEntries(ctx context.Context, topicID int64, params *generated.GetTopicEntriesParams) (result *generated.GetTopicEntriesResponseContent, err error) {
 	op := OperationInfo{
 		Service: "Topics", Operation: "GetTopicEntries",
@@ -69,6 +74,53 @@ func (s *TopicsService) GetEntries(ctx context.Context, topicID int64, params *g
 		return nil, err
 	}
 	return resp.JSON200, nil
+}
+
+// TopicEntryPage contains one page of a topic's entries and the cursor for the page after
+// it. NextPage is empty on the last page, which is how a caller walking a thread is told
+// it has read all of it.
+type TopicEntryPage struct {
+	Entries  []generated.Entry
+	NextPage string
+}
+
+// GetEntriesPage answers the same entries as GetEntries along with the cursor for the page
+// after it, so a caller walking a thread follows HEY's own ordering rather than guessing
+// page numbers geared_pagination does not understand.
+//
+// Pass an empty page for the first page, then the NextPage of each answer.
+func (s *TopicsService) GetEntriesPage(ctx context.Context, topicID int64, page string) (result *TopicEntryPage, err error) {
+	op := OperationInfo{
+		Service: "Topics", Operation: "GetTopicEntries",
+		ResourceType: "entry", IsMutation: false, ResourceID: topicID,
+	}
+
+	err = s.client.instrument(ctx, op, func(ctx context.Context) error {
+		resp, rerr := s.client.genClient().GetTopicEntriesWithResponse(ctx, topicID, topicEntriesParams(page))
+		if rerr != nil {
+			return rerr
+		}
+		if cerr := CheckResponse(resp.HTTPResponse); cerr != nil {
+			return cerr
+		}
+		result = &TopicEntryPage{}
+		if resp.JSON200 != nil {
+			result.Entries = *resp.JSON200
+		}
+		if resp.HTTPResponse != nil {
+			result.NextPage = gearedPageFromLink(resp.HTTPResponse.Header.Get("Link"))
+		}
+		return nil
+	})
+	return result, err
+}
+
+func topicEntriesParams(page string) *generated.GetTopicEntriesParams {
+	params := &generated.GetTopicEntriesParams{}
+	if page != "" {
+		params.Page = &page
+	}
+	return params
 }
 
 // GetSent returns sent topics.

@@ -4,6 +4,23 @@
   "generated": true,
   "routes": [
     {
+      "pattern": "/accounts/{accountId}/domains/extenzions/{extenzionId}",
+      "resource": "Extenzions",
+      "operations": {
+        "DELETE": "DeleteExtenzion"
+      },
+      "params": {
+        "accountId": {
+          "role": "parent",
+          "type": "int64"
+        },
+        "extenzionId": {
+          "role": "recording",
+          "type": "int64"
+        }
+      }
+    },
+    {
       "pattern": "/advanced_search",
       "resource": "Search",
       "operations": {
@@ -88,7 +105,8 @@
       "pattern": "/boxes/{boxId}/groups/{groupId}",
       "resource": "Boxes",
       "operations": {
-        "DELETE": "DeleteBoxGroup"
+        "DELETE": "DeleteBoxGroup",
+        "GET": "GetBoxGroup"
       },
       "params": {
         "boxId": {
@@ -152,6 +170,27 @@
       "params": {}
     },
     {
+      "pattern": "/calendar/days",
+      "resource": "Calendar Periods",
+      "operations": {
+        "GET": "ListCalendarDays"
+      },
+      "params": {}
+    },
+    {
+      "pattern": "/calendar/days/{day}",
+      "resource": "Calendar Periods",
+      "operations": {
+        "GET": "GetCalendarDay"
+      },
+      "params": {
+        "day": {
+          "role": "recording",
+          "type": "string"
+        }
+      }
+    },
+    {
       "pattern": "/calendar/days/{day}/habits/{habitId}/completions",
       "resource": "Calendar Habits",
       "operations": {
@@ -179,6 +218,36 @@
       "params": {
         "day": {
           "role": "parent",
+          "type": "string"
+        }
+      }
+    },
+    {
+      "pattern": "/calendar/events/{eventId}",
+      "resource": "Calendar Events",
+      "operations": {
+        "DELETE": "DeleteCalendarEvent"
+      },
+      "params": {
+        "eventId": {
+          "role": "recording",
+          "type": "int64"
+        }
+      }
+    },
+    {
+      "pattern": "/calendar/events/{eventId}/occurrences/{occurrence}",
+      "resource": "Calendar Events",
+      "operations": {
+        "DELETE": "DeleteCalendarEventOccurrence"
+      },
+      "params": {
+        "eventId": {
+          "role": "parent",
+          "type": "int64"
+        },
+        "occurrence": {
+          "role": "recording",
           "type": "string"
         }
       }
@@ -220,6 +289,22 @@
       }
     },
     {
+      "pattern": "/calendar/identity/first_week_day",
+      "resource": "Identity",
+      "operations": {
+        "PUT": "UpdateFirstWeekDay"
+      },
+      "params": {}
+    },
+    {
+      "pattern": "/calendar/journal_entries",
+      "resource": "Calendar Journal",
+      "operations": {
+        "GET": "ListJournalEntries"
+      },
+      "params": {}
+    },
+    {
       "pattern": "/calendar/ongoing_time_track",
       "resource": "Calendar Time Tracks",
       "operations": {
@@ -232,6 +317,7 @@
       "pattern": "/calendar/time_tracks",
       "resource": "Calendar Time Tracks",
       "operations": {
+        "GET": "ListTimeTracks",
         "POST": "CreateTimeTrack"
       },
       "params": {}
@@ -270,7 +356,8 @@
       "pattern": "/calendar/todos/{todoId}",
       "resource": "Calendar Todos",
       "operations": {
-        "DELETE": "DeleteCalendarTodo"
+        "DELETE": "DeleteCalendarTodo",
+        "PATCH": "UpdateCalendarTodo"
       },
       "params": {
         "todoId": {
@@ -294,6 +381,40 @@
       }
     },
     {
+      "pattern": "/calendar/weeks",
+      "resource": "Calendar Periods",
+      "operations": {
+        "GET": "ListCalendarWeeks"
+      },
+      "params": {}
+    },
+    {
+      "pattern": "/calendar/weeks/{week}",
+      "resource": "Calendar Periods",
+      "operations": {
+        "GET": "GetCalendarWeek"
+      },
+      "params": {
+        "week": {
+          "role": "recording",
+          "type": "string"
+        }
+      }
+    },
+    {
+      "pattern": "/calendar/years/{year}",
+      "resource": "Calendar Periods",
+      "operations": {
+        "GET": "GetCalendarYear"
+      },
+      "params": {
+        "year": {
+          "role": "recording",
+          "type": "string"
+        }
+      }
+    },
+    {
       "pattern": "/calendars",
       "resource": "Calendars",
       "operations": {
@@ -306,6 +427,19 @@
       "resource": "Calendars",
       "operations": {
         "GET": "GetCalendarRecordings"
+      },
+      "params": {
+        "calendarId": {
+          "role": "parent",
+          "type": "int64"
+        }
+      }
+    },
+    {
+      "pattern": "/calendars/{calendarId}/toggle",
+      "resource": "Calendars",
+      "operations": {
+        "POST": "ToggleCalendar"
       },
       "params": {
         "calendarId": {
@@ -371,6 +505,7 @@
       "pattern": "/collections/{collectionId}",
       "resource": "Collections",
       "operations": {
+        "GET": "GetCollection",
         "PATCH": "UpdateCollection"
       },
       "params": {
@@ -468,6 +603,19 @@
       "params": {}
     },
     {
+      "pattern": "/entries/drafts/{entryId}",
+      "resource": "Entries",
+      "operations": {
+        "DELETE": "DeleteDraft"
+      },
+      "params": {
+        "entryId": {
+          "role": "recording",
+          "type": "int64"
+        }
+      }
+    },
+    {
       "pattern": "/entries/{entryId}/forwards/new",
       "resource": "Entries",
       "operations": {
@@ -485,6 +633,19 @@
       "resource": "Entries",
       "operations": {
         "POST": "CreateReply"
+      },
+      "params": {
+        "entryId": {
+          "role": "parent",
+          "type": "int64"
+        }
+      }
+    },
+    {
+      "pattern": "/entries/{entryId}/replies/new",
+      "resource": "Entries",
+      "operations": {
+        "GET": "NewEntryReply"
       },
       "params": {
         "entryId": {
@@ -536,10 +697,26 @@
       "params": {}
     },
     {
+      "pattern": "/identity/time_format",
+      "resource": "Identity",
+      "operations": {
+        "PUT": "UpdateTimeFormat"
+      },
+      "params": {}
+    },
+    {
       "pattern": "/imbox",
       "resource": "Boxes",
       "operations": {
         "GET": "GetImbox"
+      },
+      "params": {}
+    },
+    {
+      "pattern": "/imbox/seen",
+      "resource": "Boxes",
+      "operations": {
+        "GET": "GetImboxSeen"
       },
       "params": {}
     },
@@ -555,11 +732,25 @@
       "pattern": "/messages/{messageId}",
       "resource": "Messages",
       "operations": {
-        "GET": "GetMessage"
+        "GET": "GetMessage",
+        "PUT": "UpdateMessage"
       },
       "params": {
         "messageId": {
           "role": "recording",
+          "type": "int64"
+        }
+      }
+    },
+    {
+      "pattern": "/messages/{messageId}/edit",
+      "resource": "Messages",
+      "operations": {
+        "GET": "GetMessageEdit"
+      },
+      "params": {
+        "messageId": {
+          "role": "parent",
           "type": "int64"
         }
       }
@@ -614,7 +805,8 @@
       "pattern": "/postings/bubble_up",
       "resource": "Postings",
       "operations": {
-        "DELETE": "CancelPostingsBubbleUp"
+        "DELETE": "CancelPostingsBubbleUp",
+        "POST": "SchedulePostingsBubbleUp"
       },
       "params": {}
     },
@@ -691,6 +883,19 @@
         "POST": "MarkPostingsUnseen"
       },
       "params": {}
+    },
+    {
+      "pattern": "/postings/{postingId}/bundles/unseen",
+      "resource": "Postings",
+      "operations": {
+        "GET": "GetBundleUnseenPostings"
+      },
+      "params": {
+        "postingId": {
+          "role": "parent",
+          "type": "int64"
+        }
+      }
     },
     {
       "pattern": "/rails/active_storage/direct_uploads",
@@ -889,6 +1094,24 @@
       },
       "params": {
         "topicId": {
+          "role": "parent",
+          "type": "int64"
+        }
+      }
+    },
+    {
+      "pattern": "/topics/{topicId}/workflows/{workflowId}/stagings",
+      "resource": "Workflows",
+      "operations": {
+        "PATCH": "MoveWorkflowStaging",
+        "POST": "CreateWorkflowStaging"
+      },
+      "params": {
+        "topicId": {
+          "role": "parent",
+          "type": "int64"
+        },
+        "workflowId": {
           "role": "parent",
           "type": "int64"
         }

@@ -253,6 +253,13 @@
         ]
       }
     },
+    "CreateWorkflowStaging": {
+      "idempotent": false,
+      "readonly": false,
+      "retry": {
+        "max": 0
+      }
+    },
     "DeleteBoxDesignation": {
       "idempotent": true,
       "readonly": false,
@@ -279,6 +286,32 @@
         ]
       }
     },
+    "DeleteCalendarEvent": {
+      "idempotent": true,
+      "readonly": false,
+      "retry": {
+        "backoff": "exponential",
+        "base_delay_ms": 1000,
+        "max": 3,
+        "retry_on": [
+          429,
+          503
+        ]
+      }
+    },
+    "DeleteCalendarEventOccurrence": {
+      "idempotent": true,
+      "readonly": false,
+      "retry": {
+        "backoff": "exponential",
+        "base_delay_ms": 1000,
+        "max": 3,
+        "retry_on": [
+          429,
+          503
+        ]
+      }
+    },
     "DeleteCalendarTodo": {
       "idempotent": true,
       "readonly": false,
@@ -293,6 +326,32 @@
       }
     },
     "DeleteContactNote": {
+      "idempotent": true,
+      "readonly": false,
+      "retry": {
+        "backoff": "exponential",
+        "base_delay_ms": 1000,
+        "max": 2,
+        "retry_on": [
+          429,
+          503
+        ]
+      }
+    },
+    "DeleteDraft": {
+      "idempotent": true,
+      "readonly": false,
+      "retry": {
+        "backoff": "exponential",
+        "base_delay_ms": 1000,
+        "max": 2,
+        "retry_on": [
+          429,
+          503
+        ]
+      }
+    },
+    "DeleteExtenzion": {
       "idempotent": true,
       "readonly": false,
       "retry": {
@@ -411,6 +470,27 @@
     },
     "GetBox": {
       "idempotent": false,
+      "pagination": {
+        "style": "link",
+        "totalCountHeader": "X-Total-Count"
+      },
+      "readonly": true,
+      "retry": {
+        "backoff": "exponential",
+        "base_delay_ms": 1000,
+        "max": 3,
+        "retry_on": [
+          429,
+          503
+        ]
+      }
+    },
+    "GetBoxGroup": {
+      "idempotent": false,
+      "pagination": {
+        "style": "link",
+        "totalCountHeader": "X-Total-Count"
+      },
       "readonly": true,
       "retry": {
         "backoff": "exponential",
@@ -452,11 +532,67 @@
         ]
       }
     },
+    "GetBundleUnseenPostings": {
+      "idempotent": false,
+      "pagination": {
+        "style": "link",
+        "totalCountHeader": "X-Total-Count"
+      },
+      "readonly": true,
+      "retry": {
+        "backoff": "exponential",
+        "base_delay_ms": 1000,
+        "max": 3,
+        "retry_on": [
+          429,
+          503
+        ]
+      }
+    },
+    "GetCalendarDay": {
+      "idempotent": false,
+      "readonly": true,
+      "retry": {
+        "backoff": "exponential",
+        "base_delay_ms": 1000,
+        "max": 3,
+        "retry_on": [
+          429,
+          503
+        ]
+      }
+    },
     "GetCalendarRecordings": {
       "idempotent": false,
       "pagination": {
         "style": "window"
       },
+      "readonly": true,
+      "retry": {
+        "backoff": "exponential",
+        "base_delay_ms": 1000,
+        "max": 3,
+        "retry_on": [
+          429,
+          503
+        ]
+      }
+    },
+    "GetCalendarWeek": {
+      "idempotent": false,
+      "readonly": true,
+      "retry": {
+        "backoff": "exponential",
+        "base_delay_ms": 1000,
+        "max": 3,
+        "retry_on": [
+          429,
+          503
+        ]
+      }
+    },
+    "GetCalendarYear": {
+      "idempotent": false,
       "readonly": true,
       "retry": {
         "backoff": "exponential",
@@ -485,8 +621,29 @@
         ]
       }
     },
+    "GetCollection": {
+      "idempotent": false,
+      "pagination": {
+        "style": "link",
+        "totalCountHeader": "X-Total-Count"
+      },
+      "readonly": true,
+      "retry": {
+        "backoff": "exponential",
+        "base_delay_ms": 1000,
+        "max": 3,
+        "retry_on": [
+          429,
+          503
+        ]
+      }
+    },
     "GetContact": {
       "idempotent": false,
+      "pagination": {
+        "style": "link",
+        "totalCountHeader": "X-Total-Count"
+      },
       "readonly": true,
       "retry": {
         "backoff": "exponential",
@@ -584,6 +741,19 @@
         ]
       }
     },
+    "GetImboxSeen": {
+      "idempotent": false,
+      "readonly": true,
+      "retry": {
+        "backoff": "exponential",
+        "base_delay_ms": 1000,
+        "max": 3,
+        "retry_on": [
+          429,
+          503
+        ]
+      }
+    },
     "GetJournalEntry": {
       "idempotent": false,
       "readonly": true,
@@ -611,6 +781,19 @@
       }
     },
     "GetMessage": {
+      "idempotent": false,
+      "readonly": true,
+      "retry": {
+        "backoff": "exponential",
+        "base_delay_ms": 1000,
+        "max": 3,
+        "retry_on": [
+          429,
+          503
+        ]
+      }
+    },
+    "GetMessageEdit": {
       "idempotent": false,
       "readonly": true,
       "retry": {
@@ -832,6 +1015,32 @@
         ]
       }
     },
+    "ListCalendarDays": {
+      "idempotent": false,
+      "readonly": true,
+      "retry": {
+        "backoff": "exponential",
+        "base_delay_ms": 1000,
+        "max": 3,
+        "retry_on": [
+          429,
+          503
+        ]
+      }
+    },
+    "ListCalendarWeeks": {
+      "idempotent": false,
+      "readonly": true,
+      "retry": {
+        "backoff": "exponential",
+        "base_delay_ms": 1000,
+        "max": 3,
+        "retry_on": [
+          429,
+          503
+        ]
+      }
+    },
     "ListCalendars": {
       "idempotent": false,
       "readonly": true,
@@ -909,6 +1118,22 @@
         ]
       }
     },
+    "ListJournalEntries": {
+      "idempotent": false,
+      "pagination": {
+        "style": "link"
+      },
+      "readonly": true,
+      "retry": {
+        "backoff": "exponential",
+        "base_delay_ms": 1000,
+        "max": 3,
+        "retry_on": [
+          429,
+          503
+        ]
+      }
+    },
     "ListSnippets": {
       "idempotent": false,
       "readonly": true,
@@ -937,6 +1162,22 @@
     },
     "ListTimeTrackCategories": {
       "idempotent": false,
+      "readonly": true,
+      "retry": {
+        "backoff": "exponential",
+        "base_delay_ms": 1000,
+        "max": 3,
+        "retry_on": [
+          429,
+          503
+        ]
+      }
+    },
+    "ListTimeTracks": {
+      "idempotent": false,
+      "pagination": {
+        "style": "link"
+      },
       "readonly": true,
       "retry": {
         "backoff": "exponential",
@@ -1065,6 +1306,13 @@
         ]
       }
     },
+    "MoveWorkflowStaging": {
+      "idempotent": false,
+      "readonly": false,
+      "retry": {
+        "max": 0
+      }
+    },
     "MutePostings": {
       "idempotent": false,
       "readonly": false,
@@ -1092,6 +1340,19 @@
       }
     },
     "NewEntryForward": {
+      "idempotent": false,
+      "readonly": true,
+      "retry": {
+        "backoff": "exponential",
+        "base_delay_ms": 1000,
+        "max": 3,
+        "retry_on": [
+          429,
+          503
+        ]
+      }
+    },
+    "NewEntryReply": {
       "idempotent": false,
       "readonly": true,
       "retry": {
@@ -1169,6 +1430,19 @@
         ]
       }
     },
+    "SchedulePostingsBubbleUp": {
+      "idempotent": false,
+      "readonly": false,
+      "retry": {
+        "backoff": "exponential",
+        "base_delay_ms": 1000,
+        "max": 2,
+        "retry_on": [
+          429,
+          503
+        ]
+      }
+    },
     "StartTimeTrack": {
       "idempotent": false,
       "readonly": false,
@@ -1183,6 +1457,19 @@
       }
     },
     "StopHabit": {
+      "idempotent": false,
+      "readonly": false,
+      "retry": {
+        "backoff": "exponential",
+        "base_delay_ms": 1000,
+        "max": 2,
+        "retry_on": [
+          429,
+          503
+        ]
+      }
+    },
+    "ToggleCalendar": {
       "idempotent": false,
       "readonly": false,
       "retry": {
@@ -1286,6 +1573,19 @@
         ]
       }
     },
+    "UpdateCalendarTodo": {
+      "idempotent": true,
+      "readonly": false,
+      "retry": {
+        "backoff": "exponential",
+        "base_delay_ms": 1000,
+        "max": 2,
+        "retry_on": [
+          429,
+          503
+        ]
+      }
+    },
     "UpdateClearance": {
       "idempotent": true,
       "readonly": false,
@@ -1351,6 +1651,19 @@
         ]
       }
     },
+    "UpdateFirstWeekDay": {
+      "idempotent": true,
+      "readonly": false,
+      "retry": {
+        "backoff": "exponential",
+        "base_delay_ms": 1000,
+        "max": 3,
+        "retry_on": [
+          429,
+          503
+        ]
+      }
+    },
     "UpdateHabit": {
       "idempotent": true,
       "readonly": false,
@@ -1366,6 +1679,19 @@
     },
     "UpdateJournalEntry": {
       "idempotent": false,
+      "readonly": false,
+      "retry": {
+        "backoff": "exponential",
+        "base_delay_ms": 1000,
+        "max": 2,
+        "retry_on": [
+          429,
+          503
+        ]
+      }
+    },
+    "UpdateMessage": {
+      "idempotent": true,
       "readonly": false,
       "retry": {
         "backoff": "exponential",
@@ -1397,6 +1723,19 @@
         "backoff": "exponential",
         "base_delay_ms": 1000,
         "max": 2,
+        "retry_on": [
+          429,
+          503
+        ]
+      }
+    },
+    "UpdateTimeFormat": {
+      "idempotent": true,
+      "readonly": false,
+      "retry": {
+        "backoff": "exponential",
+        "base_delay_ms": 1000,
+        "max": 3,
         "retry_on": [
           429,
           503

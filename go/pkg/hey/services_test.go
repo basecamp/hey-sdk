@@ -220,6 +220,59 @@ func TestIdentityService_GetNavigation(t *testing.T) {
 	}
 }
 
+func TestIdentityService_UpdateFirstWeekDay(t *testing.T) {
+	client := newMutationTestClientWithValidation(t, "PUT", "/calendar/identity/first_week_day.json",
+		func(t *testing.T, body map[string]any) {
+			t.Helper()
+			preference, _ := body["identity_preference"].(map[string]any)
+			if preference["first_week_day"] != "monday" {
+				t.Errorf("expected monday, got %v", preference["first_week_day"])
+			}
+		}, `{"first_week_day":1}`)
+
+	stored, err := client.Identity().UpdateFirstWeekDay(context.Background(), time.Monday)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if stored != time.Monday {
+		t.Errorf("stored day = %v, want Monday", stored)
+	}
+}
+
+func TestIdentityService_UpdateTimeFormat(t *testing.T) {
+	twentyFour := newMutationTestClientWithValidation(t, "PUT", "/identity/time_format.json",
+		func(t *testing.T, body map[string]any) {
+			t.Helper()
+			if body["twenty_four_hour_time_format"] != true {
+				t.Errorf("expected true, got %v", body["twenty_four_hour_time_format"])
+			}
+		}, `{"time_format":"twenty_four_hour"}`)
+
+	stored, err := twentyFour.Identity().UpdateTimeFormat(context.Background(), TimeFormatTwentyFourHour)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if stored != TimeFormatTwentyFourHour {
+		t.Errorf("stored format = %v, want twenty_four_hour", stored)
+	}
+
+	twelve := newMutationTestClientWithValidation(t, "PUT", "/identity/time_format.json",
+		func(t *testing.T, body map[string]any) {
+			t.Helper()
+			if body["twenty_four_hour_time_format"] != false {
+				t.Errorf("expected false, got %v", body["twenty_four_hour_time_format"])
+			}
+		}, `{"time_format":"twelve_hour"}`)
+
+	stored, err = twelve.Identity().UpdateTimeFormat(context.Background(), TimeFormatTwelveHour)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if stored != TimeFormatTwelveHour {
+		t.Errorf("stored format = %v, want twelve_hour", stored)
+	}
+}
+
 func TestIdentityService_GetIdentity_Error(t *testing.T) {
 	client := newServiceTestClient(t, map[string]string{})
 	_, err := client.Identity().GetIdentity(context.Background())
@@ -529,11 +582,89 @@ func TestEntriesService_CreateReply(t *testing.T) {
 			if msg["content"] != "My reply" {
 				t.Errorf("expected content 'My reply', got %v", msg["content"])
 			}
+			if msg["subject"] != "Re: A thread" {
+				t.Errorf("expected subject 'Re: A thread', got %v", msg["subject"])
+			}
 		},
 		`{"notice":"sent"}`,
 	)
 
-	err := client.Entries().CreateReply(context.Background(), 10, "My reply", []string{"test@example.com"}, nil, nil)
+	err := client.Entries().CreateReply(context.Background(), 10, 0, "Re: A thread", "My reply", []string{"test@example.com"}, nil, nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestEntriesService_CreateReply_SendsTheChosenActingSender(t *testing.T) {
+	// The identity a reply goes out as: HEY resolves it from the thread (a shared
+	// support address, an extension) and hands it back as NewReply's sender. The
+	// caller's choice must reach the wire untouched — not the account default.
+	client := newMutationTestClientWithValidation(t, "POST", "/entries/%s/replies.json",
+		func(t *testing.T, body map[string]any) {
+			t.Helper()
+			if got, _ := body["acting_sender_id"].(float64); got != 4242 {
+				t.Errorf("acting_sender_id = %v, want the chosen sender 4242", body["acting_sender_id"])
+			}
+		},
+		`{"notice":"sent"}`,
+	)
+
+	err := client.Entries().CreateReply(context.Background(), 10, 4242, "Re: A thread", "My reply", []string{"test@example.com"}, nil, nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestEntriesService_CreateReply_PassesNonZeroSendersThroughUntouched(t *testing.T) {
+	// Only zero means "the account default". Anything else — a stale or even
+	// negative id — goes to the server as given; an invalid sender is the
+	// server's to reject, not this SDK's to silently rewrite.
+	client := newMutationTestClientWithValidation(t, "POST", "/entries/%s/replies.json",
+		func(t *testing.T, body map[string]any) {
+			t.Helper()
+			if got, _ := body["acting_sender_id"].(float64); got != -7 {
+				t.Errorf("acting_sender_id = %v, want -7 passed through", body["acting_sender_id"])
+			}
+		},
+		`{"notice":"sent"}`,
+	)
+
+	err := client.Entries().CreateReply(context.Background(), 10, -7, "Re: A thread", "My reply", []string{"test@example.com"}, nil, nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestEntriesService_CreateReply_ZeroActingSenderFallsBackToDefault(t *testing.T) {
+	client := newMutationTestClientWithValidation(t, "POST", "/entries/%s/replies.json",
+		func(t *testing.T, body map[string]any) {
+			t.Helper()
+			if got, _ := body["acting_sender_id"].(float64); got != 42 {
+				t.Errorf("acting_sender_id = %v, want the account default 42", body["acting_sender_id"])
+			}
+		},
+		`{"notice":"sent"}`,
+	)
+
+	err := client.Entries().CreateReply(context.Background(), 10, 0, "Re: A thread", "My reply", []string{"test@example.com"}, nil, nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestEntriesService_CreateReply_EmptySubjectStaysOffTheWire(t *testing.T) {
+	client := newMutationTestClientWithValidation(t, "POST", "/entries/%s/replies.json",
+		func(t *testing.T, body map[string]any) {
+			t.Helper()
+			msg, _ := body["message"].(map[string]any)
+			if _, present := msg["subject"]; present {
+				t.Errorf("an empty subject must be omitted, got %v", msg["subject"])
+			}
+		},
+		`{"notice":"sent"}`,
+	)
+
+	err := client.Entries().CreateReply(context.Background(), 10, 0, "", "My reply", []string{"test@example.com"}, nil, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -546,7 +677,7 @@ func TestEntriesService_CreateReply_RequiresRecipients(t *testing.T) {
 		func(t *testing.T, _ map[string]any) { t.Helper(); t.Error("no request should be sent") },
 		`{"notice":"sent"}`,
 	)
-	err := client.Entries().CreateReply(context.Background(), 10, "hello", nil, nil, nil)
+	err := client.Entries().CreateReply(context.Background(), 10, 0, "Re: hello", "hello", nil, nil, nil)
 	if e := AsError(err); e == nil || e.Code != CodeUsage {
 		t.Fatalf("expected a usage error, got %#v", err)
 	}
@@ -575,7 +706,7 @@ func TestEntriesService_CreateReply_RecipientsAreArrays(t *testing.T) {
 		`{"notice":"sent"}`,
 	)
 
-	err := client.Entries().CreateReply(context.Background(), 10, "hi", []string{"a@x.com"}, nil, []string{"b@x.com"})
+	err := client.Entries().CreateReply(context.Background(), 10, 0, "Re: hi", "hi", []string{"a@x.com"}, nil, []string{"b@x.com"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -611,6 +742,42 @@ func TestContactsService_Get(t *testing.T) {
 	}
 }
 
+func TestContactsService_ThreadsPage(t *testing.T) {
+	var queries []string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		queries = append(queries, r.URL.RawQuery)
+		w.Header().Set("Content-Type", "application/json")
+		if r.URL.Query().Get("page") == "" {
+			w.Header().Set("Link", `<http://`+r.Host+`/contacts/88.json?page=b2xkZXI>; rel="next"`)
+		}
+		_, _ = w.Write([]byte(`{"id":88,"name":"GitHub","entries_title":"All threads with GitHub","postings":[{"id":501,"kind":"topic","name":"Deploy failed on main","app_url":"https://app.hey.com/topics/9001"}]}`))
+	}))
+	t.Cleanup(server.Close)
+	client := NewClient(&Config{BaseURL: server.URL}, &StaticTokenProvider{Token: "test-token"}, WithMaxRetries(0))
+
+	page, err := client.Contacts().ThreadsPage(context.Background(), 88, "")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if page.Contact.EntriesTitle != "All threads with GitHub" || len(page.Contact.Postings) != 1 {
+		t.Errorf("page = %+v", page.Contact)
+	}
+	if page.NextPage != "b2xkZXI" {
+		t.Errorf("NextPage = %q, want the Link header's cursor", page.NextPage)
+	}
+
+	next, err := client.Contacts().ThreadsPage(context.Background(), 88, page.NextPage)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if next.NextPage != "" {
+		t.Errorf("NextPage = %q, want none on the last page", next.NextPage)
+	}
+	if len(queries) != 2 || queries[0] != "" || queries[1] != "page=b2xkZXI" {
+		t.Errorf("queries = %q, want the cursor passed through", queries)
+	}
+}
+
 // --- Calendars ---
 
 func TestCalendarsService_List(t *testing.T) {
@@ -641,6 +808,33 @@ func TestCalendarsService_GetRecordings(t *testing.T) {
 	}
 }
 
+func TestCalendarsService_GetRecordingsPage(t *testing.T) {
+	var gotPage string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotPage = r.URL.Query().Get("page")
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Link", `<http://`+r.Host+`/calendars/1/recordings.json?page=next-cursor>; rel="next"`)
+		_, _ = io.WriteString(w, `{"Calendar::Event":[{"id":1}]}`)
+	}))
+	t.Cleanup(server.Close)
+	client := NewClient(&Config{BaseURL: server.URL}, &StaticTokenProvider{Token: "t"}, WithMaxRetries(0))
+
+	cursor := "current-cursor"
+	page, err := client.Calendars().GetRecordingsPage(context.Background(), 1, &generated.GetCalendarRecordingsParams{Page: &cursor})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if gotPage != cursor {
+		t.Errorf("page = %q, want %q", gotPage, cursor)
+	}
+	if page.Recordings == nil || len((*page.Recordings)["Calendar::Event"]) != 1 {
+		t.Errorf("recordings = %+v, want the event page", page.Recordings)
+	}
+	if page.NextPage != "next-cursor" {
+		t.Errorf("next page = %q, want the Link header's cursor", page.NextPage)
+	}
+}
+
 // --- CalendarTodos ---
 
 func TestCalendarTodosService_Create(t *testing.T) {
@@ -658,7 +852,7 @@ func TestCalendarTodosService_Create(t *testing.T) {
 				t.Error("missing starts_at")
 			}
 		},
-		`{"id":1,"type":"CalendarTodo"}`,
+		`{"id":1,"type":"Calendar::Todo"}`,
 	)
 
 	result, err := client.CalendarTodos().Create(context.Background(), "Do something", "2026-03-13")
@@ -670,11 +864,84 @@ func TestCalendarTodosService_Create(t *testing.T) {
 	}
 }
 
+func TestCalendarTodosService_Update(t *testing.T) {
+	client := newMutationTestClientWithValidation(t, "PATCH", "/calendar/todos/1.json",
+		func(t *testing.T, body map[string]any) {
+			t.Helper()
+			todo, ok := body["calendar_todo"].(map[string]any)
+			if !ok {
+				t.Fatal("missing calendar_todo wrapper")
+			}
+			if todo["title"] != "Renew the passport" {
+				t.Errorf("expected title 'Renew the passport', got %v", todo["title"])
+			}
+			// A rename says nothing about the day or the focus, so the server keeps them.
+			if _, ok := todo["starts_at"]; ok {
+				t.Errorf("a rename sent starts_at: %v", todo)
+			}
+			if _, ok := todo["focused"]; ok {
+				t.Errorf("a rename sent focused: %v", todo)
+			}
+		},
+		`{"id":1,"type":"Calendar::Todo","title":"Renew the passport"}`,
+	)
+
+	result, err := client.CalendarTodos().Update(context.Background(), 1, TodoChanges{Title: "Renew the passport"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result == nil {
+		t.Fatal("expected non-nil result")
+	}
+}
+
+// starts_at goes out as the bare date it was given: sent as an RFC 3339 instant at UTC
+// midnight it can land on the day before once the server reads it in the user's zone.
+func TestCalendarTodosService_UpdateSendsABareDate(t *testing.T) {
+	focused := true
+	client := newMutationTestClientWithValidation(t, "PATCH", "/calendar/todos/1.json",
+		func(t *testing.T, body map[string]any) {
+			t.Helper()
+			todo, ok := body["calendar_todo"].(map[string]any)
+			if !ok {
+				t.Fatal("missing calendar_todo wrapper")
+			}
+			if todo["starts_at"] != "2026-03-13" {
+				t.Errorf("starts_at = %v, want the bare date", todo["starts_at"])
+			}
+			if todo["focused"] != true {
+				t.Errorf("focused = %v", todo["focused"])
+			}
+		},
+		`{"id":1,"type":"Calendar::Todo"}`,
+	)
+
+	if _, err := client.CalendarTodos().Update(context.Background(), 1, TodoChanges{
+		StartsAt: "2026-03-13",
+		Focused:  &focused,
+	}); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestCalendarTodosService_UpdateRefusesAnEmptyChange(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		t.Errorf("an update that changes nothing reached the server: %s %s", r.Method, r.URL.Path)
+		w.WriteHeader(200)
+	}))
+	defer server.Close()
+
+	client := NewClient(&Config{BaseURL: server.URL}, &StaticTokenProvider{Token: "test-token"})
+	if _, err := client.CalendarTodos().Update(context.Background(), 1, TodoChanges{}); err == nil {
+		t.Fatal("an update that changes nothing was accepted")
+	}
+}
+
 func TestCalendarTodosService_Complete(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(200)
-		w.Write([]byte(`{"id":1,"type":"CalendarTodo"}`))
+		w.Write([]byte(`{"id":1,"type":"Calendar::Todo"}`))
 	}))
 	defer server.Close()
 
@@ -694,7 +961,7 @@ func TestCalendarTodosService_Uncomplete(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(200)
-		w.Write([]byte(`{"id":1,"type":"CalendarTodo"}`))
+		w.Write([]byte(`{"id":1,"type":"Calendar::Todo"}`))
 	}))
 	defer server.Close()
 
@@ -768,6 +1035,156 @@ func TestHabitsService_Uncomplete(t *testing.T) {
 }
 
 // --- TimeTracks ---
+
+func TestTimeTracksService_ListPage(t *testing.T) {
+	var gotPage, gotCategory string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet || r.URL.Path != "/calendar/time_tracks.json" {
+			t.Errorf("expected GET /calendar/time_tracks.json, got %s %s", r.Method, r.URL.Path)
+		}
+		gotPage = r.URL.Query().Get("page")
+		gotCategory = r.URL.Query().Get("category_id")
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Link", `<http://`+r.Host+`/calendar/time_tracks.json?page=eyJwYWdlIjozfQ&category_id=31>; rel="next"`)
+		_, _ = w.Write([]byte(`{"time_tracks":[
+			{"id":701,"type":"Calendar::TimeTrack","title":"Time Track",
+			 "starts_at":"2026-08-19T09:00:00Z","ends_at":"2026-08-19T11:30:00Z",
+			 "completed_at":"2026-08-19T11:30:00Z",
+			 "notes":"Reviewed the migration plan","category":"Client work"}],
+			"categories":[{"id":31,"title":"Client work"},{"id":32,"title":"Internal"}]}`))
+	}))
+	t.Cleanup(srv.Close)
+	client := NewClient(&Config{BaseURL: srv.URL}, &StaticTokenProvider{Token: "t"}, WithMaxRetries(0))
+
+	cursor, categoryID := "eyJwYWdlIjoyfQ", int64(31)
+	page, err := client.TimeTracks().ListPage(context.Background(), &generated.ListTimeTracksParams{
+		Page:       &cursor,
+		CategoryId: &categoryID,
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if gotPage != "eyJwYWdlIjoyfQ" {
+		t.Errorf("expected the cursor to be passed through, got %q", gotPage)
+	}
+	if gotCategory != "31" {
+		t.Errorf("expected the category filter to be passed through, got %q", gotCategory)
+	}
+	if len(page.TimeTracks) != 1 || page.TimeTracks[0].Id != 701 {
+		t.Fatalf("expected time track 701, got %+v", page.TimeTracks)
+	}
+	// A track's category is the title as a plain string, not an object.
+	if got := page.TimeTracks[0].Category; got != "Client work" {
+		t.Errorf("category = %q, want \"Client work\"", got)
+	}
+	if got := page.TimeTracks[0].Notes; got != "Reviewed the migration plan" {
+		t.Errorf("notes = %q, want the notes the track was filed with", got)
+	}
+	// The categories ride along, so filtering needs no second read.
+	if len(page.Categories) != 2 || page.Categories[0].Title != "Client work" || page.Categories[1].Title != "Internal" {
+		t.Errorf("expected both categories from the same read, got %+v", page.Categories)
+	}
+	if page.NextPage != "eyJwYWdlIjozfQ" {
+		t.Errorf("expected the cursor for the next page, got %q", page.NextPage)
+	}
+}
+
+// The last page carries no Link header, which is how a caller walking the list is told it
+// has reached the end. A nil Link is the end of the list, not an error.
+func TestTimeTracksService_ListPageOnLastPage(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Query().Has("page") || r.URL.Query().Has("category_id") {
+			t.Errorf("expected no empty query parameters on the first unfiltered read, got %q", r.URL.RawQuery)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"time_tracks":[{"id":701,"type":"Calendar::TimeTrack","category":null}],
+			"categories":[]}`))
+	}))
+	t.Cleanup(srv.Close)
+	client := NewClient(&Config{BaseURL: srv.URL}, &StaticTokenProvider{Token: "t"}, WithMaxRetries(0))
+
+	page, err := client.TimeTracks().ListPage(context.Background(), nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(page.TimeTracks) != 1 {
+		t.Fatalf("expected one time track, got %+v", page.TimeTracks)
+	}
+	// An uncategorized track serves category: null, which is the empty string here.
+	if got := page.TimeTracks[0].Category; got != "" {
+		t.Errorf("category = %q, want empty for an uncategorized track", got)
+	}
+	if page.NextPage != "" {
+		t.Errorf("expected no cursor past the last page, got %q", page.NextPage)
+	}
+}
+
+// A cursor on an empty page is still the end of the list: the caller stops on the empty
+// page rather than following a cursor into nothing.
+func TestTimeTracksService_ListPageEmptyWithACursor(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Link", `<http://`+r.Host+`/calendar/time_tracks.json?page=eyJwYWdlIjo5fQ>; rel="next"`)
+		_, _ = w.Write([]byte(`{"time_tracks":[],"categories":[{"id":31,"title":"Client work"}]}`))
+	}))
+	t.Cleanup(srv.Close)
+	client := NewClient(&Config{BaseURL: srv.URL}, &StaticTokenProvider{Token: "t"}, WithMaxRetries(0))
+
+	page, err := client.TimeTracks().ListPage(context.Background(), nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(page.TimeTracks) != 0 {
+		t.Fatalf("expected an empty page, got %+v", page.TimeTracks)
+	}
+	// The cursor is reported as served; ending the list on an empty page is the caller's
+	// move, and it must be able to see both facts.
+	if page.NextPage != "eyJwYWdlIjo5fQ" {
+		t.Errorf("expected the served cursor to be reported, got %q", page.NextPage)
+	}
+}
+
+// List answers the payload and drops the cursor.
+func TestTimeTracksService_List(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Link", `<http://`+r.Host+`/calendar/time_tracks.json?page=eyJwYWdlIjoyfQ>; rel="next"`)
+		_, _ = w.Write([]byte(`{"time_tracks":[{"id":701,"type":"Calendar::TimeTrack"}],
+			"categories":[{"id":31,"title":"Client work"}]}`))
+	}))
+	t.Cleanup(srv.Close)
+	client := NewClient(&Config{BaseURL: srv.URL}, &StaticTokenProvider{Token: "t"}, WithMaxRetries(0))
+
+	tracked, err := client.TimeTracks().List(context.Background(), nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(tracked.TimeTracks) != 1 || tracked.TimeTracks[0].Id != 701 {
+		t.Errorf("expected time track 701, got %+v", tracked.TimeTracks)
+	}
+	if len(tracked.Categories) != 1 || tracked.Categories[0].Id != 31 {
+		t.Errorf("expected the categories alongside the tracks, got %+v", tracked.Categories)
+	}
+}
+
+// A category_id the calendar has no category for is a 404, not an empty list.
+func TestTimeTracksService_ListPage_UnknownCategory(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	t.Cleanup(srv.Close)
+	client := NewClient(&Config{BaseURL: srv.URL}, &StaticTokenProvider{Token: "t"}, WithMaxRetries(0))
+
+	missing := int64(9999)
+	_, err := client.TimeTracks().ListPage(context.Background(), &generated.ListTimeTracksParams{CategoryId: &missing})
+	if err == nil {
+		t.Fatal("expected an error for a category the calendar does not have")
+	}
+	var apiErr *Error
+	if !errors.As(err, &apiErr) || apiErr.HTTPStatus != http.StatusNotFound || apiErr.Code != CodeNotFound {
+		t.Errorf("expected a 404 *Error, got %v", err)
+	}
+}
 
 func TestTimeTracksService_GetOngoing(t *testing.T) {
 	client := newServiceTestClient(t, map[string]string{
@@ -851,7 +1268,7 @@ func TestTimeTracksService_Stop(t *testing.T) {
 			}
 			// Stop must not touch the start: a zero-valued starts_at would be
 			// applied by the server and rewrite the track to year 0001.
-			for _, k := range []string{"starts_at", "category", "notes", "title"} {
+			for _, k := range []string{"starts_at", "category", "category_title", "notes", "title"} {
 				if v, present := tt[k]; present {
 					t.Errorf("stop body must only carry ends_at; got %s=%v", k, v)
 				}
@@ -862,6 +1279,96 @@ func TestTimeTracksService_Stop(t *testing.T) {
 
 	err := client.TimeTracks().Stop(context.Background(), 1)
 	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+// Stopping and filing is one PUT, and the category rides on category_title — the
+// category field the payload also carries is one the server throws away.
+func TestTimeTracksService_StopAndFile(t *testing.T) {
+	client := newMutationTestClientWithValidation(t, "PUT", "/calendar/time_tracks/%s.json",
+		func(t *testing.T, body map[string]any) {
+			t.Helper()
+			tt, ok := body["calendar_time_track"].(map[string]any)
+			if !ok {
+				t.Fatal("missing calendar_time_track wrapper")
+			}
+			if got := tt["category_title"]; got != "Client work" {
+				t.Errorf("category_title = %v, want \"Client work\"", got)
+			}
+			if _, ok := tt["ends_at"]; !ok {
+				t.Error("missing ends_at: filing a track is stopping it")
+			}
+			for _, k := range []string{"starts_at", "category", "notes", "title"} {
+				if v, present := tt[k]; present {
+					t.Errorf("body must only carry ends_at and category_title; got %s=%v", k, v)
+				}
+			}
+		},
+		`{"id":1,"type":"TimeTrack"}`,
+	)
+
+	if err := client.TimeTracks().StopAndFile(context.Background(), 1, "Client work"); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+// Update carries a category the same way, and does not smuggle in the fields it wasn't given.
+func TestTimeTracksService_Update_FilesUnderACategory(t *testing.T) {
+	client := newMutationTestClientWithValidation(t, "PUT", "/calendar/time_tracks/%s.json",
+		func(t *testing.T, body map[string]any) {
+			t.Helper()
+			tt, ok := body["calendar_time_track"].(map[string]any)
+			if !ok {
+				t.Fatal("missing calendar_time_track wrapper")
+			}
+			for field, want := range map[string]string{
+				"category_title": "Client work",
+				"notes":          "Reviewed the migration plan",
+			} {
+				if got := tt[field]; got != want {
+					t.Errorf("%s = %v, want %q", field, got, want)
+				}
+			}
+			for _, k := range []string{"starts_at", "ends_at", "category", "title"} {
+				if v, present := tt[k]; present {
+					t.Errorf("body must not carry %s; got %v", k, v)
+				}
+			}
+		},
+		`{"id":1,"type":"TimeTrack"}`,
+	)
+
+	_, err := client.TimeTracks().Update(context.Background(), 1, generated.UpdateTimeTrackJSONRequestBody{
+		CalendarTimeTrack: generated.UpdateTimeTrackPayload{
+			CategoryTitle: "Client work",
+			Notes:         "Reviewed the migration plan",
+		},
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+// StopAndFile with no category is Stop, and must not send a blank category_title:
+// haystack ignores a blank one, but a caller reading the wire should not see a field
+// that does nothing.
+func TestTimeTracksService_StopAndFile_WithoutACategory(t *testing.T) {
+	client := newMutationTestClientWithValidation(t, "PUT", "/calendar/time_tracks/%s.json",
+		func(t *testing.T, body map[string]any) {
+			t.Helper()
+			tt, ok := body["calendar_time_track"].(map[string]any)
+			if !ok {
+				t.Fatal("missing calendar_time_track wrapper")
+			}
+			if v, present := tt["category_title"]; present {
+				t.Errorf("category_title should be omitted, got %v", v)
+			}
+		},
+		`{"id":1,"type":"TimeTrack"}`,
+	)
+
+	if err := client.TimeTracks().StopAndFile(context.Background(), 1, ""); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 }
@@ -994,6 +1501,38 @@ func TestSearchService_Search(t *testing.T) {
 	}
 }
 
+func TestSearchService_SearchPage(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		if r.URL.Query().Get("page") == "3" {
+			_, _ = w.Write([]byte(`{"matches":[{"topic":{"id":331,"name":"Kitchen remodel"},"posting_id":4471829}]}`))
+			return
+		}
+		w.Header().Set("Link", `<http://`+r.Host+`/advanced_search.json?q=cabinets&page=3>; rel="next"`)
+		_, _ = w.Write([]byte(`{"matches":[{"topic":{"id":332,"name":"Cabinet estimate"},"posting_id":4471830}]}`))
+	}))
+	t.Cleanup(srv.Close)
+	client := NewClient(&Config{BaseURL: srv.URL}, &StaticTokenProvider{Token: "t"}, WithMaxRetries(0))
+
+	results, err := client.Search().SearchPage(context.Background(), SearchParams{Query: "cabinets", Page: 2})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if results.NextPage != 3 {
+		t.Errorf("next page = %d, want 3", results.NextPage)
+	}
+
+	// The last page carries no Link header, which is how a caller walking the results is
+	// told to stop asking.
+	last, err := client.Search().SearchPage(context.Background(), SearchParams{Query: "cabinets", Page: 3})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if last.NextPage != 0 || len(last.Result.Matches) != 1 {
+		t.Errorf("last page = %+v", last)
+	}
+}
+
 func TestSearchService_Filters(t *testing.T) {
 	client := newServiceTestClient(t, map[string]string{
 		"/advanced_search_filters.json": `{"refine_in":[{"title":"Imbox","value":"imbox"}],"refine_labels":[{"title":"Receipts","value":"Receipts"}]}`,
@@ -1057,7 +1596,9 @@ func TestCalendarEventsService_Create(t *testing.T) {
 		StartsAt:   "2026-04-06",
 		StartTime:  "10:00",
 		EndTime:    "11:00",
-		TimeZone:   "America/New_York",
+
+		StartTimeZone: "America/New_York",
+		EndTimeZone:   "America/New_York",
 	})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -1086,7 +1627,9 @@ func TestCalendarEventsService_Create_OnAServerWithoutTheJSONBranch(t *testing.T
 		StartsAt:   "2026-04-06",
 		StartTime:  "10:00",
 		EndTime:    "11:00",
-		TimeZone:   "America/New_York",
+
+		StartTimeZone: "America/New_York",
+		EndTimeZone:   "America/New_York",
 	})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -1161,6 +1704,123 @@ func TestCalendarEventsService_Update(t *testing.T) {
 	}
 }
 
+// An all-day update carries dates without clock times.
+func TestCalendarEventsService_Update_AllDayOmitsClockTimes(t *testing.T) {
+	client := newFormJSONTestClient(t, "PATCH", "/calendar/events/%s",
+		func(t *testing.T, values url.Values) {
+			assertFormFields(t, values, map[string]string{
+				"calendar_event[all_day]": "1",
+			},
+				"calendar_event[starts_at_time]",
+				"calendar_event[ends_at_time]",
+			)
+		},
+		200, `{"id": 99, "title": "Sarah's birthday", "type": "Calendar::Event", "all_day": true}`,
+	)
+
+	title := "Sarah's birthday"
+	startsAt := "2026-09-02"
+	endsAt := "2026-09-02"
+	allDay := true
+	empty := ""
+	_, err := client.CalendarEvents().Update(context.Background(), 99, UpdateCalendarEventParams{
+		Title:     &title,
+		StartsAt:  &startsAt,
+		EndsAt:    &endsAt,
+		AllDay:    &allDay,
+		StartTime: &empty,
+		EndTime:   &empty,
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+// An event can start in one zone and finish in another, which is what a flight is.
+func TestCalendarEventsService_Update_WithAZonePerEnd(t *testing.T) {
+	departs, arrives := "Europe/Zagreb", "America/New_York"
+	client := newFormJSONTestClient(t, "PATCH", "/calendar/events/%s",
+		func(t *testing.T, values url.Values) {
+			t.Helper()
+			for field, want := range map[string]string{
+				"calendar_event[set_time_zone]":            "1",
+				"calendar_event[starts_at_time_zone_name]": "Europe/Zagreb",
+				"calendar_event[ends_at_time_zone_name]":   "America/New_York",
+			} {
+				if got := values.Get(field); got != want {
+					t.Errorf("%s = %q, want %q", field, got, want)
+				}
+			}
+		},
+		200, `{"id": 99, "type": "Calendar::Event"}`,
+	)
+
+	_, err := client.CalendarEvents().Update(context.Background(), 99, UpdateCalendarEventParams{
+		StartTimeZone: &departs,
+		EndTimeZone:   &arrives,
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+// The deprecated single TimeZone still names both ends, and now carries the flag that makes
+// HEY read it — which it never did before.
+func TestCalendarEventsService_Create_WithTheDeprecatedTimeZone(t *testing.T) {
+	client := newFormJSONTestClient(t, "POST", "/calendar/events.json",
+		func(t *testing.T, values url.Values) {
+			t.Helper()
+			for field, want := range map[string]string{
+				"calendar_event[set_time_zone]":            "1",
+				"calendar_event[starts_at_time_zone_name]": "America/New_York",
+				"calendar_event[ends_at_time_zone_name]":   "America/New_York",
+			} {
+				if got := values.Get(field); got != want {
+					t.Errorf("%s = %q, want %q", field, got, want)
+				}
+			}
+		},
+		201, calendarEventJSON,
+	)
+
+	_, err := client.CalendarEvents().Create(context.Background(), CreateCalendarEventParams{
+		CalendarID: 1,
+		Title:      "Meeting",
+		StartsAt:   "2026-04-06",
+		StartTime:  "10:00",
+		EndTime:    "11:00",
+		TimeZone:   "America/New_York",
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+// Empty zones say the times are UTC, and put the event back to having no zones of its own.
+func TestCalendarEventsService_Update_ClearingTheZones(t *testing.T) {
+	none := ""
+	client := newFormJSONTestClient(t, "PATCH", "/calendar/events/%s",
+		func(t *testing.T, values url.Values) {
+			t.Helper()
+			if got := values.Get("calendar_event[set_time_zone]"); got != "0" {
+				t.Errorf("set_time_zone = %q, want 0", got)
+			}
+			if got := values.Get("calendar_event[starts_at_time_zone_name]"); got != "" {
+				t.Errorf("a zone was named anyway: %q", got)
+			}
+		},
+		200, `{"id": 99, "type": "Calendar::Event"}`,
+	)
+
+	_, err := client.CalendarEvents().Update(context.Background(), 99, UpdateCalendarEventParams{
+		StartTimeZone: &none,
+		EndTimeZone:   &none,
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
 // A server without the JSON update branch redirects to the event, which still names its id.
 func TestCalendarEventsService_Update_OnAServerWithoutTheJSONBranch(t *testing.T) {
 	newTitle := "Updated Meeting"
@@ -1177,15 +1837,433 @@ func TestCalendarEventsService_Update_OnAServerWithoutTheJSONBranch(t *testing.T
 	}
 }
 
+// newNoContentTestClient answers a JSON delete with 204 and records what it was asked for.
+func newNoContentTestClient(t *testing.T, wantMethod, wantPath string) (*Client, *url.Values) {
+	t.Helper()
+	var gotQuery url.Values
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != wantMethod {
+			t.Errorf("expected %s, got %s", wantMethod, r.Method)
+		}
+		if r.URL.Path != wantPath {
+			t.Errorf("expected path %s, got %s", wantPath, r.URL.Path)
+		}
+		if accept := r.Header.Get("Accept"); accept != "application/json" {
+			t.Errorf("expected Accept: application/json, got %q", accept)
+		}
+		gotQuery = r.URL.Query()
+		w.WriteHeader(204)
+	}))
+	t.Cleanup(server.Close)
+	return NewClient(&Config{BaseURL: server.URL}, &StaticTokenProvider{Token: "test-token"}, WithMaxRetries(0)), &gotQuery
+}
+
+// The delete asks for the JSON representation HEY serves it in — the .json path with a JSON
+// Accept — rather than the redirect its web form answers with.
 func TestCalendarEventsService_Delete(t *testing.T) {
-	client := newFormTestClient(t, "DELETE", "/calendar/events/%s",
-		nil,
-		"/calendar",
-	)
+	client, _ := newNoContentTestClient(t, "DELETE", "/calendar/events/99.json")
 
 	err := client.CalendarEvents().Delete(context.Background(), 99)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestParseOccurrenceID(t *testing.T) {
+	occurrence, err := ParseOccurrenceID("153688907_2026-08-21")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if occurrence.EventID != 153688907 {
+		t.Errorf("EventID = %d, want 153688907", occurrence.EventID)
+	}
+	if got := occurrence.Date.Format("2006-01-02"); got != "2026-08-21" {
+		t.Errorf("Date = %s, want 2026-08-21", got)
+	}
+	if got := occurrence.String(); got != "153688907_2026-08-21" {
+		t.Errorf("String() = %q, want the occurrence id back", got)
+	}
+	if got := occurrence.DateParam(); got != "2026-08-21" {
+		t.Errorf("DateParam() = %q, want 2026-08-21", got)
+	}
+}
+
+func TestParseOccurrenceID_Malformed(t *testing.T) {
+	for _, occurrenceID := range []string{
+		"",
+		"153688907",
+		"153688907_",
+		"153688907_2026-08",
+		"153688907_2026-13-40",
+		"153688907_20260821",
+		"_2026-08-21",
+		"0_2026-08-21",
+		"summer_2026-08-21",
+		"153688907_2026-08-21_extra",
+	} {
+		if _, err := ParseOccurrenceID(occurrenceID); err == nil {
+			t.Errorf("%q was accepted as an occurrence id", occurrenceID)
+		}
+	}
+}
+
+func TestCalendarEventsService_UpdateOccurrence(t *testing.T) {
+	newTitle := "Summer Friday"
+	client := newFormJSONTestClient(t, "PATCH", "/calendar/events/153688907/occurrences/2026-08-21.json",
+		func(t *testing.T, values url.Values) {
+			t.Helper()
+			for field, want := range map[string]string{
+				"calendar_event[summary]": "Summer Friday",
+				"apply_to_future":         "0",
+				"repeat_frequency":        "custom",
+			} {
+				if got := values.Get(field); got != want {
+					t.Errorf("%s = %q, want %q", field, got, want)
+				}
+			}
+		},
+		200, `{"id": 153688908, "title": "Summer Friday", "type": "Calendar::Event"}`,
+	)
+
+	occurrence, err := ParseOccurrenceID("153688907_2026-08-21")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	recording, err := client.CalendarEvents().UpdateOccurrence(context.Background(), occurrence, OccurrenceScopeThisEvent,
+		UpdateCalendarEventOccurrenceParams{
+			UpdateCalendarEventParams: UpdateCalendarEventParams{Title: &newTitle},
+		})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if recording.Id != 153688908 {
+		t.Errorf("expected the realized occurrence, got %d", recording.Id)
+	}
+}
+
+// Naming no frequency has to mean "leave the series alone", because HEY reads a silent update as
+// "stop repeating" and cancels every other occurrence.
+func TestCalendarEventsService_UpdateOccurrence_KeepsTheSeriesRepeating(t *testing.T) {
+	client := newFormJSONTestClient(t, "PATCH", "/calendar/events/%s/occurrences/%s",
+		func(t *testing.T, values url.Values) {
+			t.Helper()
+			if got := values.Get("repeat_frequency"); got != "custom" {
+				t.Errorf("repeat_frequency = %q, want custom", got)
+			}
+		},
+		200, `{"id": 153688908, "type": "Calendar::Event"}`,
+	)
+
+	_, err := client.CalendarEvents().UpdateOccurrence(context.Background(),
+		EventOccurrence{EventID: 153688907, Date: time.Date(2026, 8, 21, 0, 0, 0, 0, time.UTC)},
+		OccurrenceScopeThisEvent, UpdateCalendarEventOccurrenceParams{})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestCalendarEventsService_UpdateOccurrence_ThisAndFollowing(t *testing.T) {
+	startTime := "10:30"
+	client := newFormJSONTestClient(t, "PATCH", "/calendar/events/%s/occurrences/%s",
+		func(t *testing.T, values url.Values) {
+			t.Helper()
+			for field, want := range map[string]string{
+				"apply_to_future":                "1",
+				"repeat_frequency":               "every_week",
+				"calendar_event[starts_at_time]": "10:30:00",
+			} {
+				if got := values.Get(field); got != want {
+					t.Errorf("%s = %q, want %q", field, got, want)
+				}
+			}
+		},
+		200, `{"id": 153688908, "type": "Calendar::Event"}`,
+	)
+
+	_, err := client.CalendarEvents().UpdateOccurrence(context.Background(),
+		EventOccurrence{EventID: 153688907, Date: time.Date(2026, 8, 21, 0, 0, 0, 0, time.UTC)},
+		OccurrenceScopeThisAndFollowing, UpdateCalendarEventOccurrenceParams{
+			UpdateCalendarEventParams: UpdateCalendarEventParams{
+				StartTime: &startTime,
+				Repeat:    &RepeatParams{Frequency: RepeatEveryWeek},
+			},
+		})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+// assertFormFields checks the fields a write is expected to carry, and that the ones it is
+// expected to leave out are absent — for the content and countdown parameters an absent key and
+// an empty one mean different things to HEY.
+func assertFormFields(t *testing.T, values url.Values, want map[string]string, absent ...string) {
+	t.Helper()
+	for field, wanted := range want {
+		if got := values.Get(field); got != wanted {
+			t.Errorf("%s = %q, want %q", field, got, wanted)
+		}
+	}
+	for _, field := range absent {
+		if values.Has(field) {
+			t.Errorf("%s was sent as %q, want it left out", field, values.Get(field))
+		}
+	}
+}
+
+func TestCalendarEventsService_Create_WithContentAndGuests(t *testing.T) {
+	client := newFormJSONTestClient(t, "POST", "/calendar/events.json",
+		func(t *testing.T, values url.Values) {
+			t.Helper()
+			assertFormFields(t, values, map[string]string{
+				"calendar_event[description]":                     "<div>Bring the <strong>roadmap</strong>.</div>",
+				"calendar_event[location]":                        "Meeting Room 2",
+				"calendar_event[url]":                             "https://meet.google.com/abc-defg-hij",
+				"calendar_event[entry_id]":                        "884213",
+				"calendar_event[highlighted]":                     "1",
+				"calendar_event[highlight_id]":                    "",
+				"countdown_interval_duration_value":               "2",
+				"countdown_interval_duration_unit":                "604800",
+				"repeat_frequency":                                "every_other_week",
+				"calendar_recurrence_schedule[recurs_until_type]": "date",
+				"calendar_recurrence_schedule[recurs_until_date]": "2026-12-18",
+			}, "calendar_recurrence_schedule[recurs_count]")
+
+			guests := values["calendar_event[attendance_email_addresses][]"]
+			if len(guests) != 2 || guests[0] != "marta.kowalska@example.com" || guests[1] != "yusuf.demir@example.org" {
+				t.Errorf("guest list = %v", guests)
+			}
+		},
+		201, calendarEventJSON,
+	)
+
+	circled := true
+	_, err := client.CalendarEvents().Create(context.Background(), CreateCalendarEventParams{
+		CalendarID: 1,
+		Title:      "Quarterly roadmap review",
+		StartsAt:   "2026-09-10",
+		AllDay:     true,
+		Content: EventContentParams{
+			Notes:    "<div>Bring the <strong>roadmap</strong>.</div>",
+			Location: "Meeting Room 2",
+			Link:     "https://meet.google.com/abc-defg-hij",
+			EntryID:  884213,
+		},
+		Attendees:   []string{"marta.kowalska@example.com", "yusuf.demir@example.org"},
+		Highlighted: &circled,
+		Countdown:   CountdownParams{Value: 2, Unit: CountdownUnitWeeks},
+		Repeat: &RepeatParams{
+			Frequency: RepeatEveryOtherWeek,
+			Until:     RepeatUntilDate,
+			UntilDate: "2026-12-18",
+			Count:     9,
+		},
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+// HEY defaults all four content fields to nothing on every write, so an update that only means to
+// move an event still has to say what its notes are. Sending them empty is the SDK being honest
+// about that rather than pretending the fields were left alone.
+func TestCalendarEventsService_Update_SendsTheWholeContentEveryTime(t *testing.T) {
+	client := newFormJSONTestClient(t, "PATCH", "/calendar/events/%s",
+		func(t *testing.T, values url.Values) {
+			t.Helper()
+			assertFormFields(t, values, map[string]string{
+				"calendar_event[starts_at]":   "2026-09-11",
+				"calendar_event[description]": "",
+				"calendar_event[location]":    "",
+				"calendar_event[url]":         "",
+				"calendar_event[entry_id]":    "",
+			})
+		},
+		200, `{"id": 99, "type": "Calendar::Event"}`,
+	)
+
+	startsAt := "2026-09-11"
+	_, err := client.CalendarEvents().Update(context.Background(), 99, UpdateCalendarEventParams{
+		StartsAt: &startsAt,
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+// Turning the circle off needs the empty highlight_id: without it HEY reads highlighted=0 as a
+// request to build a highlight, which turns the circle on. It goes out with the flag either way.
+func TestCalendarEventsService_Update_Highlighted(t *testing.T) {
+	for circled, wantFlag := range map[bool]string{true: "1", false: "0"} {
+		client := newFormJSONTestClient(t, "PATCH", "/calendar/events/%s",
+			func(t *testing.T, values url.Values) {
+				t.Helper()
+				assertFormFields(t, values, map[string]string{
+					"calendar_event[highlighted]":  wantFlag,
+					"calendar_event[highlight_id]": "",
+				})
+			},
+			200, `{"id": 99, "type": "Calendar::Event"}`,
+		)
+
+		_, err := client.CalendarEvents().Update(context.Background(), 99, UpdateCalendarEventParams{
+			Highlighted: &circled,
+		})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	}
+}
+
+// Nothing is sent for the circle when nobody asked about it, because HEY only reads the flag when
+// it is submitted.
+func TestCalendarEventsService_Update_LeavesTheCircleAloneUnasked(t *testing.T) {
+	client := newFormJSONTestClient(t, "PATCH", "/calendar/events/%s",
+		func(t *testing.T, values url.Values) {
+			t.Helper()
+			assertFormFields(t, values, nil,
+				"calendar_event[highlighted]", "calendar_event[highlight_id]")
+		},
+		200, `{"id": 99, "type": "Calendar::Event"}`,
+	)
+
+	_, err := client.CalendarEvents().Update(context.Background(), 99, UpdateCalendarEventParams{})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+// The zero countdown sends no countdown at all, which is how HEY is told to delete it. There is no
+// third state, so this is the same request as one that never had a countdown in mind.
+func TestCalendarEventsService_Update_ZeroCountdownSendsNothing(t *testing.T) {
+	client := newFormJSONTestClient(t, "PATCH", "/calendar/events/%s",
+		func(t *testing.T, values url.Values) {
+			t.Helper()
+			assertFormFields(t, values, nil,
+				"countdown_interval_duration_value", "countdown_interval_duration_unit")
+		},
+		200, `{"id": 99, "type": "Calendar::Event"}`,
+	)
+
+	_, err := client.CalendarEvents().Update(context.Background(), 99, UpdateCalendarEventParams{})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+// A countdown with no unit named is counted in days, which is the web app's own default.
+func TestCalendarEventsService_Update_CountdownDefaultsToDays(t *testing.T) {
+	client := newFormJSONTestClient(t, "PATCH", "/calendar/events/%s",
+		func(t *testing.T, values url.Values) {
+			t.Helper()
+			assertFormFields(t, values, map[string]string{
+				"countdown_interval_duration_value": "10",
+				"countdown_interval_duration_unit":  "86400",
+			})
+		},
+		200, `{"id": 99, "type": "Calendar::Event"}`,
+	)
+
+	_, err := client.CalendarEvents().Update(context.Background(), 99, UpdateCalendarEventParams{
+		Countdown: CountdownParams{Value: 10},
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+// A nil guest list leaves the roster alone; an empty one clears it, and needs a blank value on
+// the wire to say so, since a form cannot carry an empty array.
+func TestCalendarEventsService_Update_Attendees(t *testing.T) {
+	client := newFormJSONTestClient(t, "PATCH", "/calendar/events/%s",
+		func(t *testing.T, values url.Values) {
+			t.Helper()
+			assertFormFields(t, values, nil, "calendar_event[attendance_email_addresses][]")
+		},
+		200, `{"id": 99, "type": "Calendar::Event"}`,
+	)
+
+	_, err := client.CalendarEvents().Update(context.Background(), 99, UpdateCalendarEventParams{})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	client = newFormJSONTestClient(t, "PATCH", "/calendar/events/%s",
+		func(t *testing.T, values url.Values) {
+			t.Helper()
+			guests := values["calendar_event[attendance_email_addresses][]"]
+			if len(guests) != 1 || guests[0] != "" {
+				t.Errorf("guest list = %v, want a single blank so HEY sees the key", guests)
+			}
+		},
+		200, `{"id": 99, "type": "Calendar::Event"}`,
+	)
+
+	_, err = client.CalendarEvents().Update(context.Background(), 99, UpdateCalendarEventParams{
+		Attendees: []string{},
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+// A count-limited recurrence sends the count and no until-date, since HEY reads only the one
+// matching the type.
+func TestCalendarEventsService_Update_RepeatUntilCount(t *testing.T) {
+	client := newFormJSONTestClient(t, "PATCH", "/calendar/events/%s",
+		func(t *testing.T, values url.Values) {
+			t.Helper()
+			assertFormFields(t, values, map[string]string{
+				"repeat_frequency": "every_weekday",
+				"calendar_recurrence_schedule[recurs_until_type]": "count",
+				"calendar_recurrence_schedule[recurs_count]":      "12",
+			}, "calendar_recurrence_schedule[recurs_until_date]")
+		},
+		200, `{"id": 99, "type": "Calendar::Event"}`,
+	)
+
+	_, err := client.CalendarEvents().Update(context.Background(), 99, UpdateCalendarEventParams{
+		Repeat: &RepeatParams{Frequency: RepeatEveryWeekday, Until: RepeatUntilCount, Count: 12},
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+// A whole-event update that says nothing about the recurrence leaves it alone — the one place
+// where the occurrence update reads the same silence differently.
+func TestCalendarEventsService_Update_WithoutRepeatLeavesTheScheduleAlone(t *testing.T) {
+	client := newFormJSONTestClient(t, "PATCH", "/calendar/events/%s",
+		func(t *testing.T, values url.Values) {
+			t.Helper()
+			assertFormFields(t, values, nil, "repeat_frequency")
+		},
+		200, `{"id": 99, "type": "Calendar::Event"}`,
+	)
+
+	_, err := client.CalendarEvents().Update(context.Background(), 99, UpdateCalendarEventParams{})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+// A delete carries no body, so the scope rides in the query string, as it does in HEY's own
+// occurrence links. Both scopes are sent explicitly: the narrower one is the zero value, and
+// leaving it off would rely on the server's default instead of stating it.
+func TestCalendarEventsService_DeleteOccurrence(t *testing.T) {
+	for scope, wantApplyToFuture := range map[OccurrenceScope]string{
+		OccurrenceScopeThisEvent:        "false",
+		OccurrenceScopeThisAndFollowing: "true",
+	} {
+		client, gotQuery := newNoContentTestClient(t, "DELETE", "/calendar/events/153688907/occurrences/2026-08-21.json")
+
+		err := client.CalendarEvents().DeleteOccurrence(context.Background(),
+			EventOccurrence{EventID: 153688907, Date: time.Date(2026, 8, 21, 0, 0, 0, 0, time.UTC)}, scope)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if got := gotQuery.Get("apply_to_future"); got != wantApplyToFuture {
+			t.Errorf("apply_to_future = %q, want %q for %s", got, wantApplyToFuture, scope)
+		}
 	}
 }
 
@@ -1350,10 +2428,7 @@ func TestExtenzionsService_Update_OnAServerWithoutTheJSONBranch(t *testing.T) {
 }
 
 func TestExtenzionsService_Delete(t *testing.T) {
-	client := newFormTestClient(t, "DELETE", "/accounts/%s/domains/extenzions/%s",
-		nil,
-		"/accounts/1/domains/extenzions",
-	)
+	client, _ := newNoContentTestClient(t, "DELETE", "/accounts/1/domains/extenzions/10.json")
 
 	err := client.Extenzions().Delete(context.Background(), 1, 10)
 	if err != nil {
@@ -1690,6 +2765,48 @@ func TestContactsService_Clearances(t *testing.T) {
 
 // --- Boxes, groups and observation ---
 
+func TestBoxesService_GetPage(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/boxes/5.json" {
+			t.Errorf("path = %q, want /boxes/5.json", r.URL.Path)
+		}
+		if page := r.URL.Query().Get("page"); page != "current-cursor" {
+			t.Errorf("page = %q, want current-cursor", page)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("X-Total-Count", "214")
+		w.Header().Set("Link", `<http://`+r.Host+`/boxes/5.json?page=next-cursor>; rel="next"`)
+		_, _ = io.WriteString(w, `{"id":5,"name":"Imbox","postings":[{"id":1,"kind":"topic"}]}`)
+	}))
+	t.Cleanup(server.Close)
+
+	client := NewClient(&Config{BaseURL: server.URL}, &StaticTokenProvider{Token: "test-token"}, WithMaxRetries(0))
+	cursor := "current-cursor"
+	page, err := client.Boxes().GetPage(context.Background(), 5, &generated.GetBoxParams{Page: &cursor})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if page.Box == nil || page.Box.Name != "Imbox" || len(page.Box.Postings) != 1 || page.TotalCount != 214 || page.NextPage != "next-cursor" {
+		t.Errorf("unexpected box page: %+v", page)
+	}
+}
+
+// The last page carries no Link header, which is how a caller walking a box is told to
+// stop asking for more.
+func TestBoxesService_GetPageOnLastPage(t *testing.T) {
+	client := newServiceTestClient(t, map[string]string{
+		"/boxes/%s": `{"id":5,"name":"Imbox","postings":[{"id":1,"kind":"topic"}]}`,
+	})
+
+	page, err := client.Boxes().GetPage(context.Background(), 5, nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if page.NextPage != "" {
+		t.Errorf("next page = %q, want none", page.NextPage)
+	}
+}
+
 func TestBoxesService_ListGroups(t *testing.T) {
 	client := newServiceTestClient(t, map[string]string{
 		"/boxes/%s/groups.json": `{"box_groups":[{"id":11},{"id":12}]}`,
@@ -1701,6 +2818,49 @@ func TestBoxesService_ListGroups(t *testing.T) {
 	}
 	if len(groups.BoxGroups) != 2 || groups.BoxGroups[0].Id != 11 {
 		t.Errorf("expected groups 11 and 12, got %+v", groups.BoxGroups)
+	}
+}
+
+func TestBoxesService_GetGroupPage(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/boxes/5/groups/11.json" {
+			t.Errorf("path = %q, want /boxes/5/groups/11.json", r.URL.Path)
+		}
+		if page := r.URL.Query().Get("page"); page != "current-cursor" {
+			t.Errorf("page = %q, want current-cursor", page)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("X-Total-Count", "150")
+		w.Header().Set("Link", `<http://`+r.Host+`/boxes/5/groups/11.json?page=next-cursor>; rel="next"`)
+		_, _ = io.WriteString(w, `{"id":11,"box_id":5,"postings":[{"id":1,"kind":"topic","box_group_id":11}]}`)
+	}))
+	t.Cleanup(server.Close)
+
+	client := NewClient(&Config{BaseURL: server.URL}, &StaticTokenProvider{Token: "test-token"}, WithMaxRetries(0))
+	cursor := "current-cursor"
+	page, err := client.Boxes().GetGroupPage(context.Background(), 5, 11, &generated.GetBoxGroupParams{Page: &cursor})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if page.Group == nil || page.Group.Id != 11 || page.Group.BoxId != 5 || page.TotalCount != 150 || page.NextPage != "next-cursor" {
+		t.Errorf("unexpected group page: %+v", page)
+	}
+	if len(page.Group.Postings) != 1 || page.Group.Postings[0].BoxGroupId != 11 {
+		t.Errorf("unexpected postings: %+v", page.Group.Postings)
+	}
+}
+
+func TestBoxesService_GetGroup(t *testing.T) {
+	client := newServiceTestClient(t, map[string]string{
+		"/boxes/%s/groups/%s.json": `{"id":11,"box_id":5,"postings":[]}`,
+	})
+
+	group, err := client.Boxes().GetGroup(context.Background(), 5, 11, nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if group.Id != 11 || len(group.Postings) != 0 {
+		t.Errorf("expected empty group 11, got %+v", group)
 	}
 }
 
@@ -1779,22 +2939,26 @@ func TestFoldersService_GetPage(t *testing.T) {
 	}
 }
 
-func TestFolderPageFromLink(t *testing.T) {
+func TestGearedPageFromLink(t *testing.T) {
 	tests := []struct {
+		name   string
 		header string
 		want   string
 	}{
-		{header: `<https://app.hey.com/folders/12.json?page=next>; rel="next"`, want: "next"},
-		{header: `<https://app.hey.com/folders/12.json?page=previous>; rel="prev", <https://app.hey.com/folders/12.json?page=a,b>; rel="next"`, want: "a,b"},
+		{name: "single next link", header: `<https://app.hey.com/folders/12.json?page=next>; rel="next"`, want: "next"},
+		{name: "next link last", header: `<https://app.hey.com/folders/12.json?page=previous>; rel="prev", <https://app.hey.com/folders/12.json?page=a,b>; rel="next"`, want: "a,b"},
+		{name: "next link first", header: `<https://app.hey.com/folders/12.json?page=next>; rel="next", <https://app.hey.com/folders/12.json?page=previous>; rel="prev"`, want: "next"},
 	}
 	for _, tt := range tests {
-		if got := folderPageFromLink(tt.header); got != tt.want {
-			t.Errorf("folderPageFromLink(%q) = %q, want %q", tt.header, got, tt.want)
-		}
+		t.Run(tt.name, func(t *testing.T) {
+			if got := gearedPageFromLink(tt.header); got != tt.want {
+				t.Errorf("gearedPageFromLink(%q) = %q, want %q", tt.header, got, tt.want)
+			}
+		})
 	}
-	for _, header := range []string{"", "not a URL", `<https://app.hey.com/folders/12.json>; rel="next"`} {
-		if got := folderPageFromLink(header); got != "" {
-			t.Errorf("folderPageFromLink(%q) = %q, want empty", header, got)
+	for _, header := range []string{"", "not a URL", `<https://app.hey.com/folders/12.json>; rel="next"`, `<https://app.hey.com/folders/12.json?page=previous>; rel="prev", <https://app.hey.com/folders/12.json?page=last>; rel="last"`} {
+		if got := gearedPageFromLink(header); got != "" {
+			t.Errorf("gearedPageFromLink(%q) = %q, want empty", header, got)
 		}
 	}
 }
@@ -1812,6 +2976,59 @@ func TestCollectionsService_List(t *testing.T) {
 	}
 	if len(*collections) != 1 || (*collections)[0].Name != "Kitchen remodel" {
 		t.Errorf("expected one Kitchen remodel collection, got %+v", collections)
+	}
+}
+
+func TestCollectionsService_Get(t *testing.T) {
+	client := newServiceTestClient(t, map[string]string{
+		"/collections/%s": `{"id":33,"name":"Kitchen remodel","app_url":"https://app.hey.com/collections/33","postings":[{"id":91,"kind":"topic","account_id":7,"seen":true,"name":"Contractor quotes"}]}`,
+	})
+
+	collection, err := client.Collections().Get(context.Background(), 33, nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if collection.Id != 33 || collection.Name != "Kitchen remodel" || len(collection.Postings) != 1 {
+		t.Fatalf("unexpected collection: %+v", collection)
+	}
+	posting := collection.Postings[0]
+	if posting.Id != 91 || posting.Kind != "topic" || posting.AccountId != 7 || !posting.Seen || posting.Name != "Contractor quotes" {
+		t.Errorf("unexpected posting: %+v", posting)
+	}
+}
+
+func TestCollectionsService_GetPage(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/collections/33.json" {
+			t.Errorf("path = %q, want /collections/33.json", r.URL.Path)
+		}
+		if page := r.URL.Query().Get("page"); page != "current-cursor" {
+			t.Errorf("page = %q, want current-cursor", page)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("X-Total-Count", "42")
+		w.Header().Set("Link", `<http://`+r.Host+`/collections/33.json?page=next-cursor>; rel="next"`)
+		_, _ = io.WriteString(w, `{"id":33,"name":"Kitchen remodel","postings":[{"id":91,"kind":"topic"}]}`)
+	}))
+	t.Cleanup(server.Close)
+
+	client := NewClient(&Config{BaseURL: server.URL}, &StaticTokenProvider{Token: "test-token"}, WithMaxRetries(0))
+	cursor := "current-cursor"
+	page, err := client.Collections().GetPage(context.Background(), 33, &generated.GetCollectionParams{Page: &cursor})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if page.Collection == nil || page.Collection.Name != "Kitchen remodel" || len(page.Collection.Postings) != 1 || page.TotalCount != 42 || page.NextPage != "next-cursor" {
+		t.Errorf("unexpected collection page: %+v", page)
+	}
+}
+
+func TestCollectionsService_GetNotFound(t *testing.T) {
+	client := newServiceTestClient(t, map[string]string{})
+
+	_, err := client.Collections().Get(context.Background(), 33, nil)
+	if err == nil || AsError(err).Code != CodeNotFound {
+		t.Fatalf("expected not found, got %v", err)
 	}
 }
 
@@ -2556,14 +3773,82 @@ func TestWorkflowsService_Writes(t *testing.T) {
 		t.Fatalf("unexpected error renaming a stage: %v", err)
 	}
 
-	filer := newFormTestClient(t, "POST", "/topics/%s/workflows/%s/stagings", func(t *testing.T, values url.Values) {
+	mover := newFormTestClient(t, "PATCH", "/topics/%s/workflows/%s/stagings", func(t *testing.T, values url.Values) {
 		t.Helper()
-		if values.Get("workflow_stage_id") != "5512" {
-			t.Errorf("expected the stage id, got %q", values.Get("workflow_stage_id"))
+		if values.Get("workflow_staging[workflow_stage_id]") != "5513" {
+			t.Errorf("expected the destination stage id, got %q", values.Get("workflow_staging[workflow_stage_id]"))
 		}
-	}, "/topics/4471829")
-	if err := filer.Workflows().StageTopic(context.Background(), 4471829, 8801, 5512); err != nil {
+	}, "")
+	if err := mover.Workflows().MoveTopic(context.Background(), 4471829, 8801, 5513); err != nil {
+		t.Fatalf("unexpected error moving a staged topic: %v", err)
+	}
+}
+
+func TestWorkflowsService_StageTopicMovesToRequestedStage(t *testing.T) {
+	const stagingPath = "/topics/4471829/workflows/8801/stagings"
+	requestCount := 0
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requestCount++
+		if r.URL.Path != stagingPath {
+			t.Errorf("expected path %s, got %s", stagingPath, r.URL.Path)
+		}
+		if got := r.Header.Get("Accept"); got != "*/*" {
+			t.Errorf("expected the form representation, got Accept %q", got)
+		}
+		if err := r.ParseForm(); err != nil {
+			t.Fatalf("failed to parse form: %v", err)
+		}
+
+		switch requestCount {
+		case 1:
+			if r.Method != http.MethodPost {
+				t.Errorf("expected the staging request to use POST, got %s", r.Method)
+			}
+			if len(r.PostForm) != 0 {
+				t.Errorf("expected the staging request body to be empty, got %v", r.PostForm)
+			}
+		case 2:
+			if r.Method != http.MethodPatch {
+				t.Errorf("expected the move request to use PATCH, got %s", r.Method)
+			}
+			if got := r.PostForm.Get("workflow_staging[workflow_stage_id]"); got != "5512" {
+				t.Errorf("expected the destination stage id, got %q", got)
+			}
+		default:
+			t.Errorf("unexpected request %d", requestCount)
+		}
+
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	t.Cleanup(server.Close)
+
+	client := NewClient(&Config{BaseURL: server.URL}, &StaticTokenProvider{Token: "test-token"}, WithMaxRetries(0))
+	if err := client.Workflows().StageTopic(context.Background(), 4471829, 8801, 5512); err != nil {
 		t.Fatalf("unexpected error staging a topic: %v", err)
+	}
+	if requestCount != 2 {
+		t.Fatalf("expected staging and move requests, got %d requests", requestCount)
+	}
+}
+
+func TestWorkflowsService_StageTopicSurfacesStageSelectionError(t *testing.T) {
+	requestCount := 0
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requestCount++
+		if requestCount == 1 {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+		w.WriteHeader(http.StatusUnprocessableEntity)
+	}))
+	t.Cleanup(server.Close)
+
+	client := NewClient(&Config{BaseURL: server.URL}, &StaticTokenProvider{Token: "test-token"}, WithMaxRetries(0))
+	if err := client.Workflows().StageTopic(context.Background(), 4471829, 8801, 9999); err == nil {
+		t.Fatal("expected the stage-selection error to surface")
+	}
+	if requestCount != 2 {
+		t.Fatalf("expected staging and move requests, got %d requests", requestCount)
 	}
 }
 
@@ -2602,6 +3887,9 @@ func TestWorkflowsService_WriteErrorsSurface(t *testing.T) {
 	c := NewClient(&Config{BaseURL: srv.URL}, &StaticTokenProvider{Token: "t"}, WithMaxRetries(0))
 	if err := c.Workflows().Delete(context.Background(), 8801); err == nil {
 		t.Fatal("expected a 403 to surface as an error")
+	}
+	if err := c.Workflows().MoveTopic(context.Background(), 4471829, 8801, 5513); err == nil {
+		t.Fatal("expected a 403 moving a staged topic to surface as an error")
 	}
 	if err := c.Workflows().UnstageTopic(context.Background(), 4471829, 8801); err == nil {
 		t.Fatal("expected a 403 to surface as an error")

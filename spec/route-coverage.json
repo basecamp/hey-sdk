@@ -100,6 +100,11 @@
     "path": "/calendar/time_tracks.json"
   },
   {
+    "method": "POST",
+    "operationId": "CreateWorkflowStaging",
+    "path": "/topics/{topicId}/workflows/{workflowId}/stagings"
+  },
+  {
     "method": "DELETE",
     "operationId": "DeleteBoxDesignation",
     "path": "/boxes/{boxId}/designations/{designationId}"
@@ -111,6 +116,16 @@
   },
   {
     "method": "DELETE",
+    "operationId": "DeleteCalendarEvent",
+    "path": "/calendar/events/{eventId}"
+  },
+  {
+    "method": "DELETE",
+    "operationId": "DeleteCalendarEventOccurrence",
+    "path": "/calendar/events/{eventId}/occurrences/{occurrence}"
+  },
+  {
+    "method": "DELETE",
     "operationId": "DeleteCalendarTodo",
     "path": "/calendar/todos/{todoId}"
   },
@@ -118,6 +133,16 @@
     "method": "DELETE",
     "operationId": "DeleteContactNote",
     "path": "/contacts/{contactId}/note.json"
+  },
+  {
+    "method": "DELETE",
+    "operationId": "DeleteDraft",
+    "path": "/entries/drafts/{entryId}"
+  },
+  {
+    "method": "DELETE",
+    "operationId": "DeleteExtenzion",
+    "path": "/accounts/{accountId}/domains/extenzions/{extenzionId}"
   },
   {
     "method": "DELETE",
@@ -166,6 +191,11 @@
   },
   {
     "method": "GET",
+    "operationId": "GetBoxGroup",
+    "path": "/boxes/{boxId}/groups/{groupId}"
+  },
+  {
+    "method": "GET",
     "operationId": "GetBoxPostingChanges",
     "path": "/boxes/{boxId}/postings/changes.json"
   },
@@ -176,13 +206,38 @@
   },
   {
     "method": "GET",
+    "operationId": "GetBundleUnseenPostings",
+    "path": "/postings/{postingId}/bundles/unseen.json"
+  },
+  {
+    "method": "GET",
+    "operationId": "GetCalendarDay",
+    "path": "/calendar/days/{day}"
+  },
+  {
+    "method": "GET",
     "operationId": "GetCalendarRecordings",
     "path": "/calendars/{calendarId}/recordings"
   },
   {
     "method": "GET",
+    "operationId": "GetCalendarWeek",
+    "path": "/calendar/weeks/{week}"
+  },
+  {
+    "method": "GET",
+    "operationId": "GetCalendarYear",
+    "path": "/calendar/years/{year}"
+  },
+  {
+    "method": "GET",
     "operationId": "GetClearances",
     "path": "/clearances.json"
+  },
+  {
+    "method": "GET",
+    "operationId": "GetCollection",
+    "path": "/collections/{collectionId}"
   },
   {
     "method": "GET",
@@ -221,6 +276,11 @@
   },
   {
     "method": "GET",
+    "operationId": "GetImboxSeen",
+    "path": "/imbox/seen.json"
+  },
+  {
+    "method": "GET",
     "operationId": "GetJournalEntry",
     "path": "/calendar/days/{day}/journal_entry"
   },
@@ -233,6 +293,11 @@
     "method": "GET",
     "operationId": "GetMessage",
     "path": "/messages/{messageId}"
+  },
+  {
+    "method": "GET",
+    "operationId": "GetMessageEdit",
+    "path": "/messages/{messageId}/edit.json"
   },
   {
     "method": "GET",
@@ -306,6 +371,16 @@
   },
   {
     "method": "GET",
+    "operationId": "ListCalendarDays",
+    "path": "/calendar/days.json"
+  },
+  {
+    "method": "GET",
+    "operationId": "ListCalendarWeeks",
+    "path": "/calendar/weeks.json"
+  },
+  {
+    "method": "GET",
     "operationId": "ListCalendars",
     "path": "/calendars.json"
   },
@@ -331,6 +406,11 @@
   },
   {
     "method": "GET",
+    "operationId": "ListJournalEntries",
+    "path": "/calendar/journal_entries"
+  },
+  {
+    "method": "GET",
     "operationId": "ListSnippets",
     "path": "/snippets.json"
   },
@@ -343,6 +423,11 @@
     "method": "GET",
     "operationId": "ListTimeTrackCategories",
     "path": "/calendar/time_tracks/categories.json"
+  },
+  {
+    "method": "GET",
+    "operationId": "ListTimeTracks",
+    "path": "/calendar/time_tracks.json"
   },
   {
     "method": "POST",
@@ -390,6 +475,11 @@
     "path": "/topics/{topicId}/moves.json"
   },
   {
+    "method": "PATCH",
+    "operationId": "MoveWorkflowStaging",
+    "path": "/topics/{topicId}/workflows/{workflowId}/stagings"
+  },
+  {
     "method": "POST",
     "operationId": "MutePostings",
     "path": "/postings/mutings.json"
@@ -403,6 +493,11 @@
     "method": "GET",
     "operationId": "NewEntryForward",
     "path": "/entries/{entryId}/forwards/new.json"
+  },
+  {
+    "method": "GET",
+    "operationId": "NewEntryReply",
+    "path": "/entries/{entryId}/replies/new.json"
   },
   {
     "method": "POST",
@@ -431,6 +526,11 @@
   },
   {
     "method": "POST",
+    "operationId": "SchedulePostingsBubbleUp",
+    "path": "/postings/bubble_up.json"
+  },
+  {
+    "method": "POST",
     "operationId": "StartTimeTrack",
     "path": "/calendar/ongoing_time_track.json"
   },
@@ -438,6 +538,11 @@
     "method": "POST",
     "operationId": "StopHabit",
     "path": "/calendar/habits/{habitId}/stop.json"
+  },
+  {
+    "method": "POST",
+    "operationId": "ToggleCalendar",
+    "path": "/calendars/{calendarId}/toggle"
   },
   {
     "method": "POST",
@@ -476,6 +581,11 @@
   },
   {
     "method": "PATCH",
+    "operationId": "UpdateCalendarTodo",
+    "path": "/calendar/todos/{todoId}"
+  },
+  {
+    "method": "PATCH",
     "operationId": "UpdateClearance",
     "path": "/clearances/{clearanceId}"
   },
@@ -500,6 +610,11 @@
     "path": "/contacts/{contactId}/note.json"
   },
   {
+    "method": "PUT",
+    "operationId": "UpdateFirstWeekDay",
+    "path": "/calendar/identity/first_week_day"
+  },
+  {
     "method": "PATCH",
     "operationId": "UpdateHabit",
     "path": "/calendar/habits/{habitId}"
@@ -510,6 +625,11 @@
     "path": "/calendar/days/{day}/journal_entry"
   },
   {
+    "method": "PUT",
+    "operationId": "UpdateMessage",
+    "path": "/messages/{messageId}"
+  },
+  {
     "method": "PATCH",
     "operationId": "UpdateMyClearance",
     "path": "/my/clearances/{clearanceId}"
@@ -518,6 +638,11 @@
     "method": "PATCH",
     "operationId": "UpdateSticky",
     "path": "/stickies/{stickyId}"
+  },
+  {
+    "method": "PUT",
+    "operationId": "UpdateTimeFormat",
+    "path": "/identity/time_format"
   },
   {
     "method": "PUT",

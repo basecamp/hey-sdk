@@ -20,6 +20,51 @@ func NewJournalService(client *Client) *JournalService {
 	return &JournalService{client: client}
 }
 
+// JournalPage contains one page of journal entries and the cursor for the page after it.
+// NextPage is empty on the last page.
+type JournalPage struct {
+	Entries  []generated.Recording
+	NextPage string
+}
+
+// ListPage returns journal entries newest first, optionally filtered by a search query.
+// Pass an empty page for the first page, then the NextPage of each answer.
+func (s *JournalService) ListPage(ctx context.Context, page, query string) (result *JournalPage, err error) {
+	op := OperationInfo{
+		Service: "Journal", Operation: "ListJournalEntries",
+		ResourceType: "journal_entry", IsMutation: false,
+	}
+	err = s.client.instrument(ctx, op, func(ctx context.Context) error {
+		resp, rerr := s.client.genClient().ListJournalEntriesWithResponse(ctx, journalListParams(page, query))
+		if rerr != nil {
+			return rerr
+		}
+		if cerr := CheckResponse(resp.HTTPResponse); cerr != nil {
+			return cerr
+		}
+		result = &JournalPage{}
+		if resp.JSON200 != nil {
+			result.Entries = *resp.JSON200
+		}
+		if resp.HTTPResponse != nil {
+			result.NextPage = gearedPageFromLink(resp.HTTPResponse.Header.Get("Link"))
+		}
+		return nil
+	})
+	return result, err
+}
+
+func journalListParams(page, query string) *generated.ListJournalEntriesParams {
+	params := &generated.ListJournalEntriesParams{}
+	if page != "" {
+		params.Page = &page
+	}
+	if query != "" {
+		params.Q = &query
+	}
+	return params
+}
+
 // Get returns the journal entry for a day (YYYY-MM-DD), or nil when the day has none.
 func (s *JournalService) Get(ctx context.Context, day string) (result *generated.Recording, err error) {
 	op := OperationInfo{

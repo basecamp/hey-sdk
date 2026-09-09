@@ -50,11 +50,30 @@ type SearchParams struct {
 	Attachment string
 }
 
+// SearchResults contains one page of matches and the number of the page after it, zero once
+// there is none. Search numbers its pages rather than cursoring them, so the next page is
+// followed by passing that number back as SearchParams.Page.
+type SearchResults struct {
+	Result   *generated.AdvancedSearchResult
+	NextPage int
+}
+
 // Search runs an advanced search and returns the matching threads, grouped by topic as
 // the search page shows them: the topic, your posting of it, and the entries that matched
 // (summaries; read a message with Messages().Get). The next page, if any, is followed
 // by passing Page.
-func (s *SearchService) Search(ctx context.Context, params SearchParams) (result *generated.AdvancedSearchResult, err error) {
+func (s *SearchService) Search(ctx context.Context, params SearchParams) (*generated.AdvancedSearchResult, error) {
+	results, err := s.SearchPage(ctx, params)
+	if err != nil || results == nil {
+		return nil, err
+	}
+	return results.Result, nil
+}
+
+// SearchPage runs the same search as Search and also answers which page comes next, so a
+// caller walking the results is told when it has reached the last of them rather than
+// having to ask for a page that turns out to be empty.
+func (s *SearchService) SearchPage(ctx context.Context, params SearchParams) (results *SearchResults, err error) {
 	op := OperationInfo{
 		Service: "Search", Operation: "AdvancedSearch",
 		ResourceType: "search", IsMutation: false,
@@ -67,10 +86,13 @@ func (s *SearchService) Search(ctx context.Context, params SearchParams) (result
 		if cerr := CheckResponse(resp.HTTPResponse); cerr != nil {
 			return cerr
 		}
-		result = resp.JSON200
+		results = &SearchResults{Result: resp.JSON200}
+		if resp.HTTPResponse != nil {
+			results.NextPage, _ = strconv.Atoi(gearedPageFromLink(resp.HTTPResponse.Header.Get("Link")))
+		}
 		return nil
 	})
-	return result, err
+	return results, err
 }
 
 // Filters returns the options the advanced search refine form offers: boxes, date ranges,

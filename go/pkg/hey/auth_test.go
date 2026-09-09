@@ -163,7 +163,9 @@ func TestAuthManager_IsAuthenticated_NoToken(t *testing.T) {
 }
 
 func TestAuthManager_Refresh(t *testing.T) {
+	var installID string
 	tokenServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		installID = r.FormValue("install_id")
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(200)
 		w.Write([]byte(`{"access_token":"new-token","refresh_token":"new-refresh","expires_in":3600}`))
@@ -180,6 +182,7 @@ func TestAuthManager_Refresh(t *testing.T) {
 		RefreshToken:  "old-refresh",
 		ExpiresAt:     1,
 		TokenEndpoint: tokenServer.URL,
+		InstallID:     "install-1",
 	}); err != nil {
 		t.Fatalf("Save failed: %v", err)
 	}
@@ -189,6 +192,9 @@ func TestAuthManager_Refresh(t *testing.T) {
 
 	if err := mgr.Refresh(context.Background()); err != nil {
 		t.Fatalf("Refresh failed: %v", err)
+	}
+	if installID != "install-1" {
+		t.Fatalf("expected install_id install-1 on the refresh, got %q", installID)
 	}
 
 	creds, err := store.Load(origin)
@@ -200,6 +206,29 @@ func TestAuthManager_Refresh(t *testing.T) {
 	}
 	if creds.RefreshToken != "new-refresh" {
 		t.Fatalf("expected new-refresh, got %q", creds.RefreshToken)
+	}
+}
+
+func TestAuthManager_Refresh_WithoutInstallID(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("HEY_NO_KEYRING", "1")
+	store := &CredentialStore{useKeyring: false, fallbackDir: dir}
+
+	origin := NormalizeBaseURL("https://app.hey.com")
+	if err := store.Save(origin, &Credentials{
+		AccessToken:   "old-token",
+		RefreshToken:  "old-refresh",
+		ExpiresAt:     1,
+		TokenEndpoint: "https://app.hey.com/oauth/tokens",
+	}); err != nil {
+		t.Fatalf("Save failed: %v", err)
+	}
+
+	mgr := NewAuthManagerWithStore(DefaultConfig(), http.DefaultClient, store)
+
+	err := mgr.Refresh(context.Background())
+	if err == nil || err.Error() != "No install ID stored" {
+		t.Fatalf("expected a missing install ID error, got %v", err)
 	}
 }
 

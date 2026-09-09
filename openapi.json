@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "HEY",
-    "version": "2026-08-20",
+    "version": "2026-08-21",
     "description": "HEY API",
     "contact": {
       "name": "Basecamp",
@@ -14,6 +14,99 @@
     }
   },
   "paths": {
+    "/accounts/{accountId}/domains/extenzions/{extenzionId}": {
+      "delete": {
+        "description": "Delete an extenzion. The id is the extenzion's contact id, the one its app_url\ncarries. Answers 204; forbidden when the caller cannot edit the extenzion.",
+        "operationId": "DeleteExtenzion",
+        "parameters": [
+          {
+            "name": "accountId",
+            "in": "path",
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "required": true
+          },
+          {
+            "name": "extenzionId",
+            "in": "path",
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "DeleteExtenzion 200 response"
+          },
+          "401": {
+            "description": "UnauthorizedError 401 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnauthorizedErrorResponseContent"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ForbiddenError 403 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ForbiddenErrorResponseContent"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError 404 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundErrorResponseContent"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "InternalServerError 500 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorResponseContent"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ServiceUnavailableError 503 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceUnavailableErrorResponseContent"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Extenzions"
+        ],
+        "x-hey-retry": {
+          "maxAttempts": 2,
+          "baseDelayMs": 1000,
+          "backoff": "exponential",
+          "retryOn": [
+            429,
+            503
+          ]
+        }
+      }
+    },
     "/advanced_search.json": {
       "get": {
         "description": "Get the options the advanced search refine form offers.\n\nAdvanced search: message matches grouped by topic as the search page shows them —\nthe topic, its posting id, and the matching entries as summaries (no bodies; read a\nmessage with GetMessage). Refinements are the same query parameters the page uses.\nThe next page, if any, is a Link header.",
@@ -389,6 +482,10 @@
         "tags": [
           "Boxes"
         ],
+        "x-hey-pagination": {
+          "style": "link",
+          "totalCountHeader": "X-Total-Count"
+        },
         "x-hey-retry": {
           "maxAttempts": 3,
           "baseDelayMs": 1000,
@@ -828,6 +925,106 @@
             503
           ]
         }
+      },
+      "get": {
+        "description": "Read one Set Aside group with the postings in it.\n\nThe postings are paged like a folder's: newest observed first, 30 to a page, with the\nnext page in the Link header and the total in X-Total-Count.",
+        "operationId": "GetBoxGroup",
+        "parameters": [
+          {
+            "name": "boxId",
+            "in": "path",
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "required": true
+          },
+          {
+            "name": "groupId",
+            "in": "path",
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "required": true
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "x-go-type-skip-optional-pointer": false
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "GetBoxGroup 200 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetBoxGroupResponseContent"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UnauthorizedError 401 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnauthorizedErrorResponseContent"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError 404 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundErrorResponseContent"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "InternalServerError 500 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorResponseContent"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ServiceUnavailableError 503 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceUnavailableErrorResponseContent"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Boxes"
+        ],
+        "x-hey-pagination": {
+          "style": "link",
+          "totalCountHeader": "X-Total-Count"
+        },
+        "x-hey-retry": {
+          "maxAttempts": 3,
+          "baseDelayMs": 1000,
+          "backoff": "exponential",
+          "retryOn": [
+            429,
+            503
+          ]
+        }
       }
     },
     "/boxes/{boxId}/observation.json": {
@@ -1254,6 +1451,158 @@
         }
       }
     },
+    "/calendar/days.json": {
+      "get": {
+        "description": "List the days from a date onwards. The server picks how many, so this is a window\nrather than a page: read the next one by asking from the last day's date.",
+        "operationId": "ListCalendarDays",
+        "parameters": [
+          {
+            "name": "starts_at",
+            "in": "query",
+            "description": "Date (YYYY-MM-DD) to start from. Defaults to today.",
+            "schema": {
+              "type": "string",
+              "description": "Date (YYYY-MM-DD) to start from. Defaults to today.",
+              "x-go-type-skip-optional-pointer": false
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ListCalendarDays 200 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListCalendarDaysResponseContent"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UnauthorizedError 401 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnauthorizedErrorResponseContent"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "InternalServerError 500 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorResponseContent"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ServiceUnavailableError 503 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceUnavailableErrorResponseContent"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Calendar Periods"
+        ],
+        "x-hey-retry": {
+          "maxAttempts": 3,
+          "baseDelayMs": 1000,
+          "backoff": "exponential",
+          "retryOn": [
+            429,
+            503
+          ]
+        }
+      }
+    },
+    "/calendar/days/{day}": {
+      "get": {
+        "description": "Get one day",
+        "operationId": "GetCalendarDay",
+        "parameters": [
+          {
+            "name": "day",
+            "in": "path",
+            "schema": {
+              "type": "string"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "GetCalendarDay 200 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetCalendarDayResponseContent"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UnauthorizedError 401 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnauthorizedErrorResponseContent"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError 404 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundErrorResponseContent"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "InternalServerError 500 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorResponseContent"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ServiceUnavailableError 503 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceUnavailableErrorResponseContent"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Calendar Periods"
+        ],
+        "x-hey-retry": {
+          "maxAttempts": 3,
+          "baseDelayMs": 1000,
+          "backoff": "exponential",
+          "retryOn": [
+            429,
+            503
+          ]
+        }
+      }
+    },
     "/calendar/days/{day}/habits/{habitId}/completions": {
       "delete": {
         "description": "Uncomplete a habit for a day",
@@ -1513,7 +1862,7 @@
         }
       },
       "patch": {
-        "description": "Update the journal entry for a day: writes (or creates) it and answers the entry as a\nrecording, or 204 when empty content removes it.",
+        "description": "Update the journal entry for a day: writes it, creating it if the day has none, and\nanswers the entry as a recording. Empty content removes the entry instead, and HEY then\nanswers 204 with no body — which is not this shape, so send that through the SDK's own\njournal wrapper rather than here.",
         "operationId": "UpdateJournalEntry",
         "requestBody": {
           "content": {
@@ -1602,6 +1951,174 @@
         ],
         "x-hey-retry": {
           "maxAttempts": 2,
+          "baseDelayMs": 1000,
+          "backoff": "exponential",
+          "retryOn": [
+            429,
+            503
+          ]
+        }
+      }
+    },
+    "/calendar/events/{eventId}": {
+      "delete": {
+        "description": "Delete a calendar event, cancelling it for every attendee. Answers 204.",
+        "operationId": "DeleteCalendarEvent",
+        "parameters": [
+          {
+            "name": "eventId",
+            "in": "path",
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "DeleteCalendarEvent 200 response"
+          },
+          "401": {
+            "description": "UnauthorizedError 401 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnauthorizedErrorResponseContent"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError 404 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundErrorResponseContent"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "InternalServerError 500 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorResponseContent"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ServiceUnavailableError 503 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceUnavailableErrorResponseContent"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Calendar Events"
+        ],
+        "x-hey-retry": {
+          "maxAttempts": 3,
+          "baseDelayMs": 1000,
+          "backoff": "exponential",
+          "retryOn": [
+            429,
+            503
+          ]
+        }
+      }
+    },
+    "/calendar/events/{eventId}/occurrences/{occurrence}": {
+      "delete": {
+        "description": "Delete one day of a repeating event, or that day and every one after it.\nAnswers 204. A single day becomes an exception in the series' schedule; with\napply_to_future the series is truncated at the day before, or destroyed if this\nwas its first day.",
+        "operationId": "DeleteCalendarEventOccurrence",
+        "parameters": [
+          {
+            "name": "eventId",
+            "in": "path",
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "required": true
+          },
+          {
+            "name": "occurrence",
+            "in": "path",
+            "description": "The day the occurrence falls on, as YYYY-MM-DD.",
+            "schema": {
+              "type": "string",
+              "description": "The day the occurrence falls on, as YYYY-MM-DD."
+            },
+            "required": true
+          },
+          {
+            "name": "apply_to_future",
+            "in": "query",
+            "description": "Remove this day and every one after it. Off, only this day is removed.",
+            "schema": {
+              "type": "boolean",
+              "description": "Remove this day and every one after it. Off, only this day is removed.",
+              "x-go-type-skip-optional-pointer": false
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "DeleteCalendarEventOccurrence 200 response"
+          },
+          "401": {
+            "description": "UnauthorizedError 401 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnauthorizedErrorResponseContent"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError 404 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundErrorResponseContent"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "InternalServerError 500 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorResponseContent"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ServiceUnavailableError 503 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceUnavailableErrorResponseContent"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Calendar Events"
+        ],
+        "x-hey-retry": {
+          "maxAttempts": 3,
           "baseDelayMs": 1000,
           "backoff": "exponential",
           "retryOn": [
@@ -2010,6 +2527,167 @@
         }
       }
     },
+    "/calendar/identity/first_week_day": {
+      "put": {
+        "description": "Set which day the identity's calendar weeks start on. Answers the stored\npreference. The write reaches every HEY client — web, mobile and this SDK\nread the same identity preference.",
+        "operationId": "UpdateFirstWeekDay",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateFirstWeekDayRequestContent"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "UpdateFirstWeekDay 200 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UpdateFirstWeekDayResponseContent"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "BadRequestError 400 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BadRequestErrorResponseContent"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UnauthorizedError 401 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnauthorizedErrorResponseContent"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "InternalServerError 500 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorResponseContent"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ServiceUnavailableError 503 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceUnavailableErrorResponseContent"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Identity"
+        ],
+        "x-hey-retry": {
+          "maxAttempts": 3,
+          "baseDelayMs": 1000,
+          "backoff": "exponential",
+          "retryOn": [
+            429,
+            503
+          ]
+        }
+      }
+    },
+    "/calendar/journal_entries": {
+      "get": {
+        "description": "List journal entries newest first. The next page, if any, is a Link header.\nPass q to search journal entry content.",
+        "operationId": "ListJournalEntries",
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "x-go-type-skip-optional-pointer": false
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "x-go-type-skip-optional-pointer": false
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ListJournalEntries 200 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListJournalEntriesResponseContent"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UnauthorizedError 401 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnauthorizedErrorResponseContent"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "InternalServerError 500 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorResponseContent"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ServiceUnavailableError 503 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceUnavailableErrorResponseContent"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Calendar Journal"
+        ],
+        "x-hey-pagination": {
+          "style": "link"
+        },
+        "x-hey-retry": {
+          "maxAttempts": 3,
+          "baseDelayMs": 1000,
+          "backoff": "exponential",
+          "retryOn": [
+            429,
+            503
+          ]
+        }
+      }
+    },
     "/calendar/ongoing_time_track.json": {
       "get": {
         "description": "Get the ongoing time track (404 = no active track; see ADR-004)",
@@ -2075,7 +2753,7 @@
         }
       },
       "post": {
-        "description": "Start a new time track. Takes no body: haystack's\nCalendar::OngoingTimeTracksController#create ignores request parameters and\nstarts a track with defaults; use UpdateTimeTrack to set title/notes/category.",
+        "description": "Start a new time track. Takes no body: haystack's\nCalendar::OngoingTimeTracksController#create ignores request parameters and\nstarts a track with defaults; use UpdateTimeTrack to set notes and category_title,\nwhich also stops the track.",
         "operationId": "StartTimeTrack",
         "responses": {
           "200": {
@@ -2154,6 +2832,96 @@
       }
     },
     "/calendar/time_tracks.json": {
+      "get": {
+        "description": "List tracked time — completed tracks only, newest-ended first.\n\nA running track is not here; read that with GetOngoingTimeTrack. The next page, if\nany, is a Link header, and the last page carries none, so a nil Link is the end of\nthe list rather than an error.\n\ncategory_id narrows the list to one category and 404s if the calendar has no\ncategory by that id.\n\nThe calendar's categories come back alongside the tracks, so showing or applying the\nfilter does not need ListTimeTrackCategories as well.",
+        "operationId": "ListTimeTracks",
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "x-go-type-skip-optional-pointer": false
+            }
+          },
+          {
+            "name": "category_id",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "x-go-type-skip-optional-pointer": false
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ListTimeTracks 200 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListTimeTracksResponseContent"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UnauthorizedError 401 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnauthorizedErrorResponseContent"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError 404 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundErrorResponseContent"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "InternalServerError 500 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorResponseContent"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ServiceUnavailableError 503 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceUnavailableErrorResponseContent"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Calendar Time Tracks"
+        ],
+        "x-hey-pagination": {
+          "style": "link"
+        },
+        "x-hey-retry": {
+          "maxAttempts": 3,
+          "baseDelayMs": 1000,
+          "backoff": "exponential",
+          "retryOn": [
+            429,
+            503
+          ]
+        }
+      },
       "post": {
         "description": "Record a finished stretch of time.\n\nJSON callers send the fields flat; Rails wraps them into calendar_time_track itself.",
         "operationId": "CreateTimeTrack",
@@ -2377,7 +3145,7 @@
         }
       },
       "put": {
-        "description": "Update a time track (stop by setting ends_at to current time)",
+        "description": "Update a time track (stop by setting ends_at to current time).\n\nEvery update completes the track, whether or not ends_at is sent, so this cannot\nbe used to adjust a running track: it stops it.\n\nOnly the fields sent are written, so a partial update leaves the rest of the track\nalone. A starts_at or ends_at the server cannot parse is a 400, not a 422.",
         "operationId": "UpdateTimeTrack",
         "requestBody": {
           "content": {
@@ -2407,6 +3175,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/UpdateTimeTrackResponseContent"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "BadRequestError 400 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BadRequestErrorResponseContent"
                 }
               }
             }
@@ -2628,6 +3406,105 @@
             503
           ]
         }
+      },
+      "patch": {
+        "description": "Edit a calendar todo. todoId is the recording's id, and every field of the payload\nis optional: haystack's `wrap_parameters` accepts title, focused and starts_at, and\nchanges only what is sent.",
+        "operationId": "UpdateCalendarTodo",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateCalendarTodoRequestContent"
+              }
+            }
+          },
+          "required": true
+        },
+        "parameters": [
+          {
+            "name": "todoId",
+            "in": "path",
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "UpdateCalendarTodo 200 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UpdateCalendarTodoResponseContent"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UnauthorizedError 401 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnauthorizedErrorResponseContent"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError 404 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundErrorResponseContent"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "UnprocessableEntityError 422 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnprocessableEntityErrorResponseContent"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "InternalServerError 500 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorResponseContent"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ServiceUnavailableError 503 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceUnavailableErrorResponseContent"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Calendar Todos"
+        ],
+        "x-hey-retry": {
+          "maxAttempts": 2,
+          "baseDelayMs": 1000,
+          "backoff": "exponential",
+          "retryOn": [
+            429,
+            503
+          ]
+        }
       }
     },
     "/calendar/todos/{todoId}/completions": {
@@ -2793,6 +3670,252 @@
         }
       }
     },
+    "/calendar/weeks.json": {
+      "get": {
+        "description": "List the weeks around a date — nine of them, centered on it.",
+        "operationId": "ListCalendarWeeks",
+        "parameters": [
+          {
+            "name": "starts_at",
+            "in": "query",
+            "description": "Date (YYYY-MM-DD) of the first week. Takes precedence over centered_at.",
+            "schema": {
+              "type": "string",
+              "description": "Date (YYYY-MM-DD) of the first week. Takes precedence over centered_at.",
+              "x-go-type-skip-optional-pointer": false
+            }
+          },
+          {
+            "name": "centered_at",
+            "in": "query",
+            "description": "Date (YYYY-MM-DD) to center the nine weeks on. Defaults to today.",
+            "schema": {
+              "type": "string",
+              "description": "Date (YYYY-MM-DD) to center the nine weeks on. Defaults to today.",
+              "x-go-type-skip-optional-pointer": false
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ListCalendarWeeks 200 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListCalendarWeeksResponseContent"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UnauthorizedError 401 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnauthorizedErrorResponseContent"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "InternalServerError 500 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorResponseContent"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ServiceUnavailableError 503 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceUnavailableErrorResponseContent"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Calendar Periods"
+        ],
+        "x-hey-retry": {
+          "maxAttempts": 3,
+          "baseDelayMs": 1000,
+          "backoff": "exponential",
+          "retryOn": [
+            429,
+            503
+          ]
+        }
+      }
+    },
+    "/calendar/weeks/{week}": {
+      "get": {
+        "description": "Get one week",
+        "operationId": "GetCalendarWeek",
+        "parameters": [
+          {
+            "name": "week",
+            "in": "path",
+            "description": "Any date in the week (YYYY-MM-DD)",
+            "schema": {
+              "type": "string",
+              "description": "Any date in the week (YYYY-MM-DD)"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "GetCalendarWeek 200 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetCalendarWeekResponseContent"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UnauthorizedError 401 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnauthorizedErrorResponseContent"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError 404 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundErrorResponseContent"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "InternalServerError 500 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorResponseContent"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ServiceUnavailableError 503 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceUnavailableErrorResponseContent"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Calendar Periods"
+        ],
+        "x-hey-retry": {
+          "maxAttempts": 3,
+          "baseDelayMs": 1000,
+          "backoff": "exponential",
+          "retryOn": [
+            429,
+            503
+          ]
+        }
+      }
+    },
+    "/calendar/years/{year}": {
+      "get": {
+        "description": "Get one year as the grid it is drawn as",
+        "operationId": "GetCalendarYear",
+        "parameters": [
+          {
+            "name": "year",
+            "in": "path",
+            "description": "Any date in the year (YYYY-MM-DD)",
+            "schema": {
+              "type": "string",
+              "description": "Any date in the year (YYYY-MM-DD)"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "GetCalendarYear 200 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetCalendarYearResponseContent"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UnauthorizedError 401 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnauthorizedErrorResponseContent"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError 404 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundErrorResponseContent"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "InternalServerError 500 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorResponseContent"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ServiceUnavailableError 503 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceUnavailableErrorResponseContent"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Calendar Periods"
+        ],
+        "x-hey-retry": {
+          "maxAttempts": 3,
+          "baseDelayMs": 1000,
+          "backoff": "exponential",
+          "retryOn": [
+            429,
+            503
+          ]
+        }
+      }
+    },
     "/calendars.json": {
       "get": {
         "description": "List calendars",
@@ -2882,6 +4005,14 @@
               "type": "string",
               "x-go-type-skip-optional-pointer": false
             }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "x-go-type-skip-optional-pointer": false
+            }
           }
         ],
         "responses": {
@@ -2944,6 +4075,87 @@
         },
         "x-hey-retry": {
           "maxAttempts": 3,
+          "baseDelayMs": 1000,
+          "backoff": "exponential",
+          "retryOn": [
+            429,
+            503
+          ]
+        }
+      }
+    },
+    "/calendars/{calendarId}/toggle": {
+      "post": {
+        "description": "Switch a calendar in or out of the reader's selection, and answer the selection it\nleft behind. The selection is what every period read is scoped to, so a toggle is how\na client changes which calendars a day, week or year is drawn from.",
+        "operationId": "ToggleCalendar",
+        "parameters": [
+          {
+            "name": "calendarId",
+            "in": "path",
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ToggleCalendar 200 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToggleCalendarResponseContent"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UnauthorizedError 401 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnauthorizedErrorResponseContent"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError 404 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundErrorResponseContent"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "InternalServerError 500 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorResponseContent"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ServiceUnavailableError 503 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceUnavailableErrorResponseContent"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Calendars"
+        ],
+        "x-hey-retry": {
+          "maxAttempts": 2,
           "baseDelayMs": 1000,
           "backoff": "exponential",
           "retryOn": [
@@ -3404,6 +4616,97 @@
       }
     },
     "/collections/{collectionId}": {
+      "get": {
+        "description": "Get a collection and one page of its active, accessible threads",
+        "operationId": "GetCollection",
+        "parameters": [
+          {
+            "name": "collectionId",
+            "in": "path",
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "required": true
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "x-go-type-skip-optional-pointer": false
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "GetCollection 200 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetCollectionResponseContent"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UnauthorizedError 401 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnauthorizedErrorResponseContent"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError 404 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundErrorResponseContent"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "InternalServerError 500 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorResponseContent"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ServiceUnavailableError 503 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceUnavailableErrorResponseContent"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Collections"
+        ],
+        "x-hey-pagination": {
+          "style": "link",
+          "totalCountHeader": "X-Total-Count"
+        },
+        "x-hey-retry": {
+          "maxAttempts": 3,
+          "baseDelayMs": 1000,
+          "backoff": "exponential",
+          "retryOn": [
+            429,
+            503
+          ]
+        }
+      },
       "patch": {
         "description": "Rename a collection or change its summary",
         "operationId": "UpdateCollection",
@@ -3741,7 +5044,7 @@
         }
       },
       "get": {
-        "description": "Get a contact",
+        "description": "Get a contact, with a page of the threads they are on",
         "operationId": "GetContact",
         "parameters": [
           {
@@ -3752,6 +5055,14 @@
               "format": "int64"
             },
             "required": true
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "x-go-type-skip-optional-pointer": false
+            }
           }
         ],
         "responses": {
@@ -3809,6 +5120,10 @@
         "tags": [
           "Contacts"
         ],
+        "x-hey-pagination": {
+          "style": "link",
+          "totalCountHeader": "X-Total-Count"
+        },
         "x-hey-retry": {
           "maxAttempts": 3,
           "baseDelayMs": 1000,
@@ -4586,6 +5901,80 @@
         }
       }
     },
+    "/entries/drafts/{entryId}": {
+      "delete": {
+        "description": "Trash a draft (Entries::DraftsController#destroy). The id is the draft's entry id,\nas ListDrafts reports it.",
+        "operationId": "DeleteDraft",
+        "parameters": [
+          {
+            "name": "entryId",
+            "in": "path",
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "DeleteDraft 200 response"
+          },
+          "401": {
+            "description": "UnauthorizedError 401 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnauthorizedErrorResponseContent"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError 404 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundErrorResponseContent"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "InternalServerError 500 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorResponseContent"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ServiceUnavailableError 503 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceUnavailableErrorResponseContent"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Entries"
+        ],
+        "x-hey-retry": {
+          "maxAttempts": 2,
+          "baseDelayMs": 1000,
+          "backoff": "exponential",
+          "retryOn": [
+            429,
+            503
+          ]
+        }
+      }
+    },
     "/entries/{entryId}/forwards/new.json": {
       "get": {
         "description": "Get a prefilled forward of an entry: subject, quoted body and blank recipients.\nSend it with CreateMessage once the recipients are filled in.",
@@ -4752,6 +6141,87 @@
         ],
         "x-hey-retry": {
           "maxAttempts": 2,
+          "baseDelayMs": 1000,
+          "backoff": "exponential",
+          "retryOn": [
+            429,
+            503
+          ]
+        }
+      }
+    },
+    "/entries/{entryId}/replies/new.json": {
+      "get": {
+        "description": "Get a prefilled reply to an entry: the quoted body and, in addressed, the\nparticipating contacts a reply goes to as HEY computes them — the sender moved onto\nthe To line and the acting user's own addresses, aliases and catch-alls excluded.",
+        "operationId": "NewEntryReply",
+        "parameters": [
+          {
+            "name": "entryId",
+            "in": "path",
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "NewEntryReply 200 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NewEntryReplyResponseContent"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UnauthorizedError 401 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnauthorizedErrorResponseContent"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError 404 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundErrorResponseContent"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "InternalServerError 500 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorResponseContent"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ServiceUnavailableError 503 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceUnavailableErrorResponseContent"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Entries"
+        ],
+        "x-hey-retry": {
+          "maxAttempts": 3,
           "baseDelayMs": 1000,
           "backoff": "exponential",
           "retryOn": [
@@ -5058,6 +6528,76 @@
         }
       }
     },
+    "/identity/time_format": {
+      "put": {
+        "description": "Set whether HEY renders times on a 12-hour or a 24-hour clock. Answers the\nstored preference. The parameter is the web toggle's, said honestly: true\nfor the 24-hour clock, false for the 12-hour one.",
+        "operationId": "UpdateTimeFormat",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateTimeFormatRequestContent"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "UpdateTimeFormat 200 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UpdateTimeFormatResponseContent"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UnauthorizedError 401 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnauthorizedErrorResponseContent"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "InternalServerError 500 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorResponseContent"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ServiceUnavailableError 503 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceUnavailableErrorResponseContent"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Identity"
+        ],
+        "x-hey-retry": {
+          "maxAttempts": 3,
+          "baseDelayMs": 1000,
+          "backoff": "exponential",
+          "retryOn": [
+            429,
+            503
+          ]
+        }
+      }
+    },
     "/imbox.json": {
       "get": {
         "description": "Get the Imbox",
@@ -5128,9 +6668,79 @@
         }
       }
     },
+    "/imbox/seen.json": {
+      "get": {
+        "description": "Get the Imbox's Previously Seen postings",
+        "operationId": "GetImboxSeen",
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "x-go-type-skip-optional-pointer": false
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "GetImboxSeen 200 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetImboxSeenResponseContent"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UnauthorizedError 401 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnauthorizedErrorResponseContent"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "InternalServerError 500 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorResponseContent"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ServiceUnavailableError 503 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceUnavailableErrorResponseContent"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Boxes"
+        ],
+        "x-hey-retry": {
+          "maxAttempts": 3,
+          "baseDelayMs": 1000,
+          "backoff": "exponential",
+          "retryOn": [
+            429,
+            503
+          ]
+        }
+      }
+    },
     "/messages.json": {
       "post": {
-        "description": "Create a new message (start a new topic).\nThe acting sender ID must be included; the Go SDK resolves this automatically.",
+        "description": "Create a new message (start a new topic).\nThe acting sender ID must be included; the Go SDK resolves this automatically.\nEvery message is created drafted on HEY's side; without entry.status the server\ndelivers it, while entry.status \"drafted\" leaves it as a draft and answers\n204 with a Location header naming /messages/{entry_id}.",
         "operationId": "CreateMessage",
         "requestBody": {
           "content": {
@@ -5223,6 +6833,182 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/GetMessageResponseContent"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UnauthorizedError 401 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnauthorizedErrorResponseContent"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError 404 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundErrorResponseContent"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "InternalServerError 500 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorResponseContent"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ServiceUnavailableError 503 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceUnavailableErrorResponseContent"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Messages"
+        ],
+        "x-hey-retry": {
+          "maxAttempts": 3,
+          "baseDelayMs": 1000,
+          "backoff": "exponential",
+          "retryOn": [
+            429,
+            503
+          ]
+        }
+      },
+      "put": {
+        "description": "Revise a message entry (MessagesController#update). With entry.status \"drafted\" the\nentry is saved as a draft (204 + Location, like CreateMessage); without it a draft is\ndelivered through the undo-delay window. A trashed draft is silently restored first.\nThe revision is not a patch: subject, content and any scheduled delivery are rewritten\nfrom this request (an omitted scheduled delivery clears one), while recipients are\nreplaced only when entry.addressed is present.\n\nNot naturally idempotent despite the PUT: without the drafted status this request\n*delivers*, so a transparent retry after an ambiguous first attempt could send the\nmessage again. The client must not retry it.",
+        "operationId": "UpdateMessage",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateMessageRequestContent"
+              }
+            }
+          },
+          "required": true
+        },
+        "parameters": [
+          {
+            "name": "messageId",
+            "in": "path",
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "UpdateMessage 200 response"
+          },
+          "401": {
+            "description": "UnauthorizedError 401 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnauthorizedErrorResponseContent"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError 404 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundErrorResponseContent"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "UnprocessableEntityError 422 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnprocessableEntityErrorResponseContent"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "InternalServerError 500 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorResponseContent"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ServiceUnavailableError 503 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceUnavailableErrorResponseContent"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Messages"
+        ],
+        "x-hey-idempotent": {
+          "natural": false
+        },
+        "x-hey-retry": {
+          "maxAttempts": 2,
+          "baseDelayMs": 1000,
+          "backoff": "exponential",
+          "retryOn": [
+            429,
+            503
+          ]
+        }
+      }
+    },
+    "/messages/{messageId}/edit.json": {
+      "get": {
+        "description": "A draft's editable state: content, recipients and scheduled delivery as the\ncomposer would load them (GET /messages/{id}/edit).",
+        "operationId": "GetMessageEdit",
+        "parameters": [
+          {
+            "name": "messageId",
+            "in": "path",
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "GetMessageEdit 200 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetMessageEditResponseContent"
                 }
               }
             }
@@ -5742,6 +7528,77 @@
         "responses": {
           "200": {
             "description": "CancelPostingsBubbleUp 200 response"
+          },
+          "401": {
+            "description": "UnauthorizedError 401 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnauthorizedErrorResponseContent"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError 404 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundErrorResponseContent"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "InternalServerError 500 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorResponseContent"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ServiceUnavailableError 503 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceUnavailableErrorResponseContent"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Postings"
+        ],
+        "x-hey-retry": {
+          "maxAttempts": 2,
+          "baseDelayMs": 1000,
+          "backoff": "exponential",
+          "retryOn": [
+            429,
+            503
+          ]
+        }
+      },
+      "post": {
+        "description": "Schedule a selection of postings to bubble up.\n\nHEY's scheduler takes a `slot` — today, tomorrow, weekend, next_week, surprise_me\nor custom — and a custom slot also carries the `date` (YYYY-MM-DD) to bubble up on,\nat HEY's morning hour. The today slot lands at HEY's evening hour of the current\nday instead, and both hours are UTC over JSON. An unknown slot, or a custom slot\nwithout a date, is a server error rather than a validation response, so callers\ncheck both first. Responds 201 Created.",
+        "operationId": "SchedulePostingsBubbleUp",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SchedulePostingsBubbleUpRequestContent"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "SchedulePostingsBubbleUp 200 response"
           },
           "401": {
             "description": "UnauthorizedError 401 response",
@@ -6591,6 +8448,99 @@
         ],
         "x-hey-retry": {
           "maxAttempts": 2,
+          "baseDelayMs": 1000,
+          "backoff": "exponential",
+          "retryOn": [
+            429,
+            503
+          ]
+        }
+      }
+    },
+    "/postings/{postingId}/bundles/unseen.json": {
+      "get": {
+        "description": "List the unseen postings inside a bundle posting.\n\nA bundle posting groups one contact's unseen mail; this is its contents — the member\npostings, newest first, paged by cursor like a box. The posting must be a bundle.",
+        "operationId": "GetBundleUnseenPostings",
+        "parameters": [
+          {
+            "name": "postingId",
+            "in": "path",
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "required": true
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "x-go-type-skip-optional-pointer": false
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "GetBundleUnseenPostings 200 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetBundleUnseenPostingsResponseContent"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UnauthorizedError 401 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnauthorizedErrorResponseContent"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError 404 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundErrorResponseContent"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "InternalServerError 500 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorResponseContent"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ServiceUnavailableError 503 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceUnavailableErrorResponseContent"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Postings"
+        ],
+        "x-hey-pagination": {
+          "style": "link",
+          "totalCountHeader": "X-Total-Count"
+        },
+        "x-hey-retry": {
+          "maxAttempts": 3,
           "baseDelayMs": 1000,
           "backoff": "exponential",
           "retryOn": [
@@ -8249,6 +10199,202 @@
         }
       }
     },
+    "/topics/{topicId}/workflows/{workflowId}/stagings": {
+      "patch": {
+        "description": "Move a staged topic to a workflow stage.",
+        "operationId": "MoveWorkflowStaging",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MoveWorkflowStagingRequestContent"
+              }
+            }
+          },
+          "required": true
+        },
+        "parameters": [
+          {
+            "name": "topicId",
+            "in": "path",
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "required": true
+          },
+          {
+            "name": "workflowId",
+            "in": "path",
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "MoveWorkflowStaging 200 response"
+          },
+          "401": {
+            "description": "UnauthorizedError 401 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnauthorizedErrorResponseContent"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ForbiddenError 403 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ForbiddenErrorResponseContent"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError 404 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundErrorResponseContent"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "UnprocessableEntityError 422 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnprocessableEntityErrorResponseContent"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "InternalServerError 500 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorResponseContent"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ServiceUnavailableError 503 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceUnavailableErrorResponseContent"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Workflows"
+        ]
+      },
+      "post": {
+        "description": "Add a topic to a workflow. HEY places it in the first stage.",
+        "operationId": "CreateWorkflowStaging",
+        "parameters": [
+          {
+            "name": "topicId",
+            "in": "path",
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "required": true
+          },
+          {
+            "name": "workflowId",
+            "in": "path",
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "CreateWorkflowStaging 200 response"
+          },
+          "401": {
+            "description": "UnauthorizedError 401 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnauthorizedErrorResponseContent"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ForbiddenError 403 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ForbiddenErrorResponseContent"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError 404 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundErrorResponseContent"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "UnprocessableEntityError 422 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnprocessableEntityErrorResponseContent"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "InternalServerError 500 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorResponseContent"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ServiceUnavailableError 503 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceUnavailableErrorResponseContent"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Workflows"
+        ]
+      }
+    },
     "/workflows/{workflowId}": {
       "get": {
         "description": "A workflow with its stages",
@@ -8361,7 +10507,8 @@
             "x-go-type": "types.Date",
             "x-go-type-import": {
               "path": "github.com/basecamp/hey-sdk/go/pkg/types"
-            }
+            },
+            "x-omitzero": true
           },
           "burner": {
             "type": "boolean"
@@ -8589,6 +10736,29 @@
           "id"
         ]
       },
+      "BoxGroupWithPostings": {
+        "type": "object",
+        "description": "BoxGroupWithPostings — a Set Aside group with one page of the postings in it",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "box_id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "postings": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Posting"
+            }
+          }
+        },
+        "required": [
+          "id"
+        ]
+      },
       "BoxGroupsResponse": {
         "type": "object",
         "description": "BoxGroupsResponse — the wrapper the groups index answers with",
@@ -8663,7 +10833,8 @@
             "x-go-type": "time.Time",
             "x-go-type-import": {
               "path": "time"
-            }
+            },
+            "x-omitzero": true
           },
           "surprise_me": {
             "type": "boolean"
@@ -8816,7 +10987,8 @@
             "x-go-type": "time.Time",
             "x-go-type-import": {
               "path": "time"
-            }
+            },
+            "x-omitzero": true
           },
           "updated_at": {
             "type": "string",
@@ -8825,7 +10997,8 @@
             "x-go-type": "time.Time",
             "x-go-type-import": {
               "path": "time"
-            }
+            },
+            "x-omitzero": true
           },
           "owned": {
             "type": "boolean"
@@ -8856,6 +11029,20 @@
           "id"
         ]
       },
+      "CalendarDayListPayload": {
+        "type": "object",
+        "properties": {
+          "days": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CalendarPeriod"
+            }
+          }
+        },
+        "required": [
+          "days"
+        ]
+      },
       "CalendarListPayload": {
         "type": "object",
         "description": "CalendarListPayload",
@@ -8868,8 +11055,53 @@
           },
           "calendar_changes_url": {
             "type": "string"
+          },
+          "selected_calendar_ids": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "description": "The calendars every period read is drawn from. ToggleCalendar changes this and\nanswers the new one, so a client reads it here once — to open on what is already\non — and takes it from the toggle after that."
           }
         }
+      },
+      "CalendarPeriod": {
+        "type": "object",
+        "description": "CalendarPeriod — a day or a week: its bounds and everything in it, grouped by type.\nRecurring events arrive expanded into the occurrences that fall inside the window,\nwhich is what makes this a different answer than the recordings a calendar lists.",
+        "properties": {
+          "starts_at": {
+            "type": "string",
+            "description": "ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)",
+            "format": "date-time",
+            "x-go-type": "time.Time",
+            "x-go-type-import": {
+              "path": "time"
+            }
+          },
+          "ends_at": {
+            "type": "string",
+            "description": "ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)",
+            "format": "date-time",
+            "x-go-type": "time.Time",
+            "x-go-type-import": {
+              "path": "time"
+            }
+          },
+          "kind": {
+            "type": "string",
+            "description": "\"day\" or \"week\""
+          },
+          "recordings": {
+            "$ref": "#/components/schemas/CalendarRecordingsResponse"
+          }
+        },
+        "required": [
+          "ends_at",
+          "kind",
+          "recordings",
+          "starts_at"
+        ]
       },
       "CalendarRecordingsResponse": {
         "type": "object",
@@ -8884,6 +11116,45 @@
         },
         "description": "CalendarRecordingsResponse — recordings grouped by type"
       },
+      "CalendarSelection": {
+        "type": "object",
+        "description": "CalendarSelection — the calendars a toggle left switched on",
+        "properties": {
+          "selected_calendar_ids": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        },
+        "required": [
+          "selected_calendar_ids"
+        ]
+      },
+      "CalendarTodoChanges": {
+        "type": "object",
+        "description": "Nothing here is required: a rename sends a title and leaves the day alone.",
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "starts_at": {
+            "type": "string",
+            "description": "Date string (YYYY-MM-DD). The day the todo is filed on.",
+            "x-go-type": "time.Time",
+            "x-go-type-import": {
+              "path": "time"
+            },
+            "x-go-type-skip-optional-pointer": false,
+            "x-omitzero": true
+          },
+          "focused": {
+            "type": "boolean",
+            "x-go-type-skip-optional-pointer": false
+          }
+        }
+      },
       "CalendarTodoPayload": {
         "type": "object",
         "properties": {
@@ -8897,11 +11168,26 @@
             "x-go-type-import": {
               "path": "time"
             },
-            "x-go-type-skip-optional-pointer": false
+            "x-go-type-skip-optional-pointer": false,
+            "x-omitzero": true
           }
         },
         "required": [
           "title"
+        ]
+      },
+      "CalendarWeekListPayload": {
+        "type": "object",
+        "properties": {
+          "weeks": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CalendarPeriod"
+            }
+          }
+        },
+        "required": [
+          "weeks"
         ]
       },
       "CalendarWithRecordingChangesUrl": {
@@ -8915,6 +11201,81 @@
             "type": "string"
           }
         }
+      },
+      "CalendarYear": {
+        "type": "object",
+        "description": "CalendarYear — the grid a year is drawn as. A year carries one entry per day plus the\nevents that span more than one, not every recording it holds: a year's worth of\nexpanded occurrences is not something a client asks for by opening a year.",
+        "properties": {
+          "starts_at": {
+            "type": "string",
+            "description": "ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)",
+            "format": "date-time",
+            "x-go-type": "time.Time",
+            "x-go-type-import": {
+              "path": "time"
+            }
+          },
+          "ends_at": {
+            "type": "string",
+            "description": "ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)",
+            "format": "date-time",
+            "x-go-type": "time.Time",
+            "x-go-type-import": {
+              "path": "time"
+            }
+          },
+          "kind": {
+            "type": "string",
+            "description": "\"year\""
+          },
+          "padding_days_count": {
+            "type": "integer",
+            "description": "Days between the reader's week start and January 1st, so the grid lines up",
+            "format": "int32"
+          },
+          "days": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CalendarYearDay"
+            }
+          },
+          "spanned_events": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Recording"
+            },
+            "description": "All-day and multi-day events, oldest first"
+          }
+        },
+        "required": [
+          "days",
+          "ends_at",
+          "kind",
+          "padding_days_count",
+          "spanned_events",
+          "starts_at"
+        ]
+      },
+      "CalendarYearDay": {
+        "type": "object",
+        "properties": {
+          "starts_at": {
+            "type": "string",
+            "description": "ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)",
+            "format": "date-time",
+            "x-go-type": "time.Time",
+            "x-go-type-import": {
+              "path": "time"
+            }
+          },
+          "backgrounded": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "backgrounded",
+          "starts_at"
+        ]
       },
       "Clearance": {
         "type": "object",
@@ -8934,7 +11295,8 @@
             "x-go-type": "time.Time",
             "x-go-type-import": {
               "path": "time"
-            }
+            },
+            "x-omitzero": true
           },
           "updated_at": {
             "type": "string",
@@ -8943,7 +11305,8 @@
             "x-go-type": "time.Time",
             "x-go-type-import": {
               "path": "time"
-            }
+            },
+            "x-omitzero": true
           },
           "petitioner": {
             "$ref": "#/components/schemas/Contact"
@@ -9004,7 +11367,8 @@
             "x-go-type": "time.Time",
             "x-go-type-import": {
               "path": "time"
-            }
+            },
+            "x-omitzero": true
           },
           "updated_at": {
             "type": "string",
@@ -9013,7 +11377,8 @@
             "x-go-type": "time.Time",
             "x-go-type-import": {
               "path": "time"
-            }
+            },
+            "x-omitzero": true
           },
           "entry_id": {
             "type": "integer",
@@ -9064,7 +11429,8 @@
             "x-go-type": "time.Time",
             "x-go-type-import": {
               "path": "time"
-            }
+            },
+            "x-omitzero": true
           },
           "updated_at": {
             "type": "string",
@@ -9073,7 +11439,8 @@
             "x-go-type": "time.Time",
             "x-go-type-import": {
               "path": "time"
-            }
+            },
+            "x-omitzero": true
           },
           "app_url": {
             "type": "string"
@@ -9093,6 +11460,51 @@
             "type": "string"
           }
         }
+      },
+      "CollectionWithPostings": {
+        "type": "object",
+        "description": "CollectionWithPostings — collection detail with its threads as posting objects",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "name": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string",
+            "description": "ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)",
+            "format": "date-time",
+            "x-go-type": "time.Time",
+            "x-go-type-import": {
+              "path": "time"
+            },
+            "x-omitzero": true
+          },
+          "updated_at": {
+            "type": "string",
+            "description": "ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)",
+            "format": "date-time",
+            "x-go-type": "time.Time",
+            "x-go-type-import": {
+              "path": "time"
+            },
+            "x-omitzero": true
+          },
+          "app_url": {
+            "type": "string"
+          },
+          "postings": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Posting"
+            }
+          }
+        },
+        "required": [
+          "id"
+        ]
       },
       "CompleteCalendarTodoResponseContent": {
         "$ref": "#/components/schemas/Recording"
@@ -9146,7 +11558,8 @@
             "x-go-type": "time.Time",
             "x-go-type-import": {
               "path": "time"
-            }
+            },
+            "x-omitzero": true
           },
           "name": {
             "type": "string"
@@ -9196,7 +11609,8 @@
             "x-go-type": "time.Time",
             "x-go-type-import": {
               "path": "time"
-            }
+            },
+            "x-omitzero": true
           },
           "name": {
             "type": "string"
@@ -9236,6 +11650,17 @@
           },
           "domain": {
             "$ref": "#/components/schemas/Domain"
+          },
+          "entries_title": {
+            "type": "string",
+            "description": "The heading HEY gives the thread list, e.g. \"All threads with GitHub\""
+          },
+          "postings": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Posting"
+            },
+            "description": "One page of the threads this contact is on, newest first"
           }
         },
         "required": [
@@ -9448,7 +11873,7 @@
       },
       "CreateReplyRequestContent": {
         "type": "object",
-        "description": "Wire format: {acting_sender_id, message: {content}, entry: {addressed: {directly: [...]}}}\nentry.addressed is optional on the wire but a reply posted without it is saved as a\ndraft rather than delivered — HEY does not reply-all for the caller. Resolve the\nthread's recipients first and always send them.",
+        "description": "Wire format: {acting_sender_id, message: {subject, content}, entry: {addressed: {directly: [...]}}}\nentry.addressed is optional on the wire but a reply posted without it is saved as a\ndraft rather than delivered — HEY does not reply-all for the caller. Resolve the\nthread's recipients first and always send them.",
         "properties": {
           "acting_sender_id": {
             "type": "integer",
@@ -9492,7 +11917,8 @@
             "x-go-type": "time.Time",
             "x-go-type-import": {
               "path": "time"
-            }
+            },
+            "x-omitzero": true
           }
         },
         "required": [
@@ -9605,7 +12031,8 @@
             "x-go-type": "time.Time",
             "x-go-type-import": {
               "path": "time"
-            }
+            },
+            "x-omitzero": true
           },
           "creator": {
             "$ref": "#/components/schemas/Contact"
@@ -9639,7 +12066,8 @@
             "x-go-type": "time.Time",
             "x-go-type-import": {
               "path": "time"
-            }
+            },
+            "x-omitzero": true
           }
         },
         "required": [
@@ -9661,7 +12089,8 @@
             "x-go-type": "time.Time",
             "x-go-type-import": {
               "path": "time"
-            }
+            },
+            "x-omitzero": true
           },
           "updated_at": {
             "type": "string",
@@ -9670,7 +12099,8 @@
             "x-go-type": "time.Time",
             "x-go-type-import": {
               "path": "time"
-            }
+            },
+            "x-omitzero": true
           },
           "creator": {
             "$ref": "#/components/schemas/Contact"
@@ -9753,6 +12183,31 @@
           "posting_ids"
         ]
       },
+      "FirstWeekDayParams": {
+        "type": "object",
+        "properties": {
+          "first_week_day": {
+            "type": "string",
+            "description": "Lowercase day name, sunday through saturday."
+          }
+        },
+        "required": [
+          "first_week_day"
+        ]
+      },
+      "FirstWeekDayPreference": {
+        "type": "object",
+        "properties": {
+          "first_week_day": {
+            "type": "integer",
+            "description": "0 is Sunday through 6 Saturday, as GetIdentity serves it.",
+            "format": "int32"
+          }
+        },
+        "required": [
+          "first_week_day"
+        ]
+      },
       "Folder": {
         "type": "object",
         "description": "Folder — email folder",
@@ -9771,7 +12226,8 @@
             "x-go-type": "time.Time",
             "x-go-type-import": {
               "path": "time"
-            }
+            },
+            "x-omitzero": true
           },
           "updated_at": {
             "type": "string",
@@ -9780,7 +12236,8 @@
             "x-go-type": "time.Time",
             "x-go-type-import": {
               "path": "time"
-            }
+            },
+            "x-omitzero": true
           },
           "app_url": {
             "type": "string"
@@ -9822,7 +12279,8 @@
             "x-go-type": "time.Time",
             "x-go-type-import": {
               "path": "time"
-            }
+            },
+            "x-omitzero": true
           },
           "updated_at": {
             "type": "string",
@@ -9831,7 +12289,8 @@
             "x-go-type": "time.Time",
             "x-go-type-import": {
               "path": "time"
-            }
+            },
+            "x-omitzero": true
           },
           "app_url": {
             "type": "string"
@@ -9864,6 +12323,9 @@
       "GetAsideboxResponseContent": {
         "$ref": "#/components/schemas/BoxShowResponse"
       },
+      "GetBoxGroupResponseContent": {
+        "$ref": "#/components/schemas/BoxGroupWithPostings"
+      },
       "GetBoxPostingChangesResponseContent": {
         "type": "object",
         "properties": {
@@ -9893,11 +12355,41 @@
       "GetBubbleboxResponseContent": {
         "$ref": "#/components/schemas/BoxShowResponse"
       },
+      "GetBundleUnseenPostingsResponseContent": {
+        "type": "object",
+        "properties": {
+          "contact": {
+            "$ref": "#/components/schemas/Contact"
+          },
+          "postings": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Posting"
+            }
+          }
+        },
+        "required": [
+          "contact",
+          "postings"
+        ]
+      },
+      "GetCalendarDayResponseContent": {
+        "$ref": "#/components/schemas/CalendarPeriod"
+      },
       "GetCalendarRecordingsResponseContent": {
         "$ref": "#/components/schemas/CalendarRecordingsResponse"
       },
+      "GetCalendarWeekResponseContent": {
+        "$ref": "#/components/schemas/CalendarPeriod"
+      },
+      "GetCalendarYearResponseContent": {
+        "$ref": "#/components/schemas/CalendarYear"
+      },
       "GetClearancesResponseContent": {
         "$ref": "#/components/schemas/ClearanceSummary"
+      },
+      "GetCollectionResponseContent": {
+        "$ref": "#/components/schemas/CollectionWithPostings"
       },
       "GetContactNoteResponseContent": {
         "$ref": "#/components/schemas/ContactNote"
@@ -9920,11 +12412,17 @@
       "GetImboxResponseContent": {
         "$ref": "#/components/schemas/BoxShowResponse"
       },
+      "GetImboxSeenResponseContent": {
+        "$ref": "#/components/schemas/BoxShowResponse"
+      },
       "GetJournalEntryResponseContent": {
         "$ref": "#/components/schemas/Recording"
       },
       "GetLaterboxResponseContent": {
         "$ref": "#/components/schemas/BoxShowResponse"
+      },
+      "GetMessageEditResponseContent": {
+        "$ref": "#/components/schemas/MessageEditState"
       },
       "GetMessageResponseContent": {
         "$ref": "#/components/schemas/Message"
@@ -10104,6 +12602,12 @@
           "$ref": "#/components/schemas/Box"
         }
       },
+      "ListCalendarDaysResponseContent": {
+        "$ref": "#/components/schemas/CalendarDayListPayload"
+      },
+      "ListCalendarWeeksResponseContent": {
+        "$ref": "#/components/schemas/CalendarWeekListPayload"
+      },
       "ListCalendarsResponseContent": {
         "$ref": "#/components/schemas/CalendarListPayload"
       },
@@ -10131,6 +12635,12 @@
           "$ref": "#/components/schemas/DraftMessage"
         }
       },
+      "ListJournalEntriesResponseContent": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/Recording"
+        }
+      },
       "ListSnippetsResponseContent": {
         "type": "array",
         "items": {
@@ -10148,6 +12658,9 @@
         "items": {
           "$ref": "#/components/schemas/TimeTrackCategory"
         }
+      },
+      "ListTimeTracksResponseContent": {
+        "$ref": "#/components/schemas/TrackedTime"
       },
       "MarkPostingsRequestContent": {
         "type": "object",
@@ -10179,7 +12692,8 @@
             "x-go-type": "time.Time",
             "x-go-type-import": {
               "path": "time"
-            }
+            },
+            "x-omitzero": true
           },
           "updated_at": {
             "type": "string",
@@ -10188,7 +12702,8 @@
             "x-go-type": "time.Time",
             "x-go-type-import": {
               "path": "time"
-            }
+            },
+            "x-omitzero": true
           },
           "url": {
             "type": "string"
@@ -10221,7 +12736,8 @@
             "x-go-type": "time.Time",
             "x-go-type-import": {
               "path": "time"
-            }
+            },
+            "x-omitzero": true
           },
           "posting": {
             "$ref": "#/components/schemas/MessagePostingContext"
@@ -10285,8 +12801,87 @@
           },
           "show_addressed_selector": {
             "type": "boolean"
+          },
+          "posting": {
+            "$ref": "#/components/schemas/MessagePostingContext"
+          },
+          "addressed_sender": {
+            "$ref": "#/components/schemas/AddressedSender"
           }
         }
+      },
+      "MessageEditState": {
+        "type": "object",
+        "description": "MessageEditState — a saved draft as the editor sees it. The same compose fields as\nMessageDraft, plus the identity and scheduling a saved entry carries.",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "created_at": {
+            "type": "string",
+            "description": "ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)",
+            "format": "date-time",
+            "x-go-type": "time.Time",
+            "x-go-type-import": {
+              "path": "time"
+            },
+            "x-omitzero": true
+          },
+          "updated_at": {
+            "type": "string",
+            "description": "ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)",
+            "format": "date-time",
+            "x-go-type": "time.Time",
+            "x-go-type-import": {
+              "path": "time"
+            },
+            "x-omitzero": true
+          },
+          "url": {
+            "type": "string"
+          },
+          "creator": {
+            "$ref": "#/components/schemas/Contact"
+          },
+          "sender": {
+            "$ref": "#/components/schemas/Contact"
+          },
+          "is_reply": {
+            "type": "boolean"
+          },
+          "subject": {
+            "type": "string"
+          },
+          "content": {
+            "type": "string"
+          },
+          "addressed": {
+            "$ref": "#/components/schemas/Addressed"
+          },
+          "show_addressed_selector": {
+            "type": "boolean"
+          },
+          "scheduled_delivery_at": {
+            "type": "string",
+            "description": "ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)",
+            "format": "date-time",
+            "x-go-type": "time.Time",
+            "x-go-type-import": {
+              "path": "time"
+            },
+            "x-omitzero": true
+          },
+          "posting": {
+            "$ref": "#/components/schemas/MessagePostingContext"
+          },
+          "addressed_sender": {
+            "$ref": "#/components/schemas/AddressedSender"
+          }
+        },
+        "required": [
+          "id"
+        ]
       },
       "MessageEntryPayload": {
         "type": "object",
@@ -10294,6 +12889,22 @@
           "addressed": {
             "$ref": "#/components/schemas/MessageAddressed",
             "x-go-type-skip-optional-pointer": false
+          },
+          "status": {
+            "type": "string",
+            "description": "\"drafted\" saves the entry as a draft instead of delivering it. Any other value\n(or omitting it) delivers through the undo-delay window."
+          },
+          "scheduled_delivery": {
+            "type": "string",
+            "description": "\"true\" schedules delivery for the date and hour below; the entry stays drafted\nwith a scheduled_delivery_at until then. On an update, omitting it clears an\nexisting scheduled delivery."
+          },
+          "scheduled_delivery_at_date": {
+            "type": "string",
+            "description": "The delivery date: YYYY-MM-DD, \"today\" or \"tomorrow\", read in the identity's\ntime zone."
+          },
+          "scheduled_delivery_at_hour": {
+            "type": "string",
+            "description": "The delivery hour, \"0\" through \"23\" — a string so that midnight survives\nomitempty. HEY schedules to the hour."
           }
         }
       },
@@ -10371,6 +12982,17 @@
           "box_id"
         ]
       },
+      "MoveWorkflowStagingRequestContent": {
+        "type": "object",
+        "properties": {
+          "workflow_staging": {
+            "$ref": "#/components/schemas/WorkflowStagingPayload"
+          }
+        },
+        "required": [
+          "workflow_staging"
+        ]
+      },
       "NavigationIcon": {
         "type": "object",
         "description": "NavigationIcon",
@@ -10440,6 +13062,9 @@
       "NewEntryForwardResponseContent": {
         "$ref": "#/components/schemas/MessageDraft"
       },
+      "NewEntryReplyResponseContent": {
+        "$ref": "#/components/schemas/MessageDraft"
+      },
       "NotFoundErrorResponseContent": {
         "type": "object",
         "properties": {
@@ -10478,7 +13103,8 @@
             "x-go-type": "time.Time",
             "x-go-type-import": {
               "path": "time"
-            }
+            },
+            "x-omitzero": true
           },
           "updated_at": {
             "type": "string",
@@ -10487,7 +13113,8 @@
             "x-go-type": "time.Time",
             "x-go-type-import": {
               "path": "time"
-            }
+            },
+            "x-omitzero": true
           },
           "observed_at": {
             "type": "string",
@@ -10496,7 +13123,8 @@
             "x-go-type": "time.Time",
             "x-go-type-import": {
               "path": "time"
-            }
+            },
+            "x-omitzero": true
           },
           "active_at": {
             "type": "string",
@@ -10505,7 +13133,8 @@
             "x-go-type": "time.Time",
             "x-go-type-import": {
               "path": "time"
-            }
+            },
+            "x-omitzero": true
           },
           "box_id": {
             "type": "integer",
@@ -10665,7 +13294,7 @@
       },
       "Recording": {
         "type": "object",
-        "description": "Recording — polymorphic by `type` (CalendarEvent, CalendarTodo, etc.)",
+        "description": "Recording — polymorphic by `type` (Calendar::Event, Calendar::Todo, etc.)",
         "properties": {
           "id": {
             "type": "integer",
@@ -10691,7 +13320,8 @@
             "x-go-type": "time.Time",
             "x-go-type-import": {
               "path": "time"
-            }
+            },
+            "x-omitzero": true
           },
           "ends_at": {
             "type": "string",
@@ -10700,7 +13330,8 @@
             "x-go-type": "time.Time",
             "x-go-type-import": {
               "path": "time"
-            }
+            },
+            "x-omitzero": true
           },
           "created_at": {
             "type": "string",
@@ -10709,7 +13340,8 @@
             "x-go-type": "time.Time",
             "x-go-type-import": {
               "path": "time"
-            }
+            },
+            "x-omitzero": true
           },
           "updated_at": {
             "type": "string",
@@ -10718,11 +13350,12 @@
             "x-go-type": "time.Time",
             "x-go-type-import": {
               "path": "time"
-            }
+            },
+            "x-omitzero": true
           },
           "type": {
             "type": "string",
-            "description": "Discriminator: CalendarEvent, CalendarTodo, etc."
+            "description": "Discriminator — the recordable's Ruby class name: Calendar::Event, Calendar::Todo,\nCalendar::JournalEntry, Calendar::Habit, Calendar::TimeTrack, Calendar::Countdown,\nCalendar::DayBackground, Calendar::DayTitle or Calendar::Habit::Completion."
           },
           "parent": {
             "$ref": "#/components/schemas/Recording"
@@ -10749,7 +13382,8 @@
             "x-go-type": "time.Time",
             "x-go-type-import": {
               "path": "time"
-            }
+            },
+            "x-omitzero": true
           },
           "highlighted": {
             "type": "boolean"
@@ -10839,7 +13473,8 @@
             "x-go-type": "time.Time",
             "x-go-type-import": {
               "path": "time"
-            }
+            },
+            "x-omitzero": true
           },
           "notes": {
             "type": "string"
@@ -10861,7 +13496,7 @@
         "x-hey-polymorphic": {
           "discriminator": "type",
           "variants": {
-            "CalendarEvent": [
+            "Calendar::Event": [
               "edit_url",
               "summary",
               "url",
@@ -10875,27 +13510,27 @@
               "join_link",
               "attached_entry"
             ],
-            "CalendarTodo": [
+            "Calendar::Todo": [
               "position"
             ],
-            "CalendarJournalEntry": [
+            "Calendar::JournalEntry": [
               "content"
             ],
-            "CalendarHabit": [
+            "Calendar::Habit": [
               "color",
               "icon",
               "days",
               "icon_url",
               "stopped_at"
             ],
-            "CalendarTimeTrack": [
+            "Calendar::TimeTrack": [
               "notes",
               "category"
             ],
-            "CalendarCountdown": [
+            "Calendar::Countdown": [
               "label"
             ],
-            "CalendarDayBackground": [
+            "Calendar::DayBackground": [
               "image_url"
             ]
           }
@@ -10947,7 +13582,8 @@
             "x-go-type": "time.Time",
             "x-go-type-import": {
               "path": "time"
-            }
+            },
+            "x-omitzero": true
           },
           "created_at": {
             "type": "string",
@@ -10956,7 +13592,8 @@
             "x-go-type": "time.Time",
             "x-go-type-import": {
               "path": "time"
-            }
+            },
+            "x-omitzero": true
           },
           "updated_at": {
             "type": "string",
@@ -10965,7 +13602,8 @@
             "x-go-type": "time.Time",
             "x-go-type-import": {
               "path": "time"
-            }
+            },
+            "x-omitzero": true
           },
           "label": {
             "type": "string"
@@ -10977,7 +13615,11 @@
       },
       "ReplyMessagePayload": {
         "type": "object",
+        "description": "HEY does not derive a subject for a reply: a reply draft saved without message.subject\nreads \"No subject\" in Drafts. NewEntryReply hands back the prefilled subject (\"Re: …\") —\nsend it here. Content is the caller's reply body alone: the server appends the quoted\noriginal at delivery (auto_quoting defaults on), so the prefill's quoted content must\nnot be echoed back.",
         "properties": {
+          "subject": {
+            "type": "string"
+          },
           "content": {
             "type": "string"
           }
@@ -10988,6 +13630,28 @@
       },
       "RevealContactResponseContent": {
         "$ref": "#/components/schemas/Contact"
+      },
+      "SchedulePostingsBubbleUpRequestContent": {
+        "type": "object",
+        "properties": {
+          "posting_ids": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          "slot": {
+            "type": "string"
+          },
+          "date": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "posting_ids",
+          "slot"
+        ]
       },
       "SearchFilterItem": {
         "type": "object",
@@ -11103,7 +13767,8 @@
             "x-go-type": "time.Time",
             "x-go-type-import": {
               "path": "time"
-            }
+            },
+            "x-omitzero": true
           },
           "updated_at": {
             "type": "string",
@@ -11112,7 +13777,8 @@
             "x-go-type": "time.Time",
             "x-go-type-import": {
               "path": "time"
-            }
+            },
+            "x-omitzero": true
           }
         },
         "required": [
@@ -11143,7 +13809,8 @@
             "x-go-type": "time.Time",
             "x-go-type-import": {
               "path": "time"
-            }
+            },
+            "x-omitzero": true
           },
           "updated_at": {
             "type": "string",
@@ -11152,7 +13819,8 @@
             "x-go-type": "time.Time",
             "x-go-type-import": {
               "path": "time"
-            }
+            },
+            "x-omitzero": true
           }
         },
         "required": [
@@ -11182,6 +13850,18 @@
           "sticky"
         ]
       },
+      "TimeFormatPreference": {
+        "type": "object",
+        "properties": {
+          "time_format": {
+            "type": "string",
+            "description": "\"twelve_hour\" or \"twenty_four_hour\", as GetIdentity serves it."
+          }
+        },
+        "required": [
+          "time_format"
+        ]
+      },
       "TimeTrackCategory": {
         "type": "object",
         "properties": {
@@ -11199,7 +13879,8 @@
             "x-go-type": "time.Time",
             "x-go-type-import": {
               "path": "time"
-            }
+            },
+            "x-omitzero": true
           },
           "updated_at": {
             "type": "string",
@@ -11208,7 +13889,8 @@
             "x-go-type": "time.Time",
             "x-go-type-import": {
               "path": "time"
-            }
+            },
+            "x-omitzero": true
           }
         },
         "required": [
@@ -11246,6 +13928,9 @@
           "starts_at"
         ]
       },
+      "ToggleCalendarResponseContent": {
+        "$ref": "#/components/schemas/CalendarSelection"
+      },
       "Topic": {
         "type": "object",
         "description": "Topic detail",
@@ -11264,7 +13949,8 @@
             "x-go-type": "time.Time",
             "x-go-type-import": {
               "path": "time"
-            }
+            },
+            "x-omitzero": true
           },
           "updated_at": {
             "type": "string",
@@ -11273,7 +13959,8 @@
             "x-go-type": "time.Time",
             "x-go-type-import": {
               "path": "time"
-            }
+            },
+            "x-omitzero": true
           },
           "active_at": {
             "type": "string",
@@ -11282,7 +13969,8 @@
             "x-go-type": "time.Time",
             "x-go-type-import": {
               "path": "time"
-            }
+            },
+            "x-omitzero": true
           },
           "status": {
             "type": "string"
@@ -11366,6 +14054,24 @@
           "published"
         ]
       },
+      "TrackedTime": {
+        "type": "object",
+        "description": "The tracked-time index: a page of completed tracks, and every category they can be\nfiled under.",
+        "properties": {
+          "time_tracks": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Recording"
+            }
+          },
+          "categories": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TimeTrackCategory"
+            }
+          }
+        }
+      },
       "TrashPostingsRequestContent": {
         "type": "object",
         "properties": {
@@ -11416,6 +14122,21 @@
             "type": "string"
           }
         }
+      },
+      "UpdateCalendarTodoRequestContent": {
+        "type": "object",
+        "description": "Wire format: {calendar_todo: {title, starts_at, focused}}",
+        "properties": {
+          "calendar_todo": {
+            "$ref": "#/components/schemas/CalendarTodoChanges"
+          }
+        },
+        "required": [
+          "calendar_todo"
+        ]
+      },
+      "UpdateCalendarTodoResponseContent": {
+        "$ref": "#/components/schemas/Recording"
       },
       "UpdateClearanceRequestContent": {
         "type": "object",
@@ -11474,6 +14195,21 @@
       "UpdateContactResponseContent": {
         "$ref": "#/components/schemas/Contact"
       },
+      "UpdateFirstWeekDayRequestContent": {
+        "type": "object",
+        "description": "Wire format: {identity_preference: {first_week_day: \"monday\"}}",
+        "properties": {
+          "identity_preference": {
+            "$ref": "#/components/schemas/FirstWeekDayParams"
+          }
+        },
+        "required": [
+          "identity_preference"
+        ]
+      },
+      "UpdateFirstWeekDayResponseContent": {
+        "$ref": "#/components/schemas/FirstWeekDayPreference"
+      },
       "UpdateHabitResponseContent": {
         "$ref": "#/components/schemas/Recording"
       },
@@ -11509,17 +14245,38 @@
       "UpdateStickyResponseContent": {
         "$ref": "#/components/schemas/Sticky"
       },
+      "UpdateTimeFormatRequestContent": {
+        "type": "object",
+        "properties": {
+          "twenty_four_hour_time_format": {
+            "type": "boolean",
+            "x-go-type-skip-optional-pointer": false
+          }
+        },
+        "required": [
+          "twenty_four_hour_time_format"
+        ]
+      },
+      "UpdateTimeFormatResponseContent": {
+        "$ref": "#/components/schemas/TimeFormatPreference"
+      },
       "UpdateTimeTrackPayload": {
         "type": "object",
         "properties": {
           "title": {
-            "type": "string"
+            "type": "string",
+            "description": "Ignored by the server. A time track's title is the constant \"Time Track\";\nHEY dropped per-track titles in 2023. Kept for compatibility only."
           },
           "notes": {
             "type": "string"
           },
           "category": {
-            "type": "string"
+            "type": "string",
+            "description": "Ignored by the server, which reads category_title instead. Kept for\ncompatibility only."
+          },
+          "category_title": {
+            "type": "string",
+            "description": "Files the track under this category, creating the category if HEY does not\nhave one by that name. Blank is a no-op, not a way to clear the category:\nonce filed, a track can only be moved to another category, or left where it\nis by deleting the category itself."
           },
           "starts_at": {
             "type": "string",
@@ -11529,7 +14286,8 @@
             "x-go-type-import": {
               "path": "time"
             },
-            "x-go-type-skip-optional-pointer": false
+            "x-go-type-skip-optional-pointer": false,
+            "x-omitzero": true
           },
           "ends_at": {
             "type": "string",
@@ -11539,13 +14297,14 @@
             "x-go-type-import": {
               "path": "time"
             },
-            "x-go-type-skip-optional-pointer": false
+            "x-go-type-skip-optional-pointer": false,
+            "x-omitzero": true
           }
         }
       },
       "UpdateTimeTrackRequestContent": {
         "type": "object",
-        "description": "Wire format: {calendar_time_track: {title, notes, category, starts_at, ends_at}}",
+        "description": "Wire format: {calendar_time_track: {notes, category_title, starts_at, ends_at}}",
         "properties": {
           "calendar_time_track": {
             "$ref": "#/components/schemas/UpdateTimeTrackPayload"
@@ -11617,7 +14376,8 @@
             "x-go-type": "time.Time",
             "x-go-type-import": {
               "path": "time"
-            }
+            },
+            "x-omitzero": true
           },
           "updated_at": {
             "type": "string",
@@ -11626,7 +14386,8 @@
             "x-go-type": "time.Time",
             "x-go-type-import": {
               "path": "time"
-            }
+            },
+            "x-omitzero": true
           },
           "app_url": {
             "type": "string"
@@ -11656,6 +14417,18 @@
         },
         "required": [
           "id"
+        ]
+      },
+      "WorkflowStagingPayload": {
+        "type": "object",
+        "properties": {
+          "workflow_stage_id": {
+            "type": "integer",
+            "format": "int64"
+          }
+        },
+        "required": [
+          "workflow_stage_id"
         ]
       }
     }

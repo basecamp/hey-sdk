@@ -9,7 +9,7 @@ Accepted
 HEY's API has two polymorphic types:
 
 - **Posting** — discriminated by `kind` (topic, bundle, entry). Variant fields merged at the top level.
-- **Recording** — discriminated by `type` (CalendarEvent, CalendarHabit, CalendarTodo, CalendarTimeTrack, CalendarJournalEntry). Variant fields merged at the top level.
+- **Recording** — discriminated by `type`, the recordable's Ruby class name (`Calendar::Event`, `Calendar::Habit`, `Calendar::Todo`, `Calendar::TimeTrack`, `Calendar::JournalEntry`). Variant fields merged at the top level.
 
 Every SDK generator must handle these types. Unlike discriminated unions with envelope wrappers, HEY merges all variant fields into a single flat object. This means a `Posting` response includes fields for topics, bundles, *and* entries — only a subset populated depending on `kind`.
 

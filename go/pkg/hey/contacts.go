@@ -61,7 +61,7 @@ func (s *ContactsService) Get(ctx context.Context, contactID int64) (result *gen
 
 // get is the un-instrumented read shared by Get and Update.
 func (s *ContactsService) get(ctx context.Context, contactID int64) (*generated.ContactDetail, error) {
-	resp, err := s.client.genClient().GetContactWithResponse(ctx, contactID)
+	resp, err := s.client.genClient().GetContactWithResponse(ctx, contactID, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -69,6 +69,43 @@ func (s *ContactsService) get(ctx context.Context, contactID int64) (*generated.
 		return nil, err
 	}
 	return resp.JSON200, nil
+}
+
+// ContactPage is one page of a contact and the threads they are on: the cursor for the
+// page below is empty on the last page.
+type ContactPage struct {
+	Contact  *generated.ContactDetail
+	NextPage string
+}
+
+// ThreadsPage reads a contact with one page of the threads they are on — what HEY heads
+// "All threads with …" (the contact's entries_title). An empty cursor starts at the top;
+// the next page's cursor comes back on the page before it.
+func (s *ContactsService) ThreadsPage(ctx context.Context, contactID int64, cursor string) (result *ContactPage, err error) {
+	op := OperationInfo{
+		Service: "Contacts", Operation: "GetContact",
+		ResourceType: "contact", IsMutation: false, ResourceID: contactID,
+	}
+
+	err = s.client.instrument(ctx, op, func(ctx context.Context) error {
+		params := &generated.GetContactParams{}
+		if cursor != "" {
+			params.Page = &cursor
+		}
+		resp, rerr := s.client.genClient().GetContactWithResponse(ctx, contactID, params)
+		if rerr != nil {
+			return rerr
+		}
+		if cerr := CheckResponse(resp.HTTPResponse); cerr != nil {
+			return cerr
+		}
+		result = &ContactPage{Contact: resp.JSON200}
+		if resp.HTTPResponse != nil {
+			result.NextPage = gearedPageFromLink(resp.HTTPResponse.Header.Get("Link"))
+		}
+		return nil
+	})
+	return result, err
 }
 
 // --- Bundling and screening ---

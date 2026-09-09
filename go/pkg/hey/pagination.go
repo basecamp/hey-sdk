@@ -6,7 +6,66 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"strings"
 )
+
+func gearedPageFromLink(header string) string {
+	next := gearedNextLink(header)
+	if next == "" {
+		return ""
+	}
+	parsed, err := url.Parse(next)
+	if err != nil {
+		return ""
+	}
+	return parsed.Query().Get("page")
+}
+
+func gearedNextLink(header string) string {
+	remainder := header
+	for {
+		start := strings.IndexByte(remainder, '<')
+		if start < 0 {
+			return ""
+		}
+		remainder = remainder[start+1:]
+		end := strings.IndexByte(remainder, '>')
+		if end < 0 {
+			return ""
+		}
+		target := remainder[:end]
+		after := remainder[end+1:]
+		nextStart := strings.IndexByte(after, '<')
+		params := after
+		if nextStart >= 0 {
+			params = after[:nextStart]
+		}
+		if gearedLinkIsNext(params) {
+			return target
+		}
+		if nextStart < 0 {
+			return ""
+		}
+		remainder = after[nextStart:]
+	}
+}
+
+func gearedLinkIsNext(params string) bool {
+	for _, param := range strings.Split(params, ";") {
+		param = strings.TrimSpace(param)
+		param = strings.TrimSpace(strings.TrimSuffix(param, ","))
+		parts := strings.SplitN(param, "=", 2)
+		if len(parts) != 2 || !strings.EqualFold(parts[0], "rel") {
+			continue
+		}
+		for _, relation := range strings.Fields(strings.Trim(parts[1], `"`)) {
+			if strings.EqualFold(relation, "next") {
+				return true
+			}
+		}
+	}
+	return false
+}
 
 // FollowPagination fetches additional pages following Link headers from an HTTP response.
 // firstPageCount is the number of items already collected from the first page.

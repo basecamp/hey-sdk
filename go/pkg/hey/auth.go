@@ -24,6 +24,9 @@ type Credentials struct {
 	Scope         string `json:"scope"`
 	TokenEndpoint string `json:"token_endpoint"`
 	UserID        string `json:"user_id,omitempty"`
+	// InstallID identifies this installation to HEY as a device. HEY requires it on every
+	// token request, so it is kept beside the tokens it was issued with.
+	InstallID string `json:"install_id,omitempty"`
 }
 
 // TokenProvider is the interface for obtaining access tokens.
@@ -302,10 +305,14 @@ func (m *AuthManager) refreshLocked(ctx context.Context, origin string, creds *C
 	if err := RequireSecureEndpoint(tokenEndpoint); err != nil {
 		return ErrAuth(fmt.Sprintf("Token endpoint must use HTTPS: %s", tokenEndpoint))
 	}
+	if creds.InstallID == "" {
+		return ErrAuth("No install ID stored")
+	}
 
 	data := url.Values{}
 	data.Set("grant_type", "refresh_token")
 	data.Set("refresh_token", creds.RefreshToken)
+	data.Set("install_id", creds.InstallID)
 
 	req, err := http.NewRequestWithContext(ctx, "POST", tokenEndpoint, strings.NewReader(data.Encode()))
 	if err != nil {

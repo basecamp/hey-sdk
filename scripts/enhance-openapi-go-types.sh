@@ -5,6 +5,7 @@
 #   - *_at fields → time.Time
 #   - *_on fields → types.Date
 #   - Optional booleans in request bodies → *bool (nil vs false distinction)
+#   - Optional timestamps → omitzero, so a time nobody set is not reported as one
 set -euo pipefail
 
 OPENAPI_FILE="${1:-openapi.json}"
@@ -134,6 +135,34 @@ jq '
       else .
       end
     )
+' "$OPENAPI_FILE" > "${OPENAPI_FILE}.tmp" && mv "${OPENAPI_FILE}.tmp" "$OPENAPI_FILE"
+
+# Pass 5: Optional timestamps everywhere → omitzero
+# Pass 2 keeps a zero time out of a request by making it a pointer, but a response shape is
+# read rather than sent, so its fields stay values for ergonomics — and marshalling one
+# back out then reports a time nobody set. `omitempty` does not omit a struct, so an
+# ongoing time track serializes "ends_at":"0001-01-01T00:00:00Z" and an incomplete todo
+# serializes a completed_at, which reads as finished. `omitzero` (Go 1.24+) omits the zero
+# time without changing the field's type, so reading r.EndsAt still works. Applies to every
+# non-required property pass 1 typed as a time or a date; on the request pointers from
+# pass 2 it is a no-op, a nil pointer being zero either way.
+jq '
+  (.components.schemas // {}) |= with_entries(
+    .value |= (
+      if .properties then
+        (.required // []) as $req
+        | .properties |= with_entries(
+            if ((.value["x-go-type"]? // "") | test("^(time\\.Time|types\\.Date)$"))
+               and ((.key as $p | $req | index($p)) | not)
+            then
+              .value += {"x-omitzero": true}
+            else .
+            end
+          )
+      else .
+      end
+    )
+  )
 ' "$OPENAPI_FILE" > "${OPENAPI_FILE}.tmp" && mv "${OPENAPI_FILE}.tmp" "$OPENAPI_FILE"
 
 # Self-referential types are fixed via post-codegen sed in go/Makefile.

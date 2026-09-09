@@ -59,16 +59,19 @@ timestamp DateTime
 /// HEY API
 @restJson1
 service HEY {
-    version: "2026-08-20"
+    version: "2026-08-21"
     operations: [
-        // Identity (2 MVP)
+        // Identity (4 MVP)
         GetIdentity
         GetNavigation
+        UpdateFirstWeekDay
+        UpdateTimeFormat
 
         // Boxes (8 MVP)
         ListBoxes
         GetBox
         GetImbox
+        GetImboxSeen
         GetFeedbox
         GetTrailbox
         GetAsidebox
@@ -86,13 +89,17 @@ service HEY {
         // Messages (3 MVP)
         GetMessage
         CreateMessage
+        UpdateMessage
+        GetMessageEdit
 
         // Attachments
         CreateDirectUpload
 
         // Entries (2 MVP)
         ListDrafts
+        DeleteDraft
         CreateReply
+        NewEntryReply
 
         // Contacts (2 MVP)
         ListContacts
@@ -101,9 +108,18 @@ service HEY {
         // Calendars (2 MVP)
         ListCalendars
         GetCalendarRecordings
+        ToggleCalendar
 
-        // Calendar Todos (4 MVP)
+        // Calendar periods
+        GetCalendarDay
+        ListCalendarDays
+        GetCalendarWeek
+        ListCalendarWeeks
+        GetCalendarYear
+
+        // Calendar Todos (5 MVP)
         CreateCalendarTodo
+        UpdateCalendarTodo
         CompleteCalendarTodo
         UncompleteCalendarTodo
         DeleteCalendarTodo
@@ -124,7 +140,8 @@ service HEY {
         StartTimeTrack
         UpdateTimeTrack
 
-        // Calendar Journal (2 MVP)
+        // Calendar Journal (3 MVP)
+        ListJournalEntries
         GetJournalEntry
         UpdateJournalEntry
 
@@ -140,6 +157,9 @@ service HEY {
         MutePostings
         UnmutePostings
 
+        // Postings — bundles
+        GetBundleUnseenPostings
+
         // Postings — bulk
         MarkPostingsSpam
         AddPostingsToBoxGroup
@@ -149,6 +169,7 @@ service HEY {
         CreateFolderForPostings
         CancelPostingsBubbleUp
         BubbleUpPostingsNow
+        SchedulePostingsBubbleUp
 
         // Topics — status and moves
         TrashTopic
@@ -193,6 +214,7 @@ service HEY {
         CreateBoxDesignation
         DeleteBoxDesignation
         ListBoxGroups
+        GetBoxGroup
         CreateBoxGroup
         DeleteBoxGroup
         MarkBoxSeen
@@ -202,6 +224,7 @@ service HEY {
 
         // Collections
         ListCollections
+        GetCollection
         UpdateCollection
 
         // Stickies
@@ -215,6 +238,9 @@ service HEY {
         CreateTimeTrack
         DeleteTimeTrack
 
+        // Calendar Time Tracks — read
+        ListTimeTracks
+
         // Calendar Time Track categories
         ListTimeTrackCategories
 
@@ -222,7 +248,16 @@ service HEY {
         ListClips
         ListSnippets
         GetWorkflow
+        CreateWorkflowStaging
+        MoveWorkflowStaging
         GetTopicPublication
+
+        // Calendar Events
+        DeleteCalendarEvent
+        DeleteCalendarEventOccurrence
+
+        // Extenzions
+        DeleteExtenzion
     ]
 }
 
@@ -375,6 +410,17 @@ structure Collection {
 
 list CollectionList {
     member: Collection
+}
+
+/// CollectionWithPostings — collection detail with its threads as posting objects
+structure CollectionWithPostings {
+    @required
+    id: Long
+    name: String
+    created_at: DateTime
+    updated_at: DateTime
+    app_url: String
+    postings: PostingList
 }
 
 /// Folder — email folder
@@ -798,6 +844,11 @@ list CalendarWithRecordingChangesUrlList {
 structure CalendarListPayload {
     calendars: CalendarWithRecordingChangesUrlList
     calendar_changes_url: String
+
+    /// The calendars every period read is drawn from. ToggleCalendar changes this and
+    /// answers the new one, so a client reads it here once — to open on what is already
+    /// on — and takes it from the toggle after that.
+    selected_calendar_ids: CalendarIdList
 }
 
 /// RecurrenceSchedule
@@ -863,20 +914,20 @@ structure AttachedEntry {
     app_url: String
 }
 
-/// Recording — polymorphic by `type` (CalendarEvent, CalendarTodo, etc.)
+/// Recording — polymorphic by `type` (Calendar::Event, Calendar::Todo, etc.)
 @heyPolymorphic(
     discriminator: "type"
     variants: {
-        "CalendarEvent": ["edit_url", "summary", "url", "location",
-                         "manage_attendance", "attendance_status", "organizer",
-                         "attendances", "attendances_summary", "description",
-                         "join_link", "attached_entry"]
-        "CalendarTodo": ["position"]
-        "CalendarJournalEntry": ["content"]
-        "CalendarHabit": ["color", "icon", "days", "icon_url", "stopped_at"]
-        "CalendarTimeTrack": ["notes", "category"]
-        "CalendarCountdown": ["label"]
-        "CalendarDayBackground": ["image_url"]
+        "Calendar::Event": ["edit_url", "summary", "url", "location",
+                            "manage_attendance", "attendance_status", "organizer",
+                            "attendances", "attendances_summary", "description",
+                            "join_link", "attached_entry"]
+        "Calendar::Todo": ["position"]
+        "Calendar::JournalEntry": ["content"]
+        "Calendar::Habit": ["color", "icon", "days", "icon_url", "stopped_at"]
+        "Calendar::TimeTrack": ["notes", "category"]
+        "Calendar::Countdown": ["label"]
+        "Calendar::DayBackground": ["image_url"]
     }
 )
 structure Recording {
@@ -892,7 +943,9 @@ structure Recording {
     created_at: DateTime
     updated_at: DateTime
 
-    /// Discriminator: CalendarEvent, CalendarTodo, etc.
+    /// Discriminator — the recordable's Ruby class name: Calendar::Event, Calendar::Todo,
+    /// Calendar::JournalEntry, Calendar::Habit, Calendar::TimeTrack, Calendar::Countdown,
+    /// Calendar::DayBackground, Calendar::DayTitle or Calendar::Habit::Completion.
     @required
     type: String
 
@@ -961,6 +1014,86 @@ list RecordingList {
 map CalendarRecordingsResponse {
     key: String
     value: RecordingList
+}
+
+/// CalendarPeriod — a day or a week: its bounds and everything in it, grouped by type.
+/// Recurring events arrive expanded into the occurrences that fall inside the window,
+/// which is what makes this a different answer than the recordings a calendar lists.
+structure CalendarPeriod {
+    @required
+    starts_at: DateTime
+
+    @required
+    ends_at: DateTime
+
+    /// "day" or "week"
+    @required
+    kind: String
+
+    @required
+    recordings: CalendarRecordingsResponse
+}
+
+list CalendarPeriodList {
+    member: CalendarPeriod
+}
+
+structure CalendarDayListPayload {
+    @required
+    days: CalendarPeriodList
+}
+
+structure CalendarWeekListPayload {
+    @required
+    weeks: CalendarPeriodList
+}
+
+/// CalendarYear — the grid a year is drawn as. A year carries one entry per day plus the
+/// events that span more than one, not every recording it holds: a year's worth of
+/// expanded occurrences is not something a client asks for by opening a year.
+structure CalendarYear {
+    @required
+    starts_at: DateTime
+
+    @required
+    ends_at: DateTime
+
+    /// "year"
+    @required
+    kind: String
+
+    /// Days between the reader's week start and January 1st, so the grid lines up
+    @required
+    padding_days_count: Integer
+
+    @required
+    days: CalendarYearDayList
+
+    /// All-day and multi-day events, oldest first
+    @required
+    spanned_events: RecordingList
+}
+
+structure CalendarYearDay {
+    @required
+    starts_at: DateTime
+
+    @required
+    backgrounded: Boolean
+}
+
+list CalendarYearDayList {
+    member: CalendarYearDay
+}
+
+list CalendarIdList {
+    member: Long
+}
+
+/// CalendarSelection — the calendars a toggle left switched on
+structure CalendarSelection {
+    @required
+    selected_calendar_ids: CalendarIdList
 }
 
 /// NavigationIcon
@@ -1062,6 +1195,83 @@ structure GetNavigationOutput {
     navigation: NavigationResponse
 }
 
+/// Set which day the identity's calendar weeks start on. Answers the stored
+/// preference. The write reaches every HEY client — web, mobile and this SDK
+/// read the same identity preference.
+@idempotent
+@http(method: "PUT", uri: "/calendar/identity/first_week_day")
+@tags(["Identity"])
+@heyRetry(maxAttempts: 3, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+operation UpdateFirstWeekDay {
+    input: UpdateFirstWeekDayInput
+    output: UpdateFirstWeekDayOutput
+    errors: [UnauthorizedError, BadRequestError, InternalServerError, ServiceUnavailableError]
+}
+
+structure UpdateFirstWeekDayInput {
+    @httpPayload
+    @required
+    body: UpdateFirstWeekDayRequestContent
+}
+
+/// Wire format: {identity_preference: {first_week_day: "monday"}}
+structure UpdateFirstWeekDayRequestContent {
+    @required
+    identity_preference: FirstWeekDayParams
+}
+
+structure FirstWeekDayParams {
+    /// Lowercase day name, sunday through saturday.
+    @required
+    first_week_day: String
+}
+
+structure UpdateFirstWeekDayOutput {
+    @required
+    preference: FirstWeekDayPreference
+}
+
+structure FirstWeekDayPreference {
+    /// 0 is Sunday through 6 Saturday, as GetIdentity serves it.
+    @required
+    first_week_day: Integer
+}
+
+/// Set whether HEY renders times on a 12-hour or a 24-hour clock. Answers the
+/// stored preference. The parameter is the web toggle's, said honestly: true
+/// for the 24-hour clock, false for the 12-hour one.
+@idempotent
+@http(method: "PUT", uri: "/identity/time_format")
+@tags(["Identity"])
+@heyRetry(maxAttempts: 3, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+operation UpdateTimeFormat {
+    input: UpdateTimeFormatInput
+    output: UpdateTimeFormatOutput
+    errors: [UnauthorizedError, InternalServerError, ServiceUnavailableError]
+}
+
+structure UpdateTimeFormatInput {
+    @httpPayload
+    @required
+    body: UpdateTimeFormatRequestContent
+}
+
+structure UpdateTimeFormatRequestContent {
+    @required
+    twenty_four_hour_time_format: Boolean
+}
+
+structure UpdateTimeFormatOutput {
+    @required
+    preference: TimeFormatPreference
+}
+
+structure TimeFormatPreference {
+    /// "twelve_hour" or "twenty_four_hour", as GetIdentity serves it.
+    @required
+    time_format: String
+}
+
 // =============================================================================
 // BOX OPERATIONS
 // =============================================================================
@@ -1087,6 +1297,7 @@ structure ListBoxesOutput {
 @http(method: "GET", uri: "/boxes/{boxId}")
 @tags(["Boxes"])
 @heyRetry(maxAttempts: 3, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+@heyPagination(style: "link", totalCountHeader: "X-Total-Count")
 operation GetBox {
     input: GetBoxInput
     output: GetBoxOutput
@@ -1124,6 +1335,22 @@ structure GetNamedBoxInput {
 }
 
 structure GetNamedBoxOutput {
+    @required
+    box: BoxShowResponse
+}
+
+/// Get the Imbox's Previously Seen postings
+@readonly
+@http(method: "GET", uri: "/imbox/seen.json")
+@tags(["Boxes"])
+@heyRetry(maxAttempts: 3, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+operation GetImboxSeen {
+    input: GetNamedBoxInput
+    output: GetImboxSeenOutput
+    errors: [UnauthorizedError, InternalServerError, ServiceUnavailableError]
+}
+
+structure GetImboxSeenOutput {
     @required
     box: BoxShowResponse
 }
@@ -1361,6 +1588,9 @@ structure GetMessageOutput {
 
 /// Create a new message (start a new topic).
 /// The acting sender ID must be included; the Go SDK resolves this automatically.
+/// Every message is created drafted on HEY's side; without entry.status the server
+/// delivers it, while entry.status "drafted" leaves it as a draft and answers
+/// 204 with a Location header naming /messages/{entry_id}.
 @http(method: "POST", uri: "/messages.json")
 @tags(["Messages"])
 @heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
@@ -1392,6 +1622,79 @@ structure MessagePayload {
 
     @required
     content: String
+}
+
+/// Revise a message entry (MessagesController#update). With entry.status "drafted" the
+/// entry is saved as a draft (204 + Location, like CreateMessage); without it a draft is
+/// delivered through the undo-delay window. A trashed draft is silently restored first.
+/// The revision is not a patch: subject, content and any scheduled delivery are rewritten
+/// from this request (an omitted scheduled delivery clears one), while recipients are
+/// replaced only when entry.addressed is present.
+///
+/// Not naturally idempotent despite the PUT: without the drafted status this request
+/// *delivers*, so a transparent retry after an ambiguous first attempt could send the
+/// message again. The client must not retry it.
+@http(method: "PUT", uri: "/messages/{messageId}")
+@tags(["Messages"])
+@heyIdempotent(natural: false)
+@heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+operation UpdateMessage {
+    input: UpdateMessageInput
+    errors: [UnauthorizedError, NotFoundError, UnprocessableEntityError, InternalServerError, ServiceUnavailableError]
+}
+
+structure UpdateMessageInput {
+    @httpLabel
+    @required
+    messageId: Long
+
+    @httpPayload
+    @required
+    body: CreateMessageRequestContent
+}
+
+/// A draft's editable state: content, recipients and scheduled delivery as the
+/// composer would load them (GET /messages/{id}/edit).
+@readonly
+@http(method: "GET", uri: "/messages/{messageId}/edit.json")
+@tags(["Messages"])
+@heyRetry(maxAttempts: 3, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+operation GetMessageEdit {
+    input: GetMessageEditInput
+    output: GetMessageEditOutput
+    errors: [UnauthorizedError, NotFoundError, InternalServerError, ServiceUnavailableError]
+}
+
+structure GetMessageEditInput {
+    @httpLabel
+    @required
+    messageId: Long
+}
+
+structure GetMessageEditOutput {
+    @required
+    message: MessageEditState
+}
+
+/// MessageEditState — a saved draft as the editor sees it. The same compose fields as
+/// MessageDraft, plus the identity and scheduling a saved entry carries.
+structure MessageEditState {
+    @required
+    id: Long
+
+    created_at: DateTime
+    updated_at: DateTime
+    url: String
+    creator: Contact
+    sender: Contact
+    is_reply: Boolean
+    subject: String
+    content: String
+    addressed: Addressed
+    show_addressed_selector: Boolean
+    scheduled_delivery_at: DateTime
+    posting: MessagePostingContext
+    addressed_sender: AddressedSender
 }
 
 // =============================================================================
@@ -1464,6 +1767,23 @@ structure CreateDirectUploadOutput {
 
 structure MessageEntryPayload {
     addressed: MessageAddressed
+
+    /// "drafted" saves the entry as a draft instead of delivering it. Any other value
+    /// (or omitting it) delivers through the undo-delay window.
+    status: String
+
+    /// "true" schedules delivery for the date and hour below; the entry stays drafted
+    /// with a scheduled_delivery_at until then. On an update, omitting it clears an
+    /// existing scheduled delivery.
+    scheduled_delivery: String
+
+    /// The delivery date: YYYY-MM-DD, "today" or "tomorrow", read in the identity's
+    /// time zone.
+    scheduled_delivery_at_date: String
+
+    /// The delivery hour, "0" through "23" — a string so that midnight survives
+    /// omitempty. HEY schedules to the hour.
+    scheduled_delivery_at_hour: String
 }
 
 /// Recipients per kind, each a list of email addresses.
@@ -1500,6 +1820,23 @@ structure ListDraftsOutput {
     drafts: DraftMessageList
 }
 
+/// Trash a draft (Entries::DraftsController#destroy). The id is the draft's entry id,
+/// as ListDrafts reports it.
+@idempotent
+@http(method: "DELETE", uri: "/entries/drafts/{entryId}")
+@tags(["Entries"])
+@heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+operation DeleteDraft {
+    input: DeleteDraftInput
+    errors: [UnauthorizedError, NotFoundError, InternalServerError, ServiceUnavailableError]
+}
+
+structure DeleteDraftInput {
+    @httpLabel
+    @required
+    entryId: Long
+}
+
 /// Reply to an entry
 @http(method: "POST", uri: "/entries/{entryId}/replies.json")
 @tags(["Entries"])
@@ -1507,6 +1844,24 @@ structure ListDraftsOutput {
 operation CreateReply {
     input: CreateReplyInput
     errors: [UnauthorizedError, NotFoundError, UnprocessableEntityError, InternalServerError, ServiceUnavailableError]
+}
+
+/// Get a prefilled reply to an entry: the quoted body and, in addressed, the
+/// participating contacts a reply goes to as HEY computes them — the sender moved onto
+/// the To line and the acting user's own addresses, aliases and catch-alls excluded.
+@readonly
+@http(method: "GET", uri: "/entries/{entryId}/replies/new.json")
+@tags(["Entries"])
+@heyRetry(maxAttempts: 3, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+operation NewEntryReply {
+    input: EntryStatusInput
+    output: NewEntryReplyOutput
+    errors: [UnauthorizedError, NotFoundError, InternalServerError, ServiceUnavailableError]
+}
+
+structure NewEntryReplyOutput {
+    @required
+    reply: MessageDraft
 }
 
 structure CreateReplyInput {
@@ -1519,7 +1874,7 @@ structure CreateReplyInput {
     body: CreateReplyRequestContent
 }
 
-/// Wire format: {acting_sender_id, message: {content}, entry: {addressed: {directly: [...]}}}
+/// Wire format: {acting_sender_id, message: {subject, content}, entry: {addressed: {directly: [...]}}}
 /// entry.addressed is optional on the wire but a reply posted without it is saved as a
 /// draft rather than delivered — HEY does not reply-all for the caller. Resolve the
 /// thread's recipients first and always send them.
@@ -1533,7 +1888,14 @@ structure CreateReplyRequestContent {
     entry: MessageEntryPayload
 }
 
+/// HEY does not derive a subject for a reply: a reply draft saved without message.subject
+/// reads "No subject" in Drafts. NewEntryReply hands back the prefilled subject ("Re: …") —
+/// send it here. Content is the caller's reply body alone: the server appends the quoted
+/// original at delivery (auto_quoting defaults on), so the prefill's quoted content must
+/// not be echoed back.
 structure ReplyMessagePayload {
+    subject: String
+
     @required
     content: String
 }
@@ -1567,11 +1929,12 @@ structure ListContactsOutput {
     contacts: ContactList
 }
 
-/// Get a contact
+/// Get a contact, with a page of the threads they are on
 @readonly
 @http(method: "GET", uri: "/contacts/{contactId}")
 @tags(["Contacts"])
 @heyRetry(maxAttempts: 3, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+@heyPagination(style: "link", totalCountHeader: "X-Total-Count")
 operation GetContact {
     input: GetContactInput
     output: GetContactOutput
@@ -1582,6 +1945,9 @@ structure GetContactInput {
     @httpLabel
     @required
     contactId: Long
+
+    @httpQuery("page")
+    page: String
 }
 
 /// ContactDetail — extended contact with additional show fields
@@ -1602,6 +1968,12 @@ structure ContactDetail {
     clearance: Clearance
     aliases: ContactList
     domain: Domain
+
+    /// The heading HEY gives the thread list, e.g. "All threads with GitHub"
+    entries_title: String
+
+    /// One page of the threads this contact is on, newest first
+    postings: PostingList
 }
 
 structure GetContactOutput {
@@ -1774,6 +2146,31 @@ operation DeleteContactNote {
 }
 
 // =============================================================================
+// EXTENZION OPERATIONS
+// =============================================================================
+
+/// Delete an extenzion. The id is the extenzion's contact id, the one its app_url
+/// carries. Answers 204; forbidden when the caller cannot edit the extenzion.
+@idempotent
+@http(method: "DELETE", uri: "/accounts/{accountId}/domains/extenzions/{extenzionId}")
+@tags(["Extenzions"])
+@heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+operation DeleteExtenzion {
+    input: DeleteExtenzionInput
+    errors: [UnauthorizedError, ForbiddenError, NotFoundError, InternalServerError, ServiceUnavailableError]
+}
+
+structure DeleteExtenzionInput {
+    @httpLabel
+    @required
+    accountId: Long
+
+    @httpLabel
+    @required
+    extenzionId: Long
+}
+
+// =============================================================================
 // CALENDAR OPERATIONS
 // =============================================================================
 
@@ -1814,11 +2211,209 @@ structure GetCalendarRecordingsInput {
 
     @httpQuery("ends_on")
     ends_on: String
+
+    @httpQuery("page")
+    page: String
 }
 
 structure GetCalendarRecordingsOutput {
     @required
     recordings: CalendarRecordingsResponse
+}
+
+/// Switch a calendar in or out of the reader's selection, and answer the selection it
+/// left behind. The selection is what every period read is scoped to, so a toggle is how
+/// a client changes which calendars a day, week or year is drawn from.
+@http(method: "POST", uri: "/calendars/{calendarId}/toggle")
+@tags(["Calendars"])
+@heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+operation ToggleCalendar {
+    input: ToggleCalendarInput
+    output: ToggleCalendarOutput
+    errors: [UnauthorizedError, NotFoundError, InternalServerError, ServiceUnavailableError]
+}
+
+structure ToggleCalendarInput {
+    @httpLabel
+    @required
+    calendarId: Long
+}
+
+structure ToggleCalendarOutput {
+    @required
+    selection: CalendarSelection
+}
+
+// =============================================================================
+// CALENDAR EVENT OPERATIONS
+// =============================================================================
+
+/// Delete a calendar event, cancelling it for every attendee. Answers 204.
+@idempotent
+@http(method: "DELETE", uri: "/calendar/events/{eventId}")
+@tags(["Calendar Events"])
+@heyRetry(maxAttempts: 3, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+operation DeleteCalendarEvent {
+    input: DeleteCalendarEventInput
+    errors: [UnauthorizedError, NotFoundError, InternalServerError, ServiceUnavailableError]
+}
+
+structure DeleteCalendarEventInput {
+    @httpLabel
+    @required
+    eventId: Long
+}
+
+/// Delete one day of a repeating event, or that day and every one after it.
+/// Answers 204. A single day becomes an exception in the series' schedule; with
+/// apply_to_future the series is truncated at the day before, or destroyed if this
+/// was its first day.
+@idempotent
+@http(method: "DELETE", uri: "/calendar/events/{eventId}/occurrences/{occurrence}")
+@tags(["Calendar Events"])
+@heyRetry(maxAttempts: 3, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+operation DeleteCalendarEventOccurrence {
+    input: DeleteCalendarEventOccurrenceInput
+    errors: [UnauthorizedError, NotFoundError, InternalServerError, ServiceUnavailableError]
+}
+
+structure DeleteCalendarEventOccurrenceInput {
+    @httpLabel
+    @required
+    eventId: Long
+
+    /// The day the occurrence falls on, as YYYY-MM-DD.
+    @httpLabel
+    @required
+    occurrence: String
+
+    /// Remove this day and every one after it. Off, only this day is removed.
+    @httpQuery("apply_to_future")
+    applyToFuture: Boolean
+}
+
+// =============================================================================
+// CALENDAR PERIOD OPERATIONS
+//
+// A day, a week and a year, each scoped to the reader's calendar selection. `day`,
+// `week` and `year` are dates (YYYY-MM-DD); a day also takes the literal `now`.
+// =============================================================================
+
+/// Get one day
+@readonly
+@http(method: "GET", uri: "/calendar/days/{day}")
+@tags(["Calendar Periods"])
+@heyRetry(maxAttempts: 3, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+operation GetCalendarDay {
+    input: GetCalendarDayInput
+    output: GetCalendarDayOutput
+    errors: [UnauthorizedError, NotFoundError, InternalServerError, ServiceUnavailableError]
+}
+
+structure GetCalendarDayInput {
+    @httpLabel
+    @required
+    day: String
+}
+
+structure GetCalendarDayOutput {
+    @required
+    day: CalendarPeriod
+}
+
+/// List the days from a date onwards. The server picks how many, so this is a window
+/// rather than a page: read the next one by asking from the last day's date.
+@readonly
+@http(method: "GET", uri: "/calendar/days.json")
+@tags(["Calendar Periods"])
+@heyRetry(maxAttempts: 3, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+operation ListCalendarDays {
+    input: ListCalendarDaysInput
+    output: ListCalendarDaysOutput
+    errors: [UnauthorizedError, InternalServerError, ServiceUnavailableError]
+}
+
+structure ListCalendarDaysInput {
+    /// Date (YYYY-MM-DD) to start from. Defaults to today.
+    @httpQuery("starts_at")
+    starts_at: String
+}
+
+structure ListCalendarDaysOutput {
+    @required
+    response: CalendarDayListPayload
+}
+
+/// Get one week
+@readonly
+@http(method: "GET", uri: "/calendar/weeks/{week}")
+@tags(["Calendar Periods"])
+@heyRetry(maxAttempts: 3, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+operation GetCalendarWeek {
+    input: GetCalendarWeekInput
+    output: GetCalendarWeekOutput
+    errors: [UnauthorizedError, NotFoundError, InternalServerError, ServiceUnavailableError]
+}
+
+structure GetCalendarWeekInput {
+    /// Any date in the week (YYYY-MM-DD)
+    @httpLabel
+    @required
+    week: String
+}
+
+structure GetCalendarWeekOutput {
+    @required
+    week: CalendarPeriod
+}
+
+/// List the weeks around a date — nine of them, centered on it.
+@readonly
+@http(method: "GET", uri: "/calendar/weeks.json")
+@tags(["Calendar Periods"])
+@heyRetry(maxAttempts: 3, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+operation ListCalendarWeeks {
+    input: ListCalendarWeeksInput
+    output: ListCalendarWeeksOutput
+    errors: [UnauthorizedError, InternalServerError, ServiceUnavailableError]
+}
+
+structure ListCalendarWeeksInput {
+    /// Date (YYYY-MM-DD) of the first week. Takes precedence over centered_at.
+    @httpQuery("starts_at")
+    starts_at: String
+
+    /// Date (YYYY-MM-DD) to center the nine weeks on. Defaults to today.
+    @httpQuery("centered_at")
+    centered_at: String
+}
+
+structure ListCalendarWeeksOutput {
+    @required
+    response: CalendarWeekListPayload
+}
+
+/// Get one year as the grid it is drawn as
+@readonly
+@http(method: "GET", uri: "/calendar/years/{year}")
+@tags(["Calendar Periods"])
+@heyRetry(maxAttempts: 3, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+operation GetCalendarYear {
+    input: GetCalendarYearInput
+    output: GetCalendarYearOutput
+    errors: [UnauthorizedError, NotFoundError, InternalServerError, ServiceUnavailableError]
+}
+
+structure GetCalendarYearInput {
+    /// Any date in the year (YYYY-MM-DD)
+    @httpLabel
+    @required
+    year: String
+}
+
+structure GetCalendarYearOutput {
+    @required
+    year: CalendarYear
 }
 
 // =============================================================================
@@ -1856,6 +2451,51 @@ structure CalendarTodoPayload {
 }
 
 structure CreateCalendarTodoOutput {
+    @required
+    recording: Recording
+}
+
+/// Edit a calendar todo. todoId is the recording's id, and every field of the payload
+/// is optional: haystack's `wrap_parameters` accepts title, focused and starts_at, and
+/// changes only what is sent.
+@idempotent
+@http(method: "PATCH", uri: "/calendar/todos/{todoId}")
+@tags(["Calendar Todos"])
+@heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+operation UpdateCalendarTodo {
+    input: UpdateCalendarTodoInput
+    output: UpdateCalendarTodoOutput
+    errors: [UnauthorizedError, NotFoundError, UnprocessableEntityError, InternalServerError, ServiceUnavailableError]
+}
+
+structure UpdateCalendarTodoInput {
+    @httpLabel
+    @required
+    todoId: Long
+
+    @httpPayload
+    @required
+    body: UpdateCalendarTodoRequestContent
+}
+
+/// Wire format: {calendar_todo: {title, starts_at, focused}}
+structure UpdateCalendarTodoRequestContent {
+    @required
+    calendar_todo: CalendarTodoChanges
+}
+
+/// Nothing here is required: a rename sends a title and leaves the day alone.
+structure CalendarTodoChanges {
+    title: String
+
+    /// Date string (YYYY-MM-DD). The day the todo is filed on.
+    starts_at: String
+
+    focused: Boolean
+}
+
+/// The edited todo as a recording (haystack renders calendar/recordings/_recording).
+structure UpdateCalendarTodoOutput {
     @required
     recording: Recording
 }
@@ -1954,6 +2594,48 @@ operation UncompleteHabit {
 // CALENDAR TIME TRACK OPERATIONS
 // =============================================================================
 
+/// List tracked time — completed tracks only, newest-ended first.
+///
+/// A running track is not here; read that with GetOngoingTimeTrack. The next page, if
+/// any, is a Link header, and the last page carries none, so a nil Link is the end of
+/// the list rather than an error.
+///
+/// category_id narrows the list to one category and 404s if the calendar has no
+/// category by that id.
+///
+/// The calendar's categories come back alongside the tracks, so showing or applying the
+/// filter does not need ListTimeTrackCategories as well.
+@readonly
+@http(method: "GET", uri: "/calendar/time_tracks.json")
+@tags(["Calendar Time Tracks"])
+@heyRetry(maxAttempts: 3, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+@heyPagination(style: "link")
+operation ListTimeTracks {
+    input: ListTimeTracksInput
+    output: ListTimeTracksOutput
+    errors: [UnauthorizedError, NotFoundError, InternalServerError, ServiceUnavailableError]
+}
+
+structure ListTimeTracksInput {
+    @httpQuery("page")
+    page: String
+
+    @httpQuery("category_id")
+    category_id: Long
+}
+
+structure ListTimeTracksOutput {
+    @required
+    tracked_time: TrackedTime
+}
+
+/// The tracked-time index: a page of completed tracks, and every category they can be
+/// filed under.
+structure TrackedTime {
+    time_tracks: RecordingList
+    categories: TimeTrackCategoryList
+}
+
 /// Get the ongoing time track (404 = no active track; see ADR-004)
 @readonly
 @http(method: "GET", uri: "/calendar/ongoing_time_track.json")
@@ -1972,7 +2654,8 @@ structure GetOngoingTimeTrackOutput {
 
 /// Start a new time track. Takes no body: haystack's
 /// Calendar::OngoingTimeTracksController#create ignores request parameters and
-/// starts a track with defaults; use UpdateTimeTrack to set title/notes/category.
+/// starts a track with defaults; use UpdateTimeTrack to set notes and category_title,
+/// which also stops the track.
 @http(method: "POST", uri: "/calendar/ongoing_time_track.json")
 @tags(["Calendar Time Tracks"])
 @heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
@@ -1986,7 +2669,13 @@ structure StartTimeTrackOutput {
     recording: Recording
 }
 
-/// Update a time track (stop by setting ends_at to current time)
+/// Update a time track (stop by setting ends_at to current time).
+///
+/// Every update completes the track, whether or not ends_at is sent, so this cannot
+/// be used to adjust a running track: it stops it.
+///
+/// Only the fields sent are written, so a partial update leaves the rest of the track
+/// alone. A starts_at or ends_at the server cannot parse is a 400, not a 422.
 @idempotent
 // NOTE: The live path is /calendar/time_tracks/{id}.json, but Smithy forbids a
 // literal after a label inside one segment. The generated client appends .json to
@@ -1998,7 +2687,7 @@ structure StartTimeTrackOutput {
 operation UpdateTimeTrack {
     input: UpdateTimeTrackInput
     output: UpdateTimeTrackOutput
-    errors: [UnauthorizedError, NotFoundError, UnprocessableEntityError, InternalServerError, ServiceUnavailableError]
+    errors: [UnauthorizedError, BadRequestError, NotFoundError, UnprocessableEntityError, InternalServerError, ServiceUnavailableError]
 }
 
 structure UpdateTimeTrackInput {
@@ -2011,16 +2700,29 @@ structure UpdateTimeTrackInput {
     body: UpdateTimeTrackRequestContent
 }
 
-/// Wire format: {calendar_time_track: {title, notes, category, starts_at, ends_at}}
+/// Wire format: {calendar_time_track: {notes, category_title, starts_at, ends_at}}
 structure UpdateTimeTrackRequestContent {
     @required
     calendar_time_track: UpdateTimeTrackPayload
 }
 
 structure UpdateTimeTrackPayload {
+    /// Ignored by the server. A time track's title is the constant "Time Track";
+    /// HEY dropped per-track titles in 2023. Kept for compatibility only.
     title: String
+
     notes: String
+
+    /// Ignored by the server, which reads category_title instead. Kept for
+    /// compatibility only.
     category: String
+
+    /// Files the track under this category, creating the category if HEY does not
+    /// have one by that name. Blank is a no-op, not a way to clear the category:
+    /// once filed, a track can only be moved to another category, or left where it
+    /// is by deleting the category itself.
+    category_title: String
+
     starts_at: DateTime
     ends_at: DateTime
 }
@@ -2033,6 +2735,32 @@ structure UpdateTimeTrackOutput {
 // =============================================================================
 // CALENDAR JOURNAL OPERATIONS
 // =============================================================================
+
+/// List journal entries newest first. The next page, if any, is a Link header.
+/// Pass q to search journal entry content.
+@readonly
+@http(method: "GET", uri: "/calendar/journal_entries")
+@tags(["Calendar Journal"])
+@heyRetry(maxAttempts: 3, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+@heyPagination(style: "link")
+operation ListJournalEntries {
+    input: ListJournalEntriesInput
+    output: ListJournalEntriesOutput
+    errors: [UnauthorizedError, InternalServerError, ServiceUnavailableError]
+}
+
+structure ListJournalEntriesInput {
+    @httpQuery("page")
+    page: String
+
+    @httpQuery("q")
+    q: String
+}
+
+structure ListJournalEntriesOutput {
+    @required
+    entries: RecordingList
+}
 
 /// Get journal entry for a day
 @readonly
@@ -2056,8 +2784,10 @@ structure GetJournalEntryOutput {
     recording: Recording
 }
 
-/// Update the journal entry for a day: writes (or creates) it and answers the entry as a
-/// recording, or 204 when empty content removes it.
+/// Update the journal entry for a day: writes it, creating it if the day has none, and
+/// answers the entry as a recording. Empty content removes the entry instead, and HEY then
+/// answers 204 with no body — which is not this shape, so send that through the SDK's own
+/// journal wrapper rather than here.
 @http(method: "PATCH", uri: "/calendar/days/{day}/journal_entry")
 @tags(["Calendar Journal"])
 @heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
@@ -2345,6 +3075,15 @@ structure BoxGroupsResponse {
     box_groups: BoxGroupList
 }
 
+/// BoxGroupWithPostings — a Set Aside group with one page of the postings in it
+structure BoxGroupWithPostings {
+    @required
+    id: Long
+
+    box_id: Long
+    postings: PostingList
+}
+
 /// FolderWithPostings — folder detail with the postings filed in it
 structure FolderWithPostings {
     @required
@@ -2377,10 +3116,44 @@ structure MessageDraft {
     content: String
     addressed: Addressed
     show_addressed_selector: Boolean
+    posting: MessagePostingContext
+    addressed_sender: AddressedSender
 }
 
 /// Posting ids as a comma-joined string, for verbs that carry no body
 string PostingIdsParam
+
+/// List the unseen postings inside a bundle posting.
+///
+/// A bundle posting groups one contact's unseen mail; this is its contents — the member
+/// postings, newest first, paged by cursor like a box. The posting must be a bundle.
+@readonly
+@http(method: "GET", uri: "/postings/{postingId}/bundles/unseen.json")
+@tags(["Postings"])
+@heyRetry(maxAttempts: 3, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+@heyPagination(style: "link", totalCountHeader: "X-Total-Count")
+operation GetBundleUnseenPostings {
+    input: GetBundleUnseenPostingsInput
+    output: GetBundleUnseenPostingsOutput
+    errors: [UnauthorizedError, NotFoundError, InternalServerError, ServiceUnavailableError]
+}
+
+structure GetBundleUnseenPostingsInput {
+    @httpLabel
+    @required
+    postingId: Long
+
+    @httpQuery("page")
+    page: String
+}
+
+structure GetBundleUnseenPostingsOutput {
+    @required
+    contact: Contact
+
+    @required
+    postings: PostingList
+}
 
 // =============================================================================
 // POSTINGS — bulk actions across a selection
@@ -2531,6 +3304,38 @@ operation CancelPostingsBubbleUp {
 operation BubbleUpPostingsNow {
     input: MarkPostingsInput
     errors: [UnauthorizedError, NotFoundError, InternalServerError, ServiceUnavailableError]
+}
+
+/// Schedule a selection of postings to bubble up.
+///
+/// HEY's scheduler takes a `slot` — today, tomorrow, weekend, next_week, surprise_me
+/// or custom — and a custom slot also carries the `date` (YYYY-MM-DD) to bubble up on,
+/// at HEY's morning hour. The today slot lands at HEY's evening hour of the current
+/// day instead, and both hours are UTC over JSON. An unknown slot, or a custom slot
+/// without a date, is a server error rather than a validation response, so callers
+/// check both first. Responds 201 Created.
+@http(method: "POST", uri: "/postings/bubble_up.json")
+@tags(["Postings"])
+@heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+operation SchedulePostingsBubbleUp {
+    input: SchedulePostingsBubbleUpInput
+    errors: [UnauthorizedError, NotFoundError, InternalServerError, ServiceUnavailableError]
+}
+
+structure SchedulePostingsBubbleUpInput {
+    @httpPayload
+    @required
+    body: SchedulePostingsBubbleUpRequestContent
+}
+
+structure SchedulePostingsBubbleUpRequestContent {
+    @required
+    posting_ids: PostingIdList
+
+    @required
+    slot: String
+
+    date: String
 }
 
 // =============================================================================
@@ -3111,6 +3916,39 @@ structure ListBoxGroupsOutput {
     response: BoxGroupsResponse
 }
 
+/// Read one Set Aside group with the postings in it.
+///
+/// The postings are paged like a folder's: newest observed first, 30 to a page, with the
+/// next page in the Link header and the total in X-Total-Count.
+@readonly
+@http(method: "GET", uri: "/boxes/{boxId}/groups/{groupId}")
+@tags(["Boxes"])
+@heyRetry(maxAttempts: 3, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+@heyPagination(style: "link", totalCountHeader: "X-Total-Count")
+operation GetBoxGroup {
+    input: GetBoxGroupInput
+    output: GetBoxGroupOutput
+    errors: [UnauthorizedError, NotFoundError, InternalServerError, ServiceUnavailableError]
+}
+
+structure GetBoxGroupInput {
+    @httpLabel
+    @required
+    boxId: Long
+
+    @httpLabel
+    @required
+    groupId: Long
+
+    @httpQuery("page")
+    page: String
+}
+
+structure GetBoxGroupOutput {
+    @required
+    group: BoxGroupWithPostings
+}
+
 /// Create a Set Aside group out of a selection of postings.
 ///
 /// This endpoint does not split a comma-joined posting_ids string — send an array.
@@ -3225,6 +4063,32 @@ operation ListCollections {
 structure ListCollectionsOutput {
     @required
     collections: CollectionList
+}
+
+/// Get a collection and one page of its active, accessible threads
+@readonly
+@http(method: "GET", uri: "/collections/{collectionId}")
+@tags(["Collections"])
+@heyRetry(maxAttempts: 3, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+@heyPagination(style: "link", totalCountHeader: "X-Total-Count")
+operation GetCollection {
+    input: GetCollectionInput
+    output: GetCollectionOutput
+    errors: [UnauthorizedError, NotFoundError, InternalServerError, ServiceUnavailableError]
+}
+
+structure GetCollectionInput {
+    @httpLabel
+    @required
+    collectionId: Long
+
+    @httpQuery("page")
+    page: String
+}
+
+structure GetCollectionOutput {
+    @required
+    collection: CollectionWithPostings
 }
 
 /// Rename a collection or change its summary
@@ -3654,6 +4518,56 @@ structure GetWorkflowInput {
 structure GetWorkflowOutput {
     @required
     workflow: Workflow
+}
+
+/// Add a topic to a workflow. HEY places it in the first stage.
+@http(method: "POST", uri: "/topics/{topicId}/workflows/{workflowId}/stagings")
+@tags(["Workflows"])
+operation CreateWorkflowStaging {
+    input: CreateWorkflowStagingInput
+    errors: [UnauthorizedError, ForbiddenError, NotFoundError, UnprocessableEntityError, InternalServerError, ServiceUnavailableError]
+}
+
+structure CreateWorkflowStagingInput {
+    @httpLabel
+    @required
+    topicId: Long
+
+    @httpLabel
+    @required
+    workflowId: Long
+}
+
+/// Move a staged topic to a workflow stage.
+@http(method: "PATCH", uri: "/topics/{topicId}/workflows/{workflowId}/stagings")
+@tags(["Workflows"])
+operation MoveWorkflowStaging {
+    input: MoveWorkflowStagingInput
+    errors: [UnauthorizedError, ForbiddenError, NotFoundError, UnprocessableEntityError, InternalServerError, ServiceUnavailableError]
+}
+
+structure MoveWorkflowStagingInput {
+    @httpLabel
+    @required
+    topicId: Long
+
+    @httpLabel
+    @required
+    workflowId: Long
+
+    @httpPayload
+    @required
+    body: MoveWorkflowStagingRequestContent
+}
+
+structure MoveWorkflowStagingRequestContent {
+    @required
+    workflow_staging: WorkflowStagingPayload
+}
+
+structure WorkflowStagingPayload {
+    @required
+    workflow_stage_id: Long
 }
 
 /// Whether a thread is shared with a public link, and the link

@@ -168,6 +168,11 @@ endif
 		  echo "       The release workflow checks this, so the tag would fail to publish."; \
 		  echo "       Run: make bump VERSION=$(VERSION) — then commit and merge that first."; \
 		  exit 1; }
+	@grep -Fxq 'version = "$(VERSION)"' rust/hey-sdk/Cargo.toml || \
+		{ echo "ERROR: rust/hey-sdk/Cargo.toml does not say $(VERSION):"; \
+		  grep '^version' rust/hey-sdk/Cargo.toml; \
+		  echo "       Run: make bump VERSION=$(VERSION) — then commit and merge that first."; \
+		  exit 1; }
 	@$(MAKE) check-mvp
 	git tag "v$(VERSION)"
 	git tag "go/v$(VERSION)"
@@ -193,6 +198,29 @@ go-check:
 
 go-check-drift:
 	./scripts/check-service-drift.sh
+
+#------------------------------------------------------------------------------
+# Rust SDK
+#------------------------------------------------------------------------------
+
+.PHONY: rs-generate rs-check-drift rs-test rs-lint rs-check
+
+# Types, routes and services are all generated; there is no hand-written wrapper layer
+# to drift, so the drift check is the generator's own --check.
+rs-generate:
+	$(MAKE) -C rust generate
+
+rs-check-drift:
+	$(MAKE) -C rust generate-check
+
+rs-test:
+	$(MAKE) -C rust test
+
+rs-lint:
+	$(MAKE) -C rust lint
+
+rs-check:
+	$(MAKE) -C rust check
 
 #------------------------------------------------------------------------------
 # TypeScript SDK
@@ -280,10 +308,13 @@ kt-check-drift:
 # Conformance
 #------------------------------------------------------------------------------
 
-.PHONY: conformance conformance-mvp conformance-full conformance-go conformance-ts conformance-rb conformance-swift conformance-kt
+.PHONY: conformance conformance-mvp conformance-full conformance-go conformance-rs conformance-ts conformance-rb conformance-swift conformance-kt
 
 conformance-go:
 	cd conformance/runner/go && go run .
+
+conformance-rs:
+	cd conformance/runner/rust && cargo run -q
 
 conformance-ts:
 	cd conformance/runner/typescript && npm test
@@ -298,10 +329,10 @@ conformance-kt:
 	cd conformance/runner/kotlin && ./gradlew test
 
 # MVP: behavioral tests only (conformance/tests/*.json)
-conformance-mvp: conformance-go
+conformance-mvp: conformance-go conformance-rs
 
 # Full: MVP + full-surface tests (conformance/tests/ + conformance/tests/full/)
-conformance-full: conformance-go conformance-ts conformance-rb conformance-swift conformance-kt
+conformance-full: conformance-go conformance-rs conformance-ts conformance-rb conformance-swift conformance-kt
 
 # Bare alias points to full
 conformance: conformance-full
@@ -317,14 +348,14 @@ audit-check:
 
 # Phase 0-1: Smithy model validation
 check-mvp: smithy-check behavior-model-check drift-check-mvp \
-           url-routes-check go-check go-check-drift conformance-mvp
+           url-routes-check go-check go-check-drift rs-check rs-check-drift conformance-mvp
 	@echo "==> MVP gate passed"
 
 # Phase 3: Full surface, all languages
 check-full: smithy-check behavior-model-check drift-check-full \
             sync-api-version-check provenance-check \
-            go-check-drift kt-check-drift \
-            go-check ts-check rb-check swift-check kt-check \
+            go-check-drift rs-check-drift kt-check-drift \
+            go-check rs-check ts-check rb-check swift-check kt-check \
             conformance-full audit-check
 	@echo "==> Full gate passed"
 
@@ -340,7 +371,7 @@ clean: smithy-clean
 help:
 	@echo "HEY SDK Makefile"
 	@echo ""
-	@echo "  check-mvp   Run MVP gate (Smithy + Go + conformance)"
+	@echo "  check-mvp   Run MVP gate (Smithy + Go + Rust + conformance)"
 	@echo "  check-full  Run full gate (all languages + conformance + audit)"
 	@echo "  check       Alias for check-mvp"
 	@echo "  smithy-build   Regenerate OpenAPI from Smithy"

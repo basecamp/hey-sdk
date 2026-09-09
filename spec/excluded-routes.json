@@ -5,16 +5,6 @@
     "reason": "broken: returns 404 (hey-cli PR #2)"
   },
   {
-    "method": "GET",
-    "path": "/calendar/journal_entries.json",
-    "reason": "broken: returns 406 (hey-cli PR #2)"
-  },
-  {
-    "method": "GET",
-    "path": "/calendar/time_tracks.json",
-    "reason": "broken: returns 406 (hey-cli PR #2)"
-  },
-  {
     "method": "DELETE",
     "path": "/auditor_token",
     "reason": "internal: auditor token management"
@@ -175,11 +165,6 @@
     "reason": "phase-2: calendar cover image"
   },
   {
-    "method": "GET",
-    "path": "/calendar/days",
-    "reason": "phase-2: calendar day management"
-  },
-  {
     "method": "POST",
     "path": "/calendar/days",
     "reason": "phase-2: calendar day management"
@@ -187,7 +172,7 @@
   {
     "method": "GET",
     "path": "/calendar/days/now",
-    "reason": "phase-2: calendar day management"
+    "reason": "the same action as GET /calendar/days/{id}, which takes `now` as its date"
   },
   {
     "method": "GET",
@@ -416,11 +401,6 @@
   },
   {
     "method": "DELETE",
-    "path": "/calendar/days/{id}",
-    "reason": "phase-2: calendar day management"
-  },
-  {
-    "method": "GET",
     "path": "/calendar/days/{id}",
     "reason": "phase-2: calendar day management"
   },
@@ -540,11 +520,6 @@
     "reason": "phase-2: calendar events"
   },
   {
-    "method": "DELETE",
-    "path": "/calendar/events/{event_id}/occurrences/{occurrence}",
-    "reason": "phase-2: calendar events"
-  },
-  {
     "method": "PATCH",
     "path": "/calendar/events/{event_id}/occurrences/{occurrence}",
     "reason": "phase-2: calendar events"
@@ -557,11 +532,6 @@
   {
     "method": "POST",
     "path": "/calendar/events/{event_id}/outbound_replies",
-    "reason": "phase-2: calendar events"
-  },
-  {
-    "method": "DELETE",
-    "path": "/calendar/events/{id}",
     "reason": "phase-2: calendar events"
   },
   {
@@ -692,12 +662,7 @@
   {
     "method": "PATCH",
     "path": "/calendar/identity/first_week_day",
-    "reason": "phase-2: calendar identity settings"
-  },
-  {
-    "method": "PUT",
-    "path": "/calendar/identity/first_week_day",
-    "reason": "phase-2: calendar identity settings"
+    "reason": "modelled as PUT UpdateFirstWeekDay; PATCH is the same Rails route"
   },
   {
     "method": "PATCH",
@@ -1040,11 +1005,6 @@
     "reason": "phase-2: calendar todo management"
   },
   {
-    "method": "PATCH",
-    "path": "/calendar/todos/{id}",
-    "reason": "phase-2: calendar todo management"
-  },
-  {
     "method": "PUT",
     "path": "/calendar/todos/{id}",
     "reason": "phase-2: calendar todo management"
@@ -1073,11 +1033,6 @@
     "method": "GET",
     "path": "/calendar/me",
     "reason": "phase-2: calendar user profile"
-  },
-  {
-    "method": "GET",
-    "path": "/calendar/weeks",
-    "reason": "phase-2: calendar week view"
   },
   {
     "method": "POST",
@@ -1230,11 +1185,6 @@
     "reason": "phase-2: calendar week view"
   },
   {
-    "method": "GET",
-    "path": "/calendar/weeks/{id}",
-    "reason": "phase-2: calendar week view"
-  },
-  {
     "method": "PATCH",
     "path": "/calendar/weeks/{id}",
     "reason": "phase-2: calendar week view"
@@ -1256,11 +1206,6 @@
   },
   {
     "method": "DELETE",
-    "path": "/calendar/years/{id}",
-    "reason": "phase-2: calendar year view"
-  },
-  {
-    "method": "GET",
     "path": "/calendar/years/{id}",
     "reason": "phase-2: calendar year view"
   },
@@ -1346,11 +1291,6 @@
   },
   {
     "method": "DELETE",
-    "path": "/collections/{id}",
-    "reason": "phase-2: collections"
-  },
-  {
-    "method": "GET",
     "path": "/collections/{id}",
     "reason": "phase-2: collections"
   },
@@ -1565,11 +1505,6 @@
     "reason": "phase-2: draft management"
   },
   {
-    "method": "DELETE",
-    "path": "/entries/drafts/{id}",
-    "reason": "phase-2: draft management"
-  },
-  {
     "method": "GET",
     "path": "/entries/drafts/{id}",
     "reason": "phase-2: draft management"
@@ -1761,11 +1696,6 @@
   },
   {
     "method": "GET",
-    "path": "/imbox/seen",
-    "reason": "phase-2: imbox management"
-  },
-  {
-    "method": "GET",
     "path": "/imbox/unseen",
     "reason": "phase-2: imbox management"
   },
@@ -1811,11 +1741,6 @@
   },
   {
     "method": "PATCH",
-    "path": "/messages/{id}",
-    "reason": "phase-2: message CRUD"
-  },
-  {
-    "method": "PUT",
     "path": "/messages/{id}",
     "reason": "phase-2: message CRUD"
   },
@@ -1902,11 +1827,6 @@
   {
     "method": "PUT",
     "path": "/boxes/{box_id}/glance",
-    "reason": "phase-2: mobile triage surface"
-  },
-  {
-    "method": "GET",
-    "path": "/boxes/{box_id}/groups/{id}",
     "reason": "phase-2: mobile triage surface"
   },
   {
@@ -2042,12 +1962,7 @@
   {
     "method": "PATCH",
     "path": "/identity/time_format",
-    "reason": "phase-2: mobile triage surface"
-  },
-  {
-    "method": "PUT",
-    "path": "/identity/time_format",
-    "reason": "phase-2: mobile triage surface"
+    "reason": "modelled as PUT UpdateTimeFormat; PATCH is the same Rails route"
   },
   {
     "method": "PATCH",
@@ -2700,11 +2615,6 @@
     "reason": "phase-2: personal settings and preferences"
   },
   {
-    "method": "POST",
-    "path": "/postings/bubble_up",
-    "reason": "phase-2: posting bubble up"
-  },
-  {
     "method": "GET",
     "path": "/postings/bubble_up/menu",
     "reason": "phase-2: posting bubble up"
@@ -2738,11 +2648,6 @@
     "method": "PUT",
     "path": "/postings/bulk_bubble_up_now",
     "reason": "phase-2: posting bulk bubble up"
-  },
-  {
-    "method": "GET",
-    "path": "/postings/{posting_id}/bundles/unseen",
-    "reason": "phase-2: posting bundles unseen"
   },
   {
     "method": "POST",
@@ -3150,11 +3055,6 @@
     "reason": "phase-2: shared calendar toggle"
   },
   {
-    "method": "POST",
-    "path": "/calendars/{calendar_id}/toggle",
-    "reason": "phase-2: shared calendar toggle"
-  },
-  {
     "method": "PUT",
     "path": "/calendars/{calendar_id}/toggle",
     "reason": "phase-2: shared calendar toggle"
@@ -3556,16 +3456,6 @@
   },
   {
     "method": "DELETE",
-    "path": "/topics/{topic_id}/workflows/{workflow_id}/stagings",
-    "reason": "phase-2: topic workflows"
-  },
-  {
-    "method": "PATCH",
-    "path": "/topics/{topic_id}/workflows/{workflow_id}/stagings",
-    "reason": "phase-2: topic workflows"
-  },
-  {
-    "method": "POST",
     "path": "/topics/{topic_id}/workflows/{workflow_id}/stagings",
     "reason": "phase-2: topic workflows"
   },

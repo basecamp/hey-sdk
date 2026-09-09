@@ -63,34 +63,35 @@ type Client struct {
 	boxByKind map[string]int64
 
 	// Services (lazy-initialized, protected by mu)
-	mu             sync.Mutex
-	identity       *IdentityService
-	boxes          *BoxesService
-	postings       *PostingsService
-	topics         *TopicsService
-	messages       *MessagesService
-	attachments    *AttachmentsService
-	entries        *EntriesService
-	bulkReplies    *BulkRepliesService
-	contacts       *ContactsService
-	clearances     *ClearancesService
-	calendars      *CalendarsService
-	calendarTodos  *CalendarTodosService
-	calendarEvents *CalendarEventsService
-	habits         *HabitsService
-	timeTracks     *TimeTracksService
-	journal        *JournalService
-	search         *SearchService
-	designations   *DesignationsService
-	extenzions     *ExtenzionsService
-	folders        *FoldersService
-	collections    *CollectionsService
-	stickies       *StickiesService
-	clips          *ClipsService
-	snippets       *SnippetsService
-	workflows      *WorkflowsService
-	publications   *PublicationsService
-	world          *WorldService
+	mu              sync.Mutex
+	identity        *IdentityService
+	boxes           *BoxesService
+	postings        *PostingsService
+	topics          *TopicsService
+	messages        *MessagesService
+	attachments     *AttachmentsService
+	entries         *EntriesService
+	bulkReplies     *BulkRepliesService
+	contacts        *ContactsService
+	clearances      *ClearancesService
+	calendars       *CalendarsService
+	calendarPeriods *CalendarPeriodsService
+	calendarTodos   *CalendarTodosService
+	calendarEvents  *CalendarEventsService
+	habits          *HabitsService
+	timeTracks      *TimeTracksService
+	journal         *JournalService
+	search          *SearchService
+	designations    *DesignationsService
+	extenzions      *ExtenzionsService
+	folders         *FoldersService
+	collections     *CollectionsService
+	stickies        *StickiesService
+	clips           *ClipsService
+	snippets        *SnippetsService
+	workflows       *WorkflowsService
+	publications    *PublicationsService
+	world           *WorldService
 }
 
 // Response wraps an API response.
@@ -121,7 +122,10 @@ func (r *Response) UnmarshalData(v any) error {
 // ClientOption configures a Client.
 type ClientOption func(*Client)
 
-// WithHTTPClient sets a custom HTTP client.
+// WithHTTPClient sets a custom HTTP client. It replaces the one NewClient would build, so
+// none of what that one carries — the request timeout, credential stripping on cross-origin
+// redirects, the response body cap, logging and hooks — applies to it. WithTransport keeps
+// all of that and swaps only the transport underneath.
 func WithHTTPClient(c *http.Client) ClientOption {
 	return func(client *Client) {
 		client.httpClient = c
@@ -184,6 +188,10 @@ func NewClient(cfg *Config, tokenProvider TokenProvider, opts ...ClientOption) *
 			transport = newDefaultTransport()
 		}
 
+		// The cap sits inside the logging transport, so logging and hooks see every round
+		// trip, and outside the transport that negotiated the encoding, so it counts the
+		// decompressed bytes a parser would buffer.
+		transport = &bodyLimitTransport{inner: transport, limit: c.httpOpts.responseBodyLimit()}
 		transport = &loggingTransport{inner: transport, client: c}
 
 		c.httpClient = &http.Client{
@@ -224,6 +232,20 @@ func NewClient(cfg *Config, tokenProvider TokenProvider, opts ...ClientOption) *
 	return c
 }
 
+// refreshCredentials renews what the next request will authenticate with, and reports
+// whether anything was able to. The strategy is asked before the token provider because a
+// client given both is authenticated by the strategy, so the strategy is what holds the
+// credentials a 401 was about.
+func (c *Client) refreshCredentials(ctx context.Context) bool {
+	if refresher, ok := c.authStrategy.(TokenRefresher); ok {
+		return refresher.Refresh(ctx) == nil
+	}
+	if refresher, ok := c.tokenProvider.(TokenRefresher); ok {
+		return refresher.Refresh(ctx) == nil
+	}
+	return false
+}
+
 // initGeneratedClient initializes the generated OpenAPI client for this account scope.
 func (c *Client) initGeneratedClient() {
 	c.genOnce.Do(func() {
@@ -242,14 +264,64 @@ func (c *Client) initGeneratedClient() {
 			req.Header.Set("Accept", "application/json")
 			return nil
 		}
+		// The generated client runs its own retry loop, so it has to be told what
+		// WithMaxRetries and WithBaseDelay configured or it runs on its own defaults.
+		// Idempotency still gates it: a non-idempotent operation gets one attempt no
+		// matter the count. The generated MaxDelay ceiling is lifted to the configured
+		// BaseDelay when that is higher, since the hand-written paths sleep BaseDelay
+		// verbatim and the generated loop must not sleep less than asked.
+		retryCfg := generated.DefaultRetryConfig()
+		retryCfg.MaxRetries = max(c.httpOpts.MaxRetries, 0)
+		retryCfg.BaseDelay = max(c.httpOpts.BaseDelay, 0)
+		retryCfg.MaxDelay = max(retryCfg.MaxDelay, retryCfg.BaseDelay)
+
+		// The generated loop announces each resend the way doRequestURL does: the attempt
+		// that failed in the request info, the one about to be made alongside, the URL as
+		// the account-scoped transport will send it, and the failure as the SDK's error.
+		retryHook := func(ctx context.Context, retry generated.Retry) {
+			url := retry.Request.URL.String()
+			if scoped, err := c.accountScopedURL(url); err == nil {
+				url = scoped
+			}
+			info := RequestInfo{Method: retry.Request.Method, URL: url, Attempt: retry.Attempt - 1}
+			c.hooks.OnRetry(ctx, info, retry.Attempt, retryCause(retry))
+		}
+
+		// A client with a response cache sends generated requests through it, so the
+		// generated operations revalidate with If-None-Match and read 304s from the
+		// cache the way the hand-written paths do.
+		var doer generated.HttpRequestDoer = c.httpClient
+		if c.cache != nil {
+			doer = &cachingDoer{client: c}
+		}
+
 		gen, err := generated.NewClientWithResponses(serverURL,
-			generated.WithHTTPClient(c.httpClient),
+			generated.WithHTTPClient(doer),
+			generated.WithRetryConfig(retryCfg),
+			generated.WithAuthRefresher(c.refreshCredentials),
+			generated.WithRetryHook(retryHook),
 			generated.WithRequestEditorFn(authEditor))
 		if err != nil {
 			panic(fmt.Sprintf("hey: failed to create generated client: %v", err))
 		}
 		c.gen = gen
 	})
+}
+
+// retryCause is the failure a generated resend answers, as the hand-written path reports
+// it to OnRetry: a transport failure as the SDK's network error, a response as CheckResponse
+// classifies it, and the 401 a credential refresh answered as the retryable authentication
+// error singleRequest hands doRequestURL, since the resend is the SDK's own doing.
+func retryCause(retry generated.Retry) error {
+	if retry.Response == nil {
+		return ErrNetwork(retry.Err)
+	}
+	cause := CheckResponse(retry.Response)
+	if authErr, ok := cause.(*Error); ok && authErr.Code == CodeAuth {
+		authErr.Message = "Token refreshed"
+		authErr.Retryable = true
+	}
+	return cause
 }
 
 // withJSONExtension appends ".json" to a request path whose last segment has no
@@ -265,6 +337,13 @@ func withJSONExtension(path string) string {
 		return path
 	}
 	return path + ".json"
+}
+
+// useFormRepresentation selects the HTML representation used by form-backed operations.
+func useFormRepresentation(_ context.Context, req *http.Request) error {
+	req.URL.Path = strings.TrimSuffix(req.URL.Path, ".json")
+	req.Header.Set("Accept", "*/*")
+	return nil
 }
 
 // discardHandler is a slog.Handler that discards all log records.
@@ -406,12 +485,27 @@ func (c *Client) doFormRequest(ctx context.Context, method, path string, values 
 
 // doBodyRequest executes a request whose response is a redirect rather than a document, and
 // captures that redirect instead of following it. The body is held as bytes so a retry after
-// a token refresh can send it again.
+// a token refresh can send it again. Like doRequestURL's mutations, it retries exactly once,
+// and only after a 401 that a refresh answered.
 func (c *Client) doBodyRequest(ctx context.Context, method, path, contentType string, body []byte) (*FormResponse, error) {
 	reqURL, err := c.buildURL(path)
 	if err != nil {
 		return nil, err
 	}
+
+	resp, err := c.sendBodyRequest(ctx, method, reqURL, contentType, body, 1)
+	if apiErr, ok := err.(*Error); ok && apiErr.Retryable && apiErr.Code == CodeAuth {
+		c.logger.Debug("token refreshed, retrying form request", "method", method)
+		return c.sendBodyRequest(ctx, method, reqURL, contentType, body, 2)
+	}
+	return resp, err
+}
+
+// sendBodyRequest sends one attempt of doBodyRequest. A 401 on the first attempt that a
+// credential refresh answers comes back as a retryable auth error, as singleRequest reports
+// it, so the caller decides whether to resend; any other 401 is surfaced as the failure.
+func (c *Client) sendBodyRequest(ctx context.Context, method, reqURL, contentType string, body []byte, attempt int) (*FormResponse, error) {
+	ctx = contextWithAttempt(ctx, attempt)
 
 	var bodyReader io.Reader
 	if body != nil {
@@ -460,17 +554,20 @@ func (c *Client) doBodyRequest(ctx context.Context, method, path, contentType st
 		}, nil
 
 	case resp.StatusCode >= 200 && resp.StatusCode < 300:
-		responseBody, err := io.ReadAll(resp.Body)
+		// Asked for with */*, so the transport's cap does not apply; bound it here as
+		// singleRequest bounds its own reads.
+		responseBody, err := limitedReadAll(resp.Body, MaxResponseBodyBytes)
 		if err != nil {
 			return nil, ErrNetwork(err)
 		}
 		return &FormResponse{StatusCode: resp.StatusCode, Body: string(responseBody)}, nil
 
 	case resp.StatusCode == http.StatusUnauthorized:
-		// Try token refresh and retry once
-		if authMgr, ok := c.tokenProvider.(*AuthManager); ok {
-			if refreshErr := authMgr.Refresh(ctx); refreshErr == nil {
-				return c.doBodyRequest(ctx, method, path, contentType, body)
+		if attempt == 1 && c.refreshCredentials(ctx) {
+			return nil, &Error{
+				Code:      CodeAuth,
+				Message:   "Token refreshed",
+				Retryable: true,
 			}
 		}
 		return nil, ErrAuth("Authentication failed")
@@ -680,6 +777,12 @@ func (c *Client) singleRequest(ctx context.Context, method, url string, body any
 			c.logger.Debug("cache hit", "status", 304)
 			cached := c.cache.GetBody(cacheKey)
 			if cached != nil {
+				// Written by a client with a higher cap, or an older SDK with none: the
+				// transport never saw it, so it is held to the bound here.
+				if bound := c.bufferBound(req); int64(len(cached)) > bound {
+					return nil, fmt.Errorf("%s %s: cached response of %d bytes: %w of %d bytes",
+						method, req.URL.Path, len(cached), ErrResponseTooLarge, bound)
+				}
 				return &Response{
 					Data:       cached,
 					StatusCode: http.StatusOK,
@@ -698,7 +801,7 @@ func (c *Client) singleRequest(ctx context.Context, method, url string, body any
 			}
 			return &Response{StatusCode: resp.StatusCode, Headers: resp.Header}, nil
 		}
-		respBody, err := limitedReadAll(resp.Body, MaxResponseBodyBytes)
+		respBody, err := limitedReadAll(resp.Body, c.bufferBound(req))
 		if err != nil {
 			return nil, fmt.Errorf("failed to read response: %w", err)
 		}
@@ -726,15 +829,11 @@ func (c *Client) singleRequest(ctx context.Context, method, url string, body any
 		return nil, &retryableError{err: rateErr, retryAfter: time.Duration(retryAfter) * time.Second}
 
 	case http.StatusUnauthorized:
-		if attempt == 1 {
-			if authMgr, ok := c.tokenProvider.(*AuthManager); ok {
-				if err := authMgr.Refresh(ctx); err == nil {
-					return nil, &Error{
-						Code:      CodeAuth,
-						Message:   "Token refreshed",
-						Retryable: true,
-					}
-				}
+		if attempt == 1 && c.refreshCredentials(ctx) {
+			return nil, &Error{
+				Code:      CodeAuth,
+				Message:   "Token refreshed",
+				Retryable: true,
 			}
 		}
 		return nil, ErrAuth("Authentication failed")
@@ -776,6 +875,19 @@ func (c *Client) singleRequest(ctx context.Context, method, url string, body any
 		}
 		return nil, ErrAPI(resp.StatusCode, fmt.Sprintf("Request failed (HTTP %d)", resp.StatusCode))
 	}
+}
+
+// bufferBound is the most singleRequest buffers of an answer to req. A parsed request —
+// JSON, HTML — is already capped in the transport at the configured limit, so the bound here
+// is that same limit: a second, smaller one would refuse an answer below the cap the caller
+// configured, and the same number still holds for a client built with WithHTTPClient, which
+// has no transport cap. Anything else — a blob, an export — is bounded at the 50 MiB
+// MaxResponseBodyBytes constant.
+func (c *Client) bufferBound(req *http.Request) int64 {
+	if isParsedRequest(req) {
+		return c.httpOpts.responseBodyLimit()
+	}
+	return MaxResponseBodyBytes
 }
 
 func (c *Client) buildURL(path string) (string, error) {
@@ -971,6 +1083,16 @@ func (c *Client) Calendars() *CalendarsService {
 	return c.calendars
 }
 
+// CalendarPeriods returns the CalendarPeriodsService.
+func (c *Client) CalendarPeriods() *CalendarPeriodsService {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.calendarPeriods == nil {
+		c.calendarPeriods = NewCalendarPeriodsService(c)
+	}
+	return c.calendarPeriods
+}
+
 // CalendarTodos returns the CalendarTodosService.
 func (c *Client) CalendarTodos() *CalendarTodosService {
 	c.mu.Lock()
@@ -1129,6 +1251,17 @@ func (c *Client) World() *WorldService {
 		c.world = NewWorldService(c)
 	}
 	return c.world
+}
+
+// resolveActingSenderID answers the acting sender an operation goes out as: the
+// caller's choice passed through untouched when one was made — an id the server
+// does not recognize is the server's to reject — and the account's default sender
+// for the zero value.
+func (c *Client) resolveActingSenderID(ctx context.Context, actingSenderID int64) (int64, error) {
+	if actingSenderID != 0 {
+		return actingSenderID, nil
+	}
+	return c.DefaultSenderID(ctx)
 }
 
 // DefaultSenderID returns the default sender contact ID for this client. An

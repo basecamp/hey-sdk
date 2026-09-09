@@ -21,8 +21,24 @@ func NewClearancesService(client *Client) *ClearancesService {
 // PendingCount answers how many senders are waiting, without fetching them.
 //
 // This is the cheap read HEY's own apps sync for the Screener badge. Use Pending when you
-// want the senders themselves.
+// want the senders themselves, or Summary when you also want the stream to follow.
 func (s *ClearancesService) PendingCount(ctx context.Context) (count int, err error) {
+	summary, err := s.Summary(ctx)
+	if err != nil {
+		return 0, err
+	}
+	if summary == nil {
+		return 0, nil
+	}
+	return int(summary.PendingClearancesCount), nil
+}
+
+// Summary answers everything HEY says about the Screener without the queue itself: how
+// many senders are waiting, and the signed stream name to subscribe to on HEY's cable
+// server to be told when that changes.
+//
+// It is the same read as PendingCount — the count alone, no queue dragged along.
+func (s *ClearancesService) Summary(ctx context.Context) (summary *generated.ClearanceSummary, err error) {
 	op := OperationInfo{
 		Service: "Clearances", Operation: "GetClearances",
 		ResourceType: "clearance", IsMutation: false,
@@ -36,12 +52,18 @@ func (s *ClearancesService) PendingCount(ctx context.Context) (count int, err er
 		if cerr := CheckResponse(resp.HTTPResponse); cerr != nil {
 			return cerr
 		}
-		if resp.JSON200 != nil {
-			count = int(resp.JSON200.PendingClearancesCount)
-		}
+		summary = resp.JSON200
 		return nil
 	})
-	return count, err
+	return summary, err
+}
+
+// ClearancePage contains one page of clearances and the cursor for the page after it.
+// PendingCount is what the Screener holds in total and is only answered by PendingPage.
+type ClearancePage struct {
+	Clearances   []generated.Clearance
+	PendingCount int
+	NextPage     string
 }
 
 // Pending answers the senders waiting to be screened, a page at a time.
@@ -56,13 +78,7 @@ func (s *ClearancesService) Pending(ctx context.Context, page string) (summary *
 	}
 
 	err = s.client.instrument(ctx, op, func(ctx context.Context) error {
-		include := true
-		params := &generated.GetClearancesParams{IncludeClearances: &include}
-		if page != "" {
-			params.Page = &page
-		}
-
-		resp, rerr := s.client.genClient().GetClearancesWithResponse(ctx, params)
+		resp, rerr := s.client.genClient().GetClearancesWithResponse(ctx, pendingClearancesParams(page))
 		if rerr != nil {
 			return rerr
 		}
@@ -73,6 +89,35 @@ func (s *ClearancesService) Pending(ctx context.Context, page string) (summary *
 		return nil
 	})
 	return summary, err
+}
+
+// PendingPage answers the same queue as Pending along with the cursor for the page after
+// it, so a caller walking the queue is told when it has reached the end of it.
+func (s *ClearancesService) PendingPage(ctx context.Context, page string) (result *ClearancePage, err error) {
+	op := OperationInfo{
+		Service: "Clearances", Operation: "GetClearances",
+		ResourceType: "clearance", IsMutation: false,
+	}
+
+	err = s.client.instrument(ctx, op, func(ctx context.Context) error {
+		resp, rerr := s.client.genClient().GetClearancesWithResponse(ctx, pendingClearancesParams(page))
+		if rerr != nil {
+			return rerr
+		}
+		if cerr := CheckResponse(resp.HTTPResponse); cerr != nil {
+			return cerr
+		}
+		result = &ClearancePage{}
+		if resp.JSON200 != nil {
+			result.Clearances = resp.JSON200.Clearances
+			result.PendingCount = int(resp.JSON200.PendingClearancesCount)
+		}
+		if resp.HTTPResponse != nil {
+			result.NextPage = gearedPageFromLink(resp.HTTPResponse.Header.Get("Link"))
+		}
+		return nil
+	})
+	return result, err
 }
 
 // Screen answers the Screener for one sender. Status is ClearanceApproved or
@@ -190,6 +235,16 @@ func (s *ClearancesService) Punt(ctx context.Context) error {
 // Screened answers the senders already screened in or out, newest decision first, a page
 // at a time.
 func (s *ClearancesService) Screened(ctx context.Context, page string) (clearances []generated.Clearance, err error) {
+	result, err := s.ScreenedPage(ctx, page)
+	if err != nil || result == nil {
+		return nil, err
+	}
+	return result.Clearances, nil
+}
+
+// ScreenedPage answers the same decisions as Screened along with the cursor for the page
+// after it.
+func (s *ClearancesService) ScreenedPage(ctx context.Context, page string) (result *ClearancePage, err error) {
 	op := OperationInfo{
 		Service: "Clearances", Operation: "GetMyClearances",
 		ResourceType: "clearance", IsMutation: false,
@@ -208,12 +263,16 @@ func (s *ClearancesService) Screened(ctx context.Context, page string) (clearanc
 		if cerr := CheckResponse(resp.HTTPResponse); cerr != nil {
 			return cerr
 		}
+		result = &ClearancePage{}
 		if resp.JSON200 != nil {
-			clearances = resp.JSON200.Clearances
+			result.Clearances = resp.JSON200.Clearances
+		}
+		if resp.HTTPResponse != nil {
+			result.NextPage = gearedPageFromLink(resp.HTTPResponse.Header.Get("Link"))
 		}
 		return nil
 	})
-	return clearances, err
+	return result, err
 }
 
 // Rescreen changes its mind about a sender already screened in or out.
@@ -243,6 +302,15 @@ func (s *ClearancesService) Rescreen(ctx context.Context, clearanceID int64, sta
 		return nil
 	})
 	return clearance, err
+}
+
+func pendingClearancesParams(page string) *generated.GetClearancesParams {
+	include := true
+	params := &generated.GetClearancesParams{IncludeClearances: &include}
+	if page != "" {
+		params.Page = &page
+	}
+	return params
 }
 
 func validateClearanceStatus(status string) error {

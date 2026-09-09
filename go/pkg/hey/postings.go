@@ -263,6 +263,88 @@ func (s *PostingsService) BubbleUpNow(ctx context.Context, postingIDs ...int64) 
 	})
 }
 
+// BubbleUpSlot is one of HEY's named bubble-up schedule slots — the web app's
+// "Later today", "Tomorrow", "This weekend" and "Next week". Later today lands at
+// HEY's evening hour of the current day, the others at its morning hour of their day
+// (Saturday for the weekend, Monday for next week) — in UTC, like every hour HEY
+// reads out of a JSON request.
+type BubbleUpSlot string
+
+const (
+	BubbleUpLaterToday  BubbleUpSlot = "today"
+	BubbleUpTomorrow    BubbleUpSlot = "tomorrow"
+	BubbleUpThisWeekend BubbleUpSlot = "weekend"
+	BubbleUpNextWeek    BubbleUpSlot = "next_week"
+)
+
+// ScheduleBubbleUp schedules one or more postings to bubble up on a date, written
+// YYYY-MM-DD. HEY resurfaces them at its morning hour of that day — in UTC, like every
+// hour HEY reads out of a JSON request. HEY does not refuse a past timestamp — the
+// postings bubble up on the next scheduler run instead.
+func (s *PostingsService) ScheduleBubbleUp(ctx context.Context, date string, postingIDs ...int64) (err error) {
+	return s.scheduleBubbleUp(ctx, "custom", date, postingIDs)
+}
+
+// ScheduleBubbleUpFor schedules one or more postings to bubble up at one of HEY's
+// named slots.
+func (s *PostingsService) ScheduleBubbleUpFor(ctx context.Context, slot BubbleUpSlot, postingIDs ...int64) (err error) {
+	return s.scheduleBubbleUp(ctx, string(slot), "", postingIDs)
+}
+
+func (s *PostingsService) scheduleBubbleUp(ctx context.Context, slot, date string, postingIDs []int64) error {
+	return s.bulkAction(ctx, "SchedulePostingsBubbleUp", postingIDs, func(ctx context.Context, ids []int64) error {
+		body := generated.SchedulePostingsBubbleUpRequestContent{PostingIds: ids, Slot: slot, Date: date}
+		resp, err := s.client.genClient().SchedulePostingsBubbleUpWithResponse(ctx, body)
+		if err != nil {
+			return err
+		}
+		return CheckResponse(resp.HTTPResponse)
+	})
+}
+
+// BundlePage is one page of the unseen postings inside a bundle posting: the bundled
+// contact, the member postings newest first, and the cursor for the page below —
+// empty on the last page.
+type BundlePage struct {
+	Contact  generated.Contact
+	Postings []generated.Posting
+	NextPage string
+}
+
+// BundleUnseenPage reads one page of the unseen postings a bundle posting groups
+// (GET /postings/{id}/bundles/unseen). An empty cursor starts at the top; the next
+// page's cursor comes back on the page before it. The posting must be a bundle.
+func (s *PostingsService) BundleUnseenPage(ctx context.Context, postingID int64, cursor string) (result *BundlePage, err error) {
+	op := OperationInfo{
+		Service: "Postings", Operation: "GetBundleUnseenPostings",
+		ResourceType: "posting", IsMutation: false, ResourceID: postingID,
+	}
+
+	err = s.client.instrument(ctx, op, func(ctx context.Context) error {
+		params := &generated.GetBundleUnseenPostingsParams{}
+		if cursor != "" {
+			params.Page = &cursor
+		}
+		resp, rerr := s.client.genClient().GetBundleUnseenPostingsWithResponse(ctx, postingID, params)
+		if rerr != nil {
+			return rerr
+		}
+		if cerr := CheckResponse(resp.HTTPResponse); cerr != nil {
+			return cerr
+		}
+		result = &BundlePage{}
+		if resp.JSON200 != nil {
+			result.Contact = resp.JSON200.Contact
+			result.Postings = resp.JSON200.Postings
+		}
+		if resp.HTTPResponse != nil {
+			result.NextPage = gearedPageFromLink(resp.HTTPResponse.Header.Get("Link"))
+		}
+		return nil
+	})
+	return result, err
+}
+
 // PostingChangesCursor is where a read of a box's changes feed starts. Since is an ISO
 // 8601 timestamp with milliseconds and is exclusive; Version is the contract version the
 // caller speaks. A box's PostingChangesUrl carries the pair to begin with — read it with
@@ -355,7 +437,10 @@ func (s *PostingsService) Changes(ctx context.Context, boxID int64, cursor Posti
 	defer func() { s.client.hooks.OnOperationEnd(ctx, op, err, time.Since(start)) }()
 
 	s.client.initGeneratedClient()
-	resp, err := s.client.gen.GetBoxPostingChangesWithResponse(ctx, boxID, cursor.params())
+	// Cursor URLs never repeat, so a cached response would never be revalidated —
+	// a long-running watch would grow the cache one dead entry per read. The
+	// calendar change feeds take the same stance.
+	resp, err := s.client.gen.GetBoxPostingChangesWithResponse(contextWithoutCache(ctx), boxID, cursor.params())
 	if err != nil {
 		return nil, err
 	}

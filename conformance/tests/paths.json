@@ -198,7 +198,9 @@
       "entryId": 456
     },
     "requestBody": {
-      "content": "Reply text"
+      "content": "Reply text",
+      "subject": "Re: Reply subject",
+      "acting_sender_id": 314
     },
     "mockResponses": [
       {
@@ -225,7 +227,9 @@
         "type": "requestBody",
         "expected": {
           "message.content": "Reply text",
-          "entry": null
+          "entry": null,
+          "message.subject": "Re: Reply subject",
+          "acting_sender_id": 314
         }
       }
     ],
@@ -361,7 +365,7 @@
     "mockResponses": [
       {
         "status": 200,
-        "body": []
+        "body": {}
       }
     ],
     "assertions": [
@@ -848,6 +852,38 @@
     "tags": [
       "path",
       "boxes"
+    ]
+  },
+  {
+    "name": "ListJournalEntries uses /calendar/journal_entries path",
+    "description": "Verifies that ListJournalEntries reads the journal feed from /calendar/journal_entries",
+    "operation": "ListJournalEntries",
+    "method": "GET",
+    "path": "/calendar/journal_entries",
+    "mockResponses": [
+      {
+        "status": 200,
+        "body": [
+          {
+            "id": 123,
+            "type": "Calendar::JournalEntry",
+            "content": "Quarterly planning"
+          }
+        ]
+      }
+    ],
+    "assertions": [
+      {
+        "type": "requestPath",
+        "expected": "/calendar/journal_entries"
+      },
+      {
+        "type": "noError"
+      }
+    ],
+    "tags": [
+      "path",
+      "calendar-journal"
     ]
   },
   {
@@ -1681,6 +1717,53 @@
         "type": "requestQuery",
         "expected": {
           "posting_ids": "1,2"
+        }
+      }
+    ],
+    "tags": [
+      "path",
+      "postings"
+    ]
+  },
+  {
+    "name": "SchedulePostingsBubbleUp uses /postings/bubble_up.json path",
+    "description": "Verifies that SchedulePostingsBubbleUp constructs the URL path /postings/bubble_up.json",
+    "operation": "SchedulePostingsBubbleUp",
+    "method": "POST",
+    "path": "/postings/bubble_up.json",
+    "requestBody": {
+      "posting_ids": [
+        1,
+        2
+      ],
+      "slot": "custom",
+      "date": "2026-09-04"
+    },
+    "mockResponses": [
+      {
+        "status": 201,
+        "body": {}
+      }
+    ],
+    "assertions": [
+      {
+        "type": "requestPath",
+        "expected": "/postings/bubble_up.json"
+      },
+      {
+        "type": "noError"
+      },
+      {
+        "type": "requestMethod",
+        "expected": "POST"
+      },
+      {
+        "type": "requestBody",
+        "expected": {
+          "posting_ids.0": 1,
+          "posting_ids.1": 2,
+          "slot": "custom",
+          "date": "2026-09-04"
         }
       }
     ],
@@ -2604,6 +2687,40 @@
     ]
   },
   {
+    "name": "GetBoxGroup uses /boxes/{boxId}/groups/{groupId} path",
+    "description": "Verifies that GetBoxGroup constructs the URL path /boxes/{boxId}/groups/{groupId}",
+    "operation": "GetBoxGroup",
+    "method": "GET",
+    "path": "/boxes/{boxId}/groups/{groupId}",
+    "pathParams": {
+      "boxId": 24090,
+      "groupId": 9
+    },
+    "mockResponses": [
+      {
+        "status": 200,
+        "body": {
+          "id": 9,
+          "box_id": 24090,
+          "postings": []
+        }
+      }
+    ],
+    "assertions": [
+      {
+        "type": "requestPath",
+        "expected": "/boxes/24090/groups/9"
+      },
+      {
+        "type": "noError"
+      }
+    ],
+    "tags": [
+      "path",
+      "boxes"
+    ]
+  },
+  {
     "name": "DeleteBoxGroup uses /boxes/{boxId}/groups/{groupId} path",
     "description": "Verifies that DeleteBoxGroup constructs the URL path /boxes/{boxId}/groups/{groupId}",
     "operation": "DeleteBoxGroup",
@@ -2714,6 +2831,57 @@
       {
         "type": "requestPath",
         "expected": "/collections.json"
+      },
+      {
+        "type": "noError"
+      }
+    ],
+    "tags": [
+      "path",
+      "collections"
+    ]
+  },
+  {
+    "name": "GetCollection uses /collections/{collectionId} path",
+    "description": "Verifies that GetCollection constructs the collection detail path and carries the opaque page cursor",
+    "operation": "GetCollection",
+    "method": "GET",
+    "path": "/collections/{collectionId}",
+    "pathParams": {
+      "collectionId": 33
+    },
+    "queryParams": {
+      "page": "next-cursor"
+    },
+    "mockResponses": [
+      {
+        "status": 200,
+        "body": {
+          "id": 33,
+          "name": "Kitchen remodel",
+          "postings": [
+            {
+              "id": 91,
+              "kind": "topic"
+            }
+          ]
+        }
+      }
+    ],
+    "assertions": [
+      {
+        "type": "requestPath",
+        "expected": "/collections/33"
+      },
+      {
+        "type": "requestMethod",
+        "expected": "GET"
+      },
+      {
+        "type": "requestQuery",
+        "expected": {
+          "page": "next-cursor"
+        }
       },
       {
         "type": "noError"
@@ -3094,8 +3262,12 @@
     },
     "mockResponses": [
       {
-        "status": 204,
-        "body": {}
+        "status": 200,
+        "body": {
+          "id": 789,
+          "type": "Calendar::Habit",
+          "name": "Evening run"
+        }
       }
     ],
     "assertions": [
@@ -3325,6 +3497,118 @@
       {
         "type": "requestPath",
         "expected": "/workflows/8801"
+      },
+      {
+        "type": "requestMethod",
+        "expected": "GET"
+      },
+      {
+        "type": "noError"
+      }
+    ],
+    "tags": [
+      "path",
+      "reads"
+    ]
+  },
+  {
+    "name": "CreateWorkflowStaging uses the topic workflow stagings path",
+    "description": "Verifies that CreateWorkflowStaging adds a topic through its workflow staging resource",
+    "operation": "CreateWorkflowStaging",
+    "method": "POST",
+    "path": "/topics/{topicId}/workflows/{workflowId}/stagings",
+    "pathParams": {
+      "topicId": 4471829,
+      "workflowId": 8801
+    },
+    "mockResponses": [
+      {
+        "status": 204,
+        "body": {}
+      }
+    ],
+    "assertions": [
+      {
+        "type": "requestPath",
+        "expected": "/topics/4471829/workflows/8801/stagings"
+      },
+      {
+        "type": "requestMethod",
+        "expected": "POST"
+      },
+      {
+        "type": "noError"
+      }
+    ],
+    "tags": [
+      "path",
+      "workflows",
+      "writes"
+    ]
+  },
+  {
+    "name": "MoveWorkflowStaging uses the topic workflow stagings path",
+    "description": "Verifies that MoveWorkflowStaging sends the selected stage to the topic's workflow staging resource",
+    "operation": "MoveWorkflowStaging",
+    "method": "PATCH",
+    "path": "/topics/{topicId}/workflows/{workflowId}/stagings",
+    "pathParams": {
+      "topicId": 4471829,
+      "workflowId": 8801
+    },
+    "requestBody": {
+      "workflow_stage_id": 5513
+    },
+    "mockResponses": [
+      {
+        "status": 204,
+        "body": {}
+      }
+    ],
+    "assertions": [
+      {
+        "type": "requestPath",
+        "expected": "/topics/4471829/workflows/8801/stagings"
+      },
+      {
+        "type": "requestMethod",
+        "expected": "PATCH"
+      },
+      {
+        "type": "requestBody",
+        "expected": {
+          "workflow_staging.workflow_stage_id": 5513
+        }
+      },
+      {
+        "type": "noError"
+      }
+    ],
+    "tags": [
+      "path",
+      "workflows",
+      "writes"
+    ]
+  },
+  {
+    "name": "ListTimeTracks uses /calendar/time_tracks.json path",
+    "description": "Verifies that ListTimeTracks constructs the URL path /calendar/time_tracks.json",
+    "operation": "ListTimeTracks",
+    "method": "GET",
+    "path": "/calendar/time_tracks.json",
+    "mockResponses": [
+      {
+        "status": 200,
+        "body": {
+          "time_tracks": [],
+          "categories": []
+        }
+      }
+    ],
+    "assertions": [
+      {
+        "type": "requestPath",
+        "expected": "/calendar/time_tracks.json"
       },
       {
         "type": "requestMethod",
@@ -3627,6 +3911,145 @@
     "tags": [
       "path",
       "clearances"
+    ]
+  },
+  {
+    "name": "UpdateMessage uses /messages/{messageId} path",
+    "description": "Verifies that UpdateMessage constructs the URL path /messages/{messageId}",
+    "operation": "UpdateMessage",
+    "method": "PUT",
+    "path": "/messages/{messageId}",
+    "pathParams": {
+      "messageId": 456
+    },
+    "requestBody": {
+      "subject": "Quarterly planning",
+      "content": "<div>Agenda.</div>"
+    },
+    "mockResponses": [
+      {
+        "status": 200
+      }
+    ],
+    "assertions": [
+      {
+        "type": "requestPath",
+        "expected": "/messages/456"
+      },
+      {
+        "type": "noError"
+      },
+      {
+        "type": "requestMethod",
+        "expected": "PUT"
+      }
+    ],
+    "tags": [
+      "path",
+      "messages"
+    ]
+  },
+  {
+    "name": "GetMessageEdit uses /messages/{messageId}/edit.json path",
+    "description": "Verifies that GetMessageEdit constructs the URL path /messages/{messageId}/edit.json",
+    "operation": "GetMessageEdit",
+    "method": "GET",
+    "path": "/messages/{messageId}/edit.json",
+    "pathParams": {
+      "messageId": 456
+    },
+    "mockResponses": [
+      {
+        "status": 200,
+        "body": {
+          "id": 456
+        }
+      }
+    ],
+    "assertions": [
+      {
+        "type": "requestPath",
+        "expected": "/messages/456/edit.json"
+      },
+      {
+        "type": "noError"
+      },
+      {
+        "type": "requestMethod",
+        "expected": "GET"
+      }
+    ],
+    "tags": [
+      "path",
+      "messages"
+    ]
+  },
+  {
+    "name": "DeleteDraft uses /entries/drafts/{entryId} path",
+    "description": "Verifies that DeleteDraft constructs the URL path /entries/drafts/{entryId}",
+    "operation": "DeleteDraft",
+    "method": "DELETE",
+    "path": "/entries/drafts/{entryId}",
+    "pathParams": {
+      "entryId": 456
+    },
+    "mockResponses": [
+      {
+        "status": 200
+      }
+    ],
+    "assertions": [
+      {
+        "type": "requestPath",
+        "expected": "/entries/drafts/456"
+      },
+      {
+        "type": "noError"
+      },
+      {
+        "type": "requestMethod",
+        "expected": "DELETE"
+      }
+    ],
+    "tags": [
+      "path",
+      "entries"
+    ]
+  },
+  {
+    "name": "NewEntryReply uses /entries/{entryId}/replies/new.json path",
+    "description": "Verifies that NewEntryReply constructs the URL path /entries/{entryId}/replies/new.json",
+    "operation": "NewEntryReply",
+    "method": "GET",
+    "path": "/entries/{entryId}/replies/new.json",
+    "pathParams": {
+      "entryId": 456
+    },
+    "mockResponses": [
+      {
+        "status": 200,
+        "body": {
+          "subject": "Re: Hello",
+          "is_reply": true
+        }
+      }
+    ],
+    "assertions": [
+      {
+        "type": "requestPath",
+        "expected": "/entries/456/replies/new.json"
+      },
+      {
+        "type": "noError"
+      },
+      {
+        "type": "requestMethod",
+        "expected": "GET"
+      }
+    ],
+    "tags": [
+      "path",
+      "entries"
     ]
   }
 ]

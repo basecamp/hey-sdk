@@ -15,9 +15,9 @@ import (
 // ExtenzionsService handles email extenzion operations.
 //
 // Extenzions allow custom email addresses on custom-domain HEY accounts
-// (e.g., sales@yourdomain.com). The endpoints take form-encoded requests. Create and Update
-// post to the .json path, so a current server answers the written extenzion; a server
-// without the JSON branch redirects instead and hands nothing back.
+// (e.g., sales@yourdomain.com). Create and Update take form-encoded requests but post to the
+// .json path, so a current server answers the written extenzion; a server without the JSON
+// branch redirects instead and hands nothing back. Delete is a plain JSON operation.
 type ExtenzionsService struct {
 	client *Client
 }
@@ -151,8 +151,11 @@ func (s *ExtenzionsService) Delete(ctx context.Context, accountID int64, extID i
 	ctx = s.client.hooks.OnOperationStart(ctx, op)
 	defer func() { s.client.hooks.OnOperationEnd(ctx, op, err, time.Since(start)) }()
 
-	_, err = s.client.DeleteForm(ctx, fmt.Sprintf("/accounts/%d/domains/extenzions/%d", accountID, extID))
-	return err
+	resp, err := s.client.genClient().DeleteExtenzionWithResponse(ctx, accountID, extID)
+	if err != nil {
+		return err
+	}
+	return CheckResponse(resp.HTTPResponse)
 }
 
 // extenzionFromFormResponse reads the extenzion a JSON write answers with. A server without
