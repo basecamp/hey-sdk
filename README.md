@@ -91,10 +91,11 @@ _ = work.Messages().Create(ctx, "Subject", "Body", []string{"someone@example.com
 `ForAccount` verifies that the account is accessible to the authenticated identity when the
 scoped client is derived, then adds HEY's `filtered_account_id` to same-origin API requests,
 including pagination and retries. Long-lived applications can derive a fresh scoped client
-after observing identity or account-membership changes. It never adds the filter to signed external upload or download URLs.
-Account-scoped message sends resolve a sender from that account, and account-scoped contact
-creation resolves the identity's user in that account. Both operations return an error when
-the account has no matching sender or user rather than falling back to another account.
+after observing identity or account-membership changes. It never adds the filter to signed
+external upload or download URLs. Account-scoped message sends resolve a sender from that
+account, and account-scoped contact creation resolves the identity's user in that account.
+Both operations return an error when the account has no matching sender or user rather than
+falling back to another account.
 
 Account scope follows HEY's mail-filter semantics; it is not an authorization boundary.
 Identity-owned services such as Calendar and Journal remain identity-wide. Use a client
