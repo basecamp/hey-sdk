@@ -1,6 +1,9 @@
 # HEY Rust SDK Makefile
 
 CARGO := cargo
+# make exports a command-line variable to every recipe, and mbx resolves the real cargo from
+# CARGO when it is set, so `make CARGO=mbx` would otherwise have mbx call itself.
+unexport CARGO
 
 .PHONY: all
 all: check
