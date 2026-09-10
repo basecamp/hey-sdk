@@ -54,9 +54,16 @@ deny:
 	$(CARGO) deny --locked check
 	cd ../conformance/runner/rust && $(CARGO) deny --locked --config ../../../rust/deny.toml check
 
+# Package the crate as a publish would and build it from the tarball, so a missing file, a
+# path dependency or a metadata slip surfaces on the pull request rather than on the tag.
+# --allow-dirty so it runs before a commit as well as after; CI's checkout is clean anyway.
+.PHONY: publish-check
+publish-check:
+	$(CARGO) package -p hey-sdk --locked --allow-dirty
+
 # Run all checks: the same steps as CI's test-rust job, in the same order
 .PHONY: check
-check: fmt-check lint test no-default-features doc deny
+check: fmt-check lint test no-default-features doc deny publish-check
 
 .PHONY: clean
 clean:
@@ -75,5 +82,6 @@ help:
 	@echo "  no-default-features  Lint and test the crate without the shipped HTTP client"
 	@echo "  doc                  Build the crate docs"
 	@echo "  deny                 cargo deny over both workspaces (advisories, licences, bans)"
-	@echo "  check                fmt-check + lint + test + no-default-features + doc + deny"
+	@echo "  publish-check        Package the crate and build it from the tarball"
+	@echo "  check                fmt-check + lint + test + no-default-features + doc + deny + publish-check"
 	@echo "  clean                Remove build artifacts"

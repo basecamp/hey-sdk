@@ -72,8 +72,8 @@ jobs:
           tool: cargo-deny
 
       # fmt, clippy, tests and docs with all features, then clippy and the tests again
-      # with the shipped HTTP client off, then cargo deny over both workspaces. The same
-      # target a developer runs.
+      # with the shipped HTTP client off, cargo deny over both workspaces, and the crate
+      # packaged and built from its tarball. The same target a developer runs.
       - name: Format, lint and test
         run: make rs-check
 
@@ -335,6 +335,37 @@ jobs:
           else
             echo "No breaking API changes detected"
           fi
+
+  api-compat-rust:
+    name: API Compatibility (Rust)
+    if: github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'breaking')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      # Full history: the baseline is the pull request's base commit, which
+      # cargo-semver-checks checks out from this clone.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Rust
+        run: rustup toolchain install && rustup show
+
+      # The Rust counterpart of api-compat above: the crate's public API on this branch
+      # against the same crate at the base commit, judged by the version in Cargo.toml.
+      # A pull request that does not bump the version may add, not break; one that bumps
+      # it (0.x → 0.y is a major under pre-1.0 semver) may break. The `breaking` label
+      # skips the job, as it does for Go. The baseline moves to the last Rust-bearing
+      # release tag once one exists; v0.29.0 predates rust/.
+      - name: Check API compatibility
+        uses: obi1kenobi/cargo-semver-checks-action@6b69fcf40e9b5fb17adeb57e4b6ecd020649a239 # v2.9
+        with:
+          manifest-path: rust/Cargo.toml
+          package: hey-sdk
+          baseline-rev: ${{ github.event.pull_request.base.sha }}
+          rust-toolchain: manual
 
   rubric-check:
     name: Rubric Check

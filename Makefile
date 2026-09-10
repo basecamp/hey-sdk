@@ -203,7 +203,7 @@ go-check-drift:
 # Rust SDK
 #------------------------------------------------------------------------------
 
-.PHONY: rs-generate rs-check-drift rs-test rs-lint rs-deny rs-check
+.PHONY: rs-generate rs-check-drift rs-test rs-lint rs-deny rs-publish-check rs-check
 
 # Types, routes and services are all generated; there is no hand-written wrapper layer
 # to drift, so the drift check is the generator's own --check.
@@ -221,6 +221,9 @@ rs-lint:
 
 rs-deny:
 	$(MAKE) -C rust deny
+
+rs-publish-check:
+	$(MAKE) -C rust publish-check
 
 rs-check:
 	$(MAKE) -C rust check
