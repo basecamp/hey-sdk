@@ -4,14 +4,19 @@ The Rust client for the [HEY](https://www.hey.com) API. Types, routes and servic
 generated from the Smithy model in the repository's `spec/` directory, so what the crate offers
 is what HEY serves.
 
-The crate is not on crates.io yet. Depend on it from the repository at a release tag — the
-repository's `vX.Y.Z` tags are the crate's releases, `v0.30.0` is the first that carries
-`rust/`, and there is no `rust/vX.Y.Z` tag to look for:
-
 ```toml
 [dependencies]
-hey-sdk = { git = "https://github.com/basecamp/hey-sdk", tag = "v0.30.0" }
+hey-sdk = "0.30"
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
+```
+
+The crate is on [crates.io](https://crates.io/crates/hey-sdk) and documented on
+[docs.rs](https://docs.rs/hey-sdk). To track the repository instead, depend on it at a release
+tag — the repository's `vX.Y.Z` tags are the crate's releases, and there is no `rust/vX.Y.Z`
+tag to look for:
+
+```toml
+hey-sdk = { git = "https://github.com/basecamp/hey-sdk", tag = "v0.30.0" }
 ```
 
 Requires Rust 1.88 or newer; see [Versioning](#versioning).

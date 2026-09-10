@@ -40,20 +40,29 @@ fn the_router_names_the_operation_a_pasted_url_refers_to() {
 fn every_modelled_route_is_listed_once() {
     let ids: HashSet<&str> = ROUTES.iter().map(|route| route.id).collect();
 
-    assert_eq!(ROUTES.len(), modelled_operations());
     assert_eq!(ids.len(), ROUTES.len());
+    match modelled_operations() {
+        Some(modelled) => assert_eq!(ROUTES.len(), modelled),
+        None => eprintln!(
+            "openapi.json is not in the package; the route count is checked in the repository"
+        ),
+    }
 }
 
-/// How many operations `openapi.json` models: one per HTTP method under each path.
-fn modelled_operations() -> usize {
+/// How many operations `openapi.json` models: one per HTTP method under each path. `None`
+/// from the published crate, which carries the tests but not the model they were generated
+/// from; in the repository the file is always there.
+fn modelled_operations() -> Option<usize> {
     let path = concat!(env!("CARGO_MANIFEST_DIR"), "/../../openapi.json");
     let openapi: serde_json::Value =
-        serde_json::from_str(&std::fs::read_to_string(path).unwrap()).unwrap();
-    openapi["paths"]
-        .as_object()
-        .unwrap()
-        .values()
-        .flat_map(|item| item.as_object().unwrap().keys())
-        .filter(|method| matches!(method.as_str(), "get" | "post" | "put" | "patch" | "delete"))
-        .count()
+        serde_json::from_str(&std::fs::read_to_string(path).ok()?).unwrap();
+    Some(
+        openapi["paths"]
+            .as_object()
+            .unwrap()
+            .values()
+            .flat_map(|item| item.as_object().unwrap().keys())
+            .filter(|method| matches!(method.as_str(), "get" | "post" | "put" | "patch" | "delete"))
+            .count(),
+    )
 }
