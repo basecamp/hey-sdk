@@ -5,6 +5,8 @@
 //! the checked-in files differ from what it would generate.
 
 mod emit;
+#[cfg(test)]
+mod fixtures;
 mod model;
 mod naming;
 

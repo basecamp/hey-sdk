@@ -171,12 +171,33 @@ impl Model {
             .to_string();
         let schemas = build_schemas(openapi, naming)?;
         let services = build_services(openapi, behavior, naming, resource_types)?;
+        check_html_responses(&schemas, &services)?;
         Ok(Model {
             api_version,
             schemas,
             services,
         })
     }
+}
+
+/// A page is handed back as the `String` it arrived as, so the schema an HTML response
+/// names has to be a string alias; a struct there would be a document the crate had no
+/// parser for.
+fn check_html_responses(schemas: &[Schema], services: &[Service]) -> Result<(), String> {
+    for operation in services.iter().flat_map(|service| &service.operations) {
+        if let Response::Html(name) = &operation.response {
+            let is_string = schemas.iter().any(|schema| {
+                schema.name == *name && matches!(schema.shape, Shape::Alias(FieldType::String))
+            });
+            if !is_string {
+                return Err(format!(
+                    "{} answers text/html as {name}, which is not a string schema; an HTML page is handed back as a String",
+                    operation.id
+                ));
+            }
+        }
+    }
+    Ok(())
 }
 
 fn build_schemas(openapi: &Value, naming: &Naming) -> Result<Vec<Schema>, String> {
@@ -308,7 +329,7 @@ fn build_services(
             let operation = Operation {
                 id: id.to_string(),
                 service: struct_name(&service),
-                method_name: naming.method_for(id, &service),
+                method_name: naming.method_for(id, &service)?,
                 description: description_of(operation),
                 http_method: http_method.to_uppercase(),
                 path: path.clone(),
@@ -407,30 +428,52 @@ fn body_of(operation: &Value, naming: &Naming) -> Option<String> {
         .map(|reference| naming.type_for(&reference_name(reference)))
 }
 
+/// The representations the generator can emit a method for. Anything else fails generation:
+/// a route the model describes and the crate cannot call is worse than no crate at all,
+/// and a method that silently returned `()` for a page HEY serves is how the gate went red
+/// after the first `text/html` route arrived.
+const REPRESENTATIONS: &[&str] = &["application/json", "text/html"];
+
 fn response_of(operation: &Value, naming: &Naming) -> Result<Response, String> {
+    let id = operation["operationId"].as_str().unwrap_or("operation");
     let responses = operation["responses"]
         .as_object()
-        .ok_or("operation has no responses")?;
+        .ok_or(format!("{id} has no responses"))?;
     for (status, response) in responses {
-        if status.starts_with('2') {
-            let content = &response["content"];
-            return Ok(
-                match (
-                    content["application/json"]["schema"]["$ref"].as_str(),
-                    content["text/html"]["schema"]["$ref"].as_str(),
-                ) {
-                    (Some(reference), _) => {
-                        Response::Json(naming.type_for(&reference_name(reference)))
-                    }
-                    (None, Some(reference)) => {
-                        Response::Html(naming.type_for(&reference_name(reference)))
-                    }
-                    (None, None) => Response::Empty,
-                },
-            );
+        if !status.starts_with('2') {
+            continue;
         }
+        let Some(content) = response.get("content").and_then(Value::as_object) else {
+            return Ok(Response::Empty);
+        };
+        let representations: Vec<&str> = content.keys().map(String::as_str).collect();
+        let (media_type, body) = match representations.as_slice() {
+            [] => return Ok(Response::Empty),
+            [one] => (*one, &content[*one]),
+            many => {
+                return Err(format!(
+                    "{id} answers {status} in {} representations ({}); the generator emits one",
+                    many.len(),
+                    many.join(", ")
+                ));
+            }
+        };
+        if !REPRESENTATIONS.contains(&media_type) {
+            return Err(format!(
+                "{id} answers {status} as {media_type}, which the generator has no representation for; it emits {}",
+                REPRESENTATIONS.join(" and ")
+            ));
+        }
+        let reference = body["schema"]["$ref"].as_str().ok_or(format!(
+            "{id} answers {status} as {media_type} with a schema that is not a $ref to components.schemas"
+        ))?;
+        let name = naming.type_for(&reference_name(reference));
+        return Ok(match media_type {
+            "text/html" => Response::Html(name),
+            _ => Response::Json(name),
+        });
     }
-    Err(format!("{} has no 2xx response", operation["operationId"]))
+    Err(format!("{id} has no 2xx response"))
 }
 
 fn idempotent(http_method: &str, operation: &Value) -> bool {
