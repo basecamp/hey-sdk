@@ -203,7 +203,7 @@ go-check-drift:
 # Rust SDK
 #------------------------------------------------------------------------------
 
-.PHONY: rs-generate rs-check-drift rs-test rs-lint rs-check
+.PHONY: rs-generate rs-check-drift rs-test rs-lint rs-deny rs-check
 
 # Types, routes and services are all generated; there is no hand-written wrapper layer
 # to drift, so the drift check is the generator's own --check.
@@ -218,6 +218,9 @@ rs-test:
 
 rs-lint:
 	$(MAKE) -C rust lint
+
+rs-deny:
+	$(MAKE) -C rust deny
 
 rs-check:
 	$(MAKE) -C rust check
@@ -314,7 +317,7 @@ conformance-go:
 	cd conformance/runner/go && go run .
 
 conformance-rs:
-	cd conformance/runner/rust && cargo run -q
+	cd conformance/runner/rust && cargo run -q --locked
 
 conformance-ts:
 	cd conformance/runner/typescript && npm test

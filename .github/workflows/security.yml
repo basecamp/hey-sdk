@@ -42,6 +42,66 @@ jobs:
           sarif_file: 'trivy-go-results.sarif'
           category: 'trivy-go'
 
+  trivy-rust:
+    name: Trivy (Rust SDK)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # Trivy reads each workspace's Cargo.lock: the crate's and the conformance runner's,
+      # which has dependencies of its own (axum). It fails on HIGH/CRITICAL as the Go job
+      # does; on a pull request cargo deny (test-rust, `make rs-deny`) has already said so,
+      # and the weekly run here is what puts the findings on the Security tab.
+      - name: Run Trivy vulnerability scanner (rust)
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          scan-type: 'fs'
+          scan-ref: './rust'
+          severity: 'HIGH,CRITICAL'
+          # In SARIF mode the action drops the severity filter unless told to keep it, and
+          # with exit-code 1 a LOW finding would fail the job.
+          limit-severities-for-sarif: true
+          exit-code: '1'
+          ignore-unfixed: true
+          format: 'sarif'
+          output: 'trivy-rust-results.sarif'
+
+      - name: Upload Trivy scan results to GitHub Security tab (rust)
+        uses: github/codeql-action/upload-sarif@cdf488f595d80d6e07e03d4674febd5ab45fa938 # v4.37.9
+        if: always()
+        continue-on-error: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork == true }}
+        with:
+          sarif_file: 'trivy-rust-results.sarif'
+          category: 'trivy-rust'
+
+      - name: Run Trivy vulnerability scanner (conformance/runner/rust)
+        if: always()
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          scan-type: 'fs'
+          scan-ref: './conformance/runner/rust'
+          severity: 'HIGH,CRITICAL'
+          limit-severities-for-sarif: true
+          exit-code: '1'
+          ignore-unfixed: true
+          format: 'sarif'
+          output: 'trivy-rust-conformance-results.sarif'
+          skip-setup-trivy: true
+
+      - name: Upload Trivy scan results to GitHub Security tab (conformance/runner/rust)
+        uses: github/codeql-action/upload-sarif@cdf488f595d80d6e07e03d4674febd5ab45fa938 # v4.37.9
+        if: always()
+        continue-on-error: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork == true }}
+        with:
+          sarif_file: 'trivy-rust-conformance-results.sarif'
+          category: 'trivy-rust-conformance'
+
   govulncheck:
     name: Go Vulnerability Check
     runs-on: ubuntu-latest

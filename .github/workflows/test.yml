@@ -66,8 +66,14 @@ jobs:
             rust
             conformance/runner/rust
 
+      - name: Install cargo-deny
+        uses: taiki-e/install-action@c3ec0de9ae7f1019cea21aa96aa0a895b9552063 # v2.87.9
+        with:
+          tool: cargo-deny
+
       # fmt, clippy, tests and docs with all features, then clippy and the tests again
-      # with the shipped HTTP client off. The same target a developer runs.
+      # with the shipped HTTP client off, then cargo deny over both workspaces. The same
+      # target a developer runs.
       - name: Format, lint and test
         run: make rs-check
 

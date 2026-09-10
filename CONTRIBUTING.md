@@ -4,7 +4,8 @@
 
 - Smithy CLI
 - Go 1.26+
-- Rust 1.88+ (with `rustfmt` and `clippy`)
+- Rust 1.88+ (with `rustfmt` and `clippy`; `rust-toolchain.toml` picks the exact stable for rustup users)
+- [`cargo-deny`](https://github.com/EmbarkStudios/cargo-deny) (`cargo install cargo-deny --locked`), for `make rs-check`
 - Make
 - jq
 
