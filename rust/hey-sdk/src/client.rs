@@ -26,7 +26,9 @@ use crate::pagination::Page;
 use crate::route::Route;
 use crate::security::{is_same_origin, require_secure_endpoint};
 use crate::services::boxes::BoxKinds;
-use crate::trace::{AttemptSpan, OperationSpan, label};
+#[cfg(feature = "tracing")]
+use crate::trace::label;
+use crate::trace::{AttemptSpan, OperationSpan};
 use crate::version::default_user_agent;
 
 /// How long the HTTP client the SDK ships gives an answer to arrive.

@@ -9,7 +9,7 @@ use crate::error::Error;
 ///
 /// `max_concurrent` of zero reads as "leave it at the default", the same normalising Go
 /// does. A `max_wait` of zero means a caller never waits: a full bulkhead refuses at once.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct BulkheadConfig {
     /// How many calls of one scope may run at once.
     pub max_concurrent: usize,
@@ -41,6 +41,7 @@ pub type BulkheadPermit = OwnedSemaphorePermit;
 
 impl Bulkhead {
     /// A bulkhead of `config`'s width, with every place free.
+    #[allow(clippy::needless_pass_by_value)] // taken by value like its sibling constructors; the config is the caller's to hand over
     pub fn new(config: BulkheadConfig) -> Bulkhead {
         let max_concurrent = match config.max_concurrent {
             0 => BulkheadConfig::default().max_concurrent,

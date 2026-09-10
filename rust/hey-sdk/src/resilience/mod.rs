@@ -199,7 +199,7 @@ impl ResilienceHooks {
                 .map(|config| Registry::new(move || CircuitBreaker::new(config.clone()))),
             bulkheads: config
                 .bulkhead
-                .map(|config| Registry::new(move || Bulkhead::new(config))),
+                .map(|config| Registry::new(move || Bulkhead::new(config.clone()))),
             rate_limiter: config.rate_limit.map(RateLimiter::new),
             pending: Mutex::default(),
         }

@@ -1,3 +1,6 @@
+//! The `tracing` span every operation and every attempt runs under: its fields, its parent,
+//! and what a redacted value looks like there.
+
 #![cfg(feature = "tracing")]
 
 mod support;
@@ -194,7 +197,7 @@ async fn one_span_per_operation_names_it_and_records_what_hey_answered() {
 
     client(&server)
         .boxes()
-        .get(123, &Default::default())
+        .get(123, &hey_sdk::services::boxes::GetBoxParams::default())
         .await
         .unwrap();
 
@@ -282,7 +285,7 @@ async fn a_failure_records_the_status_it_failed_with() {
 
     client(&server)
         .boxes()
-        .get(9, &Default::default())
+        .get(9, &hey_sdk::services::boxes::GetBoxParams::default())
         .await
         .unwrap_err();
 
@@ -315,7 +318,7 @@ async fn concurrent_operations_keep_their_own_spans() {
     let _guard = capture.install();
     let client = client(&server);
 
-    let params = Default::default();
+    let params = hey_sdk::services::boxes::GetBoxParams::default();
     let boxes = client.boxes();
     let (first, second) = tokio::join!(
         tracing::Instrument::instrument(boxes.get(1, &params), tracing::info_span!("first")),
