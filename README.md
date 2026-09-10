@@ -23,7 +23,7 @@ Requires Go 1.26 or newer.
 The Rust crate is not published; depend on it from the repository:
 
 ```toml
-hey-sdk = { git = "https://github.com/basecamp/hey-sdk", version = "0.29" }
+hey-sdk = { git = "https://github.com/basecamp/hey-sdk", version = "0.30" }
 ```
 
 ## Authenticate
