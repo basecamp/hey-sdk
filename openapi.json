@@ -10554,7 +10554,16 @@
         },
         "tags": [
           "Workflows"
-        ]
+        ],
+        "x-hey-retry": {
+          "maxAttempts": 3,
+          "baseDelayMs": 1000,
+          "backoff": "exponential",
+          "retryOn": [
+            429,
+            503
+          ]
+        }
       }
     }
   },

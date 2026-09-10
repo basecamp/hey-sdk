@@ -66,17 +66,33 @@ func TestOperationPolicyDecidesWhichStatusesAreResent(t *testing.T) {
 	}
 }
 
-// An operation the contract gives no policy is sent once, whatever the client allows.
-func TestOperationWithoutPolicyIsSentOnce(t *testing.T) {
-	server, requests := policyTestServer(t, `[]`, 503, 503, 503)
+// The workflow stage read is served as HTML, and its policy holds all the same: three
+// sends, whatever the client allows beyond them.
+func TestOperationPolicyHoldsOnTheHTMLRoute(t *testing.T) {
+	server, requests := policyTestServer(t, `[]`, 503, 503, 503, 503)
 	root := NewClient(&Config{BaseURL: server.URL}, &StaticTokenProvider{Token: "token"},
-		WithMaxRetries(3), WithBaseDelay(time.Millisecond))
+		WithMaxRetries(5), WithBaseDelay(time.Millisecond))
 
 	if _, err := root.Workflows().GetStage(context.Background(), 1, 2); err == nil {
-		t.Fatal("expected the 503 to surface")
+		t.Fatal("expected the 503 to surface once the policy's sends were spent")
 	}
-	if got := requests.Load(); got != 1 {
-		t.Errorf("requests = %d, want 1", got)
+	if got := requests.Load(); got != 3 {
+		t.Errorf("requests = %d, want the policy's 3", got)
+	}
+}
+
+// An operation the contract gives no policy is sent once, whatever the client allows.
+func TestOperationWithoutPolicyIsSentOnce(t *testing.T) {
+	root := NewClient(&Config{BaseURL: "https://example.test"}, &StaticTokenProvider{Token: "token"},
+		WithMaxRetries(5))
+	root.initGeneratedClient()
+
+	policy := root.gen.ClientInterface.(*generated.Client).RetryPolicy("CreateBulkReply")
+	if policy.MaxAttempts != 1 {
+		t.Errorf("MaxAttempts = %d, want 1", policy.MaxAttempts)
+	}
+	if policy.RetriesStatus(http.StatusServiceUnavailable) {
+		t.Error("expected no status to earn a resend without a policy")
 	}
 }
 

@@ -2268,6 +2268,7 @@ var operationRetryPolicies = map[string]RetryPolicy{
 	"MarkTopicHam":                  {MaxAttempts: 2, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
 	"TrashTopic":                    {MaxAttempts: 2, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
 	"GetWorkflow":                   {MaxAttempts: 3, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
+	"GetWorkflowStage":              {MaxAttempts: 3, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
 }
 
 // Client which conforms to the OpenAPI3 specification for this service.
