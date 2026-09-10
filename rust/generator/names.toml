@@ -77,6 +77,7 @@ workflows = "workflow"
 # Operations that act on something other than their service's noun.
 [operation_resource_types]
 CreateBoxGroup = "box_group"
+GetWorkflowStage = "workflow_stage"
 CreateReply = "reply"
 CreateTimeTrackCategory = "category"
 CreateTopicCollecting = "collecting"

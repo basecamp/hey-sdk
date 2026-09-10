@@ -133,7 +133,6 @@ fn render_method(out: &mut String, operation: &Operation) {
     let binding = if operation.query_params.is_empty()
         && operation.body.is_none()
         && named_record.is_none()
-        && !matches!(operation.response, Response::Html(_))
     {
         "let"
     } else {
@@ -174,9 +173,6 @@ fn render_method(out: &mut String, operation: &Operation) {
     }
     if operation.body.is_some() {
         out.push_str("        operation.json(body)?;\n");
-    }
-    if matches!(operation.response, Response::Html(_)) {
-        out.push_str("        operation.html_representation();\n");
     }
     writeln!(
         out,

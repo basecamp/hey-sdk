@@ -62,8 +62,12 @@ impl Operation {
             body: None,
             idempotent: route.idempotent,
             empty_on: route.empty_on,
-            accept: "application/json",
-            json_suffix: true,
+            accept: if route.html {
+                "text/html"
+            } else {
+                "application/json"
+            },
+            json_suffix: !route.html,
             no_cache: false,
             capture_redirects: false,
             quiet: false,
@@ -222,12 +226,6 @@ impl Operation {
     /// and no preference about what comes back.
     pub fn form_representation(&mut self) -> &mut Operation {
         self.without_json_suffix().accept("*/*")
-    }
-
-    /// Asks for the HTML page a route serves no JSON for: no `.json` suffix, and
-    /// `text/html`, which is what HEY answers a workflow stage with.
-    pub fn html_representation(&mut self) -> &mut Operation {
-        self.without_json_suffix().accept("text/html")
     }
 
     /// Sends this without announcing an operation: no gate, no start, no end. For a request

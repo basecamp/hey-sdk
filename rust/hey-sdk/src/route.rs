@@ -23,6 +23,9 @@ pub struct Route {
     pub idempotent: bool,
     /// The route only reads; nothing it does changes anything.
     pub readonly: bool,
+    /// The route answers a page as HTML rather than a JSON document, so it is asked for as
+    /// written — no `.json` suffix — with `Accept: text/html`.
+    pub html: bool,
     pub empty_on: &'static [u16],
     pub pagination: Pagination,
     pub retry: Retry,

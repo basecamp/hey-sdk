@@ -188,7 +188,7 @@ fn last_status(run: &Run) -> u16 {
 
 fn check_request_path(run: &Run, assertion: &Assertion, which: Which) -> Result<(), String> {
     let expected = expected_string(assertion, "requestPath")?;
-    let expected = if run.case.serves_html() {
+    let expected = if run.case.asks_for_html() {
         expected.to_string()
     } else {
         with_json_extension(expected)

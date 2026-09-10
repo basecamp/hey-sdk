@@ -1,6 +1,7 @@
 use std::collections::BTreeMap;
 
 use hey_sdk::DateTime;
+use hey_sdk::routes::ROUTES;
 use serde::Deserialize;
 use serde_json::{Map, Value};
 
@@ -81,9 +82,13 @@ impl TestCase {
         self.repeat_operation.max(1)
     }
 
-    /// Whether the case reads a page HEY serves as HTML rather than a JSON document.
-    pub fn serves_html(&self) -> bool {
-        self.mock_responses.iter().any(MockResponse::serves_html)
+    /// Whether the case's operation reads a page HEY serves as HTML, which the SDK asks
+    /// for as written rather than with a `.json` suffix. The route says so, whatever the
+    /// mock answers: an error case for such an operation mocks JSON and still goes there.
+    pub fn asks_for_html(&self) -> bool {
+        ROUTES
+            .iter()
+            .any(|route| route.id == self.operation && route.html)
     }
 
     /// Whether the case looks at what the SDK does with the `Link` header. Following it

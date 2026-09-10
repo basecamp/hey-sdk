@@ -49,7 +49,6 @@ impl<'a> Workflows<'a> {
             .client
             .operation(&routes::GET_WORKFLOW_STAGE, &[&workflow_id, &stage_id]);
         operation.resource_id(stage_id);
-        operation.html_representation();
         self.client.send_text(operation).await
     }
 
