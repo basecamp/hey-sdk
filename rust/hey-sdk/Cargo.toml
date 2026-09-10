@@ -1,15 +1,17 @@
 [package]
 name = "hey-sdk"
 version = "0.30.0"
-description = "Rust client for the HEY API, generated from the Smithy model in spec/"
+description = "Rust client for the HEY API, generated from a Smithy model of the API"
 homepage = "https://github.com/basecamp/hey-sdk"
 documentation = "https://docs.rs/hey-sdk"
 keywords = ["hey", "email", "37signals", "api", "sdk"]
 categories = ["api-bindings", "web-programming::http-client"]
 # What the published crate carries; Cargo.toml, Cargo.lock and the VCS stamp always go
-# along. The integration tests and their fixtures stay here. LICENSE is a copy of the
-# repository's: `license` names it by SPDX id, and the text has to travel with the crate.
-include = ["src/**", "examples/**", "README.md", "LICENSE"]
+# along. LICENSE is a copy of the repository's: `license` names it by SPDX id, and the text
+# has to travel with the crate. The tests travel too, since they carry their own fake HEY
+# and so run from the tarball -- and a test target left out of it is a warning on every
+# package, one per file.
+include = ["src/**", "examples/**", "tests/**", "README.md", "LICENSE"]
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
