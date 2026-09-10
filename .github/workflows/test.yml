@@ -214,9 +214,12 @@ jobs:
         # Compares go/pkg/hey — the sole exported package (internal/ is not public API).
         # Each apidiff invocation runs inside its respective module directory so
         # go list can resolve the package.
+        # The base checkout is throwaway, so tidy its module before loading it: a main
+        # whose go.mod a merge left untidy would otherwise yield no baseline at all,
+        # and the PR repairing it could never pass here.
         run: |
           echo "Checking Go SDK API compatibility..."
-          (cd base/go && apidiff -w /tmp/base.api ./pkg/hey)
+          (cd base/go && go mod tidy && apidiff -w /tmp/base.api ./pkg/hey)
           CHANGES=$(cd go && apidiff -incompatible /tmp/base.api ./pkg/hey 2>/tmp/apidiff.stderr) || status=$?
           status=${status:-0}
           if [ "$status" -ne 0 ]; then

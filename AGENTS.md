@@ -63,6 +63,11 @@ place the generator writes the type (the struct, the aliases built from it, the 
 signatures) and nowhere else: a type name never goes on the wire, so Go and the fixtures
 are untouched.
 
+An operation whose 2xx body is `text/html` rather than JSON — a workflow stage — becomes a
+method that asks for the page as HEY serves it (no `.json` suffix, `Accept: text/html`) and
+answers the body as a `String`. Reading anything out of that page is a hand-written
+convenience's job, as `go/pkg/hey` does for the same route.
+
 `rs-check-drift` runs the generator in `--check` mode, so stale generated code fails the
 gate.
 

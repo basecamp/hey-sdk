@@ -1055,6 +1055,15 @@ async fn execute_hey_operation(client: &Client, case: &TestCase) -> Result<Outco
             )
             .await
         }
+        "GetWorkflowStage" => json(
+            client
+                .workflows()
+                .get_stage(
+                    int64_param(path, "workflowId"),
+                    int64_param(path, "stageId"),
+                )
+                .await?,
+        ),
         "UpdateCalendarEvent" => {
             client
                 .calendar_events()

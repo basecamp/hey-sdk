@@ -40,6 +40,6 @@ fn the_router_names_the_operation_a_pasted_url_refers_to() {
 fn every_modelled_route_is_listed_once() {
     let ids: HashSet<&str> = ROUTES.iter().map(|route| route.id).collect();
 
-    assert_eq!(ROUTES.len(), 130);
+    assert_eq!(ROUTES.len(), 131);
     assert_eq!(ids.len(), ROUTES.len());
 }

@@ -1264,6 +1264,8 @@ pub type GetTrashTopicsResponseContent = TopicListResponse;
 
 pub type GetWorkflowResponseContent = Workflow;
 
+pub type GetWorkflowStageOutputPayload = String;
+
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct HabitPayload {
     #[serde(default, skip_serializing_if = "Option::is_none")]

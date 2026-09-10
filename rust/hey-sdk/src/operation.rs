@@ -62,8 +62,12 @@ impl Operation {
             body: None,
             idempotent: route.idempotent,
             empty_on: route.empty_on,
-            accept: "application/json",
-            json_suffix: true,
+            accept: if route.html {
+                "text/html"
+            } else {
+                "application/json"
+            },
+            json_suffix: !route.html,
             no_cache: false,
             capture_redirects: false,
             quiet: false,

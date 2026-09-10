@@ -1,7 +1,7 @@
 use std::fmt::Write;
 
 use crate::emit::HEADER;
-use crate::model::{Model, Operation, Pagination, ParamKind, ParamRole};
+use crate::model::{Model, Operation, Pagination, ParamKind, ParamRole, Response};
 use crate::naming::constant_name;
 
 pub fn render(model: &Model) -> String {
@@ -60,6 +60,12 @@ fn render_route(out: &mut String, operation: &Operation) {
     out.push_str("    ],\n");
     writeln!(out, "    idempotent: {},", operation.idempotent).unwrap();
     writeln!(out, "    readonly: {},", operation.readonly).unwrap();
+    writeln!(
+        out,
+        "    html: {},",
+        matches!(operation.response, Response::Html(_))
+    )
+    .unwrap();
     writeln!(out, "    empty_on: &{:?},", operation.empty_on).unwrap();
     let pagination = match operation.pagination {
         Pagination::None => "None",

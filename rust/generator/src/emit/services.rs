@@ -209,7 +209,7 @@ fn resource_id(param: &PathParam) -> String {
 }
 
 fn uses_types(operation: &Operation) -> bool {
-    operation.body.is_some() || matches!(operation.response, Response::Json(_))
+    operation.body.is_some() || matches!(operation.response, Response::Json(_) | Response::Html(_))
 }
 
 /// A paginated read answers a [`Page`], whichever style it paginates in. A window read is
@@ -230,6 +230,7 @@ fn return_type(operation: &Operation) -> String {
         (Response::Json(name), true, _) => format!("Page<{name}>"),
         (Response::Json(name), _, false) => format!("Option<{name}>"),
         (Response::Json(name), _, true) => name.clone(),
+        (Response::Html(name), _, _) => name.clone(),
     }
 }
 
@@ -243,6 +244,7 @@ fn send_method(operation: &Operation) -> &'static str {
         (Response::Json(_), true, _) => "send_page",
         (Response::Json(_), _, false) => "send_optional",
         (Response::Json(_), _, true) => "send",
+        (Response::Html(_), _, _) => "send_text",
     }
 }
 
