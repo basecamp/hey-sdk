@@ -106,7 +106,9 @@
       "acting_sender_id": 314,
       "subject": "From the support address",
       "content": "Final body",
-      "to": ["someone@example.com"]
+      "to": [
+        "someone@example.com"
+      ]
     },
     "mockResponses": [
       {
@@ -143,6 +145,125 @@
     "tags": [
       "drafts",
       "acting-sender"
+    ]
+  },
+  {
+    "name": "UpdateDraft's 422 keeps the status and request id behind HEY's reasons",
+    "description": "Verifies MessagesService.UpdateDraft maps a 422 HEY answered with a reasons list to a validation error that still carries the HTTP status and X-Request-Id CheckResponse puts on every other status",
+    "operation": "UpdateDraft",
+    "method": "PUT",
+    "path": "/messages/{entryId}.json",
+    "pathParams": {
+      "entryId": 777
+    },
+    "requestBody": {
+      "acting_sender_id": 314,
+      "subject": "",
+      "content": "Final body"
+    },
+    "mockResponses": [
+      {
+        "status": 422,
+        "headers": {
+          "X-Request-Id": "req-draft-422"
+        },
+        "body": {
+          "errors": [
+            "Subject can't be blank"
+          ]
+        }
+      }
+    ],
+    "assertions": [
+      {
+        "type": "errorCode",
+        "expected": "validation"
+      },
+      {
+        "type": "errorField",
+        "path": "httpStatus",
+        "expected": 422
+      },
+      {
+        "type": "errorField",
+        "path": "retryable",
+        "expected": false
+      },
+      {
+        "type": "errorField",
+        "path": "requestId",
+        "expected": "req-draft-422"
+      }
+    ],
+    "configOverrides": {
+      "clientLayer": "hey"
+    },
+    "tags": [
+      "drafts",
+      "error-mapping",
+      "validation",
+      "structured-error"
+    ]
+  },
+  {
+    "name": "SendDraft's 422 keeps the status and request id behind HEY's reasons",
+    "description": "Verifies MessagesService.SendDraft maps a 422 HEY answered with a reasons list to a validation error that still carries the HTTP status and X-Request-Id CheckResponse puts on every other status",
+    "operation": "SendDraft",
+    "method": "PUT",
+    "path": "/messages/{entryId}.json",
+    "pathParams": {
+      "entryId": 777
+    },
+    "requestBody": {
+      "acting_sender_id": 314,
+      "subject": "",
+      "content": "Final body",
+      "to": [
+        "someone@example.com"
+      ]
+    },
+    "mockResponses": [
+      {
+        "status": 422,
+        "headers": {
+          "X-Request-Id": "req-draft-422"
+        },
+        "body": {
+          "errors": [
+            "Subject can't be blank"
+          ]
+        }
+      }
+    ],
+    "assertions": [
+      {
+        "type": "errorCode",
+        "expected": "validation"
+      },
+      {
+        "type": "errorField",
+        "path": "httpStatus",
+        "expected": 422
+      },
+      {
+        "type": "errorField",
+        "path": "retryable",
+        "expected": false
+      },
+      {
+        "type": "errorField",
+        "path": "requestId",
+        "expected": "req-draft-422"
+      }
+    ],
+    "configOverrides": {
+      "clientLayer": "hey"
+    },
+    "tags": [
+      "drafts",
+      "error-mapping",
+      "validation",
+      "structured-error"
     ]
   }
 ]

@@ -13,12 +13,13 @@ import (
 // draftTestRoute is one route a draft test serves: the validation to run on the
 // request and the response to answer with. A zero status means 200.
 type draftTestRoute struct {
-	method   string
-	status   int
-	location string
-	body     string
-	link     string
-	validate func(t *testing.T, body map[string]any)
+	method    string
+	status    int
+	location  string
+	body      string
+	link      string
+	requestID string
+	validate  func(t *testing.T, body map[string]any)
 }
 
 // newDraftTestClient serves /identity.json for the sender lookup and the given routes,
@@ -49,6 +50,9 @@ func newDraftTestClient(t *testing.T, routes map[string]draftTestRoute) *Client 
 			}
 			if route.link != "" {
 				w.Header().Set("Link", route.link)
+			}
+			if route.requestID != "" {
+				w.Header().Set("X-Request-Id", route.requestID)
 			}
 			status := route.status
 			if status == 0 {
@@ -259,6 +263,76 @@ func TestDraftLifecycleCarriesTheChosenActingSender(t *testing.T) {
 	unchosen := DraftContent{Subject: "As myself", Content: "<div>…</div>", To: []string{"maria@example.com"}}
 	if err := client.Messages().SendDraft(context.Background(), 67890, unchosen); err != nil {
 		t.Fatalf("SendDraft (default sender): %v", err)
+	}
+}
+
+func TestMessagesService_UpdateDraft_SurfacesTheReasonsFor422(t *testing.T) {
+	client := newDraftTestClient(t, map[string]draftTestRoute{
+		"/messages/12345.json": {
+			method:    "PUT",
+			status:    422,
+			body:      `{"errors":["Subject is too long (maximum is 255 characters)","Content can't be blank"]}`,
+			requestID: "req-draft-422",
+		},
+	})
+
+	err := client.Messages().UpdateDraft(context.Background(), 12345, DraftContent{
+		Subject: "Quarterly planning",
+	})
+	assertDraftValidationError(t, err, "Subject is too long (maximum is 255 characters); Content can't be blank", "req-draft-422")
+}
+
+func TestMessagesService_SendDraft_SurfacesTheReasonsFor422(t *testing.T) {
+	client := newDraftTestClient(t, map[string]draftTestRoute{
+		"/messages/12345.json": {
+			method:    "PUT",
+			status:    422,
+			body:      `{"errors":["Recipient maria@example is not a valid email address"]}`,
+			requestID: "req-draft-422",
+		},
+	})
+
+	err := client.Messages().SendDraft(context.Background(), 12345, DraftContent{
+		Subject: "Quarterly planning",
+		Content: "<div>Agenda.</div>",
+		To:      []string{"maria@example"},
+	})
+	assertDraftValidationError(t, err, "Recipient maria@example is not a valid email address", "req-draft-422")
+}
+
+func TestMessagesService_SendDraft_KeepsTheGenericMessageForABodyless422(t *testing.T) {
+	client := newDraftTestClient(t, map[string]draftTestRoute{
+		"/messages/12345.json": {method: "PUT", status: 422, requestID: "req-draft-bare"},
+	})
+
+	err := client.Messages().SendDraft(context.Background(), 12345, DraftContent{
+		Subject: "Quarterly planning",
+		Content: "<div>Agenda.</div>",
+		To:      []string{"maria@example.com"},
+	})
+	assertDraftValidationError(t, err, "validation error", "req-draft-bare")
+}
+
+// assertDraftValidationError checks a draft write's 422 keeps the structured contract
+// CheckResponse gives every other status — code, status and request id — with HEY's
+// reasons as the message.
+func assertDraftValidationError(t *testing.T, err error, message, requestID string) {
+	t.Helper()
+	e := AsError(err)
+	if e == nil || e.Code != CodeValidation {
+		t.Fatalf("expected a validation error, got %#v", err)
+	}
+	if e.Message != message {
+		t.Errorf("Message = %q, want %q", e.Message, message)
+	}
+	if e.HTTPStatus != 422 {
+		t.Errorf("HTTPStatus = %d, want 422", e.HTTPStatus)
+	}
+	if e.RequestID != requestID {
+		t.Errorf("RequestID = %q, want %q", e.RequestID, requestID)
+	}
+	if e.Retryable {
+		t.Error("a validation error is not retryable")
 	}
 }
 
