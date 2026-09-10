@@ -1,6 +1,7 @@
 package hey
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"math"
@@ -161,3 +162,55 @@ func RedactHeaders(headers http.Header) http.Header {
 	}
 	return result
 }
+
+// redactTransportError returns err with the URL Go's *url.Error renders projected to
+// its scheme, host and path. net/http reports every transport failure as a *url.Error
+// carrying the whole request URL; a signed storage URL carries its credential in the
+// query, and a proxy URL its password in the userinfo, so through ErrNetwork that
+// rendering would become the hint, the message and every log line printing the error.
+// The projection keeps what a reader needs to place the failure and drops the rest
+// before any text is built. An error that carries no *url.Error, or one whose URL has
+// nothing to drop, is returned as it is.
+func redactTransportError(err error) error {
+	var urlErr *url.Error
+	if !errors.As(err, &urlErr) || urlErr.URL == "" {
+		return err
+	}
+	redacted := &url.Error{Op: urlErr.Op, URL: redactURL(urlErr.URL), Err: urlErr.Err}
+	if redacted.URL == urlErr.URL {
+		return err
+	}
+	text := err.Error()
+	if text == urlErr.Error() || !strings.Contains(text, urlErr.URL) {
+		// Nothing wraps the transport error, or a wrapper renders the URL in a form
+		// this function cannot locate: the transport error's own rendering is what
+		// is kept.
+		return redacted
+	}
+	return &redactedTransportError{
+		text:  strings.ReplaceAll(text, urlErr.URL, redacted.URL),
+		cause: redacted,
+	}
+}
+
+// redactURL projects rawURL to its scheme, host and path, dropping userinfo, query
+// and fragment. A URL that does not parse projects to the fixed token "unparsable".
+func redactURL(rawURL string) string {
+	u, err := url.Parse(rawURL)
+	if err != nil {
+		return "unparsable"
+	}
+	return (&url.URL{Scheme: u.Scheme, Host: u.Host, Path: u.Path, RawPath: u.RawPath}).String()
+}
+
+// redactedTransportError is a wrapped transport error rendered with its URL projected:
+// the wrapper's text with the projection substituted, unwrapping to the projected
+// *url.Error so errors.Is and errors.As classify the failure as before.
+type redactedTransportError struct {
+	text  string
+	cause *url.Error
+}
+
+func (e *redactedTransportError) Error() string { return e.text }
+
+func (e *redactedTransportError) Unwrap() error { return e.cause }

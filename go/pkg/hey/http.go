@@ -183,6 +183,23 @@ func attemptFromContext(ctx context.Context) int {
 	return generated.AttemptFromContext(ctx)
 }
 
+// storageRequestKey is the context key marking a request to the storage host — the
+// attachment upload — whose URL is the credential: the hooks see it projected to
+// scheme, host and path. An API request's URL carries no credential (the token is in
+// the Authorization header), so the hooks see it whole.
+type storageRequestKey struct{}
+
+// markStorageRequest marks ctx as belonging to a request whose URL is signed.
+func markStorageRequest(ctx context.Context) context.Context {
+	return context.WithValue(ctx, storageRequestKey{}, true)
+}
+
+// isStorageRequest reports whether ctx carries the storage request marker.
+func isStorageRequest(ctx context.Context) bool {
+	v, _ := ctx.Value(storageRequestKey{}).(bool)
+	return v
+}
+
 // loggingTransport wraps an http.RoundTripper to log requests and responses,
 // and calls observability hooks for all HTTP requests.
 type loggingTransport struct {
@@ -192,9 +209,13 @@ type loggingTransport struct {
 
 // RoundTrip implements http.RoundTripper with logging and hooks.
 func (t *loggingTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	displayURL := req.URL.String()
+	if isStorageRequest(req.Context()) {
+		displayURL = redactURL(displayURL)
+	}
 	info := RequestInfo{
 		Method:  req.Method,
-		URL:     req.URL.String(),
+		URL:     displayURL,
 		Attempt: attemptFromContext(req.Context()),
 	}
 	hookCtx := t.client.hooks.OnRequestStart(req.Context(), info)
