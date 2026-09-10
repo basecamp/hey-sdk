@@ -28,10 +28,14 @@ type requestRecordingHooks struct {
 	NoopHooks
 	infos   []RequestInfo
 	results []RequestResult
+	fresh   bool // hand back a context of the hook's own, not derived from the request's
 }
 
 func (h *requestRecordingHooks) OnRequestStart(ctx context.Context, info RequestInfo) context.Context {
 	h.infos = append(h.infos, info)
+	if h.fresh {
+		return context.Background()
+	}
 	return ctx
 }
 
@@ -99,10 +103,16 @@ func TestAttachmentsUploadTransportErrorRendersNoSignedURL(t *testing.T) {
 // leakyStorageTransport is a custom transport that reports the storage request's
 // failure the way a transport built on another http.Client would: as a *url.Error of
 // its own, rendering the whole URL.
-type leakyStorageTransport struct{ inner http.RoundTripper }
+type leakyStorageTransport struct {
+	inner http.RoundTripper
+	plain bool // report a plain error interpolating the URL rather than a *url.Error
+}
 
 func (t *leakyStorageTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	if req.Method == http.MethodPut {
+		if t.plain {
+			return nil, fmt.Errorf("PUT %s failed", req.URL)
+		}
 		return nil, &url.Error{Op: "Put", URL: req.URL.String(), Err: errors.New("connection refused")}
 	}
 	return t.inner.RoundTrip(req)
@@ -112,6 +122,12 @@ func (t *leakyStorageTransport) RoundTrip(req *http.Request) (*http.Response, er
 // custom transport whose own error carries the signed URL: the hook result and the
 // SDK error are projected all the same.
 func TestAttachmentsUploadCustomTransportErrorRendersNoSignedURL(t *testing.T) {
+	for name, plain := range map[string]bool{"url.Error": false, "plain error": true} {
+		t.Run(name, func(t *testing.T) { testAttachmentsUploadCustomTransportError(t, plain) })
+	}
+}
+
+func testAttachmentsUploadCustomTransportError(t *testing.T, plain bool) {
 	const signedURL = "http://127.0.0.1:1/blob?signature=SECRETVALUE"
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -124,7 +140,7 @@ func TestAttachmentsUploadCustomTransportErrorRendersNoSignedURL(t *testing.T) {
 	t.Cleanup(server.Close)
 	hooks := &requestRecordingHooks{}
 	client := NewClient(&Config{BaseURL: server.URL}, &StaticTokenProvider{Token: "test-token"},
-		WithMaxRetries(0), WithHooks(hooks), WithTransport(&leakyStorageTransport{inner: http.DefaultTransport}))
+		WithMaxRetries(0), WithHooks(hooks), WithTransport(&leakyStorageTransport{inner: http.DefaultTransport, plain: plain}))
 
 	_, err := client.Attachments().Upload(context.Background(), "note.txt", "text/plain", strings.NewReader("contents"))
 	if err == nil {
@@ -147,8 +163,8 @@ func TestAttachmentsUploadCustomTransportErrorRendersNoSignedURL(t *testing.T) {
 			t.Errorf("the signed query leaked into a hook result: %q", text)
 		}
 	}
-	if !strings.Contains(hooks.results[1].Error.Error(), `"http://127.0.0.1:1"`) {
-		t.Errorf("hook result should keep the URL's scheme, host and path, got %q", hooks.results[1].Error.Error())
+	if got := hooks.results[1].Error.Error(); got != "transport failure" {
+		t.Errorf("hook result should be the failure's classification alone, got %q", got)
 	}
 }
 
@@ -176,6 +192,12 @@ func TestBlobDownloadRedirectReachesHooksProjected(t *testing.T) {
 		},
 		"DownloadBlob": func() error {
 			_, _, err := client.DownloadBlob(context.Background(), "/blob", io.Discard)
+			return err
+		},
+		"GetBlob under a hook returning its own context": func() error {
+			hooks.fresh = true
+			defer func() { hooks.fresh = false }()
+			_, err := client.GetBlob(context.Background(), "/blob")
 			return err
 		},
 	} {
@@ -344,6 +366,23 @@ func TestRedactTransportError(t *testing.T) {
 		}
 	})
 
+	t.Run("keeps a dropped sibling's classification and an exposed transport error", func(t *testing.T) {
+		joined := redactTransportError(errors.Join(timeoutError{}, signed), "")
+		var netErr net.Error
+		if !errors.As(joined, &netErr) || !netErr.Timeout() {
+			t.Errorf("a dropped net.Error sibling should leave its classification, got %v", joined)
+		}
+		for _, text := range renderings(joined) {
+			if strings.Contains(text, "SECRETVALUE") {
+				t.Errorf("the signed query leaked into %q", text)
+			}
+		}
+		exposed := redactTransportError(&asOnlyError{target: signed}, "")
+		if want := `Get "https://storage.example.com": context canceled`; exposed.Error() != want {
+			t.Errorf("got %q, want %q", exposed.Error(), want)
+		}
+	})
+
 	t.Run("keeps the cause beneath a URL on the API origin", func(t *testing.T) {
 		api := &url.Error{Op: "Get", URL: "https://api.example.com/boxes?page=2", Err: errors.New("connection refused")}
 		got := redactTransportError(api, "https://api.example.com")
@@ -427,6 +466,20 @@ func (cancelledTimeoutError) Error() string   { return "cancelled: " + context.C
 func (cancelledTimeoutError) Unwrap() error   { return context.Canceled }
 func (cancelledTimeoutError) Timeout() bool   { return true }
 func (cancelledTimeoutError) Temporary() bool { return false }
+
+// asOnlyError exposes a *url.Error through As alone, with no Unwrap, and renders the
+// signed URL on its own.
+type asOnlyError struct{ target *url.Error }
+
+func (e *asOnlyError) Error() string { return "request " + e.target.URL + " failed" }
+
+func (e *asOnlyError) As(target any) bool {
+	if p, ok := target.(**url.Error); ok {
+		*p = e.target
+		return true
+	}
+	return false
+}
 
 // opaqueWrapperError wraps an error without rendering it.
 type opaqueWrapperError struct{ cause error }

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"math"
+	"net"
 	"net/http"
 	"net/url"
 	"strings"
@@ -205,7 +206,8 @@ func projectTransportError(err error, apiOrigin string) (projected bool, result 
 		trusted := trustedURL(e.URL, apiOrigin)
 		projectedURL := projectURL(e.URL, trusted)
 		if !trusted {
-			return true, &url.Error{Op: transportOp(e.Op), URL: projectedURL, Err: classifyTransportFailure(e)}
+			stand, _ := classifyFailure(e)
+			return true, &url.Error{Op: transportOp(e.Op), URL: projectedURL, Err: stand}
 		}
 		innerProjected, inner := projectTransportError(e.Err, apiOrigin)
 		if projectedURL == e.URL && !innerProjected {
@@ -216,12 +218,11 @@ func projectTransportError(err error, apiOrigin string) (projected bool, result 
 		members := e.Unwrap()
 		kept := make([]error, 0, len(members))
 		for _, member := range members {
-			switch memberProjected, projectedMember := projectTransportError(member, apiOrigin); {
-			case memberProjected:
+			if memberProjected, projectedMember := projectTransportError(member, apiOrigin); memberProjected {
 				projected = true
 				kept = append(kept, projectedMember)
-			case contextSentinels(member) != nil:
-				kept = append(kept, contextSentinels(member))
+			} else if stand, classified := classifyFailure(member); classified {
+				kept = append(kept, stand)
 			}
 		}
 		if !projected {
@@ -234,6 +235,14 @@ func projectTransportError(err error, apiOrigin string) (projected bool, result 
 			return false, err
 		}
 		return true, projectedCause
+	}
+	// An error can expose a *url.Error through an As method without unwrapping to it;
+	// its own rendering is then text this package cannot vouch for, and the transport
+	// error it exposes is what is kept, projected.
+	var exposed *url.Error
+	if errors.As(err, &exposed) {
+		_, projectedExposed := projectTransportError(exposed, apiOrigin)
+		return true, projectedExposed
 	}
 	return false, err
 }
@@ -277,12 +286,20 @@ func transportOp(op string) string {
 	return op
 }
 
-// classifyTransportFailure is what stands beneath a projected URL in place of the
-// transport's own cause: a transportFailureError carrying the net.Error flags the
-// *url.Error delegated to that cause, unwrapping to the context sentinels the cause
-// wrapped, so errors.Is still sees a cancellation or a deadline.
-func classifyTransportFailure(e *url.Error) error {
-	return &transportFailureError{timeout: e.Timeout(), temporary: e.Temporary(), sentinel: contextSentinels(e.Err)}
+// classifyFailure is what stands in for a transport failure whose text this package
+// cannot vouch for: a transportFailureError carrying the net.Error flags the failure
+// reports — a *url.Error delegates them to its immediate cause, as before — and
+// unwrapping to the context sentinels it wrapped, so errors.Is still sees a
+// cancellation or a deadline. classified reports whether the failure had any of those
+// to carry; beneath a projected URL the stand-in is kept either way.
+func classifyFailure(err error) (stand *transportFailureError, classified bool) {
+	stand = &transportFailureError{sentinel: contextSentinels(err)}
+	var netErr net.Error
+	if errors.As(err, &netErr) {
+		stand.timeout, stand.temporary = netErr.Timeout(), netErr.Temporary()
+		classified = true
+	}
+	return stand, classified || stand.sentinel != nil
 }
 
 // contextSentinels is every bare context sentinel err wraps — one, both joined, or

@@ -223,6 +223,11 @@ func (t *loggingTransport) RoundTrip(req *http.Request) (*http.Response, error) 
 		Attempt: attemptFromContext(req.Context()),
 	}
 	hookCtx := t.client.hooks.OnRequestStart(req.Context(), info)
+	if projected {
+		// A hook may hand back a context of its own; the redirect net/http derives
+		// from this request must still carry the mark.
+		hookCtx = markProjectedRequest(hookCtx)
+	}
 	startTime := time.Now()
 
 	req = req.WithContext(hookCtx)
@@ -242,9 +247,10 @@ func (t *loggingTransport) RoundTrip(req *http.Request) (*http.Response, error) 
 	if err != nil {
 		result.Error = err
 		if projected {
-			// A custom transport can report its failure as a *url.Error of its own,
-			// which renders the same signed URL.
-			result.Error = redactTransportError(err, "")
+			// A custom transport's failure is text this package cannot vouch for —
+			// a *url.Error of its own, or a message interpolating the URL — so the
+			// hooks get its classification alone.
+			result.Error, _ = classifyFailure(err)
 		}
 	} else {
 		result.StatusCode = resp.StatusCode

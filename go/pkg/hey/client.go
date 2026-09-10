@@ -661,7 +661,17 @@ func (c *Client) doRequest(ctx context.Context, method, path string, body any) (
 	if err != nil {
 		return nil, err
 	}
+	if isAbsoluteURL(path) {
+		// A caller's absolute URL can be a signed one, on any origin: the hooks and
+		// the network error see it projected, as they see a storage request.
+		ctx = markProjectedRequest(ctx)
+	}
 	return c.doRequestURL(ctx, method, url, body)
+}
+
+// isAbsoluteURL reports whether path is an absolute URL rather than an API path.
+func isAbsoluteURL(path string) bool {
+	return strings.HasPrefix(path, "https://") || strings.HasPrefix(path, "http://")
 }
 
 func (c *Client) doRequestURL(ctx context.Context, method, url string, body any) (*Response, error) {
