@@ -388,3 +388,57 @@ fn the_policy_on_the_wire_is_the_route_table_s() {
     assert_eq!(routes::LIST_BOXES.retry.retry_on, &[429, 503]);
     assert_eq!(routes::CREATE_BULK_REPLY.retry.max, 0);
 }
+
+/// The ceiling is a ceiling: a floor set above it does not lift it, and the jitter goes
+/// under it too.
+#[tokio::test]
+async fn the_longest_wait_holds_the_client_s_own_floor_and_jitter_down() {
+    let server = MockServer::start().await;
+    first(&server, "/boxes.json", 2, ResponseTemplate::new(503)).await;
+    always(
+        &server,
+        "GET",
+        "/boxes.json",
+        ResponseTemplate::new(200).set_body_json(json!([])),
+    )
+    .await;
+    let client = Client::builder(Config::default().with_base_url(server.uri()))
+        .token_provider(StaticTokenProvider::new("t"))
+        .base_delay(Duration::from_millis(600))
+        .max_jitter(Duration::from_millis(600))
+        .max_delay(Duration::from_millis(20))
+        .build()
+        .unwrap();
+
+    let started = Instant::now();
+    client.boxes().list().await.unwrap();
+
+    assert_eq!(requests(&server).await, 3);
+    assert!(started.elapsed() < Duration::from_millis(300));
+}
+
+/// The wait HEY asked for is not shortened by the ceiling: resending sooner only earns
+/// another refusal.
+#[tokio::test]
+async fn the_wait_hey_asked_for_is_not_held_down() {
+    let server = MockServer::start().await;
+    first(
+        &server,
+        "/boxes.json",
+        1,
+        ResponseTemplate::new(429).insert_header("Retry-After", "1"),
+    )
+    .await;
+    always(
+        &server,
+        "GET",
+        "/boxes.json",
+        ResponseTemplate::new(200).set_body_json(json!([])),
+    )
+    .await;
+
+    let started = Instant::now();
+    client(&server).boxes().list().await.unwrap();
+
+    assert!(started.elapsed() >= Duration::from_secs(1));
+}

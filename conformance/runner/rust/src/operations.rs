@@ -49,19 +49,20 @@ impl Outcome {
 }
 
 /// Builds the client the case asks for and runs its operation, as many times as
-/// `repeatOperation` says, and answers what the last run did. A run that failed with a
-/// status HEY answered is a run the Go runner's generated client counts as answered
-/// rather than failed, so the case goes on to its next run the way it does there; a
-/// failure with no status behind it ends the case.
+/// `repeatOperation` says, and answers what the last run did. A case at the generated
+/// layer goes on past a run that failed with a status HEY answered, since the Go runner's
+/// generated client counts such a run as answered rather than failed and goes on the same
+/// way; any other failure ends the case, as every failure does at the HEY layer there.
 pub async fn execute_case(case: &TestCase, base_url: &str) -> Result<Outcome, Error> {
     let client = client_for(case, base_url).await?;
     let mut outcome = Ok(Outcome::Unit);
     for _ in 0..case.runs() {
         outcome = execute(&client, case).await;
-        if outcome
-            .as_ref()
-            .is_err_and(|error| error.http_status().is_none())
-        {
+        let answered = !case.is_hey_layer()
+            && outcome
+                .as_ref()
+                .is_err_and(|error| error.http_status().is_some());
+        if outcome.is_err() && !answered {
             break;
         }
     }

@@ -197,14 +197,16 @@ impl ClientBuilder {
     /// The least the client waits before the first resend. A modelled route starts from
     /// the delay its own policy names when that is longer; a path the caller wrote starts
     /// from this, or from [`DEFAULT_BASE_DELAY`] when it is not set. Each wait after the
-    /// first is double the one before, up to [`ClientBuilder::max_delay`].
+    /// first is double the one before. [`ClientBuilder::max_delay`] holds every wait down,
+    /// this one included.
     pub fn base_delay(mut self, base_delay: Duration) -> ClientBuilder {
         self.base_delay = Some(base_delay);
         self
     }
 
-    /// The most the client waits between attempts, whatever the policy or the backoff
-    /// asks for. The wait a `Retry-After` names is honoured as given.
+    /// The most the client waits between attempts, jitter included, whatever the policy,
+    /// the backoff or [`ClientBuilder::base_delay`] asks for. The wait a `Retry-After`
+    /// names is honoured as given.
     pub fn max_delay(mut self, max_delay: Duration) -> ClientBuilder {
         self.max_delay = max_delay;
         self
@@ -275,9 +277,7 @@ impl ClientBuilder {
             user_agent: self.user_agent,
             max_retries: self.max_retries,
             base_delay: self.base_delay,
-            max_delay: self
-                .max_delay
-                .max(self.base_delay.unwrap_or(Duration::ZERO)),
+            max_delay: self.max_delay,
             max_jitter: self.max_jitter,
             max_pages: self.max_pages,
             max_response_body_bytes,
@@ -654,15 +654,14 @@ impl Client {
                         );
                         tracing::debug!(operation = %operation.id, attempt, %status, "retryable status, retrying");
                         hooks.on_retry(&info, attempt + 1, &cause);
-                        let wait = match retry_after {
+                        match retry_after {
                             Some(seconds)
                                 if status == StatusCode::TOO_MANY_REQUESTS && seconds > 0 =>
                             {
-                                Duration::from_secs(seconds)
+                                self.wait_as_asked(Duration::from_secs(seconds)).await;
                             }
-                            _ => delay,
-                        };
-                        self.wait(wait).await;
+                            _ => self.wait(delay).await,
+                        }
                         delay = self.next_delay(delay);
                         attempt += 1;
                     } else {
@@ -953,12 +952,24 @@ impl Client {
         }
     }
 
+    /// Sleeps the backoff's wait plus a little jitter, held under the longest wait the
+    /// client allows.
     async fn wait(&self, delay: Duration) {
-        let jitter = match self.shared.max_jitter.as_millis() {
+        tokio::time::sleep((delay + self.jitter()).min(self.shared.max_delay)).await;
+    }
+
+    /// Sleeps the wait HEY asked for, which the client's ceiling does not shorten: the
+    /// server said when it will answer again, and resending sooner only earns another
+    /// refusal.
+    async fn wait_as_asked(&self, delay: Duration) {
+        tokio::time::sleep(delay + self.jitter()).await;
+    }
+
+    fn jitter(&self) -> Duration {
+        match self.shared.max_jitter.as_millis() {
             0 => Duration::ZERO,
             millis => Duration::from_millis(rand::random_range(0..millis as u64)),
-        };
-        tokio::time::sleep(delay + jitter).await;
+        }
     }
 
     fn next_delay(&self, delay: Duration) -> Duration {
