@@ -13,16 +13,23 @@ it costs — is in [rust/hey-sdk/README.md](rust/hey-sdk/README.md#versioning); 
 it changes for code outside the crate.
 
 **Building one literally no longer compiles**, `..Default::default()` included. This reaches
-tests and fixtures more than applications:
+tests and fixtures more than applications. The generated types and most hand-written results
+keep `Default`, so build one and set what the test needs:
 
 ```rust
 // before
 let mailbox = Mailbox { name: "Imbox".into(), ..Default::default() };
 
-// after: the types keep `Default`, so build one and set what the test needs
+// after
 let mut mailbox = Mailbox::default();
 mailbox.name = "Imbox".into();
 ```
+
+A few carry no `Default`, and a fixture for one of those comes from where the crate itself
+gets it: `Token`, `DeletedCalendar` and `DeletedRecording` deserialize from JSON;
+`client::Response`, `FormResponse`, `RequestInfo` and `RequestResult` come out of a call
+against a mock server (the crate's own tests use wiremock for this); `url::Match` comes from
+`Router::recognize`.
 
 **A `match` over an open enum needs a wildcard arm**, and a struct pattern needs `..`:
 
