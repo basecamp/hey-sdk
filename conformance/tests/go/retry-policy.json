@@ -1,0 +1,22 @@
+[
+  {
+    "name": "Generated operation uses its retry status list and attempt limit",
+    "description": "DeleteBoxDesignation stops its first call on undeclared 500, then retries declared 503 once and stops at two attempts before the 200 sentinel",
+    "operation": "DeleteBoxDesignation",
+    "method": "DELETE",
+    "path": "/boxes/{boxId}/designations/{designationId}",
+    "pathParams": {"boxId": 12345, "designationId": 67890},
+    "mockResponses": [
+      {"status": 500},
+      {"status": 503},
+      {"status": 503},
+      {"status": 200}
+    ],
+    "repeatOperation": 2,
+    "assertions": [
+      {"type": "requestCount", "expected": 3},
+      {"type": "statusCode", "expected": 503}
+    ],
+    "tags": ["retry", "operation-policy", "retry-on", "max-attempts"]
+  }
+]
