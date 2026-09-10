@@ -203,7 +203,7 @@ go-check-drift:
 # Rust SDK
 #------------------------------------------------------------------------------
 
-.PHONY: rs-generate rs-check-drift rs-test rs-lint rs-examples rs-deny rs-publish-check rs-check
+.PHONY: rs-generate rs-check-drift rs-test rs-lint rs-examples rs-deny rs-publish-check rs-check rs-consumer-check
 
 # Types, routes and services are all generated; there is no hand-written wrapper layer
 # to drift, so the drift check is the generator's own --check.
@@ -230,6 +230,11 @@ rs-publish-check:
 
 rs-check:
 	$(MAKE) -C rust check
+
+# Build the packaged crate from a throwaway consumer, with fresh resolution and no
+# dev-dependencies, for the default features and with none
+rs-consumer-check:
+	./scripts/rs-consumer-check
 
 #------------------------------------------------------------------------------
 # TypeScript SDK

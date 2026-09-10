@@ -488,6 +488,52 @@ impl From<serde_json::Error> for Error {
     }
 }
 
+impl Error {
+    /// An answer that would not decode, with what is known about the answer kept: an
+    /// operation that got a 200 it cannot read is a different problem from one that got
+    /// nothing, and the request id is what HEY needs to find it.
+    pub(crate) fn decoding(
+        status: u16,
+        request_id: Option<&str>,
+        error: serde_json::Error,
+    ) -> Error {
+        let error = Error::new(ErrorCode::Api, "unexpected JSON in the response")
+            .with_status(status)
+            .with_hint(error.to_string())
+            .with_source(error);
+        match request_id {
+            Some(request_id) => error.with_request_id(request_id),
+            None => error,
+        }
+    }
+
+    /// Names the operation an error belongs to, in front of its message.
+    pub(crate) fn about(mut self, operation: &str) -> Error {
+        self.message = format!("{operation}: {}", self.message);
+        self
+    }
+
+    /// The operation ran past [`crate::ClientBuilder::operation_timeout`] and was dropped
+    /// where it stood. Retryable: nothing says the next call would take as long.
+    pub fn timed_out(limit: std::time::Duration) -> Error {
+        Error::new(
+            ErrorCode::Network,
+            format!("operation timed out after {limit:?}"),
+        )
+        .retryable()
+    }
+
+    /// A walk reached the client's page limit with pages still to read. What was read
+    /// stands with the caller; this says it was not all of it. Raise
+    /// [`crate::ClientBuilder::max_pages`], or read with a limit.
+    pub fn pagination_capped(max_pages: usize) -> Error {
+        Error::usage(format!(
+            "pagination stopped at the page limit of {max_pages} with more pages to read"
+        ))
+        .with_hint("raise max_pages on the client, or read with a limit")
+    }
+}
+
 impl From<url::ParseError> for Error {
     fn from(error: url::ParseError) -> Error {
         Error::usage(format!("invalid URL: {error}")).with_source(error)

@@ -235,8 +235,12 @@ while let Some(next) = client.next_page(&page).await? {
 }
 ```
 
-`next_page` refuses a `Link` header that points off the HEY origin. `each_page` walks pages
-up to the client's `max_pages`.
+`next_page` refuses a `Link` header that points off the HEY origin. `each_page`, `get_all`
+and `follow_pagination` walk up to the client's `max_pages`, and a walk that reaches it with
+pages still to read ends as a `Usage` error saying so rather than as a shorter list that
+looks complete. `each_page` has handed every page it read to the visitor by then; `get_all`
+and `follow_pagination` answer only the error, since a list cut short is the thing they exist
+not to hand back. Raise `max_pages`, or read with a limit.
 
 ### Linked accounts
 
@@ -323,9 +327,21 @@ gives no policy is sent once, and so is any operation that is not idempotent, wh
 policy says. A path the caller wrote has no policy to bring, so an idempotent one runs on the
 client's settings alone and is resent on 429, 500, 502, 503 and 504; `get_all` and
 `follow_pagination` read every page that way. Any operation is resent once after a 401 that
-the token provider's `refresh` could answer, even with its sends spent. With a `ResponseCache` (`InMemoryCache`, `FileCache`, or
+the token provider's `refresh` could answer, even with its sends spent — and once for all the
+calls a stale credential earned a 401 on: refreshes go one at a time, and a call signed before
+the last refresh is resent on the new credentials rather than refreshing again, so a rotating
+refresh token is spent once. With a `ResponseCache` (`InMemoryCache`, `FileCache`, or
 `config.cache_enabled`), JSON reads revalidate with `If-None-Match` and a 304 is answered from
 the cache. Response bodies are capped at `max_response_body_bytes` (16 MiB by default).
+
+`timeout` on the builder is the HTTP client's: how long one request on the wire may take.
+`operation_timeout` is the operation's: how long the whole call may take, from waiting at the
+gate through credentials, every attempt, every wait between attempts, the resend after a
+refresh, and reading the body — everything the client waits for. Past it the call ends as a
+retryable network error and whatever it was doing is dropped — a bulkhead permit it held goes
+back and the hooks hear it end. Decoding the answer into your type comes after, on your own
+thread, and is not part of the wait. Neither bounds the other: without `operation_timeout` a
+call may take as long as its attempts and waits add up to.
 
 ### Bring your own HTTP client
 

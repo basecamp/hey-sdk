@@ -87,8 +87,10 @@ async fn a_next_link_off_the_origin_is_refused_rather_than_followed() {
     assert_eq!(server.received_requests().await.unwrap().len(), 1);
 }
 
+/// A walk that runs into the page limit with pages still to read is not a shorter list
+/// that looks complete: it says so.
 #[tokio::test]
-async fn the_walk_stops_at_the_page_limit_with_what_it_has() {
+async fn the_walk_stops_at_the_page_limit_and_says_so() {
     let server = MockServer::start().await;
     Mock::given(method("GET"))
         .and(path("/items"))
@@ -100,16 +102,139 @@ async fn the_walk_stops_at_the_page_limit_with_what_it_has() {
         .mount(&server)
         .await;
 
-    let items = builder(&server)
+    let error = builder(&server)
         .max_pages(3)
         .build()
         .unwrap()
         .get_all("/items")
         .await
-        .unwrap();
+        .unwrap_err();
 
-    assert_eq!(items.len(), 3);
+    assert_eq!(error.code(), ErrorCode::Usage);
+    assert!(error.message().contains("page limit of 3"), "{error}");
     assert_eq!(server.received_requests().await.unwrap().len(), 3);
+}
+
+/// A limit met before the page limit is a complete answer; a last page with no next link
+/// is the end of the walk, page limit or not.
+#[tokio::test]
+async fn a_walk_that_ends_inside_the_page_limit_is_complete() {
+    let server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path("/items"))
+        .and(query_param_is_missing("page"))
+        .respond_with(
+            ResponseTemplate::new(200)
+                .insert_header("Link", r#"</items?page=2>; rel="next""#)
+                .set_body_json(json!([{ "id": 1 }])),
+        )
+        .mount(&server)
+        .await;
+    Mock::given(method("GET"))
+        .and(path("/items"))
+        .and(query_param("page", "2"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!([{ "id": 2 }])))
+        .mount(&server)
+        .await;
+    let client = builder(&server).max_pages(2).build().unwrap();
+
+    let items = client.get_all("/items").await.unwrap();
+    assert_eq!(items.len(), 2);
+
+    let limited = client.get_all_with_limit("/items", 1).await.unwrap();
+    assert_eq!(limited.len(), 1);
+}
+
+/// A page with nothing on it and a cursor is not the end: the walk goes on.
+#[tokio::test]
+async fn an_empty_page_with_a_cursor_is_followed() {
+    let server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path("/items"))
+        .and(query_param_is_missing("page"))
+        .respond_with(
+            ResponseTemplate::new(200)
+                .insert_header("Link", r#"</items?page=2>; rel="next""#)
+                .set_body_json(json!([])),
+        )
+        .mount(&server)
+        .await;
+    Mock::given(method("GET"))
+        .and(path("/items"))
+        .and(query_param("page", "2"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!([{ "id": 2 }])))
+        .mount(&server)
+        .await;
+
+    let items = client(&server).get_all("/items").await.unwrap();
+
+    assert_eq!(items.len(), 1);
+    assert_eq!(server.received_requests().await.unwrap().len(), 2);
+}
+
+/// A server that keeps naming the same next page would have the walk go on forever; the
+/// page limit is what ends it, and it ends as the truncation it is.
+#[tokio::test]
+async fn a_cursor_that_repeats_ends_at_the_page_limit() {
+    let server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path("/items"))
+        .respond_with(
+            ResponseTemplate::new(200)
+                .insert_header("Link", r#"</items?page=same>; rel="next""#)
+                .set_body_json(json!([{ "id": 1 }])),
+        )
+        .mount(&server)
+        .await;
+
+    let error = builder(&server)
+        .max_pages(4)
+        .build()
+        .unwrap()
+        .get_all("/items")
+        .await
+        .unwrap_err();
+
+    assert_eq!(error.code(), ErrorCode::Usage);
+    assert_eq!(server.received_requests().await.unwrap().len(), 4);
+}
+
+/// A page that fails ends the walk with that failure, and nothing after it is read.
+#[tokio::test]
+async fn a_page_that_fails_ends_the_walk_with_its_failure() {
+    let server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path("/items"))
+        .and(query_param_is_missing("page"))
+        .respond_with(
+            ResponseTemplate::new(200)
+                .insert_header("Link", r#"</items?page=2>; rel="next""#)
+                .set_body_json(json!([{ "id": 1 }])),
+        )
+        .mount(&server)
+        .await;
+    Mock::given(method("GET"))
+        .and(path("/items"))
+        .and(query_param("page", "2"))
+        .respond_with(
+            ResponseTemplate::new(500)
+                .insert_header("x-request-id", "req-500")
+                .insert_header("Link", r#"</items?page=3>; rel="next""#),
+        )
+        .mount(&server)
+        .await;
+
+    let error = builder(&server)
+        .max_retries(0)
+        .build()
+        .unwrap()
+        .get_all("/items")
+        .await
+        .unwrap_err();
+
+    assert_eq!(error.http_status(), Some(500));
+    assert_eq!(error.request_id(), Some("req-500"));
+    assert_eq!(server.received_requests().await.unwrap().len(), 2);
 }
 
 /// Following on from a page already in hand reads only what comes after it, and counts the
@@ -228,4 +353,20 @@ async fn page(
     .respond_with(answer)
     .mount(server)
     .await;
+}
+
+/// Following on from a page that is itself the whole page budget reads nothing more, and
+/// says why.
+#[tokio::test]
+async fn following_on_past_a_page_budget_of_one_is_cut_off_before_it_reads() {
+    let server = MockServer::start().await;
+    page(&server, None, json!([{ "id": 1 }]), Some("/items?page=2")).await;
+    page(&server, Some("2"), json!([{ "id": 2 }]), None).await;
+    let client = builder(&server).max_pages(1).build().unwrap();
+    let first = client.get("/items").await.unwrap();
+
+    let error = client.follow_pagination(&first, 1, 0).await.unwrap_err();
+
+    assert_eq!(error.code(), ErrorCode::Usage);
+    assert_eq!(server.received_requests().await.unwrap().len(), 1);
 }

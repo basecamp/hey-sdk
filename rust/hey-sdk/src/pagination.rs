@@ -126,7 +126,9 @@ impl Client {
     /// Reads a paginated path to its end and hands back the items of every page as one
     /// list. Each page has to decode as a JSON array. Use this for the paths the model
     /// does not cover; a modelled read walks with [`Client::each_page`], which keeps the
-    /// records typed.
+    /// records typed. A walk that reaches the client's page limit with pages still to
+    /// read is an error, [`Error::pagination_capped`], rather than a shorter list that
+    /// looks complete.
     pub async fn get_all(&self, path: &str) -> Result<Vec<Value>, Error> {
         self.get_all_with_limit(path, 0).await
     }
@@ -134,32 +136,32 @@ impl Client {
     /// Reads a paginated path until `limit` items are in hand, or to its end when `limit`
     /// is zero. The last page is trimmed to land on exactly `limit`.
     pub async fn get_all_with_limit(&self, path: &str, limit: usize) -> Result<Vec<Value>, Error> {
-        let mut operation = self.raw(Method::GET, path)?;
-        let started_at = self.url_for(&operation)?;
-        let mut collected: Vec<Value> = Vec::new();
-        let mut pages = 0;
+        self.within_limit(Box::pin(async move {
+            let mut operation = self.raw(Method::GET, path)?;
+            let started_at = self.url_for(&operation)?;
+            let mut collected: Vec<Value> = Vec::new();
+            let mut pages = 0;
 
-        loop {
-            let response = self.execute(operation).await?;
-            collected.extend(response.json::<Vec<Value>>()?);
-            pages += 1;
+            loop {
+                let response = self.execute(operation).await?;
+                collected.extend(response.json::<Vec<Value>>()?);
+                pages += 1;
 
-            if limit > 0 && collected.len() >= limit {
-                collected.truncate(limit);
-                break;
-            }
-            match next_page_url(&response, &started_at)? {
-                Some(next) if pages < self.max_pages() => {
-                    operation = Operation::at(Method::GET, next);
-                }
-                Some(_) => {
-                    crate::trace::warning!(max_pages = self.max_pages(), "pagination capped");
+                if limit > 0 && collected.len() >= limit {
+                    collected.truncate(limit);
                     break;
                 }
-                None => break,
+                match next_page_url(&response, &started_at)? {
+                    Some(next) if pages < self.max_pages() => {
+                        operation = Operation::at(Method::GET, next);
+                    }
+                    Some(_) => return Err(Error::pagination_capped(self.max_pages())),
+                    None => break,
+                }
             }
-        }
-        Ok(collected)
+            Ok(collected)
+        }))
+        .await
     }
 
     /// Reads the pages after one already in hand, and hands back their items. Say how many
@@ -175,37 +177,36 @@ impl Client {
         first_page_count: usize,
         limit: usize,
     ) -> Result<Vec<Value>, Error> {
-        if limit > 0 && first_page_count >= limit {
-            return Ok(Vec::new());
-        }
-
-        let started_at = first.url.clone();
-        let mut next = next_page_url(first, &started_at)?;
-        let mut collected: Vec<Value> = Vec::new();
-        let mut count = first_page_count;
-        let mut pages = 1;
-
-        while let Some(url) = next {
-            let response = self.execute(Operation::at(Method::GET, url)).await?;
-            let items: Vec<Value> = response.json()?;
-            count += items.len();
-            collected.extend(items);
-            pages += 1;
-
-            if limit > 0 && count >= limit {
-                collected.truncate(collected.len().saturating_sub(count - limit));
-                break;
+        self.within_limit(Box::pin(async move {
+            if limit > 0 && first_page_count >= limit {
+                return Ok(Vec::new());
             }
-            next = match next_page_url(&response, &started_at)? {
-                Some(url) if pages < self.max_pages() => Some(url),
-                Some(_) => {
-                    crate::trace::warning!(max_pages = self.max_pages(), "pagination capped");
-                    None
+
+            let started_at = first.url.clone();
+            let mut next = next_page_url(first, &started_at)?;
+            let mut collected: Vec<Value> = Vec::new();
+            let mut count = first_page_count;
+            let mut pages = 1;
+
+            while let Some(url) = next {
+                if pages >= self.max_pages() {
+                    return Err(Error::pagination_capped(self.max_pages()));
                 }
-                None => None,
-            };
-        }
-        Ok(collected)
+                let response = self.execute(Operation::at(Method::GET, url)).await?;
+                let items: Vec<Value> = response.json()?;
+                count += items.len();
+                collected.extend(items);
+                pages += 1;
+
+                if limit > 0 && count >= limit {
+                    collected.truncate(collected.len().saturating_sub(count - limit));
+                    break;
+                }
+                next = next_page_url(&response, &started_at)?;
+            }
+            Ok(collected)
+        }))
+        .await
     }
 }
 
