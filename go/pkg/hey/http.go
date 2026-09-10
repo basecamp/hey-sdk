@@ -209,8 +209,9 @@ type loggingTransport struct {
 
 // RoundTrip implements http.RoundTripper with logging and hooks.
 func (t *loggingTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	storage := isStorageRequest(req.Context())
 	displayURL := req.URL.String()
-	if isStorageRequest(req.Context()) {
+	if storage {
 		displayURL = redactURL(displayURL)
 	}
 	info := RequestInfo{
@@ -237,6 +238,11 @@ func (t *loggingTransport) RoundTrip(req *http.Request) (*http.Response, error) 
 
 	if err != nil {
 		result.Error = err
+		if storage {
+			// A custom transport can report its failure as a *url.Error of its own,
+			// which renders the same signed URL.
+			result.Error = redactTransportError(err)
+		}
 	} else {
 		result.StatusCode = resp.StatusCode
 		if resp.StatusCode == 429 || resp.StatusCode == 503 {

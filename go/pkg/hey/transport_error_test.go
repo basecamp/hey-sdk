@@ -93,6 +93,62 @@ func TestAttachmentsUploadTransportErrorRendersNoSignedURL(t *testing.T) {
 	}
 }
 
+// leakyStorageTransport is a custom transport that reports the storage request's
+// failure the way a transport built on another http.Client would: as a *url.Error of
+// its own, rendering the whole URL.
+type leakyStorageTransport struct{ inner http.RoundTripper }
+
+func (t *leakyStorageTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	if req.Method == http.MethodPut {
+		return nil, &url.Error{Op: "Put", URL: req.URL.String(), Err: errors.New("connection refused")}
+	}
+	return t.inner.RoundTrip(req)
+}
+
+// TestAttachmentsUploadCustomTransportErrorRendersNoSignedURL is the same check with a
+// custom transport whose own error carries the signed URL: the hook result and the
+// SDK error are projected all the same.
+func TestAttachmentsUploadCustomTransportErrorRendersNoSignedURL(t *testing.T) {
+	const signedURL = "http://127.0.0.1:1/blob?signature=SECRETVALUE"
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{
+			"signed_id":"signed-123",
+			"attachable_sgid":"sgid-456",
+			"direct_upload":{"url":"` + signedURL + `","headers":{"Content-Type":"text/plain"}}
+		}`))
+	}))
+	t.Cleanup(server.Close)
+	hooks := &requestRecordingHooks{}
+	client := NewClient(&Config{BaseURL: server.URL}, &StaticTokenProvider{Token: "test-token"},
+		WithMaxRetries(0), WithHooks(hooks), WithTransport(&leakyStorageTransport{inner: http.DefaultTransport}))
+
+	_, err := client.Attachments().Upload(context.Background(), "note.txt", "text/plain", strings.NewReader("contents"))
+	if err == nil {
+		t.Fatal("expected a network error")
+	}
+	var sdkErr *Error
+	if !errors.As(err, &sdkErr) || sdkErr.Code != CodeNetwork {
+		t.Fatalf("expected a network *Error, got %T: %v", err, err)
+	}
+	for _, text := range append(renderings(err), sdkErr.Hint) {
+		if strings.Contains(text, "SECRETVALUE") {
+			t.Errorf("the signed query leaked into %q", text)
+		}
+	}
+	if len(hooks.results) != 2 || hooks.results[1].Error == nil {
+		t.Fatalf("expected the storage request's failure in the hooks, got %+v", hooks.results)
+	}
+	for _, text := range renderings(hooks.results[1].Error) {
+		if strings.Contains(text, "SECRETVALUE") {
+			t.Errorf("the signed query leaked into a hook result: %q", text)
+		}
+	}
+	if !strings.Contains(hooks.results[1].Error.Error(), `"http://127.0.0.1:1/blob"`) {
+		t.Errorf("hook result should keep the URL's scheme, host and path, got %q", hooks.results[1].Error.Error())
+	}
+}
+
 func TestRedactTransportError(t *testing.T) {
 	signed := &url.Error{Op: "Get", URL: "https://user:pw@storage.example.com/blob/1?sig=SECRETVALUE#frag", Err: context.Canceled}
 
@@ -147,11 +203,15 @@ func TestRedactTransportError(t *testing.T) {
 		}
 	})
 
-	t.Run("keeps only the first transport error of a joined pair", func(t *testing.T) {
+	t.Run("projects every member of a joined error and keeps the rest", func(t *testing.T) {
 		other := &url.Error{Op: "Get", URL: "https://other.example.com/x?token=SECRETVALUE", Err: errors.New("reset")}
-		got := redactTransportError(errors.Join(signed, other))
-		if got.Error() != `Get "https://storage.example.com/blob/1": context canceled` {
-			t.Errorf("got %q", got.Error())
+		got := redactTransportError(errors.Join(signed, context.DeadlineExceeded, other))
+		want := "Get \"https://storage.example.com/blob/1\": context canceled\ncontext deadline exceeded\nGet \"https://other.example.com/x\": reset"
+		if got.Error() != want {
+			t.Errorf("got %q, want %q", got.Error(), want)
+		}
+		if !errors.Is(got, context.Canceled) || !errors.Is(got, context.DeadlineExceeded) {
+			t.Error("every member should still be reachable through the chain")
 		}
 		for _, text := range renderings(got) {
 			if strings.Contains(text, "SECRETVALUE") {

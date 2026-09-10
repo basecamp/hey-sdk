@@ -169,61 +169,60 @@ func RedactHeaders(headers http.Header) http.Header {
 // query, and a proxy URL its password in the userinfo, so through ErrNetwork that
 // rendering would become the hint, the message and every log line printing the error.
 // The projection keeps what a reader needs to place the failure and drops the rest
-// before any text is built. Every *url.Error in the chain is projected — a transport
-// built on another http.Client nests one inside another. An error that carries no
-// *url.Error, or none whose URL has anything to drop, is returned as it is.
+// before any text is built, and walks the whole error tree: a transport built on
+// another http.Client nests one *url.Error inside another, and errors.Join holds
+// several side by side. An error with no *url.Error whose URL has anything to drop is
+// returned as it is.
 func redactTransportError(err error) error {
 	_, redacted := projectTransportError(err)
 	return redacted
 }
 
-// projectTransportError is redactTransportError reporting whether it projected
-// anything, so a chain with nothing to drop comes back untouched at every level.
+// projectTransportError rebuilds err's tree with every *url.Error projected, reporting
+// whether anything was, so a tree with nothing to drop comes back untouched at every
+// level. A wrapper around a projected error keeps its own text with the projection
+// substituted for the rendering it embedded, or is dropped in favour of the
+// projection when it rendered its cause in a form this function cannot locate; a
+// multi-error is rebuilt as errors.Join of its projected members.
 func projectTransportError(err error) (projected bool, result error) {
-	var urlErr *url.Error
-	if !errors.As(err, &urlErr) {
-		return false, err
-	}
-	innerProjected, inner := projectTransportError(urlErr.Err)
-	projectedURL := redactURL(urlErr.URL)
-	if projectedURL == urlErr.URL && !innerProjected {
-		return false, err
-	}
-	redacted := &url.Error{Op: urlErr.Op, URL: projectedURL, Err: inner}
-	text := err.Error()
-	if text == urlErr.Error() || !strings.Contains(text, urlErr.Error()) || holdsAnotherURLError(err, urlErr) {
-		// Nothing wraps the transport error; or a wrapper renders it in a form this
-		// function cannot locate, or holds a second transport error beside it (an
-		// errors.Join) whose rendering it cannot rebuild: the projected transport
-		// error alone is kept.
-		return true, redacted
-	}
-	return true, &redactedTransportError{
-		text:  strings.ReplaceAll(text, urlErr.Error(), redacted.Error()),
-		cause: redacted,
-	}
-}
-
-// holdsAnotherURLError reports whether err's tree holds a *url.Error other than found,
-// found's own chain aside — the case a wrapper's text cannot be rebuilt from one
-// substitution. The walk is deliberately per node, not through errors.As, which would
-// find found again.
-func holdsAnotherURLError(err error, found *url.Error) bool {
-	switch e := err.(type) { //nolint:errorlint // walking the tree node by node is the point
+	switch e := err.(type) { //nolint:errorlint // rebuilding the tree node by node is the point
 	case nil:
-		return false
+		return false, nil
 	case *url.Error:
-		return e != found
-	case interface{ Unwrap() error }:
-		return holdsAnotherURLError(e.Unwrap(), found)
+		innerProjected, inner := projectTransportError(e.Err)
+		projectedURL := redactURL(e.URL)
+		if projectedURL == e.URL && !innerProjected {
+			return false, err
+		}
+		return true, &url.Error{Op: e.Op, URL: projectedURL, Err: inner}
 	case interface{ Unwrap() []error }:
-		for _, joined := range e.Unwrap() {
-			if holdsAnotherURLError(joined, found) {
-				return true
-			}
+		members := e.Unwrap()
+		rebuilt := make([]error, 0, len(members))
+		for _, member := range members {
+			memberProjected, projectedMember := projectTransportError(member)
+			projected = projected || memberProjected
+			rebuilt = append(rebuilt, projectedMember)
+		}
+		if !projected {
+			return false, err
+		}
+		return true, errors.Join(rebuilt...)
+	case interface{ Unwrap() error }:
+		cause := e.Unwrap()
+		causeProjected, projectedCause := projectTransportError(cause)
+		if !causeProjected {
+			return false, err
+		}
+		text := err.Error()
+		if !strings.Contains(text, cause.Error()) {
+			return true, projectedCause
+		}
+		return true, &redactedTransportError{
+			text:  strings.ReplaceAll(text, cause.Error(), projectedCause.Error()),
+			cause: projectedCause,
 		}
 	}
-	return false
+	return false, err
 }
 
 // redactURL projects rawURL to its scheme, host and path, dropping userinfo, query
@@ -236,12 +235,12 @@ func redactURL(rawURL string) string {
 	return (&url.URL{Scheme: u.Scheme, Host: u.Host, Path: u.Path, RawPath: u.RawPath}).String()
 }
 
-// redactedTransportError is a wrapped transport error rendered with its URL projected:
-// the wrapper's text with the projection substituted, unwrapping to the projected
-// *url.Error so errors.Is and errors.As classify the failure as before.
+// redactedTransportError is a wrapper around a projected transport error: the wrapper's
+// text with the projection substituted, unwrapping to the projected cause so errors.Is
+// and errors.As classify the failure as before.
 type redactedTransportError struct {
 	text  string
-	cause *url.Error
+	cause error
 }
 
 func (e *redactedTransportError) Error() string { return e.text }
