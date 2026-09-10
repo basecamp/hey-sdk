@@ -46,7 +46,10 @@ and writes `types.rs` (every schema), `routes.rs` (one `Route` static per operat
 idempotency, empty-on statuses, pagination style and the retry policy) and
 `services/*.rs` (one struct per service, one async method per operation). The hand-written
 core in `rust/hey-sdk/src` (client, retries, cache, auth, pagination, account scope) knows
-nothing about individual operations; everything operation-specific comes from the model.
+nothing about individual operations; everything operation-specific comes from the model. The
+retry loop reads each route's policy — `max` is Smithy's `maxAttempts`, the sends in all —
+and the client's own settings only lower the count and lengthen the waits, so changing a
+policy in the model and regenerating is what changes what goes over the wire.
 
 Services are named from tags and methods from operation ids with the service's noun
 removed (`ListBoxes` -> `boxes().list()`). The generator fails when two operations

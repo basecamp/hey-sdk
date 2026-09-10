@@ -48,6 +48,8 @@ pub const DEFAULT_MAX_RESPONSE_BODY_BYTES: usize = 16 << 20;
 /// to the caller's destination as the bytes arrive, reads without a bound.
 pub const MAX_RESPONSE_BODY_BYTES: usize = 50 << 20;
 
+/// The statuses a request the model says nothing about — a path the caller wrote — is
+/// resent on. A modelled route is resent on the statuses its own policy names.
 const RETRYABLE_STATUSES: &[u16] = &[429, 500, 502, 503, 504];
 const ACCOUNT_FILTER_PARAMETER: &str = "filtered_account_id";
 /// How many redirects one request may go through before the client gives up on it, which
@@ -72,7 +74,7 @@ pub(crate) struct Shared {
     pub(crate) auth: Arc<dyn AuthStrategy>,
     pub(crate) user_agent: String,
     pub(crate) max_retries: u32,
-    pub(crate) base_delay: Duration,
+    pub(crate) base_delay: Option<Duration>,
     pub(crate) max_delay: Duration,
     pub(crate) max_jitter: Duration,
     pub(crate) max_pages: usize,
@@ -125,7 +127,7 @@ pub struct ClientBuilder {
     user_agent: String,
     timeout: Duration,
     max_retries: u32,
-    base_delay: Duration,
+    base_delay: Option<Duration>,
     max_delay: Duration,
     max_jitter: Duration,
     max_pages: usize,
@@ -143,7 +145,7 @@ impl ClientBuilder {
             user_agent: default_user_agent(),
             timeout: DEFAULT_TIMEOUT,
             max_retries: DEFAULT_MAX_RETRIES,
-            base_delay: DEFAULT_BASE_DELAY,
+            base_delay: None,
             max_delay: DEFAULT_MAX_DELAY,
             max_jitter: DEFAULT_MAX_JITTER,
             max_pages: DEFAULT_MAX_PAGES,
@@ -183,17 +185,26 @@ impl ClientBuilder {
         self
     }
 
-    /// How many times an idempotent operation is resent after a transient failure.
+    /// The most times any operation is resent after a transient failure. A modelled
+    /// route is resent as many times as its own policy allows and no more; this only
+    /// lowers that. A path the caller wrote, which no policy covers, is resent this many
+    /// times when its method is idempotent.
     pub fn max_retries(mut self, max_retries: u32) -> ClientBuilder {
         self.max_retries = max_retries;
         self
     }
 
+    /// The least the client waits before the first resend. A modelled route starts from
+    /// the delay its own policy names when that is longer; a path the caller wrote starts
+    /// from this, or from [`DEFAULT_BASE_DELAY`] when it is not set. Each wait after the
+    /// first is double the one before, up to [`ClientBuilder::max_delay`].
     pub fn base_delay(mut self, base_delay: Duration) -> ClientBuilder {
-        self.base_delay = base_delay;
+        self.base_delay = Some(base_delay);
         self
     }
 
+    /// The most the client waits between attempts, whatever the policy or the backoff
+    /// asks for. The wait a `Retry-After` names is honoured as given.
     pub fn max_delay(mut self, max_delay: Duration) -> ClientBuilder {
         self.max_delay = max_delay;
         self
@@ -264,7 +275,9 @@ impl ClientBuilder {
             user_agent: self.user_agent,
             max_retries: self.max_retries,
             base_delay: self.base_delay,
-            max_delay: self.max_delay.max(self.base_delay),
+            max_delay: self
+                .max_delay
+                .max(self.base_delay.unwrap_or(Duration::ZERO)),
             max_jitter: self.max_jitter,
             max_pages: self.max_pages,
             max_response_body_bytes,
@@ -367,14 +380,16 @@ impl Client {
         operation: Operation,
     ) -> Result<Page<T>, Error> {
         let info = operation.info.clone();
+        let route = operation.route;
         let response = self.execute(operation).await?;
-        Ok(Page::new(response.json()?, &response, info))
+        Ok(Page::new(response.json()?, &response, info, route))
     }
 
     /// Reads the page after the given one, or `None` when HEY named no next page. A
     /// `Link` header pointing off the HEY origin is refused rather than followed. The read
     /// announces itself as the operation the first page came from, so a whole walk shows
-    /// up as one thing rather than as a list read followed by anonymous requests.
+    /// up as one thing rather than as a list read followed by anonymous requests, and it
+    /// is resent under that operation's retry policy.
     pub async fn next_page<T: DeserializeOwned>(
         &self,
         page: &Page<T>,
@@ -387,6 +402,7 @@ impl Client {
             Some(next) => {
                 let mut operation = Operation::at(Method::GET, next.clone());
                 operation.info(page.info().clone());
+                operation.route = page.route();
                 self.send_page(operation).await.map(Some)
             }
         }
@@ -513,17 +529,46 @@ impl Client {
         }
     }
 
+    /// What the retry loop may spend on one operation. A modelled route brings its own
+    /// policy from the model — how many sends it gets in all, which statuses earn another,
+    /// and how long the first wait is — and the client's settings only make that gentler:
+    /// [`ClientBuilder::max_retries`] caps the sends, [`ClientBuilder::base_delay`] holds
+    /// the wait up and [`ClientBuilder::max_delay`] holds it down. A route the model gives
+    /// no policy is sent once. A path the caller wrote has no policy to bring, so it runs
+    /// on the client's settings alone. Whatever the policy, an operation that is not
+    /// idempotent is sent once.
+    fn budget(&self, operation: &Operation) -> Budget {
+        let shared = &self.shared;
+        let ceiling = shared.max_retries + 1;
+        let (attempts, retry_on, delay) = match operation.route.map(|route| &route.retry) {
+            Some(policy) if policy.max > 0 => (
+                policy.max.min(ceiling),
+                policy.retry_on,
+                Duration::from_millis(policy.base_delay_ms)
+                    .max(shared.base_delay.unwrap_or(Duration::ZERO)),
+            ),
+            Some(_) => (1, &[][..], DEFAULT_BASE_DELAY),
+            None => (
+                ceiling,
+                RETRYABLE_STATUSES,
+                shared.base_delay.unwrap_or(DEFAULT_BASE_DELAY),
+            ),
+        };
+        Budget {
+            attempts: if operation.idempotent { attempts } else { 1 },
+            retry_on,
+            delay: delay.min(shared.max_delay),
+        }
+    }
+
     /// Sends the operation as many times as its retry budget and HEY's answers call for,
     /// and hands back the answer it stopped on with the body still unread.
     async fn attempt(&self, operation: &Operation, url: &Url) -> Result<Answered, Error> {
         let hooks = &self.shared.hooks;
-        let mut attempts = if operation.idempotent {
-            self.shared.max_retries + 1
-        } else {
-            1
-        };
+        let budget = self.budget(operation);
+        let mut attempts = budget.attempts;
         let mut attempt = 1;
-        let mut delay = self.shared.base_delay;
+        let mut delay = budget.delay;
         let mut refreshed = false;
         // Looked up once and carried across the attempts: a resend would find the same
         // entry, and the cache the SDK ships reads it off disk.
@@ -566,7 +611,7 @@ impl Client {
                 }
                 Ok((final_url, response)) => {
                     let status = response.status();
-                    let retryable = RETRYABLE_STATUSES.contains(&status.as_u16());
+                    let retryable = budget.retry_on.contains(&status.as_u16());
                     let retry_after = retry_after_asked(status, response.headers());
                     if status == StatusCode::UNAUTHORIZED
                         && !refreshed
@@ -948,6 +993,14 @@ impl Drop for Running<'_> {
             self.finished(Err(&Error::cancelled()));
         }
     }
+}
+
+/// What one operation may spend on being resent: the sends it gets in all, the statuses
+/// that earn another, and the wait before the first resend.
+struct Budget {
+    attempts: u32,
+    retry_on: &'static [u16],
+    delay: Duration,
 }
 
 /// One answer from HEY with its body unread: what the retry loop settled on, the URL it

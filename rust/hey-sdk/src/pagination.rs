@@ -8,6 +8,7 @@ use crate::client::{Client, Response};
 use crate::error::Error;
 use crate::observability::OperationInfo;
 use crate::operation::Operation;
+use crate::route::Route;
 use crate::security::is_same_origin;
 
 /// One page of a paginated read, with the cursor HEY handed out for the next one.
@@ -23,10 +24,18 @@ pub struct Page<T> {
     /// What the read that produced this page announced itself as, so the reads that walk
     /// on from it can say the same.
     info: OperationInfo,
+    /// The route the first page came from, so every page after it is resent under the
+    /// same policy.
+    route: Option<&'static Route>,
 }
 
 impl<T> Page<T> {
-    pub(crate) fn new(value: T, response: &Response, info: OperationInfo) -> Page<T> {
+    pub(crate) fn new(
+        value: T,
+        response: &Response,
+        info: OperationInfo,
+        route: Option<&'static Route>,
+    ) -> Page<T> {
         let next_url = response
             .headers
             .get("link")
@@ -49,11 +58,16 @@ impl<T> Page<T> {
             next_page,
             total_count,
             info,
+            route,
         }
     }
 
     pub(crate) fn info(&self) -> &OperationInfo {
         &self.info
+    }
+
+    pub(crate) fn route(&self) -> Option<&'static Route> {
+        self.route
     }
 
     pub fn into_inner(self) -> T {
@@ -90,6 +104,7 @@ impl<T> Page<T> {
             next_page: self.next_page,
             total_count: self.total_count,
             info: self.info,
+            route: self.route,
         }
     }
 }
