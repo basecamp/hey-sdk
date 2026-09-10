@@ -39,16 +39,18 @@ impl Naming {
     }
 
     pub fn method_for(&self, operation_id: &str, service: &str) -> Result<String, String> {
-        if let Some(method) = self.operation_methods.get(operation_id) {
-            return Ok(method.clone());
-        }
-        let service_words: Vec<String> = service.split('_').map(singular).collect();
-        let words: Vec<String> = camel_words(operation_id)
-            .into_iter()
-            .map(|word| word.to_lowercase())
-            .filter(|word| !service_words.contains(&singular(word)))
-            .collect();
-        let method = words.join("_");
+        let method = match self.operation_methods.get(operation_id) {
+            Some(method) => method.clone(),
+            None => {
+                let service_words: Vec<String> = service.split('_').map(singular).collect();
+                let words: Vec<String> = camel_words(operation_id)
+                    .into_iter()
+                    .map(|word| word.to_lowercase())
+                    .filter(|word| !service_words.contains(&singular(word)))
+                    .collect();
+                words.join("_")
+            }
+        };
         if method.is_empty() || KEYWORDS.contains(&method.as_str()) {
             Err(format!(
                 "{operation_id} becomes `{method}` in {service}; add an [operation_methods] override to names.toml"

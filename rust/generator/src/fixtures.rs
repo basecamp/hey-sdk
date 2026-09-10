@@ -356,6 +356,16 @@ fn a_method_named_after_a_keyword_fails_generation() {
 }
 
 #[test]
+fn an_override_naming_a_keyword_fails_generation_too() {
+    let naming = Naming::parse("[operation_methods]\nGetBox = \"match\"\n").unwrap();
+
+    assert_eq!(
+        naming.method_for("GetBox", "boxes").unwrap_err(),
+        "GetBox becomes `match` in boxes; add an [operation_methods] override to names.toml"
+    );
+}
+
+#[test]
 fn required_and_optional_fields_read_as_the_model_says() {
     let files = generate(
         json!({}),
