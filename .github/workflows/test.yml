@@ -11,7 +11,7 @@ jobs:
   smithy-verify:
     permissions:
       contents: read
-    uses: ./.github/workflows/smithy-verify.yml
+    uses: $/.github/workflows/smithy-verify.yml
 
   test-go:
     name: Go Tests
