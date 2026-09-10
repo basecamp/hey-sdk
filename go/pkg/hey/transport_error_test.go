@@ -202,7 +202,7 @@ func TestRedactTransportError(t *testing.T) {
 	signed := &url.Error{Op: "Get", URL: "https://user:pw@storage.example.com/blob/1?sig=SECRETVALUE#frag", Err: context.Canceled}
 
 	t.Run("projects the URL of a bare transport error and keeps its classification", func(t *testing.T) {
-		got := redactTransportError(signed)
+		got := redactTransportError(signed, "")
 		want := `Get "https://storage.example.com/blob/1": context canceled`
 		if got.Error() != want {
 			t.Errorf("got %q, want %q", got.Error(), want)
@@ -218,7 +218,7 @@ func TestRedactTransportError(t *testing.T) {
 			"interpolated URL": fmt.Errorf("request %s failed: %w", signed.URL, signed),
 			"opaque":           &opaqueWrapperError{cause: signed},
 		} {
-			got := redactTransportError(wrapped)
+			got := redactTransportError(wrapped, "")
 			if want := `Get "https://storage.example.com/blob/1": context canceled`; got.Error() != want {
 				t.Errorf("%s: got %q, want %q", name, got.Error(), want)
 			}
@@ -234,7 +234,7 @@ func TestRedactTransportError(t *testing.T) {
 
 	t.Run("keeps only the classification beneath a projected URL", func(t *testing.T) {
 		opaque := &url.Error{Op: "Put", URL: "https://storage.example.com/blob/1?sig=SECRETVALUE", Err: timeoutError{}}
-		got := redactTransportError(opaque)
+		got := redactTransportError(opaque, "")
 		if want := `Put "https://storage.example.com/blob/1": transport timeout`; got.Error() != want {
 			t.Errorf("got %q, want %q", got.Error(), want)
 		}
@@ -247,7 +247,7 @@ func TestRedactTransportError(t *testing.T) {
 		if !errors.As(got, &netErr) || !netErr.Timeout() {
 			t.Errorf("the timeout classification should survive, got %v", got)
 		}
-		plain := redactTransportError(&url.Error{Op: "Put", URL: "https://storage.example.com/blob/1?sig=SECRETVALUE", Err: errors.New("connection refused")})
+		plain := redactTransportError(&url.Error{Op: "Put", URL: "https://storage.example.com/blob/1?sig=SECRETVALUE", Err: errors.New("connection refused")}, "")
 		if want := `Put "https://storage.example.com/blob/1": transport failure`; plain.Error() != want {
 			t.Errorf("got %q, want %q", plain.Error(), want)
 		}
@@ -258,7 +258,7 @@ func TestRedactTransportError(t *testing.T) {
 
 	t.Run("projects every transport error in a nested chain", func(t *testing.T) {
 		outer := &url.Error{Op: "Get", URL: "https://proxy.example.com/relay", Err: signed}
-		got := redactTransportError(outer)
+		got := redactTransportError(outer, "")
 		want := `Get "https://proxy.example.com/relay": Get "https://storage.example.com/blob/1": context canceled`
 		if got.Error() != want {
 			t.Errorf("got %q, want %q", got.Error(), want)
@@ -268,14 +268,14 @@ func TestRedactTransportError(t *testing.T) {
 				t.Errorf("the signed query leaked into %q", text)
 			}
 		}
-		if got = redactTransportError(fmt.Errorf("relaying to %s: %w", outer.URL, outer)); got.Error() != want {
+		if got = redactTransportError(fmt.Errorf("relaying to %s: %w", outer.URL, outer), ""); got.Error() != want {
 			t.Errorf("got %q, want %q", got.Error(), want)
 		}
 	})
 
 	t.Run("projects every member of a joined error and keeps the rest", func(t *testing.T) {
 		other := &url.Error{Op: "Get", URL: "https://other.example.com/x?token=SECRETVALUE", Err: errors.New("reset")}
-		got := redactTransportError(errors.Join(signed, context.DeadlineExceeded, other))
+		got := redactTransportError(errors.Join(signed, context.DeadlineExceeded, other), "")
 		want := "Get \"https://storage.example.com/blob/1\": context canceled\ncontext deadline exceeded\nGet \"https://other.example.com/x\": transport failure"
 		if got.Error() != want {
 			t.Errorf("got %q, want %q", got.Error(), want)
@@ -290,28 +290,40 @@ func TestRedactTransportError(t *testing.T) {
 		}
 	})
 
+	t.Run("keeps the cause beneath a URL on the API origin", func(t *testing.T) {
+		api := &url.Error{Op: "Get", URL: "https://api.example.com/boxes?page=2", Err: errors.New("connection refused")}
+		got := redactTransportError(api, "https://api.example.com")
+		if want := `Get "https://api.example.com/boxes": connection refused`; got.Error() != want {
+			t.Errorf("got %q, want %q", got.Error(), want)
+		}
+		off := redactTransportError(api, "https://other.example.com")
+		if want := `Get "https://api.example.com/boxes": transport failure`; off.Error() != want {
+			t.Errorf("got %q, want %q", off.Error(), want)
+		}
+	})
+
 	t.Run("returns an error with nothing to drop unchanged", func(t *testing.T) {
 		plain := &url.Error{Op: "Get", URL: "https://api.example.com/x", Err: context.Canceled}
-		if got := redactTransportError(plain); got != plain { //nolint:errorlint // identity is the point
+		if got := redactTransportError(plain, ""); got != plain { //nolint:errorlint // identity is the point
 			t.Errorf("got %v, want the same error", got)
 		}
 		other := errors.New("not a transport error")
-		if got := redactTransportError(other); got != other { //nolint:errorlint // identity is the point
+		if got := redactTransportError(other, ""); got != other { //nolint:errorlint // identity is the point
 			t.Errorf("got %v, want the same error", got)
 		}
 		nested := &url.Error{Op: "Get", URL: "https://proxy.example.com/relay", Err: plain}
-		if got := redactTransportError(nested); got != nested { //nolint:errorlint // identity is the point
+		if got := redactTransportError(nested, ""); got != nested { //nolint:errorlint // identity is the point
 			t.Errorf("got %v, want the same error", got)
 		}
 		wrapped := fmt.Errorf("fetching: %w", plain)
-		if got := redactTransportError(wrapped); got != wrapped { //nolint:errorlint // identity is the point
+		if got := redactTransportError(wrapped, ""); got != wrapped { //nolint:errorlint // identity is the point
 			t.Errorf("got %v, want the same error", got)
 		}
 	})
 
 	t.Run("projects an unparsable URL to a fixed token", func(t *testing.T) {
 		bad := &url.Error{Op: "Get", URL: "http://[::1/x?sig=SECRETVALUE", Err: context.Canceled}
-		got := redactTransportError(bad)
+		got := redactTransportError(bad, "")
 		if strings.Contains(got.Error(), "SECRETVALUE") || !strings.Contains(got.Error(), `"unparsable"`) {
 			t.Errorf("got %q", got.Error())
 		}

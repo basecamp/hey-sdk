@@ -174,38 +174,44 @@ func RedactHeaders(headers http.Header) http.Header {
 // another http.Client nests one *url.Error inside another, and errors.Join holds
 // several side by side. An error with no *url.Error whose URL has anything to drop is
 // returned as it is.
-func redactTransportError(err error) error {
-	_, redacted := projectTransportError(err)
+//
+// apiOrigin is the SDK's own API origin, or empty. A URL on it carries no credential —
+// the token rides in the Authorization header — so beneath it the transport's cause
+// is kept, and its text with it, as the failure's diagnostic. Beneath any other
+// projected URL only the failure's classification survives.
+func redactTransportError(err error, apiOrigin string) error {
+	_, redacted := projectTransportError(err, apiOrigin)
 	return redacted
 }
 
 // projectTransportError rebuilds err's tree with every *url.Error projected, reporting
 // whether anything was, so a tree with nothing to drop comes back untouched at every
-// level. Beneath a projected URL only the failure's classification survives: whatever
-// the transport reported there is text this package did not build — a custom
-// transport's own wrapper, a message interpolating the request URL — and cannot be
-// shown free of the URL in any spelling, so it is replaced by the context sentinel it
-// wraps or a fixed transport failure carrying its net.Error flags. Above one, a
-// wrapper is dropped in favour of the projection for the same reason, and a
-// multi-error is rebuilt as errors.Join of its projected members.
-func projectTransportError(err error) (projected bool, result error) {
+// level. Beneath a projected URL off the API origin only the failure's classification
+// survives: whatever the transport reported there is text this package did not build
+// — a custom transport's own wrapper, a message interpolating the request URL — and
+// cannot be shown free of the URL in any spelling, so it is replaced by the context
+// sentinel it wraps or a fixed transport failure carrying its net.Error flags. Above
+// a projected URL, a wrapper is dropped in favour of the projection for the same
+// reason, and a multi-error is rebuilt as errors.Join of its projected members.
+func projectTransportError(err error, apiOrigin string) (projected bool, result error) {
 	switch e := err.(type) { //nolint:errorlint // rebuilding the tree node by node is the point
 	case nil:
 		return false, nil
 	case *url.Error:
-		if projectedURL := redactURL(e.URL); projectedURL != e.URL {
+		projectedURL := redactURL(e.URL)
+		if projectedURL != e.URL && (apiOrigin == "" || !isSameOrigin(e.URL, apiOrigin)) {
 			return true, &url.Error{Op: e.Op, URL: projectedURL, Err: classifyTransportFailure(e)}
 		}
-		innerProjected, inner := projectTransportError(e.Err)
-		if !innerProjected {
+		innerProjected, inner := projectTransportError(e.Err, apiOrigin)
+		if projectedURL == e.URL && !innerProjected {
 			return false, err
 		}
-		return true, &url.Error{Op: e.Op, URL: e.URL, Err: inner}
+		return true, &url.Error{Op: e.Op, URL: projectedURL, Err: inner}
 	case interface{ Unwrap() []error }:
 		members := e.Unwrap()
 		rebuilt := make([]error, 0, len(members))
 		for _, member := range members {
-			memberProjected, projectedMember := projectTransportError(member)
+			memberProjected, projectedMember := projectTransportError(member, apiOrigin)
 			projected = projected || memberProjected
 			rebuilt = append(rebuilt, projectedMember)
 		}
@@ -214,7 +220,7 @@ func projectTransportError(err error) (projected bool, result error) {
 		}
 		return true, errors.Join(rebuilt...)
 	case interface{ Unwrap() error }:
-		causeProjected, projectedCause := projectTransportError(e.Unwrap())
+		causeProjected, projectedCause := projectTransportError(e.Unwrap(), apiOrigin)
 		if !causeProjected {
 			return false, err
 		}

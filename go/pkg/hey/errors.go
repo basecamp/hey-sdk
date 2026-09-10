@@ -183,11 +183,21 @@ func ErrRateLimit(retryAfter int) *Error {
 	}
 }
 
-// ErrNetwork creates a network error. The cause's rendering becomes the hint, so a
-// transport failure is redacted first: net/http's *url.Error carries the whole
-// request URL, and a signed URL carries its credential in the query.
+// ErrNetwork creates a network error from a transport failure. The cause's rendering
+// becomes the hint, and net/http's *url.Error carries the whole request URL, so the
+// cause is redacted first, with every URL it carries treated as one that can be
+// signed; the SDK's own request paths use networkError, which knows the API origin.
 func ErrNetwork(cause error) *Error {
-	cause = redactTransportError(cause)
+	return networkError(cause, "")
+}
+
+// networkError creates a network error from a transport failure on a request the SDK
+// issued, apiOrigin being its API origin: a URL there carries no credential — the token
+// rides in the Authorization header — so beneath it the transport's cause is kept as
+// the failure's diagnostic, while beneath a projected URL anywhere else only the
+// failure's classification survives (see redactTransportError).
+func networkError(cause error, apiOrigin string) *Error {
+	cause = redactTransportError(cause, apiOrigin)
 	return &Error{
 		Code:      CodeNetwork,
 		Message:   "Network error",
@@ -250,7 +260,7 @@ func AsError(err error) *Error {
 	if errors.As(err, &e) {
 		return e
 	}
-	err = redactTransportError(err)
+	err = redactTransportError(err, "")
 	return &Error{
 		Code:    CodeAPI,
 		Message: err.Error(),

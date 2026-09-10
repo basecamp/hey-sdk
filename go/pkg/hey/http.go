@@ -243,7 +243,7 @@ func (t *loggingTransport) RoundTrip(req *http.Request) (*http.Response, error) 
 		if projected {
 			// A custom transport can report its failure as a *url.Error of its own,
 			// which renders the same signed URL.
-			result.Error = redactTransportError(err)
+			result.Error = redactTransportError(err, "")
 		}
 	} else {
 		result.StatusCode = resp.StatusCode

@@ -287,7 +287,7 @@ func (c *Client) initGeneratedClient() {
 				url = scoped
 			}
 			info := RequestInfo{Method: retry.Request.Method, URL: url, Attempt: retry.Attempt - 1}
-			c.hooks.OnRetry(ctx, info, retry.Attempt, retryCause(retry))
+			c.hooks.OnRetry(ctx, info, retry.Attempt, retryCause(retry, c.cfg.BaseURL))
 		}
 
 		// A client with a response cache sends generated requests through it, so the
@@ -315,9 +315,9 @@ func (c *Client) initGeneratedClient() {
 // it to OnRetry: a transport failure as the SDK's network error, a response as CheckResponse
 // classifies it, and the 401 a credential refresh answered as the retryable authentication
 // error singleRequest hands doRequestURL, since the resend is the SDK's own doing.
-func retryCause(retry generated.Retry) error {
+func retryCause(retry generated.Retry, apiOrigin string) error {
 	if retry.Response == nil {
-		return ErrNetwork(retry.Err)
+		return networkError(retry.Err, apiOrigin)
 	}
 	cause := CheckResponse(retry.Response)
 	if authErr, ok := cause.(*Error); ok && authErr.Code == CodeAuth {
@@ -546,7 +546,7 @@ func (c *Client) sendBodyRequest(ctx context.Context, method, reqURL, contentTyp
 
 	resp, err := noRedirectClient.Do(req)
 	if err != nil {
-		return nil, ErrNetwork(err)
+		return nil, networkError(err, c.cfg.BaseURL)
 	}
 	defer func() { _ = resp.Body.Close() }()
 
@@ -565,7 +565,7 @@ func (c *Client) sendBodyRequest(ctx context.Context, method, reqURL, contentTyp
 		// singleRequest bounds its own reads.
 		responseBody, err := limitedReadAll(resp.Body, MaxResponseBodyBytes)
 		if err != nil {
-			return nil, ErrNetwork(err)
+			return nil, networkError(err, c.cfg.BaseURL)
 		}
 		return &FormResponse{StatusCode: resp.StatusCode, Body: string(responseBody)}, nil
 
@@ -819,7 +819,7 @@ func (c *Client) singleRequest(ctx context.Context, method, url string, body any
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		return nil, ErrNetwork(err)
+		return nil, networkError(err, c.cfg.BaseURL)
 	}
 	defer func() { _ = resp.Body.Close() }()
 
