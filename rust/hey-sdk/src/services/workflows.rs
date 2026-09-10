@@ -19,6 +19,7 @@ pub use crate::generated::services::workflows::*;
 
 /// One thread on a workflow stage, as the stage page renders its card.
 #[derive(Debug, Clone, Default, PartialEq, Eq, serde::Serialize)]
+#[non_exhaustive]
 pub struct WorkflowStageTopic {
     /// The staging record that puts the thread on this stage, which is what
     /// [`Workflows::stage_topic`] moves.
@@ -34,6 +35,7 @@ pub struct WorkflowStageTopic {
 /// A workflow stage as HEY renders it — the stage page is the only place a stage's threads
 /// are listed — with the cards it shows.
 #[derive(Debug, Clone, Default, PartialEq, Eq, serde::Serialize)]
+#[non_exhaustive]
 pub struct WorkflowStageView {
     /// The stage, as the caller asked for it.
     pub id: i64,

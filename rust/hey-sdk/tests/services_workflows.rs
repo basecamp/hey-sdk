@@ -5,7 +5,7 @@ mod support;
 use std::sync::Arc;
 
 use hey_sdk::ErrorCode;
-use hey_sdk::services::{WorkflowStageTopic, WorkflowStageView};
+use hey_sdk::services::WorkflowStageView;
 use serde_json::json;
 use wiremock::matchers::{header, method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
@@ -333,22 +333,21 @@ async fn a_stage_is_read_out_of_the_page_hey_serves_for_it() {
 
     assert_eq!(stage.id, 5512);
     assert_eq!(stage.name, "Applied");
+    let topics: Vec<(i64, i64, &str, u64)> = stage
+        .topics
+        .iter()
+        .map(|topic| {
+            (
+                topic.staging_id,
+                topic.topic_id,
+                topic.subject.as_str(),
+                topic.entry_count,
+            )
+        })
+        .collect();
     assert_eq!(
-        stage.topics,
-        [
-            WorkflowStageTopic {
-                staging_id: 91,
-                topic_id: 4_471_829,
-                subject: "Application".to_string(),
-                entry_count: 3,
-            },
-            WorkflowStageTopic {
-                staging_id: 92,
-                topic_id: 4_471_830,
-                subject: String::new(),
-                entry_count: 0,
-            },
-        ]
+        topics,
+        [(91, 4_471_829, "Application", 3), (92, 4_471_830, "", 0)]
     );
 }
 
