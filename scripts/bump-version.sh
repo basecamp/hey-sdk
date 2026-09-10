@@ -36,6 +36,18 @@ if ! grep -Fxq "version = \"$VERSION\"" "$CARGO_FILE"; then
   exit 1
 fi
 
+# The READMEs tell a consumer which minor to request alongside the git source, and Cargo
+# rejects a fetched crate that fails that requirement, so the constraint moves with the
+# version.
+MINOR="${VERSION%.*}"
+for README in "$REPO_ROOT/README.md" "$REPO_ROOT/rust/hey-sdk/README.md"; do
+  sedi "s|\(hey-sdk = { git = \"https://github.com/basecamp/hey-sdk\", version = \"\)[0-9.]*\"|\1$MINOR\"|" "$README"
+  if ! grep -Fq "hey-sdk = { git = \"https://github.com/basecamp/hey-sdk\", version = \"$MINOR\" }" "$README"; then
+    echo "ERROR: Rust constraint substitution did not match in $README" >&2
+    exit 1
+  fi
+done
+
 # Cargo.lock records the package version too, and both lockfiles are checked in, so a
 # --locked build only agrees once they carry the new one. A bump that cannot refresh them
 # is a bump that breaks the build, so cargo is required and neither update may fail.
@@ -47,4 +59,4 @@ fi
 (cd "$REPO_ROOT/rust" && cargo update -q -w --offline)
 (cd "$REPO_ROOT/conformance/runner/rust" && cargo update -q -w --offline)
 
-echo "Done. Bumped 2 files to $VERSION."
+echo "Done. Bumped version.go, Cargo.toml and the READMEs to $VERSION."

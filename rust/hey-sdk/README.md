@@ -8,7 +8,7 @@ The crate is not on crates.io. Depend on it from the repository:
 
 ```toml
 [dependencies]
-hey-sdk = { git = "https://github.com/basecamp/hey-sdk", version = "0.29" }
+hey-sdk = { git = "https://github.com/basecamp/hey-sdk", version = "0.30" }
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 ```
 
