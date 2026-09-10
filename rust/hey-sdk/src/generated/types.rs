@@ -10,6 +10,7 @@ use crate::types::{Date, DateTime, SensitiveString};
 
 /// Account — a HEY account
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[non_exhaustive]
 pub struct Account {
     #[serde(
         default,
@@ -59,6 +60,7 @@ pub struct AddPostingsToBoxGroupRequestContent {
 
 /// Addressed recipients
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[non_exhaustive]
 pub struct Addressed {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub directly: Option<Vec<Contact>>,
@@ -70,6 +72,7 @@ pub struct Addressed {
 
 /// AddressedSender — sender context
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[non_exhaustive]
 pub struct AddressedSender {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub directly: Option<Vec<Contact>>,
@@ -77,6 +80,7 @@ pub struct AddressedSender {
 
 /// AdvancedSearchFilters — the options the advanced search refine form offers
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[non_exhaustive]
 pub struct AdvancedSearchFilters {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub refine_in: Option<Vec<SearchFilterItem>>,
@@ -91,6 +95,7 @@ pub struct AdvancedSearchFilters {
 pub type AdvancedSearchResponseContent = AdvancedSearchResult;
 
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[non_exhaustive]
 pub struct AdvancedSearchResult {
     #[serde(
         default,
@@ -101,6 +106,7 @@ pub struct AdvancedSearchResult {
 
 /// AttachedEntry — entry reference on a calendar event
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[non_exhaustive]
 pub struct AttachedEntry {
     #[serde(
         default,
@@ -117,6 +123,7 @@ pub struct AttachedEntry {
 
 /// Attendance — calendar event attendee
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[non_exhaustive]
 pub struct Attendance {
     #[serde(
         default,
@@ -132,6 +139,7 @@ pub struct Attendance {
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[non_exhaustive]
 pub struct BadRequestErrorResponseContent {
     #[serde(
         default,
@@ -142,6 +150,7 @@ pub struct BadRequestErrorResponseContent {
 
 /// Box — a HEY mailbox
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[non_exhaustive]
 pub struct Mailbox {
     #[serde(
         default,
@@ -172,6 +181,7 @@ pub struct Mailbox {
 
 /// BoxGroup — a Set Aside group. The API only ever returns the id.
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[non_exhaustive]
 pub struct BoxGroup {
     #[serde(
         default,
@@ -182,6 +192,7 @@ pub struct BoxGroup {
 
 /// BoxGroupWithPostings — a Set Aside group with one page of the postings in it
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[non_exhaustive]
 pub struct BoxGroupWithPostings {
     #[serde(
         default,
@@ -196,6 +207,7 @@ pub struct BoxGroupWithPostings {
 
 /// BoxGroupsResponse — the wrapper the groups index answers with
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[non_exhaustive]
 pub struct BoxGroupsResponse {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub box_groups: Option<Vec<BoxGroup>>,
@@ -205,6 +217,7 @@ pub struct BoxGroupsResponse {
 /// The API can return fields at root level or nested under a `box` key.
 /// SDK response decoders normalize the nested variant to flat before decoding.
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[non_exhaustive]
 pub struct BoxShowResponse {
     #[serde(
         default,
@@ -241,6 +254,7 @@ pub struct BoxShowResponse {
 
 /// BubbleUpSchedule
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[non_exhaustive]
 pub struct BubbleUpSchedule {
     /// ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -250,6 +264,7 @@ pub struct BubbleUpSchedule {
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[non_exhaustive]
 pub struct BulkReplyDelivery {
     #[serde(
         default,
@@ -274,6 +289,7 @@ pub struct BulkReplyDelivery {
 
 /// The reply as HEY would send it: the prefilled content and the entries it goes to.
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[non_exhaustive]
 pub struct BulkReplyDraft {
     /// The prefilled body — the name tag when every thread is on the same account.
     #[serde(
@@ -290,6 +306,7 @@ pub struct BulkReplyDraft {
 
 /// One thread a bulk reply answers, with the recipients that thread's reply goes to.
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[non_exhaustive]
 pub struct BulkReplyEntry {
     #[serde(
         default,
@@ -351,6 +368,7 @@ pub type BulkUpdateClearancesResponseContent = ClearanceListResponse;
 
 /// Calendar
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[non_exhaustive]
 pub struct Calendar {
     #[serde(
         default,
@@ -386,6 +404,7 @@ pub struct Calendar {
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[non_exhaustive]
 pub struct CalendarDayListPayload {
     #[serde(
         default,
@@ -396,6 +415,7 @@ pub struct CalendarDayListPayload {
 
 /// CalendarListPayload
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[non_exhaustive]
 pub struct CalendarListPayload {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub calendars: Option<Vec<CalendarWithRecordingChangesUrl>>,
@@ -412,6 +432,7 @@ pub struct CalendarListPayload {
 /// Recurring events arrive expanded into the occurrences that fall inside the window,
 /// which is what makes this a different answer than the recordings a calendar lists.
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[non_exhaustive]
 pub struct CalendarPeriod {
     /// ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)
     pub starts_at: DateTime,
@@ -432,6 +453,7 @@ pub type CalendarRecordingsResponse = BTreeMap<String, Vec<Recording>>;
 
 /// CalendarSelection — the calendars a toggle left switched on
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[non_exhaustive]
 pub struct CalendarSelection {
     #[serde(
         default,
@@ -465,6 +487,7 @@ pub struct CalendarTodoPayload {
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[non_exhaustive]
 pub struct CalendarWeekListPayload {
     #[serde(
         default,
@@ -475,6 +498,7 @@ pub struct CalendarWeekListPayload {
 
 /// CalendarWithRecordingChangesUrl — wraps calendar with sync URL
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[non_exhaustive]
 pub struct CalendarWithRecordingChangesUrl {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub calendar: Option<Calendar>,
@@ -486,6 +510,7 @@ pub struct CalendarWithRecordingChangesUrl {
 /// events that span more than one, not every recording it holds: a year's worth of
 /// expanded occurrences is not something a client asks for by opening a year.
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[non_exhaustive]
 pub struct CalendarYear {
     /// ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)
     pub starts_at: DateTime,
@@ -517,6 +542,7 @@ pub struct CalendarYear {
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[non_exhaustive]
 pub struct CalendarYearDay {
     /// ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)
     pub starts_at: DateTime,
@@ -532,6 +558,7 @@ pub struct CalendarYearDay {
 /// petitioner and most_recent_entry are only filled in by the Screener reads. The
 /// contact reads answer a clearance with nothing but its id and status.
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[non_exhaustive]
 pub struct Clearance {
     #[serde(
         default,
@@ -554,6 +581,7 @@ pub struct Clearance {
 
 /// ClearanceListResponse — wire format: {clearances: [...]}
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[non_exhaustive]
 pub struct ClearanceListResponse {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub clearances: Option<Vec<Clearance>>,
@@ -564,6 +592,7 @@ pub struct ClearanceListResponse {
 /// clearances is only present when the read passes include_clearances. Without it HEY
 /// answers the count alone, which is what its own apps sync.
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[non_exhaustive]
 pub struct ClearanceSummary {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub pending_clearances_count: Option<i32>,
@@ -574,6 +603,7 @@ pub struct ClearanceSummary {
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[non_exhaustive]
 pub struct Clip {
     #[serde(
         default,
@@ -596,6 +626,7 @@ pub struct Clip {
 
 /// The topic a clip was taken from
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[non_exhaustive]
 pub struct ClipTopic {
     #[serde(
         default,
@@ -610,6 +641,7 @@ pub struct ClipTopic {
 
 /// Collection — email collection/label
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[non_exhaustive]
 pub struct Collection {
     #[serde(
         default,
@@ -638,6 +670,7 @@ pub struct CollectionPayload {
 
 /// CollectionWithPostings — collection detail with its threads as posting objects
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[non_exhaustive]
 pub struct CollectionWithPostings {
     #[serde(
         default,
@@ -666,6 +699,7 @@ pub type CompleteHabitResponseContent = Recording;
 /// already ongoing. Time tracks answer {"error": "..."}; contact writes answer the
 /// {"errors": [...]} list every other error path uses.
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[non_exhaustive]
 pub struct ConflictErrorResponseContent {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub error: Option<String>,
@@ -682,6 +716,7 @@ pub struct ConflictErrorResponseContent {
 
 /// Contact — the identity of someone in HEY
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[non_exhaustive]
 pub struct Contact {
     #[serde(
         default,
@@ -711,6 +746,7 @@ pub struct Contact {
 
 /// ContactDetail — extended contact with additional show fields
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[non_exhaustive]
 pub struct ContactDetail {
     #[serde(
         default,
@@ -754,6 +790,7 @@ pub struct ContactDetail {
 
 /// A contact's private note. Empty strings when there is no note.
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[non_exhaustive]
 pub struct ContactNote {
     #[serde(
         default,
@@ -912,6 +949,7 @@ pub type CreateTimeTrackResponseContent = Recording;
 
 /// DeletedPosting — the stub the changes feed answers with for a posting that is gone
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[non_exhaustive]
 pub struct DeletedPosting {
     #[serde(
         default,
@@ -926,6 +964,7 @@ pub struct DeletedPosting {
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[non_exhaustive]
 pub struct DirectUpload {
     #[serde(
         default,
@@ -968,6 +1007,7 @@ pub struct DirectUploadBlob {
 pub type DirectUploadHeaders = BTreeMap<String, String>;
 
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[non_exhaustive]
 pub struct DirectUploadTarget {
     #[serde(
         default,
@@ -980,6 +1020,7 @@ pub struct DirectUploadTarget {
 
 /// Domain — email domain
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[non_exhaustive]
 pub struct Domain {
     #[serde(
         default,
@@ -996,6 +1037,7 @@ pub struct Domain {
 
 /// DraftMessage — a draft entry
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[non_exhaustive]
 pub struct DraftMessage {
     #[serde(
         default,
@@ -1028,6 +1070,7 @@ pub struct DraftMessage {
 
 /// Entry — a message entry within a topic
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[non_exhaustive]
 pub struct Entry {
     #[serde(
         default,
@@ -1058,6 +1101,7 @@ pub struct Entry {
 
 /// Extenzion — external account extension
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[non_exhaustive]
 pub struct Extenzion {
     #[serde(
         default,
@@ -1071,6 +1115,7 @@ pub struct Extenzion {
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[non_exhaustive]
 pub struct ExternalAccount {
     #[serde(
         default,
@@ -1106,6 +1151,7 @@ pub struct FirstWeekDayParams {
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[non_exhaustive]
 pub struct FirstWeekDayPreference {
     /// 0 is Sunday through 6 Saturday, as GetIdentity serves it.
     #[serde(
@@ -1117,6 +1163,7 @@ pub struct FirstWeekDayPreference {
 
 /// Folder — email folder
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[non_exhaustive]
 pub struct Folder {
     #[serde(
         default,
@@ -1148,6 +1195,7 @@ pub struct FolderPayload {
 
 /// FolderWithPostings — folder detail with the postings filed in it
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[non_exhaustive]
 pub struct FolderWithPostings {
     #[serde(
         default,
@@ -1169,6 +1217,7 @@ pub struct FolderWithPostings {
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[non_exhaustive]
 pub struct ForbiddenErrorResponseContent {
     #[serde(
         default,
@@ -1184,6 +1233,7 @@ pub type GetAsideboxResponseContent = BoxShowResponse;
 pub type GetBoxGroupResponseContent = BoxGroupWithPostings;
 
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[non_exhaustive]
 pub struct GetBoxPostingChangesResponseContent {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub added: Option<Vec<Posting>>,
@@ -1198,6 +1248,7 @@ pub type GetBoxResponseContent = BoxShowResponse;
 pub type GetBubbleboxResponseContent = BoxShowResponse;
 
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[non_exhaustive]
 pub struct GetBundleUnseenPostingsResponseContent {
     #[serde(default)]
     pub contact: Contact,
@@ -1289,6 +1340,7 @@ pub struct HabitRequestContent {
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[non_exhaustive]
 pub struct Identity {
     #[serde(
         default,
@@ -1324,6 +1376,7 @@ pub struct Identity {
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[non_exhaustive]
 pub struct InternalServerErrorResponseContent {
     #[serde(
         default,
@@ -1334,6 +1387,7 @@ pub struct InternalServerErrorResponseContent {
 
 /// JoinLink — video/meeting join link
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[non_exhaustive]
 pub struct JoinLink {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub title: Option<String>,
@@ -1389,6 +1443,7 @@ pub struct MarkPostingsRequestContent {
 
 /// Message — full message detail
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[non_exhaustive]
 pub struct Message {
     #[serde(
         default,
@@ -1441,6 +1496,7 @@ pub struct MessageAddressed {
 
 /// MessageDraft — a prefilled compose payload (forward, reply). Unsent, so it has no id.
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[non_exhaustive]
 pub struct MessageDraft {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub url: Option<String>,
@@ -1467,6 +1523,7 @@ pub struct MessageDraft {
 /// MessageEditState — a saved draft as the editor sees it. The same compose fields as
 /// MessageDraft, plus the identity and scheduling a saved entry carries.
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[non_exhaustive]
 pub struct MessageEditState {
     #[serde(
         default,
@@ -1543,6 +1600,7 @@ pub struct MessagePayload {
 
 /// MessagePostingContext — posting context for a message
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[non_exhaustive]
 pub struct MessagePostingContext {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub r#box: Option<String>,
@@ -1594,6 +1652,7 @@ pub struct MoveWorkflowStagingRequestContent {
 
 /// NavigationIcon
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[non_exhaustive]
 pub struct NavigationIcon {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
@@ -1605,6 +1664,7 @@ pub struct NavigationIcon {
 
 /// NavigationItem
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[non_exhaustive]
 pub struct NavigationItem {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub title: Option<String>,
@@ -1624,6 +1684,7 @@ pub struct NavigationItem {
 
 /// NavigationResponse
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[non_exhaustive]
 pub struct NavigationResponse {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub items: Option<Vec<NavigationItem>>,
@@ -1638,6 +1699,7 @@ pub type NewEntryForwardResponseContent = MessageDraft;
 pub type NewEntryReplyResponseContent = MessageDraft;
 
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[non_exhaustive]
 pub struct NotFoundErrorResponseContent {
     #[serde(
         default,
@@ -1648,6 +1710,7 @@ pub struct NotFoundErrorResponseContent {
 
 /// Organizer — calendar event organizer
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[non_exhaustive]
 pub struct Organizer {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub email_address: Option<String>,
@@ -1657,6 +1720,7 @@ pub struct Organizer {
 
 /// Posting — polymorphic by `kind` (topic, bundle, entry)
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[non_exhaustive]
 pub struct Posting {
     #[serde(
         default,
@@ -1755,6 +1819,7 @@ impl Posting {
 
 /// Note — a posting note
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[non_exhaustive]
 pub struct PostingNote {
     #[serde(
         default,
@@ -1767,6 +1832,7 @@ pub struct PostingNote {
 
 /// Recording — polymorphic by `type` (Calendar::Event, Calendar::Todo, etc.)
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[non_exhaustive]
 pub struct Recording {
     #[serde(
         default,
@@ -1909,6 +1975,7 @@ impl Recording {
 
 /// RecurrenceSchedule
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[non_exhaustive]
 pub struct RecurrenceSchedule {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub kind: Option<String>,
@@ -1920,6 +1987,7 @@ pub struct RecurrenceSchedule {
 
 /// Reminder
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[non_exhaustive]
 pub struct Reminder {
     #[serde(
         default,
@@ -1985,6 +2053,7 @@ pub struct SchedulePostingsBubbleUpRequestContent {
 
 /// SearchFilterItem — one option offered by the advanced search refine form
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[non_exhaustive]
 pub struct SearchFilterItem {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub title: Option<String>,
@@ -1994,6 +2063,7 @@ pub struct SearchFilterItem {
 
 /// One matching topic: the topic, your posting of it (if any), and the entries that matched.
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[non_exhaustive]
 pub struct SearchMatch {
     #[serde(default)]
     pub topic: Topic,
@@ -2005,6 +2075,7 @@ pub struct SearchMatch {
 
 /// Sender — a contact with default flag
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[non_exhaustive]
 pub struct Sender {
     #[serde(
         default,
@@ -2032,6 +2103,7 @@ pub struct Sender {
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[non_exhaustive]
 pub struct ServiceUnavailableErrorResponseContent {
     #[serde(
         default,
@@ -2041,6 +2113,7 @@ pub struct ServiceUnavailableErrorResponseContent {
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[non_exhaustive]
 pub struct Snippet {
     #[serde(
         default,
@@ -2067,6 +2140,7 @@ pub type StartTimeTrackResponseContent = Recording;
 
 /// Sticky — a note on the stickies board
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[non_exhaustive]
 pub struct Sticky {
     #[serde(
         default,
@@ -2101,6 +2175,7 @@ pub struct StickyRequestContent {
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[non_exhaustive]
 pub struct TimeFormatPreference {
     /// "twelve_hour" or "twenty_four_hour", as GetIdentity serves it.
     #[serde(
@@ -2111,6 +2186,7 @@ pub struct TimeFormatPreference {
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[non_exhaustive]
 pub struct TimeTrackCategory {
     #[serde(
         default,
@@ -2141,6 +2217,7 @@ pub type ToggleCalendarResponseContent = CalendarSelection;
 
 /// Topic detail
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[non_exhaustive]
 pub struct Topic {
     #[serde(
         default,
@@ -2184,6 +2261,7 @@ pub struct Topic {
 
 /// TopicListResponse — wrapped topic list (sent, spam, trash, everything)
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[non_exhaustive]
 pub struct TopicListResponse {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub title: Option<String>,
@@ -2194,6 +2272,7 @@ pub struct TopicListResponse {
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[non_exhaustive]
 pub struct TopicPublication {
     #[serde(
         default,
@@ -2208,6 +2287,7 @@ pub struct TopicPublication {
 /// The tracked-time index: a page of completed tracks, and every category they can be
 /// filed under.
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[non_exhaustive]
 pub struct TrackedTime {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub time_tracks: Option<Vec<Recording>>,
@@ -2229,6 +2309,7 @@ pub struct TrashPostingsRequestContent {
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[non_exhaustive]
 pub struct UnauthorizedErrorResponseContent {
     #[serde(
         default,
@@ -2244,6 +2325,7 @@ pub type UncompleteHabitResponseContent = Recording;
 /// The server rejected what was sent. HEY answers {"errors": ["..."]} — the messages
 /// the model itself produced — so a client can show them as they are.
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[non_exhaustive]
 pub struct UnprocessableEntityErrorResponseContent {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub errors: Option<Vec<String>>,
@@ -2380,6 +2462,7 @@ pub type UpdateTimeTrackResponseContent = Recording;
 
 /// UpdatesChannel — streaming channel for a box
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[non_exhaustive]
 pub struct UpdatesChannel {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub signed_stream_name: Option<String>,
@@ -2387,6 +2470,7 @@ pub struct UpdatesChannel {
 
 /// User — a user within an account
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[non_exhaustive]
 pub struct User {
     #[serde(
         default,
@@ -2407,6 +2491,7 @@ pub struct User {
 
 /// Workflow — email workflow/label
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[non_exhaustive]
 pub struct Workflow {
     #[serde(
         default,
@@ -2429,6 +2514,7 @@ pub struct Workflow {
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[non_exhaustive]
 pub struct WorkflowStage {
     #[serde(
         default,

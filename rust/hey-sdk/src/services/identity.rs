@@ -13,6 +13,7 @@ pub use crate::generated::services::identity::*;
 
 /// The clock HEY renders times on.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[non_exhaustive]
 pub enum TimeFormat {
     /// A 12-hour clock, HEY's `twelve_hour`.
     TwelveHour,

@@ -48,6 +48,7 @@ pub struct SearchParams {
 /// the `Link` header while there is more to read, which is how a caller walking the results
 /// is told to stop asking rather than having to ask for a page that turns out empty.
 #[derive(Debug, Clone, Default, PartialEq)]
+#[non_exhaustive]
 pub struct SearchResults {
     /// The matches, grouped by topic.
     pub result: AdvancedSearchResult,

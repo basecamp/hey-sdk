@@ -4,7 +4,6 @@ mod support;
 
 use std::sync::Arc;
 
-use hey_sdk::services::WorkflowSummary;
 use serde_json::json;
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
@@ -30,20 +29,19 @@ async fn the_workflow_list_reads_the_rows_the_autocomplete_endpoint_answers() {
 
     let workflows = client(&server).workflows().list(77).await.unwrap();
 
+    let listed: Vec<(i64, &str, &str)> = workflows
+        .iter()
+        .map(|workflow| {
+            (
+                workflow.id,
+                workflow.name.as_str(),
+                workflow.account_name.as_str(),
+            )
+        })
+        .collect();
     assert_eq!(
-        workflows,
-        [
-            WorkflowSummary {
-                id: 8801,
-                name: "Hiring".to_string(),
-                account_name: "Example Co".to_string(),
-            },
-            WorkflowSummary {
-                id: 8802,
-                name: "Sales pipeline".to_string(),
-                account_name: String::new(),
-            },
-        ]
+        listed,
+        [(8801, "Hiring", "Example Co"), (8802, "Sales pipeline", "")]
     );
     let requests = server.received_requests().await.unwrap();
     assert_eq!(

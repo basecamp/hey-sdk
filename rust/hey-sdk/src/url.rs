@@ -20,6 +20,7 @@ struct Pattern {
 
 /// What a recognized path refers to.
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[non_exhaustive]
 pub struct Match {
     /// The path template the path matched: `/boxes/{boxId}/groups/{groupId}`.
     pub pattern: &'static str,

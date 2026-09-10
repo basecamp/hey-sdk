@@ -30,6 +30,7 @@ const CONTACT_PATH: &str = "/contacts/";
 /// its `app_url` carries. The id a JSON write answers with belongs to the Extenzion record
 /// instead, which no endpoint takes.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
+#[non_exhaustive]
 pub struct Extenzion {
     /// The extenzion's contact id.
     pub id: i64,

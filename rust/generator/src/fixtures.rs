@@ -389,6 +389,7 @@ fn required_and_optional_fields_read_as_the_model_says() {
 
     let expected = "/// A sticky note
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[non_exhaustive]
 pub struct Sticky {
     #[serde(default, deserialize_with = \"crate::types::null_as_default::deserialize\")]
     pub id: i64,
@@ -410,6 +411,28 @@ pub struct Sticky {
         "{}",
         file(&files, "types.rs")
     );
+}
+
+#[test]
+fn what_a_caller_sends_stays_literal_and_what_hey_answers_does_not() {
+    let mut create = read("CreateBox", "Boxes", &[], &json_body("Box"));
+    create["get"]["requestBody"] = json!({ "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CreateBoxRequestContent" } } } });
+    let files = generate(
+        json!({ "/boxes.json": create }),
+        json!({
+            "CreateBoxRequestContent": { "type": "object", "properties": { "box": { "$ref": "#/components/schemas/BoxPayload" } } },
+            "BoxPayload": { "type": "object", "properties": { "name": { "type": "string" } } },
+            "Box": { "type": "object", "properties": { "id": { "type": "integer", "format": "int64" }, "owner": { "$ref": "#/components/schemas/Owner" } } },
+            "Owner": { "type": "object", "properties": { "name": { "type": "string" } } },
+        }),
+        &["CreateBox"],
+    );
+
+    let types = file(&files, "types.rs");
+    assert!(types.contains("#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]\npub struct CreateBoxRequestContent {"));
+    assert!(types.contains("#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]\npub struct BoxPayload {"));
+    assert!(types.contains("#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]\n#[non_exhaustive]\npub struct Mailbox {"));
+    assert!(types.contains("#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]\n#[non_exhaustive]\npub struct Owner {"));
 }
 
 #[test]

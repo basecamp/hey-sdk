@@ -35,6 +35,7 @@ pub struct OperationInfo {
 /// One HTTP request the SDK is about to make, or has just made. `attempt` counts from 1
 /// across the whole operation, the resend after a credential refresh included.
 #[derive(Debug, Clone)]
+#[non_exhaustive]
 pub struct RequestInfo {
     /// The HTTP method the request goes out with.
     pub method: Method,
@@ -46,6 +47,7 @@ pub struct RequestInfo {
 
 /// How one HTTP request turned out.
 #[derive(Debug)]
+#[non_exhaustive]
 pub struct RequestResult<'a> {
     /// What HEY answered, or `None` when nothing came back at all.
     pub status: Option<StatusCode>,

@@ -45,6 +45,10 @@ pub(crate) struct Schema {
     pub name: String,
     pub description: Option<String>,
     pub shape: Shape,
+    /// The schema is a request body, or something a request body mentions however deep, so
+    /// a caller builds it literally and it can never be `#[non_exhaustive]`. Everything
+    /// else is read back from HEY and only ever read.
+    pub request_side: bool,
 }
 
 pub(crate) enum Shape {
@@ -181,10 +185,11 @@ impl Model {
             .as_str()
             .ok_or("openapi.json has no info.version")?
             .to_string();
-        let schemas = build_schemas(openapi, naming)?;
+        let mut schemas = build_schemas(openapi, naming)?;
         let services = build_services(openapi, behavior, naming, resource_types)?;
         check_references(&schemas, &services)?;
         check_html_responses(&schemas, &services)?;
+        mark_request_side(&mut schemas, &services);
         Ok(Model {
             api_version,
             schemas,
@@ -265,9 +270,36 @@ fn build_schemas(openapi: &Value, naming: &Naming) -> Result<Vec<Schema>, String
             name,
             description: description_of(schema),
             shape,
+            request_side: false,
         });
     }
     Ok(schemas)
+}
+
+/// Walks out from every request body to what it mentions, however deep, and marks those
+/// schemas as the caller's to build. A schema reached from a body and from a response is
+/// request-side: it has to stay constructible.
+fn mark_request_side(schemas: &mut [Schema], services: &[Service]) {
+    let mut pending: Vec<String> = services
+        .iter()
+        .flat_map(|service| &service.operations)
+        .filter_map(|operation| operation.body.clone())
+        .collect();
+    let mut seen = BTreeSet::new();
+    while let Some(name) = pending.pop() {
+        if !seen.insert(name.clone()) {
+            continue;
+        }
+        if let Some(schema) = schemas.iter_mut().find(|schema| schema.name == name) {
+            schema.request_side = true;
+            match &schema.shape {
+                Shape::Struct(shape) => {
+                    pending.extend(shape.fields.iter().filter_map(|field| field.kind.named()));
+                }
+                Shape::Alias(kind) => pending.extend(kind.named()),
+            }
+        }
+    }
 }
 
 fn polymorphic_of(schema: &Value) -> Option<Polymorphic> {
@@ -659,5 +691,79 @@ impl FieldType {
             FieldType::List(inner) | FieldType::Map(inner) => inner.mentions(schema),
             _ => false,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    fn model(paths: &Value, schemas: &Value) -> Model {
+        let names = "[resource_types]\nboxes = \"box\"\n";
+        let openapi = json!({
+            "openapi": "3.1.0",
+            "info": { "version": "2026-01-01" },
+            "paths": paths,
+            "components": { "schemas": schemas },
+        });
+        let mut operations = serde_json::Map::new();
+        for item in openapi["paths"].as_object().unwrap().values() {
+            for operation in item.as_object().unwrap().values() {
+                operations.insert(
+                    operation["operationId"].as_str().unwrap().to_string(),
+                    json!({ "readonly": false }),
+                );
+            }
+        }
+        let behavior = json!({ "operations": operations });
+        Model::build(
+            &openapi,
+            &behavior,
+            &Naming::parse(names).unwrap(),
+            &ResourceTypes::parse(names).unwrap(),
+        )
+        .unwrap()
+    }
+
+    fn request_side(model: &Model, name: &str) -> bool {
+        model
+            .schemas
+            .iter()
+            .find(|schema| schema.name == name)
+            .unwrap_or_else(|| panic!("{name} is not in the model"))
+            .request_side
+    }
+
+    #[test]
+    fn a_body_and_everything_it_mentions_is_request_side_and_the_rest_is_not() {
+        let model = model(
+            &json!({ "/boxes.json": { "post": {
+                "operationId": "CreateBox",
+                "tags": ["Boxes"],
+                "requestBody": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CreateBoxRequestContent" } } } },
+                "responses": { "201": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Box" } } } } },
+            } } }),
+            &json!({
+                "CreateBoxRequestContent": { "type": "object", "properties": { "box": { "$ref": "#/components/schemas/BoxPayload" } } },
+                "BoxPayload": { "type": "object", "properties": { "labels": { "type": "array", "items": { "$ref": "#/components/schemas/Label" } }, "shared": { "$ref": "#/components/schemas/Owner" } } },
+                "Label": { "type": "object", "properties": { "name": { "type": "string" } } },
+                "Owner": { "type": "object", "properties": { "name": { "type": "string" } } },
+                "Box": { "type": "object", "properties": { "owner": { "$ref": "#/components/schemas/Owner" }, "postings": { "$ref": "#/components/schemas/Postings" } } },
+                "Postings": { "type": "array", "items": { "$ref": "#/components/schemas/Posting" } },
+                "Posting": { "type": "object", "properties": { "id": { "type": "integer", "format": "int64" } } },
+            }),
+        );
+
+        assert!(request_side(&model, "CreateBoxRequestContent"));
+        assert!(request_side(&model, "BoxPayload"));
+        assert!(request_side(&model, "Label"));
+        assert!(
+            request_side(&model, "Owner"),
+            "a shape on both sides has to stay constructible"
+        );
+        assert!(!request_side(&model, "Box"));
+        assert!(!request_side(&model, "Postings"));
+        assert!(!request_side(&model, "Posting"));
     }
 }

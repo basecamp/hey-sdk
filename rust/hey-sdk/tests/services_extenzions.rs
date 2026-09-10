@@ -4,7 +4,7 @@ mod support;
 
 use std::sync::Arc;
 
-use hey_sdk::services::{CreateExtenzionParams, Extenzion, UpdateExtenzionParams};
+use hey_sdk::services::{CreateExtenzionParams, UpdateExtenzionParams};
 use serde_json::json;
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
@@ -33,19 +33,21 @@ async fn listing_reads_the_extensions_group_out_of_navigation() {
 
     let extenzions = client(&server).extenzions().list().await.unwrap();
 
+    let listed: Vec<(i64, &str, &str)> = extenzions
+        .iter()
+        .map(|extenzion| {
+            (
+                extenzion.id,
+                extenzion.name.as_str(),
+                extenzion.app_url.as_str(),
+            )
+        })
+        .collect();
     assert_eq!(
-        extenzions,
+        listed,
         [
-            Extenzion {
-                id: 10,
-                name: "sales".to_string(),
-                app_url: "https://app.hey.com/contacts/10".to_string(),
-            },
-            Extenzion {
-                id: 20,
-                name: "support".to_string(),
-                app_url: "https://app.hey.com/contacts/20".to_string(),
-            },
+            (10, "sales", "https://app.hey.com/contacts/10"),
+            (20, "support", "https://app.hey.com/contacts/20"),
         ]
     );
 }
@@ -75,14 +77,10 @@ async fn creating_answers_the_extenzion_under_its_contact_id() {
         .await
         .unwrap();
 
-    assert_eq!(
-        created,
-        Some(Extenzion {
-            id: 10,
-            name: "sales".to_string(),
-            app_url: "https://app.hey.com/contacts/10".to_string(),
-        })
-    );
+    let created = created.unwrap();
+    assert_eq!(created.id, 10);
+    assert_eq!(created.name, "sales");
+    assert_eq!(created.app_url, "https://app.hey.com/contacts/10");
     assert_eq!(
         sent_form(&server).await,
         [

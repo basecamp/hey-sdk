@@ -16,6 +16,7 @@ pub use crate::generated::services::workflows::*;
 
 /// A workflow as the autocomplete endpoint names it.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
+#[non_exhaustive]
 pub struct WorkflowSummary {
     /// The workflow's id.
     pub id: i64,
