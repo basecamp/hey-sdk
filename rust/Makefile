@@ -14,7 +14,7 @@ generate:
 # Fail when the checked-in generated code differs from what the generator emits
 .PHONY: generate-check
 generate-check:
-	$(CARGO) run -q -p hey-sdk-generator -- --check
+	$(CARGO) run -q --locked -p hey-sdk-generator -- --check
 
 .PHONY: fmt
 fmt:
@@ -45,9 +45,18 @@ no-default-features:
 doc:
 	RUSTDOCFLAGS="-D warnings" $(CARGO) doc -p hey-sdk --no-deps --all-features --locked
 
+# RustSec advisories, licences and the shape of the dependency graph, for this workspace and
+# the conformance runner's, against the one deny.toml. Needs cargo-deny installed.
+.PHONY: deny
+deny:
+	@$(CARGO) deny --version >/dev/null 2>&1 || \
+		{ echo "ERROR: cargo-deny is not installed. Run: cargo install cargo-deny --locked"; exit 1; }
+	$(CARGO) deny --locked check
+	cd ../conformance/runner/rust && $(CARGO) deny --locked --config ../../../rust/deny.toml check
+
 # Run all checks: the same steps as CI's test-rust job, in the same order
 .PHONY: check
-check: fmt-check lint test no-default-features doc
+check: fmt-check lint test no-default-features doc deny
 
 .PHONY: clean
 clean:
@@ -65,5 +74,6 @@ help:
 	@echo "  test                 Run all tests"
 	@echo "  no-default-features  Lint and test the crate without the shipped HTTP client"
 	@echo "  doc                  Build the crate docs"
-	@echo "  check                fmt-check + lint + test + no-default-features + doc"
+	@echo "  deny                 cargo deny over both workspaces (advisories, licences, bans)"
+	@echo "  check                fmt-check + lint + test + no-default-features + doc + deny"
 	@echo "  clean                Remove build artifacts"

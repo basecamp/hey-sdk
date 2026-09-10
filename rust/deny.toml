@@ -1,0 +1,57 @@
+# cargo-deny for both Cargo workspaces: rust/ and conformance/runner/rust. The runner is
+# checked against this same file with `--config`, from `make rs-deny`.
+#
+# One advisory gate for the whole tree: RustSec advisories, licences, and the shape of the
+# dependency graph. Trivy scans the lockfiles too, for the Security tab; a finding fails
+# here first.
+
+[graph]
+all-features = true
+
+[advisories]
+version = 2
+yanked = "deny"
+# Each entry: the advisory id, why it does not apply, and when to look again.
+ignore = []
+
+[licenses]
+version = 2
+# The workspaces' own unpublished crates (the generator, the conformance runner) are the
+# repository's MIT and carry no licence field of their own.
+private = { ignore = true }
+# SPDX identifiers. Everything the tree pulls today is under one of these; a new dependency
+# under anything else fails here and is a decision, not a surprise.
+allow = [
+  "MIT",
+  "Apache-2.0",
+  "Apache-2.0 WITH LLVM-exception",
+  "BSD-2-Clause",
+  "BSD-3-Clause",
+  "ISC",
+  "Unicode-3.0",
+  "Zlib",
+  "MPL-2.0",
+  "CDLA-Permissive-2.0",
+  "OpenSSL",
+]
+confidence-threshold = 0.9
+# The list is the fleet's, not this tree's; an entry nothing uses yet is not a finding.
+unused-allowed-license = "allow"
+
+[bans]
+# Two versions of one crate in the graph is a signal to look at, not a defect; the resolver
+# will not be second-guessed here.
+multiple-versions = "warn"
+wildcards = "deny"
+# The conformance runner depends on the crate by path, with no version to pin.
+allow-wildcard-paths = true
+deny = [
+  # TLS is rustls, and the shipped client is built without OpenSSL; a dependency that links
+  # it would put a second TLS stack in every binary.
+  { crate = "openssl-sys", reason = "rustls only" },
+]
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]
