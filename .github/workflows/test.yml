@@ -7,6 +7,13 @@ on:
 
 permissions: {}
 
+# Debug builds carry full DWARF by default, and in this workspace that is most of the bytes:
+# the test job's ~110 linked test binaries run 50–200 MB each and put its cache entry at
+# 2.5 GB compressed. Line tables keep file:line in a failing test's backtrace, which is all
+# a CI log needs, at ~2.6x less: 0.9 GB. Nothing here is debugged under a debugger.
+env:
+  CARGO_PROFILE_DEV_DEBUG: line-tables-only
+
 jobs:
   smithy-verify:
     permissions:
