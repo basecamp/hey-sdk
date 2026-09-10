@@ -164,21 +164,22 @@ func RedactHeaders(headers http.Header) http.Header {
 	return result
 }
 
-// redactTransportError returns err with the URL Go's *url.Error renders projected to
-// its scheme, host and path. net/http reports every transport failure as a *url.Error
-// carrying the whole request URL; a signed storage URL carries its credential in the
-// query, and a proxy URL its password in the userinfo, so through ErrNetwork that
-// rendering would become the hint, the message and every log line printing the error.
-// The projection keeps what a reader needs to place the failure and drops the rest
-// before any text is built, and walks the whole error tree: a transport built on
-// another http.Client nests one *url.Error inside another, and errors.Join holds
-// several side by side. An error with no *url.Error whose URL has anything to drop is
+// redactTransportError returns err with every URL Go's *url.Error renders projected.
+// net/http reports every transport failure as a *url.Error carrying the whole request
+// URL, and a URL off the SDK's API origin can carry a credential anywhere a storage
+// service puts one — a signed query, a token in the path, a password in the userinfo
+// — so through ErrNetwork that rendering would become the hint, the message and every
+// log line printing the error. The projection keeps what a reader needs to place the
+// failure and drops the rest before any text is built, and walks the whole error
+// tree: a transport built on another http.Client nests one *url.Error inside another,
+// and errors.Join holds several side by side. An error with nothing to drop is
 // returned as it is.
 //
-// apiOrigin is the SDK's own API origin, or empty. A URL on it carries no credential —
-// the token rides in the Authorization header — so beneath it the transport's cause
-// is kept, and its text with it, as the failure's diagnostic. Beneath any other
-// projected URL only the failure's classification survives.
+// apiOrigin is the SDK's own API origin, or empty. A URL on it, carrying no userinfo,
+// is trusted: its path stays — the token rides in the Authorization header, and the
+// query is paging and filtering — and beneath it the transport's cause is kept, and
+// its text with it, as the failure's diagnostic. Every other URL is projected to its
+// origin, and beneath it only the failure's classification survives.
 func redactTransportError(err error, apiOrigin string) error {
 	_, redacted := projectTransportError(err, apiOrigin)
 	return redacted
@@ -186,29 +187,31 @@ func redactTransportError(err error, apiOrigin string) error {
 
 // projectTransportError rebuilds err's tree with every *url.Error projected, reporting
 // whether anything was, so a tree with nothing to drop comes back untouched at every
-// level. A projected *url.Error off the API origin is built from fixed parts alone:
-// its Op kept only as the method token net/http writes there, its cause replaced by
-// what classifies the failure — the context sentinel it wrapped and its net.Error
-// flags — because whatever a transport put there is text this package did not build
-// (a custom transport's own wrapper, a message interpolating the request URL) and
-// cannot be shown free of the URL in any spelling. Around a projected URL the same
-// holds: a wrapper is dropped in favour of the projection, and a multi-error is
-// rebuilt as errors.Join of its projected members and their sentinel siblings, the
-// opaque siblings dropped.
+// level. A projected *url.Error off the trusted origin is built from fixed parts
+// alone: its Op kept only as the method token net/http writes there, its URL as the
+// origin, its cause replaced by what classifies the failure — the context sentinels
+// it wrapped and its net.Error flags — because whatever a transport put there is text
+// this package did not build (a custom transport's own wrapper, a message
+// interpolating the request URL) and cannot be shown free of the URL in any spelling.
+// Around a projected URL the same holds: an ancestor keeps only that Op token, a
+// wrapper is dropped in favour of the projection, and a multi-error is rebuilt as
+// errors.Join of its projected members and their sentinel siblings, the opaque
+// siblings dropped.
 func projectTransportError(err error, apiOrigin string) (projected bool, result error) {
 	switch e := err.(type) { //nolint:errorlint // rebuilding the tree node by node is the point
 	case nil:
 		return false, nil
 	case *url.Error:
-		projectedURL := redactURL(e.URL)
-		if projectedURL != e.URL && (apiOrigin == "" || !isSameOrigin(e.URL, apiOrigin)) {
+		trusted := trustedURL(e.URL, apiOrigin)
+		projectedURL := projectURL(e.URL, trusted)
+		if !trusted {
 			return true, &url.Error{Op: transportOp(e.Op), URL: projectedURL, Err: classifyTransportFailure(e)}
 		}
 		innerProjected, inner := projectTransportError(e.Err, apiOrigin)
 		if projectedURL == e.URL && !innerProjected {
 			return false, err
 		}
-		return true, &url.Error{Op: e.Op, URL: projectedURL, Err: inner}
+		return true, &url.Error{Op: transportOp(e.Op), URL: projectedURL, Err: inner}
 	case interface{ Unwrap() []error }:
 		members := e.Unwrap()
 		kept := make([]error, 0, len(members))
@@ -217,8 +220,8 @@ func projectTransportError(err error, apiOrigin string) (projected bool, result 
 			case memberProjected:
 				projected = true
 				kept = append(kept, projectedMember)
-			case contextSentinel(member) != nil:
-				kept = append(kept, contextSentinel(member))
+			case contextSentinels(member) != nil:
+				kept = append(kept, contextSentinels(member))
 			}
 		}
 		if !projected {
@@ -233,6 +236,31 @@ func projectTransportError(err error, apiOrigin string) (projected bool, result 
 		return true, projectedCause
 	}
 	return false, err
+}
+
+// trustedURL reports whether rawURL is on apiOrigin and carries no userinfo: a URL
+// whose path and query are the API's own, with no credential anywhere in it.
+func trustedURL(rawURL, apiOrigin string) bool {
+	if apiOrigin == "" || !isSameOrigin(rawURL, apiOrigin) {
+		return false
+	}
+	u, err := url.Parse(rawURL)
+	return err == nil && u.User == nil
+}
+
+// projectURL projects rawURL to its origin — scheme and host — or, for a trusted URL,
+// to its scheme, host and path. A URL that does not parse projects to the fixed token
+// "unparsable".
+func projectURL(rawURL string, keepPath bool) string {
+	u, err := url.Parse(rawURL)
+	if err != nil {
+		return "unparsable"
+	}
+	projected := &url.URL{Scheme: u.Scheme, Host: u.Host}
+	if keepPath {
+		projected.Path, projected.RawPath = u.Path, u.RawPath
+	}
+	return projected.String()
 }
 
 // transportOp is op as net/http writes it — the request method, letters alone — or
@@ -251,35 +279,26 @@ func transportOp(op string) string {
 
 // classifyTransportFailure is what stands beneath a projected URL in place of the
 // transport's own cause: a transportFailureError carrying the net.Error flags the
-// *url.Error delegated to that cause, unwrapping to the context sentinel the cause
+// *url.Error delegated to that cause, unwrapping to the context sentinels the cause
 // wrapped, so errors.Is still sees a cancellation or a deadline.
 func classifyTransportFailure(e *url.Error) error {
-	return &transportFailureError{timeout: e.Timeout(), temporary: e.Temporary(), sentinel: contextSentinel(e.Err)}
+	return &transportFailureError{timeout: e.Timeout(), temporary: e.Temporary(), sentinel: contextSentinels(e.Err)}
 }
 
-// contextSentinel is the bare context sentinel err wraps, or nil.
-func contextSentinel(err error) error {
-	switch {
-	case errors.Is(err, context.Canceled):
-		return context.Canceled
-	case errors.Is(err, context.DeadlineExceeded):
-		return context.DeadlineExceeded
+// contextSentinels is every bare context sentinel err wraps — one, both joined, or
+// nil.
+func contextSentinels(err error) error {
+	var sentinels []error
+	for _, sentinel := range []error{context.Canceled, context.DeadlineExceeded} {
+		if errors.Is(err, sentinel) {
+			sentinels = append(sentinels, sentinel)
+		}
 	}
-	return nil
-}
-
-// redactURL projects rawURL to its scheme, host and path, dropping userinfo, query
-// and fragment. A URL that does not parse projects to the fixed token "unparsable".
-func redactURL(rawURL string) string {
-	u, err := url.Parse(rawURL)
-	if err != nil {
-		return "unparsable"
-	}
-	return (&url.URL{Scheme: u.Scheme, Host: u.Host, Path: u.Path, RawPath: u.RawPath}).String()
+	return errors.Join(sentinels...)
 }
 
 // transportFailureError is the cause beneath a projected URL: a transport failure
-// known only by its net.Error classification and the context sentinel it wrapped.
+// known only by its net.Error classification and the context sentinels it wrapped.
 type transportFailureError struct {
 	timeout, temporary bool
 	sentinel           error

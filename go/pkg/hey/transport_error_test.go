@@ -72,18 +72,18 @@ func TestAttachmentsUploadTransportErrorRendersNoSignedURL(t *testing.T) {
 			t.Errorf("the signed query leaked into %q", text)
 		}
 	}
-	if !strings.Contains(sdkErr.Hint, `"http://127.0.0.1:1/blob"`) {
+	if !strings.Contains(sdkErr.Hint, `"http://127.0.0.1:1"`) {
 		t.Errorf("hint should keep the URL's scheme, host and path, got %q", sdkErr.Hint)
 	}
 	var urlErr *url.Error
-	if !errors.As(err, &urlErr) || urlErr.URL != "http://127.0.0.1:1/blob" {
+	if !errors.As(err, &urlErr) || urlErr.URL != "http://127.0.0.1:1" {
 		t.Errorf("the cause chain should still classify as the projected *url.Error, got %v", err)
 	}
 
 	if len(hooks.infos) != 2 || len(hooks.results) != 2 {
 		t.Fatalf("expected the API request and the storage request in the hooks, got %d starts, %d ends", len(hooks.infos), len(hooks.results))
 	}
-	if storage := hooks.infos[1]; storage.Method != http.MethodPut || storage.URL != "http://127.0.0.1:1/blob" {
+	if storage := hooks.infos[1]; storage.Method != http.MethodPut || storage.URL != "http://127.0.0.1:1" {
 		t.Errorf("storage request reached the hooks as %s %q, want the projected URL", storage.Method, storage.URL)
 	}
 	if api := hooks.infos[0]; !strings.HasPrefix(api.URL, server.URL+"/") {
@@ -147,7 +147,7 @@ func TestAttachmentsUploadCustomTransportErrorRendersNoSignedURL(t *testing.T) {
 			t.Errorf("the signed query leaked into a hook result: %q", text)
 		}
 	}
-	if !strings.Contains(hooks.results[1].Error.Error(), `"http://127.0.0.1:1/blob"`) {
+	if !strings.Contains(hooks.results[1].Error.Error(), `"http://127.0.0.1:1"`) {
 		t.Errorf("hook result should keep the URL's scheme, host and path, got %q", hooks.results[1].Error.Error())
 	}
 }
@@ -187,7 +187,7 @@ func TestBlobDownloadRedirectReachesHooksProjected(t *testing.T) {
 			if len(hooks.infos) != 2 {
 				t.Fatalf("expected the HEY hop and the storage hop in the hooks, got %+v", hooks.infos)
 			}
-			if got := hooks.infos[1].URL; got != target.URL+"/signed-download" {
+			if got := hooks.infos[1].URL; got != target.URL {
 				t.Errorf("storage hop reached the hooks as %q, want the projected URL", got)
 			}
 			for _, info := range hooks.infos {
@@ -216,7 +216,7 @@ func TestBlobDownloadRetryHookSeesProjectedURL(t *testing.T) {
 	if len(hooks.retries) != 1 {
 		t.Fatalf("expected one retry, got %+v", hooks.retries)
 	}
-	if got := hooks.retries[0].info.URL; got != server.URL+"/blob" {
+	if got := hooks.retries[0].info.URL; got != server.URL {
 		t.Errorf("retry hook saw %q, want the projected URL", got)
 	}
 	for _, start := range hooks.starts {
@@ -231,7 +231,7 @@ func TestRedactTransportError(t *testing.T) {
 
 	t.Run("projects the URL of a bare transport error and keeps its classification", func(t *testing.T) {
 		got := redactTransportError(signed, "")
-		want := `Get "https://storage.example.com/blob/1": context canceled`
+		want := `Get "https://storage.example.com": context canceled`
 		if got.Error() != want {
 			t.Errorf("got %q, want %q", got.Error(), want)
 		}
@@ -247,11 +247,11 @@ func TestRedactTransportError(t *testing.T) {
 			"opaque":           &opaqueWrapperError{cause: signed},
 		} {
 			got := redactTransportError(wrapped, "")
-			if want := `Get "https://storage.example.com/blob/1": context canceled`; got.Error() != want {
+			if want := `Get "https://storage.example.com": context canceled`; got.Error() != want {
 				t.Errorf("%s: got %q, want %q", name, got.Error(), want)
 			}
 			var urlErr *url.Error
-			if !errors.As(got, &urlErr) || urlErr.URL != "https://storage.example.com/blob/1" {
+			if !errors.As(got, &urlErr) || urlErr.URL != "https://storage.example.com" {
 				t.Errorf("%s: should unwrap to the projected *url.Error, got %v", name, got)
 			}
 			if !errors.Is(got, context.Canceled) {
@@ -263,7 +263,7 @@ func TestRedactTransportError(t *testing.T) {
 	t.Run("keeps only the classification beneath a projected URL", func(t *testing.T) {
 		opaque := &url.Error{Op: "Put", URL: "https://storage.example.com/blob/1?sig=SECRETVALUE", Err: timeoutError{}}
 		got := redactTransportError(opaque, "")
-		if want := `Put "https://storage.example.com/blob/1": transport timeout`; got.Error() != want {
+		if want := `Put "https://storage.example.com": transport timeout`; got.Error() != want {
 			t.Errorf("got %q, want %q", got.Error(), want)
 		}
 		for _, text := range renderings(got) {
@@ -276,7 +276,7 @@ func TestRedactTransportError(t *testing.T) {
 			t.Errorf("the timeout classification should survive, got %v", got)
 		}
 		plain := redactTransportError(&url.Error{Op: "Put", URL: "https://storage.example.com/blob/1?sig=SECRETVALUE", Err: errors.New("connection refused")}, "")
-		if want := `Put "https://storage.example.com/blob/1": transport failure`; plain.Error() != want {
+		if want := `Put "https://storage.example.com": transport failure`; plain.Error() != want {
 			t.Errorf("got %q, want %q", plain.Error(), want)
 		}
 		if !errors.As(plain, &netErr) || netErr.Timeout() {
@@ -287,7 +287,7 @@ func TestRedactTransportError(t *testing.T) {
 	t.Run("projects every transport error in a nested chain", func(t *testing.T) {
 		outer := &url.Error{Op: "Get", URL: "https://proxy.example.com/relay", Err: signed}
 		got := redactTransportError(outer, "")
-		want := `Get "https://proxy.example.com/relay": Get "https://storage.example.com/blob/1": context canceled`
+		want := `Get "https://proxy.example.com": context canceled`
 		if got.Error() != want {
 			t.Errorf("got %q, want %q", got.Error(), want)
 		}
@@ -304,7 +304,7 @@ func TestRedactTransportError(t *testing.T) {
 	t.Run("projects every member of a joined error and keeps the rest", func(t *testing.T) {
 		other := &url.Error{Op: "Get", URL: "https://other.example.com/x?token=SECRETVALUE", Err: errors.New("reset")}
 		got := redactTransportError(errors.Join(signed, context.DeadlineExceeded, other), "")
-		want := "Get \"https://storage.example.com/blob/1\": context canceled\ncontext deadline exceeded\nGet \"https://other.example.com/x\": transport failure"
+		want := "Get \"https://storage.example.com\": context canceled\ncontext deadline exceeded\nGet \"https://other.example.com\": transport failure"
 		if got.Error() != want {
 			t.Errorf("got %q, want %q", got.Error(), want)
 		}
@@ -322,7 +322,7 @@ func TestRedactTransportError(t *testing.T) {
 		const signedURL = "https://storage.example.com/blob/1?sig=SECRETVALUE"
 		cancelledTimeout := &url.Error{Op: "fetch " + signedURL, URL: signedURL, Err: cancelledTimeoutError{}}
 		got := redactTransportError(cancelledTimeout, "")
-		if want := `Request "https://storage.example.com/blob/1": context canceled`; got.Error() != want {
+		if want := `Request "https://storage.example.com": context canceled`; got.Error() != want {
 			t.Errorf("got %q, want %q", got.Error(), want)
 		}
 		for _, text := range renderings(got) {
@@ -336,7 +336,7 @@ func TestRedactTransportError(t *testing.T) {
 		}
 
 		joined := redactTransportError(errors.Join(signed, fmt.Errorf("request %s failed", signedURL), context.DeadlineExceeded), "")
-		if want := "Get \"https://storage.example.com/blob/1\": context canceled\ncontext deadline exceeded"; joined.Error() != want {
+		if want := "Get \"https://storage.example.com\": context canceled\ncontext deadline exceeded"; joined.Error() != want {
 			t.Errorf("got %q, want %q", joined.Error(), want)
 		}
 		if !errors.Is(joined, context.Canceled) || !errors.Is(joined, context.DeadlineExceeded) {
@@ -351,26 +351,41 @@ func TestRedactTransportError(t *testing.T) {
 			t.Errorf("got %q, want %q", got.Error(), want)
 		}
 		off := redactTransportError(api, "https://other.example.com")
-		if want := `Get "https://api.example.com/boxes": transport failure`; off.Error() != want {
+		if want := `Get "https://api.example.com": transport failure`; off.Error() != want {
 			t.Errorf("got %q, want %q", off.Error(), want)
+		}
+		withUser := &url.Error{Op: "Get", URL: "https://user:SECRETVALUE@api.example.com/x", Err: errors.New("request https://user:SECRETVALUE@api.example.com/x failed")}
+		got = redactTransportError(withUser, "https://api.example.com")
+		if want := `Get "https://api.example.com": transport failure`; got.Error() != want {
+			t.Errorf("userinfo on the API origin is not trusted: got %q, want %q", got.Error(), want)
+		}
+		ancestor := &url.Error{Op: "relay of https://storage.example.com/blob?sig=SECRETVALUE", URL: "https://api.example.com/relay", Err: signed}
+		got = redactTransportError(ancestor, "https://api.example.com")
+		if want := `Request "https://api.example.com/relay": Get "https://storage.example.com": context canceled`; got.Error() != want {
+			t.Errorf("an ancestor keeps only the Op token: got %q, want %q", got.Error(), want)
+		}
+		both := &url.Error{Op: "Get", URL: "https://storage.example.com/blob?sig=SECRETVALUE", Err: errors.Join(context.Canceled, context.DeadlineExceeded)}
+		got = redactTransportError(both, "")
+		if !errors.Is(got, context.Canceled) || !errors.Is(got, context.DeadlineExceeded) {
+			t.Errorf("both sentinels beneath a projected URL should survive, got %v", got)
 		}
 	})
 
 	t.Run("returns an error with nothing to drop unchanged", func(t *testing.T) {
 		plain := &url.Error{Op: "Get", URL: "https://api.example.com/x", Err: context.Canceled}
-		if got := redactTransportError(plain, ""); got != plain { //nolint:errorlint // identity is the point
+		if got := redactTransportError(plain, "https://api.example.com"); got != plain { //nolint:errorlint // identity is the point
 			t.Errorf("got %v, want the same error", got)
 		}
 		other := errors.New("not a transport error")
 		if got := redactTransportError(other, ""); got != other { //nolint:errorlint // identity is the point
 			t.Errorf("got %v, want the same error", got)
 		}
-		nested := &url.Error{Op: "Get", URL: "https://proxy.example.com/relay", Err: plain}
-		if got := redactTransportError(nested, ""); got != nested { //nolint:errorlint // identity is the point
+		nested := &url.Error{Op: "Get", URL: "https://api.example.com/relay", Err: plain}
+		if got := redactTransportError(nested, "https://api.example.com"); got != nested { //nolint:errorlint // identity is the point
 			t.Errorf("got %v, want the same error", got)
 		}
 		wrapped := fmt.Errorf("fetching: %w", plain)
-		if got := redactTransportError(wrapped, ""); got != wrapped { //nolint:errorlint // identity is the point
+		if got := redactTransportError(wrapped, "https://api.example.com"); got != wrapped { //nolint:errorlint // identity is the point
 			t.Errorf("got %v, want the same error", got)
 		}
 	})

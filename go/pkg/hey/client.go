@@ -715,7 +715,7 @@ func (c *Client) doRequestURLWithBudget(ctx context.Context, method, url string,
 	// transport projects (a blob download's URL can carry a query of its own).
 	displayURL := url
 	if isProjectedRequest(ctx) {
-		displayURL = redactURL(url)
+		displayURL = projectURL(url, false)
 	}
 
 	// Non-idempotent mutations: Don't retry on 429/5xx to avoid duplicating data.

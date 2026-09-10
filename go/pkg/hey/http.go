@@ -187,8 +187,9 @@ func attemptFromContext(ctx context.Context) int {
 // the credential: the attachment upload's PUT to the signed storage URL, and a blob
 // download, which HEY answers with a redirect to a signed storage URL that net/http
 // follows on the same context. The hooks see every hop of such a request projected to
-// scheme, host and path. An API request's URL carries no credential (the token is in
-// the Authorization header), so the hooks see it whole.
+// its origin — a storage service can sign the query or the path. An API request's URL
+// carries no credential (the token is in the Authorization header), so the hooks see
+// it whole.
 type projectedRequestKey struct{}
 
 // markProjectedRequest marks ctx as belonging to a request the hooks see projected.
@@ -214,7 +215,7 @@ func (t *loggingTransport) RoundTrip(req *http.Request) (*http.Response, error) 
 	projected := isProjectedRequest(req.Context())
 	displayURL := req.URL.String()
 	if projected {
-		displayURL = redactURL(displayURL)
+		displayURL = projectURL(displayURL, false)
 	}
 	info := RequestInfo{
 		Method:  req.Method,
