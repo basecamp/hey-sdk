@@ -3505,11 +3505,6 @@
     "reason": "phase-2: workflow stages"
   },
   {
-    "method": "GET",
-    "path": "/workflows/{workflow_id}/stages/{id}",
-    "reason": "phase-2: workflow stages"
-  },
-  {
     "method": "PATCH",
     "path": "/workflows/{workflow_id}/stages/{id}",
     "reason": "phase-2: workflow stages"

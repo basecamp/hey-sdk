@@ -1129,6 +1129,23 @@
           "type": "int64"
         }
       }
+    },
+    {
+      "pattern": "/workflows/{workflowId}/stages/{stageId}",
+      "resource": "Workflows",
+      "operations": {
+        "GET": "GetWorkflowStage"
+      },
+      "params": {
+        "stageId": {
+          "role": "recording",
+          "type": "int64"
+        },
+        "workflowId": {
+          "role": "parent",
+          "type": "int64"
+        }
+      }
     }
   ]
 }

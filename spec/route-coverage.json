@@ -355,6 +355,11 @@
     "path": "/workflows/{workflowId}"
   },
   {
+    "method": "GET",
+    "operationId": "GetWorkflowStage",
+    "path": "/workflows/{workflowId}/stages/{stageId}"
+  },
+  {
     "method": "DELETE",
     "operationId": "HideContact",
     "path": "/contacts/{contactId}"
