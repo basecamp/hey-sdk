@@ -467,14 +467,21 @@ pub(crate) fn retry_after_seconds(headers: &HeaderMap) -> Option<u64> {
         Ok(seconds) => u64::try_from(seconds).ok(),
         Err(_) => {
             let until = chrono::DateTime::parse_from_rfc2822(asked).ok()?;
-            u64::try_from(
-                until
-                    .signed_duration_since(chrono::Utc::now())
-                    .num_seconds(),
-            )
-            .ok()
+            seconds_until(until.with_timezone(&chrono::Utc), chrono::Utc::now())
         }
     }
+}
+
+/// The whole seconds from `now` until `until`, counting a started second as one: the date
+/// names the moment the wait is over, so rounding down would resend before it.
+fn seconds_until(
+    until: chrono::DateTime<chrono::Utc>,
+    now: chrono::DateTime<chrono::Utc>,
+) -> Option<u64> {
+    let left = until.signed_duration_since(now);
+    let whole = left.num_seconds();
+    let started = left > chrono::Duration::seconds(whole);
+    u64::try_from(if started { whole + 1 } else { whole }).ok()
 }
 
 fn server_message(body: &[u8]) -> Option<String> {
@@ -494,5 +501,39 @@ pub(crate) fn truncate(message: &str, limit: usize) -> String {
     } else {
         let kept: String = message.chars().take(limit - 3).collect();
         format!("{kept}...")
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::seconds_until;
+    use chrono::{DateTime, Duration, Utc};
+
+    fn at(millis: i64) -> DateTime<Utc> {
+        DateTime::from_timestamp_millis(1_700_000_000_000 + millis).unwrap()
+    }
+
+    #[test]
+    fn a_started_second_counts_as_a_whole_one() {
+        assert_eq!(seconds_until(at(2_000), at(0)), Some(2));
+        assert_eq!(seconds_until(at(2_000), at(50)), Some(2));
+        assert_eq!(seconds_until(at(2_000), at(1_050)), Some(1));
+        assert_eq!(seconds_until(at(2_000), at(1_999)), Some(1));
+        assert_eq!(
+            seconds_until(at(2_000), at(0) - Duration::nanoseconds(1)),
+            Some(3)
+        );
+        assert_eq!(
+            seconds_until(at(2_000), at(2_000) - Duration::nanoseconds(1)),
+            Some(1)
+        );
+    }
+
+    #[test]
+    fn a_date_already_past_asks_for_no_wait() {
+        assert_eq!(seconds_until(at(0), at(0)), Some(0));
+        assert_eq!(seconds_until(at(0), at(500)), Some(0));
+        assert_eq!(seconds_until(at(0), at(1_500)), None);
+        assert_eq!(seconds_until(at(0) - Duration::hours(1), at(0)), None);
     }
 }
