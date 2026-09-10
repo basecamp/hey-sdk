@@ -338,13 +338,13 @@ async fn a_stage_is_read_out_of_the_page_hey_serves_for_it() {
         [
             WorkflowStageTopic {
                 staging_id: 91,
-                topic_id: 4471829,
+                topic_id: 4_471_829,
                 subject: "Application".to_string(),
                 entry_count: 3,
             },
             WorkflowStageTopic {
                 staging_id: 92,
-                topic_id: 4471830,
+                topic_id: 4_471_830,
                 subject: String::new(),
                 entry_count: 0,
             },

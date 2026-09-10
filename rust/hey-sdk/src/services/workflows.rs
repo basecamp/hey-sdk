@@ -23,6 +23,7 @@ pub struct WorkflowStageTopic {
     /// The staging record that puts the thread on this stage, which is what
     /// [`Workflows::stage_topic`] moves.
     pub staging_id: i64,
+    /// The thread the card is for.
     pub topic_id: i64,
     /// The card's title; empty when the card renders none.
     pub subject: String,
@@ -34,8 +35,11 @@ pub struct WorkflowStageTopic {
 /// are listed — with the cards it shows.
 #[derive(Debug, Clone, Default, PartialEq, Eq, serde::Serialize)]
 pub struct WorkflowStageView {
+    /// The stage, as the caller asked for it.
     pub id: i64,
+    /// The stage's name as the page shows it; empty when the page names none.
     pub name: String,
+    /// The cards on the stage, in the order the page shows them.
     pub topics: Vec<WorkflowStageTopic>,
 }
 
