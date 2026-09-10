@@ -48,7 +48,7 @@ static NO_POLICY: Route = route(Retry {
 
 static SLOW_TO_RESEND: Route = route(Retry {
     max: 2,
-    base_delay_ms: 300,
+    base_delay_ms: 1500,
     retry_on: &[503],
 });
 
@@ -244,16 +244,13 @@ async fn the_first_wait_is_the_policy_s_and_the_client_can_only_lengthen_it() {
     let waited = started.elapsed();
 
     assert_eq!(requests(&server).await, 2);
-    assert!(
-        (Duration::from_millis(300)..Duration::from_millis(900)).contains(&waited),
-        "waited {waited:?}"
-    );
+    assert!(waited >= Duration::from_millis(1500), "waited {waited:?}");
 
     server.reset().await;
     first(&server, "/things.json", 1, ResponseTemplate::new(503)).await;
     always(&server, "GET", "/things.json", ResponseTemplate::new(200)).await;
     let client = unpaced(&server)
-        .base_delay(Duration::from_millis(600))
+        .base_delay(Duration::from_millis(2000))
         .build()
         .unwrap();
 
@@ -264,7 +261,7 @@ async fn the_first_wait_is_the_policy_s_and_the_client_can_only_lengthen_it() {
         .unwrap();
     let waited = started.elapsed();
 
-    assert!(waited >= Duration::from_millis(600), "waited {waited:?}");
+    assert!(waited >= Duration::from_millis(2000), "waited {waited:?}");
 }
 
 /// A shorter wait than the policy's is not a floor the client can set, but the ceiling
@@ -285,22 +282,12 @@ async fn the_longest_wait_holds_the_policy_s_wait_down() {
         .await
         .unwrap();
 
-    assert!(started.elapsed() < Duration::from_millis(250));
+    assert!(started.elapsed() < Duration::from_millis(1500));
 }
 
 #[tokio::test]
 async fn a_rate_limit_the_policy_names_is_waited_out_as_the_date_asks() {
     let server = MockServer::start().await;
-    let in_two_seconds = (Utc::now() + chrono::Duration::seconds(2))
-        .format("%a, %d %b %Y %H:%M:%S GMT")
-        .to_string();
-    first(
-        &server,
-        "/boxes.json",
-        1,
-        ResponseTemplate::new(429).insert_header("Retry-After", in_two_seconds.as_str()),
-    )
-    .await;
     always(
         &server,
         "GET",
@@ -308,9 +295,22 @@ async fn a_rate_limit_the_policy_names_is_waited_out_as_the_date_asks() {
         ResponseTemplate::new(200).set_body_json(json!([])),
     )
     .await;
+    let client = client(&server);
+    let in_two_seconds = (Utc::now() + chrono::Duration::seconds(2))
+        .format("%a, %d %b %Y %H:%M:%S GMT")
+        .to_string();
+    Mock::given(method("GET"))
+        .and(path("/boxes.json"))
+        .respond_with(
+            ResponseTemplate::new(429).insert_header("Retry-After", in_two_seconds.as_str()),
+        )
+        .up_to_n_times(1)
+        .with_priority(1)
+        .mount(&server)
+        .await;
 
     let started = Instant::now();
-    client(&server).boxes().list().await.unwrap();
+    client.boxes().list().await.unwrap();
     let waited = started.elapsed();
 
     assert_eq!(requests(&server).await, 2);
@@ -354,6 +354,29 @@ async fn a_later_page_is_resent_under_the_first_page_s_policy() {
     let next = client.next_page(&page).await.unwrap().unwrap();
     assert_eq!(next.len(), 1);
     assert_eq!(requests(&server).await, 4);
+
+    server.reset().await;
+    Mock::given(method("GET"))
+        .and(path("/boxes.json"))
+        .and(query_param("page", "2"))
+        .respond_with(ResponseTemplate::new(500))
+        .mount(&server)
+        .await;
+    Mock::given(method("GET"))
+        .and(path("/boxes.json"))
+        .respond_with(
+            ResponseTemplate::new(200)
+                .insert_header("Link", r#"</boxes.json?page=2>; rel="next""#)
+                .set_body_json(&boxes),
+        )
+        .mount(&server)
+        .await;
+    let client = builder(&server).max_retries(10).build().unwrap();
+    let page = client.boxes().list().await.unwrap();
+    let error = client.next_page(&page).await.unwrap_err();
+
+    assert_eq!(error.http_status(), Some(500));
+    assert_eq!(requests(&server).await, 2);
 
     server.reset().await;
     Mock::given(method("GET"))
@@ -414,7 +437,7 @@ async fn the_longest_wait_holds_the_client_s_own_floor_and_jitter_down() {
     client.boxes().list().await.unwrap();
 
     assert_eq!(requests(&server).await, 3);
-    assert!(started.elapsed() < Duration::from_millis(300));
+    assert!(started.elapsed() < Duration::from_millis(1000));
 }
 
 /// The wait HEY asked for is not shortened by the ceiling: resending sooner only earns

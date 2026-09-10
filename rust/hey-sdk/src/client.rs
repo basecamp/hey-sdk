@@ -539,7 +539,7 @@ impl Client {
     /// idempotent is sent once.
     fn budget(&self, operation: &Operation) -> Budget {
         let shared = &self.shared;
-        let ceiling = shared.max_retries + 1;
+        let ceiling = shared.max_retries.saturating_add(1);
         let (attempts, retry_on, delay) = match operation.route.map(|route| &route.retry) {
             Some(policy) if policy.max > 0 => (
                 policy.max.min(ceiling),

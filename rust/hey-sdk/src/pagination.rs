@@ -160,6 +160,10 @@ impl Client {
     /// Reads the pages after one already in hand, and hands back their items. Say how many
     /// the first page held as `first_page_count`, so a `limit` counts the whole walk;
     /// `limit` of zero reads to the end.
+    ///
+    /// A [`Response`] names no route, so the pages are read on the client's own retry
+    /// settings, as [`Client::get_all`] reads them. A modelled read walks on with
+    /// [`Client::next_page`] or [`Client::each_page`], which keep its policy.
     pub async fn follow_pagination(
         &self,
         first: &Response,
