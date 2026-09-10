@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+
+	"github.com/basecamp/hey-sdk/go/pkg/generated"
 )
 
 func gearedPageFromLink(header string) string {
@@ -70,7 +72,10 @@ func gearedLinkIsNext(params string) bool {
 // FollowPagination fetches additional pages following Link headers from an HTTP response.
 // firstPageCount is the number of items already collected from the first page.
 // limit is the maximum total items to return (0 = unlimited).
-// Returns raw JSON items from subsequent pages only.
+// Returns raw JSON items from subsequent pages only. A response the generated client
+// answered says which operation it came from, and every page after it is read under that
+// operation's retry policy; a response from anywhere else is walked on the client's own
+// retry settings.
 func (c *Client) FollowPagination(ctx context.Context, httpResp *http.Response, firstPageCount, limit int) ([]json.RawMessage, error) {
 	if httpResp == nil {
 		return nil, nil
@@ -101,6 +106,11 @@ func (c *Client) FollowPagination(ctx context.Context, httpResp *http.Response, 
 		return nil, fmt.Errorf("pagination Link header points to different origin: %s", nextURL)
 	}
 
+	budget := c.clientBudget()
+	if operationID := generated.OperationFromContext(httpResp.Request.Context()); operationID != "" { //nolint:contextcheck // the first page's context is read for the operation it named, not carried on.
+		budget = c.operationBudget(operationID)
+	}
+
 	var allResults []json.RawMessage
 	currentCount := firstPageCount
 	var page int
@@ -108,7 +118,7 @@ func (c *Client) FollowPagination(ctx context.Context, httpResp *http.Response, 
 	for page = 2; page <= c.httpOpts.MaxPages && nextURL != ""; page++ {
 		currentPageURL := nextURL
 
-		resp, err := c.doRequestURL(ctx, "GET", nextURL, nil)
+		resp, err := c.doRequestURLWithBudget(ctx, "GET", nextURL, nil, budget)
 		if err != nil {
 			return nil, err
 		}

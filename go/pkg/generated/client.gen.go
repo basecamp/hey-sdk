@@ -14,6 +14,7 @@ import (
 	"math/rand"
 	"net/http"
 	"net/url"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -2094,14 +2095,22 @@ type HttpRequestDoer interface {
 	Do(req *http.Request) (*http.Response, error)
 }
 
-// RetryConfig configures client-level retry overrides and delays for idempotent operations.
-// Retryable status codes always come from each operation's API contract.
+// RetryConfig is the client's own say over resends. Every operation brings its retry policy
+// from the API contract — how many sends it gets in all, which statuses earn another, and
+// the wait before the first resend — and these settings only ever make that gentler: they
+// lower the count and lengthen the waits, never the reverse. See [Client.RetryPolicy].
 type RetryConfig struct {
-	// MaxRetries overrides an operation's maximum attempts when WithRetryConfig is used.
+	// MaxRetries caps the resends of any operation: an operation is sent at most
+	// MaxRetries+1 times, or as many times as its own policy allows when that is fewer.
+	// It never grants an operation more sends than its policy does. The one resend after
+	// a 401 the AuthRefresher answered is granted on top when the sends are already spent.
 	MaxRetries int
-	// BaseDelay is the initial delay between retries (default: 1s)
+	// BaseDelay is the least the client waits before the first resend (default: 1s). An
+	// operation whose policy names a longer wait starts from that instead.
 	BaseDelay time.Duration
-	// MaxDelay is the maximum delay between retries (default: 30s)
+	// MaxDelay is the most the backoff waits between any two attempts (default: 30s),
+	// whatever the policy asks for. The wait a Retry-After names is honoured as given, and
+	// up to 100ms of jitter is added to every wait.
 	MaxDelay time.Duration
 	// Multiplier is the exponential backoff multiplier (default: 2.0)
 	Multiplier float64
@@ -2117,138 +2126,148 @@ func DefaultRetryConfig() RetryConfig {
 	}
 }
 
-type retryPolicy struct {
-	MaxAttempts       int
+// RetryPolicy is what one operation may spend on being resent: the sends it gets in all,
+// the statuses that earn another, and the wait before the first resend.
+type RetryPolicy struct {
+	// MaxAttempts is the sends in all, the first one included.
+	MaxAttempts int
+	// RetryableStatuses are the response statuses that earn a resend. Any other status is
+	// the operation's answer.
 	RetryableStatuses []int
+	// BaseDelay is the wait before the first resend; each wait after it is longer by the
+	// backoff multiplier.
+	BaseDelay time.Duration
 }
 
-var operationRetryPolicies = map[string]retryPolicy{
-	"DeleteExtenzion":               {MaxAttempts: 2, RetryableStatuses: []int{429, 503}},
-	"AdvancedSearch":                {MaxAttempts: 3, RetryableStatuses: []int{429, 503}},
-	"GetAdvancedSearchFilters":      {MaxAttempts: 3, RetryableStatuses: []int{429, 503}},
-	"ListBoxes":                     {MaxAttempts: 3, RetryableStatuses: []int{429, 503}},
-	"GetBox":                        {MaxAttempts: 3, RetryableStatuses: []int{429, 503}},
-	"CreateBoxDesignation":          {MaxAttempts: 2, RetryableStatuses: []int{429, 503}},
-	"DeleteBoxDesignation":          {MaxAttempts: 2, RetryableStatuses: []int{429, 503}},
-	"ListBoxGroups":                 {MaxAttempts: 3, RetryableStatuses: []int{429, 503}},
-	"CreateBoxGroup":                {MaxAttempts: 2, RetryableStatuses: []int{429, 503}},
-	"DeleteBoxGroup":                {MaxAttempts: 2, RetryableStatuses: []int{429, 503}},
-	"GetBoxGroup":                   {MaxAttempts: 3, RetryableStatuses: []int{429, 503}},
-	"MarkBoxSeen":                   {MaxAttempts: 2, RetryableStatuses: []int{429, 503}},
-	"GetBoxPostingChanges":          {MaxAttempts: 3, RetryableStatuses: []int{429, 503}},
-	"GetBubblebox":                  {MaxAttempts: 3, RetryableStatuses: []int{429, 503}},
-	"NewBulkReply":                  {MaxAttempts: 3, RetryableStatuses: []int{429, 503}},
-	"ListCalendarDays":              {MaxAttempts: 3, RetryableStatuses: []int{429, 503}},
-	"GetCalendarDay":                {MaxAttempts: 3, RetryableStatuses: []int{429, 503}},
-	"UncompleteHabit":               {MaxAttempts: 3, RetryableStatuses: []int{429, 503}},
-	"CompleteHabit":                 {MaxAttempts: 3, RetryableStatuses: []int{429, 503}},
-	"GetJournalEntry":               {MaxAttempts: 3, RetryableStatuses: []int{429, 503}},
-	"UpdateJournalEntry":            {MaxAttempts: 2, RetryableStatuses: []int{429, 503}},
-	"DeleteCalendarEvent":           {MaxAttempts: 3, RetryableStatuses: []int{429, 503}},
-	"DeleteCalendarEventOccurrence": {MaxAttempts: 3, RetryableStatuses: []int{429, 503}},
-	"CreateHabit":                   {MaxAttempts: 2, RetryableStatuses: []int{429, 503}},
-	"DeleteHabit":                   {MaxAttempts: 2, RetryableStatuses: []int{429, 503}},
-	"UpdateHabit":                   {MaxAttempts: 2, RetryableStatuses: []int{429, 503}},
-	"ResumeHabit":                   {MaxAttempts: 2, RetryableStatuses: []int{429, 503}},
-	"StopHabit":                     {MaxAttempts: 2, RetryableStatuses: []int{429, 503}},
-	"UpdateFirstWeekDay":            {MaxAttempts: 3, RetryableStatuses: []int{429, 503}},
-	"ListJournalEntries":            {MaxAttempts: 3, RetryableStatuses: []int{429, 503}},
-	"GetOngoingTimeTrack":           {MaxAttempts: 3, RetryableStatuses: []int{429, 503}},
-	"StartTimeTrack":                {MaxAttempts: 2, RetryableStatuses: []int{429, 503}},
-	"ListTimeTracks":                {MaxAttempts: 3, RetryableStatuses: []int{429, 503}},
-	"CreateTimeTrack":               {MaxAttempts: 2, RetryableStatuses: []int{429, 503}},
-	"ListTimeTrackCategories":       {MaxAttempts: 3, RetryableStatuses: []int{429, 503}},
-	"DeleteTimeTrack":               {MaxAttempts: 2, RetryableStatuses: []int{429, 503}},
-	"UpdateTimeTrack":               {MaxAttempts: 3, RetryableStatuses: []int{429, 503}},
-	"CreateCalendarTodo":            {MaxAttempts: 2, RetryableStatuses: []int{429, 503}},
-	"DeleteCalendarTodo":            {MaxAttempts: 3, RetryableStatuses: []int{429, 503}},
-	"UpdateCalendarTodo":            {MaxAttempts: 2, RetryableStatuses: []int{429, 503}},
-	"UncompleteCalendarTodo":        {MaxAttempts: 3, RetryableStatuses: []int{429, 503}},
-	"CompleteCalendarTodo":          {MaxAttempts: 3, RetryableStatuses: []int{429, 503}},
-	"ListCalendarWeeks":             {MaxAttempts: 3, RetryableStatuses: []int{429, 503}},
-	"GetCalendarWeek":               {MaxAttempts: 3, RetryableStatuses: []int{429, 503}},
-	"GetCalendarYear":               {MaxAttempts: 3, RetryableStatuses: []int{429, 503}},
-	"ListCalendars":                 {MaxAttempts: 3, RetryableStatuses: []int{429, 503}},
-	"GetCalendarRecordings":         {MaxAttempts: 3, RetryableStatuses: []int{429, 503}},
-	"ToggleCalendar":                {MaxAttempts: 2, RetryableStatuses: []int{429, 503}},
-	"GetClearances":                 {MaxAttempts: 3, RetryableStatuses: []int{429, 503}},
-	"BulkUpdateClearances":          {MaxAttempts: 2, RetryableStatuses: []int{429, 503}},
-	"PuntClearances":                {MaxAttempts: 2, RetryableStatuses: []int{429, 503}},
-	"UpdateClearance":               {MaxAttempts: 2, RetryableStatuses: []int{429, 503}},
-	"ListClips":                     {MaxAttempts: 3, RetryableStatuses: []int{429, 503}},
-	"ListCollections":               {MaxAttempts: 3, RetryableStatuses: []int{429, 503}},
-	"GetCollection":                 {MaxAttempts: 3, RetryableStatuses: []int{429, 503}},
-	"UpdateCollection":              {MaxAttempts: 2, RetryableStatuses: []int{429, 503}},
-	"ListContacts":                  {MaxAttempts: 3, RetryableStatuses: []int{429, 503}},
-	"CreateContact":                 {MaxAttempts: 2, RetryableStatuses: []int{429, 503}},
-	"HideContact":                   {MaxAttempts: 2, RetryableStatuses: []int{429, 503}},
-	"GetContact":                    {MaxAttempts: 3, RetryableStatuses: []int{429, 503}},
-	"UpdateContact":                 {MaxAttempts: 2, RetryableStatuses: []int{429, 503}},
-	"UnbundleContact":               {MaxAttempts: 2, RetryableStatuses: []int{429, 503}},
-	"BundleContact":                 {MaxAttempts: 2, RetryableStatuses: []int{429, 503}},
-	"UpdateContactClearance":        {MaxAttempts: 2, RetryableStatuses: []int{429, 503}},
-	"DeleteContactNote":             {MaxAttempts: 2, RetryableStatuses: []int{429, 503}},
-	"GetContactNote":                {MaxAttempts: 3, RetryableStatuses: []int{429, 503}},
-	"UpdateContactNote":             {MaxAttempts: 2, RetryableStatuses: []int{429, 503}},
-	"RevealContact":                 {MaxAttempts: 2, RetryableStatuses: []int{429, 503}},
-	"ListDrafts":                    {MaxAttempts: 3, RetryableStatuses: []int{429, 503}},
-	"DeleteDraft":                   {MaxAttempts: 2, RetryableStatuses: []int{429, 503}},
-	"NewEntryForward":               {MaxAttempts: 3, RetryableStatuses: []int{429, 503}},
-	"CreateReply":                   {MaxAttempts: 2, RetryableStatuses: []int{429, 503}},
-	"NewEntryReply":                 {MaxAttempts: 3, RetryableStatuses: []int{429, 503}},
-	"MarkEntrySpam":                 {MaxAttempts: 2, RetryableStatuses: []int{429, 503}},
-	"GetFeedbox":                    {MaxAttempts: 3, RetryableStatuses: []int{429, 503}},
-	"GetFolder":                     {MaxAttempts: 3, RetryableStatuses: []int{429, 503}},
-	"GetIdentity":                   {MaxAttempts: 3, RetryableStatuses: []int{429, 503}},
-	"UpdateTimeFormat":              {MaxAttempts: 3, RetryableStatuses: []int{429, 503}},
-	"GetImbox":                      {MaxAttempts: 3, RetryableStatuses: []int{429, 503}},
-	"GetImboxSeen":                  {MaxAttempts: 3, RetryableStatuses: []int{429, 503}},
-	"CreateMessage":                 {MaxAttempts: 2, RetryableStatuses: []int{429, 503}},
-	"GetMessage":                    {MaxAttempts: 3, RetryableStatuses: []int{429, 503}},
-	"UpdateMessage":                 {MaxAttempts: 2, RetryableStatuses: []int{429, 503}},
-	"GetMessageEdit":                {MaxAttempts: 3, RetryableStatuses: []int{429, 503}},
-	"GetMyClearances":               {MaxAttempts: 3, RetryableStatuses: []int{429, 503}},
-	"UpdateMyClearance":             {MaxAttempts: 2, RetryableStatuses: []int{429, 503}},
-	"GetNavigation":                 {MaxAttempts: 3, RetryableStatuses: []int{429, 503}},
-	"GetTrailbox":                   {MaxAttempts: 3, RetryableStatuses: []int{429, 503}},
-	"RemovePostingsFromBoxGroup":    {MaxAttempts: 2, RetryableStatuses: []int{429, 503}},
-	"AddPostingsToBoxGroup":         {MaxAttempts: 2, RetryableStatuses: []int{429, 503}},
-	"CancelPostingsBubbleUp":        {MaxAttempts: 2, RetryableStatuses: []int{429, 503}},
-	"SchedulePostingsBubbleUp":      {MaxAttempts: 2, RetryableStatuses: []int{429, 503}},
-	"BubbleUpPostingsNow":           {MaxAttempts: 2, RetryableStatuses: []int{429, 503}},
-	"UnfilePostings":                {MaxAttempts: 2, RetryableStatuses: []int{429, 503}},
-	"FilePostings":                  {MaxAttempts: 2, RetryableStatuses: []int{429, 503}},
-	"CreateFolderForPostings":       {MaxAttempts: 2, RetryableStatuses: []int{429, 503}},
-	"MovePostings":                  {MaxAttempts: 2, RetryableStatuses: []int{429, 503}},
-	"UnmutePostings":                {MaxAttempts: 2, RetryableStatuses: []int{429, 503}},
-	"MutePostings":                  {MaxAttempts: 2, RetryableStatuses: []int{429, 503}},
-	"MarkPostingsSeen":              {MaxAttempts: 2, RetryableStatuses: []int{429, 503}},
-	"MarkPostingsSpam":              {MaxAttempts: 2, RetryableStatuses: []int{429, 503}},
-	"TrashPostings":                 {MaxAttempts: 2, RetryableStatuses: []int{429, 503}},
-	"MarkPostingsUnseen":            {MaxAttempts: 2, RetryableStatuses: []int{429, 503}},
-	"GetBundleUnseenPostings":       {MaxAttempts: 3, RetryableStatuses: []int{429, 503}},
-	"GetLaterbox":                   {MaxAttempts: 3, RetryableStatuses: []int{429, 503}},
-	"GetAsidebox":                   {MaxAttempts: 3, RetryableStatuses: []int{429, 503}},
-	"ListSnippets":                  {MaxAttempts: 3, RetryableStatuses: []int{429, 503}},
-	"ListStickies":                  {MaxAttempts: 3, RetryableStatuses: []int{429, 503}},
-	"CreateSticky":                  {MaxAttempts: 2, RetryableStatuses: []int{429, 503}},
-	"MoveSticky":                    {MaxAttempts: 2, RetryableStatuses: []int{429, 503}},
-	"DeleteSticky":                  {MaxAttempts: 2, RetryableStatuses: []int{429, 503}},
-	"UpdateSticky":                  {MaxAttempts: 2, RetryableStatuses: []int{429, 503}},
-	"GetEverythingTopics":           {MaxAttempts: 3, RetryableStatuses: []int{429, 503}},
-	"GetSentTopics":                 {MaxAttempts: 3, RetryableStatuses: []int{429, 503}},
-	"GetSpamTopics":                 {MaxAttempts: 3, RetryableStatuses: []int{429, 503}},
-	"EmptySpam":                     {MaxAttempts: 2, RetryableStatuses: []int{429, 503}},
-	"GetTrashTopics":                {MaxAttempts: 3, RetryableStatuses: []int{429, 503}},
-	"EmptyTrash":                    {MaxAttempts: 2, RetryableStatuses: []int{429, 503}},
-	"GetTopic":                      {MaxAttempts: 3, RetryableStatuses: []int{429, 503}},
-	"GetTopicEntries":               {MaxAttempts: 3, RetryableStatuses: []int{429, 503}},
-	"MoveTopic":                     {MaxAttempts: 2, RetryableStatuses: []int{429, 503}},
-	"GetTopicPublication":           {MaxAttempts: 3, RetryableStatuses: []int{429, 503}},
-	"RestoreTopic":                  {MaxAttempts: 2, RetryableStatuses: []int{429, 503}},
-	"MarkTopicHam":                  {MaxAttempts: 2, RetryableStatuses: []int{429, 503}},
-	"TrashTopic":                    {MaxAttempts: 2, RetryableStatuses: []int{429, 503}},
-	"GetWorkflow":                   {MaxAttempts: 3, RetryableStatuses: []int{429, 503}},
+// operationRetryPolicies is each operation's policy as the API contract declares it,
+// before the client's RetryConfig has its say.
+var operationRetryPolicies = map[string]RetryPolicy{
+	"DeleteExtenzion":               {MaxAttempts: 2, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
+	"AdvancedSearch":                {MaxAttempts: 3, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
+	"GetAdvancedSearchFilters":      {MaxAttempts: 3, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
+	"ListBoxes":                     {MaxAttempts: 3, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
+	"GetBox":                        {MaxAttempts: 3, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
+	"CreateBoxDesignation":          {MaxAttempts: 2, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
+	"DeleteBoxDesignation":          {MaxAttempts: 2, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
+	"ListBoxGroups":                 {MaxAttempts: 3, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
+	"CreateBoxGroup":                {MaxAttempts: 2, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
+	"DeleteBoxGroup":                {MaxAttempts: 2, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
+	"GetBoxGroup":                   {MaxAttempts: 3, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
+	"MarkBoxSeen":                   {MaxAttempts: 2, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
+	"GetBoxPostingChanges":          {MaxAttempts: 3, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
+	"GetBubblebox":                  {MaxAttempts: 3, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
+	"NewBulkReply":                  {MaxAttempts: 3, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
+	"ListCalendarDays":              {MaxAttempts: 3, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
+	"GetCalendarDay":                {MaxAttempts: 3, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
+	"UncompleteHabit":               {MaxAttempts: 3, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
+	"CompleteHabit":                 {MaxAttempts: 3, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
+	"GetJournalEntry":               {MaxAttempts: 3, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
+	"UpdateJournalEntry":            {MaxAttempts: 2, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
+	"DeleteCalendarEvent":           {MaxAttempts: 3, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
+	"DeleteCalendarEventOccurrence": {MaxAttempts: 3, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
+	"CreateHabit":                   {MaxAttempts: 2, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
+	"DeleteHabit":                   {MaxAttempts: 2, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
+	"UpdateHabit":                   {MaxAttempts: 2, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
+	"ResumeHabit":                   {MaxAttempts: 2, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
+	"StopHabit":                     {MaxAttempts: 2, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
+	"UpdateFirstWeekDay":            {MaxAttempts: 3, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
+	"ListJournalEntries":            {MaxAttempts: 3, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
+	"GetOngoingTimeTrack":           {MaxAttempts: 3, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
+	"StartTimeTrack":                {MaxAttempts: 2, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
+	"ListTimeTracks":                {MaxAttempts: 3, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
+	"CreateTimeTrack":               {MaxAttempts: 2, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
+	"ListTimeTrackCategories":       {MaxAttempts: 3, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
+	"DeleteTimeTrack":               {MaxAttempts: 2, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
+	"UpdateTimeTrack":               {MaxAttempts: 3, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
+	"CreateCalendarTodo":            {MaxAttempts: 2, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
+	"DeleteCalendarTodo":            {MaxAttempts: 3, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
+	"UpdateCalendarTodo":            {MaxAttempts: 2, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
+	"UncompleteCalendarTodo":        {MaxAttempts: 3, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
+	"CompleteCalendarTodo":          {MaxAttempts: 3, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
+	"ListCalendarWeeks":             {MaxAttempts: 3, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
+	"GetCalendarWeek":               {MaxAttempts: 3, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
+	"GetCalendarYear":               {MaxAttempts: 3, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
+	"ListCalendars":                 {MaxAttempts: 3, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
+	"GetCalendarRecordings":         {MaxAttempts: 3, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
+	"ToggleCalendar":                {MaxAttempts: 2, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
+	"GetClearances":                 {MaxAttempts: 3, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
+	"BulkUpdateClearances":          {MaxAttempts: 2, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
+	"PuntClearances":                {MaxAttempts: 2, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
+	"UpdateClearance":               {MaxAttempts: 2, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
+	"ListClips":                     {MaxAttempts: 3, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
+	"ListCollections":               {MaxAttempts: 3, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
+	"GetCollection":                 {MaxAttempts: 3, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
+	"UpdateCollection":              {MaxAttempts: 2, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
+	"ListContacts":                  {MaxAttempts: 3, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
+	"CreateContact":                 {MaxAttempts: 2, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
+	"HideContact":                   {MaxAttempts: 2, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
+	"GetContact":                    {MaxAttempts: 3, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
+	"UpdateContact":                 {MaxAttempts: 2, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
+	"UnbundleContact":               {MaxAttempts: 2, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
+	"BundleContact":                 {MaxAttempts: 2, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
+	"UpdateContactClearance":        {MaxAttempts: 2, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
+	"DeleteContactNote":             {MaxAttempts: 2, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
+	"GetContactNote":                {MaxAttempts: 3, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
+	"UpdateContactNote":             {MaxAttempts: 2, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
+	"RevealContact":                 {MaxAttempts: 2, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
+	"ListDrafts":                    {MaxAttempts: 3, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
+	"DeleteDraft":                   {MaxAttempts: 2, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
+	"NewEntryForward":               {MaxAttempts: 3, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
+	"CreateReply":                   {MaxAttempts: 2, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
+	"NewEntryReply":                 {MaxAttempts: 3, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
+	"MarkEntrySpam":                 {MaxAttempts: 2, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
+	"GetFeedbox":                    {MaxAttempts: 3, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
+	"GetFolder":                     {MaxAttempts: 3, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
+	"GetIdentity":                   {MaxAttempts: 3, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
+	"UpdateTimeFormat":              {MaxAttempts: 3, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
+	"GetImbox":                      {MaxAttempts: 3, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
+	"GetImboxSeen":                  {MaxAttempts: 3, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
+	"CreateMessage":                 {MaxAttempts: 2, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
+	"GetMessage":                    {MaxAttempts: 3, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
+	"UpdateMessage":                 {MaxAttempts: 2, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
+	"GetMessageEdit":                {MaxAttempts: 3, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
+	"GetMyClearances":               {MaxAttempts: 3, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
+	"UpdateMyClearance":             {MaxAttempts: 2, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
+	"GetNavigation":                 {MaxAttempts: 3, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
+	"GetTrailbox":                   {MaxAttempts: 3, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
+	"RemovePostingsFromBoxGroup":    {MaxAttempts: 2, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
+	"AddPostingsToBoxGroup":         {MaxAttempts: 2, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
+	"CancelPostingsBubbleUp":        {MaxAttempts: 2, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
+	"SchedulePostingsBubbleUp":      {MaxAttempts: 2, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
+	"BubbleUpPostingsNow":           {MaxAttempts: 2, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
+	"UnfilePostings":                {MaxAttempts: 2, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
+	"FilePostings":                  {MaxAttempts: 2, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
+	"CreateFolderForPostings":       {MaxAttempts: 2, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
+	"MovePostings":                  {MaxAttempts: 2, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
+	"UnmutePostings":                {MaxAttempts: 2, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
+	"MutePostings":                  {MaxAttempts: 2, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
+	"MarkPostingsSeen":              {MaxAttempts: 2, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
+	"MarkPostingsSpam":              {MaxAttempts: 2, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
+	"TrashPostings":                 {MaxAttempts: 2, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
+	"MarkPostingsUnseen":            {MaxAttempts: 2, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
+	"GetBundleUnseenPostings":       {MaxAttempts: 3, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
+	"GetLaterbox":                   {MaxAttempts: 3, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
+	"GetAsidebox":                   {MaxAttempts: 3, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
+	"ListSnippets":                  {MaxAttempts: 3, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
+	"ListStickies":                  {MaxAttempts: 3, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
+	"CreateSticky":                  {MaxAttempts: 2, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
+	"MoveSticky":                    {MaxAttempts: 2, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
+	"DeleteSticky":                  {MaxAttempts: 2, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
+	"UpdateSticky":                  {MaxAttempts: 2, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
+	"GetEverythingTopics":           {MaxAttempts: 3, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
+	"GetSentTopics":                 {MaxAttempts: 3, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
+	"GetSpamTopics":                 {MaxAttempts: 3, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
+	"EmptySpam":                     {MaxAttempts: 2, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
+	"GetTrashTopics":                {MaxAttempts: 3, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
+	"EmptyTrash":                    {MaxAttempts: 2, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
+	"GetTopic":                      {MaxAttempts: 3, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
+	"GetTopicEntries":               {MaxAttempts: 3, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
+	"MoveTopic":                     {MaxAttempts: 2, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
+	"GetTopicPublication":           {MaxAttempts: 3, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
+	"RestoreTopic":                  {MaxAttempts: 2, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
+	"MarkTopicHam":                  {MaxAttempts: 2, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
+	"TrashTopic":                    {MaxAttempts: 2, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
+	"GetWorkflow":                   {MaxAttempts: 3, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
 }
 
 // Client which conforms to the OpenAPI3 specification for this service.
@@ -2267,9 +2286,8 @@ type Client struct {
 	// the network.
 	RequestEditors []RequestEditorFn
 
-	// RetryConfig for idempotent operations
-	RetryConfig           RetryConfig
-	retryAttemptsOverride bool
+	// RetryConfig is the client's ceiling over every operation's retry policy.
+	RetryConfig RetryConfig
 
 	// AuthRefresher is asked once when a response is 401. It renews whatever the request
 	// editors authenticate with and reports whether it could; when it could, the request
@@ -2348,11 +2366,13 @@ func WithRequestEditorFn(fn RequestEditorFn) ClientOption {
 	}
 }
 
-// WithRetryConfig allows setting custom retry configuration for idempotent operations.
+// WithRetryConfig sets the client's ceiling over every operation's retry policy: the
+// operation is sent at most cfg.MaxRetries+1 times and never more than its policy allows,
+// its first wait is at least cfg.BaseDelay, and no backoff wait is longer than
+// cfg.MaxDelay.
 func WithRetryConfig(cfg RetryConfig) ClientOption {
 	return func(c *Client) error {
 		c.RetryConfig = cfg
-		c.retryAttemptsOverride = true
 		return nil
 	}
 }
@@ -2382,7 +2402,9 @@ func WithLogger(logger *slog.Logger) ClientOption {
 	}
 }
 
-func (p retryPolicy) retriesStatus(statusCode int) bool {
+// RetriesStatus reports whether a response with the given status earns a resend under
+// the policy.
+func (p RetryPolicy) RetriesStatus(statusCode int) bool {
 	for _, retryableStatus := range p.RetryableStatuses {
 		if statusCode == retryableStatus {
 			return true
@@ -2391,17 +2413,20 @@ func (p retryPolicy) retriesStatus(statusCode int) bool {
 	return false
 }
 
-// retryPolicy returns the operation's declared policy. WithRetryConfig can override its
-// attempt count, while retryable statuses remain operation-defined.
-func (c *Client) retryPolicy(operationId string) retryPolicy {
+// RetryPolicy is what the client will spend on the operation: the policy the API contract
+// declares for it, held under the client's RetryConfig. The sends are the policy's
+// MaxAttempts or MaxRetries+1, whichever is fewer; the statuses are the policy's own; the
+// first wait is the policy's BaseDelay or the config's, whichever is longer, and no longer
+// than MaxDelay. An operation the contract gives no policy is sent once. Idempotency is
+// judged separately: an operation that is not idempotent is sent once whatever its policy.
+func (c *Client) RetryPolicy(operationId string) RetryPolicy {
 	policy, ok := operationRetryPolicies[operationId]
 	if !ok {
-		policy = retryPolicy{MaxAttempts: 1}
+		return RetryPolicy{MaxAttempts: 1, BaseDelay: c.RetryConfig.BaseDelay}
 	}
-	if c.retryAttemptsOverride {
-		policy.MaxAttempts = max(c.RetryConfig.MaxRetries, 0) + 1
-	}
-	policy.MaxAttempts = max(policy.MaxAttempts, 1)
+	policy.MaxAttempts = max(min(policy.MaxAttempts-1, c.RetryConfig.MaxRetries), 0) + 1
+	policy.BaseDelay = min(max(policy.BaseDelay, c.RetryConfig.BaseDelay), c.RetryConfig.MaxDelay)
+	policy.RetryableStatuses = slices.Clone(policy.RetryableStatuses)
 	return policy
 }
 
@@ -2410,7 +2435,7 @@ func (c *Client) retryPolicy(operationId string) retryPolicy {
 // whatever retry budget the operation has left rather than starting a fresh one, and is
 // always granted at least the one attempt.
 func (c *Client) doWithRetry(ctx context.Context, buildRequest func() (*http.Request, error), isIdempotent bool, operationId string, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	policy := c.retryPolicy(operationId)
+	policy := c.RetryPolicy(operationId)
 	maxAttempts := 1
 	if isIdempotent {
 		maxAttempts = policy.MaxAttempts
@@ -2448,6 +2473,22 @@ func AttemptFromContext(ctx context.Context) int {
 }
 
 type attemptKey struct{}
+
+// ContextWithOperation marks the context a request is sent with as belonging to the named
+// operation, so that whatever handles the response — a walk on to the next page, say —
+// can carry on under that operation's retry policy.
+func ContextWithOperation(ctx context.Context, operationId string) context.Context {
+	return context.WithValue(ctx, operationKey{}, operationId)
+}
+
+// OperationFromContext reports which operation a request was sent for, or "" when the
+// context does not say.
+func OperationFromContext(ctx context.Context) string {
+	operationId, _ := ctx.Value(operationKey{}).(string)
+	return operationId
+}
+
+type operationKey struct{}
 
 // resendableBody makes a request body good for more than one send, since every attempt
 // builds its request afresh from the same reader: a seekable body is rewound to where it
@@ -2495,19 +2536,19 @@ type readOnly struct{ io.Reader }
 // transient failures with backoff between them. Along with the last response it returns
 // the request that response answered, as the editors left it: a transport is free to
 // leave Response.Request unset, so the loop does not rely on it.
-func (c *Client) doAttempts(ctx context.Context, buildRequest func() (*http.Request, error), first, last int, policy retryPolicy, operationId string, reqEditors ...RequestEditorFn) (*http.Response, *http.Request, error) {
+func (c *Client) doAttempts(ctx context.Context, buildRequest func() (*http.Request, error), first, last int, policy RetryPolicy, operationId string, reqEditors ...RequestEditorFn) (*http.Response, *http.Request, error) {
 
 	var lastResp *http.Response
 	var lastReq *http.Request
 	var lastErr error
-	delay := c.RetryConfig.BaseDelay
+	delay := policy.BaseDelay
 
 	for attempt := first; attempt <= last; attempt++ {
 		req, err := buildRequest()
 		if err != nil {
 			return nil, nil, err
 		}
-		req = req.WithContext(ContextWithAttempt(ctx, attempt))
+		req = req.WithContext(ContextWithOperation(ContextWithAttempt(ctx, attempt), operationId))
 		if err := c.applyEditors(ctx, req, reqEditors); err != nil {
 			return nil, nil, err
 		}
@@ -2535,7 +2576,7 @@ func (c *Client) doAttempts(ctx context.Context, buildRequest func() (*http.Requ
 		}
 
 		// Success or non-retryable status
-		if !policy.retriesStatus(resp.StatusCode) {
+		if !policy.RetriesStatus(resp.StatusCode) {
 			return resp, req, nil
 		}
 

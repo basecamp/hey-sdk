@@ -119,10 +119,22 @@ workMail, _ := workIdentity.ForAccount(ctx, workAccountID)
 
 Every call reports itself to the client's `Hooks` (`hey.WithHooks`) as a named operation —
 `Postings.MovePostings`, `TimeTracks.StopTimeTrack` — and a `GatingHooks` implementation
-can refuse an operation before it runs. Retries, circuit breaking, bulkheads and rate limits
-are configured with `WithResilience`, `WithCircuitBreaker`, `WithBulkhead` and
-`WithRateLimit`; HTTP caching with `WithCache`. Response caching is active for requests with
-an `Authorization` header, which gives each authenticated identity a stable cache partition.
+can refuse an operation before it runs. Circuit breaking, bulkheads and rate limits are
+configured with `WithResilience`, `WithCircuitBreaker`, `WithBulkhead` and `WithRateLimit`;
+HTTP caching with `WithCache`. Response caching is active for requests with an
+`Authorization` header, which gives each authenticated identity a stable cache partition.
+
+Every modelled operation carries its retry policy from the API contract: how many sends it
+gets in all, which statuses earn another, and the wait before the first resend. The client
+honours that policy on the first request and on every page read after it, and its own
+settings only ever make it gentler: `WithMaxRetries` caps the sends (an operation modelled
+with two sends gets two whatever the cap, and a cap of one resend holds an operation
+modelled with three to two), `WithBaseDelay` is the least the client waits before the first
+resend, and a status the policy does not name is the operation's answer. An operation that
+is not idempotent is sent once, and so is one the contract gives no policy. Whatever the
+count, a 401 that a credential refresh answered earns one more send. A GET on a path
+the caller wrote (`Get`, `GetAll`) has no policy to bring and runs on the client's settings
+alone, resent on 429, 502, 503 and 504.
 
 JSON and HTML answers are capped in the transport at `WithMaxResponseBodyBytes` (16 MiB of
 decompressed body by default; the cap can be raised but not removed), success and error

@@ -249,7 +249,13 @@ func runTest(tc TestCase) TestResult {
 	var sdkErr error
 	var heyResult interface{}
 	if layer, _ := tc.ConfigOverrides["clientLayer"].(string); layer == "hey" {
-		options := []hey.ClientOption{hey.WithMaxRetries(0)}
+		// The HEY client's own retry settings are a ceiling over each operation's policy,
+		// and a case that exercises the ceiling says where it sits (configOverrides
+		// maxRetries, baseDelayMs); any other case runs with no resends.
+		options := []hey.ClientOption{hey.WithMaxRetries(int(getInt64Param(tc.ConfigOverrides, "maxRetries")))}
+		if _, set := tc.ConfigOverrides["baseDelayMs"]; set {
+			options = append(options, hey.WithBaseDelay(time.Duration(getInt64Param(tc.ConfigOverrides, "baseDelayMs"))*time.Millisecond))
+		}
 		if enabled, _ := tc.ConfigOverrides["cacheEnabled"].(bool); enabled {
 			cacheDir, tmpErr := os.MkdirTemp("", "hey-conformance-cache")
 			if tmpErr != nil {

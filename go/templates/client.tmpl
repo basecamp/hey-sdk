@@ -10,14 +10,22 @@ type HttpRequestDoer interface {
 
 {{$clientTypeName := opts.OutputOptions.ClientTypeName -}}
 
-// RetryConfig configures client-level retry overrides and delays for idempotent operations.
-// Retryable status codes always come from each operation's API contract.
+// RetryConfig is the client's own say over resends. Every operation brings its retry policy
+// from the API contract — how many sends it gets in all, which statuses earn another, and
+// the wait before the first resend — and these settings only ever make that gentler: they
+// lower the count and lengthen the waits, never the reverse. See [Client.RetryPolicy].
 type RetryConfig struct {
-	// MaxRetries overrides an operation's maximum attempts when WithRetryConfig is used.
+	// MaxRetries caps the resends of any operation: an operation is sent at most
+	// MaxRetries+1 times, or as many times as its own policy allows when that is fewer.
+	// It never grants an operation more sends than its policy does. The one resend after
+	// a 401 the AuthRefresher answered is granted on top when the sends are already spent.
 	MaxRetries int
-	// BaseDelay is the initial delay between retries (default: 1s)
+	// BaseDelay is the least the client waits before the first resend (default: 1s). An
+	// operation whose policy names a longer wait starts from that instead.
 	BaseDelay time.Duration
-	// MaxDelay is the maximum delay between retries (default: 30s)
+	// MaxDelay is the most the backoff waits between any two attempts (default: 30s),
+	// whatever the policy asks for. The wait a Retry-After names is honoured as given, and
+	// up to 100ms of jitter is added to every wait.
 	MaxDelay time.Duration
 	// Multiplier is the exponential backoff multiplier (default: 2.0)
 	Multiplier float64
@@ -33,13 +41,23 @@ func DefaultRetryConfig() RetryConfig {
 	}
 }
 
-type retryPolicy struct {
-	MaxAttempts       int
+// RetryPolicy is what one operation may spend on being resent: the sends it gets in all,
+// the statuses that earn another, and the wait before the first resend.
+type RetryPolicy struct {
+	// MaxAttempts is the sends in all, the first one included.
+	MaxAttempts int
+	// RetryableStatuses are the response statuses that earn a resend. Any other status is
+	// the operation's answer.
 	RetryableStatuses []int
+	// BaseDelay is the wait before the first resend; each wait after it is longer by the
+	// backoff multiplier.
+	BaseDelay time.Duration
 }
 
-var operationRetryPolicies = map[string]retryPolicy{
-{{range .}}{{$opid := .OperationId}}{{if .Spec}}{{if .Spec.Extensions}}{{$retry := index .Spec.Extensions "x-hey-retry"}}{{if $retry}}	"{{$opid}}": {MaxAttempts: {{index $retry "maxAttempts"}}, RetryableStatuses: []int{ {{range index $retry "retryOn"}}{{.}}, {{end}} }},
+// operationRetryPolicies is each operation's policy as the API contract declares it,
+// before the client's RetryConfig has its say.
+var operationRetryPolicies = map[string]RetryPolicy{
+{{range .}}{{$opid := .OperationId}}{{if .Spec}}{{if .Spec.Extensions}}{{$retry := index .Spec.Extensions "x-hey-retry"}}{{if $retry}}	"{{$opid}}": {MaxAttempts: {{index $retry "maxAttempts"}}, RetryableStatuses: []int{ {{range index $retry "retryOn"}}{{.}}, {{end}} }, BaseDelay: {{index $retry "baseDelayMs"}} * time.Millisecond},
 {{end}}{{end}}{{end}}{{end}}}
 
 // {{ $clientTypeName }} which conforms to the OpenAPI3 specification for this service.
@@ -58,9 +76,8 @@ type {{ $clientTypeName }} struct {
 	// the network.
 	RequestEditors []RequestEditorFn
 
-	// RetryConfig for idempotent operations
+	// RetryConfig is the client's ceiling over every operation's retry policy.
 	RetryConfig RetryConfig
-	retryAttemptsOverride bool
 
 	// AuthRefresher is asked once when a response is 401. It renews whatever the request
 	// editors authenticate with and reports whether it could; when it could, the request
@@ -139,11 +156,13 @@ func WithRequestEditorFn(fn RequestEditorFn) ClientOption {
 	}
 }
 
-// WithRetryConfig allows setting custom retry configuration for idempotent operations.
+// WithRetryConfig sets the client's ceiling over every operation's retry policy: the
+// operation is sent at most cfg.MaxRetries+1 times and never more than its policy allows,
+// its first wait is at least cfg.BaseDelay, and no backoff wait is longer than
+// cfg.MaxDelay.
 func WithRetryConfig(cfg RetryConfig) ClientOption {
 	return func(c *{{ $clientTypeName }}) error {
 		c.RetryConfig = cfg
-		c.retryAttemptsOverride = true
 		return nil
 	}
 }
@@ -173,7 +192,9 @@ func WithLogger(logger *slog.Logger) ClientOption {
 	}
 }
 
-func (p retryPolicy) retriesStatus(statusCode int) bool {
+// RetriesStatus reports whether a response with the given status earns a resend under
+// the policy.
+func (p RetryPolicy) RetriesStatus(statusCode int) bool {
 	for _, retryableStatus := range p.RetryableStatuses {
 		if statusCode == retryableStatus {
 			return true
@@ -182,17 +203,20 @@ func (p retryPolicy) retriesStatus(statusCode int) bool {
 	return false
 }
 
-// retryPolicy returns the operation's declared policy. WithRetryConfig can override its
-// attempt count, while retryable statuses remain operation-defined.
-func (c *{{ $clientTypeName }}) retryPolicy(operationId string) retryPolicy {
+// RetryPolicy is what the client will spend on the operation: the policy the API contract
+// declares for it, held under the client's RetryConfig. The sends are the policy's
+// MaxAttempts or MaxRetries+1, whichever is fewer; the statuses are the policy's own; the
+// first wait is the policy's BaseDelay or the config's, whichever is longer, and no longer
+// than MaxDelay. An operation the contract gives no policy is sent once. Idempotency is
+// judged separately: an operation that is not idempotent is sent once whatever its policy.
+func (c *{{ $clientTypeName }}) RetryPolicy(operationId string) RetryPolicy {
 	policy, ok := operationRetryPolicies[operationId]
 	if !ok {
-		policy = retryPolicy{MaxAttempts: 1}
+		return RetryPolicy{MaxAttempts: 1, BaseDelay: c.RetryConfig.BaseDelay}
 	}
-	if c.retryAttemptsOverride {
-		policy.MaxAttempts = max(c.RetryConfig.MaxRetries, 0) + 1
-	}
-	policy.MaxAttempts = max(policy.MaxAttempts, 1)
+	policy.MaxAttempts = max(min(policy.MaxAttempts-1, c.RetryConfig.MaxRetries), 0) + 1
+	policy.BaseDelay = min(max(policy.BaseDelay, c.RetryConfig.BaseDelay), c.RetryConfig.MaxDelay)
+	policy.RetryableStatuses = slices.Clone(policy.RetryableStatuses)
 	return policy
 }
 
@@ -201,7 +225,7 @@ func (c *{{ $clientTypeName }}) retryPolicy(operationId string) retryPolicy {
 // whatever retry budget the operation has left rather than starting a fresh one, and is
 // always granted at least the one attempt.
 func (c *{{ $clientTypeName }}) doWithRetry(ctx context.Context, buildRequest func() (*http.Request, error), isIdempotent bool, operationId string, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	policy := c.retryPolicy(operationId)
+	policy := c.RetryPolicy(operationId)
 	maxAttempts := 1
 	if isIdempotent {
 		maxAttempts = policy.MaxAttempts
@@ -239,6 +263,22 @@ func AttemptFromContext(ctx context.Context) int {
 }
 
 type attemptKey struct{}
+
+// ContextWithOperation marks the context a request is sent with as belonging to the named
+// operation, so that whatever handles the response — a walk on to the next page, say —
+// can carry on under that operation's retry policy.
+func ContextWithOperation(ctx context.Context, operationId string) context.Context {
+	return context.WithValue(ctx, operationKey{}, operationId)
+}
+
+// OperationFromContext reports which operation a request was sent for, or "" when the
+// context does not say.
+func OperationFromContext(ctx context.Context) string {
+	operationId, _ := ctx.Value(operationKey{}).(string)
+	return operationId
+}
+
+type operationKey struct{}
 
 // resendableBody makes a request body good for more than one send, since every attempt
 // builds its request afresh from the same reader: a seekable body is rewound to where it
@@ -286,19 +326,19 @@ type readOnly struct{ io.Reader }
 // transient failures with backoff between them. Along with the last response it returns
 // the request that response answered, as the editors left it: a transport is free to
 // leave Response.Request unset, so the loop does not rely on it.
-func (c *{{ $clientTypeName }}) doAttempts(ctx context.Context, buildRequest func() (*http.Request, error), first, last int, policy retryPolicy, operationId string, reqEditors ...RequestEditorFn) (*http.Response, *http.Request, error) {
+func (c *{{ $clientTypeName }}) doAttempts(ctx context.Context, buildRequest func() (*http.Request, error), first, last int, policy RetryPolicy, operationId string, reqEditors ...RequestEditorFn) (*http.Response, *http.Request, error) {
 
 	var lastResp *http.Response
 	var lastReq *http.Request
 	var lastErr error
-	delay := c.RetryConfig.BaseDelay
+	delay := policy.BaseDelay
 
 	for attempt := first; attempt <= last; attempt++ {
 		req, err := buildRequest()
 		if err != nil {
 			return nil, nil, err
 		}
-		req = req.WithContext(ContextWithAttempt(ctx, attempt))
+		req = req.WithContext(ContextWithOperation(ContextWithAttempt(ctx, attempt), operationId))
 		if err := c.applyEditors(ctx, req, reqEditors); err != nil {
 			return nil, nil, err
 		}
@@ -326,7 +366,7 @@ func (c *{{ $clientTypeName }}) doAttempts(ctx context.Context, buildRequest fun
 		}
 
 		// Success or non-retryable status
-		if !policy.retriesStatus(resp.StatusCode) {
+		if !policy.RetriesStatus(resp.StatusCode) {
 			return resp, req, nil
 		}
 

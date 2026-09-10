@@ -16,16 +16,19 @@ import (
 	"github.com/basecamp/hey-sdk/go/pkg/generated"
 )
 
-// Generated operations run the generated client's own retry loop, so what WithMaxRetries
-// configured has to reach it: a caller who lowered the cap to fail fast gets that, not the
-// generated default of three.
+// Generated operations run the generated client's own retry loop on each operation's
+// policy, and what WithMaxRetries configured is the ceiling over it: a caller who lowered
+// the cap to fail fast gets that, and one who raised it gets no more than the policy's
+// three sends for ListBoxes.
 func TestGeneratedOperationsHonorMaxRetries(t *testing.T) {
 	for _, tc := range []struct {
 		maxRetries int
 		requests   int32
 	}{
 		{maxRetries: 0, requests: 1},
+		{maxRetries: 1, requests: 2},
 		{maxRetries: 2, requests: 3},
+		{maxRetries: 5, requests: 3},
 	} {
 		var requests atomic.Int32
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
@@ -252,7 +255,8 @@ func TestGeneratedRefreshResendSharesTheRetryBudget(t *testing.T) {
 		statuses   []int
 		succeeds   bool
 	}{
-		{name: "the budget remaining after the 401 carries the resend's transient failures", maxRetries: 3, statuses: []int{401, 503, 503, 200}, succeeds: true},
+		{name: "the budget remaining after the 401 carries the resend's transient failures", maxRetries: 3, statuses: []int{401, 503, 200}, succeeds: true},
+		{name: "the budget is the operation's policy, not the client's count", maxRetries: 3, statuses: []int{401, 503, 503, 200}, succeeds: false},
 		{name: "a budget spent before the 401 still grants the one resend", maxRetries: 1, statuses: []int{503, 401, 200}, succeeds: true},
 		{name: "the resend does not get a budget of its own", maxRetries: 1, statuses: []int{401, 503, 200}, succeeds: false},
 	} {

@@ -28,10 +28,14 @@ type HTTPOptions struct {
 	// Timeout is the request timeout (default: 30s).
 	Timeout time.Duration
 
-	// MaxRetries is the maximum retry attempts for GET requests (default: 3).
+	// MaxRetries is the most times any request is resent (default: 3). A modelled
+	// operation is resent as many times as its own retry policy allows and no more; this
+	// only lowers that. A GET on a path the caller wrote, which no policy covers, is
+	// resent this many times.
 	MaxRetries int
 
-	// BaseDelay is the initial backoff delay (default: 1s).
+	// BaseDelay is the least the client waits before the first resend (default: 1s). A
+	// modelled operation whose policy names a longer wait starts from that instead.
 	BaseDelay time.Duration
 
 	// MaxJitter is the maximum random jitter to add to delays (default: 100ms).
@@ -87,14 +91,25 @@ func WithTimeout(d time.Duration) ClientOption {
 	}
 }
 
-// WithMaxRetries sets the maximum number of retry attempts for GET requests.
+// WithMaxRetries caps the resends of any request. Every modelled operation carries its
+// own retry policy from the API contract — how many sends it gets in all, which statuses
+// earn another, and the wait before the first resend — and the client's settings only
+// ever make that gentler: an operation is sent at most n+1 times, or as many times as its
+// policy allows when that is fewer, and never more than its policy allows; the one resend
+// after a 401 that a credential refresh answered is granted on top when those sends are
+// already spent. The policy holds on the first request and on every page read after it,
+// through the service methods' page parameters and FollowPagination. A GET on a path the caller wrote
+// (Get, GetAll) has no policy to bring and is resent n times on the SDK's own list of
+// transient failures.
 func WithMaxRetries(n int) ClientOption {
 	return func(c *Client) {
 		c.httpOpts.MaxRetries = n
 	}
 }
 
-// WithBaseDelay sets the initial backoff delay.
+// WithBaseDelay sets the least the client waits before the first resend. A modelled
+// operation whose policy names a longer wait starts from that instead; each wait after the
+// first is longer by the backoff multiplier.
 func WithBaseDelay(d time.Duration) ClientOption {
 	return func(c *Client) {
 		c.httpOpts.BaseDelay = d
