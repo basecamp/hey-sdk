@@ -365,6 +365,8 @@ async fn an_answer_that_will_not_change_is_surfaced_at_once() {
     assert_eq!(server.received_requests().await.unwrap().len(), 1);
 }
 
+/// `ListBoxes` is modelled with three attempts in all; the client's own limit is only a
+/// ceiling on that, and this one sits above it.
 #[tokio::test]
 async fn resending_stops_at_the_retry_limit() {
     let server = MockServer::start().await;
@@ -386,7 +388,7 @@ async fn resending_stops_at_the_retry_limit() {
     assert_eq!(error.code(), ErrorCode::RateLimit);
     assert_eq!(error.http_status(), Some(429));
     assert!(error.is_retryable());
-    assert_eq!(server.received_requests().await.unwrap().len(), 4);
+    assert_eq!(server.received_requests().await.unwrap().len(), 3);
 }
 
 #[tokio::test]

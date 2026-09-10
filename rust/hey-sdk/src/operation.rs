@@ -16,6 +16,9 @@ use crate::route::Route;
 pub struct Operation {
     pub(crate) id: Cow<'static, str>,
     pub(crate) info: OperationInfo,
+    /// The modelled route this sends, whose retry policy the client honours. A path the
+    /// caller wrote has none, and gets the client's own defaults.
+    pub(crate) route: Option<&'static Route>,
     pub(crate) method: Method,
     pub(crate) path: String,
     pub(crate) url: Option<Url>,
@@ -48,6 +51,7 @@ impl Operation {
     pub(crate) fn for_route(route: &'static Route, params: &[&dyn Display]) -> Operation {
         Operation {
             id: Cow::Borrowed(route.id),
+            route: Some(route),
             info: OperationInfo {
                 service: Cow::Borrowed(route.service),
                 operation: Cow::Borrowed(route.id),
@@ -89,6 +93,7 @@ impl Operation {
         };
         Operation {
             id: Cow::Owned(id),
+            route: None,
             info,
             method,
             path,

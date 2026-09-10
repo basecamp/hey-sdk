@@ -1,8 +1,7 @@
 // Package main provides a conformance test runner for the HEY Go SDK.
 //
-// This runner reads shared JSON test definitions from conformance/tests/ and
-// Go-specific definitions from conformance/tests/go/, then executes them
-// against the SDK using a mock HTTP server.
+// This runner reads the shared JSON test definitions from conformance/tests/
+// and executes them against the SDK using a mock HTTP server.
 package main
 
 import (
@@ -73,17 +72,10 @@ type TestResult struct {
 func main() {
 	testsDir := filepath.Join("..", "..", "tests")
 
-	var files []string
-	for _, pattern := range []string{
-		filepath.Join(testsDir, "*.json"),
-		filepath.Join(testsDir, "go", "*.json"),
-	} {
-		matches, err := filepath.Glob(pattern)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error finding test files: %v\n", err)
-			os.Exit(1)
-		}
-		files = append(files, matches...)
+	files, err := filepath.Glob(filepath.Join(testsDir, "*.json"))
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error finding test files: %v\n", err)
+		os.Exit(1)
 	}
 
 	if len(files) == 0 {

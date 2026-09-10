@@ -281,10 +281,20 @@ away.
 
 ### Retries, refresh and caching
 
-Idempotent operations, as the model marks them, are resent on 429, 500, 502, 503 and 504 with
-exponential backoff (`max_retries`, `base_delay`, `max_delay`, `max_jitter` on the builder),
-honouring `Retry-After` on a 429. Any operation is resent once after a 401 that the token
-provider's `refresh` could answer. With a `ResponseCache` (`InMemoryCache`, `FileCache`, or
+Every modelled operation carries its retry policy on its route (`routes::LIST_BOXES.retry`):
+`max`, the sends it gets in all; `retry_on`, the statuses that earn another; and the first
+wait between them. The client honours that policy on the first request and on every page
+`next_page` and `each_page` read after it, and only ever makes it gentler: the sends are
+`min(max, max_retries + 1)`, `base_delay` is the least the client waits before the first
+resend, `max_jitter` is added to every wait, and `max_delay` is the most it waits between any
+two, jitter included — the one setting that can shorten the policy's own wait, and the way a
+test suite winds the backoff down. A positive `Retry-After` on a 429 the policy names is honoured as given,
+as a count of seconds or as an HTTP-date, above `max_delay` if need be. A route the model
+gives no policy is sent once, and so is any operation that is not idempotent, whatever its
+policy says. A path the caller wrote has no policy to bring, so an idempotent one runs on the
+client's settings alone and is resent on 429, 500, 502, 503 and 504; `get_all` and
+`follow_pagination` read every page that way. Any operation is resent once after a 401 that
+the token provider's `refresh` could answer, even with its sends spent. With a `ResponseCache` (`InMemoryCache`, `FileCache`, or
 `config.cache_enabled`), JSON reads revalidate with `If-None-Match` and a 304 is answered from
 the cache. Response bodies are capped at `max_response_body_bytes` (16 MiB by default).
 
