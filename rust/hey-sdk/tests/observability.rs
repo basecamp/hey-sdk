@@ -194,6 +194,7 @@ async fn a_request_that_never_arrives_is_a_retry_with_a_network_error() {
     let recorder = Recorder::new();
     let client = Client::builder(Config::default().with_base_url("http://127.0.0.1:1"))
         .token_provider(StaticTokenProvider::new("t"))
+        .http_client(support::http_client())
         .base_delay(Duration::from_millis(1))
         .max_jitter(Duration::ZERO)
         .max_retries(1)

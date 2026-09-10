@@ -85,7 +85,8 @@ fn reply_payload(reply: &ReplyContent) -> ReplyMessagePayload {
     }
 }
 
-#[cfg(test)]
+// Wire tests on the shipped HTTP client; without the `reqwest` feature there is none.
+#[cfg(all(test, feature = "reqwest"))]
 mod tests {
     use serde_json::{Value, json};
     use wiremock::matchers::{method, path};

@@ -709,6 +709,7 @@ async fn an_id_beyond_double_precision_survives_the_round_trip() {
 fn the_builder_refuses_a_client_it_could_not_use_safely() {
     let insecure = Client::builder(Config::default().with_base_url("http://evil.example.com"))
         .token_provider(StaticTokenProvider::new(TOKEN))
+        .http_client(support::http_client())
         .build()
         .err()
         .unwrap();
@@ -720,11 +721,16 @@ fn the_builder_refuses_a_client_it_could_not_use_safely() {
 
     let local = Client::builder(Config::default().with_base_url("http://127.0.0.1:1"))
         .token_provider(StaticTokenProvider::new(TOKEN))
+        .http_client(support::http_client())
         .build()
         .unwrap();
     assert_eq!(local.base_url().as_str(), "http://127.0.0.1:1/");
 
-    let anonymous = Client::builder(Config::default()).build().err().unwrap();
+    let anonymous = Client::builder(Config::default())
+        .http_client(support::http_client())
+        .build()
+        .err()
+        .unwrap();
     assert_eq!(anonymous.code(), ErrorCode::Usage);
     assert_eq!(
         anonymous.message(),

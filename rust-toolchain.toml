@@ -1,0 +1,9 @@
+# The toolchain `cargo` picks up in this repository, for rustup users and for CI alike. An
+# exact stable rather than the channel, so rustfmt and clippy agree on every machine and a
+# new clippy lint lands through a bump here rather than on an unrelated pull request. Bump
+# it when a new stable is out. The crate's own floor is `rust-version` in rust/Cargo.toml,
+# which the MSRV job builds against.
+[toolchain]
+channel = "1.98.1"
+components = ["clippy", "rustfmt"]
+profile = "minimal"

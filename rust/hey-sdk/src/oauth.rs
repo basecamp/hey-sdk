@@ -361,7 +361,9 @@ struct TokenErrorResponse {
 #[cfg(test)]
 mod tests {
     use serde_json::json;
+    #[cfg(feature = "reqwest")]
     use wiremock::matchers::{body_string_contains, header, method, path};
+    #[cfg(feature = "reqwest")]
     use wiremock::{Mock, MockServer, ResponseTemplate};
 
     use super::*;
@@ -459,6 +461,7 @@ mod tests {
         assert!(!url.query().unwrap().contains("scope"));
     }
 
+    #[cfg(feature = "reqwest")]
     #[tokio::test]
     async fn discover_reads_the_well_known_document() {
         let server = MockServer::start().await;
@@ -487,6 +490,7 @@ mod tests {
         assert_eq!(None, metadata.registration_endpoint);
     }
 
+    #[cfg(feature = "reqwest")]
     #[tokio::test]
     async fn discover_reports_the_failing_status() {
         let server = MockServer::start().await;
@@ -504,6 +508,7 @@ mod tests {
         assert_eq!(Some("no such server"), error.hint());
     }
 
+    #[cfg(feature = "reqwest")]
     #[tokio::test]
     async fn exchange_trades_a_code_for_a_token() {
         let server = MockServer::start().await;
@@ -564,6 +569,7 @@ mod tests {
         assert_eq!(token.expires_at, restored.expires_at);
     }
 
+    #[cfg(feature = "reqwest")]
     #[tokio::test]
     async fn exchange_reports_the_server_error() {
         let server = MockServer::start().await;
@@ -592,6 +598,7 @@ mod tests {
         assert_eq!(Some(400), error.http_status());
     }
 
+    #[cfg(feature = "reqwest")]
     #[tokio::test]
     async fn exchange_wants_its_required_fields() {
         let error = OAuthClient::default()
@@ -603,6 +610,7 @@ mod tests {
         assert_eq!("token endpoint is required", error.message());
     }
 
+    #[cfg(feature = "reqwest")]
     #[tokio::test]
     async fn exchange_wants_an_install_id() {
         let request = ExchangeRequest {
@@ -620,6 +628,7 @@ mod tests {
         assert_eq!("install ID is required", error.message());
     }
 
+    #[cfg(feature = "reqwest")]
     #[tokio::test]
     async fn refresh_trades_a_refresh_token_for_a_token() {
         let server = MockServer::start().await;
@@ -651,6 +660,7 @@ mod tests {
         assert!(token.expires_at.is_some());
     }
 
+    #[cfg(feature = "reqwest")]
     #[tokio::test]
     async fn refresh_reports_an_unparsable_error_body() {
         let server = MockServer::start().await;
@@ -675,6 +685,7 @@ mod tests {
         assert_eq!(Some("upstream is down"), error.hint());
     }
 
+    #[cfg(feature = "reqwest")]
     #[tokio::test]
     async fn a_plain_http_token_endpoint_is_refused() {
         let request = RefreshRequest {

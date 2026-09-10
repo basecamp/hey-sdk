@@ -265,6 +265,7 @@ async fn nothing_is_cached_for_a_request_that_carries_no_credentials() {
 
     let client = Client::builder(Config::default().with_base_url(server.uri()))
         .auth_strategy(Anonymous)
+        .http_client(support::http_client())
         .cache(InMemoryCache::new())
         .build()
         .unwrap();

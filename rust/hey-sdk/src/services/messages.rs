@@ -223,7 +223,8 @@ pub(crate) fn entry_id_from_location(response: &Response) -> Result<i64, Error> 
     }
 }
 
-#[cfg(test)]
+// Wire tests on the shipped HTTP client; without the `reqwest` feature there is none.
+#[cfg(all(test, feature = "reqwest"))]
 mod tests {
     use std::time::Duration;
 

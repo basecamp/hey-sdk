@@ -4,7 +4,9 @@ use std::sync::Mutex;
 
 use async_trait::async_trait;
 use bytes::Bytes;
-use hey_sdk::http::{ReqwestClient, StatusCode};
+#[cfg(feature = "reqwest")]
+use hey_sdk::http::ReqwestClient;
+use hey_sdk::http::StatusCode;
 use hey_sdk::{Error, ErrorCode, FormResponse, TokenProvider};
 use wiremock::matchers::{header, method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
@@ -216,6 +218,7 @@ fn the_id_is_the_rightmost_numeric_segment_of_the_redirect() {
 /// A caller's own HTTP client replaces the one ordinary requests go out on, not the one the
 /// form requests use: that one has to refuse redirects, and a caller supplying a client that
 /// follows them would otherwise silently lose the `Location` every form write is made for.
+#[cfg(feature = "reqwest")]
 #[tokio::test]
 async fn a_supplied_http_client_still_has_its_redirects_captured() {
     let server = MockServer::start().await;

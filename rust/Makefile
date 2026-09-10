@@ -26,20 +26,28 @@ fmt-check:
 
 .PHONY: lint
 lint:
-	$(CARGO) clippy --workspace --all-targets -- -D warnings
+	$(CARGO) clippy --workspace --all-targets --all-features --locked -- -D warnings
 
 .PHONY: test
 test:
-	$(CARGO) test --workspace
+	$(CARGO) test --workspace --all-features --locked
+
+# The crate with the shipped HTTP client off. The library has to build without it, and the
+# test suite has to pass through a transport of the caller's own (tests/support), since that
+# is what the feature promises. The doctests are left out: they show the shipped client.
+.PHONY: no-default-features
+no-default-features:
+	$(CARGO) clippy -p hey-sdk --all-targets --no-default-features --locked -- -D warnings
+	$(CARGO) test -p hey-sdk --lib --tests --no-default-features --locked
 
 # Broken intra-doc links fail the build
 .PHONY: doc
 doc:
-	RUSTDOCFLAGS="-D warnings" $(CARGO) doc -p hey-sdk --no-deps
+	RUSTDOCFLAGS="-D warnings" $(CARGO) doc -p hey-sdk --no-deps --all-features --locked
 
-# Run all checks (local development gate)
+# Run all checks: the same steps as CI's test-rust job, in the same order
 .PHONY: check
-check: fmt-check lint test doc
+check: fmt-check lint test no-default-features doc
 
 .PHONY: clean
 clean:
@@ -49,12 +57,13 @@ clean:
 help:
 	@echo "HEY Rust SDK Makefile targets:"
 	@echo ""
-	@echo "  generate        Regenerate src/generated from openapi.json"
-	@echo "  generate-check  Verify src/generated is up to date"
-	@echo "  fmt             Format code"
-	@echo "  fmt-check       Check formatting"
-	@echo "  lint            Run clippy with warnings denied"
-	@echo "  test            Run all tests"
-	@echo "  doc             Build the crate docs"
-	@echo "  check           fmt-check + lint + test + doc"
-	@echo "  clean           Remove build artifacts"
+	@echo "  generate             Regenerate src/generated from openapi.json"
+	@echo "  generate-check       Verify src/generated is up to date"
+	@echo "  fmt                  Format code"
+	@echo "  fmt-check            Check formatting"
+	@echo "  lint                 Run clippy with warnings denied"
+	@echo "  test                 Run all tests"
+	@echo "  no-default-features  Lint and test the crate without the shipped HTTP client"
+	@echo "  doc                  Build the crate docs"
+	@echo "  check                fmt-check + lint + test + no-default-features + doc"
+	@echo "  clean                Remove build artifacts"
