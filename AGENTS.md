@@ -86,10 +86,14 @@ the checked-in output matches the generator, not that the generator is right.
 `rs-check` is every step CI's `test-rust` job runs before it, in order — fmt, clippy,
 tests and docs with all features, clippy and tests again with `--no-default-features`, the
 examples, `cargo deny` over both workspaces, and `cargo package` — so a green
-`make rs-check rs-check-drift` locally is a green job. CI also builds the library on `rust-version` (`msrv-rust`), the docs on nightly as
-docs.rs would (`docs-rust`), and the public API against the pull request's base
-(`api-compat-rust`, `cargo semver-checks`; the `breaking` label skips it). The toolchain
-everything else runs on is pinned in `rust-toolchain.toml` at the repository root.
+`make rs-check rs-check-drift` locally is a green job. CI runs both as `make … CARGO=mbx`, so
+every cargo invocation goes through [mr-boxington](https://mr-boxington.jdx.dev) and a
+pull request that leaves `rust/` untouched can restore the workspace crate from main's cache
+instead of recompiling it; locally the Makefile's `CARGO` defaults to plain `cargo`. CI also
+builds the library on `rust-version` (`msrv-rust`), the docs on nightly as docs.rs would
+(`docs-rust`), and the public API against the pull request's base (`api-compat-rust`,
+`cargo semver-checks`; the `breaking` label skips it). The toolchain everything else runs on
+is pinned in `rust-toolchain.toml` at the repository root.
 
 `rust/hey-sdk/examples/*.rs` are the crate README's snippets as whole programs; they compile in
 the gate, so a change to the public API that breaks one shows up there.
