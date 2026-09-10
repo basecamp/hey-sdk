@@ -1,0 +1,4 @@
+msrv = "1.88"
+too-many-arguments-threshold = 8       # generated ops with many path params
+type-complexity-threshold = 300
+avoid-breaking-exported-api = true

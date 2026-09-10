@@ -31,7 +31,6 @@ pub fn render_mod(model: &Model) -> String {
 pub fn render_service(service: &Service) -> String {
     let name = struct_name(&service.name);
     let mut out = String::from(HEADER);
-    out.push_str("#![allow(clippy::too_many_arguments)]\n\n");
     out.push_str("use crate::client::Client;\n");
     out.push_str("use crate::error::Error;\n");
     out.push_str("use crate::generated::routes;\n");
