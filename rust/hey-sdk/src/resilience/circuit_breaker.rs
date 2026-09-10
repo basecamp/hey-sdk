@@ -1,4 +1,4 @@
-use std::sync::Mutex;
+use std::sync::{Mutex, PoisonError};
 use std::time::{Duration, Instant};
 
 use super::Clock;
@@ -21,6 +21,7 @@ pub struct CircuitBreakerConfig {
     pub failure_rate_threshold: f64,
     /// How many outcomes that rate is measured over.
     pub sliding_window_size: usize,
+    /// Where the breaker reads the time; see [`Clock`].
     pub clock: Clock,
 }
 
@@ -91,6 +92,7 @@ enum State {
 }
 
 impl CircuitBreaker {
+    /// A breaker at `config`, closed, with nothing in its window yet.
     pub fn new(config: CircuitBreakerConfig) -> CircuitBreaker {
         let config = config.normalised();
         let inner = Inner {
@@ -108,7 +110,7 @@ impl CircuitBreaker {
     /// Whether a call may go out. An open circuit that has served its timeout goes half-open
     /// here, on the way past, rather than on a timer of its own.
     pub fn allow(&self) -> bool {
-        let mut inner = self.inner.lock().unwrap();
+        let mut inner = self.inner.lock().unwrap_or_else(PoisonError::into_inner);
         match inner.state {
             State::Closed { .. } | State::HalfOpen { .. } => true,
             State::Open { since } => {
@@ -124,8 +126,10 @@ impl CircuitBreaker {
         }
     }
 
+    /// Told a call succeeded: one more toward closing a half-open circuit, and a fresh
+    /// start for a closed one's count of failures.
     pub fn record_success(&self) {
-        let mut inner = self.inner.lock().unwrap();
+        let mut inner = self.inner.lock().unwrap_or_else(PoisonError::into_inner);
         inner.record(true);
         inner.state = match inner.state {
             State::HalfOpen { successes } if successes + 1 >= self.config.success_threshold => {
@@ -139,9 +143,11 @@ impl CircuitBreaker {
         };
     }
 
+    /// Told a call failed: one more toward opening a closed circuit, and straight back to
+    /// open for a half-open one.
     pub fn record_failure(&self) {
         let now = self.config.clock.now();
-        let mut inner = self.inner.lock().unwrap();
+        let mut inner = self.inner.lock().unwrap_or_else(PoisonError::into_inner);
         inner.record(false);
         inner.state = match inner.state {
             State::Closed { failures }
@@ -159,7 +165,12 @@ impl CircuitBreaker {
 
     /// The state as the other SDKs name it: `closed`, `open` or `half-open`.
     pub fn state(&self) -> &'static str {
-        match self.inner.lock().unwrap().state {
+        match self
+            .inner
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .state
+        {
             State::Closed { .. } => "closed",
             State::Open { .. } => "open",
             State::HalfOpen { .. } => "half-open",
@@ -178,6 +189,7 @@ impl Inner {
 
     /// The share of the window that failed, as a percentage. A window that has not been
     /// round once yet has nothing to say, so it answers zero.
+    #[allow(clippy::cast_precision_loss)] // the window is a Vec<bool> held in memory, nowhere near 2^52 long
     fn failure_rate(&self) -> f64 {
         if self.filled {
             let failures = self.window.iter().filter(|success| !**success).count();

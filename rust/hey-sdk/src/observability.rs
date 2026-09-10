@@ -24,8 +24,9 @@ pub struct OperationInfo {
     pub service: Cow<'static, str>,
     /// The operation as the model names it: `ListBoxes`, `MovePostings`.
     pub operation: Cow<'static, str>,
-    /// The kind of record the call acts on, snake_cased: `box`, `time_track`.
+    /// The kind of record the call acts on, `snake_cased`: `box`, `time_track`.
     pub resource_type: Cow<'static, str>,
+    /// Whether the call changes something in HEY rather than reading it.
     pub is_mutation: bool,
     /// The record the path names, when it names one.
     pub resource_id: Option<i64>,
@@ -35,8 +36,11 @@ pub struct OperationInfo {
 /// across the whole operation, the resend after a credential refresh included.
 #[derive(Debug, Clone)]
 pub struct RequestInfo {
+    /// The HTTP method the request goes out with.
     pub method: Method,
+    /// Where it goes, query string and account scope included.
     pub url: Url,
+    /// Which attempt at the operation this is.
     pub attempt: u32,
 }
 
@@ -109,6 +113,8 @@ pub trait Hooks: Send + Sync {
         Ok(())
     }
 
+    /// Told the operation is about to send. Whatever it hands back is carried through the
+    /// operation and given to [`Hooks::on_operation_end`].
     fn on_operation_start(&self, _op: &OperationInfo) -> OperationState {
         None
     }
@@ -124,8 +130,10 @@ pub trait Hooks: Send + Sync {
     ) {
     }
 
+    /// Told one HTTP request is about to go out.
     fn on_request_start(&self, _info: &RequestInfo) {}
 
+    /// Told how one HTTP request turned out, once its body has been dealt with.
     fn on_request_end(&self, _info: &RequestInfo, _result: &RequestResult<'_>) {}
 
     /// Told about a resend before it is made: the attempt that failed in `info`, the one
@@ -390,7 +398,7 @@ mod tests {
     }
 
     impl Recorder {
-        fn record(&self, event: String) {
+        fn record(&self, event: &str) {
             self.entries
                 .lock()
                 .unwrap()
@@ -401,12 +409,12 @@ mod tests {
     #[async_trait]
     impl Hooks for Recorder {
         async fn on_operation_gate(&self, op: &OperationInfo) -> Result<(), Error> {
-            self.record(format!("gate {}.{}", op.service, op.operation));
+            self.record(&format!("gate {}.{}", op.service, op.operation));
             Ok(())
         }
 
         fn on_operation_start(&self, op: &OperationInfo) -> OperationState {
-            self.record(format!("start {}.{}", op.service, op.operation));
+            self.record(&format!("start {}.{}", op.service, op.operation));
             Some(Box::new(self.name.to_string()))
         }
 
@@ -421,22 +429,22 @@ mod tests {
                 Some(name) => *name,
                 None => "nothing".to_string(),
             };
-            self.record(format!(
+            self.record(&format!(
                 "end {}.{} carrying {carried}",
                 op.service, op.operation
             ));
         }
 
         fn on_request_start(&self, info: &RequestInfo) {
-            self.record(format!("request start {}", info.attempt));
+            self.record(&format!("request start {}", info.attempt));
         }
 
         fn on_request_end(&self, _info: &RequestInfo, result: &RequestResult<'_>) {
-            self.record(format!("request end {}", result.status.unwrap().as_u16()));
+            self.record(&format!("request end {}", result.status.unwrap().as_u16()));
         }
 
         fn on_retry(&self, _info: &RequestInfo, next_attempt: u32, _cause: &Error) {
-            self.record(format!("retry {next_attempt}"));
+            self.record(&format!("retry {next_attempt}"));
         }
     }
 

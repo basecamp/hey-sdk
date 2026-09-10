@@ -22,11 +22,16 @@ const MAX_TOKEN_RESPONSE_BYTES: usize = 1 << 20;
 /// What an OAuth 2.0 server publishes about itself at its well-known endpoint.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ServerMetadata {
+    /// Who issues the tokens, as the server names itself.
     pub issuer: String,
+    /// Where to send someone to approve the client.
     pub authorization_endpoint: String,
+    /// Where codes and refresh tokens are traded for tokens.
     pub token_endpoint: String,
+    /// Where a client registers itself, on a server that lets it.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub registration_endpoint: Option<String>,
+    /// The scopes the server knows, when it lists them.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub scopes_supported: Option<Vec<String>>,
 }
@@ -60,15 +65,21 @@ impl ServerMetadata {
 /// server sent, but `[REDACTED]` under `{:?}`.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Token {
+    /// What goes in `Authorization` on every request.
     pub access_token: SensitiveString,
+    /// What buys the next access token once this one is spent, when the server issued one.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub refresh_token: Option<SensitiveString>,
+    /// How the access token is presented: `Bearer`, for HEY.
     #[serde(default)]
     pub token_type: String,
+    /// How many seconds the access token was good for when the server answered.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub expires_in: Option<u64>,
+    /// What the token was granted, when the server said.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub scope: Option<String>,
+    /// The moment the access token is spent, worked out from `expires_in` on arrival.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub expires_at: Option<DateTime<Utc>>,
 }
@@ -78,7 +89,9 @@ pub struct Token {
 /// `[REDACTED]`; the challenge goes out in the authorization URL and is public.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Pkce {
+    /// The secret half, redeemed with the code at the token endpoint.
     pub verifier: SensitiveString,
+    /// The public half, sent in the authorization URL.
     pub challenge: String,
 }
 
@@ -134,10 +147,15 @@ pub fn authorization_url(
 /// halves worth stealing, so both print as `[REDACTED]`.
 #[derive(Debug, Clone, Default)]
 pub struct ExchangeRequest {
+    /// Where the code is traded: [`ServerMetadata::token_endpoint`].
     pub token_endpoint: String,
+    /// The authorization code the redirect carried back.
     pub code: SensitiveString,
+    /// The redirect URI the authorization request named; the server checks they match.
     pub redirect_uri: String,
+    /// The client the code was issued to.
     pub client_id: String,
+    /// The client's secret, for a client that was issued one.
     pub client_secret: Option<SensitiveString>,
     /// The verifier [`generate_pkce`] drew, which redeems the code and so is a secret of the
     /// same weight.
@@ -150,9 +168,13 @@ pub struct ExchangeRequest {
 /// Trades a refresh token for a new access token.
 #[derive(Debug, Clone, Default)]
 pub struct RefreshRequest {
+    /// Where the refresh token is traded: [`ServerMetadata::token_endpoint`].
     pub token_endpoint: String,
+    /// The refresh token the last [`Token`] carried.
     pub refresh_token: SensitiveString,
+    /// The client the tokens were issued to. Left empty, it is not sent.
     pub client_id: String,
+    /// The client's secret, for a client that was issued one.
     pub client_secret: Option<SensitiveString>,
     /// The installation identifier the tokens were issued to. HEY refuses the refresh
     /// without it.
@@ -170,12 +192,15 @@ pub struct OAuthClient {
 }
 
 impl OAuthClient {
+    /// A client that sends on `http`.
     pub fn new(http: impl HttpClient + 'static) -> OAuthClient {
         OAuthClient {
             http: Arc::new(http),
         }
     }
 
+    /// What the server under `base_url` publishes at its well-known endpoint. HEY publishes
+    /// nothing there; [`ServerMetadata::for_hey`] is its answer.
     pub async fn discover(&self, base_url: &str) -> Result<ServerMetadata, Error> {
         let url = format!(
             "{}/.well-known/oauth-authorization-server",
@@ -203,6 +228,8 @@ impl OAuthClient {
         }
     }
 
+    /// Trades the code in `request` for a [`Token`]. A request missing anything HEY needs
+    /// is refused before it is sent.
     pub async fn exchange(&self, request: &ExchangeRequest) -> Result<Token, Error> {
         require(&request.token_endpoint, "token endpoint is required")?;
         require(request.code.expose(), "authorization code is required")?;
@@ -214,6 +241,8 @@ impl OAuthClient {
             .await
     }
 
+    /// Trades the refresh token in `request` for a new [`Token`]. A request missing anything
+    /// HEY needs is refused before it is sent.
     pub async fn refresh(&self, request: &RefreshRequest) -> Result<Token, Error> {
         require(&request.token_endpoint, "token endpoint is required")?;
         require(request.refresh_token.expose(), "refresh token is required")?;
@@ -325,7 +354,7 @@ async fn read_truncated(response: Response<Body>, limit: usize) -> String {
 }
 
 fn expires_at(seconds: u64) -> Option<DateTime<Utc>> {
-    let lifetime = TimeDelta::try_seconds(seconds as i64)?;
+    let lifetime = TimeDelta::try_seconds(i64::try_from(seconds).ok()?)?;
     Utc::now().checked_add_signed(lifetime)
 }
 

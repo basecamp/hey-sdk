@@ -9,8 +9,9 @@ use crate::error::Error;
 ///
 /// `max_concurrent` of zero reads as "leave it at the default", the same normalising Go
 /// does. A `max_wait` of zero means a caller never waits: a full bulkhead refuses at once.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub struct BulkheadConfig {
+    /// How many calls of one scope may run at once.
     pub max_concurrent: usize,
     /// How long [`Bulkhead::acquire`] waits for a permit, and so how long the client's own
     /// gate holds a call back before refusing it.
@@ -39,6 +40,7 @@ pub struct Bulkhead {
 pub type BulkheadPermit = OwnedSemaphorePermit;
 
 impl Bulkhead {
+    /// A bulkhead of `config`'s width, with every place free.
     pub fn new(config: BulkheadConfig) -> Bulkhead {
         let max_concurrent = match config.max_concurrent {
             0 => BulkheadConfig::default().max_concurrent,

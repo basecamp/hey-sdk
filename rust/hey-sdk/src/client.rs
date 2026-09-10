@@ -29,8 +29,11 @@ use crate::services::boxes::BoxKinds;
 use crate::trace::{AttemptSpan, OperationSpan, label};
 use crate::version::default_user_agent;
 
+/// How long the HTTP client the SDK ships gives an answer to arrive.
 pub const DEFAULT_TIMEOUT: Duration = Duration::from_secs(30);
+/// How many times an idempotent operation is resent after a transient failure.
 pub const DEFAULT_MAX_RETRIES: u32 = 3;
+/// The wait before the first resend; each one after doubles it.
 pub const DEFAULT_BASE_DELAY: Duration = Duration::from_secs(1);
 /// The longest the client waits between attempts, however many it has made.
 ///
@@ -40,8 +43,12 @@ pub const DEFAULT_BASE_DELAY: Duration = Duration::from_secs(1);
 /// back. The circuit breaker is what should give up on that scope; the backoff's job is to
 /// stop hammering, and thirty seconds does it. Move it with [`ClientBuilder::max_delay`].
 pub const DEFAULT_MAX_DELAY: Duration = Duration::from_secs(30);
+/// The most added at random to each wait, so resends from many clients do not land
+/// together.
 pub const DEFAULT_MAX_JITTER: Duration = Duration::from_millis(100);
+/// How many pages a walk reads before it stops.
 pub const DEFAULT_MAX_PAGES: usize = 10_000;
+/// The most a JSON or HTML answer may deliver before the client refuses to hold it.
 pub const DEFAULT_MAX_RESPONSE_BODY_BYTES: usize = 16 << 20;
 
 /// The most the client buffers of an answer the configurable cap leaves alone: a blob, an
@@ -97,10 +104,16 @@ pub(crate) struct ScopeState {
 /// What came back from HEY, before it is decoded.
 #[derive(Debug, Clone)]
 pub struct Response {
+    /// What HEY answered.
     pub status: StatusCode,
+    /// The headers that came with it.
     pub headers: HeaderMap,
+    /// The body, read whole.
     pub body: Bytes,
+    /// Where the answer came from, once any redirects were followed.
     pub url: Url,
+    /// The body came out of the response cache: HEY answered 304 and the SDK read the
+    /// entry it was holding.
     pub from_cache: bool,
     /// The operation takes this status for an answer rather than a failure: a 404 that
     /// means "nothing there", or the redirect a form request went out to collect.
@@ -108,6 +121,7 @@ pub struct Response {
 }
 
 impl Response {
+    /// The body decoded as `T`. An empty body is refused rather than decoded as nothing.
     pub fn json<T: DeserializeOwned>(&self) -> Result<T, Error> {
         if self.body.is_empty() {
             Err(Error::api(self.status.as_u16(), "empty response body"))
@@ -116,11 +130,14 @@ impl Response {
         }
     }
 
+    /// One header's value, when HEY sent it and it is text.
     pub fn header(&self, name: &str) -> Option<&str> {
         self.headers.get(name).and_then(|value| value.to_str().ok())
     }
 }
 
+/// How a [`Client`] is put together: credentials, the HTTP client, the retry budget, the
+/// cache and the hooks, each with a default a caller can move.
 pub struct ClientBuilder {
     config: Config,
     auth: Option<Arc<dyn AuthStrategy>>,
@@ -138,6 +155,7 @@ pub struct ClientBuilder {
 }
 
 impl ClientBuilder {
+    /// A builder for `config`, at the defaults and without credentials.
     pub fn new(config: Config) -> ClientBuilder {
         ClientBuilder {
             config,
@@ -156,10 +174,14 @@ impl ClientBuilder {
         }
     }
 
+    /// Authenticates with a bearer token drawn from `provider` for each request.
+    #[must_use]
     pub fn token_provider(self, provider: impl TokenProvider + 'static) -> ClientBuilder {
         self.auth_strategy(BearerAuth::new(provider))
     }
 
+    /// Authenticates however `strategy` does: the way in for anything but a bearer token.
+    #[must_use]
     pub fn auth_strategy(mut self, strategy: impl AuthStrategy + 'static) -> ClientBuilder {
         self.auth = Some(Arc::new(strategy));
         self
@@ -169,11 +191,14 @@ impl ClientBuilder {
     /// that go to the storage service. The one supplied must not follow redirects; see
     /// [`HttpClient`]. The timeout set on the builder is then ignored — a timeout belongs to
     /// the client that can enforce it.
+    #[must_use]
     pub fn http_client(mut self, http: impl HttpClient + 'static) -> ClientBuilder {
         self.http = Some(Arc::new(http));
         self
     }
 
+    /// What the client calls itself in `User-Agent`.
+    #[must_use]
     pub fn user_agent(mut self, user_agent: impl Into<String>) -> ClientBuilder {
         self.user_agent = user_agent.into();
         self
@@ -181,6 +206,7 @@ impl ClientBuilder {
 
     /// How long the HTTP client the SDK ships gives an answer to arrive. It has no effect on
     /// one supplied with [`ClientBuilder::http_client`].
+    #[must_use]
     pub fn timeout(mut self, timeout: Duration) -> ClientBuilder {
         self.timeout = timeout;
         self
@@ -190,6 +216,7 @@ impl ClientBuilder {
     /// route is resent as many times as its own policy allows and no more; this only
     /// lowers that. A path the caller wrote, which no policy covers, is resent this many
     /// times when its method is idempotent.
+    #[must_use]
     pub fn max_retries(mut self, max_retries: u32) -> ClientBuilder {
         self.max_retries = max_retries;
         self
@@ -200,6 +227,7 @@ impl ClientBuilder {
     /// from this, or from [`DEFAULT_BASE_DELAY`] when it is not set. Each wait after the
     /// first is double the one before. [`ClientBuilder::max_delay`] holds every wait down,
     /// this one included.
+    #[must_use]
     pub fn base_delay(mut self, base_delay: Duration) -> ClientBuilder {
         self.base_delay = Some(base_delay);
         self
@@ -208,16 +236,23 @@ impl ClientBuilder {
     /// The most the client waits between attempts, jitter included, whatever the policy,
     /// the backoff or [`ClientBuilder::base_delay`] asks for. The wait a `Retry-After`
     /// names is honoured as given.
+    #[must_use]
     pub fn max_delay(mut self, max_delay: Duration) -> ClientBuilder {
         self.max_delay = max_delay;
         self
     }
 
+    /// The most added at random to each wait, so resends from many clients do not land
+    /// together.
+    #[must_use]
     pub fn max_jitter(mut self, max_jitter: Duration) -> ClientBuilder {
         self.max_jitter = max_jitter;
         self
     }
 
+    /// How many pages [`Client::each_page`] reads before it stops. Zero is refused by
+    /// [`ClientBuilder::build`].
+    #[must_use]
     pub fn max_pages(mut self, max_pages: usize) -> ClientBuilder {
         self.max_pages = max_pages;
         self
@@ -225,13 +260,15 @@ impl ClientBuilder {
 
     /// The most a JSON or HTML answer may deliver before the client refuses to hold it.
     /// Zero asks for the default: the cap cannot be lifted, only moved.
+    #[must_use]
     pub fn max_response_body_bytes(mut self, bytes: usize) -> ClientBuilder {
         self.max_response_body_bytes = bytes;
         self
     }
 
-    /// Caches JSON reads by ETag. Without this, `config.cache_enabled` decides whether a
+    /// Caches JSON reads by `ETag`. Without this, `config.cache_enabled` decides whether a
     /// [`FileCache`] in `config.cache_dir` is used.
+    #[must_use]
     pub fn cache(mut self, cache: impl ResponseCache + 'static) -> ClientBuilder {
         self.cache = Some(Arc::new(cache));
         self
@@ -239,11 +276,14 @@ impl ClientBuilder {
 
     /// Reports every operation and every request the client makes. Several sets of hooks
     /// go on as one with [`crate::observability::ChainHooks`].
+    #[must_use]
     pub fn hooks(mut self, hooks: impl Hooks + 'static) -> ClientBuilder {
         self.hooks = Arc::new(hooks);
         self
     }
 
+    /// The client, or a usage error for a builder without credentials, with no timeout, or
+    /// with no pages to read.
     pub fn build(self) -> Result<Client, Error> {
         let base_url = parse_base_url(&self.config.base_url)?;
         let auth = self
@@ -294,6 +334,7 @@ impl ClientBuilder {
 }
 
 impl Client {
+    /// A [`ClientBuilder`] for `config`, at the defaults.
     pub fn builder(config: Config) -> ClientBuilder {
         ClientBuilder::new(config)
     }
@@ -307,10 +348,12 @@ impl Client {
         Client::builder(config).token_provider(provider).build()
     }
 
+    /// The configuration this client was built from.
     pub fn config(&self) -> &Config {
         &self.shared.config
     }
 
+    /// Where HEY is, with the trailing slash every path is joined to.
     pub fn base_url(&self) -> &Url {
         &self.shared.base_url
     }
@@ -320,6 +363,7 @@ impl Client {
         self.account_id
     }
 
+    /// How many pages a walk reads before it stops.
     pub fn max_pages(&self) -> usize {
         self.shared.max_pages
     }
@@ -581,6 +625,7 @@ impl Client {
 
     /// Sends the operation as many times as its retry budget and HEY's answers call for,
     /// and hands back the answer it stopped on with the body still unread.
+    #[allow(clippy::too_many_lines)] // one loop, read as one: every way out of an attempt is in view
     async fn attempt(&self, operation: &Operation, url: &Url) -> Result<Answered, Error> {
         let hooks = &self.shared.hooks;
         let budget = self.budget(operation);
@@ -712,15 +757,14 @@ impl Client {
     }
 
     pub(crate) fn url_for(&self, operation: &Operation) -> Result<Url, Error> {
-        let mut url = match &operation.url {
-            Some(url) => url.clone(),
-            None => {
-                let mut path = operation.path.clone();
-                if operation.json_suffix {
-                    path = with_json_extension(&path);
-                }
-                self.shared.base_url.join(path.trim_start_matches('/'))?
+        let mut url = if let Some(url) = &operation.url {
+            url.clone()
+        } else {
+            let mut path = operation.path.clone();
+            if operation.json_suffix {
+                path = with_json_extension(&path);
             }
+            self.shared.base_url.join(path.trim_start_matches('/'))?
         };
         if !operation.query.is_empty() {
             url.query_pairs_mut().extend_pairs(&operation.query);
@@ -999,7 +1043,9 @@ impl Client {
     fn jitter(&self) -> Duration {
         match self.shared.max_jitter.as_millis() {
             0 => Duration::ZERO,
-            millis => Duration::from_millis(rand::random_range(0..millis as u64)),
+            millis => Duration::from_millis(rand::random_range(
+                0..u64::try_from(millis).unwrap_or(u64::MAX),
+            )),
         }
     }
 
