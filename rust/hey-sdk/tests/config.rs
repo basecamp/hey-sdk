@@ -193,10 +193,14 @@ fn environment() -> MutexGuard<'static, ()> {
     guard
 }
 
+// Setting a process's environment is unsafe since edition 2024; these run under the lock
+// above, one test at a time, which is the condition the safety of `set_var` asks for.
+#[allow(unsafe_code)]
 fn set(name: &str, value: &str) {
     unsafe { env::set_var(name, value) };
 }
 
+#[allow(unsafe_code)]
 fn clear() {
     for name in VARIABLES {
         unsafe { env::remove_var(name) };

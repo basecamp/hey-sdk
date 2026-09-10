@@ -87,7 +87,7 @@ tracing-subscriber = { version = "0.3", default-features = false, features = ["r
 wiremock = "0.6"
 
 [lints.rust]
-unsafe_code = "forbid"
+unsafe_code = "deny"                # forbid in lib.rs; deny here so the one test that must set an env var can say so
 missing_docs = "warn"
 unreachable_pub = "warn"
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(docsrs)'] }
