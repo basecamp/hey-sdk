@@ -1,3 +1,5 @@
+//! `get_all`: walking a paginated path to its end, the page cap and what it announces.
+
 mod support;
 
 use std::sync::{Arc, Mutex};

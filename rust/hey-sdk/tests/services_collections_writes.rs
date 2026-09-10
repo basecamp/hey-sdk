@@ -1,3 +1,5 @@
+//! Wire-level tests for what the `collections` service writes, against literal bodies.
+
 mod support;
 
 use hey_sdk::services::{CreateCollectionParams, UpdateCollectionParams};
@@ -124,7 +126,7 @@ async fn filing_a_topic_names_the_collection_in_the_query_and_posts_an_empty_for
 
     client(&server)
         .collections()
-        .add_topic(4471829, 3)
+        .add_topic(4_471_829, 3)
         .await
         .unwrap();
 
@@ -150,7 +152,7 @@ async fn taking_a_topic_back_out_deletes_the_same_path() {
 
     client(&server)
         .collections()
-        .remove_topic(4471829, 3)
+        .remove_topic(4_471_829, 3)
         .await
         .unwrap();
 

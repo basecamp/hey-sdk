@@ -8,11 +8,11 @@ use hey_sdk::observability::{Hooks, OperationInfo, OperationState};
 use hey_sdk::{Client, ClientBuilder, Config, Error, StaticTokenProvider};
 use wiremock::MockServer;
 
-pub const TOKEN: &str = "test-token";
+pub(crate) const TOKEN: &str = "test-token";
 
 /// A client pointed at the mock server. The backoff is wound right down so a test that
 /// exercises retries still runs in milliseconds, and the jitter is off so it is repeatable.
-pub fn builder(server: &MockServer) -> ClientBuilder {
+pub(crate) fn builder(server: &MockServer) -> ClientBuilder {
     Client::builder(Config::default().with_base_url(server.uri()))
         .token_provider(StaticTokenProvider::new(TOKEN))
         .http_client(http_client())
@@ -27,12 +27,12 @@ pub fn builder(server: &MockServer) -> ClientBuilder {
 /// over the dev-dependency: the same suite then proves the feature's promise, that nothing
 /// above the [`HttpClient`] seam needs the shipped client.
 #[cfg(feature = "reqwest")]
-pub fn http_client() -> impl HttpClient + 'static {
+pub(crate) fn http_client() -> impl HttpClient + 'static {
     hey_sdk::http::ReqwestClient::default()
 }
 
 #[cfg(not(feature = "reqwest"))]
-pub fn http_client() -> impl HttpClient + 'static {
+pub(crate) fn http_client() -> impl HttpClient + 'static {
     transport::DevTransport::default()
 }
 
@@ -91,19 +91,19 @@ mod transport {
     }
 }
 
-pub fn client(server: &MockServer) -> Client {
+pub(crate) fn client(server: &MockServer) -> Client {
     builder(server).build().unwrap()
 }
 
 /// What each operation announced itself as, in the order they started. For the calls that
 /// take more than one request: this says how many operations the hooks were told that was.
 #[derive(Default)]
-pub struct Operations {
+pub(crate) struct Operations {
     started: Mutex<Vec<String>>,
 }
 
 impl Operations {
-    pub fn started(&self) -> Vec<String> {
+    pub(crate) fn started(&self) -> Vec<String> {
         self.started.lock().unwrap().clone()
     }
 }
@@ -121,12 +121,12 @@ impl Hooks for Operations {
 /// How each operation ended, as its status: `None` where it succeeded. For the reads whose
 /// answer to the caller is not the answer the hooks are told about.
 #[derive(Default)]
-pub struct Outcomes {
+pub(crate) struct Outcomes {
     statuses: Mutex<Vec<Option<u16>>>,
 }
 
 impl Outcomes {
-    pub fn statuses(&self) -> Vec<Option<u16>> {
+    pub(crate) fn statuses(&self) -> Vec<Option<u16>> {
         self.statuses.lock().unwrap().clone()
     }
 }

@@ -1,3 +1,5 @@
+//! Wire-level tests for the `extenzions` service: what each call sends and how it reads what HEY answers, against literal bodies.
+
 mod support;
 
 use std::sync::Arc;

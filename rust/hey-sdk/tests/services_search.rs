@@ -1,3 +1,5 @@
+//! Wire-level tests for the `search` service: what each call sends and how it reads what HEY answers, against literal bodies.
+
 mod support;
 
 use std::collections::HashMap;
@@ -17,7 +19,7 @@ async fn a_search_sends_the_refinements_it_was_given_and_no_others() {
         .respond_with(ResponseTemplate::new(200).set_body_json(json!({
             "matches": [{
                 "topic": { "id": 331, "name": "Kitchen remodel" },
-                "posting_id": 4471829,
+                "posting_id": 4_471_829,
                 "entries": [{ "id": 5512, "summary": "The cabinets arrive on Tuesday", "kind": "message" }]
             }]
         })))
@@ -37,7 +39,7 @@ async fn a_search_sends_the_refinements_it_was_given_and_no_others() {
     let matched = &result.matches[0];
     assert_eq!(matched.topic.id, 331);
     assert_eq!(matched.topic.name.as_deref(), Some("Kitchen remodel"));
-    assert_eq!(matched.posting_id, Some(4471829));
+    assert_eq!(matched.posting_id, Some(4_471_829));
     let entries = matched.entries.as_ref().unwrap();
     assert_eq!(
         entries[0].summary.as_deref(),
@@ -86,7 +88,7 @@ async fn search_numbers_the_page_that_comes_next_and_the_last_one_names_none() {
         .and(query_param("page", "3"))
         .respond_with(
             ResponseTemplate::new(200).set_body_json(json!({ "matches": [
-            { "topic": { "id": 331, "name": "Kitchen remodel" }, "posting_id": 4471829 }
+            { "topic": { "id": 331, "name": "Kitchen remodel" }, "posting_id": 4_471_829 }
         ] })),
         )
         .mount(&server)
@@ -101,7 +103,7 @@ async fn search_numbers_the_page_that_comes_next_and_the_last_one_names_none() {
                     r#"</advanced_search.json?q=cabinets&page=3>; rel="next""#,
                 )
                 .set_body_json(json!({ "matches": [
-                    { "topic": { "id": 332, "name": "Cabinet estimate" }, "posting_id": 4471830 }
+                    { "topic": { "id": 332, "name": "Cabinet estimate" }, "posting_id": 4_471_830 }
                 ] })),
         )
         .mount(&server)

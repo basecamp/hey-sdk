@@ -1,3 +1,5 @@
+//! Form-backed writes: how a browser form request is built, sent and answered.
+
 mod support;
 
 use std::sync::Mutex;

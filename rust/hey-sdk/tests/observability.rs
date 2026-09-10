@@ -1,3 +1,5 @@
+//! What the hooks hear: every operation and request the client makes, in order, with what it meant.
+
 mod support;
 
 use std::sync::{Arc, Mutex};
@@ -94,7 +96,7 @@ async fn a_read_of_one_record_names_it() {
         .build()
         .unwrap()
         .boxes()
-        .get(123, &Default::default())
+        .get(123, &hey_sdk::services::boxes::GetBoxParams::default())
         .await
         .unwrap();
 
@@ -447,9 +449,10 @@ impl Hooks for Recorder {
     }
 
     fn on_retry(&self, info: &RequestInfo, next_attempt: u32, cause: &Error) {
-        let retryable = match cause.is_retryable() {
-            true => "retryable",
-            false => "final",
+        let retryable = if cause.is_retryable() {
+            "retryable"
+        } else {
+            "final"
         };
         self.retries.lock().unwrap().push(format!(
             "{} -> {next_attempt} {} {} {retryable}",

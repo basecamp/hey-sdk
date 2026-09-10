@@ -1,3 +1,5 @@
+//! Wire-level tests for the `calendar_events` service: what each call sends and how it reads what HEY answers, against literal bodies.
+
 mod support;
 
 use std::time::Duration;
@@ -174,7 +176,7 @@ async fn a_create_carries_its_content_guests_countdown_and_recurrence() {
                 notes: "<div>Bring the <strong>roadmap</strong>.</div>".to_string(),
                 location: "Meeting Room 2".to_string(),
                 link: Some("https://meet.google.com/abc-defg-hij".to_string()),
-                entry_id: Some(884213),
+                entry_id: Some(884_213),
             },
             attendees: Some(vec![
                 "marta.kowalska@example.com".to_string(),
@@ -408,7 +410,7 @@ async fn clearing_the_zones_sends_the_flag_off_and_names_neither_end() {
     );
 }
 
-/// Turning the circle off needs the empty highlight_id: without it HEY reads highlighted=0
+/// Turning the circle off needs the empty `highlight_id`: without it HEY reads highlighted=0
 /// as a request to build a highlight, which turns the circle on.
 #[tokio::test]
 async fn circling_and_uncircling_both_carry_the_empty_highlight_id() {
@@ -573,7 +575,7 @@ async fn an_occurrence_update_names_the_day_and_keeps_the_series_repeating() {
         .await
         .unwrap();
 
-    assert_eq!(recording.id, 153688908);
+    assert_eq!(recording.id, 153_688_908);
     let requests = server.received_requests().await.unwrap();
     assert_eq!(
         requests[0].url.path(),
@@ -775,7 +777,7 @@ async fn the_narrow_revision_carries_the_clock_times_to_the_second() {
 fn occurrence_ids_round_trip() {
     let occurrence: OccurrenceId = "153688907_2026-08-21".parse().unwrap();
 
-    assert_eq!(occurrence.event_id, 153688907);
+    assert_eq!(occurrence.event_id, 153_688_907);
     assert_eq!(occurrence.date, Date::new(2026, 8, 21).unwrap());
     assert_eq!(occurrence.to_string(), "153688907_2026-08-21");
 }
@@ -837,7 +839,7 @@ async fn mock_occurrence_update(server: &MockServer) {
         ))
         .respond_with(
             ResponseTemplate::new(200)
-                .set_body_json(json!({ "id": 153688908, "type": "Calendar::Event" })),
+                .set_body_json(json!({ "id": 153_688_908, "type": "Calendar::Event" })),
         )
         .mount(server)
         .await;

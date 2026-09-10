@@ -1,3 +1,5 @@
+//! `Config`: its defaults, the file it reads and the environment that overrides it.
+
 use std::env;
 use std::fs;
 use std::path::PathBuf;
@@ -188,7 +190,7 @@ fn the_origin_is_the_base_url_without_its_trailing_slash() {
 fn environment() -> MutexGuard<'static, ()> {
     let guard = ENVIRONMENT
         .lock()
-        .unwrap_or_else(|poison| poison.into_inner());
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     clear();
     guard
 }

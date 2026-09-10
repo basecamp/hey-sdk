@@ -1,3 +1,5 @@
+//! Wire-level tests for the `calendar_periods` service: what each call sends and how it reads what HEY answers, against literal bodies.
+
 mod support;
 
 use serde_json::{Value, json};
@@ -154,7 +156,7 @@ fn day() -> Value {
         "kind": "day",
         "recordings": {
             "Calendar::Event": [
-                { "id": 161645836, "type": "Calendar::Event", "title": "Weekly Catchup",
+                { "id": 161_645_836, "type": "Calendar::Event", "title": "Weekly Catchup",
                   "starts_at": "2026-08-22T14:00:00Z", "ends_at": "2026-08-22T14:30:00Z",
                   "recurring": true, "occurrence_id": "161645836_2026-08-22" }
             ],

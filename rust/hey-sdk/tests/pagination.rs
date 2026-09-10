@@ -1,3 +1,5 @@
+//! `Page` and `next_page`: the `Link` cursor, `X-Total-Count`, and the origin a cursor may not leave.
+
 mod support;
 
 use hey_sdk::ErrorCode;
@@ -118,7 +120,11 @@ async fn a_link_that_leaves_the_hey_origin_is_refused() {
 
     let client = client(&server);
     let boxes = client.boxes().list().await.unwrap();
-    let contacts = client.contacts().list(&Default::default()).await.unwrap();
+    let contacts = client
+        .contacts()
+        .list(&hey_sdk::services::contacts::ListContactsParams::default())
+        .await
+        .unwrap();
     let elsewhere = client.next_page(&boxes).await.unwrap_err();
     let other_scheme = client.next_page(&contacts).await.unwrap_err();
 

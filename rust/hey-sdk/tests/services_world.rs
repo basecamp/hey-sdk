@@ -1,3 +1,5 @@
+//! Wire-level tests for the `world` service: what each call sends and how it reads what HEY answers, against literal bodies.
+
 mod support;
 
 use hey_sdk::ErrorCode;

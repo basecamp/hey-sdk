@@ -1,3 +1,5 @@
+//! Wire-level tests for the `workflows` service: what each call sends and how it reads what HEY answers, against literal bodies.
+
 mod support;
 
 use std::sync::Arc;
@@ -190,7 +192,7 @@ async fn staging_a_topic_files_it_then_moves_it_to_the_stage_asked_for() {
         .build()
         .unwrap()
         .workflows()
-        .stage_topic(4471829, 8801, 5512)
+        .stage_topic(4_471_829, 8801, 5512)
         .await
         .unwrap();
 
@@ -233,7 +235,7 @@ async fn a_stage_that_will_not_take_the_topic_surfaces_after_the_topic_is_filed(
 
     let error = client(&server)
         .workflows()
-        .stage_topic(4471829, 8801, 9999)
+        .stage_topic(4_471_829, 8801, 9999)
         .await
         .unwrap_err();
 
@@ -248,7 +250,7 @@ async fn moving_a_staged_topic_sends_the_stage_as_a_form() {
 
     client(&server)
         .workflows()
-        .move_topic_to_stage(4471829, 8801, 5513)
+        .move_topic_to_stage(4_471_829, 8801, 5513)
         .await
         .unwrap();
 
@@ -274,7 +276,7 @@ async fn unstaging_a_topic_takes_it_off_the_workflow() {
 
     client(&server)
         .workflows()
-        .unstage_topic(4471829, 8801)
+        .unstage_topic(4_471_829, 8801)
         .await
         .unwrap();
 
