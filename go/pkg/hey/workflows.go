@@ -37,17 +37,17 @@ type Workflow struct {
 // WorkflowStageTopic is a thread card in a workflow stage.
 // StagingID identifies the workflow membership; TopicID identifies the email thread.
 type WorkflowStageTopic struct {
-	StagingID  int64
-	TopicID    int64
-	Subject    string
-	EntryCount int
+	StagingID  int64  `json:"staging_id"`
+	TopicID    int64  `json:"topic_id"`
+	Subject    string `json:"subject"`
+	EntryCount int    `json:"entry_count"`
 }
 
 // WorkflowStageView is the stage page HEY renders, including its thread cards.
 type WorkflowStageView struct {
-	ID     int64
-	Name   string
-	Topics []WorkflowStageTopic
+	ID     int64                `json:"id"`
+	Name   string               `json:"name"`
+	Topics []WorkflowStageTopic `json:"topics"`
 }
 
 // List returns the workflows on an account.

@@ -8,10 +8,18 @@
 use crate::client::Response;
 use crate::error::Error;
 use crate::generated::routes;
+use crate::generated::types::MoveTopicRequestContent;
 
 pub use crate::generated::services::topics::*;
 
 impl Topics<'_> {
+    /// Moves a topic to a box, by the box's id. The generated [`Topics::move_topic`] takes
+    /// the request body; this takes the one thing it carries.
+    pub async fn move_to_box(&self, topic_id: i64, box_id: i64) -> Result<(), Error> {
+        self.move_topic(topic_id, &MoveTopicRequestContent { box_id })
+            .await
+    }
+
     /// Trashes a topic.
     ///
     /// HEY will not trash a shared topic without being asked twice: it answers the removal
