@@ -148,7 +148,7 @@ impl Client {
                     operation = Operation::at(Method::GET, next);
                 }
                 Some(_) => {
-                    tracing::warn!(max_pages = self.max_pages(), "pagination capped");
+                    crate::trace::warning!(max_pages = self.max_pages(), "pagination capped");
                     break;
                 }
                 None => break,
@@ -194,7 +194,7 @@ impl Client {
             next = match self.next_page_url(&response, &started_at)? {
                 Some(url) if pages < self.max_pages() => Some(url),
                 Some(_) => {
-                    tracing::warn!(max_pages = self.max_pages(), "pagination capped");
+                    crate::trace::warning!(max_pages = self.max_pages(), "pagination capped");
                     None
                 }
                 None => None,

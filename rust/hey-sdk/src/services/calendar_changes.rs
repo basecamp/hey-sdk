@@ -161,7 +161,7 @@ impl<'a> Calendars<'a> {
             }
         }
 
-        tracing::warn!(
+        crate::trace::warning!(
             max_pages = self.client().max_pages(),
             "calendar changes pagination capped"
         );
@@ -224,7 +224,7 @@ impl<'a> Calendars<'a> {
             }
         }
 
-        tracing::warn!(
+        crate::trace::warning!(
             max_pages = self.client().max_pages(),
             "recording changes pagination capped"
         );

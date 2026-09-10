@@ -14,9 +14,12 @@ name = "hey_sdk"
 path = "src/lib.rs"
 
 [features]
-default = ["reqwest"]
+default = ["reqwest", "tracing"]
 # The HTTP client the SDK ships. Off, an application supplies its own `http::HttpClient`.
 reqwest = ["dep:reqwest"]
+# One `tracing` span per operation and per attempt, and the debug lines the retry loop
+# writes. Off, the SDK emits nothing and depends on nothing for it.
+tracing = ["dep:tracing"]
 
 [dependencies]
 async-trait = "0.1"
@@ -38,7 +41,7 @@ thiserror = "2"
 # `rt` for the blocking pool the response cache's file reads go to; reqwest used to bring it
 # along, and without the feature nothing else does.
 tokio = { version = "1", features = ["io-util", "rt", "time", "sync"] }
-tracing = "0.1"
+tracing = { version = "0.1", optional = true }
 url = "2"
 
 [dev-dependencies]
@@ -47,4 +50,6 @@ url = "2"
 # one.
 reqwest = { version = "0.13", default-features = false }
 tokio = { version = "1", features = ["macros", "net", "rt-multi-thread", "time", "sync"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", default-features = false, features = ["registry"] }
 wiremock = "0.6"

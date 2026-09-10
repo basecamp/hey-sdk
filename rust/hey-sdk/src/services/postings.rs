@@ -324,7 +324,7 @@ impl<'a> Postings<'a> {
                 None => return Ok(all),
             }
         }
-        tracing::warn!(
+        crate::trace::warning!(
             max_pages = self.client().max_pages(),
             "posting changes pagination capped"
         );
