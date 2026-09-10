@@ -59,12 +59,16 @@ jobs:
       - name: Set up Rust
         run: rustup toolchain install && rustup show
 
+      # mbx keys each compilation on the content it reads, with checkout paths mapped to
+      # placeholders, so the workspace crate restores on a pull request that leaves rust/
+      # untouched; a warm target tree cannot do that on a fresh checkout's mtimes. `objects`
+      # transports that content-addressed closure rather than the target tree. Entries are
+      # saved on pushes to main only; pull requests, forks included, restore.
       - name: Cache cargo
-        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2 # zizmor: ignore[cache-poisoning] -- cache is branch-isolated; fork PRs cannot write to this cache
+        uses: jdx/mr-boxington-action@7234d3dd1a6ca8f6c381eea8e4dfb03f18fcf777 # v1.3.0
         with:
-          workspaces: |
-            rust
-            conformance/runner/rust
+          version: 1.10.0
+          github-cache-mode: objects
 
       - name: Install cargo-deny
         uses: taiki-e/install-action@c3ec0de9ae7f1019cea21aa96aa0a895b9552063 # v2.87.9
@@ -73,12 +77,13 @@ jobs:
 
       # fmt, clippy, tests and docs with all features, then clippy and the tests again
       # with the shipped HTTP client off, cargo deny over both workspaces, and the crate
-      # packaged and built from its tarball. The same target a developer runs.
+      # packaged and built from its tarball. The same target a developer runs, with every
+      # cargo invocation going through mbx.
       - name: Format, lint and test
-        run: make rs-check
+        run: make rs-check CARGO=mbx
 
       - name: Check generated code is up to date
-        run: make rs-check-drift
+        run: make rs-check-drift CARGO=mbx
 
   msrv-rust:
     name: Rust MSRV
