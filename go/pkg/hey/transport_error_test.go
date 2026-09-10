@@ -129,6 +129,37 @@ func TestRedactTransportError(t *testing.T) {
 		}
 	})
 
+	t.Run("projects every transport error in a nested chain", func(t *testing.T) {
+		outer := &url.Error{Op: "Get", URL: "https://proxy.example.com/relay", Err: signed}
+		got := redactTransportError(outer)
+		want := `Get "https://proxy.example.com/relay": Get "https://storage.example.com/blob/1": context canceled`
+		if got.Error() != want {
+			t.Errorf("got %q, want %q", got.Error(), want)
+		}
+		for _, text := range renderings(got) {
+			if strings.Contains(text, "SECRETVALUE") {
+				t.Errorf("the signed query leaked into %q", text)
+			}
+		}
+		got = redactTransportError(fmt.Errorf("relaying: %w", outer))
+		if got.Error() != "relaying: "+want {
+			t.Errorf("got %q, want %q", got.Error(), "relaying: "+want)
+		}
+	})
+
+	t.Run("keeps only the first transport error of a joined pair", func(t *testing.T) {
+		other := &url.Error{Op: "Get", URL: "https://other.example.com/x?token=SECRETVALUE", Err: errors.New("reset")}
+		got := redactTransportError(errors.Join(signed, other))
+		if got.Error() != `Get "https://storage.example.com/blob/1": context canceled` {
+			t.Errorf("got %q", got.Error())
+		}
+		for _, text := range renderings(got) {
+			if strings.Contains(text, "SECRETVALUE") {
+				t.Errorf("the signed query leaked into %q", text)
+			}
+		}
+	})
+
 	t.Run("returns an error with nothing to drop unchanged", func(t *testing.T) {
 		plain := &url.Error{Op: "Get", URL: "https://api.example.com/x", Err: context.Canceled}
 		if got := redactTransportError(plain); got != plain { //nolint:errorlint // identity is the point
@@ -136,6 +167,10 @@ func TestRedactTransportError(t *testing.T) {
 		}
 		other := errors.New("not a transport error")
 		if got := redactTransportError(other); got != other { //nolint:errorlint // identity is the point
+			t.Errorf("got %v, want the same error", got)
+		}
+		nested := &url.Error{Op: "Get", URL: "https://proxy.example.com/relay", Err: plain}
+		if got := redactTransportError(nested); got != nested { //nolint:errorlint // identity is the point
 			t.Errorf("got %v, want the same error", got)
 		}
 	})
