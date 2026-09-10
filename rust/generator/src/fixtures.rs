@@ -25,15 +25,17 @@ fn behavior(operations: &[&str]) -> Value {
 }
 
 fn openapi(paths: Value, schemas: Value) -> Value {
-    json!({
+    let mut document = json!({
         "openapi": "3.1.0",
         "info": { "version": "2026-01-01" },
-        "paths": paths,
-        "components": { "schemas": schemas },
-    })
+        "components": {},
+    });
+    document["paths"] = paths;
+    document["components"]["schemas"] = schemas;
+    document
 }
 
-fn read(id: &str, tag: &str, path_params: &[&str], response: Value) -> Value {
+fn read(id: &str, tag: &str, path_params: &[&str], response: &Value) -> Value {
     let parameters: Vec<Value> = path_params
         .iter()
         .map(|name| json!({ "name": name, "in": "path", "required": true, "schema": { "type": "integer", "format": "int64" } }))
@@ -87,7 +89,7 @@ fn box_schema() -> Value {
 fn an_unsupported_representation_fails_generation() {
     let response = json!({ "content": { "image/png": { "schema": { "type": "string", "contentEncoding": "byte" } } } });
     let error = build(
-        json!({ "/boxes/{id}/badge": read("GetBoxBadge", "Boxes", &["id"], response) }),
+        json!({ "/boxes/{id}/badge": read("GetBoxBadge", "Boxes", &["id"], &response) }),
         box_schema(),
         &["GetBoxBadge"],
     )
@@ -107,7 +109,7 @@ fn more_than_one_representation_fails_generation() {
         "text/html": { "schema": { "$ref": "#/components/schemas/Page" } },
     } });
     let error = build(
-        json!({ "/boxes/{id}": read("GetBox", "Boxes", &["id"], response) }),
+        json!({ "/boxes/{id}": read("GetBox", "Boxes", &["id"], &response) }),
         json!({ "Box": box_schema()["Box"], "Page": { "type": "string" } }),
         &["GetBox"],
     )
@@ -124,7 +126,7 @@ fn more_than_one_representation_fails_generation() {
 fn an_inline_response_schema_fails_generation() {
     let response = json!({ "content": { "application/json": { "schema": { "type": "object" } } } });
     let error = build(
-        json!({ "/boxes/{id}": read("GetBox", "Boxes", &["id"], response) }),
+        json!({ "/boxes/{id}": read("GetBox", "Boxes", &["id"], &response) }),
         box_schema(),
         &["GetBox"],
     )
@@ -142,7 +144,7 @@ fn an_html_response_has_to_be_a_string_schema() {
     let response =
         json!({ "content": { "text/html": { "schema": { "$ref": "#/components/schemas/Box" } } } });
     let error = build(
-        json!({ "/boxes/{id}": read("GetBox", "Boxes", &["id"], response) }),
+        json!({ "/boxes/{id}": read("GetBox", "Boxes", &["id"], &response) }),
         box_schema(),
         &["GetBox"],
     )
@@ -157,7 +159,7 @@ fn an_html_response_has_to_be_a_string_schema() {
 
 #[test]
 fn a_second_success_status_answered_differently_fails_generation() {
-    let mut operation = read("GetBox", "Boxes", &["id"], json_body("Box"));
+    let mut operation = read("GetBox", "Boxes", &["id"], &json_body("Box"));
     operation["get"]["responses"]["202"] =
         json!({ "content": { "image/png": { "schema": { "$ref": "#/components/schemas/Box" } } } });
     let error = build(
@@ -172,7 +174,7 @@ fn a_second_success_status_answered_differently_fails_generation() {
         "GetBox answers 202 as image/png, which the generator has no representation for; it emits application/json and text/html"
     );
 
-    let mut operation = read("GetBox", "Boxes", &["id"], json_body("Box"));
+    let mut operation = read("GetBox", "Boxes", &["id"], &json_body("Box"));
     operation["get"]["responses"]["204"] = json!({ "description": "nothing" });
     let error = build(
         json!({ "/boxes/{id}": operation }),
@@ -191,7 +193,7 @@ fn a_second_success_status_answered_differently_fails_generation() {
 fn a_referenced_response_fails_generation() {
     let response = json!({ "$ref": "#/components/responses/Stage" });
     let error = build(
-        json!({ "/stages/{id}": read("GetStage", "Stages", &["id"], response) }),
+        json!({ "/stages/{id}": read("GetStage", "Stages", &["id"], &response) }),
         box_schema(),
         &["GetStage"],
     )
@@ -208,7 +210,7 @@ fn a_referenced_response_fails_generation() {
 fn a_reference_outside_the_documents_schemas_fails_generation() {
     let response = json!({ "content": { "application/json": { "schema": { "$ref": "types.json#/components/schemas/Box" } } } });
     let error = build(
-        json!({ "/boxes/{id}": read("GetBox", "Boxes", &["id"], response) }),
+        json!({ "/boxes/{id}": read("GetBox", "Boxes", &["id"], &response) }),
         box_schema(),
         &["GetBox"],
     )
@@ -220,7 +222,7 @@ fn a_reference_outside_the_documents_schemas_fails_generation() {
     );
 
     let error = build(
-        json!({ "/boxes/{id}": read("GetBox", "Boxes", &["id"], json_body("Crate")) }),
+        json!({ "/boxes/{id}": read("GetBox", "Boxes", &["id"], &json_body("Crate")) }),
         box_schema(),
         &["GetBox"],
     )
@@ -248,7 +250,7 @@ fn a_reference_outside_the_documents_schemas_fails_generation() {
 fn an_html_response_may_reach_its_string_through_an_alias() {
     let response = json!({ "content": { "text/html": { "schema": { "$ref": "#/components/schemas/StagePage" } } } });
     let files = generate(
-        json!({ "/stages/{id}": read("GetStage", "Stages", &["id"], response) }),
+        json!({ "/stages/{id}": read("GetStage", "Stages", &["id"], &response) }),
         json!({
             "StagePage": { "$ref": "#/components/schemas/PageText" },
             "PageText": { "type": "string" },
@@ -262,7 +264,7 @@ fn an_html_response_may_reach_its_string_through_an_alias() {
 
 #[test]
 fn an_operation_the_generator_does_not_emit_fails_generation() {
-    let mut item = read("GetBox", "Boxes", &["id"], json_body("Box"));
+    let mut item = read("GetBox", "Boxes", &["id"], &json_body("Box"));
     item["head"] = item["get"].clone();
     item["head"]["operationId"] = json!("HeadBox");
     let error = build(
@@ -283,7 +285,7 @@ fn an_operation_the_generator_does_not_emit_fails_generation() {
 fn an_html_page_is_read_as_text_from_the_path_as_written() {
     let response = json!({ "content": { "text/html": { "schema": { "$ref": "#/components/schemas/StagePage" } } } });
     let files = generate(
-        json!({ "/stages/{id}": read("GetStage", "Stages", &["id"], response) }),
+        json!({ "/stages/{id}": read("GetStage", "Stages", &["id"], &response) }),
         json!({ "StagePage": { "type": "string", "contentEncoding": "byte" } }),
         &["GetStage"],
     );
@@ -301,8 +303,8 @@ fn an_html_page_is_read_as_text_from_the_path_as_written() {
 fn json_and_empty_responses_take_their_own_send() {
     let files = generate(
         json!({
-            "/boxes/{id}.json": read("GetBox", "Boxes", &["id"], json_body("Box")),
-            "/boxes/{id}/seen.json": read("GetBoxSeen", "Boxes", &["id"], json!({ "description": "nothing" })),
+            "/boxes/{id}.json": read("GetBox", "Boxes", &["id"], &json_body("Box")),
+            "/boxes/{id}/seen.json": read("GetBoxSeen", "Boxes", &["id"], &json!({ "description": "nothing" })),
         }),
         box_schema(),
         &["GetBox", "GetBoxSeen"],
@@ -324,8 +326,8 @@ fn json_and_empty_responses_take_their_own_send() {
 fn two_operations_collapsing_to_one_method_fail_generation() {
     let error = build(
         json!({
-            "/boxes/{id}.json": read("GetBox", "Boxes", &["id"], json_body("Box")),
-            "/boxes/{id}/box.json": read("GetBoxBox", "Boxes", &["id"], json_body("Box")),
+            "/boxes/{id}.json": read("GetBox", "Boxes", &["id"], &json_body("Box")),
+            "/boxes/{id}/box.json": read("GetBoxBox", "Boxes", &["id"], &json_body("Box")),
         }),
         box_schema(),
         &["GetBox", "GetBoxBox"],
@@ -342,7 +344,7 @@ fn two_operations_collapsing_to_one_method_fail_generation() {
 #[test]
 fn a_method_named_after_a_keyword_fails_generation() {
     let error = build(
-        json!({ "/boxes/{id}/match.json": read("MatchBox", "Boxes", &["id"], json_body("Box")) }),
+        json!({ "/boxes/{id}/match.json": read("MatchBox", "Boxes", &["id"], &json_body("Box")) }),
         box_schema(),
         &["MatchBox"],
     )

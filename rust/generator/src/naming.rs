@@ -39,17 +39,16 @@ impl Naming {
     }
 
     pub(crate) fn method_for(&self, operation_id: &str, service: &str) -> Result<String, String> {
-        let method = match self.operation_methods.get(operation_id) {
-            Some(method) => method.clone(),
-            None => {
-                let service_words: Vec<String> = service.split('_').map(singular).collect();
-                let words: Vec<String> = camel_words(operation_id)
-                    .into_iter()
-                    .map(|word| word.to_lowercase())
-                    .filter(|word| !service_words.contains(&singular(word)))
-                    .collect();
-                words.join("_")
-            }
+        let method = if let Some(method) = self.operation_methods.get(operation_id) {
+            method.clone()
+        } else {
+            let service_words: Vec<String> = service.split('_').map(singular).collect();
+            let words: Vec<String> = camel_words(operation_id)
+                .into_iter()
+                .map(|word| word.to_lowercase())
+                .filter(|word| !service_words.contains(&singular(word)))
+                .collect();
+            words.join("_")
         };
         if method.is_empty() || KEYWORDS.contains(&method.as_str()) {
             Err(format!(
