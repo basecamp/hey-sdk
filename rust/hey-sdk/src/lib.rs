@@ -40,6 +40,7 @@ pub mod resilience;
 pub mod route;
 pub mod security;
 pub mod services;
+mod trace;
 pub mod types;
 pub mod url;
 pub mod version;

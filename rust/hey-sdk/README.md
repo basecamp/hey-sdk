@@ -292,6 +292,18 @@ impl Hooks for Log {
 let client = Client::builder(Config::default()).token_provider(provider).hooks(Log).build()?;
 ```
 
+The `tracing` feature, on by default, opens one `tracing` span per operation — `hey.operation`,
+with `operation`, `service`, and once HEY has answered `http.status` and `request_id` — and a
+`hey.attempt` child span per send, numbered the way the hooks number attempts, with the status
+each one got. Spans are put on the futures with `Instrument`, so concurrent calls keep their
+own, and a call the caller drops closes its span with no status. Nothing the caller passed is
+recorded: no path, no query, no body — a request for a path the caller wrote is named by its
+method alone, and the hooks are where its URL goes. A quiet send — a read-back inside another operation —
+opens no span of its own and runs in whichever span its caller is in. Any `tracing-subscriber`
+sees them; with `default-features = false` (plus `reqwest` if wanted) the crate depends on
+`tracing` for nothing and emits nothing. The hooks stay the place for a policy or a metric:
+they carry the whole `RequestResult`, and they run whether or not `tracing` is on.
+
 `on_operation_gate` is the one callback that can refuse a call before it is sent, and the only
 one that may wait — which is how the bulkhead below holds a call back rather than turning it
 away.

@@ -26,6 +26,7 @@ use crate::pagination::Page;
 use crate::route::Route;
 use crate::security::{is_same_origin, require_secure_endpoint};
 use crate::services::boxes::BoxKinds;
+use crate::trace::{AttemptSpan, OperationSpan, label};
 use crate::version::default_user_agent;
 
 pub const DEFAULT_TIMEOUT: Duration = Duration::from_secs(30);
@@ -433,7 +434,9 @@ impl Client {
     /// resends once after a refreshed 401, and answers a cached body on 304. Non-2xx
     /// statuses become errors unless the operation treats them as empty.
     pub async fn execute(&self, operation: Operation) -> Result<Response, Error> {
-        self.instrument(&operation, self.dispatch(&operation)).await
+        let span = span_for(&operation);
+        span.wrap(self.instrument(&operation, self.dispatch(&operation, &span)))
+            .await
     }
 
     /// Sends an operation and hands back the answer with its body unread, for a caller
@@ -442,11 +445,15 @@ impl Client {
     /// retries, the resend after a refreshed 401 — and nothing is resent once the answer
     /// is in hand, since its bytes may already be on their way out.
     pub(crate) async fn stream(&self, operation: Operation) -> Result<HttpResponse<Body>, Error> {
-        self.instrument(&operation, self.streamed(&operation)).await
+        let span = span_for(&operation);
+        span.wrap(self.instrument(&operation, self.streamed(&operation, &span)))
+            .await
     }
 
     /// Runs one operation inside the hook lifecycle every call shares. A quiet operation is
     /// one request inside another and skips that lifecycle — see [`Operation::quiet`].
+    /// The `tracing` span around all of this is the caller's to put on, so that the gate and
+    /// the end hook are inside it too.
     ///
     /// The end is reported from a drop guard rather than after the await, because the await
     /// may never return: a caller's `tokio::time::timeout` or `select!` can drop the future
@@ -478,10 +485,15 @@ impl Client {
 
     /// Reads the answer the retry loop settled on, and tells the hooks how it turned out
     /// once its body has been dealt with.
-    async fn dispatch(&self, operation: &Operation) -> Result<Response, Error> {
+    async fn dispatch(
+        &self,
+        operation: &Operation,
+        span: &OperationSpan,
+    ) -> Result<Response, Error> {
         let url = self.url_for(operation)?;
         let answered = self.attempt(operation, &url).await?;
         let status = answered.response.status();
+        span.answered(status, request_id(answered.response.headers()));
         let finished = self
             .finish(
                 operation,
@@ -506,10 +518,15 @@ impl Client {
     }
 
     /// Hands the answer over unread, once its status says there is a body worth reading.
-    async fn streamed(&self, operation: &Operation) -> Result<HttpResponse<Body>, Error> {
+    async fn streamed(
+        &self,
+        operation: &Operation,
+        span: &OperationSpan,
+    ) -> Result<HttpResponse<Body>, Error> {
         let url = self.url_for(operation)?;
         let answered = self.attempt(operation, &url).await?;
         let status = answered.response.status();
+        span.answered(status, request_id(answered.response.headers()));
         let failure = (!status.is_success()).then(|| {
             Error::from_response(status, &operation.method, answered.response.headers(), &[])
         });
@@ -584,7 +601,17 @@ impl Client {
             };
             hooks.on_request_start(&info);
             let started = Instant::now();
-            let sent = self.transmit(operation, url.clone(), request).await;
+            // The attempt span closes here, before any refresh or backoff: it is the send.
+            let sent = {
+                let span = AttemptSpan::new(attempt);
+                let sent = span
+                    .wrap(self.transmit(operation, url.clone(), request))
+                    .await;
+                if let Ok((_, response)) = &sent {
+                    span.answered(response.status());
+                }
+                sent
+            };
             let duration = started.elapsed();
 
             match sent {
@@ -601,7 +628,7 @@ impl Client {
                         },
                     );
                     if attempt < attempts {
-                        tracing::debug!(operation = %operation.id, attempt, %error, "request failed, retrying");
+                        crate::trace::debug!(operation = label(operation), attempt, error = %error.code(), "request failed, retrying");
                         hooks.on_retry(&info, attempt + 1, &error);
                         self.wait(delay).await;
                         delay = self.next_delay(delay);
@@ -630,7 +657,10 @@ impl Client {
                                 retry_after,
                             },
                         );
-                        tracing::debug!(operation = %operation.id, "credentials refreshed, resending");
+                        crate::trace::debug!(
+                            operation = label(operation),
+                            "credentials refreshed, resending"
+                        );
                         hooks.on_retry(&info, attempt + 1, &cause);
                         refreshed = true;
                         attempt += 1;
@@ -653,7 +683,7 @@ impl Client {
                                 retry_after,
                             },
                         );
-                        tracing::debug!(operation = %operation.id, attempt, %status, "retryable status, retrying");
+                        crate::trace::debug!(operation = label(operation), attempt, %status, "retryable status, retrying");
                         hooks.on_retry(&info, attempt + 1, &cause);
                         match retry_after {
                             Some(seconds)
@@ -1134,6 +1164,23 @@ pub(crate) fn with_json_extension(path: &str) -> String {
     } else {
         format!("{path}.json")
     }
+}
+
+/// The span an operation runs in: one of its own, or none for a quiet send, which is one
+/// request inside another operation and runs in that operation's span.
+fn span_for(operation: &Operation) -> OperationSpan {
+    if operation.quiet {
+        OperationSpan::none()
+    } else {
+        OperationSpan::new(operation)
+    }
+}
+
+/// HEY's own id for the request, when the answer names one.
+fn request_id(headers: &HeaderMap) -> Option<&str> {
+    headers
+        .get("x-request-id")
+        .and_then(|value| value.to_str().ok())
 }
 
 /// The wait HEY asked for, on the two statuses that carry one.
