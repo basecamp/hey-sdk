@@ -81,6 +81,7 @@ async fn main() -> Result<(), Error> {
         client_id: config.oauth_client_id.clone(),
         install_id,
         token: Mutex::new(token),
+        refreshing: tokio::sync::Mutex::new(()),
     };
     let client = Client::new(config, provider)?;
     let me = client.identity().get().await?;
@@ -91,12 +92,18 @@ async fn main() -> Result<(), Error> {
 /// Holds the tokens for this run and refreshes them when asked. An application keeps
 /// `Token` (with its `expires_at`) and the `install_id` in its own store instead, and
 /// answers `access_token` from there.
+///
+/// One refresh at a time: a client shared across tasks can meet several 401s at once, and
+/// HEY rotates refresh tokens, so the second refresh in flight would spend a token the
+/// first one already replaced. The task that arrives late finds fresh credentials and
+/// reports them as its own refresh.
 struct Refreshing {
     oauth: OAuthClient,
     metadata: ServerMetadata,
     client_id: String,
     install_id: String,
     token: Mutex<Token>,
+    refreshing: tokio::sync::Mutex<()>,
 }
 
 #[async_trait]
@@ -106,6 +113,11 @@ impl TokenProvider for Refreshing {
     }
 
     async fn refresh(&self) -> bool {
+        let stale = self.lock().access_token.clone();
+        let _one_at_a_time = self.refreshing.lock().await;
+        if self.lock().access_token != stale {
+            return true;
+        }
         let Some(refresh_token) = self.lock().refresh_token.clone() else {
             return false;
         };
