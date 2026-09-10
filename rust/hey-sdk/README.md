@@ -404,7 +404,8 @@ Every public type is on one of two sides, and the side decides what a change to 
   Adding a field to one is a breaking change — a literal without `..Default::default()` stops
   compiling — and ships as `0.MINOR`.
 - **Response-side types and open enums are `#[non_exhaustive]`.** Everything the SDK decodes
-  and hands back (`Mailbox`, `Posting`, `Token`, `Route`, what the hooks see) and every enum
+  and hands back (`Mailbox`, `Posting`, `Token`, `Route`, the hooks' `RequestInfo` and
+  `RequestResult`) and every enum
   whose variant set is HEY's to extend (`ErrorCode`, `BoxKind`, `Pagination`): read them,
   match them with a `..` or `_` arm, never build them. They keep `Default`, so
   `Mailbox::default()` still works where a test wants one. Adding a field or a variant is

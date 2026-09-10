@@ -18,8 +18,8 @@ pub struct Route {
     pub path: &'static str,
     /// The path without a `.json` suffix, for recognizing pasted URLs.
     pub pattern: &'static str,
-    /// The part of HEY the route belongs to, as the model titles it: `Boxes`, `Calendar Time
-    /// Tracks`.
+    /// The part of HEY the route belongs to, as the model titles it: `Boxes`,
+    /// `Calendar Time Tracks`.
     pub resource: &'static str,
     /// The kind of record the route acts on, in `snake_case`: `box`, `box_group`.
     pub resource_type: &'static str,

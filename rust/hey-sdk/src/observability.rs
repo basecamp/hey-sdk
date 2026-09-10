@@ -24,7 +24,7 @@ pub struct OperationInfo {
     pub service: Cow<'static, str>,
     /// The operation as the model names it: `ListBoxes`, `MovePostings`.
     pub operation: Cow<'static, str>,
-    /// The kind of record the call acts on, `snake_cased`: `box`, `time_track`.
+    /// The kind of record the call acts on, in `snake_case`: `box`, `time_track`.
     pub resource_type: Cow<'static, str>,
     /// Whether the call changes something in HEY rather than reading it.
     pub is_mutation: bool,
