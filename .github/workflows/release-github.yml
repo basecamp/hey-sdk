@@ -21,7 +21,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: basecamp/sdk/actions/release-orchestrate@main # zizmor: ignore[unpinned-uses] -- internal composite action tracking main; subpath actions cannot be SHA-pinned
+      - uses: basecamp/sdk/actions/release-orchestrate@main # zizmor: ignore[unpinned-uses] -- internal action tracking main by design (basecamp/sdk AGENTS.md); basecamp/sdk has no tags for Dependabot to advance a pin
         with:
           version: ${{ github.event.inputs.tag || github.ref_name }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
