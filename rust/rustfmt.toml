@@ -1,0 +1,8 @@
+# Stable rustfmt options only, so `cargo fmt` on the pinned toolchain and rustfmt on any
+# other stable agree. The unstable ones (imports_granularity, group_imports) stay out: they
+# need nightly, and a formatter the gate cannot run is not a formatter.
+edition = "2024"
+style_edition = "2024"
+max_width = 100
+use_field_init_shorthand = true
+use_try_shorthand = true

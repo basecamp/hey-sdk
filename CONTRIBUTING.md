@@ -6,6 +6,9 @@
 - Go 1.26+
 - Rust 1.88+ (with `rustfmt` and `clippy`; `rust-toolchain.toml` picks the exact stable for rustup users)
 - [`cargo-deny`](https://github.com/EmbarkStudios/cargo-deny) (`cargo install cargo-deny --locked`), for `make rs-check`
+- [`cargo-semver-checks`](https://github.com/obi1kenobi/cargo-semver-checks) only if you want the
+  API-compatibility check locally (`cargo semver-checks -p hey-sdk --baseline-rev origin/main`
+  from `rust/`); CI runs it on every pull request
 - Make
 - jq
 

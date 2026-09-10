@@ -22,6 +22,7 @@ pub use ::http::{Method, Request, Response, StatusCode, Version};
 #[cfg(feature = "reqwest")]
 mod reqwest;
 #[cfg(feature = "reqwest")]
+#[cfg_attr(docsrs, doc(cfg(feature = "reqwest")))]
 pub use self::reqwest::ReqwestClient;
 
 /// Sends one HTTP request and answers with the response, its body still unread.

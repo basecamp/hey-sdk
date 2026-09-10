@@ -4,9 +4,9 @@ The SDKs for the [HEY](https://www.hey.com) API, generated from a Smithy model o
 `spec/`, so what an SDK offers is what HEY actually serves.
 
 The repository ships a Go module, `github.com/basecamp/hey-sdk/go`, which is the library behind
-[hey-cli](https://github.com/basecamp/hey-cli), and a Rust crate, `hey-sdk` in `rust/`, which
-is documented in [rust/hey-sdk/README.md](rust/hey-sdk/README.md). The rest of this page is
-about Go.
+[hey-cli](https://github.com/basecamp/hey-cli), and a Rust crate, `hey-sdk` in `rust/`. The
+Go walkthrough is first; [the Rust one](#rust) follows it, and the crate's own
+[README](rust/hey-sdk/README.md) goes further.
 
 TypeScript, Ruby, Swift and Kotlin SDKs will be added in future updates, generated from the
 same Smithy model; the Makefile already reserves targets for them (`ts-`, `rb-`, `swift-`,
@@ -18,13 +18,7 @@ same Smithy model; the Makefile already reserves targets for them (`ts-`, `rb-`,
 go get github.com/basecamp/hey-sdk/go@latest
 ```
 
-Requires Go 1.26 or newer.
-
-The Rust crate is not published; depend on it from the repository:
-
-```toml
-hey-sdk = { git = "https://github.com/basecamp/hey-sdk", version = "0.30" }
-```
+Requires Go 1.26 or newer. The Rust crate's install line is in [its section](#install-1).
 
 ## Authenticate
 
@@ -153,6 +147,121 @@ HTTP status, and — for auth and scope problems — a hint. `hey.AsError(err)` 
 ### Pagination
 
 Paged reads follow HEY's `Link` headers automatically, up to `WithMaxPages`.
+
+## Rust
+
+The crate is `hey-sdk`, at `rust/hey-sdk`, with the same generated surface as the Go module and
+the same hand-written conveniences on top. It is an async client on tokio, sends over rustls
+by default, and lets an application bring its own HTTP stack instead.
+
+### Install
+
+Until the crate is on crates.io, depend on it from the repository at a release tag —
+`v0.30.0` is the first that carries `rust/`:
+
+```toml
+[dependencies]
+hey-sdk = { git = "https://github.com/basecamp/hey-sdk", tag = "v0.30.0" }
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
+```
+
+Requires Rust 1.88 or newer (`rust-version` in `rust/Cargo.toml`, built on exactly that in
+CI). The crate's [Versioning](rust/hey-sdk/README.md#versioning) section says when that floor
+moves and what a version bump means.
+
+### Authenticate
+
+A fixed token, for scripts and anything that already holds one:
+
+```rust
+use hey_sdk::{Client, Config, StaticTokenProvider};
+
+let client = Client::new(Config::default(), StaticTokenProvider::new(std::env::var("HEY_TOKEN")?))?;
+```
+
+OAuth 2.0 with PKCE, for user-facing apps: `hey_sdk::oauth` speaks the protocol — the
+authorization URL, the code exchange and refresh, with the `install_id` HEY wants on each.
+The application keeps the tokens and hands the client a `TokenProvider` over them; the
+client asks it to `refresh` once when HEY answers 401. Anything that wants the request
+headers outright implements `AuthStrategy` instead.
+[`examples/oauth_pkce.rs`](rust/hey-sdk/examples/oauth_pkce.rs) is the whole flow.
+
+### Use it
+
+```rust
+use hey_sdk::services::MessageContent;
+
+let boxes = client.boxes().list().await?;                       // Imbox, The Feed, Paper Trail, ...
+let imbox = client.boxes().get_imbox(&Default::default()).await?;
+
+// Sending: recipients are required — HEY saves an unaddressed message as a draft.
+client.messages().send(&MessageContent {
+    subject: "Subject".into(),
+    content: "<div>Body</div>".into(),
+    to: vec!["someone@example.com".into()],
+    ..Default::default()
+}).await?;
+
+// Replying: start from the prefill — the subject, the acting sender, the recipients HEY resolved.
+let prefill = client.entries().new_reply(entry_id).await?;
+
+// Postings are bulk operations, as they are in HEY.
+client.postings().move_to_set_aside(&[posting_id]).await?;
+client.postings().mark_postings_seen(&[a, b]).await?;
+
+// Calendar
+let track = client.time_tracks().start_tracking().await?;
+client.time_tracks().stop(track.id).await?;
+```
+
+Services on the client, one handle per resource: `attachments`, `boxes`, `bulk_replies`,
+`calendar_events`, `calendar_periods`, `calendar_todos`, `calendars`, `clearances`, `clips`,
+`collections`, `contacts`, `designations`, `entries`, `extenzions`, `folders`, `habits`,
+`identity`, `journal`, `messages`, `postings`, `publications`, `search`, `snippets`,
+`stickies`, `time_tracks`, `topics`, `workflows`, `world`. Every method the model describes
+is generated, named for the operation with the service's noun dropped (`ListBoxes` is
+`boxes().list()`); the hand-written ones in `rust/hey-sdk/src/services` take the arguments a
+caller has and cover the parts of HEY the model cannot describe. Every route is data in
+`hey_sdk::routes`, and `hey_sdk::url::router()` names the operation a pasted HEY URL refers to.
+
+### Linked accounts
+
+A root client presents mail from All Accounts. Derive one for a linked account to present that
+account's mail and act as its user and default sender; it adds HEY's `filtered_account_id` to
+every same-origin request, including pagination and retries, and never to signed external URLs:
+
+```rust
+let work = client.for_account(work_account_id).await?;
+let postings = work.boxes().get_imbox(&Default::default()).await?;
+```
+
+### Errors
+
+Every call answers `Result<_, hey_sdk::Error>`: a stable `ErrorCode` (`NotFound`, `Auth`,
+`Forbidden`, `RateLimit`, `Validation`, `Api`, `Usage`, ...), the HTTP status, whether it is
+worth retrying, HEY's `X-Request-Id`, a hint when there was one, and the body HEY answered
+the failure with, for the endpoints that describe a refusal there.
+
+### Pagination
+
+Paged reads answer a `Page<T>`, which derefs to the response and carries the next cursor and
+`X-Total-Count`; `next_page` reads on, `each_page` walks to the client's `max_pages`, and a
+`Link` that points off the HEY origin is refused.
+[`examples/pagination.rs`](rust/hey-sdk/examples/pagination.rs) shows both walks.
+
+### Beyond the Go module
+
+Everything the crate sends goes through one `HttpClient` trait, so a binary that already has
+an HTTP stack — a mobile shell on the platform's own — does not get a second one
+([`examples/custom_http_client.rs`](rust/hey-sdk/examples/custom_http_client.rs) runs on a
+canned transport, without the network and without the `reqwest` feature). Hooks report every
+operation, request and resend ([`examples/hooks.rs`](rust/hey-sdk/examples/hooks.rs)), and
+a gate can refuse an operation before it is sent. Retries, a circuit breaker, a bulkhead, a
+rate limit and an ETag response cache are on the builder. Secrets are `SensitiveString`s that
+print as `[REDACTED]`, response bodies are capped, and HTTPS is enforced off localhost.
+
+The examples under [`rust/hey-sdk/examples`](rust/hey-sdk/examples) compile in CI;
+`HEY_TOKEN=... cargo run --example first_call` from `rust/` is the quickest first call.
 
 ## How the SDK is built
 

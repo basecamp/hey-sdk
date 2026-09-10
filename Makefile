@@ -203,7 +203,7 @@ go-check-drift:
 # Rust SDK
 #------------------------------------------------------------------------------
 
-.PHONY: rs-generate rs-check-drift rs-test rs-lint rs-deny rs-publish-check rs-check
+.PHONY: rs-generate rs-check-drift rs-test rs-lint rs-examples rs-deny rs-publish-check rs-check
 
 # Types, routes and services are all generated; there is no hand-written wrapper layer
 # to drift, so the drift check is the generator's own --check.
@@ -218,6 +218,9 @@ rs-test:
 
 rs-lint:
 	$(MAKE) -C rust lint
+
+rs-examples:
+	$(MAKE) -C rust examples
 
 rs-deny:
 	$(MAKE) -C rust deny
@@ -382,5 +385,13 @@ help:
 	@echo "  check       Alias for check-mvp"
 	@echo "  smithy-build   Regenerate OpenAPI from Smithy"
 	@echo "  drift-regen    Regenerate route snapshot from haystack"
+	@echo "  go-check       Go build, vet, tests, lint"
+	@echo "  go-generate    Regenerate go/pkg/generated from openapi.json"
+	@echo "  rs-check       What CI runs: fmt, clippy, tests, docs; clippy + tests again with"
+	@echo "                 --no-default-features; examples; cargo deny; cargo package"
+	@echo "  rs-check-drift Fail if rust/hey-sdk/src/generated is stale"
+	@echo "  rs-generate    Regenerate rust/hey-sdk/src/generated from openapi.json"
+	@echo "  rs-test        Rust tests only; rs-lint, rs-examples, rs-deny, rs-publish-check likewise"
+	@echo "  conformance-rs Run the shared conformance fixtures against the Rust crate"
 	@echo "  clean          Remove build artifacts"
 	@echo "  help           Show this help"

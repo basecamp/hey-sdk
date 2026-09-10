@@ -45,6 +45,12 @@ no-default-features:
 doc:
 	RUSTDOCFLAGS="-D warnings" $(CARGO) doc -p hey-sdk --no-deps --all-features --locked
 
+# The examples under hey-sdk/examples are the README's snippets as whole programs; they
+# have to keep compiling.
+.PHONY: examples
+examples:
+	$(CARGO) build -p hey-sdk --examples --all-features --locked
+
 # RustSec advisories, licences and the shape of the dependency graph, for this workspace and
 # the conformance runner's, against the one deny.toml. Needs cargo-deny installed.
 .PHONY: deny
@@ -63,7 +69,7 @@ publish-check:
 
 # Run all checks: the same steps as CI's test-rust job, in the same order
 .PHONY: check
-check: fmt-check lint test no-default-features doc deny publish-check
+check: fmt-check lint test doc no-default-features examples deny publish-check
 
 .PHONY: clean
 clean:
@@ -81,7 +87,8 @@ help:
 	@echo "  test                 Run all tests"
 	@echo "  no-default-features  Lint and test the crate without the shipped HTTP client"
 	@echo "  doc                  Build the crate docs"
+	@echo "  examples             Build the examples"
 	@echo "  deny                 cargo deny over both workspaces (advisories, licences, bans)"
 	@echo "  publish-check        Package the crate and build it from the tarball"
-	@echo "  check                fmt-check + lint + test + no-default-features + doc + deny + publish-check"
+	@echo "  check                Every step CI's test-rust job runs, in order"
 	@echo "  clean                Remove build artifacts"
