@@ -94,6 +94,36 @@ everything else runs on is pinned in `rust-toolchain.toml` at the repository roo
 `rust/hey-sdk/examples/*.rs` are the crate README's snippets as whole programs; they compile in
 the gate, so a change to the public API that breaks one shows up there.
 
+#### Lints
+
+`rust/hey-sdk/Cargo.toml` and `rust/generator/Cargo.toml` carry the fleet's `[lints]` table:
+`unsafe_code` forbidden, `missing_docs` and `unreachable_pub` on, clippy `all` and `pedantic`
+on with a four-entry allowlist that each carry a reason, and CI turns warnings into errors.
+`unwrap`/`expect` are denied in library code outside tests (`lib.rs`); a lock is read with
+`unwrap_or_else(PoisonError::into_inner)`, and the rare provably-infallible call carries a
+targeted `#[allow]` with its reason on the line. Generated code is not lint-gated: every
+generated file starts with `#![allow(missing_docs, unreachable_pub, clippy::all,
+clippy::pedantic)]`, because the model chooses its names and shapes. Hand-written code gets
+no such allowance.
+
+#### How the generated surface evolves
+
+Which side of the wire a type sits on decides how it may change; the policy and what it
+costs a release are in [rust/hey-sdk/README.md](rust/hey-sdk/README.md#versioning). The
+generator applies it by reachability. A schema reachable from any request body — the body
+type itself or anything it mentions, however deep — is request-side: public fields,
+`Default`, literal construction, never `#[non_exhaustive]`. Every other schema is
+response-side and is emitted `#[non_exhaustive]`. The `*Params` structs are request-side.
+`Route`, `RouteParam` and `Retry` in the route table are response-side: the generator
+builds them, nothing else does, and `Route` gaining `html` is the kind of addition the
+attribute exists for.
+
+When the model declares an enum, the generator emits a `#[non_exhaustive]` enum with one
+variant per declared value and `Unknown(String)` for any value HEY sends that the model did
+not declare, carried unchanged so a read-modify-write sends back what it read —
+`#[serde(other)]` drops the value and cannot. Until the model declares one, the generator
+invents none: a `kind` stays a `String`.
+
 `rust/hey-sdk/src/services/*.rs` are hand-written, like `go/pkg/hey` — you update them
 yourself. Each one re-exports the generated service it extends and adds conveniences as
 extra `impl` blocks on it: `attachments`, `boxes`, `bulk_replies`, `calendar_changes`,

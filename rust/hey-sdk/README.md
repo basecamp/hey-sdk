@@ -393,6 +393,35 @@ line in the release notes, never a patch. Development and CI otherwise run on th
 that `rust-toolchain.toml` at the repository root pins, so rustfmt and clippy agree on every
 machine; a new stable arrives as a bump to that file.
 
+### How types evolve
+
+Every public type is on one of two sides, and the side decides what a change to it costs.
+
+- **Request-side types are built literally and are never `#[non_exhaustive]`.** Request bodies
+  (`CreateMessageRequestContent`), the `*Params` structs, `Config`, the resilience configs,
+  `ExchangeRequest` and `RefreshRequest`: plain structs with public fields, and `Default`
+  wherever every field has one, written as `GetBoxParams { page: Some(2), ..Default::default() }`.
+  Adding a field to one is a breaking change — a literal without `..Default::default()` stops
+  compiling — and ships as `0.MINOR`.
+- **Response-side types and open enums are `#[non_exhaustive]`.** Everything the SDK decodes
+  and hands back (`Mailbox`, `Posting`, `Token`, `Route`, what the hooks see) and every enum
+  whose variant set is HEY's to extend (`ErrorCode`, `BoxKind`, `Pagination`): read them,
+  match them with a `..` or `_` arm, never build them. They keep `Default`, so
+  `Mailbox::default()` still works where a test wants one. Adding a field or a variant is
+  additive and ships as `0.x.PATCH`.
+- A type on both sides — sent in a body and read back — is request-side.
+- Closed enums stay exhaustive. `ClearanceStatus`, `OccurrenceScope` and `RepeatUntil` name a
+  choice the SDK defines, not a set HEY grows, so a `match` over them may stay exhaustive.
+
+The generator applies the same rule by reachability: a schema reachable from any request body
+is request-side, the rest are response-side. So a field the model adds to a response schema is
+a patch, and one it adds to a request schema is a minor.
+
+When the model declares an enum, the generator emits a `#[non_exhaustive]` enum with one
+variant per declared value and `Unknown(String)` for any value HEY sends that the model did
+not declare, carried unchanged so a read-modify-write sends back what it read. Until the model
+declares one, the generator invents none: a `kind` is a `String`.
+
 ## Develop
 
 ```bash
