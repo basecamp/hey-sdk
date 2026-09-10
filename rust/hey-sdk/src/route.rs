@@ -64,6 +64,7 @@ pub enum ParamRole {
 
 /// The type the model gives a path parameter's value.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[non_exhaustive]
 pub enum ParamKind {
     /// Any text, such as a slug or a token.
     String,
@@ -77,6 +78,7 @@ pub enum ParamKind {
 
 /// How a route pages its answer.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[non_exhaustive]
 pub enum Pagination {
     /// The whole answer comes at once.
     None,

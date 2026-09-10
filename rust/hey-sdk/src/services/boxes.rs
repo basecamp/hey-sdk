@@ -17,6 +17,7 @@ pub use crate::generated::services::boxes::*;
 
 /// The kinds of box a HEY account has, as [`Boxes::list`] reports them.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[non_exhaustive]
 pub enum BoxKind {
     /// The Imbox, where screened-in mail lands.
     Imbox,

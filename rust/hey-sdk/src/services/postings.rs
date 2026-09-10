@@ -34,6 +34,7 @@ const TOO_FAR_BEHIND: u16 = 409;
 /// [`BubbleUpSlot::LaterToday`] at its evening hour of the current day instead — and reads
 /// both hours in UTC, like every hour it takes out of a JSON request.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[non_exhaustive]
 pub enum BubbleUpSlot {
     /// This evening. HEY's `today`.
     LaterToday,
@@ -117,6 +118,7 @@ impl PostingChangesCursor {
 /// set when the cursor is too far behind for an increment to carry the difference, and the
 /// box has to be read in full instead.
 #[derive(Debug, Clone, Default, PartialEq)]
+#[non_exhaustive]
 pub struct PostingChanges {
     /// The postings that appeared in the box.
     pub added: Vec<Posting>,

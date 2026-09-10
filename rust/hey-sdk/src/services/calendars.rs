@@ -18,6 +18,7 @@ pub use crate::generated::services::calendars::*;
 /// feed's added bucket carries this same shape, so a calendar learned of either way arrives
 /// subscribable.
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[non_exhaustive]
 pub struct ListedCalendar {
     /// The calendar itself, as [`Calendars::list`] serves it.
     #[serde(default)]
@@ -33,6 +34,7 @@ pub struct ListedCalendar {
 /// The full calendars index: every calendar with its changes URL and signed stream name,
 /// the calendar-level changes feed's own URL, and the calendars the reader has switched on.
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[non_exhaustive]
 pub struct CalendarList {
     /// Every calendar the identity sees, each with what a live follower needs.
     #[serde(default)]

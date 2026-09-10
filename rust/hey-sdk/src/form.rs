@@ -54,6 +54,7 @@ impl Client {
 /// so a 302 or 303 arrives here with its `Location` intact; an endpoint reached on a
 /// `.json` path answers the record itself, which lands in `body` instead.
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[non_exhaustive]
 pub struct FormResponse {
     /// Where the redirect pointed, exactly as HEY wrote it — often a path rather than a
     /// whole URL.

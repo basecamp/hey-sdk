@@ -31,8 +31,7 @@ fn every_recording_variant_has_a_helper_that_answers_to_its_wire_type() {
 }
 
 fn recording(wire_type: &str) -> Recording {
-    Recording {
-        r#type: wire_type.to_string(),
-        ..Default::default()
-    }
+    let mut recording = Recording::default();
+    recording.r#type = wire_type.to_string();
+    recording
 }

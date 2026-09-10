@@ -29,6 +29,12 @@ fn render_schema(out: &mut String, schema: &Schema) {
         }
         Shape::Struct(shape) => {
             out.push_str("#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]\n");
+            // What HEY answers is read, never built: a field the model adds to it is then
+            // an addition rather than a break for every caller. What a caller sends stays
+            // literal, `..Default::default()` included.
+            if !schema.request_side {
+                out.push_str("#[non_exhaustive]\n");
+            }
             writeln!(out, "pub struct {} {{", schema.name).unwrap();
             for field in &shape.fields {
                 out.push_str(&doc_comment(field.description.as_deref(), "    "));
@@ -124,5 +130,43 @@ pub(crate) fn rust_type(kind: &FieldType, recursive: bool) -> String {
         FieldType::Named(name) => name.clone(),
         FieldType::List(inner) => format!("Vec<{}>", rust_type(inner, false)),
         FieldType::Map(inner) => format!("BTreeMap<String, {}>", rust_type(inner, false)),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::model::{Field, FieldType, Struct};
+
+    fn schema(name: &str, request_side: bool) -> Schema {
+        Schema {
+            name: name.to_string(),
+            description: None,
+            request_side,
+            shape: Shape::Struct(Struct {
+                fields: vec![Field {
+                    wire_name: "id".to_string(),
+                    description: None,
+                    kind: FieldType::Int64,
+                    required: true,
+                    recursive: false,
+                }],
+                polymorphic: None,
+            }),
+        }
+    }
+
+    #[test]
+    fn what_hey_answers_is_non_exhaustive_and_what_a_caller_sends_is_not() {
+        let mut out = String::new();
+        render_schema(&mut out, &schema("Box", false));
+        render_schema(&mut out, &schema("CreateBoxRequestContent", true));
+
+        assert!(out.contains(
+            "#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]\n#[non_exhaustive]\npub struct Box {"
+        ));
+        assert!(out.contains(
+            "#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]\npub struct CreateBoxRequestContent {"
+        ));
     }
 }

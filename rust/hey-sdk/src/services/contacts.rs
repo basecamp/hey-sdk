@@ -44,6 +44,7 @@ pub struct ContactParams {
 /// It travels as the source of an [`Error`] with [`crate::ErrorCode::Conflict`], so a
 /// caller who only cares that the write was refused can ignore it.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
+#[non_exhaustive]
 pub struct ContactConflict {
     /// The contact the write was for — on a create, the one it made.
     pub contact_id: i64,

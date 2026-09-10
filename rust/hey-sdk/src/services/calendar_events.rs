@@ -62,6 +62,7 @@ pub struct EventContent {
 /// A countdown's unit, written as the number of seconds HEY's own form submits and the only
 /// form it reads.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+#[non_exhaustive]
 pub enum CountdownUnit {
     /// A day: 86,400 seconds.
     #[default]
@@ -91,6 +92,7 @@ pub struct Countdown {
 /// [`RepeatFrequency::EveryWeekday`] — a hardcoded Monday to Friday — is the only weekday
 /// set that can be expressed.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+#[non_exhaustive]
 pub enum RepeatFrequency {
     /// Every day.
     EveryDay,

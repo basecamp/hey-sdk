@@ -64,6 +64,7 @@ impl ServerMetadata {
 /// The two tokens are [`SensitiveString`]s: serde-transparent, so the wire is what the
 /// server sent, but `[REDACTED]` under `{:?}`.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[non_exhaustive]
 pub struct Token {
     /// What goes in `Authorization` on every request.
     pub access_token: SensitiveString,

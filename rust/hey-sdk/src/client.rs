@@ -105,6 +105,7 @@ pub(crate) struct ScopeState {
 
 /// What came back from HEY, before it is decoded.
 #[derive(Debug, Clone)]
+#[non_exhaustive]
 pub struct Response {
     /// What HEY answered.
     pub status: StatusCode,

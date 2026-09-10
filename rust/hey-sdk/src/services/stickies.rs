@@ -20,6 +20,7 @@ pub const MAX_STICKY_POSITION: i64 = i32::MAX as i64;
 
 /// How much room a sticky takes on the board.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[non_exhaustive]
 pub enum StickySize {
     /// The smallest.
     Small,

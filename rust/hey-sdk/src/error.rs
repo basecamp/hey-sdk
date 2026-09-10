@@ -37,6 +37,7 @@ pub const MAX_ERROR_MESSAGE_BYTES: usize = 500;
 
 /// Machine-readable error categories, shared with the other HEY SDKs.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[non_exhaustive]
 pub enum ErrorCode {
     /// The call was asked for wrongly: a bad argument, a URL that will not parse.
     Usage,

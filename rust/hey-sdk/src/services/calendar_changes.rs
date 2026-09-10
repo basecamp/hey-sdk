@@ -82,6 +82,7 @@ impl CalendarChangesCursor {
 
 /// A calendar the changes feed reports gone.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[non_exhaustive]
 pub struct DeletedCalendar {
     /// The id the calendar had.
     #[serde(default)]
@@ -99,6 +100,7 @@ pub struct DeletedCalendar {
 /// changed, in which case the cursor that produced this page still stands. Unlike the
 /// recording feed, this one never falls too far behind, so there is no full sync to ask for.
 #[derive(Debug, Clone, Default, PartialEq)]
+#[non_exhaustive]
 pub struct CalendarChanges {
     /// The calendars that appeared, each with what a live follower needs.
     pub added: Vec<ListedCalendar>,
@@ -115,6 +117,7 @@ pub struct CalendarChanges {
 /// A recording the changes feed reports gone. `type` is the recordable type key the
 /// recording was grouped under while it existed.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[non_exhaustive]
 pub struct DeletedRecording {
     /// The id the recording had.
     #[serde(default)]
@@ -143,6 +146,7 @@ pub struct DeletedRecording {
 /// the difference — or speaks a version the feed no longer does — and the calendar has to be
 /// read in full instead.
 #[derive(Debug, Clone, Default, PartialEq)]
+#[non_exhaustive]
 pub struct RecordingChanges {
     /// The recordings that appeared, grouped by recordable type key.
     pub added: BTreeMap<String, Vec<Recording>>,

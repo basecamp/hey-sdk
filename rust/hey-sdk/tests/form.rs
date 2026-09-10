@@ -177,40 +177,47 @@ async fn a_form_request_that_fails_keeps_what_hey_answered_and_is_not_resent() {
     assert_eq!(server.received_requests().await.unwrap().len(), 2);
 }
 
-#[test]
-fn the_id_is_the_rightmost_numeric_segment_of_the_redirect() {
+#[tokio::test]
+async fn the_id_is_the_rightmost_numeric_segment_of_the_redirect() {
     assert_eq!(
-        redirected_to("/calendar/events/42").extract_id().unwrap(),
+        redirected_to(Some("/calendar/events/42"))
+            .await
+            .extract_id()
+            .unwrap(),
         42
     );
     assert_eq!(
-        redirected_to("https://app.hey.com/calendar/events/99")
+        redirected_to(Some("https://app.hey.com/calendar/events/99"))
+            .await
             .extract_id()
             .unwrap(),
         99
     );
     assert_eq!(
-        redirected_to("/calendar/events/7/").extract_id().unwrap(),
+        redirected_to(Some("/calendar/events/7/"))
+            .await
+            .extract_id()
+            .unwrap(),
         7
     );
     assert_eq!(
-        redirected_to("/calendar/events/13?edit=1")
+        redirected_to(Some("/calendar/events/13?edit=1"))
+            .await
             .extract_id()
             .unwrap(),
         13
     );
 
-    let nameless = redirected_to("/calendar").extract_id().unwrap_err();
+    let nameless = redirected_to(Some("/calendar"))
+        .await
+        .extract_id()
+        .unwrap_err();
     assert_eq!(
         nameless.message(),
         "no numeric ID found in location: /calendar"
     );
 
-    let nowhere = FormResponse {
-        location: None,
-        status: StatusCode::FOUND,
-        body: String::new(),
-    };
+    let nowhere = redirected_to(None).await;
     assert_eq!(
         nowhere.extract_id().unwrap_err().message(),
         "no location header in response"
@@ -249,12 +256,20 @@ async fn a_supplied_http_client_still_has_its_redirects_captured() {
     assert_eq!(server.received_requests().await.unwrap().len(), 1);
 }
 
-fn redirected_to(location: &str) -> FormResponse {
-    FormResponse {
-        location: Some(location.to_string()),
-        status: StatusCode::FOUND,
-        body: String::new(),
+/// What a form post answered with when HEY redirected to `location`, or answered a bare
+/// 302 when there is none.
+async fn redirected_to(location: Option<&str>) -> FormResponse {
+    let server = MockServer::start().await;
+    let mut response = ResponseTemplate::new(302);
+    if let Some(location) = location {
+        response = response.insert_header("Location", location);
     }
+    Mock::given(method("POST"))
+        .and(path("/redirect"))
+        .respond_with(response)
+        .mount(&server)
+        .await;
+    client(&server).post_form("/redirect", &[]).await.unwrap()
 }
 
 /// A provider whose credentials can be renewed: the first 401 swaps the stale token for a
