@@ -3512,8 +3512,8 @@
     ]
   },
   {
-    "name": "GetWorkflowStage uses the HTML workflow stage path",
-    "description": "Verifies that GetWorkflowStage requests a stage as HTML through the generated route.",
+    "name": "GetWorkflowStage uses the HTML workflow stage path and reads the stage out of it",
+    "description": "Verifies that GetWorkflowStage requests a stage as HTML through the generated route, and that the SDK reads the stage's name and its cards out of the page: subject and count from a full card, defaults from a sparse one, screen-reader text left out.",
     "operation": "GetWorkflowStage",
     "method": "GET",
     "path": "/workflows/{workflowId}/stages/{stageId}",
@@ -3530,7 +3530,7 @@
         "headers": {
           "Content-Type": "text/html; charset=utf-8"
         },
-        "body": "<section id=\"container_workflow_stage_5512\"></section>"
+        "body": "<section id=\"container_workflow_stage_5512\"><h2>Applied<span class=\"u-for-screen-reader\"> stage</span></h2><div class=\"workflow__card\" id=\"topic_4471829\" data-identifier=\"91\"><h3>Application<span class=\"u-for-screen-reader\">Thread: Application</span></h3><p class=\"card__detail\"><span class=\"u-for-screen-reader\">,</span>3 emails</p></div><div class=\"workflow__card\" id=\"topic_4471830\" data-identifier=\"92\"></div><div id=\"topic_not-a-number\" data-identifier=\"93\"></div></section>"
       }
     ],
     "assertions": [
@@ -3538,6 +3538,15 @@
         "type": "requestPath",
         "expected": "/workflows/8801/stages/5512"
       },
+      {"type": "responseBody", "path": "id", "expected": 5512},
+      {"type": "responseBody", "path": "name", "expected": "Applied"},
+      {"type": "responseBody", "path": "topics.0.topic_id", "expected": 4471829},
+      {"type": "responseBody", "path": "topics.0.staging_id", "expected": 91},
+      {"type": "responseBody", "path": "topics.0.subject", "expected": "Application"},
+      {"type": "responseBody", "path": "topics.0.entry_count", "expected": 3},
+      {"type": "responseBody", "path": "topics.1.topic_id", "expected": 4471830},
+      {"type": "responseBody", "path": "topics.1.subject", "expected": ""},
+      {"type": "responseBody", "path": "topics.1.entry_count", "expected": 0},
       {
         "type": "requestMethod",
         "expected": "GET"

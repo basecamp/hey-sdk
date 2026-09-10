@@ -1074,7 +1074,7 @@ async fn execute_hey_operation(client: &Client, case: &TestCase) -> Result<Outco
         "GetWorkflowStage" => json(
             client
                 .workflows()
-                .get_stage(
+                .stage(
                     int64_param(path, "workflowId"),
                     int64_param(path, "stageId"),
                 )
