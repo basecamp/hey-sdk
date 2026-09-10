@@ -10,7 +10,6 @@
 //! query it carries are the caller's; the hooks are where the URL goes.
 
 use crate::http::StatusCode;
-use crate::observability::OperationInfo;
 use crate::operation::Operation;
 
 #[cfg(feature = "tracing")]
@@ -95,16 +94,13 @@ impl OperationSpan {
 
 /// What a span or an event calls the operation: the name the model or a wrapper gave it,
 /// or the method alone for a path the caller wrote, whose path is the caller's own.
+#[cfg(feature = "tracing")]
 pub(crate) fn label(operation: &Operation) -> &str {
-    if is_raw(&operation.info) {
+    if operation.info.service == "Raw" {
         operation.method.as_str()
     } else {
         &operation.info.operation
     }
-}
-
-fn is_raw(info: &OperationInfo) -> bool {
-    info.service == "Raw"
 }
 
 /// The span one send runs inside, a child of the operation's. Numbered the way the hooks

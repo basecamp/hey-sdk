@@ -26,7 +26,7 @@ use crate::pagination::Page;
 use crate::route::Route;
 use crate::security::{is_same_origin, require_secure_endpoint};
 use crate::services::boxes::BoxKinds;
-use crate::trace::{AttemptSpan, OperationSpan, label};
+use crate::trace::{AttemptSpan, OperationSpan};
 use crate::version::default_user_agent;
 
 pub const DEFAULT_TIMEOUT: Duration = Duration::from_secs(30);
@@ -628,7 +628,7 @@ impl Client {
                         },
                     );
                     if attempt < attempts {
-                        crate::trace::debug!(operation = label(operation), attempt, error = %error.code(), "request failed, retrying");
+                        crate::trace::debug!(operation = crate::trace::label(operation), attempt, error = %error.code(), "request failed, retrying");
                         hooks.on_retry(&info, attempt + 1, &error);
                         self.wait(delay).await;
                         delay = self.next_delay(delay);
@@ -658,7 +658,7 @@ impl Client {
                             },
                         );
                         crate::trace::debug!(
-                            operation = label(operation),
+                            operation = crate::trace::label(operation),
                             "credentials refreshed, resending"
                         );
                         hooks.on_retry(&info, attempt + 1, &cause);
@@ -683,7 +683,7 @@ impl Client {
                                 retry_after,
                             },
                         );
-                        crate::trace::debug!(operation = label(operation), attempt, %status, "retryable status, retrying");
+                        crate::trace::debug!(operation = crate::trace::label(operation), attempt, %status, "retryable status, retrying");
                         hooks.on_retry(&info, attempt + 1, &cause);
                         match retry_after {
                             Some(seconds)
