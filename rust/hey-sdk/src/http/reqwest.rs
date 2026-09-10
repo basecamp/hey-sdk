@@ -37,6 +37,7 @@ impl ReqwestClient {
 }
 
 impl Default for ReqwestClient {
+    #[allow(clippy::expect_used)] // reqwest never fails to build from its defaults, and `Default` cannot say so
     fn default() -> ReqwestClient {
         ReqwestClient::with_timeout(DEFAULT_TIMEOUT)
             .expect("reqwest builds a client from its defaults")

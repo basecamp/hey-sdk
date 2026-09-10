@@ -38,15 +38,25 @@ pub const MAX_ERROR_MESSAGE_BYTES: usize = 500;
 /// Machine-readable error categories, shared with the other HEY SDKs.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ErrorCode {
+    /// The call was asked for wrongly: a bad argument, a URL that will not parse.
     Usage,
+    /// There is no such record.
     NotFound,
+    /// HEY wants credentials the call did not carry, or refused the ones it did.
     Auth,
+    /// The credentials are good but do not reach this far.
     Forbidden,
+    /// Too many calls, whether HEY said so with a 429 or the client's own limiter refused it.
     RateLimit,
+    /// No answer came at all: a connection, DNS or timeout failure.
     Network,
+    /// HEY answered with a failure the other categories do not name.
     Api,
+    /// HEY refused the contents of the request.
     Validation,
+    /// A name matched more than one record.
     Ambiguous,
+    /// The request conflicts with what HEY already holds.
     Conflict,
     /// The scope's circuit breaker is open, so the SDK refused the call itself. See
     /// [`crate::resilience`].
@@ -56,6 +66,7 @@ pub enum ErrorCode {
 }
 
 impl ErrorCode {
+    /// The category's name as the other HEY SDKs spell it: `not_found`, `rate_limit`.
     pub fn as_str(&self) -> &'static str {
         match self {
             ErrorCode::Usage => "usage",
@@ -85,11 +96,9 @@ impl ErrorCode {
             ErrorCode::Forbidden => EXIT_FORBIDDEN,
             ErrorCode::RateLimit => EXIT_RATE_LIMIT,
             ErrorCode::Network => EXIT_NETWORK,
-            ErrorCode::Api => EXIT_API,
-            ErrorCode::Validation => EXIT_VALIDATION,
+            ErrorCode::Validation | ErrorCode::Conflict => EXIT_VALIDATION,
             ErrorCode::Ambiguous => EXIT_AMBIGUOUS,
-            ErrorCode::Conflict => EXIT_VALIDATION,
-            ErrorCode::CircuitOpen | ErrorCode::BulkheadFull => EXIT_API,
+            ErrorCode::Api | ErrorCode::CircuitOpen | ErrorCode::BulkheadFull => EXIT_API,
         }
     }
 }
@@ -120,6 +129,7 @@ pub struct Error {
 }
 
 impl Error {
+    /// An error of the given category, with nothing but its message so far.
     pub fn new(code: ErrorCode, message: impl Into<String>) -> Error {
         Error {
             code,
@@ -134,14 +144,17 @@ impl Error {
         }
     }
 
+    /// The call was asked for wrongly.
     pub fn usage(message: impl Into<String>) -> Error {
         Error::new(ErrorCode::Usage, message)
     }
 
+    /// The call was asked for wrongly, with a word on how to ask instead.
     pub fn usage_with_hint(message: impl Into<String>, hint: impl Into<String>) -> Error {
         Error::usage(message).with_hint(hint)
     }
 
+    /// No `resource` answers to `identifier`. It reads `box not found: 42`.
     pub fn not_found(resource: &str, identifier: impl fmt::Display) -> Error {
         Error::new(
             ErrorCode::NotFound,
@@ -150,6 +163,7 @@ impl Error {
         .with_status(404)
     }
 
+    /// No `resource` answers to `identifier`, with a word on where else to look.
     pub fn not_found_with_hint(
         resource: &str,
         identifier: impl fmt::Display,
@@ -158,14 +172,17 @@ impl Error {
         Error::not_found(resource, identifier).with_hint(hint)
     }
 
+    /// HEY wants credentials the call did not carry, or refused the ones it did.
     pub fn auth(message: impl Into<String>) -> Error {
         Error::new(ErrorCode::Auth, message).with_status(401)
     }
 
+    /// The credentials are good but do not reach this far.
     pub fn forbidden(message: impl Into<String>) -> Error {
         Error::new(ErrorCode::Forbidden, message).with_status(403)
     }
 
+    /// The token does not carry the scope a write needs, which a fresh sign-in would fix.
     pub fn forbidden_scope() -> Error {
         Error::forbidden("Access denied: insufficient scope")
             .with_hint("Re-authenticate with full scope")
@@ -211,6 +228,8 @@ impl Error {
         Error::new(ErrorCode::BulkheadFull, "bulkhead is full")
     }
 
+    /// No answer came at all. The transport's own account of it is the hint, and it is
+    /// retryable: nothing reached HEY.
     pub fn network(source: impl std::error::Error + Send + Sync + 'static) -> Error {
         Error::new(ErrorCode::Network, "Network error")
             .with_hint(source.to_string())
@@ -218,10 +237,12 @@ impl Error {
             .with_source(source)
     }
 
+    /// HEY answered `status` with a failure no other category names.
     pub fn api(status: u16, message: impl Into<String>) -> Error {
         Error::new(ErrorCode::Api, message).with_status(status)
     }
 
+    /// The request conflicts with what HEY already holds: a time track already running.
     pub fn conflict(message: impl Into<String>) -> Error {
         Error::new(ErrorCode::Conflict, message).with_status(409)
     }
@@ -325,35 +346,47 @@ impl Error {
         error
     }
 
+    /// Adds a word on what to do about it, printed after the message.
+    #[must_use]
     pub fn with_hint(mut self, hint: impl Into<String>) -> Error {
         self.hint = Some(hint.into());
         self
     }
 
+    /// Records the HTTP status the failure came with.
+    #[must_use]
     pub fn with_status(mut self, status: u16) -> Error {
         self.http_status = Some(status);
         self
     }
 
+    /// Records the `X-Request-Id` HEY answered with, which is how support looks a call up.
+    #[must_use]
     pub fn with_request_id(mut self, request_id: impl Into<String>) -> Error {
         self.request_id = Some(request_id.into());
         self
     }
 
+    /// Keeps the error underneath this one, for `std::error::Error::source`.
+    #[must_use]
     pub fn with_source(mut self, source: impl std::error::Error + Send + Sync + 'static) -> Error {
         self.source = Some(Box::new(source));
         self
     }
 
+    /// Marks the call as worth sending again.
+    #[must_use]
     pub fn retryable(mut self) -> Error {
         self.retryable = true;
         self
     }
 
+    /// The category the error falls in.
     pub fn code(&self) -> ErrorCode {
         self.code
     }
 
+    /// Whether the error falls in the given category.
     pub fn is_code(&self, code: ErrorCode) -> bool {
         self.code == code
     }
@@ -363,22 +396,28 @@ impl Error {
         self.code.exit_code()
     }
 
+    /// What went wrong, in a line.
     pub fn message(&self) -> &str {
         &self.message
     }
 
+    /// What to do about it, when there is a word to say: HEY's own message, or when to try
+    /// again.
     pub fn hint(&self) -> Option<&str> {
         self.hint.as_deref()
     }
 
+    /// The HTTP status the failure came with, when HEY answered at all.
     pub fn http_status(&self) -> Option<u16> {
         self.http_status
     }
 
+    /// Whether the call is worth sending again: a 429, a 5xx, a network failure.
     pub fn is_retryable(&self) -> bool {
         self.retryable
     }
 
+    /// The `X-Request-Id` HEY answered with, when it did.
     pub fn request_id(&self) -> Option<&str> {
         self.request_id.as_deref()
     }
@@ -463,12 +502,11 @@ fn retry_hint(retry_after: Option<u64>) -> String {
 /// all.
 pub(crate) fn retry_after_seconds(headers: &HeaderMap) -> Option<u64> {
     let asked = headers.get("retry-after")?.to_str().ok()?.trim();
-    match asked.parse::<i64>() {
-        Ok(seconds) => u64::try_from(seconds).ok(),
-        Err(_) => {
-            let until = chrono::DateTime::parse_from_rfc2822(asked).ok()?;
-            seconds_until(until.with_timezone(&chrono::Utc), chrono::Utc::now())
-        }
+    if let Ok(seconds) = asked.parse::<i64>() {
+        u64::try_from(seconds).ok()
+    } else {
+        let until = chrono::DateTime::parse_from_rfc2822(asked).ok()?;
+        seconds_until(until.with_timezone(&chrono::Utc), chrono::Utc::now())
     }
 }
 

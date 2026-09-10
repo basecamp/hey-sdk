@@ -9,6 +9,7 @@ use crate::types::SensitiveString;
 /// Supplies the access token each request goes out with.
 #[async_trait]
 pub trait TokenProvider: Send + Sync {
+    /// The token to send, asked for on every request.
     async fn access_token(&self) -> Result<String, Error>;
 
     /// Asked once when a request is answered with 401. Answer `true` when the next
@@ -22,10 +23,12 @@ pub trait TokenProvider: Send + Sync {
 /// of the provider — or of anything holding one — cannot put the token in a log.
 #[derive(Debug, Clone)]
 pub struct StaticTokenProvider {
+    /// The token every request goes out with.
     pub token: SensitiveString,
 }
 
 impl StaticTokenProvider {
+    /// A provider that hands out `token` and nothing else.
     pub fn new(token: impl Into<SensitiveString>) -> StaticTokenProvider {
         StaticTokenProvider {
             token: token.into(),
@@ -48,6 +51,7 @@ impl TokenProvider for StaticTokenProvider {
 /// header from a [`TokenProvider`]; anything else can plug in here.
 #[async_trait]
 pub trait AuthStrategy: Send + Sync {
+    /// Puts the credentials on a request about to be sent.
     async fn authenticate(&self, request: &mut Request<Bytes>) -> Result<(), Error>;
 
     /// Asked once when a request is answered with 401; see [`TokenProvider::refresh`].
@@ -56,11 +60,13 @@ pub trait AuthStrategy: Send + Sync {
     }
 }
 
+/// Sends the token as `Authorization: Bearer`, which is how HEY takes one.
 pub struct BearerAuth<P: TokenProvider> {
     provider: P,
 }
 
 impl<P: TokenProvider> BearerAuth<P> {
+    /// Bearer authentication over the given provider's tokens.
     pub fn new(provider: P) -> BearerAuth<P> {
         BearerAuth { provider }
     }
