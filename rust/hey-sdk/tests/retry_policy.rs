@@ -1,3 +1,6 @@
+//! Each route's own retry policy: how many attempts it allows, from which delay, on which
+//! statuses, and how the client's own settings bound it.
+
 mod support;
 
 use std::time::{Duration, Instant};

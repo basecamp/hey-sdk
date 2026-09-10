@@ -1,3 +1,5 @@
+//! The route table: filling and recognizing paths, and every modelled operation listed once.
+
 use std::collections::HashSet;
 
 use hey_sdk::routes::{self, ROUTES};

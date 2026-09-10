@@ -31,11 +31,15 @@ const CONTACT_PATH: &str = "/contacts/";
 /// instead, which no endpoint takes.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Extenzion {
+    /// The extenzion's contact id.
     pub id: i64,
+    /// The part before the `@`, as in `sales`.
     pub name: String,
+    /// The contact's page in HEY's web app.
     pub app_url: String,
 }
 
+/// A new extenzion.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct CreateExtenzionParams {
     /// The extenzion name: "sales" becomes `sales@yourdomain.com`.
@@ -54,7 +58,7 @@ pub struct UpdateExtenzionParams {
     pub members: Option<Vec<String>>,
 }
 
-impl<'a> Extenzions<'a> {
+impl Extenzions<'_> {
     /// The extenzions on the account.
     ///
     /// This reads the navigation payload rather than scraping the extenzions page, so it

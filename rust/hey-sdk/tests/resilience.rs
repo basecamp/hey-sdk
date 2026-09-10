@@ -1,3 +1,5 @@
+//! The resilience layers on the client: circuit breaker, bulkhead and rate limit, and the errors they refuse with.
+
 mod support;
 
 use std::sync::{Arc, Mutex};
@@ -79,7 +81,13 @@ async fn a_breaker_that_is_open_for_one_operation_leaves_the_others_alone() {
         ErrorCode::CircuitOpen,
         client.boxes().list().await.unwrap_err().code()
     );
-    assert!(client.boxes().get(123, &Default::default()).await.is_ok());
+    assert!(
+        client
+            .boxes()
+            .get(123, &hey_sdk::services::boxes::GetBoxParams::default())
+            .await
+            .is_ok()
+    );
 }
 
 #[tokio::test]

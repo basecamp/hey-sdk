@@ -11,7 +11,7 @@ use crate::services::write_info;
 
 pub use crate::generated::services::publications::*;
 
-impl<'a> Publications<'a> {
+impl Publications<'_> {
     /// Publishes a thread and answers its public link.
     ///
     /// The redirect lands on the sharing panel rather than carrying the link, so the

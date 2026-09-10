@@ -34,11 +34,13 @@ const PATH_SEGMENT: &AsciiSet = &NON_ALPHANUMERIC
     .remove(b'.')
     .remove(b'~');
 
+/// The HEY World service: publishing posts and keeping a list's subscribers.
 pub struct World<'a> {
     client: &'a Client,
 }
 
 impl Client {
+    /// The HEY World service.
     pub fn world(&self) -> World<'_> {
         World::new(self)
     }
@@ -196,6 +198,7 @@ fn boundary() -> String {
     format!("{:032x}", rand::random::<u128>())
 }
 
+#[allow(clippy::case_sensitive_file_extension_comparisons)] // The same case-sensitive suffix check Go makes, so both SDKs send the same filename.
 fn import_filename(filename: &str) -> String {
     if filename.is_empty() {
         DEFAULT_IMPORT_FILENAME.to_string()

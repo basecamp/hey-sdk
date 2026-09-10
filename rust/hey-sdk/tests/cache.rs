@@ -1,3 +1,5 @@
+//! The response cache: conditional reads, 304 revalidation, and the file and memory stores.
+
 mod support;
 
 use std::fs;

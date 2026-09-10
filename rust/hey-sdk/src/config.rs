@@ -5,16 +5,22 @@ use serde::{Deserialize, Serialize};
 
 use crate::error::Error;
 
+/// Where HEY is when nothing says otherwise.
 pub const DEFAULT_BASE_URL: &str = "https://app.hey.com";
+/// The OAuth client HEY registers for its own SDKs and CLI.
 pub const DEFAULT_OAUTH_CLIENT_ID: &str = "khMWSVDVSq78oyKA3KtxmYRv";
 
 /// What a client needs to know before it can talk to HEY.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct Config {
+    /// Where HEY is: [`DEFAULT_BASE_URL`], or a HEY running on this machine.
     pub base_url: String,
+    /// The OAuth client to sign in as.
     pub oauth_client_id: String,
+    /// Where the response cache keeps its files.
     pub cache_dir: PathBuf,
+    /// Whether JSON reads are cached on disk between runs.
     pub cache_enabled: bool,
 }
 
@@ -42,6 +48,7 @@ impl Config {
 
     /// Lets `HEY_BASE_URL`, `HEY_OAUTH_CLIENT_ID`, `HEY_CACHE_DIR` and `HEY_CACHE_ENABLED`
     /// override whatever is set. An empty variable counts as unset.
+    #[must_use]
     pub fn with_env(mut self) -> Config {
         if let Some(value) = env_value("HEY_BASE_URL") {
             self.base_url = value;
@@ -58,11 +65,15 @@ impl Config {
         self
     }
 
+    /// Points the client at another HEY, such as one running on this machine.
+    #[must_use]
     pub fn with_base_url(mut self, base_url: impl Into<String>) -> Config {
         self.base_url = base_url.into();
         self
     }
 
+    /// Turns the on-disk response cache on or off.
+    #[must_use]
     pub fn with_cache_enabled(mut self, enabled: bool) -> Config {
         self.cache_enabled = enabled;
         self

@@ -15,7 +15,7 @@ use crate::generated::types::{CalendarPeriod, CalendarYear};
 
 pub use crate::generated::services::calendar_periods::*;
 
-impl<'a> CalendarPeriods<'a> {
+impl CalendarPeriods<'_> {
     /// Reads one day. The date is `YYYY-MM-DD`, or the literal `now` for today, which
     /// leaves it to HEY to decide what today is where the reader is.
     pub async fn day(&self, date: &str) -> Result<CalendarPeriod, Error> {

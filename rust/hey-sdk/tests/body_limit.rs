@@ -1,3 +1,5 @@
+//! The response body cap: what is refused, at which byte, and with which error.
+
 mod support;
 
 use std::time::{Duration, Instant};

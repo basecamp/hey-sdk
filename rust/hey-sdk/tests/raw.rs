@@ -1,3 +1,5 @@
+//! The raw verbs: a path and a send, for what the model does not describe.
+
 mod support;
 
 use async_trait::async_trait;
@@ -68,7 +70,11 @@ async fn a_raw_path_keeps_the_shape_it_was_written_in() {
 
     let client = client(&server);
     client.get("/boxes/123").await.unwrap();
-    client.boxes().get(123, &Default::default()).await.unwrap();
+    client
+        .boxes()
+        .get(123, &hey_sdk::services::boxes::GetBoxParams::default())
+        .await
+        .unwrap();
 
     let requests = server.received_requests().await.unwrap();
     let paths: Vec<&str> = requests.iter().map(|request| request.url.path()).collect();

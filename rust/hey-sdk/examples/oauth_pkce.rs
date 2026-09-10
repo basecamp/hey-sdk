@@ -69,8 +69,7 @@ async fn main() -> Result<(), Error> {
         "Authorized; the access token expires at {}",
         token
             .expires_at
-            .map(|at| at.to_rfc3339())
-            .unwrap_or_else(|| "an unknown time".to_string())
+            .map_or_else(|| "an unknown time".to_string(), |at| at.to_rfc3339())
     );
 
     // The client asks the provider for a token before each request, and asks it to refresh
@@ -81,7 +80,7 @@ async fn main() -> Result<(), Error> {
         client_id: config.oauth_client_id.clone(),
         install_id,
         token: Mutex::new(token),
-        refreshing: tokio::sync::Mutex::new(()),
+        one_at_a_time: tokio::sync::Mutex::new(()),
     };
     let client = Client::new(config, provider)?;
     let me = client.identity().get().await?;
@@ -103,7 +102,7 @@ struct Refreshing {
     client_id: String,
     install_id: String,
     token: Mutex<Token>,
-    refreshing: tokio::sync::Mutex<()>,
+    one_at_a_time: tokio::sync::Mutex<()>,
 }
 
 #[async_trait]
@@ -114,7 +113,7 @@ impl TokenProvider for Refreshing {
 
     async fn refresh(&self) -> bool {
         let stale = self.lock().access_token.clone();
-        let _one_at_a_time = self.refreshing.lock().await;
+        let _one_at_a_time = self.one_at_a_time.lock().await;
         if self.lock().access_token != stale {
             return true;
         }
@@ -151,7 +150,7 @@ impl Refreshing {
     fn lock(&self) -> std::sync::MutexGuard<'_, Token> {
         self.token
             .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
     }
 }
 

@@ -1,3 +1,5 @@
+//! Wire-level tests for the `publications` service: what each call sends and how it reads what HEY answers, against literal bodies.
+
 mod support;
 
 use std::sync::{Arc, Mutex};
@@ -90,7 +92,7 @@ async fn unpublishing_a_thread_deletes_its_publication() {
 
     client(&server)
         .publications()
-        .unpublish(4471829)
+        .unpublish(4_471_829)
         .await
         .unwrap();
 

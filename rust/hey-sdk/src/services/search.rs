@@ -49,11 +49,13 @@ pub struct SearchParams {
 /// is told to stop asking rather than having to ask for a page that turns out empty.
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct SearchResults {
+    /// The matches, grouped by topic.
     pub result: AdvancedSearchResult,
+    /// The number of the page after this one, while there is one.
     pub next_page: Option<u32>,
 }
 
-impl<'a> Search<'a> {
+impl Search<'_> {
     /// Runs an advanced search and answers the matching threads, grouped by topic as the
     /// search page shows them: the topic, your posting of it, and the entries that matched
     /// as summaries — read a message with

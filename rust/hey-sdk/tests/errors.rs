@@ -1,3 +1,5 @@
+//! `Error` and `ErrorCode`: the status mapping, the exit codes and what an error keeps of the failure.
+
 use hey_sdk::error::{
     EXIT_AMBIGUOUS, EXIT_API, EXIT_AUTH, EXIT_FORBIDDEN, EXIT_NETWORK, EXIT_NOT_FOUND,
     EXIT_RATE_LIMIT, EXIT_USAGE, EXIT_VALIDATION, MAX_ERROR_BODY_BYTES, MAX_ERROR_MESSAGE_BYTES,

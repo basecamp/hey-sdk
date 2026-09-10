@@ -18,12 +18,15 @@ pub use crate::generated::services::calendar_todos::*;
 /// is sent and keeps the rest, so a rename carries a title and says nothing about the day.
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct TodoChanges {
+    /// A new title. An empty one is no title, and changes nothing.
     pub title: Option<String>,
+    /// The day the todo moves to.
     pub starts_at: Option<Date>,
+    /// Whether the todo is in focus.
     pub focused: Option<bool>,
 }
 
-impl<'a> CalendarTodos<'a> {
+impl CalendarTodos<'_> {
     /// Creates a todo, filed on a day. No day files it on today where this machine is.
     pub async fn create_todo(
         &self,

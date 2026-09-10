@@ -14,11 +14,14 @@ pub use crate::generated::services::identity::*;
 /// The clock HEY renders times on.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TimeFormat {
+    /// A 12-hour clock, HEY's `twelve_hour`.
     TwelveHour,
+    /// A 24-hour clock, HEY's `twenty_four_hour`.
     TwentyFourHour,
 }
 
 impl TimeFormat {
+    /// The format as HEY's identity names it.
     pub fn as_str(&self) -> &'static str {
         match self {
             TimeFormat::TwelveHour => "twelve_hour",
@@ -27,7 +30,7 @@ impl TimeFormat {
     }
 }
 
-impl<'a> Identity<'a> {
+impl Identity<'_> {
     /// Sets which day the identity's calendar weeks start on, and answers the day HEY
     /// stored. The write reaches every HEY client — web, mobile and this SDK read the same
     /// identity preference.

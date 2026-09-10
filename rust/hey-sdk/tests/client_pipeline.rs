@@ -1,3 +1,5 @@
+//! The client's send pipeline end to end: paths, headers, decoding, retries and refresh, against literal bodies.
+
 mod support;
 
 use std::sync::Mutex;
@@ -103,7 +105,7 @@ async fn every_path_is_read_as_json() {
     assert_eq!(
         client
             .boxes()
-            .get(123, &Default::default())
+            .get(123, &hey_sdk::services::boxes::GetBoxParams::default())
             .await
             .unwrap()
             .name,
@@ -148,7 +150,7 @@ async fn optional_query_parameters_are_left_out() {
 
     let tracked = client(&server)
         .time_tracks()
-        .list(&Default::default())
+        .list(&hey_sdk::services::time_tracks::ListTimeTracksParams::default())
         .await
         .unwrap();
 
@@ -218,7 +220,8 @@ async fn query_parameters_reach_the_server_the_way_hey_reads_them() {
                 .url
                 .query_pairs()
                 .map(|(name, value)| format!("{name}={value}"))
-                .collect()
+                .collect::<Vec<_>>()
+                .join("&")
         })
         .collect();
     assert_eq!(
@@ -355,7 +358,7 @@ async fn an_answer_that_will_not_change_is_surfaced_at_once() {
 
     let error = client(&server)
         .boxes()
-        .get(99999, &Default::default())
+        .get(99999, &hey_sdk::services::boxes::GetBoxParams::default())
         .await
         .unwrap_err();
 
@@ -580,7 +583,7 @@ async fn an_error_carries_the_request_id_and_what_the_server_said() {
 
     let error = client(&server)
         .boxes()
-        .get(99999, &Default::default())
+        .get(99999, &hey_sdk::services::boxes::GetBoxParams::default())
         .await
         .unwrap_err();
 
@@ -697,11 +700,14 @@ async fn an_id_beyond_double_precision_survives_the_round_trip() {
 
     let mailbox = client(&server)
         .boxes()
-        .get(9007199254740993, &Default::default())
+        .get(
+            9_007_199_254_740_993,
+            &hey_sdk::services::boxes::GetBoxParams::default(),
+        )
         .await
         .unwrap();
 
-    assert_eq!(mailbox.id, 9007199254740993);
+    assert_eq!(mailbox.id, 9_007_199_254_740_993);
     assert_eq!(serde_json::to_string(mailbox.value()).unwrap(), body);
 }
 

@@ -1,9 +1,11 @@
+//! Wire-level tests for the `postings` service: what each call sends and how it reads what HEY answers, against literal bodies.
+
 mod support;
 
 use std::sync::{Arc, Mutex};
 
 use hey_sdk::observability::{Hooks, OperationInfo, OperationState};
-use hey_sdk::services::{BubbleUpSlot, PostingChangesCursor};
+use hey_sdk::services::{BubbleUpSlot, PostingChanges, PostingChangesCursor};
 use hey_sdk::{Date, ErrorCode};
 use serde_json::{Value, json};
 use wiremock::matchers::{method, path, query_param, query_param_is_missing};
@@ -609,7 +611,7 @@ async fn nothing_new_leaves_the_caller_the_cursor_it_already_holds() {
         .await
         .unwrap();
 
-    assert_eq!(changes, Default::default());
+    assert_eq!(changes, PostingChanges::default());
 }
 
 fn cursor() -> PostingChangesCursor {

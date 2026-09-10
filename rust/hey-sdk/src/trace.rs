@@ -10,6 +10,7 @@
 //! query it carries are the caller's; the hooks are where the URL goes.
 
 use crate::http::StatusCode;
+#[cfg(feature = "tracing")]
 use crate::observability::OperationInfo;
 use crate::operation::Operation;
 
@@ -74,10 +75,12 @@ impl OperationSpan {
     }
 
     #[cfg(not(feature = "tracing"))]
+    #[allow(clippy::unused_self)] // the same shape as with the feature on, so call sites read the same
     pub(crate) fn wrap<F: Future>(&self, work: F) -> F {
         work
     }
 
+    #[allow(clippy::unused_self)] // without the feature there is no span to record on; the call sites read the same
     pub(crate) fn answered(&self, status: StatusCode, request_id: Option<&str>) {
         #[cfg(feature = "tracing")]
         {
@@ -95,6 +98,7 @@ impl OperationSpan {
 
 /// What a span or an event calls the operation: the name the model or a wrapper gave it,
 /// or the method alone for a path the caller wrote, whose path is the caller's own.
+#[cfg(feature = "tracing")]
 pub(crate) fn label(operation: &Operation) -> &str {
     if is_raw(&operation.info) {
         operation.method.as_str()
@@ -103,6 +107,7 @@ pub(crate) fn label(operation: &Operation) -> &str {
     }
 }
 
+#[cfg(feature = "tracing")]
 fn is_raw(info: &OperationInfo) -> bool {
     info.service == "Raw"
 }
@@ -131,10 +136,12 @@ impl AttemptSpan {
     }
 
     #[cfg(not(feature = "tracing"))]
+    #[allow(clippy::unused_self)] // the same shape as with the feature on, so call sites read the same
     pub(crate) fn wrap<F: Future>(&self, work: F) -> F {
         work
     }
 
+    #[allow(clippy::unused_self)] // without the feature there is no span to record on; the call sites read the same
     pub(crate) fn answered(&self, status: StatusCode) {
         #[cfg(feature = "tracing")]
         self.span.record("http.status", status.as_u16());

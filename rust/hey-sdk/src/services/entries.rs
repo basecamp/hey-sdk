@@ -23,12 +23,15 @@ pub struct ReplyContent {
     /// The reply body alone: HEY appends the quoted original at delivery, so the
     /// prefill's quoted content must not be echoed back.
     pub content: String,
+    /// The addresses the reply goes to.
     pub to: Vec<String>,
+    /// The addresses copied on it.
     pub cc: Vec<String>,
+    /// The addresses copied on it without the others seeing.
     pub bcc: Vec<String>,
 }
 
-impl<'a> Entries<'a> {
+impl Entries<'_> {
     /// Delivers a reply to an entry. HEY does not reply-all on the caller's behalf, and
     /// saves an unaddressed reply as a draft rather than delivering it, so the thread's
     /// recipients — the prefill's — are required.

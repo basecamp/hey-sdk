@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::sync::Mutex;
+use std::sync::{Mutex, PoisonError};
 
 use bytes::Bytes;
 use sha2::{Digest, Sha256};
@@ -10,15 +10,21 @@ use sha2::{Digest, Sha256};
 /// validates.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CachedResponse {
+    /// The `ETag` HEY sent with the body, sent back as `If-None-Match` on the next read.
     pub etag: String,
+    /// The body as HEY answered it.
     pub body: Bytes,
 }
 
-/// Stores JSON responses by ETag so a repeated read can be answered from a 304.
+/// Stores JSON responses by `ETag` so a repeated read can be answered from a 304.
 pub trait ResponseCache: Send + Sync {
+    /// What is held under `key`, if anything.
     fn get(&self, key: &str) -> Option<CachedResponse>;
+    /// Holds a response under `key`, replacing whatever was there.
     fn set(&self, key: &str, response: CachedResponse);
+    /// Forgets what is held under `key`.
     fn invalidate(&self, key: &str);
+    /// Forgets everything.
     fn clear(&self);
 }
 
@@ -29,6 +35,7 @@ pub struct InMemoryCache {
 }
 
 impl InMemoryCache {
+    /// An empty cache.
     pub fn new() -> InMemoryCache {
         InMemoryCache::default()
     }
@@ -36,22 +43,32 @@ impl InMemoryCache {
 
 impl ResponseCache for InMemoryCache {
     fn get(&self, key: &str) -> Option<CachedResponse> {
-        self.entries.lock().unwrap().get(key).cloned()
+        self.entries
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .get(key)
+            .cloned()
     }
 
     fn set(&self, key: &str, response: CachedResponse) {
         self.entries
             .lock()
-            .unwrap()
+            .unwrap_or_else(PoisonError::into_inner)
             .insert(key.to_string(), response);
     }
 
     fn invalidate(&self, key: &str) {
-        self.entries.lock().unwrap().remove(key);
+        self.entries
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .remove(key);
     }
 
     fn clear(&self) {
-        self.entries.lock().unwrap().clear();
+        self.entries
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .clear();
     }
 }
 
@@ -65,6 +82,7 @@ pub struct FileCache {
 }
 
 impl FileCache {
+    /// A cache in `directory`, which is created on the first write.
     pub fn new(directory: impl Into<PathBuf>) -> FileCache {
         FileCache {
             directory: directory.into(),
@@ -92,7 +110,7 @@ impl FileCache {
 
 impl ResponseCache for FileCache {
     fn get(&self, key: &str) -> Option<CachedResponse> {
-        let _guard = self.lock.lock().unwrap();
+        let _guard = self.lock.lock().unwrap_or_else(PoisonError::into_inner);
         let etag = self.etags().get(key).cloned()?;
         let body = fs::read(self.body_path(key)).ok()?;
         Some(CachedResponse {
@@ -102,7 +120,7 @@ impl ResponseCache for FileCache {
     }
 
     fn set(&self, key: &str, response: CachedResponse) {
-        let _guard = self.lock.lock().unwrap();
+        let _guard = self.lock.lock().unwrap_or_else(PoisonError::into_inner);
         write_private(&self.body_path(key), &response.body);
         let mut etags = self.etags();
         etags.insert(key.to_string(), response.etag);
@@ -110,7 +128,7 @@ impl ResponseCache for FileCache {
     }
 
     fn invalidate(&self, key: &str) {
-        let _guard = self.lock.lock().unwrap();
+        let _guard = self.lock.lock().unwrap_or_else(PoisonError::into_inner);
         let _ = fs::remove_file(self.body_path(key));
         let mut etags = self.etags();
         etags.remove(key);
@@ -121,7 +139,7 @@ impl ResponseCache for FileCache {
     /// shared with hey-cli, which keeps its credentials and its own state alongside, so
     /// only `responses/` and `etags.json` go.
     fn clear(&self) {
-        let _guard = self.lock.lock().unwrap();
+        let _guard = self.lock.lock().unwrap_or_else(PoisonError::into_inner);
         let _ = fs::remove_dir_all(self.directory.join("responses"));
         let _ = fs::remove_file(self.directory.join("etags.json"));
     }
@@ -162,5 +180,9 @@ pub fn cache_key(url: &str, credential: &str) -> String {
 }
 
 fn hex(bytes: &[u8]) -> String {
-    bytes.iter().map(|byte| format!("{byte:02x}")).collect()
+    use std::fmt::Write;
+    bytes.iter().fold(String::new(), |mut hex, byte| {
+        let _ = write!(hex, "{byte:02x}");
+        hex
+    })
 }

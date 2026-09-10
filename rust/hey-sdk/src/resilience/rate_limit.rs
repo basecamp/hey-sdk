@@ -1,4 +1,4 @@
-use std::sync::Mutex;
+use std::sync::{Mutex, PoisonError};
 use std::time::{Duration, Instant};
 
 use super::Clock;
@@ -15,6 +15,7 @@ pub struct RateLimitConfig {
     pub burst_size: u32,
     /// Whether a `Retry-After` from HEY holds the limiter back until it has passed.
     pub respect_retry_after: bool,
+    /// Where the limiter reads the time; see [`Clock`].
     pub clock: Clock,
 }
 
@@ -49,6 +50,7 @@ struct Bucket {
 }
 
 impl RateLimiter {
+    /// A limiter at `config`, its bucket full.
     pub fn new(config: RateLimitConfig) -> RateLimiter {
         let defaults = RateLimitConfig::default();
         let burst_size = match config.burst_size {
@@ -75,7 +77,7 @@ impl RateLimiter {
 
     /// Whether a call may go out now, spending a token if it may.
     pub fn allow(&self) -> bool {
-        let mut bucket = self.inner.lock().unwrap();
+        let mut bucket = self.inner.lock().unwrap_or_else(PoisonError::into_inner);
         if self.held_back(&mut bucket) {
             false
         } else {
@@ -96,7 +98,7 @@ impl RateLimiter {
     /// A reservation spends its token up front, as Go's does, so a caller that reserves and
     /// then walks away leaves the bucket short.
     pub fn reserve(&self) -> Option<Duration> {
-        let mut bucket = self.inner.lock().unwrap();
+        let mut bucket = self.inner.lock().unwrap_or_else(PoisonError::into_inner);
         if self.held_back(&mut bucket) {
             return None;
         }
@@ -120,7 +122,7 @@ impl RateLimiter {
     /// extended, never cut short, so the longest thing HEY asked for is what is honoured.
     pub fn set_retry_after(&self, until: Instant) {
         if self.respect_retry_after {
-            let mut bucket = self.inner.lock().unwrap();
+            let mut bucket = self.inner.lock().unwrap_or_else(PoisonError::into_inner);
             if bucket
                 .retry_after_until
                 .is_none_or(|current| until > current)
@@ -130,13 +132,19 @@ impl RateLimiter {
         }
     }
 
+    /// [`RateLimiter::set_retry_after`], measured from now.
     pub fn set_retry_after_in(&self, wait: Duration) {
         self.set_retry_after(self.clock.now() + wait);
     }
 
     /// How much of the wait HEY asked for is left, and zero when it asked for none.
     pub fn retry_after_remaining(&self) -> Duration {
-        match self.inner.lock().unwrap().retry_after_until {
+        match self
+            .inner
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .retry_after_until
+        {
             Some(until) => until.saturating_duration_since(self.clock.now()),
             None => Duration::ZERO,
         }
@@ -144,7 +152,7 @@ impl RateLimiter {
 
     /// How many calls the bucket would let through right now.
     pub fn tokens(&self) -> f64 {
-        let mut bucket = self.inner.lock().unwrap();
+        let mut bucket = self.inner.lock().unwrap_or_else(PoisonError::into_inner);
         self.refill(&mut bucket);
         bucket.tokens
     }
@@ -251,6 +259,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::float_cmp)] // whole tokens, and the clock has not moved to add a fraction
     fn a_new_bucket_is_full_and_every_call_spends_from_it() {
         let (clock, _now) = test_clock();
         let limiter = RateLimiter::new(RateLimitConfig {
@@ -311,6 +320,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::float_cmp)] // whole tokens, and the clock has not moved to add a fraction
     fn a_config_of_zeroes_falls_back_to_the_defaults() {
         let (clock, _now) = test_clock();
         let limiter = RateLimiter::new(RateLimitConfig {

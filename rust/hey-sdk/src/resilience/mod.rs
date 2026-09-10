@@ -43,7 +43,7 @@ mod rate_limit;
 
 use std::collections::HashMap;
 use std::fmt;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, PoisonError};
 use std::time::{Duration, Instant};
 
 use async_trait::async_trait;
@@ -60,8 +60,11 @@ pub use rate_limit::{RateLimitConfig, RateLimiter};
 /// [`ResilienceConfig::default`] turns all three on at their own defaults.
 #[derive(Debug, Clone)]
 pub struct ResilienceConfig {
+    /// The breaker every scope gets one of.
     pub circuit_breaker: Option<CircuitBreakerConfig>,
+    /// The bulkhead every scope gets one of.
     pub bulkhead: Option<BulkheadConfig>,
+    /// The one limiter every scope spends from.
     pub rate_limit: Option<RateLimitConfig>,
 }
 
@@ -90,12 +93,14 @@ impl ResilienceConfig {
 impl ClientBuilder {
     /// Installs the layers the config asks for, keeping whatever hooks the builder already
     /// carries: they still hear about every operation and request.
+    #[must_use]
     pub fn resilience(mut self, config: ResilienceConfig) -> ClientBuilder {
         self.hooks = Arc::new(ResilienceHooks::new(self.hooks.clone(), config));
         self
     }
 
     /// Installs the circuit breaker alone.
+    #[must_use]
     pub fn circuit_breaker(self, config: CircuitBreakerConfig) -> ClientBuilder {
         self.resilience(ResilienceConfig {
             circuit_breaker: Some(config),
@@ -104,6 +109,7 @@ impl ClientBuilder {
     }
 
     /// Installs the bulkhead alone.
+    #[must_use]
     pub fn bulkhead(self, config: BulkheadConfig) -> ClientBuilder {
         self.resilience(ResilienceConfig {
             bulkhead: Some(config),
@@ -112,6 +118,7 @@ impl ClientBuilder {
     }
 
     /// Installs the rate limiter alone.
+    #[must_use]
     pub fn rate_limit(self, config: RateLimitConfig) -> ClientBuilder {
         self.resilience(ResilienceConfig {
             rate_limit: Some(config),
@@ -141,10 +148,12 @@ pub fn should_trip_circuit(error: &Error) -> bool {
 pub struct Clock(Arc<dyn Fn() -> Instant + Send + Sync>);
 
 impl Clock {
+    /// A clock that asks `now` each time it is read.
     pub fn new(now: impl Fn() -> Instant + Send + Sync + 'static) -> Clock {
         Clock(Arc::new(now))
     }
 
+    /// The moment it is, as this clock has it.
     pub fn now(&self) -> Instant {
         (self.0)()
     }
@@ -181,6 +190,7 @@ pub struct ResilienceHooks {
 }
 
 impl ResilienceHooks {
+    /// The layers `config` asks for, wrapped around `inner`.
     pub fn new(inner: Arc<dyn Hooks>, config: ResilienceConfig) -> ResilienceHooks {
         ResilienceHooks {
             inner,
@@ -243,7 +253,7 @@ impl Hooks for ResilienceHooks {
         if let Some(permit) = permit {
             self.pending
                 .lock()
-                .unwrap()
+                .unwrap_or_else(PoisonError::into_inner)
                 .entry(scope)
                 .or_default()
                 .push(permit);
@@ -255,7 +265,7 @@ impl Hooks for ResilienceHooks {
         let permit = self
             .pending
             .lock()
-            .unwrap()
+            .unwrap_or_else(PoisonError::into_inner)
             .get_mut(&scope_of(op))
             .and_then(Vec::pop);
         Some(Box::new(Held {
@@ -339,7 +349,7 @@ impl<T> Registry<T> {
     fn get(&self, scope: &str) -> Arc<T> {
         self.entries
             .lock()
-            .unwrap()
+            .unwrap_or_else(PoisonError::into_inner)
             .entry(scope.to_string())
             .or_insert_with(|| Arc::new((self.build)()))
             .clone()

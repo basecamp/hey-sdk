@@ -13,6 +13,7 @@ use crate::route::Route;
 /// A request the client has not sent yet. Generated service methods build one from a
 /// [`Route`]; [`crate::Client::request`] builds one for anything the model does not cover.
 #[derive(Debug, Clone)]
+#[allow(clippy::struct_excessive_bools)] // each flag is one independent choice about the send
 pub struct Operation {
     pub(crate) id: Cow<'static, str>,
     pub(crate) info: OperationInfo,
@@ -116,23 +117,28 @@ impl Operation {
         operation
     }
 
+    /// The operation as the model names it, or `METHOD /path` for one built by hand.
     pub fn id(&self) -> &str {
         &self.id
     }
 
+    /// The HTTP method the operation is sent with.
     pub fn method(&self) -> &Method {
         &self.method
     }
 
+    /// The path the operation is sent to, parameters already filled in.
     pub fn path(&self) -> &str {
         &self.path
     }
 
+    /// Adds a query parameter. The same name may be added more than once.
     pub fn query(&mut self, name: &str, value: impl Display) -> &mut Operation {
         self.query.push((name.to_string(), value.to_string()));
         self
     }
 
+    /// Adds a query parameter when there is a value for it, and nothing otherwise.
     pub fn query_optional<T: Display>(&mut self, name: &str, value: Option<&T>) -> &mut Operation {
         if let Some(value) = value {
             self.query(name, value);
@@ -140,11 +146,13 @@ impl Operation {
         self
     }
 
+    /// A JSON body, which is what every modelled write sends.
     pub fn json<T: Serialize + ?Sized>(&mut self, body: &T) -> Result<&mut Operation, Error> {
         self.body_bytes("application/json", Bytes::from(serde_json::to_vec(body)?));
         Ok(self)
     }
 
+    /// A form-encoded body, as a browser would post it.
     pub fn form(&mut self, fields: &[(&str, &str)]) -> &mut Operation {
         let encoded = url::form_urlencoded::Serializer::new(String::new())
             .extend_pairs(fields)
@@ -181,6 +189,7 @@ impl Operation {
         self
     }
 
+    /// Names the kind of record the operation acts on, in `snake_case`: `box_group`.
     pub fn resource_type(&mut self, resource_type: impl Into<Cow<'static, str>>) -> &mut Operation {
         self.info.resource_type = resource_type.into();
         self
@@ -199,6 +208,7 @@ impl Operation {
         self
     }
 
+    /// The representation to ask HEY for, sent as `Accept`.
     pub fn accept(&mut self, media_type: &'static str) -> &mut Operation {
         self.accept = media_type;
         self

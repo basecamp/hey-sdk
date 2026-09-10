@@ -36,6 +36,20 @@
 
 The full step-by-step, including how the drift gates work, is in [AGENTS.md](AGENTS.md).
 
+## Versioning
+
+The Go module and the Rust crate share one version and one `vX.Y.Z` tag. Pre-1.0, a breaking
+change bumps the minor version and an additive one the patch. For Rust, what counts as
+breaking is decided once, by the type policy in
+[rust/hey-sdk/README.md](rust/hey-sdk/README.md#versioning): request-side types are literal
+and exhaustive, so a new field there is a minor; response-side types and open enums are
+`#[non_exhaustive]`, so a new field or variant there is a patch. Say which in the PR when a
+change touches a public type.
+
+The crate's minimum supported Rust version is 1.88 (`rust-version` in `rust/Cargo.toml`). It
+moves only when a dependency or a language feature the crate needs requires it, as a minor
+release with a line in the release notes.
+
 ## Release Process
 
 Two steps, in this order.

@@ -20,6 +20,7 @@ use crate::operation::Operation;
 use crate::security::is_same_origin;
 
 impl Client {
+    /// Reads a path the model does not cover.
     pub async fn get(&self, path: &str) -> Result<Response, Error> {
         self.execute(self.raw(Method::GET, path)?).await
     }
@@ -74,6 +75,7 @@ impl Client {
         Ok((written, headers))
     }
 
+    /// Posts a JSON body to a path the model does not cover.
     pub async fn post(&self, path: &str, body: &impl Serialize) -> Result<Response, Error> {
         self.send_json(Method::POST, path, body, "application/json")
             .await
@@ -88,11 +90,13 @@ impl Client {
         self.send_json(Method::POST, path, body, "*/*").await
     }
 
+    /// Puts a JSON body to a path the model does not cover.
     pub async fn put(&self, path: &str, body: &impl Serialize) -> Result<Response, Error> {
         self.send_json(Method::PUT, path, body, "application/json")
             .await
     }
 
+    /// Patches a path the model does not cover with a JSON body.
     pub async fn patch(&self, path: &str, body: &impl Serialize) -> Result<Response, Error> {
         self.send_json(Method::PATCH, path, body, "application/json")
             .await
@@ -107,6 +111,7 @@ impl Client {
         self.send_json(Method::PATCH, path, body, "*/*").await
     }
 
+    /// Deletes at a path the model does not cover.
     pub async fn delete(&self, path: &str) -> Result<Response, Error> {
         self.execute(self.raw(Method::DELETE, path)?).await
     }
@@ -128,6 +133,7 @@ impl Client {
         self.send_form(operation).await
     }
 
+    /// Patches through the form endpoint, the way a browser's edit form would.
     pub async fn patch_form(
         &self,
         path: &str,

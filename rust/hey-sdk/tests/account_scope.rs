@@ -1,3 +1,5 @@
+//! How a client derived for a linked account scopes what it sends and what it works out.
+
 mod support;
 
 use hey_sdk::ErrorCode;

@@ -1,3 +1,5 @@
+//! `Date` and `DateTime` as HEY writes them and as the crate reads them back.
+
 use chrono::{FixedOffset, TimeZone, Utc, Weekday};
 use hey_sdk::types::optional_date;
 use hey_sdk::{Date, DateTime, ErrorCode};

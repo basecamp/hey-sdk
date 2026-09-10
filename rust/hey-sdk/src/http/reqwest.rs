@@ -36,7 +36,15 @@ impl ReqwestClient {
     }
 }
 
+/// The shipped client at its default timeout.
+///
+/// # Panics
+///
+/// When reqwest cannot build a client at all — a TLS backend that fails to initialize is the
+/// one way. `Default` has no way to say so; a caller that would rather have the error uses
+/// [`ReqwestClient::with_timeout`] or [`ReqwestClient::from_builder`].
 impl Default for ReqwestClient {
+    #[allow(clippy::expect_used)] // `Default` cannot return the error; the fallible constructors can, see above
     fn default() -> ReqwestClient {
         ReqwestClient::with_timeout(DEFAULT_TIMEOUT)
             .expect("reqwest builds a client from its defaults")

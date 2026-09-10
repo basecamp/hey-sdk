@@ -21,7 +21,9 @@ struct Pattern {
 /// What a recognized path refers to.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Match {
+    /// The path template the path matched: `/boxes/{boxId}/groups/{groupId}`.
     pub pattern: &'static str,
+    /// The part of HEY the path belongs to, as the model titles it: `Boxes`.
     pub resource: &'static str,
     /// The operations served on this path, by method.
     pub operations: BTreeMap<String, &'static str>,
@@ -31,6 +33,12 @@ pub struct Match {
 
 impl Match {
     /// The read on this path, or the alphabetically first operation when there is none.
+    ///
+    /// # Panics
+    ///
+    /// When `operations` is empty. Recognition never produces such a match; only emptying
+    /// the field by hand reaches this.
+    #[allow(clippy::expect_used)] // the empty case is unreachable through `Router::recognize`; see Panics
     pub fn operation(&self) -> &'static str {
         self.operations
             .get(Method::GET.as_str())

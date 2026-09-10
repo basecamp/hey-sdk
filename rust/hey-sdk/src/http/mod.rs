@@ -42,6 +42,7 @@ pub use self::reqwest::ReqwestClient;
 /// stream — is [`Error::network`]; a response with any status is `Ok`.
 #[async_trait]
 pub trait HttpClient: Send + Sync {
+    /// Sends the request and answers with whatever came back, redirects included.
     async fn send(&self, request: Request<Bytes>) -> Result<Response<Body>, Error>;
 }
 
@@ -56,6 +57,7 @@ pub struct Body {
 }
 
 impl Body {
+    /// A body over the transport's stream of chunks, with the length it declared, if any.
     pub fn from_stream(
         stream: impl Stream<Item = Result<Bytes, Error>> + Send + 'static,
         content_length: Option<u64>,
@@ -66,6 +68,7 @@ impl Body {
         }
     }
 
+    /// A body with nothing in it, for an answer that carries none.
     pub fn empty() -> Body {
         Body::from(Bytes::new())
     }

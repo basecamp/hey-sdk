@@ -63,9 +63,12 @@ pub struct EventContent {
 /// form it reads.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub enum CountdownUnit {
+    /// A day: 86,400 seconds.
     #[default]
     Days = 86_400,
+    /// A week: 604,800 seconds.
     Weeks = 604_800,
+    /// A month as HEY averages one: 2,629,746 seconds.
     Months = 2_629_746,
 }
 
@@ -78,7 +81,9 @@ pub enum CountdownUnit {
 /// is what the web app offers.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct Countdown {
+    /// How many units. Zero is no countdown.
     pub value: u32,
+    /// What the value counts in.
     pub unit: CountdownUnit,
 }
 
@@ -87,11 +92,17 @@ pub struct Countdown {
 /// set that can be expressed.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub enum RepeatFrequency {
+    /// Every day.
     EveryDay,
+    /// Monday to Friday.
     EveryWeekday,
+    /// The same day every week.
     EveryWeek,
+    /// The same day every other week.
     EveryOtherWeek,
+    /// The same date every month.
     EveryDayOfMonth,
+    /// The same date every year.
     EveryYear,
     /// Keeps whatever schedule the event already has instead of naming a new one. It is how
     /// a write says the recurrence is none of its business.
@@ -102,8 +113,11 @@ pub enum RepeatFrequency {
 /// When a recurrence stops.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum RepeatUntil {
+    /// The event never stops repeating.
     Forever,
+    /// It stops after [`Repeat::until_date`].
     Date,
+    /// It stops after [`Repeat::count`] occurrences.
     Count,
 }
 
@@ -116,7 +130,9 @@ pub enum RepeatUntil {
 /// anyway. Everywhere else the two differ: a `None` writes no recurrence field at all.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Repeat {
+    /// How often the event repeats.
     pub frequency: RepeatFrequency,
+    /// When it stops. `None` says nothing about an end.
     pub until: Option<RepeatUntil>,
     /// Read only when `until` is [`RepeatUntil::Date`].
     pub until_date: Option<Date>,
@@ -127,22 +143,26 @@ pub struct Repeat {
 /// A new calendar event.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct CreateCalendarEventParams {
+    /// The calendar the event is filed on.
     pub calendar_id: i64,
+    /// The event's title, HEY's summary.
     pub title: String,
     /// `YYYY-MM-DD`.
     pub starts_at: String,
     /// `YYYY-MM-DD`. Defaults to `starts_at`.
     pub ends_at: String,
+    /// Whether the event takes the whole day rather than a clock time.
     pub all_day: bool,
     /// `HH:MM`, required unless the event is all-day.
     pub start_time: String,
     /// `HH:MM`, required unless the event is all-day.
     pub end_time: String,
-    /// The IANA names of the zones the clock times are written in — "Europe/Zagreb",
-    /// "America/New_York". Leave them empty and the times are read in UTC, which is the zone
+    /// The IANA names of the zones the clock times are written in — `Europe/Zagreb`,
+    /// `America/New_York`. Leave them empty and the times are read in UTC, which is the zone
     /// HEY parses an API request in. HEY keeps a zone per end, as its own form offers, so an
     /// event can start in one and finish in another.
     pub start_time_zone: String,
+    /// The zone the end is written in, read as `start_time_zone` is.
     pub end_time_zone: String,
     /// One zone for both ends.
     ///
@@ -184,11 +204,13 @@ pub struct UpdateCalendarEventParams {
     /// subscription. The personal calendar is the one that catches you out: it is in the
     /// list the identity serves, and filing on it answers 404 all the same.
     pub calendar_id: Option<i64>,
+    /// A new title.
     pub title: Option<String>,
     /// `YYYY-MM-DD`.
     pub starts_at: Option<String>,
     /// `YYYY-MM-DD`.
     pub ends_at: Option<String>,
+    /// Makes the event all-day, or timed.
     pub all_day: Option<bool>,
     /// `HH:MM`. Clock times belong to a timed event, so an all-day revision leaves them off
     /// however they are set here.
@@ -199,6 +221,7 @@ pub struct UpdateCalendarEventParams {
     /// are UTC and clear the zones the event was saved with; `None` leaves them out of the
     /// request, which HEY also reads as clearing them.
     pub start_time_zone: Option<String>,
+    /// The zone the end is written in, read as `start_time_zone` is.
     pub end_time_zone: Option<String>,
     /// One zone for both ends.
     ///
@@ -239,11 +262,13 @@ pub type UpdateOccurrenceParams = UpdateCalendarEventParams;
 /// rest as they are.
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct CalendarEventUpdate {
+    /// A new title.
     pub title: Option<String>,
     /// `YYYY-MM-DD`.
     pub starts_at: Option<String>,
     /// `YYYY-MM-DD`.
     pub ends_at: Option<String>,
+    /// Makes the event all-day, or timed.
     pub all_day: Option<bool>,
     /// `HH:MM`. Clock times belong to a timed event, so an all-day revision leaves them
     /// off however they are set here.
@@ -260,7 +285,9 @@ pub struct CalendarEventUpdate {
 /// plus the day it falls on, and the writes that take an id cannot touch one.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct OccurrenceId {
+    /// The series the day belongs to.
     pub event_id: i64,
+    /// The day it falls on.
     pub date: Date,
 }
 
@@ -280,7 +307,7 @@ pub enum OccurrenceScope {
     ThisAndFollowing,
 }
 
-impl<'a> CalendarEvents<'a> {
+impl CalendarEvents<'_> {
     /// Creates an event and answers it as a recording.
     pub async fn create(&self, params: &CreateCalendarEventParams) -> Result<Recording, Error> {
         self.write(
@@ -384,7 +411,7 @@ impl<'a> CalendarEvents<'a> {
         scope: OccurrenceScope,
     ) -> Result<(), Error> {
         let params = DeleteCalendarEventOccurrenceParams {
-            apply_to_future: apply_to_future(scope),
+            apply_to_future: Some(apply_to_future(scope)),
         };
         self.delete_occurrence(occurrence.event_id, &occurrence.date.to_string(), &params)
             .await
@@ -706,20 +733,24 @@ fn recording_from_form_response(answered: &Response) -> Result<Recording, Error>
     }
 }
 
+/// Whether the write reaches the following days too.
+///
 /// The scope goes out either way, as Go's own delete does. HEY reads a missing
 /// `apply_to_future` as false, so leaving it off would mean the same thing — but saying it
 /// is what makes the request read as the caller's own choice rather than a default.
-fn apply_to_future(scope: OccurrenceScope) -> Option<bool> {
-    Some(scope == OccurrenceScope::ThisAndFollowing)
+fn apply_to_future(scope: OccurrenceScope) -> bool {
+    scope == OccurrenceScope::ThisAndFollowing
 }
 
 impl CountdownUnit {
+    /// The unit as HEY's form submits it: its length in seconds.
     pub fn seconds(self) -> u32 {
         self as u32
     }
 }
 
 impl RepeatFrequency {
+    /// The frequency as HEY's `repeat_frequency` parameter names it.
     pub fn as_str(&self) -> &'static str {
         match self {
             RepeatFrequency::EveryDay => "every_day",
@@ -740,6 +771,7 @@ impl fmt::Display for RepeatFrequency {
 }
 
 impl RepeatUntil {
+    /// The end as HEY's `recurs_until_type` parameter names it.
     pub fn as_str(&self) -> &'static str {
         match self {
             RepeatUntil::Forever => "forever",

@@ -1,3 +1,5 @@
+//! `Recording`: the calendar's polymorphic record and the kind predicates generated for it.
+
 use hey_sdk::models::Recording;
 use serde_json::json;
 
@@ -6,7 +8,7 @@ use serde_json::json;
 #[test]
 fn a_recording_recognises_its_type_by_the_ruby_class_name() {
     let event: Recording = serde_json::from_value(json!({
-        "id": 161645836,
+        "id": 161_645_836,
         "type": "Calendar::Event",
         "title": "Weekly Catchup"
     }))

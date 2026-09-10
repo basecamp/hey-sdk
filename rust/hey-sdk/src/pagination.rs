@@ -19,7 +19,7 @@ use crate::security::is_same_origin;
 pub struct Page<T> {
     value: T,
     next_url: Option<Url>,
-    next_page: Option<String>,
+    next_cursor: Option<String>,
     total_count: Option<u64>,
     /// What the read that produced this page announced itself as, so the reads that walk
     /// on from it can say the same.
@@ -42,7 +42,7 @@ impl<T> Page<T> {
             .and_then(|value| value.to_str().ok())
             .and_then(next_link)
             .and_then(|target| response.url.join(&target).ok());
-        let next_page = next_url.as_ref().and_then(|url| {
+        let next_cursor = next_url.as_ref().and_then(|url| {
             url.query_pairs()
                 .find(|(name, _)| name == "page")
                 .map(|(_, value)| value.into_owned())
@@ -55,7 +55,7 @@ impl<T> Page<T> {
         Page {
             value,
             next_url,
-            next_page,
+            next_cursor,
             total_count,
             info,
             route,
@@ -70,17 +70,19 @@ impl<T> Page<T> {
         self.route
     }
 
+    /// The page's value, giving up the cursor.
     pub fn into_inner(self) -> T {
         self.value
     }
 
+    /// The page's value: the response as HEY answered it.
     pub fn value(&self) -> &T {
         &self.value
     }
 
     /// The opaque cursor for the page after this one, to pass as `page` on the same read.
     pub fn next_page(&self) -> Option<&str> {
-        self.next_page.as_deref()
+        self.next_cursor.as_deref()
     }
 
     /// The URL of the page after this one, as HEY's `Link` header named it.
@@ -88,6 +90,7 @@ impl<T> Page<T> {
         self.next_url.as_ref()
     }
 
+    /// Whether HEY named a page after this one.
     pub fn has_next(&self) -> bool {
         self.next_url.is_some()
     }
@@ -97,11 +100,13 @@ impl<T> Page<T> {
         self.total_count
     }
 
+    /// The same page over another value — the records pulled out of the response, say —
+    /// with the cursor kept.
     pub fn map<U>(self, f: impl FnOnce(T) -> U) -> Page<U> {
         Page {
             value: f(self.value),
             next_url: self.next_url,
-            next_page: self.next_page,
+            next_cursor: self.next_cursor,
             total_count: self.total_count,
             info: self.info,
             route: self.route,
@@ -143,7 +148,7 @@ impl Client {
                 collected.truncate(limit);
                 break;
             }
-            match self.next_page_url(&response, &started_at)? {
+            match next_page_url(&response, &started_at)? {
                 Some(next) if pages < self.max_pages() => {
                     operation = Operation::at(Method::GET, next);
                 }
@@ -175,7 +180,7 @@ impl Client {
         }
 
         let started_at = first.url.clone();
-        let mut next = self.next_page_url(first, &started_at)?;
+        let mut next = next_page_url(first, &started_at)?;
         let mut collected: Vec<Value> = Vec::new();
         let mut count = first_page_count;
         let mut pages = 1;
@@ -191,7 +196,7 @@ impl Client {
                 collected.truncate(collected.len().saturating_sub(count - limit));
                 break;
             }
-            next = match self.next_page_url(&response, &started_at)? {
+            next = match next_page_url(&response, &started_at)? {
                 Some(url) if pages < self.max_pages() => Some(url),
                 Some(_) => {
                     crate::trace::warning!(max_pages = self.max_pages(), "pagination capped");
@@ -202,23 +207,23 @@ impl Client {
         }
         Ok(collected)
     }
+}
 
-    /// The page after this one, as the `Link` header named it, resolved against the answer
-    /// it came in. A target off the origin the walk started on is refused rather than
-    /// followed: the header is the server's to write, and following it would carry the
-    /// credentials somewhere they were never meant to go.
-    fn next_page_url(&self, response: &Response, started_at: &Url) -> Result<Option<Url>, Error> {
-        match response.header("link").and_then(next_link) {
-            None => Ok(None),
-            Some(target) => {
-                let next = response.url.join(&target)?;
-                if is_same_origin(&next, started_at) {
-                    Ok(Some(next))
-                } else {
-                    Err(Error::usage(format!(
-                        "pagination Link header points to a different origin: {next}"
-                    )))
-                }
+/// The page after this one, as the `Link` header named it, resolved against the answer it
+/// came in. A target off the origin the walk started on is refused rather than followed:
+/// the header is the server's to write, and following it would carry the credentials
+/// somewhere they were never meant to go.
+fn next_page_url(response: &Response, started_at: &Url) -> Result<Option<Url>, Error> {
+    match response.header("link").and_then(next_link) {
+        None => Ok(None),
+        Some(target) => {
+            let next = response.url.join(&target)?;
+            if is_same_origin(&next, started_at) {
+                Ok(Some(next))
+            } else {
+                Err(Error::usage(format!(
+                    "pagination Link header points to a different origin: {next}"
+                )))
             }
         }
     }

@@ -13,6 +13,7 @@ pub use crate::generated::services::collections::*;
 /// What a new collection is made of.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct CreateCollectionParams {
+    /// What the collection is called.
     pub name: String,
     /// The blurb shown under the name.
     pub summary: Option<String>,
@@ -24,11 +25,13 @@ pub struct CreateCollectionParams {
 /// off the wire, and HEY leaves what a request does not name alone.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct UpdateCollectionParams {
+    /// A new name.
     pub name: Option<String>,
+    /// A new blurb under the name.
     pub summary: Option<String>,
 }
 
-impl<'a> Collections<'a> {
+impl Collections<'_> {
     /// Makes a collection.
     ///
     /// The form post answers with a redirect to the collections index rather than to the
@@ -64,8 +67,8 @@ impl<'a> Collections<'a> {
     ) -> Result<(), Error> {
         let body = UpdateCollectionRequestContent {
             collection: CollectionPayload {
-                name: present(&params.name),
-                summary: present(&params.summary),
+                name: present(params.name.as_deref()),
+                summary: present(params.summary.as_deref()),
             },
         };
         self.update(collection_id, &body).await
@@ -104,6 +107,6 @@ impl<'a> Collections<'a> {
 
 /// An empty string is no value, and is left off the wire like a `None` one — the omission
 /// is what tells HEY to leave the field as it is.
-fn present(value: &Option<String>) -> Option<String> {
-    value.clone().filter(|value| !value.is_empty())
+fn present(value: Option<&str>) -> Option<String> {
+    value.filter(|value| !value.is_empty()).map(str::to_string)
 }

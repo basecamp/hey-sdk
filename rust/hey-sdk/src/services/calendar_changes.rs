@@ -41,9 +41,13 @@ const TOO_FAR_BEHIND: u16 = 409;
 /// so only the server knows which pair its feed wants.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CalendarChangesCursor {
+    /// The instant the changes come after.
     pub since: Option<String>,
+    /// The contract version the feed speaks, HEY's `v`.
     pub version: Option<String>,
+    /// The page within an increment, while it has more than one.
     pub page: Option<String>,
+    /// How many changes a page holds, when the URL named a size.
     pub per_page: Option<String>,
 }
 
@@ -79,8 +83,10 @@ impl CalendarChangesCursor {
 /// A calendar the changes feed reports gone.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct DeletedCalendar {
+    /// The id the calendar had.
     #[serde(default)]
     pub id: i64,
+    /// When it went.
     pub deleted_at: DateTime,
 }
 
@@ -94,10 +100,15 @@ pub struct DeletedCalendar {
 /// recording feed, this one never falls too far behind, so there is no full sync to ask for.
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct CalendarChanges {
+    /// The calendars that appeared, each with what a live follower needs.
     pub added: Vec<ListedCalendar>,
+    /// The calendars that changed.
     pub updated: Vec<Calendar>,
+    /// The calendars that went.
     pub deleted: Vec<DeletedCalendar>,
+    /// The next page of this increment, while it has one.
     pub next_page: Option<CalendarChangesCursor>,
+    /// Where the next read resumes, once the increment is read to its end.
     pub next_cursor: Option<CalendarChangesCursor>,
 }
 
@@ -105,9 +116,12 @@ pub struct CalendarChanges {
 /// recording was grouped under while it existed.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct DeletedRecording {
+    /// The id the recording had.
     #[serde(default)]
     pub id: i64,
+    /// When it went.
     pub deleted_at: DateTime,
+    /// The recordable type key it was grouped under, `Calendar::Event` and the like.
     #[serde(default)]
     pub r#type: String,
 }
@@ -130,15 +144,21 @@ pub struct DeletedRecording {
 /// read in full instead.
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct RecordingChanges {
+    /// The recordings that appeared, grouped by recordable type key.
     pub added: BTreeMap<String, Vec<Recording>>,
+    /// The recordings that changed, grouped by recordable type key.
     pub updated: BTreeMap<String, Vec<Recording>>,
+    /// The recordings that went, each once.
     pub deleted: Vec<DeletedRecording>,
+    /// The next page of this increment, while it has one.
     pub next_page: Option<CalendarChangesCursor>,
+    /// Where the next read resumes, once the increment is read to its end.
     pub next_cursor: Option<CalendarChangesCursor>,
+    /// Whether the cursor is too far behind and the calendar has to be read in full.
     pub full_sync_required: bool,
 }
 
-impl<'a> Calendars<'a> {
+impl Calendars<'_> {
     /// Reads the calendar changes feed from a cursor to its end, following the pages the
     /// feed hands out up to the client's page limit.
     pub async fn all_calendar_changes(

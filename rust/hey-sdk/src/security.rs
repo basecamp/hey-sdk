@@ -15,6 +15,8 @@ pub fn require_secure_endpoint(url: &Url) -> Result<(), Error> {
     }
 }
 
+/// Whether a URL points at this machine: `localhost`, a `.localhost` name, or a loopback
+/// address.
 pub fn is_localhost(url: &Url) -> bool {
     match url.host_str() {
         Some(host) => {

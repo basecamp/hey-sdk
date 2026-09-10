@@ -1,3 +1,5 @@
+//! Wire-level tests for the `calendars` service: what each call sends and how it reads what HEY answers, against literal bodies.
+
 mod support;
 
 use serde_json::json;

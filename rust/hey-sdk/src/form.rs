@@ -58,6 +58,7 @@ pub struct FormResponse {
     /// Where the redirect pointed, exactly as HEY wrote it — often a path rather than a
     /// whole URL.
     pub location: Option<String>,
+    /// The status the endpoint answered: a 302 or 303 for a redirect, a 200 for a document.
     pub status: StatusCode,
     /// What the endpoint answered when it answered a document instead of a redirect.
     pub body: String,

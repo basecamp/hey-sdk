@@ -17,6 +17,7 @@ pub type DateTime = chrono::DateTime<Utc>;
 pub struct Date(pub NaiveDate);
 
 impl Date {
+    /// The date at `year`, `month` and `day`, or `None` when the calendar has no such day.
     pub fn new(year: i32, month: u32, day: u32) -> Option<Date> {
         NaiveDate::from_ymd_opt(year, month, day).map(Date)
     }
@@ -49,18 +50,22 @@ impl Date {
         Date(moment.with_timezone(zone).date_naive())
     }
 
+    /// The calendar year.
     pub fn year(&self) -> i32 {
         self.0.year()
     }
 
+    /// The month, 1 through 12.
     pub fn month(&self) -> u32 {
         self.0.month()
     }
 
+    /// The day of the month, from 1.
     pub fn day(&self) -> u32 {
         self.0.day()
     }
 
+    /// The day of the week.
     pub fn weekday(&self) -> Weekday {
         self.0.weekday()
     }
@@ -75,6 +80,8 @@ impl Date {
         self.0.and_time(NaiveTime::MIN).and_utc()
     }
 
+    /// The date `days` later, or earlier for a negative count; `None` past the calendar's
+    /// range.
     pub fn add_days(&self, days: i64) -> Option<Date> {
         self.0
             .checked_add_signed(TimeDelta::try_days(days)?)
@@ -87,7 +94,7 @@ impl Date {
     pub fn add_months(&self, months: i32) -> Option<Date> {
         let target = i64::from(self.0.year()) * 12 + i64::from(self.0.month0()) + i64::from(months);
         let year = i32::try_from(target.div_euclid(12)).ok()?;
-        let month = target.rem_euclid(12) as u32 + 1;
+        let month = u32::try_from(target.rem_euclid(12)).ok()? + 1;
         Date::new(year, month, 1)?.add_days(i64::from(self.0.day() - 1))
     }
 
@@ -150,10 +157,12 @@ pub mod optional_date {
 
     use super::Date;
 
+    /// Writes the date as `YYYY-MM-DD`, or `null` when there is none.
     pub fn serialize<S: Serializer>(date: &Option<Date>, serializer: S) -> Result<S::Ok, S::Error> {
         date.serialize(serializer)
     }
 
+    /// Reads `YYYY-MM-DD` as a date, and `null` or `""` as none.
     pub fn deserialize<'de, D: Deserializer<'de>>(
         deserializer: D,
     ) -> Result<Option<Date>, D::Error> {
@@ -177,6 +186,7 @@ pub mod optional_date {
 pub mod null_as_default {
     use serde::{Deserialize, Deserializer};
 
+    /// Reads the value, or its type's default when HEY wrote `null`.
     pub fn deserialize<'de, D: Deserializer<'de>, T: Deserialize<'de> + Default>(
         deserializer: D,
     ) -> Result<T, D::Error> {
@@ -191,18 +201,22 @@ pub mod null_as_default {
 pub struct SensitiveString(String);
 
 impl SensitiveString {
+    /// Wraps a value that must not be logged.
     pub fn new(value: impl Into<String>) -> SensitiveString {
         SensitiveString(value.into())
     }
 
+    /// The value itself, for the one place that has to read it.
     pub fn expose(&self) -> &str {
         &self.0
     }
 
+    /// The value itself, giving up the wrapper.
     pub fn into_inner(self) -> String {
         self.0
     }
 
+    /// Whether there is anything inside, which a `Debug` of it does not say.
     pub fn is_empty(&self) -> bool {
         self.0.is_empty()
     }

@@ -50,9 +50,9 @@ fn run() -> Result<(), String> {
 
     let target = root.join("rust/hey-sdk/src/generated");
     if check {
-        verify(&target, files)
+        verify(&target, &files)
     } else {
-        write(&target, files)
+        write(&target, &files)
     }
 }
 
@@ -82,19 +82,19 @@ fn render_mod(model: &Model) -> String {
     )
 }
 
-fn write(target: &Path, files: BTreeMap<PathBuf, String>) -> Result<(), String> {
+fn write(target: &Path, files: &BTreeMap<PathBuf, String>) -> Result<(), String> {
     if target.exists() {
         fs::remove_dir_all(target).map_err(|error| format!("{}: {error}", target.display()))?;
     }
-    let paths = write_all(target, &files)?;
+    let paths = write_all(target, files)?;
     format(&paths)?;
     println!("Generated {} files in {}", paths.len(), target.display());
     Ok(())
 }
 
-fn verify(target: &Path, files: BTreeMap<PathBuf, String>) -> Result<(), String> {
+fn verify(target: &Path, files: &BTreeMap<PathBuf, String>) -> Result<(), String> {
     let scratch = env::temp_dir().join(format!("hey-sdk-generator-{}", std::process::id()));
-    let paths = write_all(&scratch, &files)?;
+    let paths = write_all(&scratch, files)?;
     let formatted = format(&paths);
     let mut stale = Vec::new();
     for relative in files.keys() {

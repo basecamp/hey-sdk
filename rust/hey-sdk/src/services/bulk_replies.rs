@@ -13,7 +13,7 @@ use crate::services::write_info;
 
 pub use crate::generated::services::bulk_replies::*;
 
-impl<'a> BulkReplies<'a> {
+impl BulkReplies<'_> {
     /// Works out which entries a bulk reply would answer, and how it starts.
     ///
     /// HEY replies to the last replyable entry of each thread and skips threads it has no
