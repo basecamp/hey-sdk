@@ -56,6 +56,12 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+    env:
+      MBX_REV: 68e48f140664c04682a7b33a1c7782b86484d21a
+      # mbx's store sweep is sized to 5% of the runner's disk, below the bundle the action
+      # imports, so on the job's first cargo command it evicted half of what was just
+      # restored. Nothing else writes to this store during the job.
+      MBX_GC_AUTO: "0"
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -66,13 +72,35 @@ jobs:
       - name: Set up Rust
         run: rustup toolchain install && rustup show
 
-      - name: Cache cargo
-        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2 # zizmor: ignore[cache-poisoning] -- cache is branch-isolated; fork PRs cannot write to this cache
+      # mbx from upstream main rather than a release: 1.10.0's export keeps only the last
+      # command's lookup predictions (jdx/mr-boxington#422), so a job that runs clippy, tests,
+      # docs and examples in turn ships a bundle the next job cannot look anything up in.
+      # 68e48f1 carries the fix (#424). Built once per commit with cargo install and kept in
+      # the Actions cache under that commit; a bump here is a new key, and the build below
+      # runs only when the key is absent.
+      - name: Restore mbx
+        id: mbx
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
-          workspaces: |
-            rust
-            conformance/runner/rust
-          save-if: ${{ github.ref == 'refs/heads/main' }}
+          path: ~/.cargo/bin/mbx
+          key: mbx-${{ env.MBX_REV }}-${{ runner.os }}-${{ runner.arch }}
+
+      - name: Build mbx
+        if: steps.mbx.outputs.cache-hit != 'true'
+        run: cargo install --locked --git https://github.com/jdx/mr-boxington --rev "$MBX_REV" mbx
+
+      # With `version` omitted the action uses the mbx on PATH instead of installing a
+      # release. mbx keys each compilation on the content it reads, with checkout paths mapped
+      # to placeholders, so the workspace crate restores on a pull request that leaves rust/
+      # untouched; a warm target tree cannot do that on a fresh checkout's mtimes. `objects`
+      # transports that content-addressed closure rather than the target tree. Entries are
+      # saved on pushes to main only; pull requests, forks included, restore. The generation
+      # follows the mbx commit so a bump never restores a bundle written by another build.
+      - name: Cache cargo
+        uses: jdx/mr-boxington-action@7234d3dd1a6ca8f6c381eea8e4dfb03f18fcf777 # v1.3.0
+        with:
+          github-cache-mode: objects
+          cache-generation: ${{ env.MBX_REV }}
 
       - name: Install cargo-deny
         uses: taiki-e/install-action@c3ec0de9ae7f1019cea21aa96aa0a895b9552063 # v2.87.9
@@ -81,12 +109,13 @@ jobs:
 
       # fmt, clippy, tests and docs with all features, then clippy and the tests again
       # with the shipped HTTP client off, cargo deny over both workspaces, and the crate
-      # packaged and built from its tarball. The same target a developer runs.
+      # packaged and built from its tarball. The same target a developer runs, with every
+      # cargo invocation going through mbx.
       - name: Format, lint and test
-        run: make rs-check
+        run: make rs-check CARGO=mbx
 
       - name: Check generated code is up to date
-        run: make rs-check-drift
+        run: make rs-check-drift CARGO=mbx
 
   msrv-rust:
     name: Rust MSRV
