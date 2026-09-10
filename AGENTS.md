@@ -115,10 +115,10 @@ body type itself or anything it mentions, however deep — is request-side: publ
 `Default`, literal construction, never `#[non_exhaustive]`. Every other struct schema is
 response-side and is emitted `#[non_exhaustive]`. The `*Params` structs are request-side.
 An enum is `#[non_exhaustive]` on either side; its declared variants stay constructible, so
-a request that carries one is still a caller's to build.
-`Route`, `RouteParam` and `Retry` in the route table are response-side: the generator
-builds them, nothing else does, and `Route` gaining `html` is the kind of addition the
-attribute exists for.
+a request that carries one is still a caller's to build. `Route`, `RouteParam` and `Retry`
+are request-side too: a caller may write a route for a path the model lacks and hand it to
+`Client::operation`, which is what the retry-policy tests do, so a field added to them —
+`html` was one — is a `0.MINOR`.
 
 When the model declares an enum, the generator emits a `#[non_exhaustive]` enum with one
 variant per declared value and `Unknown(String)` for any value HEY sends that the model did

@@ -404,7 +404,7 @@ Every public type is on one of two sides, and the side decides what a change to 
   Adding a field to one is a breaking change — a literal without `..Default::default()` stops
   compiling — and ships as `0.MINOR`.
 - **Response-side types and open enums are `#[non_exhaustive]`.** Everything the SDK decodes
-  and hands back (`Mailbox`, `Posting`, `Token`, `Route`, the hooks' `RequestInfo` and
+  and hands back (`Mailbox`, `Posting`, `Token`, the hooks' `RequestInfo` and
   `RequestResult`) and every enum
   whose variant set is HEY's to extend (`ErrorCode`, `BoxKind`, `Pagination`): read them,
   match them with a `..` or `_` arm, never build them. They keep `Default`, so
@@ -412,7 +412,8 @@ Every public type is on one of two sides, and the side decides what a change to 
   additive and ships as `0.x.PATCH` — provided what HEY already sends still decodes: a new
   required field with no default, a `DateTime` say, would refuse yesterday's payload, and
   that is a break whatever the attribute says.
-- A type on both sides — sent in a body and read back — is request-side.
+- A type on both sides — sent in a body and read back, or handed to the client as well as
+  read from it, like a `Route` a caller writes for a path the model lacks — is request-side.
 - Closed enums stay exhaustive. `ClearanceStatus`, `OccurrenceScope` and `RepeatUntil` name a
   choice the SDK defines, not a set HEY grows, so a `match` over them may stay exhaustive.
 - An open enum is `#[non_exhaustive]` whichever side it sits on: its declared variants are
