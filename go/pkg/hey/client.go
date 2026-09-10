@@ -8,9 +8,11 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"math"
 	"math/rand"
 	"net/http"
 	"net/url"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -264,12 +266,13 @@ func (c *Client) initGeneratedClient() {
 			req.Header.Set("Accept", "application/json")
 			return nil
 		}
-		// The generated client runs its own retry loop, so it has to be told what
-		// WithMaxRetries and WithBaseDelay configured or it runs on its own defaults.
-		// Idempotency still gates it: a non-idempotent operation gets one attempt no
-		// matter the count. The generated MaxDelay ceiling is lifted to the configured
-		// BaseDelay when that is higher, since the hand-written paths sleep BaseDelay
-		// verbatim and the generated loop must not sleep less than asked.
+		// The generated client runs its own retry loop on each operation's policy, and
+		// what WithMaxRetries and WithBaseDelay configured is its ceiling: the count can
+		// only come down and the first wait only go up. Idempotency still gates it: a
+		// non-idempotent operation gets one attempt no matter the count. The generated
+		// MaxDelay ceiling is lifted to the configured BaseDelay when that is higher,
+		// since the hand-written paths sleep BaseDelay verbatim and the generated loop
+		// must not sleep less than asked.
 		retryCfg := generated.DefaultRetryConfig()
 		retryCfg.MaxRetries = max(c.httpOpts.MaxRetries, 0)
 		retryCfg.BaseDelay = max(c.httpOpts.BaseDelay, 0)
@@ -647,6 +650,47 @@ func (c *Client) doRequest(ctx context.Context, method, path string, body any) (
 }
 
 func (c *Client) doRequestURL(ctx context.Context, method, url string, body any) (*Response, error) {
+	return c.doRequestURLWithBudget(ctx, method, url, body, c.clientBudget())
+}
+
+// retryBudget is what one hand-written request may spend on being resent: the sends it
+// gets in all, the wait before the first resend, and the statuses that earn another. A
+// request on a path the caller wrote has no policy behind it, and its budget is the
+// client's own settings over every failure the SDK classes as transient; a walk on from
+// a modelled operation's first page runs on that operation's policy.
+type retryBudget struct {
+	attempts  int
+	baseDelay time.Duration
+	statuses  []int
+	declared  bool
+}
+
+func (c *Client) clientBudget() retryBudget {
+	return retryBudget{attempts: min(c.httpOpts.MaxRetries, math.MaxInt-1) + 1, baseDelay: c.httpOpts.BaseDelay}
+}
+
+// operationBudget is the policy the generated client holds for the operation, already
+// under the client's settings.
+func (c *Client) operationBudget(operationID string) retryBudget {
+	c.initGeneratedClient()
+	policy := c.gen.ClientInterface.(*generated.Client).RetryPolicy(operationID)
+	return retryBudget{
+		attempts:  policy.MaxAttempts,
+		baseDelay: policy.BaseDelay,
+		statuses:  policy.RetryableStatuses,
+		declared:  true,
+	}
+}
+
+// resends reports whether a failure the SDK classes as transient earns another send. One
+// with no status behind it — a transport failure, a refreshed 401 — always does, as it
+// does in the generated loop; a status does when the budget names it, or, with no policy
+// behind the budget, always.
+func (b retryBudget) resends(status int) bool {
+	return !b.declared || status == 0 || slices.Contains(b.statuses, status)
+}
+
+func (c *Client) doRequestURLWithBudget(ctx context.Context, method, url string, body any, budget retryBudget) (*Response, error) {
 	requestURL, err := c.accountScopedURL(url)
 	if err != nil {
 		return nil, err
@@ -673,7 +717,7 @@ func (c *Client) doRequestURL(ctx context.Context, method, url string, body any)
 	var attempt int
 	var lastErr error
 
-	for attempt = 1; attempt <= c.httpOpts.MaxRetries+1; attempt++ {
+	for attempt = 1; attempt <= budget.attempts; attempt++ {
 		resp, err := c.singleRequest(ctx, method, url, body, attempt)
 		if err == nil {
 			return resp, nil
@@ -681,26 +725,32 @@ func (c *Client) doRequestURL(ctx context.Context, method, url string, body any)
 
 		var delay time.Duration
 		if re, ok := err.(*retryableError); ok {
+			if !budget.resends(http.StatusTooManyRequests) {
+				return nil, re.err
+			}
 			lastErr = re.err
 			if re.retryAfter > 0 {
 				delay = re.retryAfter
 			} else {
-				delay = c.backoffDelay(attempt)
+				delay = c.backoffDelay(budget.baseDelay, attempt)
 			}
 		} else if apiErr, ok := err.(*Error); ok {
-			if !apiErr.Retryable {
+			if !apiErr.Retryable || !budget.resends(apiErr.HTTPStatus) {
 				return nil, err
 			}
 			lastErr = err
-			delay = c.backoffDelay(attempt)
+			delay = c.backoffDelay(budget.baseDelay, attempt)
 		} else {
 			return nil, err
+		}
+		if attempt >= budget.attempts {
+			break
 		}
 
 		c.logger.Debug(
 			"retrying request",
 			"attempt", attempt,
-			"maxRetries", c.httpOpts.MaxRetries,
+			"maxRetries", budget.attempts-1,
 			"delay", delay,
 			"errorCode", errorCodeForLog(lastErr),
 		)
@@ -716,7 +766,7 @@ func (c *Client) doRequestURL(ctx context.Context, method, url string, body any)
 		}
 	}
 
-	return nil, fmt.Errorf("request failed after %d retries: %w", c.httpOpts.MaxRetries, lastErr)
+	return nil, fmt.Errorf("request failed after %d retries: %w", budget.attempts-1, lastErr)
 }
 
 func errorCodeForLog(err error) string {
@@ -923,8 +973,8 @@ func extractHost(rawURL string) string {
 	return u.Host
 }
 
-func (c *Client) backoffDelay(attempt int) time.Duration {
-	delay := c.httpOpts.BaseDelay * time.Duration(1<<(attempt-1))
+func (c *Client) backoffDelay(base time.Duration, attempt int) time.Duration {
+	delay := base * time.Duration(1<<(attempt-1))
 	jitter := time.Duration(rand.Int63n(int64(c.httpOpts.MaxJitter))) // #nosec G404 -- jitter doesn't need cryptographic randomness
 	return delay + jitter
 }

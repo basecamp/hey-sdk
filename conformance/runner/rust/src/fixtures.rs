@@ -37,6 +37,8 @@ pub struct ConfigOverrides {
     pub cache_enabled: bool,
     pub refreshable_credentials: bool,
     pub account_id: Option<i64>,
+    pub max_retries: Option<u32>,
+    pub base_delay_ms: Option<u64>,
 }
 
 #[derive(Debug, Default, Clone, Deserialize)]

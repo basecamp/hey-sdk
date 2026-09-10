@@ -76,9 +76,15 @@ async fn client_for(case: &TestCase, base_url: &str) -> Result<Client, Error> {
     let config = Config::default().with_base_url(base_url);
     let credentials = ConformanceCredentials::new(case.config_overrides.refreshable_credentials);
     if case.is_hey_layer() {
+        // The client's own retry settings are a ceiling over each operation's policy, and a
+        // case that exercises the ceiling says where it sits; any other case runs with no
+        // resends.
         let mut builder = Client::builder(config)
             .token_provider(credentials)
-            .max_retries(0);
+            .max_retries(case.config_overrides.max_retries.unwrap_or(0));
+        if let Some(base_delay_ms) = case.config_overrides.base_delay_ms {
+            builder = builder.base_delay(Duration::from_millis(base_delay_ms));
+        }
         if case.config_overrides.cache_enabled {
             builder = builder.cache(InMemoryCache::new());
         }

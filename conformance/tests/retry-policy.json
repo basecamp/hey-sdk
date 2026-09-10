@@ -5,18 +5,200 @@
     "operation": "DeleteBoxDesignation",
     "method": "DELETE",
     "path": "/boxes/{boxId}/designations/{designationId}",
-    "pathParams": {"boxId": 12345, "designationId": 67890},
+    "pathParams": {
+      "boxId": 12345,
+      "designationId": 67890
+    },
     "mockResponses": [
-      {"status": 500},
-      {"status": 503},
-      {"status": 503},
-      {"status": 200}
+      {
+        "status": 500
+      },
+      {
+        "status": 503
+      },
+      {
+        "status": 503
+      },
+      {
+        "status": 200
+      }
     ],
     "repeatOperation": 2,
     "assertions": [
-      {"type": "requestCount", "expected": 3},
-      {"type": "statusCode", "expected": 503}
+      {
+        "type": "requestCount",
+        "expected": 3
+      },
+      {
+        "type": "statusCode",
+        "expected": 503
+      }
     ],
-    "tags": ["retry", "operation-policy", "retry-on", "max-attempts"]
+    "tags": [
+      "retry",
+      "operation-policy",
+      "retry-on",
+      "max-attempts"
+    ]
+  },
+  {
+    "name": "Client retry ceiling below the operation policy wins",
+    "description": "ListBoxes is modelled with three sends; a HEY client allowing one resend sends it twice and stops on the second 503",
+    "operation": "ListBoxes",
+    "method": "GET",
+    "path": "/boxes",
+    "configOverrides": {
+      "clientLayer": "hey",
+      "maxRetries": 1
+    },
+    "mockResponses": [
+      {
+        "status": 503
+      },
+      {
+        "status": 503
+      },
+      {
+        "status": 200,
+        "body": []
+      }
+    ],
+    "assertions": [
+      {
+        "type": "requestCount",
+        "expected": 2
+      },
+      {
+        "type": "statusCode",
+        "expected": 503
+      }
+    ],
+    "tags": [
+      "retry",
+      "operation-policy",
+      "max-attempts",
+      "client-ceiling"
+    ]
+  },
+  {
+    "name": "Client retry ceiling never raises the operation policy",
+    "description": "DeleteExtenzion is modelled with two sends; a HEY client allowing five resends still sends it twice and stops on the second 503",
+    "operation": "DeleteExtenzion",
+    "method": "DELETE",
+    "path": "/accounts/{accountId}/domains/extenzions/{extenzionId}.json",
+    "pathParams": {
+      "accountId": 12345,
+      "extenzionId": 67890
+    },
+    "configOverrides": {
+      "clientLayer": "hey",
+      "maxRetries": 5
+    },
+    "mockResponses": [
+      {
+        "status": 503
+      },
+      {
+        "status": 503
+      },
+      {
+        "status": 503
+      },
+      {
+        "status": 200
+      }
+    ],
+    "assertions": [
+      {
+        "type": "requestCount",
+        "expected": 2
+      },
+      {
+        "type": "statusCode",
+        "expected": 503
+      }
+    ],
+    "tags": [
+      "retry",
+      "operation-policy",
+      "max-attempts",
+      "client-ceiling"
+    ]
+  },
+  {
+    "name": "Operation policy decides which statuses are resent under a client allowing retries",
+    "description": "ListBoxes is modelled to resend on 429 and 503 only; a 502 is the answer even though the HEY client allows three resends and would resend a 502 on a path of its own",
+    "operation": "ListBoxes",
+    "method": "GET",
+    "path": "/boxes",
+    "configOverrides": {
+      "clientLayer": "hey",
+      "maxRetries": 3
+    },
+    "mockResponses": [
+      {
+        "status": 502
+      },
+      {
+        "status": 200,
+        "body": []
+      }
+    ],
+    "assertions": [
+      {
+        "type": "requestCount",
+        "expected": 1
+      },
+      {
+        "type": "statusCode",
+        "expected": 502
+      }
+    ],
+    "tags": [
+      "retry",
+      "operation-policy",
+      "retry-on",
+      "client-ceiling"
+    ]
+  },
+  {
+    "name": "Operation policy base delay holds under a client asking for less",
+    "description": "ListBoxes is modelled to wait a second before its first resend; a HEY client whose own base delay is a millisecond still waits the policy's second",
+    "operation": "ListBoxes",
+    "method": "GET",
+    "path": "/boxes",
+    "configOverrides": {
+      "clientLayer": "hey",
+      "maxRetries": 3,
+      "baseDelayMs": 1
+    },
+    "mockResponses": [
+      {
+        "status": 503
+      },
+      {
+        "status": 200,
+        "body": []
+      }
+    ],
+    "assertions": [
+      {
+        "type": "requestCount",
+        "expected": 2
+      },
+      {
+        "type": "delayBetweenRequests",
+        "min": 1000
+      },
+      {
+        "type": "noError"
+      }
+    ],
+    "tags": [
+      "retry",
+      "operation-policy",
+      "base-delay",
+      "client-ceiling"
+    ]
   }
 ]

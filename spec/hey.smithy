@@ -4517,6 +4517,7 @@ operation GetWorkflow {
 @readonly
 @http(method: "GET", uri: "/workflows/{workflowId}/stages/{stageId}")
 @tags(["Workflows"])
+@heyRetry(maxAttempts: 3, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
 operation GetWorkflowStage {
     input: GetWorkflowStageInput
     output: GetWorkflowStageOutput
