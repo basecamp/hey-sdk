@@ -4,7 +4,7 @@ use crate::emit::HEADER;
 use crate::model::{Model, Operation, Pagination, ParamKind, ParamRole, Response};
 use crate::naming::constant_name;
 
-pub fn render(model: &Model) -> String {
+pub(crate) fn render(model: &Model) -> String {
     let mut out = String::from(HEADER);
     out.push_str("use crate::http::Method;\n");
     out.push_str(
@@ -76,7 +76,7 @@ fn render_route(out: &mut String, operation: &Operation) {
     writeln!(
         out,
         "    retry: Retry {{ max: {}, base_delay_ms: {}, retry_on: &{:?} }},",
-        operation.retry.max, operation.retry.base_delay_ms, operation.retry.retry_on
+        operation.retry.max, operation.retry.base_delay_ms, operation.retry.on
     )
     .unwrap();
     out.push_str("};\n\n");

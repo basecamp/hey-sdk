@@ -11,7 +11,7 @@ use crate::operation::Operation;
 
 pub use crate::generated::services::journal::*;
 
-impl<'a> Journal<'a> {
+impl Journal<'_> {
     /// The rich-text HTML of the day's journal entry, falling back to its plain text, or
     /// `None` when the day has no entry. `day` is `YYYY-MM-DD`.
     ///

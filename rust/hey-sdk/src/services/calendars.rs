@@ -19,10 +19,13 @@ pub use crate::generated::services::calendars::*;
 /// subscribable.
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct ListedCalendar {
+    /// The calendar itself, as [`Calendars::list`] serves it.
     #[serde(default)]
     pub calendar: Calendar,
+    /// Where the calendar's recording changes feed starts.
     #[serde(default)]
     pub recording_changes_url: Option<String>,
+    /// The Action Cable stream that announces the calendar's changes.
     #[serde(default)]
     pub signed_stream_name: Option<String>,
 }
@@ -31,15 +34,18 @@ pub struct ListedCalendar {
 /// the calendar-level changes feed's own URL, and the calendars the reader has switched on.
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct CalendarList {
+    /// Every calendar the identity sees, each with what a live follower needs.
     #[serde(default)]
     pub calendars: Vec<ListedCalendar>,
+    /// Where the calendar-level changes feed starts.
     #[serde(default)]
     pub calendar_changes_url: Option<String>,
+    /// The calendars the reader has switched on, which every period read is scoped to.
     #[serde(default)]
     pub selected_calendar_ids: Vec<i64>,
 }
 
-impl<'a> Calendars<'a> {
+impl Calendars<'_> {
     /// Lists the calendars with everything [`Calendars::list`] throws away: each calendar's
     /// recording changes URL and signed stream name, and the calendar changes URL. It is
     /// the same read, decoded into the fuller shape the wire already carries.

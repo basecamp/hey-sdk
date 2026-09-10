@@ -20,7 +20,9 @@ pub use crate::generated::services::contacts::*;
 /// A contact, as its writes take it.
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct ContactParams {
+    /// What the contact is called.
     pub name: String,
+    /// The contact's main address, the one HEY files them under.
     pub email_address: String,
     /// The other addresses that belong to the same person. Sending the list replaces it,
     /// so an address left out stops being an alias; `None` leaves the current aliases
@@ -43,7 +45,9 @@ pub struct ContactParams {
 /// caller who only cares that the write was refused can ignore it.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct ContactConflict {
+    /// The contact the write was for — on a create, the one it made.
     pub contact_id: i64,
+    /// The contacts already holding one of the addresses.
     pub conflicting_contact_ids: Vec<i64>,
 }
 
@@ -54,7 +58,7 @@ impl ContactConflict {
     }
 }
 
-impl<'a> Contacts<'a> {
+impl Contacts<'_> {
     /// Adds a contact and answers it.
     ///
     /// On a client scoped to an account the contact is filed under that account, and an
@@ -177,7 +181,7 @@ fn merged_payload(params: &ContactParams, current: &ContactDetail) -> ContactPay
         payload.name = current.name.clone().unwrap_or_default();
     }
     if payload.email_address.is_none() {
-        payload.email_address = current.email_address.clone();
+        payload.email_address.clone_from(&current.email_address);
     }
     if payload.alias_email_addresses.is_none() {
         payload.alias_email_addresses = Some(current_aliases(current));
@@ -234,7 +238,7 @@ impl fmt::Display for ContactConflict {
             let ids: Vec<String> = self
                 .conflicting_contact_ids
                 .iter()
-                .map(|id| id.to_string())
+                .map(i64::to_string)
                 .collect();
             write!(
                 f,

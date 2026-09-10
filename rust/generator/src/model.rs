@@ -6,10 +6,11 @@ use serde_json::Value;
 use crate::naming::{Naming, struct_name};
 
 /// Which noun each operation acts on, read from the same `names.toml` the naming
-/// overrides come from. Nothing in OpenAPI says it, and the SDKs have to agree on it, so
-/// it is written down per service and overridden per operation where the two differ.
+/// overrides come from. Nothing in `openapi.json` says it, and the SDKs have to agree on
+/// it, so it is written down per service and overridden per operation where the two
+/// differ.
 #[derive(Deserialize, Default)]
-pub struct ResourceTypes {
+pub(crate) struct ResourceTypes {
     #[serde(default)]
     resource_types: BTreeMap<String, String>,
     #[serde(default)]
@@ -17,7 +18,7 @@ pub struct ResourceTypes {
 }
 
 impl ResourceTypes {
-    pub fn parse(source: &str) -> Result<ResourceTypes, String> {
+    pub(crate) fn parse(source: &str) -> Result<ResourceTypes, String> {
         toml::from_str(source).map_err(|error| format!("names.toml: {error}"))
     }
 
@@ -34,34 +35,34 @@ impl ResourceTypes {
     }
 }
 
-pub struct Model {
+pub(crate) struct Model {
     pub api_version: String,
     pub schemas: Vec<Schema>,
     pub services: Vec<Service>,
 }
 
-pub struct Schema {
+pub(crate) struct Schema {
     pub name: String,
     pub description: Option<String>,
     pub shape: Shape,
 }
 
-pub enum Shape {
+pub(crate) enum Shape {
     Struct(Struct),
     Alias(FieldType),
 }
 
-pub struct Struct {
+pub(crate) struct Struct {
     pub fields: Vec<Field>,
     pub polymorphic: Option<Polymorphic>,
 }
 
-pub struct Polymorphic {
+pub(crate) struct Polymorphic {
     pub discriminator: String,
     pub variants: Vec<String>,
 }
 
-pub struct Field {
+pub(crate) struct Field {
     pub wire_name: String,
     pub description: Option<String>,
     pub kind: FieldType,
@@ -70,7 +71,7 @@ pub struct Field {
 }
 
 #[derive(Clone, PartialEq)]
-pub enum FieldType {
+pub(crate) enum FieldType {
     String,
     SensitiveString,
     DateTime,
@@ -84,12 +85,12 @@ pub enum FieldType {
     Map(Box<FieldType>),
 }
 
-pub struct Service {
+pub(crate) struct Service {
     pub name: String,
     pub operations: Vec<Operation>,
 }
 
-pub struct Operation {
+pub(crate) struct Operation {
     pub id: String,
     /// The service handle that sends it, as every HEY SDK names it: `Boxes`, `TimeTracks`.
     pub service: String,
@@ -110,7 +111,7 @@ pub struct Operation {
     pub retry: Retry,
 }
 
-pub struct PathParam {
+pub(crate) struct PathParam {
     pub wire_name: String,
     pub kind: ParamKind,
     pub role: ParamRole,
@@ -119,19 +120,19 @@ pub struct PathParam {
 /// Where a path parameter sits: the last segment names the record itself, anything before
 /// it names a parent.
 #[derive(Clone, Copy, PartialEq)]
-pub enum ParamRole {
+pub(crate) enum ParamRole {
     Parent,
     Recording,
 }
 
-pub struct QueryParam {
+pub(crate) struct QueryParam {
     pub wire_name: String,
     pub kind: ParamKind,
     pub required: bool,
 }
 
 #[derive(Clone, Copy, PartialEq)]
-pub enum ParamKind {
+pub(crate) enum ParamKind {
     String,
     Bool,
     Int32,
@@ -139,7 +140,7 @@ pub enum ParamKind {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum Response {
+pub(crate) enum Response {
     Empty,
     Json(String),
     /// A page HEY serves as HTML, with the name of the `String` alias the schema became.
@@ -157,20 +158,20 @@ impl Response {
 }
 
 #[derive(Clone, Copy, PartialEq)]
-pub enum Pagination {
+pub(crate) enum Pagination {
     None,
     Link,
     Window,
 }
 
-pub struct Retry {
+pub(crate) struct Retry {
     pub max: u32,
     pub base_delay_ms: u64,
-    pub retry_on: Vec<u16>,
+    pub on: Vec<u16>,
 }
 
 impl Model {
-    pub fn build(
+    pub(crate) fn build(
         openapi: &Value,
         behavior: &Value,
         naming: &Naming,
@@ -551,16 +552,7 @@ fn readonly(semantics: &Value, id: &str) -> Result<bool, String> {
 }
 
 fn empty_on(operation: &Value) -> Vec<u16> {
-    operation["x-hey-empty-on"]["statusCodes"]
-        .as_array()
-        .map(|codes| {
-            codes
-                .iter()
-                .filter_map(Value::as_u64)
-                .map(|code| code as u16)
-                .collect()
-        })
-        .unwrap_or_default()
+    status_codes(&operation["x-hey-empty-on"]["statusCodes"])
 }
 
 fn pagination(semantics: &Value) -> Result<Pagination, String> {
@@ -575,19 +567,22 @@ fn pagination(semantics: &Value) -> Result<Pagination, String> {
 fn retry(semantics: &Value) -> Retry {
     let retry = &semantics["retry"];
     Retry {
-        max: retry["max"].as_u64().unwrap_or(0) as u32,
+        max: u32::try_from(retry["max"].as_u64().unwrap_or(0)).unwrap_or(u32::MAX),
         base_delay_ms: retry["base_delay_ms"].as_u64().unwrap_or(1000),
-        retry_on: retry["retry_on"]
-            .as_array()
-            .map(|codes| {
-                codes
-                    .iter()
-                    .filter_map(Value::as_u64)
-                    .map(|code| code as u16)
-                    .collect()
-            })
-            .unwrap_or_default(),
+        on: status_codes(&retry["retry_on"]),
     }
+}
+
+/// The HTTP statuses a list names. Anything that is not one — not a number, or past what a
+/// status can be — is left out.
+fn status_codes(codes: &Value) -> Vec<u16> {
+    codes
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter_map(Value::as_u64)
+        .filter_map(|code| u16::try_from(code).ok())
+        .collect()
 }
 
 fn description_of(value: &Value) -> Option<String> {

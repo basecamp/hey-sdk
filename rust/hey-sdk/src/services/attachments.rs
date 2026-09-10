@@ -21,7 +21,7 @@ pub use crate::generated::services::attachments::*;
 /// What an attachment is taken to be when the caller names no content type.
 const DEFAULT_CONTENT_TYPE: &str = "application/octet-stream";
 
-impl<'a> Attachments<'a> {
+impl Attachments<'_> {
     /// Reserves an Active Storage blob and uploads the bytes to the storage URL HEY named.
     /// The answer's `attachable_sgid` is what embeds the attachment in Trix rich text.
     ///
@@ -38,6 +38,8 @@ impl<'a> Attachments<'a> {
         }
 
         let content = content.into();
+        #[allow(clippy::cast_possible_wrap)]
+        // An allocation never exceeds isize::MAX bytes, so the length fits.
         let body = CreateDirectUploadRequestContent {
             blob: DirectUploadBlob {
                 filename: filename.to_string(),

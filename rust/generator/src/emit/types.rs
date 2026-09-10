@@ -4,7 +4,7 @@ use crate::emit::{HEADER, doc_comment};
 use crate::model::{FieldType, Model, Schema, Shape};
 use crate::naming::{field_ident, variant_method};
 
-pub fn render(model: &Model) -> String {
+pub(crate) fn render(model: &Model) -> String {
     let mut out = String::from(HEADER);
     out.push_str("use std::collections::BTreeMap;\n\n");
     out.push_str("use serde::{Deserialize, Serialize};\n\n");
@@ -110,7 +110,7 @@ fn required_default(kind: &FieldType) -> RequiredDefault {
     }
 }
 
-pub fn rust_type(kind: &FieldType, recursive: bool) -> String {
+pub(crate) fn rust_type(kind: &FieldType, recursive: bool) -> String {
     match kind {
         FieldType::String => "String".into(),
         FieldType::SensitiveString => "SensitiveString".into(),

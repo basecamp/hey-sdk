@@ -17,13 +17,15 @@ pub use crate::generated::services::workflows::*;
 /// A workflow as the autocomplete endpoint names it.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct WorkflowSummary {
+    /// The workflow's id.
     pub id: i64,
+    /// What the workflow is called.
     pub name: String,
     /// The account the workflow belongs to, empty when the row names none.
     pub account_name: String,
 }
 
-impl<'a> Workflows<'a> {
+impl Workflows<'_> {
     /// The workflows on an account.
     ///
     /// The autocomplete endpoint answers bare `[id, name, account name]` rows, and answers

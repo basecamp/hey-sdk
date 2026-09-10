@@ -8,7 +8,7 @@ use crate::generated::types::CreateBoxDesignationRequestContent;
 
 pub use crate::generated::services::designations::*;
 
-impl<'a> Designations<'a> {
+impl Designations<'_> {
     /// Designates a contact to a box. The generated [`Designations::create`] takes the same
     /// request as a body.
     ///

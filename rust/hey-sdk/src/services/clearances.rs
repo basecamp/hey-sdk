@@ -18,7 +18,9 @@ pub use crate::generated::services::clearances::*;
 /// The two decisions the Screener takes.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ClearanceStatus {
+    /// Screened in: the sender's mail arrives.
     Approved,
+    /// Screened out: the sender's mail is kept away.
     Denied,
 }
 
@@ -35,6 +37,7 @@ pub struct ScreenOptions {
 }
 
 impl ClearanceStatus {
+    /// The decision as HEY's `status` parameter names it.
     pub fn as_str(&self) -> &'static str {
         match self {
             ClearanceStatus::Approved => "approved",
@@ -43,7 +46,7 @@ impl ClearanceStatus {
     }
 }
 
-impl<'a> Clearances<'a> {
+impl Clearances<'_> {
     /// How many senders are waiting, without fetching them.
     ///
     /// This is the cheap read HEY's own apps sync for the Screener badge. Use
@@ -169,7 +172,7 @@ fn flag(value: bool) -> Option<bool> {
 
 fn join_ids(ids: &[i64]) -> String {
     ids.iter()
-        .map(|id| id.to_string())
+        .map(i64::to_string)
         .collect::<Vec<String>>()
         .join(",")
 }

@@ -12,14 +12,17 @@ pub use crate::generated::services::habits::*;
 /// A habit, as its writes take it.
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct HabitParams {
+    /// What the habit is called.
     pub name: String,
+    /// The icon HEY draws it with.
     pub icon: String,
+    /// The color HEY draws it in.
     pub color: String,
     /// The days of the week the habit runs on, 0 for Sunday through 6 for Saturday.
     pub days: Vec<i32>,
 }
 
-impl<'a> Habits<'a> {
+impl Habits<'_> {
     /// Starts a new habit and answers it as a recording.
     pub async fn create_habit(&self, params: &HabitParams) -> Result<Recording, Error> {
         self.create(&habit_body(params)).await

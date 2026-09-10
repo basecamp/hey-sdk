@@ -16,10 +16,15 @@ const DRAFTED: &str = "drafted";
 /// A message to deliver: the subject, the Trix HTML body and the recipients per kind.
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct MessageContent {
+    /// The subject line.
     pub subject: String,
+    /// The body, as Trix HTML.
     pub content: String,
+    /// The addresses the message goes to.
     pub to: Vec<String>,
+    /// The addresses copied on it.
     pub cc: Vec<String>,
+    /// The addresses copied on it without the others seeing.
     pub bcc: Vec<String>,
     /// The identity the message goes out as. `None` resolves the client's default sender.
     pub acting_sender_id: Option<i64>,
@@ -39,20 +44,26 @@ pub struct DeliverySchedule {
 /// recipients remove them, and a `None` schedule clears one already set.
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct DraftContent {
+    /// The subject line.
     pub subject: String,
+    /// The body, as Trix HTML.
     pub content: String,
+    /// The addresses the draft goes to.
     pub to: Vec<String>,
+    /// The addresses copied on it.
     pub cc: Vec<String>,
+    /// The addresses copied on it without the others seeing.
     pub bcc: Vec<String>,
     /// The identity the draft is saved — and ultimately delivered — as. `None` resolves
     /// the client's default sender. A caller who chose an alternate identity carries it
     /// on every revision, since a revision that leaves it out hands the draft back to
     /// the default one.
     pub acting_sender_id: Option<i64>,
+    /// When HEY delivers the draft on its own. `None` is a draft that waits to be sent.
     pub schedule: Option<DeliverySchedule>,
 }
 
-impl<'a> Messages<'a> {
+impl Messages<'_> {
     /// Delivers a new message through HEY's undo-delay window. Delivery needs somebody to
     /// deliver to, so at least one recipient is required.
     pub async fn send(&self, message: &MessageContent) -> Result<(), Error> {

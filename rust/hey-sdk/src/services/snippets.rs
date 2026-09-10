@@ -10,7 +10,7 @@ use crate::services::write_info;
 
 pub use crate::generated::services::snippets::*;
 
-impl<'a> Snippets<'a> {
+impl Snippets<'_> {
     /// Saves a snippet.
     pub async fn create(&self, name: &str, content: &str) -> Result<(), Error> {
         let mut operation = self.client().form(Method::POST, "/snippets")?;

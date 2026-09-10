@@ -6,7 +6,7 @@ use crate::model::{
 };
 use crate::naming::{constant_name, field_ident, struct_name};
 
-pub fn render_mod(model: &Model) -> String {
+pub(crate) fn render_mod(model: &Model) -> String {
     let mut out = String::from(HEADER);
     for service in &model.services {
         writeln!(out, "pub mod {};", service.name).unwrap();
@@ -28,7 +28,7 @@ pub fn render_mod(model: &Model) -> String {
     out
 }
 
-pub fn render_service(service: &Service) -> String {
+pub(crate) fn render_service(service: &Service) -> String {
     let name = struct_name(&service.name);
     let mut out = String::from(HEADER);
     out.push_str("use crate::client::Client;\n");
@@ -228,8 +228,7 @@ fn return_type(operation: &Operation) -> String {
         (Response::Empty, _, _) => "()".into(),
         (Response::Json(name), true, _) => format!("Page<{name}>"),
         (Response::Json(name), _, false) => format!("Option<{name}>"),
-        (Response::Json(name), _, true) => name.clone(),
-        (Response::Html(name), _, _) => name.clone(),
+        (Response::Json(name), _, true) | (Response::Html(name), _, _) => name.clone(),
     }
 }
 

@@ -18,15 +18,22 @@ pub use crate::generated::services::boxes::*;
 /// The kinds of box a HEY account has, as [`Boxes::list`] reports them.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum BoxKind {
+    /// The Imbox, where screened-in mail lands.
     Imbox,
+    /// The Feed, for newsletters and the like. HEY's `feedbox`.
     Feed,
+    /// Set Aside, for threads kept close to hand. HEY's `asidebox`.
     SetAside,
+    /// Reply Later, for threads waiting on an answer. HEY's `laterbox`.
     ReplyLater,
+    /// The Paper Trail, for receipts and confirmations. HEY's `trailbox`.
     PaperTrail,
+    /// Bubble Up, holding postings until the day they resurface. HEY's `bubblebox`.
     BubbleUp,
 }
 
 impl BoxKind {
+    /// The kind as the box index names it — the `kind` a listed box carries.
     pub fn as_str(&self) -> &'static str {
         match self {
             BoxKind::Imbox => "imbox",
@@ -45,6 +52,7 @@ impl BoxKind {
 pub struct BoxKinds(HashMap<String, i64>);
 
 impl BoxKinds {
+    /// The id of the box of a kind, or a failure when the account has none of that kind.
     pub fn id(&self, kind: BoxKind) -> Result<i64, Error> {
         match self.0.get(kind.as_str()) {
             Some(id) => Ok(*id),
@@ -53,7 +61,7 @@ impl BoxKinds {
     }
 }
 
-impl<'a> Boxes<'a> {
+impl Boxes<'_> {
     /// The id of the box of a kind.
     ///
     /// The client reads the box index once and answers every kind from that reading for as
@@ -68,14 +76,13 @@ impl<'a> Boxes<'a> {
         // The lock is held across the index read on purpose: it makes concurrent callers
         // share one read rather than each starting their own.
         let mut cached = self.client().scope.box_kinds.lock().await;
-        match &*cached {
-            Some(kinds) => kinds.id(kind),
-            None => {
-                let kinds = self.kinds().await?;
-                let id = kinds.id(kind);
-                *cached = Some(kinds);
-                id
-            }
+        if let Some(kinds) = &*cached {
+            kinds.id(kind)
+        } else {
+            let kinds = self.kinds().await?;
+            let id = kinds.id(kind);
+            *cached = Some(kinds);
+            id
         }
     }
 

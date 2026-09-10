@@ -4,7 +4,7 @@ use heck::{ToPascalCase, ToSnakeCase};
 use serde::Deserialize;
 
 #[derive(Deserialize, Default)]
-pub struct Naming {
+pub(crate) struct Naming {
     #[serde(default)]
     services: BTreeMap<String, String>,
     #[serde(default)]
@@ -24,11 +24,11 @@ const KEYWORDS: &[&str] = &[
 ];
 
 impl Naming {
-    pub fn parse(source: &str) -> Result<Naming, String> {
+    pub(crate) fn parse(source: &str) -> Result<Naming, String> {
         toml::from_str(source).map_err(|error| format!("names.toml: {error}"))
     }
 
-    pub fn service_for(&self, operation_id: &str, tag: &str) -> String {
+    pub(crate) fn service_for(&self, operation_id: &str, tag: &str) -> String {
         if let Some(service) = self.operation_services.get(operation_id) {
             service.clone()
         } else if let Some(service) = self.services.get(tag) {
@@ -38,7 +38,7 @@ impl Naming {
         }
     }
 
-    pub fn method_for(&self, operation_id: &str, service: &str) -> Result<String, String> {
+    pub(crate) fn method_for(&self, operation_id: &str, service: &str) -> Result<String, String> {
         let method = match self.operation_methods.get(operation_id) {
             Some(method) => method.clone(),
             None => {
@@ -63,7 +63,7 @@ impl Naming {
     /// What a schema is called in Rust. A shape whose Smithy name collides with something
     /// the language already has is renamed here; the wire is untouched, since a type name
     /// never serializes.
-    pub fn type_for(&self, schema: &str) -> String {
+    pub(crate) fn type_for(&self, schema: &str) -> String {
         self.type_names
             .get(schema)
             .cloned()
@@ -71,11 +71,11 @@ impl Naming {
     }
 }
 
-pub fn struct_name(service: &str) -> String {
+pub(crate) fn struct_name(service: &str) -> String {
     service.to_pascal_case()
 }
 
-pub fn field_ident(wire_name: &str) -> String {
+pub(crate) fn field_ident(wire_name: &str) -> String {
     let ident = wire_name
         .replace(['[', ']'], "_")
         .trim_end_matches('_')
@@ -87,11 +87,11 @@ pub fn field_ident(wire_name: &str) -> String {
     }
 }
 
-pub fn constant_name(operation_id: &str) -> String {
+pub(crate) fn constant_name(operation_id: &str) -> String {
     operation_id.to_snake_case().to_uppercase()
 }
 
-pub fn variant_method(variant: &str) -> String {
+pub(crate) fn variant_method(variant: &str) -> String {
     format!("is_{}", variant.to_snake_case())
 }
 

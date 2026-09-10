@@ -35,7 +35,9 @@ const TOO_FAR_BEHIND: u16 = 409;
 /// both hours in UTC, like every hour it takes out of a JSON request.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum BubbleUpSlot {
+    /// This evening. HEY's `today`.
     LaterToday,
+    /// Tomorrow morning.
     Tomorrow,
     /// Saturday.
     ThisWeekend,
@@ -47,6 +49,7 @@ pub enum BubbleUpSlot {
 }
 
 impl BubbleUpSlot {
+    /// The slot as HEY's `slot` parameter names it.
     pub fn as_str(&self) -> &'static str {
         match self {
             BubbleUpSlot::LaterToday => "today",
@@ -57,7 +60,7 @@ impl BubbleUpSlot {
         }
     }
 
-    fn date(&self) -> Option<String> {
+    fn date(self) -> Option<String> {
         match self {
             BubbleUpSlot::Custom(date) => Some(date.to_string()),
             _ => None,
@@ -73,9 +76,13 @@ impl BubbleUpSlot {
 /// query apart.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct PostingChangesCursor {
+    /// The instant the changes come after.
     pub since: String,
+    /// The contract version the feed speaks, HEY's `v`.
     pub version: Option<String>,
+    /// The page within an increment, while it has more than one.
     pub page: Option<String>,
+    /// How many changes a page holds, when the URL named a size.
     pub per_page: Option<String>,
 }
 
@@ -111,15 +118,21 @@ impl PostingChangesCursor {
 /// box has to be read in full instead.
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct PostingChanges {
+    /// The postings that appeared in the box.
     pub added: Vec<Posting>,
+    /// The postings that changed.
     pub updated: Vec<Posting>,
+    /// The postings that left the box.
     pub deleted: Vec<DeletedPosting>,
+    /// The next page of this increment, while it has one.
     pub next_page: Option<PostingChangesCursor>,
+    /// Where the next read resumes, once the increment is read to its end.
     pub next_cursor: Option<PostingChangesCursor>,
+    /// Whether the cursor is too far behind and the box has to be read in full.
     pub full_sync_required: bool,
 }
 
-impl<'a> Postings<'a> {
+impl Postings<'_> {
     /// Marks a selection of postings as seen.
     pub async fn mark_postings_seen(&self, posting_ids: &[i64]) -> Result<(), Error> {
         self.mark(&routes::MARK_POSTINGS_SEEN, posting_ids).await

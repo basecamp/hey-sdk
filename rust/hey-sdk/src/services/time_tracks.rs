@@ -18,7 +18,7 @@ use crate::services::write_info;
 
 pub use crate::generated::services::time_tracks::*;
 
-impl<'a> TimeTracks<'a> {
+impl TimeTracks<'_> {
     /// Starts a time track. It takes nothing: HEY ignores the request body here and starts a
     /// track with defaults. Notes and a category come later, with
     /// [`TimeTracks::update`] or [`TimeTracks::stop_and_file`], both of which also stop the

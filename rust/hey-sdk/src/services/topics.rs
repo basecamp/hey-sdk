@@ -11,7 +11,7 @@ use crate::generated::routes;
 
 pub use crate::generated::services::topics::*;
 
-impl<'a> Topics<'a> {
+impl Topics<'_> {
     /// Trashes a topic.
     ///
     /// HEY will not trash a shared topic without being asked twice: it answers the removal

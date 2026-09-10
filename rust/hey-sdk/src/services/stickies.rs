@@ -21,12 +21,16 @@ pub const MAX_STICKY_POSITION: i64 = i32::MAX as i64;
 /// How much room a sticky takes on the board.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum StickySize {
+    /// The smallest.
     Small,
+    /// The middle size.
     Medium,
+    /// The largest.
     Large,
 }
 
 impl StickySize {
+    /// The size as HEY's `size` parameter names it.
     pub fn as_str(&self) -> &'static str {
         match self {
             StickySize::Small => "small",
@@ -36,7 +40,7 @@ impl StickySize {
     }
 }
 
-impl<'a> Stickies<'a> {
+impl Stickies<'_> {
     /// The stickies in board order, at most `limit` of them. Zero asks for the server
     /// default, which is also its maximum of 100.
     pub async fn list_up_to(&self, limit: u32) -> Result<Vec<Sticky>, Error> {
@@ -68,15 +72,18 @@ impl<'a> Stickies<'a> {
     /// Repositions a sticky on the board. Positions run from zero to
     /// [`MAX_STICKY_POSITION`].
     pub async fn move_to(&self, sticky_id: i64, position: i64) -> Result<(), Error> {
-        if !(0..=MAX_STICKY_POSITION).contains(&position) {
-            return Err(Error::usage(format!(
-                "sticky position must be between 0 and {MAX_STICKY_POSITION}, got {position}"
-            )));
-        }
+        let position = match i32::try_from(position) {
+            Ok(position) if position >= 0 => position,
+            _ => {
+                return Err(Error::usage(format!(
+                    "sticky position must be between 0 and {MAX_STICKY_POSITION}, got {position}"
+                )));
+            }
+        };
 
         let body = MoveStickyRequestContent {
             id: sticky_id,
-            position: position as i32,
+            position,
         };
         self.move_sticky(&body).await
     }
@@ -87,7 +94,7 @@ impl<'a> Stickies<'a> {
 fn page_limit(limit: u32) -> Option<i32> {
     match limit {
         0 => None,
-        limit => Some(limit.min(MAX_STICKIES_LIMIT) as i32),
+        limit => i32::try_from(limit.min(MAX_STICKIES_LIMIT)).ok(),
     }
 }
 

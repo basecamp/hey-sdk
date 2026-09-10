@@ -9,7 +9,7 @@ use crate::services::write_info;
 
 pub use crate::generated::services::clips::*;
 
-impl<'a> Clips<'a> {
+impl Clips<'_> {
     /// Clips a piece of an entry, so it can be found again without the thread.
     pub async fn create(&self, entry_id: i64, content: &str) -> Result<(), Error> {
         let entry = entry_id.to_string();
