@@ -26,7 +26,7 @@ use crate::pagination::Page;
 use crate::route::Route;
 use crate::security::{is_same_origin, require_secure_endpoint};
 use crate::services::boxes::BoxKinds;
-use crate::trace::{AttemptSpan, OperationSpan};
+use crate::trace::{AttemptSpan, OperationSpan, label};
 use crate::version::default_user_agent;
 
 pub const DEFAULT_TIMEOUT: Duration = Duration::from_secs(30);
@@ -600,14 +600,18 @@ impl Client {
             };
             hooks.on_request_start(&info);
             let started = Instant::now();
-            let span = AttemptSpan::new(attempt);
-            let sent = span
-                .wrap(self.transmit(operation, url.clone(), request))
-                .await;
+            // The attempt span closes here, before any refresh or backoff: it is the send.
+            let sent = {
+                let span = AttemptSpan::new(attempt);
+                let sent = span
+                    .wrap(self.transmit(operation, url.clone(), request))
+                    .await;
+                if let Ok((_, response)) = &sent {
+                    span.answered(response.status());
+                }
+                sent
+            };
             let duration = started.elapsed();
-            if let Ok((_, response)) = &sent {
-                span.answered(response.status());
-            }
 
             match sent {
                 Err(error) => {
@@ -623,7 +627,7 @@ impl Client {
                         },
                     );
                     if attempt < attempts {
-                        crate::trace::debug!(operation = %operation.id, attempt, %error, "request failed, retrying");
+                        crate::trace::debug!(operation = label(operation), attempt, error = %error.code(), "request failed, retrying");
                         hooks.on_retry(&info, attempt + 1, &error);
                         self.wait(delay).await;
                         delay = self.next_delay(delay);
@@ -652,7 +656,10 @@ impl Client {
                                 retry_after,
                             },
                         );
-                        crate::trace::debug!(operation = %operation.id, "credentials refreshed, resending");
+                        crate::trace::debug!(
+                            operation = label(operation),
+                            "credentials refreshed, resending"
+                        );
                         hooks.on_retry(&info, attempt + 1, &cause);
                         refreshed = true;
                         attempt += 1;
@@ -675,7 +682,7 @@ impl Client {
                                 retry_after,
                             },
                         );
-                        crate::trace::debug!(operation = %operation.id, attempt, %status, "retryable status, retrying");
+                        crate::trace::debug!(operation = label(operation), attempt, %status, "retryable status, retrying");
                         hooks.on_retry(&info, attempt + 1, &cause);
                         match retry_after {
                             Some(seconds)
@@ -1164,7 +1171,7 @@ fn span_for(operation: &Operation) -> OperationSpan {
     if operation.quiet {
         OperationSpan::none()
     } else {
-        OperationSpan::new(&operation.info)
+        OperationSpan::new(operation)
     }
 }
 

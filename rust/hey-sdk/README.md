@@ -280,7 +280,8 @@ with `operation`, `service`, and once HEY has answered `http.status` and `reques
 `hey.attempt` child span per send, numbered the way the hooks number attempts, with the status
 each one got. Spans are put on the futures with `Instrument`, so concurrent calls keep their
 own, and a call the caller drops closes its span with no status. Nothing the caller passed is
-recorded: no path, no query, no body. A quiet send — a read-back inside another operation —
+recorded: no path, no query, no body — a request for a path the caller wrote is named by its
+method alone, and the hooks are where its URL goes. A quiet send — a read-back inside another operation —
 opens no span of its own and runs in whichever span its caller is in. Any `tracing-subscriber`
 sees them; with `default-features = false` (plus `reqwest` if wanted) the crate depends on
 `tracing` for nothing and emits nothing. The hooks stay the place for a policy or a metric:

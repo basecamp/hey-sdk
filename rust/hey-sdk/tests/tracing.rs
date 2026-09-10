@@ -30,6 +30,7 @@ struct Span {
 #[derive(Clone, Default)]
 struct Capture {
     spans: Arc<Mutex<BTreeMap<u64, Span>>>,
+    events: Arc<Mutex<Vec<BTreeMap<String, String>>>>,
 }
 
 impl Capture {
@@ -47,12 +48,41 @@ impl Capture {
             .collect()
     }
 
+    /// Every value any span or event carried.
+    fn values(&self) -> Vec<String> {
+        let mut values: Vec<String> = self
+            .spans
+            .lock()
+            .unwrap()
+            .values()
+            .flat_map(|span| span.fields.values().cloned())
+            .collect();
+        values.extend(
+            self.events
+                .lock()
+                .unwrap()
+                .iter()
+                .flat_map(|fields| fields.values().cloned()),
+        );
+        values
+    }
+
     fn operations(&self) -> Vec<Span> {
         self.named("hey.operation")
     }
 
     fn attempts(&self) -> Vec<Span> {
         self.named("hey.attempt")
+    }
+
+    fn operations_with_ids(&self) -> Vec<(u64, Span)> {
+        self.spans
+            .lock()
+            .unwrap()
+            .iter()
+            .filter(|(_, span)| span.name == "hey.operation")
+            .map(|(id, span)| (*id, span.clone()))
+            .collect()
     }
 
     fn id_of_named(&self, name: &str) -> u64 {
@@ -122,6 +152,12 @@ impl<S: Subscriber + for<'a> LookupSpan<'a>> Layer<S> for Capture {
         if let Some(span) = self.spans.lock().unwrap().get_mut(&id.into_u64()) {
             values.record(&mut Fields(&mut span.fields));
         }
+    }
+
+    fn on_event(&self, event: &tracing::Event<'_>, _ctx: Context<'_, S>) {
+        let mut fields = BTreeMap::new();
+        event.record(&mut Fields(&mut fields));
+        self.events.lock().unwrap().push(fields);
     }
 
     fn on_close(&self, id: Id, _ctx: Context<'_, S>) {
@@ -256,8 +292,8 @@ async fn a_failure_records_the_status_it_failed_with() {
     assert!(operation.closed);
 }
 
-/// Two operations in flight at once each keep their own span: the status one answered
-/// never lands on the other.
+/// Two operations in flight at once each keep their own span: each hangs off the span its
+/// caller was in, carries the status its own call got, and parents only its own attempts.
 #[tokio::test]
 async fn concurrent_operations_keep_their_own_spans() {
     let server = MockServer::start().await;
@@ -281,31 +317,37 @@ async fn concurrent_operations_keep_their_own_spans() {
 
     let params = Default::default();
     let boxes = client.boxes();
-    let (first, second) = tokio::join!(boxes.get(1, &params), boxes.get(2, &params));
+    let (first, second) = tokio::join!(
+        tracing::Instrument::instrument(boxes.get(1, &params), tracing::info_span!("first")),
+        tracing::Instrument::instrument(boxes.get(2, &params), tracing::info_span!("second"))
+    );
     first.unwrap();
     second.unwrap_err();
 
-    let operations = capture.operations();
+    let first = capture.id_of_named("first");
+    let second = capture.id_of_named("second");
+    let operations = capture.operations_with_ids();
     assert_eq!(operations.len(), 2);
-    let mut statuses: Vec<(&str, &str)> = operations
-        .iter()
-        .map(|span| {
-            (
-                span.fields["operation"].as_str(),
-                span.fields["http.status"].as_str(),
-            )
-        })
-        .collect();
-    statuses.sort();
-    assert_eq!(statuses, [("GetBox", "200"), ("GetBox", "404")]);
+    let under = |caller: u64| -> (u64, &Span) {
+        operations
+            .iter()
+            .find(|(_, span)| span.parent == Some(caller))
+            .map(|(id, span)| (*id, span))
+            .unwrap()
+    };
+    let (first_op, first_span) = under(first);
+    let (second_op, second_span) = under(second);
+    assert_eq!(first_span.fields["http.status"], "200");
+    assert_eq!(second_span.fields["http.status"], "404");
     let mut parents: Vec<u64> = capture
         .attempts()
         .iter()
         .map(|span| span.parent.unwrap())
         .collect();
     parents.sort_unstable();
-    parents.dedup();
-    assert_eq!(parents.len(), 2, "each attempt hangs off its own operation");
+    let mut expected = vec![first_op, second_op];
+    expected.sort_unstable();
+    assert_eq!(parents, expected);
 }
 
 /// A caller that drops the call mid-flight drops the span with it: it closes, with no
@@ -375,10 +417,18 @@ async fn a_quiet_send_runs_in_the_span_its_caller_is_in() {
     assert_eq!(parents, [Some(operation), Some(caller)]);
 }
 
-/// Nothing the caller passed in is recorded: no URL, no query, no body.
+/// Nothing the caller passed in reaches a span or an event: a request for a path the
+/// caller wrote is named by its method alone, and a resend is logged by the operation's
+/// name and the failure's code, not by anything that could carry the URL.
 #[tokio::test]
-async fn the_span_names_the_operation_and_nothing_the_caller_passed() {
+async fn nothing_the_caller_passed_reaches_a_span_or_an_event() {
     let server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path("/topics/search.json"))
+        .respond_with(ResponseTemplate::new(503))
+        .up_to_n_times(1)
+        .mount(&server)
+        .await;
     Mock::given(method("GET"))
         .and(path("/topics/search.json"))
         .respond_with(ResponseTemplate::new(200).set_body_json(json!([])))
@@ -386,16 +436,36 @@ async fn the_span_names_the_operation_and_nothing_the_caller_passed() {
         .await;
     let capture = Capture::default();
     let _guard = capture.install();
+    let client = client(&server);
 
-    let _ = client(&server).get("/topics/search?q=secret%20plans").await;
+    let mut operation = client.request(hey_sdk::http::Method::GET, "/topics/search");
+    operation.query("q", "secret plans");
+    client.send_unit(operation).await.unwrap();
 
     let operations = capture.operations();
-    let names: Vec<&str> = operations[0].fields.keys().map(String::as_str).collect();
-    assert_eq!(names, ["http.status", "operation", "service"]);
-    for span in capture.attempts() {
-        assert_eq!(
-            span.fields.keys().map(String::as_str).collect::<Vec<_>>(),
-            ["attempt", "http.status"]
-        );
-    }
+    assert_eq!(operations.len(), 1);
+    assert_eq!(
+        fields(&operations[0]),
+        [
+            ("http.status", "200"),
+            ("operation", "GET"),
+            ("service", "Raw")
+        ]
+    );
+    assert_eq!(capture.attempts().len(), 2);
+    let leaked: Vec<String> = capture
+        .values()
+        .into_iter()
+        .filter(|value| value.contains("secret") || value.contains("topics"))
+        .collect();
+    assert!(leaked.is_empty(), "leaked {leaked:?}");
+    assert!(
+        capture
+            .events
+            .lock()
+            .unwrap()
+            .iter()
+            .any(|fields| fields.get("operation").is_some_and(|op| op == "GET")),
+        "the resend was logged"
+    );
 }

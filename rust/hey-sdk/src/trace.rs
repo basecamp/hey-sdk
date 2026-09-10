@@ -5,10 +5,13 @@
 //! A span is put on a future with `Instrument` and never entered across an `.await`: an
 //! entered span is a thread-local, and a task that yields would leave it on whatever the
 //! executor runs next. Nothing a caller passed to an operation is recorded — the span names
-//! the operation, the attempt, the status and HEY's request id, and that is all.
+//! the operation, the attempt, the status and HEY's request id, and that is all. A request
+//! for a path the caller wrote is named by its method alone, since the path and whatever
+//! query it carries are the caller's; the hooks are where the URL goes.
 
 use crate::http::StatusCode;
 use crate::observability::OperationInfo;
+use crate::operation::Operation;
 
 #[cfg(feature = "tracing")]
 macro_rules! debug {
@@ -41,15 +44,15 @@ pub(crate) struct OperationSpan {
 }
 
 impl OperationSpan {
-    pub(crate) fn new(info: &OperationInfo) -> OperationSpan {
+    pub(crate) fn new(operation: &Operation) -> OperationSpan {
         #[cfg(not(feature = "tracing"))]
-        let _ = info;
+        let _ = operation;
         OperationSpan {
             #[cfg(feature = "tracing")]
             span: tracing::info_span!(
                 "hey.operation",
-                operation = %info.operation,
-                service = %info.service,
+                operation = label(operation),
+                service = %operation.info.service,
                 http.status = tracing::field::Empty,
                 request_id = tracing::field::Empty,
             ),
@@ -88,6 +91,20 @@ impl OperationSpan {
             let _ = (status, request_id);
         }
     }
+}
+
+/// What a span or an event calls the operation: the name the model or a wrapper gave it,
+/// or the method alone for a path the caller wrote, whose path is the caller's own.
+pub(crate) fn label(operation: &Operation) -> &str {
+    if is_raw(&operation.info) {
+        operation.method.as_str()
+    } else {
+        &operation.info.operation
+    }
+}
+
+fn is_raw(info: &OperationInfo) -> bool {
+    info.service == "Raw"
 }
 
 /// The span one send runs inside, a child of the operation's. Numbered the way the hooks
