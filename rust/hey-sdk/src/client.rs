@@ -744,7 +744,7 @@ impl Client {
                 None => None,
                 Some(credential) => {
                     let key = cache_key(url.as_str(), credential);
-                    if !cached.as_ref().is_some_and(|(held, _)| *held == key) {
+                    if cached.as_ref().is_none_or(|(held, _)| *held != key) {
                         *cached = self.look_up(cache, &key).await;
                     }
                     Some(key)
