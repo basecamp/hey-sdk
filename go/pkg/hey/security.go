@@ -180,10 +180,10 @@ func redactTransportError(err error) error {
 
 // projectTransportError rebuilds err's tree with every *url.Error projected, reporting
 // whether anything was, so a tree with nothing to drop comes back untouched at every
-// level. A wrapper around a projected error keeps its own text with the projection
-// substituted for the rendering it embedded, or is dropped in favour of the
-// projection when it rendered its cause in a form this function cannot locate; a
-// multi-error is rebuilt as errors.Join of its projected members.
+// level. A wrapper around a projected error is dropped in favour of the projection:
+// its text can carry the URL on its own (fmt.Errorf("%s: %w", req.URL, err)), in any
+// spelling, and nothing built from that text can be shown not to. A multi-error is
+// rebuilt as errors.Join of its projected members.
 func projectTransportError(err error) (projected bool, result error) {
 	switch e := err.(type) { //nolint:errorlint // rebuilding the tree node by node is the point
 	case nil:
@@ -208,19 +208,11 @@ func projectTransportError(err error) (projected bool, result error) {
 		}
 		return true, errors.Join(rebuilt...)
 	case interface{ Unwrap() error }:
-		cause := e.Unwrap()
-		causeProjected, projectedCause := projectTransportError(cause)
+		causeProjected, projectedCause := projectTransportError(e.Unwrap())
 		if !causeProjected {
 			return false, err
 		}
-		text := err.Error()
-		if !strings.Contains(text, cause.Error()) {
-			return true, projectedCause
-		}
-		return true, &redactedTransportError{
-			text:  strings.ReplaceAll(text, cause.Error(), projectedCause.Error()),
-			cause: projectedCause,
-		}
+		return true, projectedCause
 	}
 	return false, err
 }
@@ -234,15 +226,3 @@ func redactURL(rawURL string) string {
 	}
 	return (&url.URL{Scheme: u.Scheme, Host: u.Host, Path: u.Path, RawPath: u.RawPath}).String()
 }
-
-// redactedTransportError is a wrapper around a projected transport error: the wrapper's
-// text with the projection substituted, unwrapping to the projected cause so errors.Is
-// and errors.As classify the failure as before.
-type redactedTransportError struct {
-	text  string
-	cause error
-}
-
-func (e *redactedTransportError) Error() string { return e.text }
-
-func (e *redactedTransportError) Unwrap() error { return e.cause }

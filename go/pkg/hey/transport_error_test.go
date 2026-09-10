@@ -211,25 +211,23 @@ func TestRedactTransportError(t *testing.T) {
 		}
 	})
 
-	t.Run("keeps a wrapper's text around the projection", func(t *testing.T) {
-		got := redactTransportError(fmt.Errorf("fetching the blob: %w", signed))
-		want := `fetching the blob: Get "https://storage.example.com/blob/1": context canceled`
-		if got.Error() != want {
-			t.Errorf("got %q, want %q", got.Error(), want)
-		}
-		var urlErr *url.Error
-		if !errors.As(got, &urlErr) || urlErr.URL != "https://storage.example.com/blob/1" {
-			t.Errorf("should unwrap to the projected *url.Error, got %v", got)
-		}
-		if !errors.Is(got, context.Canceled) {
-			t.Error("the cause chain should still reach the context sentinel")
-		}
-	})
-
-	t.Run("keeps only the transport error when a wrapper hides the URL", func(t *testing.T) {
-		got := redactTransportError(&opaqueWrapperError{cause: signed})
-		if got.Error() != `Get "https://storage.example.com/blob/1": context canceled` {
-			t.Errorf("got %q", got.Error())
+	t.Run("drops a wrapper around the projection, whatever its text carried", func(t *testing.T) {
+		for name, wrapped := range map[string]error{
+			"prefix":           fmt.Errorf("fetching the blob: %w", signed),
+			"interpolated URL": fmt.Errorf("request %s failed: %w", signed.URL, signed),
+			"opaque":           &opaqueWrapperError{cause: signed},
+		} {
+			got := redactTransportError(wrapped)
+			if want := `Get "https://storage.example.com/blob/1": context canceled`; got.Error() != want {
+				t.Errorf("%s: got %q, want %q", name, got.Error(), want)
+			}
+			var urlErr *url.Error
+			if !errors.As(got, &urlErr) || urlErr.URL != "https://storage.example.com/blob/1" {
+				t.Errorf("%s: should unwrap to the projected *url.Error, got %v", name, got)
+			}
+			if !errors.Is(got, context.Canceled) {
+				t.Errorf("%s: the cause chain should still reach the context sentinel", name)
+			}
 		}
 	})
 
@@ -245,9 +243,8 @@ func TestRedactTransportError(t *testing.T) {
 				t.Errorf("the signed query leaked into %q", text)
 			}
 		}
-		got = redactTransportError(fmt.Errorf("relaying: %w", outer))
-		if got.Error() != "relaying: "+want {
-			t.Errorf("got %q, want %q", got.Error(), "relaying: "+want)
+		if got = redactTransportError(fmt.Errorf("relaying to %s: %w", outer.URL, outer)); got.Error() != want {
+			t.Errorf("got %q, want %q", got.Error(), want)
 		}
 	})
 
@@ -279,6 +276,10 @@ func TestRedactTransportError(t *testing.T) {
 		}
 		nested := &url.Error{Op: "Get", URL: "https://proxy.example.com/relay", Err: plain}
 		if got := redactTransportError(nested); got != nested { //nolint:errorlint // identity is the point
+			t.Errorf("got %v, want the same error", got)
+		}
+		wrapped := fmt.Errorf("fetching: %w", plain)
+		if got := redactTransportError(wrapped); got != wrapped { //nolint:errorlint // identity is the point
 			t.Errorf("got %v, want the same error", got)
 		}
 	})
