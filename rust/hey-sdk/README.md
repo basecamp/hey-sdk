@@ -408,10 +408,14 @@ Every public type is on one of two sides, and the side decides what a change to 
   whose variant set is HEY's to extend (`ErrorCode`, `BoxKind`, `Pagination`): read them,
   match them with a `..` or `_` arm, never build them. They keep `Default`, so
   `Mailbox::default()` still works where a test wants one. Adding a field or a variant is
-  additive and ships as `0.x.PATCH`.
+  additive and ships as `0.x.PATCH` — provided what HEY already sends still decodes: a new
+  required field with no default, a `DateTime` say, would refuse yesterday's payload, and
+  that is a break whatever the attribute says.
 - A type on both sides — sent in a body and read back — is request-side.
 - Closed enums stay exhaustive. `ClearanceStatus`, `OccurrenceScope` and `RepeatUntil` name a
   choice the SDK defines, not a set HEY grows, so a `match` over them may stay exhaustive.
+- An open enum is `#[non_exhaustive]` whichever side it sits on: its declared variants are
+  still there to build a request with, and only a `match` over it has to leave room.
 
 The generator applies the same rule by reachability: a schema reachable from any request body
 is request-side, the rest are response-side. So a field the model adds to a response schema is

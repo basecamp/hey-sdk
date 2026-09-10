@@ -195,8 +195,10 @@ fn environment() -> MutexGuard<'static, ()> {
     guard
 }
 
-// Setting a process's environment is unsafe since edition 2024; these run under the lock
-// above, one test at a time, which is the condition the safety of `set_var` asks for.
+// Setting a process's environment is unsafe since edition 2024: nothing else in the process
+// may read it meanwhile. Every test in this binary that reads or writes it holds
+// `ENVIRONMENT`, so within this process that holds; the harness itself reads no variable
+// while a test runs.
 #[allow(unsafe_code)]
 fn set(name: &str, value: &str) {
     unsafe { env::set_var(name, value) };

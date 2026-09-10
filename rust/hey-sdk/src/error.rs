@@ -228,8 +228,11 @@ impl Error {
         Error::new(ErrorCode::BulkheadFull, "bulkhead is full")
     }
 
-    /// No answer came at all. The transport's own account of it is the hint, and it is
-    /// retryable: nothing reached HEY.
+    /// No answer came at all. The transport's own account of it is the hint. It is marked
+    /// retryable because the request can be sent again, not because it never arrived: a
+    /// timeout or a broken body can follow a write HEY has already made, so a resend is only
+    /// safe for an operation the model calls idempotent, which is the only kind the client
+    /// resends on its own.
     pub fn network(source: impl std::error::Error + Send + Sync + 'static) -> Error {
         Error::new(ErrorCode::Network, "Network error")
             .with_hint(source.to_string())

@@ -110,10 +110,12 @@ no such allowance.
 
 Which side of the wire a type sits on decides how it may change; the policy and what it
 costs a release are in [rust/hey-sdk/README.md](rust/hey-sdk/README.md#versioning). The
-generator applies it by reachability. A schema reachable from any request body — the body
-type itself or anything it mentions, however deep — is request-side: public fields,
-`Default`, literal construction, never `#[non_exhaustive]`. Every other schema is
+generator applies it by reachability. A struct schema reachable from any request body — the
+body type itself or anything it mentions, however deep — is request-side: public fields,
+`Default`, literal construction, never `#[non_exhaustive]`. Every other struct schema is
 response-side and is emitted `#[non_exhaustive]`. The `*Params` structs are request-side.
+An enum is `#[non_exhaustive]` on either side; its declared variants stay constructible, so
+a request that carries one is still a caller's to build.
 `Route`, `RouteParam` and `Retry` in the route table are response-side: the generator
 builds them, nothing else does, and `Route` gaining `html` is the kind of addition the
 attribute exists for.

@@ -33,7 +33,12 @@ pub struct Match {
 
 impl Match {
     /// The read on this path, or the alphabetically first operation when there is none.
-    #[allow(clippy::expect_used)] // a `Match` only comes from `Pattern::recognize`, which has at least one route
+    ///
+    /// # Panics
+    ///
+    /// When `operations` is empty. Recognition never produces such a match; only emptying
+    /// the field by hand reaches this.
+    #[allow(clippy::expect_used)] // the empty case is unreachable through `Router::recognize`; see Panics
     pub fn operation(&self) -> &'static str {
         self.operations
             .get(Method::GET.as_str())
