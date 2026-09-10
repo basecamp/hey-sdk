@@ -21,8 +21,9 @@ type GatingHooks interface {
 }
 
 // RequestInfo contains information about an HTTP request. URL is the request URL
-// whole, except for the attachment upload's storage request, whose URL is signed: that
-// one reaches the hooks as its scheme, host and path.
+// whole, except on the requests whose URL can be signed — the attachment upload's
+// storage request, and every hop of a blob download, which HEY answers with a redirect
+// to a signed storage URL: those reach the hooks as their scheme, host and path.
 type RequestInfo struct {
 	Method  string
 	URL     string

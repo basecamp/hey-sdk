@@ -380,6 +380,9 @@ func (c *Client) GetBlob(ctx context.Context, path string) (*Response, error) {
 
 	ctx = contextWithAccept(ctx, "*/*")
 	ctx = contextWithoutCache(ctx)
+	// HEY answers with a redirect to a signed storage URL, followed on this context:
+	// the hooks see every hop projected.
+	ctx = markProjectedRequest(ctx)
 	return c.doRequestURL(ctx, http.MethodGet, resolvedURL, nil)
 }
 
@@ -396,6 +399,7 @@ func (c *Client) DownloadBlob(ctx context.Context, path string, destination io.W
 
 	ctx = contextWithAccept(ctx, "*/*")
 	ctx = contextWithoutCache(ctx)
+	ctx = markProjectedRequest(ctx)
 	ctx, stream := contextWithStreamDestination(ctx, destination)
 	resp, err := c.doRequestURL(ctx, http.MethodGet, resolvedURL, nil)
 	if err != nil {

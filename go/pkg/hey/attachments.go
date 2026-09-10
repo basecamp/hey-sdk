@@ -93,7 +93,7 @@ func (s *AttachmentsService) Upload(ctx context.Context, filename, contentType s
 	}
 
 	// The upload URL is signed: the hooks see it projected, never whole.
-	req, err := http.NewRequestWithContext(markStorageRequest(ctx), http.MethodPut, upload.DirectUpload.Url, content)
+	req, err := http.NewRequestWithContext(markProjectedRequest(ctx), http.MethodPut, upload.DirectUpload.Url, content)
 	if err != nil {
 		return nil, fmt.Errorf("create attachment upload request: %w", err)
 	}

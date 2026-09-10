@@ -183,20 +183,22 @@ func attemptFromContext(ctx context.Context) int {
 	return generated.AttemptFromContext(ctx)
 }
 
-// storageRequestKey is the context key marking a request to the storage host — the
-// attachment upload — whose URL is the credential: the hooks see it projected to
+// projectedRequestKey is the context key marking a request whose URL, on some hop, is
+// the credential: the attachment upload's PUT to the signed storage URL, and a blob
+// download, which HEY answers with a redirect to a signed storage URL that net/http
+// follows on the same context. The hooks see every hop of such a request projected to
 // scheme, host and path. An API request's URL carries no credential (the token is in
 // the Authorization header), so the hooks see it whole.
-type storageRequestKey struct{}
+type projectedRequestKey struct{}
 
-// markStorageRequest marks ctx as belonging to a request whose URL is signed.
-func markStorageRequest(ctx context.Context) context.Context {
-	return context.WithValue(ctx, storageRequestKey{}, true)
+// markProjectedRequest marks ctx as belonging to a request the hooks see projected.
+func markProjectedRequest(ctx context.Context) context.Context {
+	return context.WithValue(ctx, projectedRequestKey{}, true)
 }
 
-// isStorageRequest reports whether ctx carries the storage request marker.
-func isStorageRequest(ctx context.Context) bool {
-	v, _ := ctx.Value(storageRequestKey{}).(bool)
+// isProjectedRequest reports whether ctx carries the projection marker.
+func isProjectedRequest(ctx context.Context) bool {
+	v, _ := ctx.Value(projectedRequestKey{}).(bool)
 	return v
 }
 
@@ -209,9 +211,9 @@ type loggingTransport struct {
 
 // RoundTrip implements http.RoundTripper with logging and hooks.
 func (t *loggingTransport) RoundTrip(req *http.Request) (*http.Response, error) {
-	storage := isStorageRequest(req.Context())
+	projected := isProjectedRequest(req.Context())
 	displayURL := req.URL.String()
-	if storage {
+	if projected {
 		displayURL = redactURL(displayURL)
 	}
 	info := RequestInfo{
@@ -238,7 +240,7 @@ func (t *loggingTransport) RoundTrip(req *http.Request) (*http.Response, error) 
 
 	if err != nil {
 		result.Error = err
-		if storage {
+		if projected {
 			// A custom transport can report its failure as a *url.Error of its own,
 			// which renders the same signed URL.
 			result.Error = redactTransportError(err)

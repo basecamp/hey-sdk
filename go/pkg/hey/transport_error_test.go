@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -146,6 +147,53 @@ func TestAttachmentsUploadCustomTransportErrorRendersNoSignedURL(t *testing.T) {
 	}
 	if !strings.Contains(hooks.results[1].Error.Error(), `"http://127.0.0.1:1/blob"`) {
 		t.Errorf("hook result should keep the URL's scheme, host and path, got %q", hooks.results[1].Error.Error())
+	}
+}
+
+// TestBlobDownloadRedirectReachesHooksProjected downloads a blob HEY answers with a
+// redirect to a signed storage URL and checks the hooks see the storage hop projected:
+// net/http follows the redirect on the same context, and a successful download has no
+// error for ErrNetwork to project.
+func TestBlobDownloadRedirectReachesHooksProjected(t *testing.T) {
+	target := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = io.WriteString(w, "download")
+	}))
+	t.Cleanup(target.Close)
+	source := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, target.URL+"/signed-download?signature=SECRETVALUE", http.StatusFound)
+	}))
+	t.Cleanup(source.Close)
+	hooks := &requestRecordingHooks{}
+	client := NewClient(&Config{BaseURL: source.URL}, &StaticTokenProvider{Token: "test-token"},
+		WithMaxRetries(0), WithHooks(hooks))
+
+	for name, download := range map[string]func() error{
+		"GetBlob": func() error {
+			_, err := client.GetBlob(context.Background(), "/blob")
+			return err
+		},
+		"DownloadBlob": func() error {
+			_, _, err := client.DownloadBlob(context.Background(), "/blob", io.Discard)
+			return err
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			hooks.infos = nil
+			if err := download(); err != nil {
+				t.Fatal(err)
+			}
+			if len(hooks.infos) != 2 {
+				t.Fatalf("expected the HEY hop and the storage hop in the hooks, got %+v", hooks.infos)
+			}
+			if got := hooks.infos[1].URL; got != target.URL+"/signed-download" {
+				t.Errorf("storage hop reached the hooks as %q, want the projected URL", got)
+			}
+			for _, info := range hooks.infos {
+				if strings.Contains(info.URL, "SECRETVALUE") {
+					t.Errorf("the signed query leaked into a hook argument: %q", info.URL)
+				}
+			}
+		})
 	}
 }
 
