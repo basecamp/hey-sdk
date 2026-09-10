@@ -201,8 +201,18 @@ jobs:
             "https://crates.io/api/v1/crates/$CRATE/$VERSION")
           case "$status" in
             200)
-              yanked=$(jq -er '.version.yanked' "$body") || { echo "::error::crates.io's answer for $CRATE $VERSION did not parse"; exit 1; }
-              checksum=$(jq -er '.version.checksum' "$body") || { echo "::error::crates.io's answer for $CRATE $VERSION carries no checksum"; exit 1; }
+              # Not `jq -e`: it reports a `false` result as exit status 1, and unyanked is
+              # the answer this path exists for.
+              yanked=$(jq -r '.version.yanked | tostring' "$body" 2>/dev/null) || yanked=""
+              checksum=$(jq -r '.version.checksum // empty' "$body" 2>/dev/null) || checksum=""
+              case "$yanked" in
+                true|false) ;;
+                *) echo "::error::crates.io's answer for $CRATE $VERSION did not parse"; exit 1 ;;
+              esac
+              if [ -z "$checksum" ]; then
+                echo "::error::crates.io's answer for $CRATE $VERSION carries no checksum"
+                exit 1
+              fi
               if [ "$yanked" = "true" ]; then
                 echo "::error::$CRATE $VERSION is on crates.io but yanked; release the next version"
                 exit 1
