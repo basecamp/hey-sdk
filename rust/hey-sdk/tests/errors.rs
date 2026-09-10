@@ -1,5 +1,7 @@
 //! `Error` and `ErrorCode`: the status mapping, the exit codes and what an error keeps of the failure.
 
+mod support;
+
 use hey_sdk::error::{
     EXIT_AMBIGUOUS, EXIT_API, EXIT_AUTH, EXIT_FORBIDDEN, EXIT_NETWORK, EXIT_NOT_FOUND,
     EXIT_RATE_LIMIT, EXIT_USAGE, EXIT_VALIDATION, MAX_ERROR_BODY_BYTES, MAX_ERROR_MESSAGE_BYTES,
@@ -366,4 +368,34 @@ fn respond(status: u16, method: &Method, headers: &[(&str, &str)], body: &[u8]) 
         );
     }
     Error::from_response(StatusCode::from_u16(status).unwrap(), method, &map, body)
+}
+
+/// An answer that will not decode is still an answer: the error keeps the status, the
+/// request id and the operation, which is what tells "HEY sent something unreadable" from
+/// "nothing came back".
+#[tokio::test]
+async fn an_answer_that_will_not_decode_keeps_the_operation_the_status_and_the_request_id() {
+    use wiremock::matchers::{method, path};
+    use wiremock::{Mock, MockServer, ResponseTemplate};
+
+    let server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path("/boxes.json"))
+        .respond_with(
+            ResponseTemplate::new(200)
+                .insert_header("x-request-id", "req-garbled")
+                .insert_header("content-type", "application/json")
+                .set_body_string("<html>not json</html>"),
+        )
+        .mount(&server)
+        .await;
+
+    let error = support::client(&server).boxes().list().await.unwrap_err();
+
+    assert_eq!(error.code(), ErrorCode::Api);
+    assert_eq!(error.http_status(), Some(200));
+    assert_eq!(error.request_id(), Some("req-garbled"));
+    assert!(error.message().starts_with("ListBoxes: "), "{error}");
+    assert!(error.hint().is_some(), "{error}");
+    assert!(!error.is_retryable());
 }

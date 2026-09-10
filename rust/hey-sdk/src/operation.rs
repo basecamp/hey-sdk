@@ -12,7 +12,7 @@ use crate::route::Route;
 
 /// A request the client has not sent yet. Generated service methods build one from a
 /// [`Route`]; [`crate::Client::request`] builds one for anything the model does not cover.
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 #[allow(clippy::struct_excessive_bools)] // each flag is one independent choice about the send
 pub struct Operation {
     pub(crate) id: Cow<'static, str>,
@@ -38,10 +38,42 @@ pub struct Operation {
     pub(crate) quiet: bool,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub(crate) struct Body {
     pub(crate) content_type: String,
     pub(crate) bytes: Bytes,
+}
+
+/// An operation prints what it is and where it goes, not what it carries: the path
+/// without any query the caller wrote into it, the query's names without their values, the
+/// body's shape without its bytes. A `{:?}` is the kind of thing that lands in a log, and
+/// the values are the caller's data.
+impl std::fmt::Debug for Operation {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let query: Vec<&str> = self.query.iter().map(|(name, _)| name.as_str()).collect();
+        let without_query =
+            |value: &str| -> String { value.split('?').next().unwrap_or_default().to_string() };
+        f.debug_struct("Operation")
+            .field("id", &without_query(&self.id))
+            .field("method", &self.method)
+            .field("path", &without_query(&self.path))
+            .field("query", &query)
+            .field("body", &self.body)
+            .field("idempotent", &self.idempotent)
+            .field("quiet", &self.quiet)
+            .finish_non_exhaustive()
+    }
+}
+
+/// A body prints as its type and its size, never its bytes: a `{:?}` of an operation is
+/// the kind of thing that lands in a log, and the body is the caller's data.
+impl std::fmt::Debug for Body {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Body")
+            .field("content_type", &self.content_type)
+            .field("len", &self.bytes.len())
+            .finish()
+    }
 }
 
 /// The two redirects HEY's form-backed endpoints answer with, which
@@ -120,6 +152,17 @@ impl Operation {
     /// The operation as the model names it, or `METHOD /path` for one built by hand.
     pub fn id(&self) -> &str {
         &self.id
+    }
+
+    /// What an error or a log calls the operation: the name the model or a wrapper gave
+    /// it, or the method alone for a path the caller wrote, since that path — and whatever
+    /// query it carries — is the caller's.
+    pub(crate) fn label(&self) -> &str {
+        if self.info.service == "Raw" {
+            self.method.as_str()
+        } else {
+            &self.info.operation
+        }
     }
 
     /// The HTTP method the operation is sent with.

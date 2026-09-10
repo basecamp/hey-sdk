@@ -1,5 +1,6 @@
 use std::fmt::Display;
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::time::{Duration, Instant};
 
 use bytes::Bytes;
@@ -66,6 +67,13 @@ const ACCOUNT_FILTER_PARAMETER: &str = "filtered_account_id";
 /// is what reqwest allowed when it was the one following them.
 const MAX_REDIRECTS: usize = 10;
 
+tokio::task_local! {
+    /// The deadline the operation in progress on this task is held to, so that every
+    /// request a convenience or a walk makes inside it is held to the same one rather
+    /// than each starting a limit of its own.
+    static DEADLINE: Option<Instant>;
+}
+
 /// A HEY client: one authenticated identity, presenting mail from All Accounts unless
 /// derived for one linked account with [`Client::for_account`].
 ///
@@ -91,6 +99,17 @@ pub(crate) struct Shared {
     pub(crate) max_response_body_bytes: usize,
     pub(crate) cache: Option<Arc<dyn ResponseCache>>,
     pub(crate) hooks: Arc<dyn Hooks>,
+    pub(crate) operation_timeout: Option<Duration>,
+    /// How many times the credentials have been refreshed. A request remembers the count it
+    /// was signed under, so a 401 answered after someone else refreshed is resent on the
+    /// new credentials rather than refreshing again.
+    pub(crate) refreshes: AtomicU64,
+    /// One refresh at a time, and none while a request is being signed: the 401s a stale
+    /// credential earns all arrive together, and only the first of them should cost a
+    /// round trip to the token endpoint. Signing takes this for reading, so requests sign
+    /// concurrently; a refresh takes it for writing, so the count a request is signed
+    /// under is the count of the credentials it carries.
+    pub(crate) refreshing: tokio::sync::RwLock<()>,
 }
 
 /// What a client works out about the identity it presents and keeps for as long as it
@@ -124,12 +143,19 @@ pub struct Response {
 }
 
 impl Response {
-    /// The body decoded as `T`. An empty body is refused rather than decoded as nothing.
+    /// Decodes the body as JSON. A body that will not decode is an error that still says
+    /// what HEY answered: the status, and the request id when the answer named one.
     pub fn json<T: DeserializeOwned>(&self) -> Result<T, Error> {
         if self.body.is_empty() {
-            Err(Error::api(self.status.as_u16(), "empty response body"))
+            let error = Error::api(self.status.as_u16(), "empty response body");
+            Err(match self.header("x-request-id") {
+                Some(request_id) => error.with_request_id(request_id),
+                None => error,
+            })
         } else {
-            Ok(serde_json::from_slice(&self.body)?)
+            serde_json::from_slice(&self.body).map_err(|error| {
+                Error::decoding(self.status.as_u16(), self.header("x-request-id"), error)
+            })
         }
     }
 
@@ -155,6 +181,7 @@ pub struct ClientBuilder {
     max_response_body_bytes: usize,
     cache: Option<Arc<dyn ResponseCache>>,
     pub(crate) hooks: Arc<dyn Hooks>,
+    operation_timeout: Option<Duration>,
 }
 
 impl ClientBuilder {
@@ -174,6 +201,7 @@ impl ClientBuilder {
             max_response_body_bytes: DEFAULT_MAX_RESPONSE_BODY_BYTES,
             cache: None,
             hooks: Arc::new(NoopHooks),
+            operation_timeout: None,
         }
     }
 
@@ -208,10 +236,25 @@ impl ClientBuilder {
     }
 
     /// How long the HTTP client the SDK ships gives an answer to arrive. It has no effect on
-    /// one supplied with [`ClientBuilder::http_client`].
+    /// one supplied with [`ClientBuilder::http_client`]. This bounds one request on the
+    /// wire; the whole of an operation is bounded by [`ClientBuilder::operation_timeout`].
     #[must_use]
     pub fn timeout(mut self, timeout: Duration) -> ClientBuilder {
         self.timeout = timeout;
+        self
+    }
+
+    /// The most an operation may take from the call to its answer, everything the client
+    /// waits for included: waiting at the gate, fetching credentials, every attempt, every
+    /// wait between them, the resend after a refresh, and reading the body. Past it the
+    /// operation ends as a retryable network error, and whatever it was doing is dropped —
+    /// a permit it held goes back, and the hooks hear it end. Decoding the answer into the
+    /// caller's type comes after, on the caller's own thread, and is not waited for. None
+    /// by default: an operation may then take as long as its attempts and waits add up to,
+    /// each attempt bounded only by the HTTP client's own [`ClientBuilder::timeout`].
+    #[must_use]
+    pub fn operation_timeout(mut self, limit: Duration) -> ClientBuilder {
+        self.operation_timeout = Some(limit);
         self
     }
 
@@ -298,6 +341,17 @@ impl ClientBuilder {
         if self.max_pages == 0 {
             return Err(Error::usage("max pages must be greater than zero"));
         }
+        if self.operation_timeout.is_some_and(|limit| limit.is_zero()) {
+            return Err(Error::usage("operation timeout must be greater than zero"));
+        }
+        if self
+            .operation_timeout
+            .is_some_and(|limit| Instant::now().checked_add(limit).is_none())
+        {
+            return Err(Error::usage(
+                "operation timeout is too long to keep time by",
+            ));
+        }
         let http = match self.http {
             Some(http) => http,
             None => shipped_http_client(self.timeout)?,
@@ -327,6 +381,9 @@ impl ClientBuilder {
             max_response_body_bytes,
             cache,
             hooks: self.hooks,
+            operation_timeout: self.operation_timeout,
+            refreshes: AtomicU64::new(0),
+            refreshing: tokio::sync::RwLock::new(()),
         };
         Ok(Client {
             shared: Arc::new(shared),
@@ -395,7 +452,11 @@ impl Client {
 
     /// Sends an operation and decodes its JSON body.
     pub async fn send<T: DeserializeOwned>(&self, operation: Operation) -> Result<T, Error> {
-        self.execute(operation).await?.json()
+        let label = operation.label().to_string();
+        self.execute(operation)
+            .await?
+            .json()
+            .map_err(|error| error.about(&label))
     }
 
     /// Sends an operation whose answer carries no body worth reading.
@@ -415,11 +476,15 @@ impl Client {
         &self,
         operation: Operation,
     ) -> Result<Option<T>, Error> {
+        let label = operation.label().to_string();
         let response = self.execute(operation).await?;
         if response.empty {
             Ok(None)
         } else {
-            response.json().map(Some)
+            response
+                .json()
+                .map(Some)
+                .map_err(|error| error.about(&label))
         }
     }
 
@@ -428,10 +493,12 @@ impl Client {
         &self,
         operation: Operation,
     ) -> Result<Page<T>, Error> {
+        let label = operation.label().to_string();
         let info = operation.info.clone();
         let route = operation.route;
         let response = self.execute(operation).await?;
-        Ok(Page::new(response.json()?, &response, info, route))
+        let value = response.json().map_err(|error| error.about(&label))?;
+        Ok(Page::new(value, &response, info, route))
     }
 
     /// Reads the page after the given one, or `None` when HEY named no next page. A
@@ -457,23 +524,34 @@ impl Client {
         }
     }
 
-    /// Reads every page after the first, up to the client's page limit, calling `visit`
-    /// with each one. Stops early when `visit` answers `false`.
+    /// Reads every page after the first, calling `visit` with each one. Stops early when
+    /// `visit` answers `false`. A walk that reaches the client's page limit with pages
+    /// still to read stops there and says so, as [`Error::pagination_capped`]: the pages
+    /// visited stand, and the caller knows they were not all of them.
     pub async fn each_page<T: DeserializeOwned>(
         &self,
         first: Page<T>,
         mut visit: impl FnMut(&Page<T>) -> bool,
     ) -> Result<(), Error> {
-        let mut page = first;
-        let mut count = 1;
-        while visit(&page) && count < self.shared.max_pages {
-            match self.next_page(&page).await? {
-                Some(next) => page = next,
-                None => break,
+        self.within_limit(Box::pin(async move {
+            let mut page = first;
+            let mut count = 1;
+            while visit(&page) {
+                if !page.has_next() {
+                    break;
+                }
+                if count >= self.shared.max_pages {
+                    return Err(Error::pagination_capped(self.shared.max_pages));
+                }
+                match self.next_page(&page).await? {
+                    Some(next) => page = next,
+                    None => break,
+                }
+                count += 1;
             }
-            count += 1;
-        }
-        Ok(())
+            Ok(())
+        }))
+        .await
     }
 
     /// Sends an operation: asks the hooks whether it may run, applies credentials and
@@ -481,8 +559,9 @@ impl Client {
     /// resends once after a refreshed 401, and answers a cached body on 304. Non-2xx
     /// statuses become errors unless the operation treats them as empty.
     pub async fn execute(&self, operation: Operation) -> Result<Response, Error> {
+        let deadline = self.deadline();
         let span = span_for(&operation);
-        span.wrap(self.instrument(&operation, self.dispatch(&operation, &span)))
+        span.wrap(self.instrument(&operation, deadline, self.dispatch(&operation, &span)))
             .await
     }
 
@@ -490,11 +569,62 @@ impl Client {
     /// that writes it somewhere rather than holding it. Everything up to the answer is
     /// [`Client::execute`]'s doing — the gate, the credentials, the account scope, the
     /// retries, the resend after a refreshed 401 — and nothing is resent once the answer
-    /// is in hand, since its bytes may already be on their way out.
-    pub(crate) async fn stream(&self, operation: Operation) -> Result<HttpResponse<Body>, Error> {
+    /// is in hand, since its bytes may already be on their way out. The deadline is the
+    /// caller's to hold, so the bytes it goes on to read can be held to the same one.
+    pub(crate) async fn stream(
+        &self,
+        operation: Operation,
+        deadline: Option<Instant>,
+    ) -> Result<HttpResponse<Body>, Error> {
         let span = span_for(&operation);
-        span.wrap(self.instrument(&operation, self.streamed(&operation, &span)))
+        span.wrap(self.instrument(&operation, deadline, self.streamed(&operation, &span)))
             .await
+    }
+
+    /// When the operation in progress has to be over: the deadline of the operation this
+    /// task is already inside, when it is inside one, or else
+    /// [`ClientBuilder::operation_timeout`] from now; `None` when there is no limit.
+    pub(crate) fn deadline(&self) -> Option<Instant> {
+        match DEADLINE.try_with(|deadline| *deadline) {
+            Ok(inherited) => inherited,
+            Err(_) => self
+                .shared
+                .operation_timeout
+                .and_then(|limit| Instant::now().checked_add(limit)),
+        }
+    }
+
+    /// Holds some work to [`ClientBuilder::operation_timeout`] as one operation: every
+    /// request made inside it — a convenience's follow-up, a walk's later pages — shares
+    /// the one deadline rather than starting a limit of its own.
+    pub(crate) async fn within_limit<T>(
+        &self,
+        work: impl Future<Output = Result<T, Error>>,
+    ) -> Result<T, Error> {
+        let deadline = self.deadline();
+        DEADLINE
+            .scope(deadline, self.within_deadline(deadline, work))
+            .await
+    }
+
+    /// Holds some work to a deadline. Past it the work is dropped where it stands — which
+    /// is what makes the guards report the ends they owe, and the resilience layer give
+    /// back what the operation held — and the caller gets a network error naming the
+    /// limit.
+    pub(crate) async fn within_deadline<T>(
+        &self,
+        deadline: Option<Instant>,
+        work: impl Future<Output = Result<T, Error>>,
+    ) -> Result<T, Error> {
+        match (deadline, self.shared.operation_timeout) {
+            (Some(deadline), Some(limit)) => {
+                match tokio::time::timeout_at(deadline.into(), work).await {
+                    Ok(outcome) => outcome,
+                    Err(_) => Err(Error::timed_out(limit)),
+                }
+            }
+            _ => work.await,
+        }
     }
 
     /// Runs one operation inside the hook lifecycle every call shares. A quiet operation is
@@ -502,21 +632,25 @@ impl Client {
     /// The `tracing` span around all of this is the caller's to put on, so that the gate and
     /// the end hook are inside it too.
     ///
-    /// The end is reported from a drop guard rather than after the await, because the await
-    /// may never return: a caller's `tokio::time::timeout` or `select!` can drop the future
-    /// mid-flight, and a start with no end leaves the bulkhead a permit short and the
-    /// circuit breaker a call short for the life of the client. Dropped that way, the
-    /// operation ends as [`Error::cancelled`].
+    /// The deadline is applied in here, to the gate and to the work, so that the hooks hear
+    /// an operation that ran out of time end with the same [`Error::timed_out`] the caller
+    /// gets. The end is reported from a drop guard rather than after the await all the
+    /// same, because the await may never return: a caller's own `tokio::time::timeout` or
+    /// `select!` can drop the future mid-flight, and a start with no end leaves the
+    /// bulkhead a permit short and the circuit breaker a call short for the life of the
+    /// client. Dropped that way, the operation ends as [`Error::cancelled`].
     async fn instrument<T>(
         &self,
         operation: &Operation,
+        deadline: Option<Instant>,
         work: impl Future<Output = Result<T, Error>>,
     ) -> Result<T, Error> {
         if operation.quiet {
-            work.await
+            self.within_deadline(deadline, work).await
         } else {
             let hooks = &self.shared.hooks;
-            hooks.on_operation_gate(&operation.info).await?;
+            self.within_deadline(deadline, hooks.on_operation_gate(&operation.info))
+                .await?;
 
             let mut running = Running {
                 hooks,
@@ -524,7 +658,7 @@ impl Client {
                 state: Some(hooks.on_operation_start(&operation.info)),
                 started: Instant::now(),
             };
-            let outcome = work.await;
+            let outcome = self.within_deadline(deadline, work).await;
             running.finished(outcome.as_ref().map(|_| ()));
             outcome
         }
@@ -538,7 +672,7 @@ impl Client {
         span: &OperationSpan,
     ) -> Result<Response, Error> {
         let url = self.url_for(operation)?;
-        let answered = self.attempt(operation, &url).await?;
+        let mut answered = self.attempt(operation, &url).await?;
         let status = answered.response.status();
         span.answered(status, request_id(answered.response.headers()));
         let finished = self
@@ -550,17 +684,14 @@ impl Client {
                 answered.cached,
             )
             .await;
-        self.shared.hooks.on_request_end(
-            &answered.info,
-            &RequestResult {
-                status: Some(status),
-                duration: answered.duration,
-                error: finished.as_ref().err(),
-                from_cache: finished.as_ref().is_ok_and(|response| response.from_cache),
-                retryable: answered.retryable,
-                retry_after: answered.retry_after,
-            },
-        );
+        answered.sending.end(&RequestResult {
+            status: Some(status),
+            duration: answered.duration,
+            error: finished.as_ref().err(),
+            from_cache: finished.as_ref().is_ok_and(|response| response.from_cache),
+            retryable: answered.retryable,
+            retry_after: answered.retry_after,
+        });
         finished
     }
 
@@ -571,23 +702,20 @@ impl Client {
         span: &OperationSpan,
     ) -> Result<HttpResponse<Body>, Error> {
         let url = self.url_for(operation)?;
-        let answered = self.attempt(operation, &url).await?;
+        let mut answered = self.attempt(operation, &url).await?;
         let status = answered.response.status();
         span.answered(status, request_id(answered.response.headers()));
         let failure = (!status.is_success()).then(|| {
             Error::from_response(status, &operation.method, answered.response.headers(), &[])
         });
-        self.shared.hooks.on_request_end(
-            &answered.info,
-            &RequestResult {
-                status: Some(status),
-                duration: answered.duration,
-                error: failure.as_ref(),
-                from_cache: false,
-                retryable: answered.retryable,
-                retry_after: answered.retry_after,
-            },
-        );
+        answered.sending.end(&RequestResult {
+            status: Some(status),
+            duration: answered.duration,
+            error: failure.as_ref(),
+            from_cache: false,
+            retryable: answered.retryable,
+            retry_after: answered.retry_after,
+        });
         match failure {
             Some(error) => Err(error),
             None => Ok(answered.response),
@@ -641,13 +769,21 @@ impl Client {
         let mut cached = None;
 
         loop {
-            let request = self.prepare(operation, url, &mut cached).await?;
-            let info = RequestInfo {
-                method: operation.method.clone(),
-                url: url.clone(),
-                attempt,
+            // Signed and counted under the read half of the refresh lock, so no refresh
+            // lands between the two: the count says exactly which credentials went out.
+            let (request, signed_under) = {
+                let _signing = self.shared.refreshing.read().await;
+                let request = self.prepare(operation, url, &mut cached).await?;
+                (request, self.shared.refreshes.load(Ordering::Acquire))
             };
-            hooks.on_request_start(&info);
+            let mut sending = Sending::start(
+                hooks.clone(),
+                RequestInfo {
+                    method: operation.method.clone(),
+                    url: url.clone(),
+                    attempt,
+                },
+            );
             let started = Instant::now();
             // The attempt span closes here, before any refresh or backoff: it is the send.
             let sent = {
@@ -664,20 +800,17 @@ impl Client {
 
             match sent {
                 Err(error) => {
-                    hooks.on_request_end(
-                        &info,
-                        &RequestResult {
-                            status: None,
-                            duration,
-                            error: Some(&error),
-                            from_cache: false,
-                            retryable: true,
-                            retry_after: None,
-                        },
-                    );
+                    sending.end(&RequestResult {
+                        status: None,
+                        duration,
+                        error: Some(&error),
+                        from_cache: false,
+                        retryable: true,
+                        retry_after: None,
+                    });
                     if attempt < attempts {
                         crate::trace::debug!(operation = label(operation), attempt, error = %error.code(), "request failed, retrying");
-                        hooks.on_retry(&info, attempt + 1, &error);
+                        hooks.on_retry(&sending.info, attempt + 1, &error);
                         self.wait(delay).await;
                         delay = self.next_delay(delay);
                         attempt += 1;
@@ -691,25 +824,22 @@ impl Client {
                     let retry_after = retry_after_asked(status, response.headers());
                     if status == StatusCode::UNAUTHORIZED
                         && !refreshed
-                        && self.shared.auth.refresh().await
+                        && self.refresh_credentials(signed_under).await
                     {
                         let cause = Error::auth("Token refreshed").retryable();
-                        hooks.on_request_end(
-                            &info,
-                            &RequestResult {
-                                status: Some(status),
-                                duration,
-                                error: Some(&cause),
-                                from_cache: false,
-                                retryable,
-                                retry_after,
-                            },
-                        );
+                        sending.end(&RequestResult {
+                            status: Some(status),
+                            duration,
+                            error: Some(&cause),
+                            from_cache: false,
+                            retryable,
+                            retry_after,
+                        });
                         crate::trace::debug!(
                             operation = label(operation),
                             "credentials refreshed, resending"
                         );
-                        hooks.on_retry(&info, attempt + 1, &cause);
+                        hooks.on_retry(&sending.info, attempt + 1, &cause);
                         refreshed = true;
                         attempt += 1;
                         attempts = attempts.max(attempt);
@@ -720,19 +850,16 @@ impl Client {
                             response.headers(),
                             &[],
                         );
-                        hooks.on_request_end(
-                            &info,
-                            &RequestResult {
-                                status: Some(status),
-                                duration,
-                                error: Some(&cause),
-                                from_cache: false,
-                                retryable,
-                                retry_after,
-                            },
-                        );
+                        sending.end(&RequestResult {
+                            status: Some(status),
+                            duration,
+                            error: Some(&cause),
+                            from_cache: false,
+                            retryable,
+                            retry_after,
+                        });
                         crate::trace::debug!(operation = label(operation), attempt, %status, "retryable status, retrying");
-                        hooks.on_retry(&info, attempt + 1, &cause);
+                        hooks.on_retry(&sending.info, attempt + 1, &cause);
                         match retry_after {
                             Some(seconds)
                                 if status == StatusCode::TOO_MANY_REQUESTS && seconds > 0 =>
@@ -748,7 +875,7 @@ impl Client {
                             url: final_url,
                             response,
                             cached: cached.take(),
-                            info,
+                            sending,
                             duration,
                             retryable,
                             retry_after,
@@ -757,6 +884,43 @@ impl Client {
                 }
             }
         }
+    }
+
+    /// Answers a 401 with fresh credentials, once for all the requests the stale ones
+    /// earned it on. Refreshes go one at a time, and a request that was signed before the
+    /// last refresh is simply resent: the credentials it will pick up are already the new
+    /// ones, and asking the token endpoint again would only spend a round trip — or, with
+    /// a rotating refresh token, burn the one just issued. A refresh that fails leaves the
+    /// count where it was, so the next 401 asks again rather than trusting a failure.
+    ///
+    /// The refresh runs on a task of its own, which holds the turn, so a caller that gives
+    /// up waiting — its [`ClientBuilder::operation_timeout`] running out, say — does not
+    /// abandon a refresh the token endpoint may already have honoured: the provider still
+    /// gets to keep what it was handed, the count still moves, and the next caller waits
+    /// its turn rather than refreshing again over the top of it.
+    /// A caller gone before its refresh got the turn does not have one started on its
+    /// behalf: a queue of stale requests whose limits ran out while an earlier refresh
+    /// held the turn would otherwise each refresh in turn, for nobody.
+    async fn refresh_credentials(&self, signed_under: u64) -> bool {
+        let shared = self.shared.clone();
+        let interest = Interest::new();
+        let wanted = interest.wanted.clone();
+        let refresh = tokio::spawn(async move {
+            let _turn = shared.refreshing.write().await;
+            if shared.refreshes.load(Ordering::Acquire) != signed_under {
+                true
+            } else if !wanted.load(Ordering::Acquire) {
+                false
+            } else if shared.auth.refresh().await {
+                shared.refreshes.fetch_add(1, Ordering::AcqRel);
+                true
+            } else {
+                false
+            }
+        });
+        let refreshed = refresh.await.unwrap_or(false);
+        drop(interest);
+        refreshed
     }
 
     pub(crate) fn url_for(&self, operation: &Operation) -> Result<Url, Error> {
@@ -917,7 +1081,7 @@ impl Client {
                         ErrorCode::Network,
                         format!(
                             "{} redirected more than {MAX_REDIRECTS} times",
-                            operation.id
+                            operation.label()
                         ),
                     )
                     .retryable());
@@ -1094,6 +1258,71 @@ struct Budget {
     delay: Duration,
 }
 
+/// Whether the caller that asked for a refresh is still there to want it. Dropped when
+/// that caller's future is — its limit running out, a `select!` taking another branch —
+/// so a refresh that has not yet had its turn can stand down.
+struct Interest {
+    wanted: Arc<AtomicBool>,
+}
+
+impl Interest {
+    fn new() -> Interest {
+        Interest {
+            wanted: Arc::new(AtomicBool::new(true)),
+        }
+    }
+}
+
+impl Drop for Interest {
+    fn drop(&mut self) {
+        self.wanted.store(false, Ordering::Release);
+    }
+}
+
+/// A request the hooks have been told the start of and are still owed the end of, the
+/// way [`Running`] is for an operation. It reports the end from [`Sending::end`] with how
+/// the request turned out, or from the drop that comes instead when the future is
+/// abandoned mid-request — an operation limit running out, a caller's `select!` — so a
+/// hook counting requests in flight is never left one short.
+struct Sending {
+    hooks: Arc<dyn Hooks>,
+    info: RequestInfo,
+    started: Instant,
+    owed: bool,
+}
+
+impl Sending {
+    fn start(hooks: Arc<dyn Hooks>, info: RequestInfo) -> Sending {
+        hooks.on_request_start(&info);
+        Sending {
+            hooks,
+            info,
+            started: Instant::now(),
+            owed: true,
+        }
+    }
+
+    fn end(&mut self, result: &RequestResult<'_>) {
+        self.owed = false;
+        self.hooks.on_request_end(&self.info, result);
+    }
+}
+
+impl Drop for Sending {
+    fn drop(&mut self) {
+        if self.owed {
+            self.end(&RequestResult {
+                status: None,
+                duration: self.started.elapsed(),
+                error: Some(&Error::cancelled()),
+                from_cache: false,
+                retryable: false,
+                retry_after: None,
+            });
+        }
+    }
+}
+
 /// One answer from HEY with its body unread: what the retry loop settled on, the URL it
 /// came from once any redirects were followed, and what the hooks still have to be told
 /// about it once the body has been dealt with.
@@ -1101,7 +1330,7 @@ struct Answered {
     url: Url,
     response: HttpResponse<Body>,
     cached: Option<(String, CachedResponse)>,
-    info: RequestInfo,
+    sending: Sending,
     duration: Duration,
     retryable: bool,
     retry_after: Option<u64>,

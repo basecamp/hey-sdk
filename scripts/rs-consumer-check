@@ -1,0 +1,57 @@
+#!/usr/bin/env bash
+# Builds the packaged crate the way a consumer would: `cargo package` produces the .crate,
+# a throwaway crate in a temp dir depends on its unpacked contents by path, and that crate
+# is built with fresh dependency resolution — no workspace, no dev-dependencies — for the
+# default features and with none. This is what catches a file `include` forgot, a
+# dev-dependency a doc example leans on, or a feature that does not compile on its own.
+set -euo pipefail
+
+root="$(cd "$(dirname "$0")/.." && pwd)"
+crate="hey-sdk"
+version="$(sed -n 's/^version = "\(.*\)"/\1/p' "$root/rust/$crate/Cargo.toml" | head -1)"
+
+work="$(mktemp -d "${TMPDIR:-/tmp}/$crate-consumer.XXXXXX")"
+trap 'rm -rf "$work"' EXIT
+
+# Packaged into the temp dir, so what gets unpacked is what was just built and not an
+# older archive under whatever target dir Cargo was configured with.
+(cd "$root/rust" && cargo package -p "$crate" --allow-dirty --no-verify -q --target-dir "$work/package")
+package="$work/package/package/$crate-$version.crate"
+[ -f "$package" ] || { echo "no package at $package" >&2; exit 1; }
+tar -xzf "$package" -C "$work"
+
+mkdir -p "$work/consumer/src"
+cat > "$work/consumer/src/main.rs" <<'RS'
+use hey_sdk::{Client, Config, StaticTokenProvider};
+
+#[tokio::main(flavor = "current_thread")]
+async fn main() {
+    let config = Config::default().with_base_url("https://app.hey.com");
+    let built = Client::builder(config)
+        .token_provider(StaticTokenProvider::new("token"))
+        .build();
+    let route = hey_sdk::routes::LIST_BOXES.id;
+    println!("{route}: {}", built.is_ok());
+}
+RS
+
+# The crate as a consumer takes it (its default features), and with none of them.
+export CARGO_TARGET_DIR="$work/target"
+for features in "" "default-features = false"; do
+    cat > "$work/consumer/Cargo.toml" <<TOML
+[package]
+name = "consumer"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+[workspace]
+
+[dependencies]
+$crate = { path = "../$crate-$version"${features:+, $features} }
+tokio = { version = "1", features = ["rt", "macros"] }
+TOML
+    echo "consumer: build with ${features:-default features}"
+    (cd "$work/consumer" && cargo build -q)
+done
+echo "consumer: ok ($crate $version)"

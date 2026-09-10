@@ -137,8 +137,10 @@ async fn a_link_that_leaves_the_hey_origin_is_refused() {
     assert_eq!(server.received_requests().await.unwrap().len(), 2);
 }
 
+/// The pages visited stand; the walk says it was cut off rather than ending as if the
+/// last page visited were the last page there was.
 #[tokio::test]
-async fn reading_every_page_stops_at_the_page_limit() {
+async fn reading_every_page_stops_at_the_page_limit_and_says_so() {
     let server = MockServer::start().await;
     Mock::given(method("GET"))
         .and(path("/boxes.json"))
@@ -153,15 +155,46 @@ async fn reading_every_page_stops_at_the_page_limit() {
     let client = builder(&server).max_pages(3).build().unwrap();
     let first = client.boxes().list().await.unwrap();
     let mut visited = 0;
-    client
+    let error = client
         .each_page(first, |page| {
             visited += page.len();
             true
         })
         .await
-        .unwrap();
+        .unwrap_err();
 
-    assert_eq!(client.max_pages(), 3);
+    assert_eq!(error.code(), ErrorCode::Usage);
+    assert!(error.message().contains("page limit of 3"), "{error}");
     assert_eq!(visited, 3);
     assert_eq!(server.received_requests().await.unwrap().len(), 3);
+}
+
+/// A visitor that stops the walk stops it: no page after the one it declined is read,
+/// and reaching the limit while stopping is not a truncation.
+#[tokio::test]
+async fn a_visitor_that_stops_is_not_cut_off() {
+    let server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path("/boxes.json"))
+        .respond_with(
+            ResponseTemplate::new(200)
+                .insert_header("Link", r#"</boxes.json?page=more>; rel="next""#)
+                .set_body_json(json!([{ "id": 7, "kind": "imbox", "name": "Imbox" }])),
+        )
+        .mount(&server)
+        .await;
+
+    let client = builder(&server).max_pages(2).build().unwrap();
+    let first = client.boxes().list().await.unwrap();
+    let mut visited = 0;
+    client
+        .each_page(first, |_| {
+            visited += 1;
+            visited < 2
+        })
+        .await
+        .unwrap();
+
+    assert_eq!(visited, 2);
+    assert_eq!(server.received_requests().await.unwrap().len(), 2);
 }

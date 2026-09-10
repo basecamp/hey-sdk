@@ -48,9 +48,14 @@ impl Attachments<'_> {
                 content_type: content_type.unwrap_or(DEFAULT_CONTENT_TYPE).to_string(),
             },
         };
-        let upload = reserved(self.create_direct_upload(&body).await?)?;
-        store(self.client(), &upload.direct_upload, content).await?;
-        Ok(upload)
+        // Two requests, one operation: one limit over the reservation and the bytes.
+        self.client()
+            .within_limit(Box::pin(async move {
+                let upload = reserved(self.create_direct_upload(&body).await?)?;
+                store(self.client(), &upload.direct_upload, content).await?;
+                Ok(upload)
+            }))
+            .await
     }
 }
 
@@ -95,17 +100,22 @@ async fn store(client: &Client, target: &DirectUploadTarget, content: Bytes) -> 
         .body(content)
         .map_err(Error::from_std)?;
     *request.headers_mut() = storage_headers(target)?;
-    let answered = client.http().send(request).await?;
-
-    let status = answered.status();
-    let headers = answered.headers().clone();
-    let body = read_body(
-        answered.into_body(),
-        MAX_RESPONSE_BODY_BYTES,
-        &Method::PUT,
-        &path,
-    )
-    .await?;
+    // The storage service's answer is held to the operation's deadline like HEY's own.
+    let (status, headers, body) = client
+        .within_deadline(client.deadline(), async {
+            let answered = client.http().send(request).await?;
+            let status = answered.status();
+            let headers = answered.headers().clone();
+            let body = read_body(
+                answered.into_body(),
+                MAX_RESPONSE_BODY_BYTES,
+                &Method::PUT,
+                &path,
+            )
+            .await?;
+            Ok((status, headers, body))
+        })
+        .await?;
     if status.is_success() {
         Ok(())
     } else {

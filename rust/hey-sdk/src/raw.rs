@@ -61,17 +61,25 @@ impl Client {
         path: &str,
         destination: &mut (impl AsyncWrite + Unpin),
     ) -> Result<(u64, HeaderMap), Error> {
-        let response = self.stream(self.blob(path)?).await?;
+        let deadline = self.deadline();
+        let response = self.stream(self.blob(path)?, deadline).await?;
         let headers = response.headers().clone();
         let mut body = response.into_body();
-        let mut written = 0;
-        while let Some(chunk) = body.chunk().await? {
-            destination
-                .write_all(&chunk)
-                .await
-                .map_err(Error::from_std)?;
-            written += chunk.len() as u64;
-        }
+        // The hooks heard the operation end when the answer arrived; the operation's one
+        // deadline still holds over the bytes that follow it.
+        let written = self
+            .within_deadline(deadline, async {
+                let mut written = 0;
+                while let Some(chunk) = body.chunk().await? {
+                    destination
+                        .write_all(&chunk)
+                        .await
+                        .map_err(Error::from_std)?;
+                    written += chunk.len() as u64;
+                }
+                Ok(written)
+            })
+            .await?;
         Ok((written, headers))
     }
 

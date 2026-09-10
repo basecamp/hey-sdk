@@ -47,6 +47,19 @@ impl TokenProvider for StaticTokenProvider {
     }
 }
 
+/// A provider behind an `Arc` is a provider, so one can be shared with the client and
+/// kept by the application — to watch its refreshes, say.
+#[async_trait]
+impl<P: TokenProvider + ?Sized> TokenProvider for std::sync::Arc<P> {
+    async fn access_token(&self) -> Result<String, Error> {
+        (**self).access_token().await
+    }
+
+    async fn refresh(&self) -> bool {
+        (**self).refresh().await
+    }
+}
+
 /// Puts credentials on a request. The default, [`BearerAuth`], sets an `Authorization`
 /// header from a [`TokenProvider`]; anything else can plug in here.
 #[async_trait]

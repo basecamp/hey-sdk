@@ -179,9 +179,13 @@ impl Workflows<'_> {
                 Some(topic_id),
             ))
             .form_representation();
-        self.client().send_unit(operation).await?;
-
-        self.move_to_stage(topic_id, workflow_id, stage_id, None)
+        // Two requests, one operation: one limit over both.
+        self.client()
+            .within_limit(Box::pin(async {
+                self.client().send_unit(operation).await?;
+                self.move_to_stage(topic_id, workflow_id, stage_id, None)
+                    .await
+            }))
             .await
     }
 

@@ -32,13 +32,17 @@ impl Publications<'_> {
             Some(topic_id),
         ));
         operation.form(&[]);
-        self.client().send_unit(operation).await?;
-
-        let mut read = self
-            .client()
-            .operation(&routes::GET_TOPIC_PUBLICATION, &[&topic_id]);
-        read.quiet();
-        self.client().send(read).await
+        // Two requests, one operation: one limit over both.
+        self.client()
+            .within_limit(Box::pin(async {
+                self.client().send_unit(operation).await?;
+                let mut read = self
+                    .client()
+                    .operation(&routes::GET_TOPIC_PUBLICATION, &[&topic_id]);
+                read.quiet();
+                self.client().send(read).await
+            }))
+            .await
     }
 
     /// Unpublishes a thread, breaking its public link.
