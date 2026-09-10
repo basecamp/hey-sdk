@@ -49,6 +49,7 @@ async fn a_streamed_body_is_refused_the_moment_it_passes_the_cap() {
     let address = serve_one_chunked_answer(vec![b'x'; 4096]).await;
     let client = Client::builder(Config::default().with_base_url(address))
         .token_provider(StaticTokenProvider::new(TOKEN))
+        .http_client(support::http_client())
         .max_response_body_bytes(1024)
         .base_delay(Duration::from_millis(1))
         .max_jitter(Duration::ZERO)

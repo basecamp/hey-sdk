@@ -225,6 +225,7 @@ async fn a_mutation_is_sent_once_whatever_its_policy_says() {
 fn unpaced(server: &MockServer) -> hey_sdk::ClientBuilder {
     Client::builder(Config::default().with_base_url(server.uri()))
         .token_provider(StaticTokenProvider::new("t"))
+        .http_client(support::http_client())
         .max_jitter(Duration::ZERO)
 }
 
@@ -427,6 +428,7 @@ async fn the_longest_wait_holds_the_client_s_own_floor_and_jitter_down() {
     .await;
     let client = Client::builder(Config::default().with_base_url(server.uri()))
         .token_provider(StaticTokenProvider::new("t"))
+        .http_client(support::http_client())
         .base_delay(Duration::from_millis(600))
         .max_jitter(Duration::from_millis(600))
         .max_delay(Duration::from_millis(20))

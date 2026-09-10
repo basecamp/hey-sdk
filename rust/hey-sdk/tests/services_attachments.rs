@@ -1,12 +1,15 @@
 mod support;
 
 use hey_sdk::ErrorCode;
+#[cfg(feature = "reqwest")]
 use hey_sdk::http::{HeaderMap, ReqwestClient};
 use serde_json::{Value, json};
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
-use support::{builder, client};
+#[cfg(feature = "reqwest")]
+use support::builder;
+use support::client;
 
 const CONTENTS: &[u8] = b"quarterly report contents";
 
@@ -198,6 +201,7 @@ async fn a_storage_service_that_refuses_the_bytes_reports_its_status() {
 /// The bytes go out on the client's own HTTP client, so whatever the caller configured it
 /// with — a proxy, a certificate, the headers below standing in for both — reaches the
 /// storage service too. Only the HEY credentials are held back.
+#[cfg(feature = "reqwest")]
 #[tokio::test]
 async fn the_bytes_go_out_on_the_clients_own_http_client() {
     let storage = MockServer::start().await;

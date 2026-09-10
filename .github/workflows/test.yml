@@ -54,11 +54,10 @@ jobs:
         with:
           persist-credentials: false
 
+      # rust-toolchain.toml names the toolchain and its components, and rustup on the
+      # runner installs it, so this job runs on exactly what a laptop does.
       - name: Set up Rust
-        uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772 # v1
-        with:
-          toolchain: stable
-          components: clippy, rustfmt
+        run: rustup toolchain install && rustup show
 
       - name: Cache cargo
         uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2 # zizmor: ignore[cache-poisoning] -- cache is branch-isolated; fork PRs cannot write to this cache
@@ -67,11 +66,91 @@ jobs:
             rust
             conformance/runner/rust
 
+      # fmt, clippy, tests and docs with all features, then clippy and the tests again
+      # with the shipped HTTP client off. The same target a developer runs.
       - name: Format, lint and test
         run: make rs-check
 
       - name: Check generated code is up to date
         run: make rs-check-drift
+
+  msrv-rust:
+    name: Rust MSRV
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # The floor the crate promises is `rust-version` in rust/Cargo.toml; a bump there is
+      # what moves this job. The generator and the conformance runner are tooling and float
+      # on the pinned stable, so only the library is built here.
+      - name: Read rust-version
+        id: msrv
+        run: |
+          version=$(sed -n 's/^rust-version = "\(.*\)"$/\1/p' rust/Cargo.toml)
+          if [ -z "$version" ]; then
+            echo "::error::rust/Cargo.toml has no [workspace.package] rust-version"
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Rust ${{ steps.msrv.outputs.version }}
+        uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772 # v1
+        with:
+          toolchain: ${{ steps.msrv.outputs.version }}
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2 # zizmor: ignore[cache-poisoning] -- cache is branch-isolated; fork PRs cannot write to this cache
+        env:
+          RUSTUP_TOOLCHAIN: ${{ steps.msrv.outputs.version }}
+        with:
+          workspaces: rust
+
+      # RUSTUP_TOOLCHAIN outranks rust-toolchain.toml, which would otherwise pick the
+      # pinned stable back up.
+      - name: Build the library on its rust-version
+        working-directory: rust
+        env:
+          RUSTUP_TOOLCHAIN: ${{ steps.msrv.outputs.version }}
+        run: |
+          cargo --version
+          cargo build -p hey-sdk --locked --all-features
+          cargo build -p hey-sdk --locked --no-default-features
+
+  docs-rust:
+    name: Rust docs.rs build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Rust nightly
+        uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772 # v1
+        with:
+          toolchain: nightly
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2 # zizmor: ignore[cache-poisoning] -- cache is branch-isolated; fork PRs cannot write to this cache
+        env:
+          RUSTUP_TOOLCHAIN: nightly
+        with:
+          workspaces: rust
+
+      # What docs.rs will do with the crate: nightly rustdoc with `--cfg docsrs`, so a
+      # feature-gated item's badge renders and a nightly-only doc lint is heard here rather
+      # than after the publish. Not a required check on main; nightly is nightly.
+      - name: Build the docs as docs.rs would
+        working-directory: rust
+        env:
+          RUSTUP_TOOLCHAIN: nightly
+          RUSTDOCFLAGS: --cfg docsrs -D warnings
+        run: cargo doc -p hey-sdk --no-deps --all-features --locked
 
   lint-go:
     name: Go Lint
@@ -150,9 +229,7 @@ jobs:
           persist-credentials: false
 
       - name: Set up Rust
-        uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772 # v1
-        with:
-          toolchain: stable
+        run: rustup toolchain install && rustup show
 
       - name: Cache cargo
         uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2 # zizmor: ignore[cache-poisoning] -- cache is branch-isolated; fork PRs cannot write to this cache
