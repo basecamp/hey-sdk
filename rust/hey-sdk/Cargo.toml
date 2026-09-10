@@ -1,6 +1,6 @@
 [package]
 name = "hey-sdk"
-version = "0.30.0"
+version = "0.31.0"
 description = "Rust client for the HEY API, generated from a Smithy model of the API"
 homepage = "https://github.com/basecamp/hey-sdk"
 documentation = "https://docs.rs/hey-sdk"
