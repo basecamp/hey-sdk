@@ -540,6 +540,62 @@ func callerURLRequests(client *Client, target string) map[string]func() error {
 	}
 }
 
+// TestCallerRelativeStoragePathReachesHooksProjected hands each method that takes a
+// caller's path a signed storage path in relative form — the disk-service token in the
+// path, the origin left off — and checks it is projected exactly as the absolute form
+// is, while an ordinary API path keeps its detail.
+func TestCallerRelativeStoragePathReachesHooksProjected(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			w.Header().Set("Location", "/done")
+			w.WriteHeader(http.StatusFound)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`[]`))
+	}))
+	t.Cleanup(server.Close)
+	hooks := &requestRecordingHooks{}
+	client := NewClient(&Config{BaseURL: server.URL}, &StaticTokenProvider{Token: "test-token"},
+		WithMaxRetries(0), WithHooks(hooks))
+
+	for name, request := range callerURLRequests(client, "/rails/active_storage/disk/SECRETVALUE/file.txt") {
+		t.Run(name, func(t *testing.T) {
+			hooks.infos = nil
+			if err := request(); err != nil {
+				t.Fatal(err)
+			}
+			if len(hooks.infos) != 1 {
+				t.Fatalf("expected one request in the hooks, got %+v", hooks.infos)
+			}
+			if got := hooks.infos[0].URL; got != server.URL {
+				t.Errorf("the request reached the hooks as %q, want the projected URL", got)
+			}
+		})
+	}
+
+	t.Run("an ordinary API path keeps its detail", func(t *testing.T) {
+		hooks.infos = nil
+		if _, err := client.Get(context.Background(), "/boxes"); err != nil {
+			t.Fatal(err)
+		}
+		if got, want := hooks.infos[0].URL, server.URL+"/boxes"; got != want {
+			t.Errorf("the request reached the hooks as %q, want %q", got, want)
+		}
+	})
+
+	t.Run("a direct upload stays an ordinary API call", func(t *testing.T) {
+		if isSignedStoragePath("/rails/active_storage/direct_uploads.json") {
+			t.Error("a direct upload's path carries no credential and should not be projected")
+		}
+		for _, path := range []string{"rails/active_storage/disk/KEY/file", "/rails/active_storage/blobs/redirect/ID/file", "/rails/active_storage/representations/redirect/ID/V/file"} {
+			if !isSignedStoragePath(path) {
+				t.Errorf("%q should be projected", path)
+			}
+		}
+	})
+}
+
 // TestCallerAbsoluteURLReachesHooksProjected hands each method that takes a caller's
 // absolute URL a signed one — a disk-service token in the path, on HEY's own origin
 // — and checks the hooks see its origin alone, and a 404 names no more.

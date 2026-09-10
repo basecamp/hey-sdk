@@ -670,14 +670,40 @@ func isAbsoluteURL(path string) bool {
 	return strings.HasPrefix(path, "https://") || strings.HasPrefix(path, "http://")
 }
 
-// markCallerURL marks ctx when path is a caller's absolute URL rather than an API
-// path: it can be a signed one, on any origin, and the hooks, the network error and
-// the SDK's own error text see it projected, as they see a storage request.
+// markCallerURL marks ctx when path is one that can carry a credential: a caller's
+// absolute URL, on any origin, or one of HEY's own signed storage paths in relative
+// form. Either way the hooks, the network error and the SDK's own error text see it
+// projected, as they see a storage request. These two are the shapes a credential can
+// take in a URL here; an ordinary API path is not one, and keeps its detail.
 func markCallerURL(ctx context.Context, path string) context.Context {
-	if isAbsoluteURL(path) {
+	if isAbsoluteURL(path) || isSignedStoragePath(path) {
 		return markProjectedRequest(ctx)
 	}
 	return ctx
+}
+
+// signedStoragePrefixes are the Active Storage routes on HEY's origin whose path is the
+// credential: the disk service's encoded key, and the signed ids of blob redirects,
+// proxies and representations. A direct upload is created under the same mount but
+// carries nothing in its path, and stays an ordinary API call.
+var signedStoragePrefixes = []string{
+	"/rails/active_storage/disk/",
+	"/rails/active_storage/blobs/",
+	"/rails/active_storage/representations/",
+}
+
+// isSignedStoragePath reports whether path, as buildURL will read it, is a signed
+// storage route in relative form.
+func isSignedStoragePath(path string) bool {
+	if !strings.HasPrefix(path, "/") {
+		path = "/" + path
+	}
+	for _, prefix := range signedStoragePrefixes {
+		if strings.HasPrefix(path, prefix) {
+			return true
+		}
+	}
+	return false
 }
 
 func (c *Client) doRequestURL(ctx context.Context, method, url string, body any) (*Response, error) {
