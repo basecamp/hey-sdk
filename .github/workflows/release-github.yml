@@ -25,4 +25,4 @@ jobs:
         with:
           version: ${{ github.event.inputs.tag || github.ref_name }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          languages: go
+          languages: go,rust

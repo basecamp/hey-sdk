@@ -2,12 +2,24 @@
 name = "hey-sdk"
 version = "0.30.0"
 description = "Rust client for the HEY API, generated from the Smithy model in spec/"
-readme = "README.md"
-publish = false
+homepage = "https://github.com/basecamp/hey-sdk"
+documentation = "https://docs.rs/hey-sdk"
+keywords = ["hey", "email", "37signals", "api", "sdk"]
+categories = ["api-bindings", "web-programming::http-client"]
+# What the published crate carries; Cargo.toml, Cargo.lock and the VCS stamp always go
+# along. The integration tests and their fixtures stay here. LICENSE is a copy of the
+# repository's: `license` names it by SPDX id, and the text has to travel with the crate.
+include = ["src/**", "examples/**", "README.md", "LICENSE"]
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
 rust-version.workspace = true
+
+# docs.rs builds with every feature on and `--cfg docsrs`, which is what badges the
+# feature-gated items (see lib.rs).
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
 
 [lib]
 name = "hey_sdk"

@@ -60,12 +60,13 @@ deny:
 	$(CARGO) deny --locked check
 	cd ../conformance/runner/rust && $(CARGO) deny --locked --config ../../../rust/deny.toml check
 
-# Package the crate as a publish would and build it from the tarball, so a missing file, a
-# path dependency or a metadata slip surfaces on the pull request rather than on the tag.
-# --allow-dirty so it runs before a commit as well as after; CI's checkout is clean anyway.
+# Everything `cargo publish` does short of the upload: package the crate, build it from the
+# tarball, check the metadata, so a missing file, a path dependency or a metadata slip
+# surfaces on the pull request rather than on the tag. --allow-dirty so it runs before a
+# commit as well as after; CI's checkout is clean anyway.
 .PHONY: publish-check
 publish-check:
-	$(CARGO) package -p hey-sdk --locked --allow-dirty
+	$(CARGO) publish -p hey-sdk --dry-run --locked --allow-dirty
 
 # Run all checks: the same steps as CI's test-rust job, in the same order
 .PHONY: check
@@ -89,6 +90,6 @@ help:
 	@echo "  doc                  Build the crate docs"
 	@echo "  examples             Build the examples"
 	@echo "  deny                 cargo deny over both workspaces (advisories, licences, bans)"
-	@echo "  publish-check        Package the crate and build it from the tarball"
+	@echo "  publish-check        cargo publish --dry-run: package, build from the tarball, check metadata"
 	@echo "  check                Every step CI's test-rust job runs, in order"
 	@echo "  clean                Remove build artifacts"

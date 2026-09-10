@@ -156,18 +156,18 @@ by default, and lets an application bring its own HTTP stack instead.
 
 ### Install
 
-Until the crate is on crates.io, depend on it from the repository at a release tag —
-`v0.30.0` is the first that carries `rust/`:
-
 ```toml
 [dependencies]
-hey-sdk = { git = "https://github.com/basecamp/hey-sdk", tag = "v0.30.0" }
+hey-sdk = "0.30"
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 ```
 
-Requires Rust 1.88 or newer (`rust-version` in `rust/Cargo.toml`, built on exactly that in
-CI). The crate's [Versioning](rust/hey-sdk/README.md#versioning) section says when that floor
-moves and what a version bump means.
+The crate is [`hey-sdk` on crates.io](https://crates.io/crates/hey-sdk), documented on
+[docs.rs](https://docs.rs/hey-sdk). To track the repository instead, depend on it at a release
+tag: `hey-sdk = { git = "https://github.com/basecamp/hey-sdk", tag = "v0.30.0" }`. Requires
+Rust 1.88 or newer (`rust-version` in `rust/Cargo.toml`, built on exactly that in CI); the
+crate's [Versioning](rust/hey-sdk/README.md#versioning) section says when that floor moves
+and what a version bump means.
 
 ### Authenticate
 
