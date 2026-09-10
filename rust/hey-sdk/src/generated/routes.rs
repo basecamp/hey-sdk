@@ -1620,6 +1620,37 @@ pub static GET_WORKFLOW: Route = Route {
     },
 };
 
+pub static GET_WORKFLOW_STAGE: Route = Route {
+    id: "GetWorkflowStage",
+    service: "Workflows",
+    method: Method::GET,
+    path: "/workflows/{workflowId}/stages/{stageId}",
+    pattern: "/workflows/{workflowId}/stages/{stageId}",
+    resource: "Workflows",
+    resource_type: "workflow",
+    params: &[
+        RouteParam {
+            name: "workflowId",
+            role: ParamRole::Parent,
+            kind: ParamKind::Int64,
+        },
+        RouteParam {
+            name: "stageId",
+            role: ParamRole::Recording,
+            kind: ParamKind::Int64,
+        },
+    ],
+    idempotent: true,
+    readonly: true,
+    empty_on: &[],
+    pagination: Pagination::None,
+    retry: Retry {
+        max: 3,
+        base_delay_ms: 1000,
+        retry_on: &[429, 503],
+    },
+};
+
 pub static HIDE_CONTACT: Route = Route {
     id: "HideContact",
     service: "Contacts",
@@ -3007,6 +3038,7 @@ pub static ROUTES: &[&Route] = &[
     &GET_TRAILBOX,
     &GET_TRASH_TOPICS,
     &GET_WORKFLOW,
+    &GET_WORKFLOW_STAGE,
     &HIDE_CONTACT,
     &LIST_BOX_GROUPS,
     &LIST_BOXES,

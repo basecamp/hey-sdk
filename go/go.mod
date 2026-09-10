@@ -5,6 +5,7 @@ go 1.26
 require (
 	github.com/oapi-codegen/runtime v1.7.0
 	github.com/zalando/go-keyring v0.2.8
+	golang.org/x/net v0.58.0
 )
 
 require (

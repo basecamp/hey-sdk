@@ -141,6 +141,8 @@ pub enum ParamKind {
 pub enum Response {
     Empty,
     Json(String),
+    /// A page HEY serves as HTML, with the name of the `String` alias the schema became.
+    Html(String),
 }
 
 #[derive(Clone, Copy, PartialEq)]
@@ -411,10 +413,19 @@ fn response_of(operation: &Value, naming: &Naming) -> Result<Response, String> {
         .ok_or("operation has no responses")?;
     for (status, response) in responses {
         if status.starts_with('2') {
+            let content = &response["content"];
             return Ok(
-                match response["content"]["application/json"]["schema"]["$ref"].as_str() {
-                    Some(reference) => Response::Json(naming.type_for(&reference_name(reference))),
-                    None => Response::Empty,
+                match (
+                    content["application/json"]["schema"]["$ref"].as_str(),
+                    content["text/html"]["schema"]["$ref"].as_str(),
+                ) {
+                    (Some(reference), _) => {
+                        Response::Json(naming.type_for(&reference_name(reference)))
+                    }
+                    (None, Some(reference)) => {
+                        Response::Html(naming.type_for(&reference_name(reference)))
+                    }
+                    (None, None) => Response::Empty,
                 },
             );
         }

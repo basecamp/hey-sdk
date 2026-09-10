@@ -341,6 +341,13 @@ impl Client {
         self.execute(operation).await.map(|_| ())
     }
 
+    /// Sends an operation and reads its body as text: the HTML page a route serves no
+    /// JSON for.
+    pub async fn send_text(&self, operation: Operation) -> Result<String, Error> {
+        let response = self.execute(operation).await?;
+        Ok(String::from_utf8_lossy(&response.body).into_owned())
+    }
+
     /// Sends an operation that answers a status meaning "nothing there" with `None`.
     pub async fn send_optional<T: DeserializeOwned>(
         &self,
@@ -1213,6 +1220,29 @@ mod tests {
         assert_eq!(sent.len(), 2);
         assert_eq!(sent[1].1, "https://hey.test/new.json");
         assert_eq!(sent[1].2[AUTHORIZATION], "Bearer secret");
+    }
+
+    #[tokio::test]
+    async fn an_html_read_asks_for_the_page_as_hey_serves_it() {
+        let http = Canned::new(|_| {
+            answer(
+                200,
+                r#"<section id="container_workflow_stage_5512"></section>"#,
+            )
+        });
+        let client = client_over(http.clone());
+
+        let page = client.workflows().get_stage(8801, 5512).await.unwrap();
+
+        assert_eq!(
+            page,
+            r#"<section id="container_workflow_stage_5512"></section>"#
+        );
+        let sent = http.sent();
+        assert_eq!(sent.len(), 1);
+        assert_eq!(sent[0].1, "https://hey.test/workflows/8801/stages/5512");
+        assert_eq!(sent[0].2[ACCEPT], "text/html");
+        assert_eq!(sent[0].2[AUTHORIZATION], "Bearer secret");
     }
 
     #[tokio::test]

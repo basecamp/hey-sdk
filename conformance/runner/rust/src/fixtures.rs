@@ -47,6 +47,20 @@ pub struct MockResponse {
     pub delay: u64,
 }
 
+impl MockResponse {
+    pub fn content_type(&self) -> Option<&str> {
+        self.headers
+            .iter()
+            .find(|(name, _)| name.eq_ignore_ascii_case("content-type"))
+            .map(|(_, value)| value.as_str())
+    }
+
+    pub fn serves_html(&self) -> bool {
+        self.content_type()
+            .is_some_and(|value| value.starts_with("text/html"))
+    }
+}
+
 #[derive(Debug, Default, Deserialize)]
 #[serde(default)]
 pub struct Assertion {
@@ -65,6 +79,11 @@ impl TestCase {
 
     pub fn runs(&self) -> u32 {
         self.repeat_operation.max(1)
+    }
+
+    /// Whether the case reads a page HEY serves as HTML rather than a JSON document.
+    pub fn serves_html(&self) -> bool {
+        self.mock_responses.iter().any(MockResponse::serves_html)
     }
 
     /// Whether the case looks at what the SDK does with the `Link` header. Following it

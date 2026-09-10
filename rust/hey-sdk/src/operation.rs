@@ -224,6 +224,12 @@ impl Operation {
         self.without_json_suffix().accept("*/*")
     }
 
+    /// Asks for the HTML page a route serves no JSON for: no `.json` suffix, and
+    /// `text/html`, which is what HEY answers a workflow stage with.
+    pub fn html_representation(&mut self) -> &mut Operation {
+        self.without_json_suffix().accept("text/html")
+    }
+
     /// Sends this without announcing an operation: no gate, no start, no end. For a request
     /// made inside another operation — the read-back a write needs to answer with the record
     /// it wrote — so the hooks hear about that operation once rather than twice.

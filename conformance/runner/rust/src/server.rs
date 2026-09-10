@@ -8,6 +8,7 @@ use axum::extract::{Request, State};
 use axum::http::header::CONTENT_TYPE;
 use axum::http::{HeaderMap, Response, StatusCode};
 use axum::response::IntoResponse;
+use serde_json::Value;
 use tokio::net::TcpListener;
 use tokio::task::JoinHandle;
 
@@ -142,13 +143,12 @@ fn serve(mock: &MockResponse) -> Response<Body> {
     for (name, value) in &mock.headers {
         response = response.header(name, value);
     }
-    let typed = response
-        .headers_ref()
-        .is_some_and(|headers| headers.contains_key(CONTENT_TYPE));
-    if !typed {
+    if mock.content_type().is_none() {
         response = response.header(CONTENT_TYPE, "application/json");
     }
+    // An HTML fixture is already wire text; a JSON fixture is a structured value.
     let body = match &mock.body {
+        Some(Value::String(text)) if mock.serves_html() => Body::from(text.clone()),
         Some(body) => Body::from(serde_json::to_vec(body).unwrap_or_default()),
         None => Body::empty(),
     };

@@ -187,7 +187,12 @@ fn last_status(run: &Run) -> u16 {
 }
 
 fn check_request_path(run: &Run, assertion: &Assertion, which: Which) -> Result<(), String> {
-    let expected = with_json_extension(expected_string(assertion, "requestPath")?);
+    let expected = expected_string(assertion, "requestPath")?;
+    let expected = if run.case.serves_html() {
+        expected.to_string()
+    } else {
+        with_json_extension(expected)
+    };
     let actual = which.pick(&run.recorded.paths).ok_or_else(no_requests)?;
     if *actual == expected {
         Ok(())
@@ -199,9 +204,10 @@ fn check_request_path(run: &Run, assertion: &Assertion, which: Which) -> Result<
     }
 }
 
-/// HEY answers JSON to paths ending in `.json`, and this SDK always puts the extension back
-/// on a path — modelled or raw — whose last segment has none. So the expected path is
-/// normalised the same way and matched exactly: one answer rather than two.
+/// HEY answers JSON to paths ending in `.json`, and this SDK puts the extension back on a
+/// path — modelled or raw — whose last segment has none. So the expected path is normalised
+/// the same way and matched exactly: one answer rather than two. A page HEY serves as HTML
+/// is the exception: the SDK asks for it as written, so the fixture's path stands.
 ///
 /// The fixtures are shared with the Go runner, which drives the raw generated client and
 /// therefore sees the bare paths; this one drives the full client, which is why the
