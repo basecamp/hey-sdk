@@ -287,7 +287,8 @@ wait between them. The client honours that policy on the first request and on ev
 `next_page` and `each_page` read after it, and only ever makes it gentler: the sends are
 `min(max, max_retries + 1)`, `base_delay` is the least the client waits before the first
 resend, `max_jitter` is added to every wait, and `max_delay` is the most it waits between any
-two, jitter included. A positive `Retry-After` on a 429 the policy names is honoured as given,
+two, jitter included — the one setting that can shorten the policy's own wait, and the way a
+test suite winds the backoff down. A positive `Retry-After` on a 429 the policy names is honoured as given,
 as a count of seconds or as an HTTP-date, above `max_delay` if need be. A route the model
 gives no policy is sent once, and so is any operation that is not idempotent, whatever its
 policy says. A path the caller wrote has no policy to bring, so an idempotent one runs on the
