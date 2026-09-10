@@ -68,8 +68,15 @@ method that asks for the page as HEY serves it (no `.json` suffix, `Accept: text
 answers the body as a `String`. Reading anything out of that page is a hand-written
 convenience's job, as `go/pkg/hey` does for the same route.
 
+A 2xx in any other representation — an image, a CSV, two representations on one status, a
+schema that is not a `$ref` — fails generation naming the operation. A method the crate
+cannot call is worse than no method, and one that quietly answered `()` for a page is how
+the gate went red the first time an HTML route arrived.
+
 `rs-check-drift` runs the generator in `--check` mode, so stale generated code fails the
-gate.
+gate. The generator also has fixtures of its own (`rust/generator/src/fixtures.rs`): small
+models put through `Model::build` and the emitters whole, since the drift check only proves
+the checked-in output matches the generator, not that the generator is right.
 
 `rust/hey-sdk/src/services/*.rs` are hand-written, like `go/pkg/hey` — you update them
 yourself. Each one re-exports the generated service it extends and adds conveniences as

@@ -38,23 +38,26 @@ impl Naming {
         }
     }
 
-    pub fn method_for(&self, operation_id: &str, service: &str) -> String {
-        if let Some(method) = self.operation_methods.get(operation_id) {
-            return method.clone();
-        }
-        let service_words: Vec<String> = service.split('_').map(singular).collect();
-        let words: Vec<String> = camel_words(operation_id)
-            .into_iter()
-            .map(|word| word.to_lowercase())
-            .filter(|word| !service_words.contains(&singular(word)))
-            .collect();
-        let method = words.join("_");
+    pub fn method_for(&self, operation_id: &str, service: &str) -> Result<String, String> {
+        let method = match self.operation_methods.get(operation_id) {
+            Some(method) => method.clone(),
+            None => {
+                let service_words: Vec<String> = service.split('_').map(singular).collect();
+                let words: Vec<String> = camel_words(operation_id)
+                    .into_iter()
+                    .map(|word| word.to_lowercase())
+                    .filter(|word| !service_words.contains(&singular(word)))
+                    .collect();
+                words.join("_")
+            }
+        };
         if method.is_empty() || KEYWORDS.contains(&method.as_str()) {
-            panic!(
+            Err(format!(
                 "{operation_id} becomes `{method}` in {service}; add an [operation_methods] override to names.toml"
-            );
+            ))
+        } else {
+            Ok(method)
         }
-        method
     }
 
     /// What a schema is called in Rust. A shape whose Smithy name collides with something
@@ -130,30 +133,43 @@ mod tests {
     #[test]
     fn methods_drop_the_service_noun() {
         let naming = Naming::default();
-        assert_eq!(naming.method_for("ListBoxes", "boxes"), "list");
+        assert_eq!(naming.method_for("ListBoxes", "boxes").unwrap(), "list");
         assert_eq!(
-            naming.method_for("GetBoxPostingChanges", "postings"),
+            naming
+                .method_for("GetBoxPostingChanges", "postings")
+                .unwrap(),
             "get_box_changes"
         );
         assert_eq!(
-            naming.method_for("GetTopicEntries", "topics"),
+            naming.method_for("GetTopicEntries", "topics").unwrap(),
             "get_entries"
         );
         assert_eq!(
-            naming.method_for("ListTimeTrackCategories", "time_tracks"),
+            naming
+                .method_for("ListTimeTrackCategories", "time_tracks")
+                .unwrap(),
             "list_categories"
         );
         assert_eq!(
-            naming.method_for("GetOngoingTimeTrack", "time_tracks"),
+            naming
+                .method_for("GetOngoingTimeTrack", "time_tracks")
+                .unwrap(),
             "get_ongoing"
         );
-        assert_eq!(naming.method_for("CreateSticky", "stickies"), "create");
         assert_eq!(
-            naming.method_for("UpdateContactClearance", "contacts"),
+            naming.method_for("CreateSticky", "stickies").unwrap(),
+            "create"
+        );
+        assert_eq!(
+            naming
+                .method_for("UpdateContactClearance", "contacts")
+                .unwrap(),
             "update_clearance"
         );
         assert_eq!(
-            naming.method_for("UpdateMyClearance", "clearances"),
+            naming
+                .method_for("UpdateMyClearance", "clearances")
+                .unwrap(),
             "update_my"
         );
     }

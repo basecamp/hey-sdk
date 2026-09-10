@@ -138,11 +138,22 @@ pub enum ParamKind {
     Int64,
 }
 
+#[derive(Debug, Clone, PartialEq)]
 pub enum Response {
     Empty,
     Json(String),
     /// A page HEY serves as HTML, with the name of the `String` alias the schema became.
     Html(String),
+}
+
+impl Response {
+    fn describe(&self) -> String {
+        match self {
+            Response::Empty => "no body".to_string(),
+            Response::Json(name) => format!("{name} as JSON"),
+            Response::Html(name) => format!("{name} as HTML"),
+        }
+    }
 }
 
 #[derive(Clone, Copy, PartialEq)]
@@ -171,12 +182,49 @@ impl Model {
             .to_string();
         let schemas = build_schemas(openapi, naming)?;
         let services = build_services(openapi, behavior, naming, resource_types)?;
+        check_references(&schemas, &services)?;
+        check_html_responses(&schemas, &services)?;
         Ok(Model {
             api_version,
             schemas,
             services,
         })
     }
+}
+
+/// A page is handed back as the `String` it arrived as, so the schema an HTML response
+/// names has to be a string alias; a struct there would be a document the crate had no
+/// parser for.
+fn check_html_responses(schemas: &[Schema], services: &[Service]) -> Result<(), String> {
+    for operation in services.iter().flat_map(|service| &service.operations) {
+        if let Response::Html(name) = &operation.response
+            && !resolves_to_string(schemas, name)
+        {
+            return Err(format!(
+                "{} answers text/html as {name}, which is not a string schema; an HTML page is handed back as a String",
+                operation.id
+            ));
+        }
+    }
+    Ok(())
+}
+
+/// Whether a schema is a string, following an alias of an alias as far as there are schemas
+/// to follow it through.
+fn resolves_to_string(schemas: &[Schema], name: &str) -> bool {
+    let mut current = name.to_string();
+    for _ in 0..=schemas.len() {
+        match schemas
+            .iter()
+            .find(|schema| schema.name == current)
+            .map(|schema| &schema.shape)
+        {
+            Some(Shape::Alias(FieldType::String)) => return true,
+            Some(Shape::Alias(FieldType::Named(next))) => current = next.clone(),
+            _ => return false,
+        }
+    }
+    false
 }
 
 fn build_schemas(openapi: &Value, naming: &Naming) -> Result<Vec<Schema>, String> {
@@ -232,7 +280,7 @@ fn polymorphic_of(schema: &Value) -> Option<Polymorphic> {
 fn field_type(name: &str, property: &Value, naming: &Naming) -> Result<FieldType, String> {
     if let Some(reference) = property.get("$ref").and_then(Value::as_str) {
         return Ok(FieldType::Named(
-            naming.type_for(&reference_name(reference)),
+            naming.type_for(&reference_name(reference)?),
         ));
     }
     let format = property["format"].as_str();
@@ -289,11 +337,14 @@ fn build_services(
         for (http_method, operation) in
             item.as_object().ok_or(format!("{path} is not an object"))?
         {
-            if !matches!(
-                http_method.as_str(),
-                "get" | "post" | "put" | "patch" | "delete"
-            ) {
-                continue;
+            match http_method.as_str() {
+                "get" | "post" | "put" | "patch" | "delete" => {}
+                "head" | "options" | "trace" => {
+                    return Err(format!(
+                        "{path} has a {http_method} operation, which the generator does not emit"
+                    ));
+                }
+                _ => continue,
             }
             let id = operation["operationId"]
                 .as_str()
@@ -308,7 +359,7 @@ fn build_services(
             let operation = Operation {
                 id: id.to_string(),
                 service: struct_name(&service),
-                method_name: naming.method_for(id, &service),
+                method_name: naming.method_for(id, &service)?,
                 description: description_of(operation),
                 http_method: http_method.to_uppercase(),
                 path: path.clone(),
@@ -316,7 +367,7 @@ fn build_services(
                 resource_type: resource_types.for_operation(id, &service)?,
                 path_params: path_params(operation, path)?,
                 query_params: query_params(operation)?,
-                body: body_of(operation, naming),
+                body: body_of(operation, naming)?,
                 response: response_of(operation, naming)?,
                 idempotent: idempotent(http_method, operation),
                 readonly: readonly(semantics, id)?,
@@ -401,36 +452,89 @@ fn param_kind(parameter: &Value) -> Result<ParamKind, String> {
     }
 }
 
-fn body_of(operation: &Value, naming: &Naming) -> Option<String> {
+fn body_of(operation: &Value, naming: &Naming) -> Result<Option<String>, String> {
     operation["requestBody"]["content"]["application/json"]["schema"]["$ref"]
         .as_str()
-        .map(|reference| naming.type_for(&reference_name(reference)))
+        .map(|reference| Ok(naming.type_for(&reference_name(reference)?)))
+        .transpose()
 }
 
+/// The representations the generator can emit a method for. Anything else fails generation:
+/// a route the model describes and the crate cannot call is worse than no crate at all,
+/// and a method that silently returned `()` for a page HEY serves is how the gate went red
+/// after the first `text/html` route arrived.
+const REPRESENTATIONS: &[&str] = &["application/json", "text/html"];
+
 fn response_of(operation: &Value, naming: &Naming) -> Result<Response, String> {
+    let id = operation["operationId"].as_str().unwrap_or("operation");
     let responses = operation["responses"]
         .as_object()
-        .ok_or("operation has no responses")?;
+        .ok_or(format!("{id} has no responses"))?;
+    let mut agreed: Option<(&str, Response)> = None;
     for (status, response) in responses {
-        if status.starts_with('2') {
-            let content = &response["content"];
-            return Ok(
-                match (
-                    content["application/json"]["schema"]["$ref"].as_str(),
-                    content["text/html"]["schema"]["$ref"].as_str(),
-                ) {
-                    (Some(reference), _) => {
-                        Response::Json(naming.type_for(&reference_name(reference)))
-                    }
-                    (None, Some(reference)) => {
-                        Response::Html(naming.type_for(&reference_name(reference)))
-                    }
-                    (None, None) => Response::Empty,
-                },
-            );
+        if !status.starts_with('2') {
+            continue;
+        }
+        let representation = representation_of(id, status, response, naming)?;
+        match &agreed {
+            None => agreed = Some((status, representation)),
+            Some((first, expected)) if *expected != representation => {
+                return Err(format!(
+                    "{id} answers {first} and {status} differently ({} and {}); the generator emits one representation per operation",
+                    expected.describe(),
+                    representation.describe()
+                ));
+            }
+            Some(_) => {}
         }
     }
-    Err(format!("{} has no 2xx response", operation["operationId"]))
+    agreed
+        .map(|(_, representation)| representation)
+        .ok_or(format!("{id} has no 2xx response"))
+}
+
+/// What one success response is answered as. A response object that is itself a `$ref`
+/// is refused rather than read as bodyless: what it points at may well be a page.
+fn representation_of(
+    id: &str,
+    status: &str,
+    response: &Value,
+    naming: &Naming,
+) -> Result<Response, String> {
+    if response.get("$ref").is_some() {
+        return Err(format!(
+            "{id} answers {status} through a $ref response, which the generator does not resolve; write the response inline"
+        ));
+    }
+    let Some(content) = response.get("content").and_then(Value::as_object) else {
+        return Ok(Response::Empty);
+    };
+    let representations: Vec<&str> = content.keys().map(String::as_str).collect();
+    let (media_type, body) = match representations.as_slice() {
+        [] => return Ok(Response::Empty),
+        [one] => (*one, &content[*one]),
+        many => {
+            return Err(format!(
+                "{id} answers {status} in {} representations ({}); the generator emits one",
+                many.len(),
+                many.join(", ")
+            ));
+        }
+    };
+    if !REPRESENTATIONS.contains(&media_type) {
+        return Err(format!(
+            "{id} answers {status} as {media_type}, which the generator has no representation for; it emits {}",
+            REPRESENTATIONS.join(" and ")
+        ));
+    }
+    let reference = body["schema"]["$ref"].as_str().ok_or(format!(
+        "{id} answers {status} as {media_type} with a schema that is not a $ref to components.schemas"
+    ))?;
+    let name = naming.type_for(&reference_name(reference)?);
+    Ok(match media_type {
+        "text/html" => Response::Html(name),
+        _ => Response::Json(name),
+    })
 }
 
 fn idempotent(http_method: &str, operation: &Value) -> bool {
@@ -490,13 +594,70 @@ fn description_of(value: &Value) -> Option<String> {
     value["description"].as_str().map(str::to_string)
 }
 
-fn reference_name(reference: &str) -> String {
+const SCHEMA_REFERENCE: &str = "#/components/schemas/";
+
+/// The schema a `$ref` names. Only a reference into this document's own schemas can
+/// become a type here; anything else would be emitted as a name Rust has never heard of.
+fn reference_name(reference: &str) -> Result<String, String> {
     reference
-        .trim_start_matches("#/components/schemas/")
-        .to_string()
+        .strip_prefix(SCHEMA_REFERENCE)
+        .filter(|name| !name.is_empty() && !name.contains('/'))
+        .map(str::to_string)
+        .ok_or(format!(
+            "$ref {reference} does not point into {SCHEMA_REFERENCE}; the generator resolves nothing else"
+        ))
+}
+
+/// Every schema a field, a body or a response names has to exist, or the emitted type would
+/// refer to something that is nowhere.
+fn check_references(schemas: &[Schema], services: &[Service]) -> Result<(), String> {
+    let known: BTreeSet<&str> = schemas.iter().map(|schema| schema.name.as_str()).collect();
+    for schema in schemas {
+        let mentioned: Vec<&FieldType> = match &schema.shape {
+            Shape::Struct(shape) => shape.fields.iter().map(|field| &field.kind).collect(),
+            Shape::Alias(kind) => vec![kind],
+        };
+        for kind in mentioned {
+            if let Some(name) = kind.named()
+                && !known.contains(name.as_str())
+            {
+                return Err(format!(
+                    "{} refers to {name}, which is not in components.schemas",
+                    schema.name
+                ));
+            }
+        }
+    }
+    for operation in services.iter().flat_map(|service| &service.operations) {
+        let mentioned = [
+            operation.body.as_deref(),
+            match &operation.response {
+                Response::Empty => None,
+                Response::Json(name) | Response::Html(name) => Some(name.as_str()),
+            },
+        ];
+        for name in mentioned.into_iter().flatten() {
+            if !known.contains(name) {
+                return Err(format!(
+                    "{} refers to {name}, which is not in components.schemas",
+                    operation.id
+                ));
+            }
+        }
+    }
+    Ok(())
 }
 
 impl FieldType {
+    /// The schema this type names, if it names one.
+    fn named(&self) -> Option<String> {
+        match self {
+            FieldType::Named(name) => Some(name.clone()),
+            FieldType::List(inner) | FieldType::Map(inner) => inner.named(),
+            _ => None,
+        }
+    }
+
     fn mentions(&self, schema: &str) -> bool {
         match self {
             FieldType::Named(name) => name == schema,
