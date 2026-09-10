@@ -64,15 +64,31 @@ func truncateString(s string, maxLen int) string {
 }
 
 // requireHTTPS validates that the given URL uses the https:// scheme.
+// requireHTTPS rejects a URL whose scheme is not https. The error names the URL's
+// origin alone: HEY's direct-upload URL is signed, and the rejection is what a caller
+// logs.
 func requireHTTPS(rawURL string) error {
 	u, err := url.Parse(rawURL)
 	if err != nil {
+		var parseErr *url.Error
+		if errors.As(err, &parseErr) {
+			err = parseErr.Err
+		}
 		return fmt.Errorf("invalid URL: %w", err)
 	}
 	if !strings.EqualFold(u.Scheme, "https") {
-		return fmt.Errorf("URL must use HTTPS: %s", rawURL)
+		return fmt.Errorf("URL must use HTTPS: %s", describeOrigin(rawURL))
 	}
 	return nil
+}
+
+// describeOrigin is rawURL's origin for an error's text, or a fixed token for a URL
+// with neither scheme nor host.
+func describeOrigin(rawURL string) string {
+	if origin := projectURL(rawURL, false); origin != "" {
+		return origin
+	}
+	return "a URL with no scheme"
 }
 
 // isSameOrigin checks whether two absolute URLs share the same scheme and host.

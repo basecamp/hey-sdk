@@ -486,3 +486,156 @@ type opaqueWrapperError struct{ cause error }
 
 func (w *opaqueWrapperError) Error() string { return "request failed" }
 func (w *opaqueWrapperError) Unwrap() error { return w.cause }
+
+// TestAttachmentsUploadInsecureTargetRendersNoSignedURL hands Upload a direct-upload
+// URL RequireSecureEndpoint rejects — plain http off localhost — and checks the
+// rejection names the target's origin, not the signed URL.
+func TestAttachmentsUploadInsecureTargetRendersNoSignedURL(t *testing.T) {
+	const signedURL = "http://storage.example/blob?signature=SECRETVALUE"
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{
+			"signed_id":"signed-123",
+			"attachable_sgid":"sgid-456",
+			"direct_upload":{"url":"` + signedURL + `","headers":{"Content-Type":"text/plain"}}
+		}`))
+	}))
+	t.Cleanup(server.Close)
+	client := NewClient(&Config{BaseURL: server.URL}, &StaticTokenProvider{Token: "test-token"}, WithMaxRetries(0))
+
+	_, err := client.Attachments().Upload(context.Background(), "note.txt", "text/plain", strings.NewReader("contents"))
+	if err == nil {
+		t.Fatal("expected the insecure upload target to be rejected")
+	}
+	for _, text := range renderings(err) {
+		if strings.Contains(text, "SECRETVALUE") {
+			t.Errorf("the signed query leaked into %q", text)
+		}
+	}
+	if !strings.Contains(err.Error(), "http://storage.example") {
+		t.Errorf("the rejection should name the target's origin, got %q", err)
+	}
+}
+
+// callerURLRequests is every request method that takes a caller's absolute URL, each
+// sending one to the given server.
+func callerURLRequests(client *Client, target string) map[string]func() error {
+	return map[string]func() error{
+		"Get": func() error {
+			_, err := client.Get(context.Background(), target)
+			return err
+		},
+		"GetAll": func() error {
+			_, err := client.GetAll(context.Background(), target)
+			return err
+		},
+		"PostForm": func() error {
+			_, err := client.PostForm(context.Background(), target, url.Values{"name": {"value"}})
+			return err
+		},
+		"PostMultipart": func() error {
+			_, err := client.PostMultipart(context.Background(), target, "multipart/form-data; boundary=b", []byte("--b--"))
+			return err
+		},
+	}
+}
+
+// TestCallerAbsoluteURLReachesHooksProjected hands each method that takes a caller's
+// absolute URL a signed one — a disk-service token in the path, on HEY's own origin
+// — and checks the hooks see its origin alone, and a 404 names no more.
+func TestCallerAbsoluteURLReachesHooksProjected(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasSuffix(r.URL.Path, "/missing") {
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+		if r.Method != http.MethodGet {
+			w.Header().Set("Location", "/done")
+			w.WriteHeader(http.StatusFound)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`[]`))
+	}))
+	t.Cleanup(server.Close)
+	hooks := &requestRecordingHooks{}
+	client := NewClient(&Config{BaseURL: server.URL}, &StaticTokenProvider{Token: "test-token"},
+		WithMaxRetries(0), WithHooks(hooks))
+
+	for name, request := range callerURLRequests(client, server.URL+"/rails/active_storage/disk/SECRETVALUE/file.txt") {
+		t.Run(name, func(t *testing.T) {
+			hooks.infos = nil
+			if err := request(); err != nil {
+				t.Fatal(err)
+			}
+			if len(hooks.infos) != 1 {
+				t.Fatalf("expected one request in the hooks, got %+v", hooks.infos)
+			}
+			if got := hooks.infos[0].URL; got != server.URL {
+				t.Errorf("the request reached the hooks as %q, want the projected URL", got)
+			}
+		})
+	}
+
+	t.Run("not found", func(t *testing.T) {
+		_, err := client.Get(context.Background(), server.URL+"/rails/active_storage/disk/SECRETVALUE/missing")
+		var sdkErr *Error
+		if !errors.As(err, &sdkErr) || sdkErr.Code != CodeNotFound {
+			t.Fatalf("expected a not-found *Error, got %T: %v", err, err)
+		}
+		for _, text := range append(renderings(err), sdkErr.Message) {
+			if strings.Contains(text, "SECRETVALUE") {
+				t.Errorf("the signed path leaked into %q", text)
+			}
+		}
+		if !strings.Contains(sdkErr.Message, server.URL) {
+			t.Errorf("the not-found error should name the origin, got %q", sdkErr.Message)
+		}
+	})
+}
+
+// TestCallerAbsoluteURLTransportErrorRendersNoSignedURL dials a closed port through
+// each method that takes a caller's absolute URL — a signed one on the API origin
+// itself, as the disk service serves — and checks the network error keeps the origin
+// and nothing beneath it.
+func TestCallerAbsoluteURLTransportErrorRendersNoSignedURL(t *testing.T) {
+	const origin = "https://127.0.0.1:1"
+	client := NewClient(&Config{BaseURL: origin}, &StaticTokenProvider{Token: "test-token"}, WithMaxRetries(0))
+
+	for name, request := range callerURLRequests(client, origin+"/rails/active_storage/disk/SECRETVALUE/file.txt") {
+		t.Run(name, func(t *testing.T) {
+			err := request()
+			var sdkErr *Error
+			if !errors.As(err, &sdkErr) || sdkErr.Code != CodeNetwork {
+				t.Fatalf("expected a network *Error, got %T: %v", err, err)
+			}
+			for _, text := range append(renderings(err), sdkErr.Hint) {
+				if strings.Contains(text, "SECRETVALUE") {
+					t.Errorf("the signed query leaked into %q", text)
+				}
+			}
+			if !strings.Contains(sdkErr.Hint, `"`+origin+`"`) {
+				t.Errorf("hint should keep the origin, got %q", sdkErr.Hint)
+			}
+		})
+	}
+}
+
+// TestCallerInsecureURLRendersNoSignedURL hands Get a signed http URL on another host,
+// which buildURL rejects, and checks the rejection names the origin alone.
+func TestCallerInsecureURLRendersNoSignedURL(t *testing.T) {
+	server := httptest.NewServer(http.NotFoundHandler())
+	t.Cleanup(server.Close)
+	client := NewClient(&Config{BaseURL: server.URL}, &StaticTokenProvider{Token: "test-token"})
+
+	_, err := client.Get(context.Background(), "http://storage.example/blob?signature=SECRETVALUE")
+	if err == nil {
+		t.Fatal("expected the http URL on another host to be rejected")
+	}
+	if strings.Contains(err.Error(), "SECRETVALUE") {
+		t.Errorf("the signed query leaked into %q", err)
+	}
+	if !strings.Contains(err.Error(), "http://storage.example") {
+		t.Errorf("the rejection should name the origin, got %q", err)
+	}
+}

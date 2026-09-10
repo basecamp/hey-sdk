@@ -510,6 +510,7 @@ func (c *Client) doBodyRequest(ctx context.Context, method, path, contentType st
 	if err != nil {
 		return nil, err
 	}
+	ctx = markCallerURL(ctx, path)
 
 	resp, err := c.sendBodyRequest(ctx, method, reqURL, contentType, body, 1)
 	if apiErr, ok := err.(*Error); ok && apiErr.Retryable && apiErr.Code == CodeAuth {
@@ -557,7 +558,7 @@ func (c *Client) sendBodyRequest(ctx context.Context, method, reqURL, contentTyp
 
 	resp, err := noRedirectClient.Do(req)
 	if err != nil {
-		return nil, networkError(err, c.cfg.BaseURL)
+		return nil, networkError(err, c.trustedOrigin(ctx))
 	}
 	defer func() { _ = resp.Body.Close() }()
 
@@ -576,7 +577,7 @@ func (c *Client) sendBodyRequest(ctx context.Context, method, reqURL, contentTyp
 		// singleRequest bounds its own reads.
 		responseBody, err := limitedReadAll(resp.Body, MaxResponseBodyBytes)
 		if err != nil {
-			return nil, networkError(err, c.cfg.BaseURL)
+			return nil, networkError(err, c.trustedOrigin(ctx))
 		}
 		return &FormResponse{StatusCode: resp.StatusCode, Body: string(responseBody)}, nil
 
@@ -661,17 +662,22 @@ func (c *Client) doRequest(ctx context.Context, method, path string, body any) (
 	if err != nil {
 		return nil, err
 	}
-	if isAbsoluteURL(path) {
-		// A caller's absolute URL can be a signed one, on any origin: the hooks and
-		// the network error see it projected, as they see a storage request.
-		ctx = markProjectedRequest(ctx)
-	}
-	return c.doRequestURL(ctx, method, url, body)
+	return c.doRequestURL(markCallerURL(ctx, path), method, url, body)
 }
 
 // isAbsoluteURL reports whether path is an absolute URL rather than an API path.
 func isAbsoluteURL(path string) bool {
 	return strings.HasPrefix(path, "https://") || strings.HasPrefix(path, "http://")
+}
+
+// markCallerURL marks ctx when path is a caller's absolute URL rather than an API
+// path: it can be a signed one, on any origin, and the hooks, the network error and
+// the SDK's own error text see it projected, as they see a storage request.
+func markCallerURL(ctx context.Context, path string) context.Context {
+	if isAbsoluteURL(path) {
+		return markProjectedRequest(ctx)
+	}
+	return ctx
 }
 
 func (c *Client) doRequestURL(ctx context.Context, method, url string, body any) (*Response, error) {
@@ -723,10 +729,7 @@ func (c *Client) doRequestURLWithBudget(ctx context.Context, method, url string,
 	url = requestURL
 	// The retry hook sees the URL as the request hooks do: projected on a request the
 	// transport projects (a blob download's URL can carry a query of its own).
-	displayURL := url
-	if isProjectedRequest(ctx) {
-		displayURL = projectURL(url, false)
-	}
+	hookURL := displayURL(ctx, url)
 
 	// Non-idempotent mutations: Don't retry on 429/5xx to avoid duplicating data.
 	// Only retry once after successful 401 token refresh.
@@ -737,7 +740,7 @@ func (c *Client) doRequestURLWithBudget(ctx context.Context, method, url string,
 		}
 		if apiErr, ok := err.(*Error); ok && apiErr.Retryable && apiErr.Code == CodeAuth {
 			c.logger.Debug("token refreshed, retrying mutation", "method", method)
-			info := RequestInfo{Method: method, URL: displayURL, Attempt: 1}
+			info := RequestInfo{Method: method, URL: hookURL, Attempt: 1}
 			c.hooks.OnRetry(ctx, info, 2, err)
 			return c.singleRequest(ctx, method, url, body, 2)
 		}
@@ -786,7 +789,7 @@ func (c *Client) doRequestURLWithBudget(ctx context.Context, method, url string,
 			"errorCode", errorCodeForLog(lastErr),
 		)
 
-		info := RequestInfo{Method: method, URL: displayURL, Attempt: attempt}
+		info := RequestInfo{Method: method, URL: hookURL, Attempt: attempt}
 		c.hooks.OnRetry(ctx, info, attempt+1, lastErr)
 
 		select {
@@ -926,7 +929,7 @@ func (c *Client) singleRequest(ctx context.Context, method, url string, body any
 		return nil, ErrForbidden("Access denied")
 
 	case http.StatusNotFound:
-		return nil, ErrNotFound("Resource", url)
+		return nil, ErrNotFound("Resource", displayURL(ctx, url))
 
 	case http.StatusInternalServerError:
 		return nil, ErrAPI(500, "Server error (500)")
@@ -986,7 +989,7 @@ func (c *Client) buildURL(path string) (string, error) {
 				return path, nil
 			}
 		}
-		return "", fmt.Errorf("URL must use HTTPS, got: %s", path)
+		return "", fmt.Errorf("URL must use HTTPS, got: %s", describeOrigin(path))
 	}
 	if !strings.HasPrefix(path, "/") {
 		path = "/" + path

@@ -203,6 +203,15 @@ func isProjectedRequest(ctx context.Context) bool {
 	return v
 }
 
+// displayURL is url as the hooks and the SDK's own error text show it: whole on an
+// API request, its origin alone on a request the transport projects.
+func displayURL(ctx context.Context, url string) string {
+	if isProjectedRequest(ctx) {
+		return projectURL(url, false)
+	}
+	return url
+}
+
 // loggingTransport wraps an http.RoundTripper to log requests and responses,
 // and calls observability hooks for all HTTP requests.
 type loggingTransport struct {
