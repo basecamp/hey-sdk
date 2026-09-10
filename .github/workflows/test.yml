@@ -79,11 +79,19 @@ jobs:
       # with the shipped HTTP client off, cargo deny over both workspaces, and the crate
       # packaged and built from its tarball. The same target a developer runs, with every
       # cargo invocation going through mbx.
+      # mbx sweeps its store down to 5% of the disk after a build, and the runner's disk is
+      # small enough that the sweep runs on the first cargo command and throws away half of
+      # what the cache step just restored, before any of it is looked up. The runner is
+      # thrown away at the end of the job; nothing here needs collecting.
       - name: Format, lint and test
         run: make rs-check CARGO=mbx
+        env:
+          MBX_GC_AUTO: "0"
 
       - name: Check generated code is up to date
         run: make rs-check-drift CARGO=mbx
+        env:
+          MBX_GC_AUTO: "0"
 
   msrv-rust:
     name: Rust MSRV
