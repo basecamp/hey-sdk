@@ -1,7 +1,8 @@
 // Package main provides a conformance test runner for the HEY Go SDK.
 //
-// This runner reads JSON test definitions from conformance/tests/ and
-// executes them against the SDK using a mock HTTP server.
+// This runner reads shared JSON test definitions from conformance/tests/ and
+// Go-specific definitions from conformance/tests/go/, then executes them
+// against the SDK using a mock HTTP server.
 package main
 
 import (
@@ -72,10 +73,17 @@ type TestResult struct {
 func main() {
 	testsDir := filepath.Join("..", "..", "tests")
 
-	files, err := filepath.Glob(filepath.Join(testsDir, "*.json"))
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error finding test files: %v\n", err)
-		os.Exit(1)
+	var files []string
+	for _, pattern := range []string{
+		filepath.Join(testsDir, "*.json"),
+		filepath.Join(testsDir, "go", "*.json"),
+	} {
+		matches, err := filepath.Glob(pattern)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error finding test files: %v\n", err)
+			os.Exit(1)
+		}
+		files = append(files, matches...)
 	}
 
 	if len(files) == 0 {
@@ -220,12 +228,6 @@ func runTest(tc TestCase) TestResult {
 	// Create generated client pointing to mock server with auth header
 	credentials := newConformanceCredentials(tc)
 	client, err := generated.NewClient(server.URL,
-		generated.WithRetryConfig(generated.RetryConfig{
-			MaxRetries: 3,
-			BaseDelay:  1 * time.Second,
-			MaxDelay:   30 * time.Second,
-			Multiplier: 2.0,
-		}),
 		generated.WithAuthRefresher(credentials.refresh),
 		generated.WithRequestEditorFn(func(ctx context.Context, req *http.Request) error {
 			token, _ := credentials.AccessToken(ctx)
@@ -287,7 +289,15 @@ func runTest(tc TestCase) TestResult {
 			sdkErr = executeAccountScopedOperation(scopedClient, ctx, tc)
 		}
 	} else {
-		sdkResp, sdkErr = executeOperation(client, ctx, tc)
+		for range max(tc.RepeatOperation, 1) {
+			if sdkResp != nil && sdkResp.Body != nil {
+				_ = sdkResp.Body.Close()
+			}
+			sdkResp, sdkErr = executeOperation(client, ctx, tc)
+			if sdkErr != nil {
+				break
+			}
+		}
 	}
 
 	// Capture response body for responseBody assertions

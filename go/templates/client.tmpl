@@ -10,9 +10,10 @@ type HttpRequestDoer interface {
 
 {{$clientTypeName := opts.OutputOptions.ClientTypeName -}}
 
-// RetryConfig configures retry behavior for idempotent operations.
+// RetryConfig configures client-level retry overrides and delays for idempotent operations.
+// Retryable status codes always come from each operation's API contract.
 type RetryConfig struct {
-	// MaxRetries is the maximum number of retry attempts (default: 3)
+	// MaxRetries overrides an operation's maximum attempts when WithRetryConfig is used.
 	MaxRetries int
 	// BaseDelay is the initial delay between retries (default: 1s)
 	BaseDelay time.Duration
@@ -32,6 +33,15 @@ func DefaultRetryConfig() RetryConfig {
 	}
 }
 
+type retryPolicy struct {
+	MaxAttempts       int
+	RetryableStatuses []int
+}
+
+var operationRetryPolicies = map[string]retryPolicy{
+{{range .}}{{$opid := .OperationId}}{{if .Spec}}{{if .Spec.Extensions}}{{$retry := index .Spec.Extensions "x-hey-retry"}}{{if $retry}}	"{{$opid}}": {MaxAttempts: {{index $retry "maxAttempts"}}, RetryableStatuses: []int{ {{range index $retry "retryOn"}}{{.}}, {{end}} }},
+{{end}}{{end}}{{end}}{{end}}}
+
 // {{ $clientTypeName }} which conforms to the OpenAPI3 specification for this service.
 type {{ $clientTypeName }} struct {
 	// The endpoint of the server conforming to this interface, with scheme,
@@ -50,6 +60,7 @@ type {{ $clientTypeName }} struct {
 
 	// RetryConfig for idempotent operations
 	RetryConfig RetryConfig
+	retryAttemptsOverride bool
 
 	// AuthRefresher is asked once when a response is 401. It renews whatever the request
 	// editors authenticate with and reports whether it could; when it could, the request
@@ -132,6 +143,7 @@ func WithRequestEditorFn(fn RequestEditorFn) ClientOption {
 func WithRetryConfig(cfg RetryConfig) ClientOption {
 	return func(c *{{ $clientTypeName }}) error {
 		c.RetryConfig = cfg
+		c.retryAttemptsOverride = true
 		return nil
 	}
 }
@@ -161,18 +173,27 @@ func WithLogger(logger *slog.Logger) ClientOption {
 	}
 }
 
-// isRetryableStatus returns true if the HTTP status code indicates a retryable error.
-func isRetryableStatus(statusCode int) bool {
-	switch statusCode {
-	case http.StatusTooManyRequests,       // 429
-		http.StatusInternalServerError,     // 500
-		http.StatusBadGateway,              // 502
-		http.StatusServiceUnavailable,      // 503
-		http.StatusGatewayTimeout:          // 504
-		return true
-	default:
-		return false
+func (p retryPolicy) retriesStatus(statusCode int) bool {
+	for _, retryableStatus := range p.RetryableStatuses {
+		if statusCode == retryableStatus {
+			return true
+		}
 	}
+	return false
+}
+
+// retryPolicy returns the operation's declared policy. WithRetryConfig can override its
+// attempt count, while retryable statuses remain operation-defined.
+func (c *{{ $clientTypeName }}) retryPolicy(operationId string) retryPolicy {
+	policy, ok := operationRetryPolicies[operationId]
+	if !ok {
+		policy = retryPolicy{MaxAttempts: 1}
+	}
+	if c.retryAttemptsOverride {
+		policy.MaxAttempts = max(c.RetryConfig.MaxRetries, 0) + 1
+	}
+	policy.MaxAttempts = max(policy.MaxAttempts, 1)
+	return policy
 }
 
 // doWithRetry executes a request with retry logic for idempotent operations, and sends
@@ -180,11 +201,12 @@ func isRetryableStatus(statusCode int) bool {
 // whatever retry budget the operation has left rather than starting a fresh one, and is
 // always granted at least the one attempt.
 func (c *{{ $clientTypeName }}) doWithRetry(ctx context.Context, buildRequest func() (*http.Request, error), isIdempotent bool, operationId string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	policy := c.retryPolicy(operationId)
 	maxAttempts := 1
 	if isIdempotent {
-		maxAttempts = c.RetryConfig.MaxRetries + 1
+		maxAttempts = policy.MaxAttempts
 	}
-	resp, req, err := c.doAttempts(ctx, buildRequest, 1, maxAttempts, operationId, reqEditors...)
+	resp, req, err := c.doAttempts(ctx, buildRequest, 1, maxAttempts, policy, operationId, reqEditors...)
 	if err != nil || resp.StatusCode != http.StatusUnauthorized || c.AuthRefresher == nil || !c.AuthRefresher(ctx) {
 		return resp, err
 	}
@@ -196,7 +218,7 @@ func (c *{{ $clientTypeName }}) doWithRetry(ctx context.Context, buildRequest fu
 	if err := c.announce(ctx, Retry{Request: req, Attempt: failed + 1, Response: resp}); err != nil {
 		return nil, err
 	}
-	resp, _, err = c.doAttempts(ctx, buildRequest, failed+1, failed+max(maxAttempts-failed, 1), operationId, reqEditors...)
+	resp, _, err = c.doAttempts(ctx, buildRequest, failed+1, failed+max(maxAttempts-failed, 1), policy, operationId, reqEditors...)
 	return resp, err
 }
 
@@ -264,7 +286,7 @@ type readOnly struct{ io.Reader }
 // transient failures with backoff between them. Along with the last response it returns
 // the request that response answered, as the editors left it: a transport is free to
 // leave Response.Request unset, so the loop does not rely on it.
-func (c *{{ $clientTypeName }}) doAttempts(ctx context.Context, buildRequest func() (*http.Request, error), first, last int, operationId string, reqEditors ...RequestEditorFn) (*http.Response, *http.Request, error) {
+func (c *{{ $clientTypeName }}) doAttempts(ctx context.Context, buildRequest func() (*http.Request, error), first, last int, policy retryPolicy, operationId string, reqEditors ...RequestEditorFn) (*http.Response, *http.Request, error) {
 
 	var lastResp *http.Response
 	var lastReq *http.Request
@@ -304,7 +326,7 @@ func (c *{{ $clientTypeName }}) doAttempts(ctx context.Context, buildRequest fun
 		}
 
 		// Success or non-retryable status
-		if !isRetryableStatus(resp.StatusCode) {
+		if !policy.retriesStatus(resp.StatusCode) {
 			return resp, req, nil
 		}
 
