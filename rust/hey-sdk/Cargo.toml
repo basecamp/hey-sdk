@@ -40,6 +40,7 @@ async-trait = "0.1"
 base64 = "0.23"
 bytes = "1"
 chrono = { version = "0.4", default-features = false, features = ["clock", "serde", "std"] }
+ego-tree = "0.11"
 futures-util = { version = "0.3", default-features = false, features = ["std"] }
 http = "1"
 # Active Storage checks an upload's integrity with a base64-encoded MD5, so the SDK has to
@@ -48,6 +49,7 @@ md5 = "0.8"
 percent-encoding = "2"
 rand = "0.10"
 reqwest = { version = "0.13", default-features = false, features = ["rustls", "http2"], optional = true }
+scraper = { version = "0.27.0", default-features = false }
 serde = { workspace = true }
 serde_json = { workspace = true }
 sha2 = "0.11"

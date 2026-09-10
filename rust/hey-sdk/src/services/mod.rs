@@ -78,7 +78,7 @@ pub use messages::{DeliverySchedule, DraftContent, MessageContent};
 pub use postings::{BubbleUpSlot, PostingChanges, PostingChangesCursor};
 pub use search::{SearchParams, SearchResults};
 pub use stickies::{MAX_STICKIES_LIMIT, MAX_STICKY_POSITION, StickySize};
-pub use workflows::WorkflowSummary;
+pub use workflows::{WorkflowStageTopic, WorkflowStageView, WorkflowSummary};
 pub use world::WORLD_ADDRESS;
 
 /// What a write to a path outside the model announces itself as. Build the request itself

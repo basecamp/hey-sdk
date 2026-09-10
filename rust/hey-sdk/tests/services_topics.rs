@@ -115,3 +115,22 @@ async fn a_refusal_that_is_not_a_redirect_stays_a_failure() {
     assert_eq!(error.code(), ErrorCode::Api);
     assert_eq!(error.http_status(), Some(406));
 }
+
+#[tokio::test]
+async fn a_topic_is_moved_to_a_box_by_its_id() {
+    let server = MockServer::start().await;
+    Mock::given(method("POST"))
+        .and(path("/topics/9/moves.json"))
+        .respond_with(ResponseTemplate::new(204))
+        .mount(&server)
+        .await;
+
+    client(&server).topics().move_to_box(9, 5).await.unwrap();
+
+    let requests = server.received_requests().await.unwrap();
+    assert_eq!(requests.len(), 1);
+    assert_eq!(
+        requests[0].body_json::<serde_json::Value>().unwrap(),
+        serde_json::json!({ "box_id": 5 })
+    );
+}

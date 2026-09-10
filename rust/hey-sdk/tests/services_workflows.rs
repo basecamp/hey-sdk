@@ -4,8 +4,10 @@ mod support;
 
 use std::sync::Arc;
 
+use hey_sdk::ErrorCode;
+use hey_sdk::services::{WorkflowStageTopic, WorkflowStageView};
 use serde_json::json;
-use wiremock::matchers::{method, path};
+use wiremock::matchers::{header, method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
 use support::{Operations, builder, client};
@@ -306,4 +308,102 @@ async fn mock_staging(server: &MockServer, verb: &str) {
 
 fn form(body: &[u8]) -> Vec<(String, String)> {
     url::form_urlencoded::parse(body).into_owned().collect()
+}
+
+/// The stage page as HEY renders it, read the way Go's `GetStage` reads it: the stage's
+/// name without its screen-reader suffix, a card with its subject and count, a sparse
+/// card with neither, and two cards whose ids will not parse left out.
+#[tokio::test]
+async fn a_stage_is_read_out_of_the_page_hey_serves_for_it() {
+    let server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path("/workflows/8801/stages/5512"))
+        .and(header("accept", "text/html"))
+        .respond_with(
+            ResponseTemplate::new(200)
+                .insert_header("content-type", "text/html; charset=utf-8")
+                .set_body_string(
+                    r#"<section id="container_workflow_stage_5512"><h2>Applied<span class="u-for-screen-reader"> stage</span></h2><div class="workflow__card" id="topic_4471829" data-identifier="91"><h3>Application<span class="u-for-screen-reader">Thread: Application</span></h3><p class="card__detail"><span class="u-for-screen-reader">,</span>3 emails</p></div><div class="workflow__card" id="topic_4471830" data-identifier="92"></div><div id="topic_not-a-number" data-identifier="93"></div><div id="topic_4471831" data-identifier="not-a-number"></div></section>"#,
+                ),
+        )
+        .mount(&server)
+        .await;
+
+    let stage = client(&server).workflows().stage(8801, 5512).await.unwrap();
+
+    assert_eq!(stage.id, 5512);
+    assert_eq!(stage.name, "Applied");
+    assert_eq!(
+        stage.topics,
+        [
+            WorkflowStageTopic {
+                staging_id: 91,
+                topic_id: 4471829,
+                subject: "Application".to_string(),
+                entry_count: 3,
+            },
+            WorkflowStageTopic {
+                staging_id: 92,
+                topic_id: 4471830,
+                subject: String::new(),
+                entry_count: 0,
+            },
+        ]
+    );
+}
+
+#[tokio::test]
+async fn a_page_without_the_stage_is_not_found() {
+    let server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path("/workflows/8801/stages/5512"))
+        .respond_with(
+            ResponseTemplate::new(200)
+                .insert_header("content-type", "text/html")
+                .set_body_string(r#"<section id="container_workflow_stage_9999"></section>"#),
+        )
+        .mount(&server)
+        .await;
+
+    let error = client(&server)
+        .workflows()
+        .stage(8801, 5512)
+        .await
+        .unwrap_err();
+
+    assert_eq!(error.code(), ErrorCode::NotFound);
+    assert!(error.message().contains("5512"), "{error}");
+}
+
+/// A card whose detail line starts with something other than a count is left out, as Go
+/// leaves it out; a card inside a card is that card's content, not a card of its own; and
+/// a stage page with markup around it is still the stage.
+#[test]
+fn the_parser_keeps_to_the_cards_go_keeps_to() {
+    let page = r#"<html><body><nav>Boards</nav>
+      <section id="container_workflow_stage_7"><h2>  In  <b>review</b> </h2>
+        <div id="topic_1" data-identifier="10"><h3>One</h3><p class="card__detail">1 email</p>
+          <div id="topic_2" data-identifier="20"><h3>Nested</h3></div></div>
+        <div id="topic_3" data-identifier="30"><h3>Three</h3><p class="card__detail">many emails</p></div>
+        <div id="topic_4" data-identifier="40"><h3>Four</h3><p class="card__detail"></p></div>
+        <div id="topic_0" data-identifier="50"><h3>Zero</h3></div>
+        <div id="topic_5" data-identifier="0"><h3>Unstaged</h3></div>
+      </section></body></html>"#;
+
+    let stage = WorkflowStageView::parse(page, 7).unwrap();
+
+    assert_eq!(stage.name, "In review");
+    let topics: Vec<(i64, i64, &str, u64)> = stage
+        .topics
+        .iter()
+        .map(|topic| {
+            (
+                topic.topic_id,
+                topic.staging_id,
+                topic.subject.as_str(),
+                topic.entry_count,
+            )
+        })
+        .collect();
+    assert_eq!(topics, [(1, 10, "One", 1)]);
 }

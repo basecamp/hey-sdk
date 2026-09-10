@@ -5,6 +5,9 @@
 
 use std::borrow::Cow;
 
+use ego_tree::NodeRef;
+use scraper::{ElementRef, Html, Node, Selector};
+
 use crate::error::Error;
 use crate::generated::routes;
 use crate::generated::types::WorkflowStage;
@@ -13,6 +16,133 @@ use crate::observability::OperationInfo;
 use crate::services::write_info;
 
 pub use crate::generated::services::workflows::*;
+
+/// One thread on a workflow stage, as the stage page renders its card.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct WorkflowStageTopic {
+    /// The staging record that puts the thread on this stage, which is what
+    /// [`Workflows::stage_topic`] moves.
+    pub staging_id: i64,
+    pub topic_id: i64,
+    /// The card's title; empty when the card renders none.
+    pub subject: String,
+    /// How many emails the card says the thread holds; zero when the card does not say.
+    pub entry_count: u64,
+}
+
+/// A workflow stage as HEY renders it — the stage page is the only place a stage's threads
+/// are listed — with the cards it shows.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct WorkflowStageView {
+    pub id: i64,
+    pub name: String,
+    pub topics: Vec<WorkflowStageTopic>,
+}
+
+impl WorkflowStageView {
+    /// Reads the stage out of the page HEY serves for it, the way Go's `GetStage` does: the
+    /// element whose id names the stage, its first `h2` for the name, and every element
+    /// under it whose id is `topic_<id>` for a card. A card is skipped when its thread or
+    /// staging id will not parse, or when its detail line does not start with a count.
+    /// Text meant for screen readers is left out of names and subjects.
+    pub fn parse(html: &str, stage_id: i64) -> Result<WorkflowStageView, Error> {
+        let document = Html::parse_document(html);
+        let stage = document
+            .select(&selector(&format!(
+                "[id=\"container_workflow_stage_{stage_id}\"]"
+            )))
+            .next()
+            .ok_or_else(|| Error::not_found("workflow stage", stage_id))?;
+        let name = stage
+            .select(&selector("h2"))
+            .next()
+            .map(visible_text)
+            .unwrap_or_default();
+        let topics = stage
+            .select(&selector("[id^=\"topic_\"]"))
+            .filter(|card| !inside_another_card(*card))
+            .filter_map(topic)
+            .collect();
+        Ok(WorkflowStageView {
+            id: stage_id,
+            name,
+            topics,
+        })
+    }
+}
+
+fn topic(card: ElementRef<'_>) -> Option<WorkflowStageTopic> {
+    let topic_id = positive(card.attr("id")?.strip_prefix("topic_")?)?;
+    let staging_id = positive(card.attr("data-identifier")?)?;
+    let subject = card
+        .select(&selector("h3"))
+        .next()
+        .map(visible_text)
+        .unwrap_or_default();
+    let entry_count = match card.select(&selector("p.card__detail")).next() {
+        None => 0,
+        Some(detail) => visible_text(detail)
+            .split_whitespace()
+            .next()?
+            .parse()
+            .ok()?,
+    };
+    Some(WorkflowStageTopic {
+        staging_id,
+        topic_id,
+        subject,
+        entry_count,
+    })
+}
+
+fn positive(value: &str) -> Option<i64> {
+    value.parse::<i64>().ok().filter(|id| *id > 0)
+}
+
+/// Whether a card sits inside another: the walk that finds cards stops at each one, so a
+/// card rendered inside a card is that card's content, not a card of its own.
+fn inside_another_card(card: ElementRef<'_>) -> bool {
+    card.ancestors()
+        .filter_map(ElementRef::wrap)
+        .any(|ancestor| {
+            ancestor
+                .attr("id")
+                .is_some_and(|id| id.starts_with("topic_"))
+        })
+}
+
+/// The text a reader sees under an element, whitespace collapsed: text meant for screen
+/// readers only is left out.
+fn visible_text(element: ElementRef<'_>) -> String {
+    let mut text = String::new();
+    collect_visible_text(*element, &mut text);
+    text.split_whitespace().collect::<Vec<_>>().join(" ")
+}
+
+fn collect_visible_text(node: NodeRef<'_, Node>, text: &mut String) {
+    match node.value() {
+        Node::Text(content) => text.push_str(content),
+        Node::Element(element) if is_visually_hidden(element) => return,
+        _ => {}
+    }
+    for child in node.children() {
+        collect_visible_text(child, text);
+    }
+}
+
+fn is_visually_hidden(element: &scraper::node::Element) -> bool {
+    element.classes().any(|class| {
+        matches!(
+            class,
+            "sr-only" | "screen-reader-only" | "u-for-screen-reader" | "visually-hidden"
+        )
+    })
+}
+
+/// A selector written here, which is why parsing it cannot fail.
+fn selector(css: &str) -> Selector {
+    Selector::parse(css).unwrap_or_else(|error| unreachable!("selector {css:?}: {error}"))
+}
 
 /// A workflow as the autocomplete endpoint names it.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -54,6 +184,14 @@ impl Workflows<'_> {
     /// A workflow's stages, in position order.
     pub async fn stages(&self, workflow_id: i64) -> Result<Vec<WorkflowStage>, Error> {
         Ok(self.get(workflow_id).await?.stages.unwrap_or_default())
+    }
+
+    /// One stage and the threads on it, read out of the page HEY serves for the stage —
+    /// what [`Workflows::get_stage`] answers as HTML, parsed. HEY lists a stage's threads
+    /// nowhere else.
+    pub async fn stage(&self, workflow_id: i64, stage_id: i64) -> Result<WorkflowStageView, Error> {
+        let page = self.get_stage(workflow_id, stage_id).await?;
+        WorkflowStageView::parse(&page, stage_id)
     }
 
     /// Adds a workflow. No account — `None` or a zero id — leaves HEY to pick your first.
