@@ -36,14 +36,20 @@ if ! grep -Fxq "version = \"$VERSION\"" "$CARGO_FILE"; then
   exit 1
 fi
 
-# The READMEs tell a consumer which minor to request alongside the git source, and Cargo
-# rejects a fetched crate that fails that requirement, so the constraint moves with the
-# version.
+# The READMEs show a consumer two ways in: the crates.io requirement, which names the minor
+# (Cargo reads "0.31" as ">=0.31.0, <0.32.0"), and the git dependency pinned to the release
+# tag, which names the whole version. Both move with the bump, and a README that no longer
+# carries either line is a README the bump cannot keep true, so each substitution is checked.
 MINOR="${VERSION%.*}"
 for README in "$REPO_ROOT/README.md" "$REPO_ROOT/rust/hey-sdk/README.md"; do
-  sedi "s|\(hey-sdk = { git = \"https://github.com/basecamp/hey-sdk\", version = \"\)[0-9.]*\"|\1$MINOR\"|" "$README"
-  if ! grep -Fq "hey-sdk = { git = \"https://github.com/basecamp/hey-sdk\", version = \"$MINOR\" }" "$README"; then
-    echo "ERROR: Rust constraint substitution did not match in $README" >&2
+  sedi "s|^hey-sdk = \"[0-9.]*\"$|hey-sdk = \"$MINOR\"|" "$README"
+  if ! grep -Fxq "hey-sdk = \"$MINOR\"" "$README"; then
+    echo "ERROR: crates.io requirement substitution did not match in $README" >&2
+    exit 1
+  fi
+  sedi "s|\(hey-sdk = { git = \"https://github.com/basecamp/hey-sdk\", tag = \"v\)[0-9.]*\"|\1$VERSION\"|" "$README"
+  if ! grep -Fq "hey-sdk = { git = \"https://github.com/basecamp/hey-sdk\", tag = \"v$VERSION\" }" "$README"; then
+    echo "ERROR: git tag substitution did not match in $README" >&2
     exit 1
   fi
 done
