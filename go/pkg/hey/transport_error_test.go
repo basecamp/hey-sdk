@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -231,6 +232,30 @@ func TestRedactTransportError(t *testing.T) {
 		}
 	})
 
+	t.Run("keeps only the classification beneath a projected URL", func(t *testing.T) {
+		opaque := &url.Error{Op: "Put", URL: "https://storage.example.com/blob/1?sig=SECRETVALUE", Err: timeoutError{}}
+		got := redactTransportError(opaque)
+		if want := `Put "https://storage.example.com/blob/1": transport timeout`; got.Error() != want {
+			t.Errorf("got %q, want %q", got.Error(), want)
+		}
+		for _, text := range renderings(got) {
+			if strings.Contains(text, "SECRETVALUE") {
+				t.Errorf("the signed query leaked into %q", text)
+			}
+		}
+		var netErr net.Error
+		if !errors.As(got, &netErr) || !netErr.Timeout() {
+			t.Errorf("the timeout classification should survive, got %v", got)
+		}
+		plain := redactTransportError(&url.Error{Op: "Put", URL: "https://storage.example.com/blob/1?sig=SECRETVALUE", Err: errors.New("connection refused")})
+		if want := `Put "https://storage.example.com/blob/1": transport failure`; plain.Error() != want {
+			t.Errorf("got %q, want %q", plain.Error(), want)
+		}
+		if !errors.As(plain, &netErr) || netErr.Timeout() {
+			t.Errorf("a refused connection should not classify as a timeout, got %v", plain)
+		}
+	})
+
 	t.Run("projects every transport error in a nested chain", func(t *testing.T) {
 		outer := &url.Error{Op: "Get", URL: "https://proxy.example.com/relay", Err: signed}
 		got := redactTransportError(outer)
@@ -251,7 +276,7 @@ func TestRedactTransportError(t *testing.T) {
 	t.Run("projects every member of a joined error and keeps the rest", func(t *testing.T) {
 		other := &url.Error{Op: "Get", URL: "https://other.example.com/x?token=SECRETVALUE", Err: errors.New("reset")}
 		got := redactTransportError(errors.Join(signed, context.DeadlineExceeded, other))
-		want := "Get \"https://storage.example.com/blob/1\": context canceled\ncontext deadline exceeded\nGet \"https://other.example.com/x\": reset"
+		want := "Get \"https://storage.example.com/blob/1\": context canceled\ncontext deadline exceeded\nGet \"https://other.example.com/x\": transport failure"
 		if got.Error() != want {
 			t.Errorf("got %q, want %q", got.Error(), want)
 		}
@@ -302,6 +327,16 @@ func TestAsErrorRendersNoSignedQuery(t *testing.T) {
 		}
 	}
 }
+
+// timeoutError is a custom transport's failure: it classifies as a timeout and, being
+// text this package did not build, renders the request URL on its own.
+type timeoutError struct{}
+
+func (timeoutError) Error() string {
+	return "request https://storage.example.com/blob/1?sig=SECRETVALUE failed: i/o timeout"
+}
+func (timeoutError) Timeout() bool   { return true }
+func (timeoutError) Temporary() bool { return true }
 
 // opaqueWrapperError wraps an error without rendering it.
 type opaqueWrapperError struct{ cause error }
