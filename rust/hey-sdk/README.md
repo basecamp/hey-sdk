@@ -4,15 +4,27 @@ The Rust client for the [HEY](https://www.hey.com) API. Types, routes and servic
 generated from the Smithy model in the repository's `spec/` directory, so what the crate offers
 is what HEY serves.
 
-The crate is not on crates.io. Depend on it from the repository:
+The crate is not on crates.io yet. Depend on it from the repository at a release tag — the
+repository's `vX.Y.Z` tags are the crate's releases, `v0.30.0` is the first that carries
+`rust/`, and there is no `rust/vX.Y.Z` tag to look for:
 
 ```toml
 [dependencies]
-hey-sdk = { git = "https://github.com/basecamp/hey-sdk", version = "0.30" }
+hey-sdk = { git = "https://github.com/basecamp/hey-sdk", tag = "v0.30.0" }
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 ```
 
-Requires Rust 1.88 or newer.
+Requires Rust 1.88 or newer; see [Versioning](#versioning).
+
+The [examples](examples) are this page's snippets as whole programs, and CI compiles them:
+
+```sh
+HEY_TOKEN=... cargo run --example first_call      # identity and boxes
+HEY_TOKEN=... cargo run --example pagination      # page by page, and to the end
+HEY_TOKEN=... cargo run --example hooks           # every operation, request and resend
+cargo run --example oauth_pkce                    # the whole PKCE login, then a call
+cargo run --example custom_http_client --no-default-features   # a transport of your own, offline
+```
 
 ## Authenticate
 
@@ -349,15 +361,34 @@ of one kind run at once, and the limiter holds the client to a budget of its own
 `Retry-After` HEY sends back. A refused call answers `CircuitOpen`, `BulkheadFull` or
 `RateLimit` without sending anything. Hooks installed before them still hear every operation.
 
+## Versioning
+
+The crate follows [Cargo's reading of semver](https://doc.rust-lang.org/cargo/reference/semver.html)
+before 1.0: a change that breaks the public API moves the minor version (`0.29` → `0.30`), an
+additive one moves the patch. CI runs `cargo semver-checks` on every pull request against the
+base branch, so an accidental break is caught before it is tagged; a deliberate one carries the
+`breaking` label and a version bump. What the API guarantees on the wire is the conformance
+suite's business, not semver's.
+
+`rust-version` is 1.88, and CI builds the library on exactly that toolchain. It moves only when
+a dependency or a feature the crate needs requires it, and a move is a minor release with a
+line in the release notes, never a patch. Development and CI otherwise run on the exact stable
+that `rust-toolchain.toml` at the repository root pins, so rustfmt and clippy agree on every
+machine; a new stable arrives as a bump to that file.
+
 ## Develop
 
 ```bash
-make -C rust check          # fmt, clippy, tests
+make rs-check               # every step CI runs before the drift check, in order: fmt, clippy,
+                            #   tests, docs; clippy + tests again with --no-default-features;
+                            #   examples, cargo deny, cargo package
+make rs-check-drift         # fail if src/generated is stale; with rs-check, the whole CI job
 make rs-generate            # regenerate src/generated from openapi.json
-make rs-check-drift         # fail if src/generated is stale
 make conformance-rs         # run the cross-language conformance fixtures
 ```
 
-Everything under `src/generated/` is written by `rust/generator`; edit the generator or the
-Smithy model, never those files. Method and service names that the generator's rule gets wrong
-are settled in `rust/generator/names.toml`.
+`make -C rust help` lists the steps one by one. `rs-check` needs
+[`cargo-deny`](https://github.com/EmbarkStudios/cargo-deny) installed; the formatter's options
+are in `rust/rustfmt.toml`, stable ones only. Everything under `src/generated/` is written by
+`rust/generator`; edit the generator or the Smithy model, never those files. Method and
+service names that the generator's rule gets wrong are settled in `rust/generator/names.toml`.

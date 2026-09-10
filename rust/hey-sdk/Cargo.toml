@@ -41,6 +41,24 @@ tokio = { version = "1", features = ["io-util", "rt", "time", "sync"] }
 tracing = "0.1"
 url = "2"
 
+# The examples that talk to HEY use the shipped client; without the feature only the one
+# about bringing a transport of your own is built.
+[[example]]
+name = "first_call"
+required-features = ["reqwest"]
+
+[[example]]
+name = "pagination"
+required-features = ["reqwest"]
+
+[[example]]
+name = "hooks"
+required-features = ["reqwest"]
+
+[[example]]
+name = "oauth_pkce"
+required-features = ["reqwest"]
+
 [dev-dependencies]
 # One test configures the shipped client through reqwest's own builder. Default features
 # are off so this resolves to the same build as the dependency above rather than a second

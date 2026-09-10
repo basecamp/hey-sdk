@@ -301,6 +301,7 @@ impl Client {
     /// ships. Without the `reqwest` feature there is no such client, and a
     /// [`ClientBuilder`] with an [`HttpClient`] of the application's own is the way in.
     #[cfg(feature = "reqwest")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "reqwest")))]
     pub fn new(config: Config, provider: impl TokenProvider + 'static) -> Result<Client, Error> {
         Client::builder(config).token_provider(provider).build()
     }

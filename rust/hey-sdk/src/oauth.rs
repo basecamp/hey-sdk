@@ -293,6 +293,7 @@ impl fmt::Debug for OAuthClient {
 }
 
 #[cfg(feature = "reqwest")]
+#[cfg_attr(docsrs, doc(cfg(feature = "reqwest")))]
 impl Default for OAuthClient {
     fn default() -> OAuthClient {
         OAuthClient::new(crate::http::ReqwestClient::default())

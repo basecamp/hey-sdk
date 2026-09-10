@@ -16,3 +16,6 @@ indent_style = tab
 
 [*.md]
 trim_trailing_whitespace = false
+
+[*.rs]
+indent_size = 4

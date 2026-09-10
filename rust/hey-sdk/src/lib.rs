@@ -18,6 +18,10 @@
 //! # }
 //! ```
 
+// docs.rs builds with `--cfg docsrs` on nightly, where `doc_cfg` badges the items that
+// exist only with a feature on.
+#![cfg_attr(docsrs, feature(doc_cfg))]
+
 mod account_scope;
 pub mod auth;
 pub mod cache;
