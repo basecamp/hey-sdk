@@ -5,7 +5,7 @@
 
 use std::borrow::Cow;
 
-use ego_tree::NodeRef;
+use ego_tree::iter::Edge;
 use scraper::{ElementRef, Html, Node, Selector};
 
 use crate::error::Error;
@@ -41,10 +41,12 @@ pub struct WorkflowStageView {
 
 impl WorkflowStageView {
     /// Reads the stage out of the page HEY serves for it, the way Go's `GetStage` does: the
-    /// element whose id names the stage, its first `h2` for the name, and every element
-    /// under it whose id is `topic_<id>` for a card. A card is skipped when its thread or
-    /// staging id will not parse, or when its detail line does not start with a count.
-    /// Text meant for screen readers is left out of names and subjects.
+    /// element whose id names the stage, the first `h2` at or under it for the name, and
+    /// every element under it whose id is `topic_<id>` for a card — the outermost such
+    /// element, since a card inside a card is that card's content. A card is skipped when
+    /// its thread or staging id will not parse as a positive number, or when its detail
+    /// line does not start with a count. Text meant for screen readers is left out of
+    /// names and subjects. Every rule is Go's, so the two SDKs read one page the same way.
     pub fn parse(html: &str, stage_id: i64) -> Result<WorkflowStageView, Error> {
         let document = Html::parse_document(html);
         let stage = document
@@ -53,14 +55,12 @@ impl WorkflowStageView {
             )))
             .next()
             .ok_or_else(|| Error::not_found("workflow stage", stage_id))?;
-        let name = stage
-            .select(&selector("h2"))
-            .next()
+        let name = first_at_or_under(stage, |element| element.value().name() == "h2")
             .map(visible_text)
             .unwrap_or_default();
         let topics = stage
             .select(&selector("[id^=\"topic_\"]"))
-            .filter(|card| !inside_another_card(*card))
+            .filter(|card| !inside_another_card(*card, stage))
             .filter_map(topic)
             .collect();
         Ok(WorkflowStageView {
@@ -74,18 +74,17 @@ impl WorkflowStageView {
 fn topic(card: ElementRef<'_>) -> Option<WorkflowStageTopic> {
     let topic_id = positive(card.attr("id")?.strip_prefix("topic_")?)?;
     let staging_id = positive(card.attr("data-identifier")?)?;
-    let subject = card
-        .select(&selector("h3"))
-        .next()
+    let subject = first_at_or_under(card, |element| element.value().name() == "h3")
         .map(visible_text)
         .unwrap_or_default();
-    let entry_count = match card.select(&selector("p.card__detail")).next() {
+    let entry_count = match first_at_or_under(card, is_detail_line) {
         None => 0,
         Some(detail) => visible_text(detail)
             .split_whitespace()
             .next()?
-            .parse()
-            .ok()?,
+            .parse::<i64>()
+            .ok()
+            .and_then(|count| u64::try_from(count).ok())?,
     };
     Some(WorkflowStageTopic {
         staging_id,
@@ -95,14 +94,36 @@ fn topic(card: ElementRef<'_>) -> Option<WorkflowStageTopic> {
     })
 }
 
+/// A `p` whose class mentions `card__detail`, as Go matches it: a substring, so a
+/// modifier class on the element still counts.
+fn is_detail_line(element: ElementRef<'_>) -> bool {
+    element.value().name() == "p"
+        && element
+            .attr("class")
+            .is_some_and(|class| class.contains("card__detail"))
+}
+
 fn positive(value: &str) -> Option<i64> {
     value.parse::<i64>().ok().filter(|id| *id > 0)
 }
 
-/// Whether a card sits inside another: the walk that finds cards stops at each one, so a
-/// card rendered inside a card is that card's content, not a card of its own.
-fn inside_another_card(card: ElementRef<'_>) -> bool {
+/// The first element at or under `root`, in document order, that `matches` — the element
+/// itself included, as Go's `findNode` includes it.
+fn first_at_or_under<'a>(
+    root: ElementRef<'a>,
+    matches: impl Fn(ElementRef<'a>) -> bool,
+) -> Option<ElementRef<'a>> {
+    root.descendants()
+        .filter_map(ElementRef::wrap)
+        .find(|element| matches(*element))
+}
+
+/// Whether a card sits inside another card of the same stage: the walk that finds cards
+/// stops at each one, so a card rendered inside a card is that card's content, not a card
+/// of its own. Only the stage's own subtree counts; what surrounds the stage is not a card.
+fn inside_another_card(card: ElementRef<'_>, stage: ElementRef<'_>) -> bool {
     card.ancestors()
+        .take_while(|ancestor| ancestor.id() != stage.id())
         .filter_map(ElementRef::wrap)
         .any(|ancestor| {
             ancestor
@@ -112,30 +133,42 @@ fn inside_another_card(card: ElementRef<'_>) -> bool {
 }
 
 /// The text a reader sees under an element, whitespace collapsed: text meant for screen
-/// readers only is left out.
+/// readers only is left out. Walked without recursion, since the page is the server's and
+/// its nesting is not bounded.
 fn visible_text(element: ElementRef<'_>) -> String {
     let mut text = String::new();
-    collect_visible_text(*element, &mut text);
+    let mut hidden_depth = 0usize;
+    for edge in element.traverse() {
+        match edge {
+            Edge::Open(node) => {
+                if hidden_depth > 0 {
+                    hidden_depth += 1;
+                } else {
+                    match node.value() {
+                        Node::Element(element) if is_visually_hidden(element) => {
+                            hidden_depth = 1;
+                        }
+                        Node::Text(content) => text.push_str(content),
+                        _ => {}
+                    }
+                }
+            }
+            Edge::Close(_) => hidden_depth = hidden_depth.saturating_sub(1),
+        }
+    }
     text.split_whitespace().collect::<Vec<_>>().join(" ")
 }
 
-fn collect_visible_text(node: NodeRef<'_, Node>, text: &mut String) {
-    match node.value() {
-        Node::Text(content) => text.push_str(content),
-        Node::Element(element) if is_visually_hidden(element) => return,
-        _ => {}
-    }
-    for child in node.children() {
-        collect_visible_text(child, text);
-    }
-}
-
+/// Split on whitespace as Go's `strings.Fields` splits a class attribute: any Unicode
+/// whitespace, not only the ASCII the HTML spec names.
 fn is_visually_hidden(element: &scraper::node::Element) -> bool {
-    element.classes().any(|class| {
-        matches!(
-            class,
-            "sr-only" | "screen-reader-only" | "u-for-screen-reader" | "visually-hidden"
-        )
+    element.attr("class").is_some_and(|classes| {
+        classes.split_whitespace().any(|class| {
+            matches!(
+                class,
+                "sr-only" | "screen-reader-only" | "u-for-screen-reader" | "visually-hidden"
+            )
+        })
     })
 }
 

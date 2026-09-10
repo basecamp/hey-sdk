@@ -7,7 +7,7 @@ request with the same behaviour — not one method name per method name: Rust ty
 passes as strings and zero values, and answers `Page<T>` where Go unwraps the payload.
 
 Counts at the time of writing: 202 Go methods; 131 modelled operations, each a Rust route and
-a generated method; 121 Rust conveniences. Every Go method has a Rust route to the same
+a generated method; 122 Rust conveniences. Every Go method has a Rust route to the same
 request except the waivers at the end. Both runners dispatch the whole shared conformance
 suite.
 
@@ -15,7 +15,7 @@ suite.
 
 | contract | Go | Rust |
 |---|---|---|
-| idempotency | per-operation literal in the generated client; form posts sent once | `Route::idempotent` → `Operation` → the retry budget; `Client::form` sends once |
+| idempotency | per-operation literal in the generated client; a form post is sent once, plus the one resend after a refreshed 401 | `Route::idempotent` → `Operation` → the retry budget; `Client::form` sends once, plus that same resend |
 | empty-on statuses | by hand at the one call site (`GetOngoing`) | `Route::empty_on` → `send_optional` → `Option` |
 | pagination style | by hand per `*Page` method | `Route::pagination` → generated methods answer `Page<T>`; `next_page`/`each_page` keep the route's policy |
 | retry policy | model policy under the client ceiling (#164) | model policy under the client ceiling (#154) |
@@ -34,7 +34,7 @@ Unqualified Rust names are conveniences; `gen` marks a generated method.
 | Postings.MoveToTrash / TrashForEveryone | TrashPostings | `move_to_trash` / `trash_for_everyone` | |
 | Postings.Mute / Unmute / MarkSpam | MutePostings / UnmutePostings / MarkPostingsSpam | `mute_postings` / `unmute_postings` / `mark_postings_spam` | |
 | Postings.AddToBoxGroup / RemoveFromBoxGroup | AddPostingsToBoxGroup / RemovePostingsFromBoxGroup | `add_postings_to_box_group` / `remove_postings_from_box_group` | |
-| Postings.File / Unfile / CreateFolder | FilePostings / UnfilePostings / CreateFolderForPostings | `file_postings` / `unfile_postings` / `create_folder_for_postings` | both omit `folder_id` when zero |
+| Postings.File / Unfile / CreateFolder | FilePostings / UnfilePostings / CreateFolderForPostings | `file_postings` / `unfile_postings` / `create_folder_for_postings` | `Unfile` omits `folder_id` when zero in both |
 | Postings.CancelBubbleUp / BubbleUpNow | CancelPostingsBubbleUp / BubbleUpPostingsNow | `cancel_postings_bubble_up` / `bubble_up_postings_now` | |
 | Postings.ScheduleBubbleUp(date) / ScheduleBubbleUpFor(slot) | SchedulePostingsBubbleUp | `schedule_postings_bubble_up(BubbleUpSlot, ids)` | one method, typed slot |
 | Postings.BundleUnseenPage | GetBundleUnseenPostings | gen `get_bundle_unseen` → `Page` | |
@@ -59,14 +59,14 @@ Unqualified Rust names are conveniences; `gen` marks a generated method.
 | Messages.Create | CreateMessage | `send(&MessageContent)` | Rust adds an optional `acting_sender_id` |
 | Messages.CreateDraft / UpdateDraft / SendDraft | CreateMessage / UpdateMessage | `create_draft` / `update_draft` / `send_draft` | neither resends; Go parses 422 `errors[]` itself, Rust maps 422 to `Validation` with the server message |
 | Entries.ListDrafts / ListDraftsPage | ListDrafts | gen `list_drafts` → `Page` | |
-| Entries.CreateReply / CreateReplyDraft | CreateReply | `reply` / `reply_draft` | both refuse no recipients |
+| Entries.CreateReply / CreateReplyDraft | CreateReply | `reply` / `reply_draft` | a reply refuses no recipients in both; a draft may have none |
 | Entries.MarkSpam / DeleteDraft / NewReply / NewForward | same ids | gen | |
 | Calendars.List / GetRecordings / GetRecordingsPage | ListCalendars / GetCalendarRecordings | gen | |
 | Calendars.Toggle | ToggleCalendar | `toggle_selection` | |
 | Calendars.ListWithChanges | GET `/calendars.json` | `list_with_changes` | |
 | Calendars.AllCalendarChanges / CalendarChanges / AllRecordingChanges / RecordingChanges | unmodelled change feeds | same names | |
 | CalendarEvents.Create / Update / UpdateOccurrence | forms | `create` / `update_event` / `update_occurrence` | Rust also has a narrower `update` |
-| CalendarEvents.Delete / DeleteOccurrence | DeleteCalendarEvent / DeleteCalendarEventOccurrence | gen `delete` / `delete_occurrence_scoped` | |
+| CalendarEvents.Delete / DeleteOccurrence | DeleteCalendarEvent / DeleteCalendarEventOccurrence | gen `delete` / `delete_occurrence_scoped` (hand-written over gen `delete_occurrence`) | |
 | CalendarPeriods.Day / Days / Week / Weeks / Year | GetCalendarDay … GetCalendarYear | `day` / `days` / `week` / `weeks` / `year` | |
 | CalendarTodos.Create / Update | CreateCalendarTodo / UpdateCalendarTodo | `create_todo(title, Option<Date>)` / `update_todo` | both bypass the generated timestamp payload for a bare date |
 | CalendarTodos.Complete / Uncomplete / Delete | same ids | gen | |
@@ -83,7 +83,7 @@ Unqualified Rust names are conveniences; `gen` marks a generated method.
 | TimeTracks.CreateCategory / UpdateCategory / DeleteCategory / Export | forms, CSV | same names | |
 | Workflows.List | autocomplete GET | `list` → `Vec<WorkflowSummary>` | |
 | Workflows.Get / Stages | GetWorkflow | gen `get` / `stages` | |
-| Workflows.GetStage → WorkflowStageView | GetWorkflowStage (HTML) | `stage` → `WorkflowStageView`; gen `get_stage` → the page | added with this file, same parser rules as Go |
+| Workflows.GetStage → WorkflowStageView | GetWorkflowStage (HTML) | `stage` → `WorkflowStageView`; gen `get_stage` → the page | added with this file, same parser rules as Go; a page without the stage is `NotFound` in Rust and a plain error in Go |
 | Workflows.Create / Update / Delete / CreateStage / UpdateStage / DeleteStage / UnstageTopic | forms | same names | |
 | Workflows.StageTopic / MoveTopic | CreateWorkflowStaging + MoveWorkflowStaging (form) | `stage_topic` / `move_topic_to_stage` | the read-back is `quiet()` in Rust; hooks hear one operation in both |
 | World.Publish / Update / Delete / ExportSubscribers / ImportSubscribers | forms, CSV, multipart | `publish` / `update_post` / `delete_post` / `export_subscribers` / `import_subscribers` | |

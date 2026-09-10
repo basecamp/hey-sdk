@@ -376,11 +376,12 @@ async fn a_page_without_the_stage_is_not_found() {
 }
 
 /// A card whose detail line starts with something other than a count is left out, as Go
-/// leaves it out; a card inside a card is that card's content, not a card of its own; and
-/// a stage page with markup around it is still the stage.
+/// leaves it out; a card inside a card is that card's content, not a card of its own; a
+/// card is found by a detail class that merely mentions `card__detail`, and at the element
+/// itself; what wraps the stage is not a card; and the count is read as Go reads it.
 #[test]
 fn the_parser_keeps_to_the_cards_go_keeps_to() {
-    let page = r#"<html><body><nav>Boards</nav>
+    let page = r#"<html><body><nav>Boards</nav><div id="topic_shell">
       <section id="container_workflow_stage_7"><h2>  In  <b>review</b> </h2>
         <div id="topic_1" data-identifier="10"><h3>One</h3><p class="card__detail">1 email</p>
           <div id="topic_2" data-identifier="20"><h3>Nested</h3></div></div>
@@ -388,7 +389,11 @@ fn the_parser_keeps_to_the_cards_go_keeps_to() {
         <div id="topic_4" data-identifier="40"><h3>Four</h3><p class="card__detail"></p></div>
         <div id="topic_0" data-identifier="50"><h3>Zero</h3></div>
         <div id="topic_5" data-identifier="0"><h3>Unstaged</h3></div>
-      </section></body></html>"#;
+        <div id="topic_6" data-identifier="60"><h3>Six</h3><p class="card__detail--compact">6 emails</p></div>
+        <h3 id="topic_7" data-identifier="70">Seven</h3>
+        <div id="topic_8" data-identifier="80"><h3>Eight</h3><p class="card__detail">-1 emails</p></div>
+        <div id="topic_9" data-identifier="90"><h3><span class="sr-only&#160;x">Hidden</span>Nine</h3><p class="card__detail">-0 emails</p></div>
+      </section></div></body></html>"#;
 
     let stage = WorkflowStageView::parse(page, 7).unwrap();
 
@@ -405,5 +410,28 @@ fn the_parser_keeps_to_the_cards_go_keeps_to() {
             )
         })
         .collect();
-    assert_eq!(topics, [(1, 10, "One", 1)]);
+    assert_eq!(
+        topics,
+        [
+            (1, 10, "One", 1),
+            (6, 60, "Six", 6),
+            (7, 70, "Seven", 0),
+            (9, 90, "Nine", 0)
+        ]
+    );
+}
+
+/// A stage element that is itself the heading names the stage, as Go's inclusive search
+/// finds it, and a page nested past any sane depth is read without recursing into it.
+#[test]
+fn the_parser_reads_the_element_itself_and_survives_deep_nesting() {
+    let page = r#"<h2 id="container_workflow_stage_3">Ready</h2>"#;
+    assert_eq!(WorkflowStageView::parse(page, 3).unwrap().name, "Ready");
+
+    let deep = format!(
+        r#"<section id="container_workflow_stage_4"><h2>{}Deep{}</h2></section>"#,
+        "<span>".repeat(200_000),
+        "</span>".repeat(200_000)
+    );
+    assert_eq!(WorkflowStageView::parse(&deep, 4).unwrap().name, "Deep");
 }
