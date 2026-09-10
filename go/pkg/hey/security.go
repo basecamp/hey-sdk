@@ -186,13 +186,15 @@ func redactTransportError(err error, apiOrigin string) error {
 
 // projectTransportError rebuilds err's tree with every *url.Error projected, reporting
 // whether anything was, so a tree with nothing to drop comes back untouched at every
-// level. Beneath a projected URL off the API origin only the failure's classification
-// survives: whatever the transport reported there is text this package did not build
-// — a custom transport's own wrapper, a message interpolating the request URL — and
-// cannot be shown free of the URL in any spelling, so it is replaced by the context
-// sentinel it wraps or a fixed transport failure carrying its net.Error flags. Above
-// a projected URL, a wrapper is dropped in favour of the projection for the same
-// reason, and a multi-error is rebuilt as errors.Join of its projected members.
+// level. A projected *url.Error off the API origin is built from fixed parts alone:
+// its Op kept only as the method token net/http writes there, its cause replaced by
+// what classifies the failure — the context sentinel it wrapped and its net.Error
+// flags — because whatever a transport put there is text this package did not build
+// (a custom transport's own wrapper, a message interpolating the request URL) and
+// cannot be shown free of the URL in any spelling. Around a projected URL the same
+// holds: a wrapper is dropped in favour of the projection, and a multi-error is
+// rebuilt as errors.Join of its projected members and their sentinel siblings, the
+// opaque siblings dropped.
 func projectTransportError(err error, apiOrigin string) (projected bool, result error) {
 	switch e := err.(type) { //nolint:errorlint // rebuilding the tree node by node is the point
 	case nil:
@@ -200,7 +202,7 @@ func projectTransportError(err error, apiOrigin string) (projected bool, result 
 	case *url.Error:
 		projectedURL := redactURL(e.URL)
 		if projectedURL != e.URL && (apiOrigin == "" || !isSameOrigin(e.URL, apiOrigin)) {
-			return true, &url.Error{Op: e.Op, URL: projectedURL, Err: classifyTransportFailure(e)}
+			return true, &url.Error{Op: transportOp(e.Op), URL: projectedURL, Err: classifyTransportFailure(e)}
 		}
 		innerProjected, inner := projectTransportError(e.Err, apiOrigin)
 		if projectedURL == e.URL && !innerProjected {
@@ -209,16 +211,20 @@ func projectTransportError(err error, apiOrigin string) (projected bool, result 
 		return true, &url.Error{Op: e.Op, URL: projectedURL, Err: inner}
 	case interface{ Unwrap() []error }:
 		members := e.Unwrap()
-		rebuilt := make([]error, 0, len(members))
+		kept := make([]error, 0, len(members))
 		for _, member := range members {
-			memberProjected, projectedMember := projectTransportError(member, apiOrigin)
-			projected = projected || memberProjected
-			rebuilt = append(rebuilt, projectedMember)
+			switch memberProjected, projectedMember := projectTransportError(member, apiOrigin); {
+			case memberProjected:
+				projected = true
+				kept = append(kept, projectedMember)
+			case contextSentinel(member) != nil:
+				kept = append(kept, contextSentinel(member))
+			}
 		}
 		if !projected {
 			return false, err
 		}
-		return true, errors.Join(rebuilt...)
+		return true, errors.Join(kept...)
 	case interface{ Unwrap() error }:
 		causeProjected, projectedCause := projectTransportError(e.Unwrap(), apiOrigin)
 		if !causeProjected {
@@ -229,18 +235,37 @@ func projectTransportError(err error, apiOrigin string) (projected bool, result 
 	return false, err
 }
 
+// transportOp is op as net/http writes it — the request method, letters alone — or
+// the fixed "Request" when a transport put anything else there.
+func transportOp(op string) string {
+	for _, r := range op {
+		if (r < 'A' || r > 'Z') && (r < 'a' || r > 'z') {
+			return "Request"
+		}
+	}
+	if op == "" {
+		return "Request"
+	}
+	return op
+}
+
 // classifyTransportFailure is what stands beneath a projected URL in place of the
-// transport's own cause: the context sentinel the failure wraps, so errors.Is still
-// sees a cancellation or a deadline, or a transportFailureError carrying the
-// net.Error flags the *url.Error delegated to that cause.
+// transport's own cause: a transportFailureError carrying the net.Error flags the
+// *url.Error delegated to that cause, unwrapping to the context sentinel the cause
+// wrapped, so errors.Is still sees a cancellation or a deadline.
 func classifyTransportFailure(e *url.Error) error {
+	return &transportFailureError{timeout: e.Timeout(), temporary: e.Temporary(), sentinel: contextSentinel(e.Err)}
+}
+
+// contextSentinel is the bare context sentinel err wraps, or nil.
+func contextSentinel(err error) error {
 	switch {
-	case errors.Is(e.Err, context.Canceled):
+	case errors.Is(err, context.Canceled):
 		return context.Canceled
-	case errors.Is(e.Err, context.DeadlineExceeded):
+	case errors.Is(err, context.DeadlineExceeded):
 		return context.DeadlineExceeded
 	}
-	return &transportFailureError{timeout: e.Timeout(), temporary: e.Temporary()}
+	return nil
 }
 
 // redactURL projects rawURL to its scheme, host and path, dropping userinfo, query
@@ -254,15 +279,23 @@ func redactURL(rawURL string) string {
 }
 
 // transportFailureError is the cause beneath a projected URL: a transport failure
-// known only by its net.Error classification.
-type transportFailureError struct{ timeout, temporary bool }
+// known only by its net.Error classification and the context sentinel it wrapped.
+type transportFailureError struct {
+	timeout, temporary bool
+	sentinel           error
+}
 
 func (e *transportFailureError) Error() string {
-	if e.timeout {
+	switch {
+	case e.sentinel != nil:
+		return e.sentinel.Error()
+	case e.timeout:
 		return "transport timeout"
 	}
 	return "transport failure"
 }
+
+func (e *transportFailureError) Unwrap() error { return e.sentinel }
 
 func (e *transportFailureError) Timeout() bool { return e.timeout }
 

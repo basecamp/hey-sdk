@@ -327,6 +327,17 @@ func retryCause(retry generated.Retry, apiOrigin string) error {
 	return cause
 }
 
+// trustedOrigin is the API origin a network error on this request may keep its cause
+// beneath, or none for a request the hooks see projected: a blob download's redirect
+// can land on a signed URL of HEY's own origin, and there nothing beneath the URL is
+// this package's text.
+func (c *Client) trustedOrigin(ctx context.Context) string {
+	if isProjectedRequest(ctx) {
+		return ""
+	}
+	return c.cfg.BaseURL
+}
+
 // withJSONExtension appends ".json" to a request path whose last segment has no
 // extension. HEY routes all take an optional format, and every generated operation
 // speaks JSON, but Smithy cannot express "{label}.json" inside one URI segment, so
@@ -700,6 +711,12 @@ func (c *Client) doRequestURLWithBudget(ctx context.Context, method, url string,
 		return nil, err
 	}
 	url = requestURL
+	// The retry hook sees the URL as the request hooks do: projected on a request the
+	// transport projects (a blob download's URL can carry a query of its own).
+	displayURL := url
+	if isProjectedRequest(ctx) {
+		displayURL = redactURL(url)
+	}
 
 	// Non-idempotent mutations: Don't retry on 429/5xx to avoid duplicating data.
 	// Only retry once after successful 401 token refresh.
@@ -710,7 +727,7 @@ func (c *Client) doRequestURLWithBudget(ctx context.Context, method, url string,
 		}
 		if apiErr, ok := err.(*Error); ok && apiErr.Retryable && apiErr.Code == CodeAuth {
 			c.logger.Debug("token refreshed, retrying mutation", "method", method)
-			info := RequestInfo{Method: method, URL: url, Attempt: 1}
+			info := RequestInfo{Method: method, URL: displayURL, Attempt: 1}
 			c.hooks.OnRetry(ctx, info, 2, err)
 			return c.singleRequest(ctx, method, url, body, 2)
 		}
@@ -759,7 +776,7 @@ func (c *Client) doRequestURLWithBudget(ctx context.Context, method, url string,
 			"errorCode", errorCodeForLog(lastErr),
 		)
 
-		info := RequestInfo{Method: method, URL: url, Attempt: attempt}
+		info := RequestInfo{Method: method, URL: displayURL, Attempt: attempt}
 		c.hooks.OnRetry(ctx, info, attempt+1, lastErr)
 
 		select {
@@ -819,7 +836,7 @@ func (c *Client) singleRequest(ctx context.Context, method, url string, body any
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		return nil, networkError(err, c.cfg.BaseURL)
+		return nil, networkError(err, c.trustedOrigin(ctx))
 	}
 	defer func() { _ = resp.Body.Close() }()
 

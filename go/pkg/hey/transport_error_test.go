@@ -11,6 +11,7 @@ import (
 	"net/url"
 	"strings"
 	"testing"
+	"time"
 )
 
 // renderings is every text a caller or a logger can get out of err: its Error, its
@@ -198,6 +199,33 @@ func TestBlobDownloadRedirectReachesHooksProjected(t *testing.T) {
 	}
 }
 
+// TestBlobDownloadRetryHookSeesProjectedURL retries a blob download whose own URL
+// carries a query and checks OnRetry sees it as the request hooks do.
+func TestBlobDownloadRetryHookSeesProjectedURL(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusServiceUnavailable)
+	}))
+	t.Cleanup(server.Close)
+	hooks := &retryRecordingHooks{}
+	client := NewClient(&Config{BaseURL: server.URL}, &StaticTokenProvider{Token: "test-token"},
+		WithMaxRetries(1), WithBaseDelay(time.Millisecond), WithMaxJitter(time.Millisecond), WithHooks(hooks))
+
+	if _, err := client.GetBlob(context.Background(), "/blob?signature=SECRETVALUE"); err == nil {
+		t.Fatal("expected the 503 to surface")
+	}
+	if len(hooks.retries) != 1 {
+		t.Fatalf("expected one retry, got %+v", hooks.retries)
+	}
+	if got := hooks.retries[0].info.URL; got != server.URL+"/blob" {
+		t.Errorf("retry hook saw %q, want the projected URL", got)
+	}
+	for _, start := range hooks.starts {
+		if strings.Contains(start.URL, "SECRETVALUE") {
+			t.Errorf("the signed query leaked into a request hook argument: %q", start.URL)
+		}
+	}
+}
+
 func TestRedactTransportError(t *testing.T) {
 	signed := &url.Error{Op: "Get", URL: "https://user:pw@storage.example.com/blob/1?sig=SECRETVALUE#frag", Err: context.Canceled}
 
@@ -290,6 +318,32 @@ func TestRedactTransportError(t *testing.T) {
 		}
 	})
 
+	t.Run("builds a projected transport error from fixed parts alone", func(t *testing.T) {
+		const signedURL = "https://storage.example.com/blob/1?sig=SECRETVALUE"
+		cancelledTimeout := &url.Error{Op: "fetch " + signedURL, URL: signedURL, Err: cancelledTimeoutError{}}
+		got := redactTransportError(cancelledTimeout, "")
+		if want := `Request "https://storage.example.com/blob/1": context canceled`; got.Error() != want {
+			t.Errorf("got %q, want %q", got.Error(), want)
+		}
+		for _, text := range renderings(got) {
+			if strings.Contains(text, "SECRETVALUE") {
+				t.Errorf("the signed query leaked into %q", text)
+			}
+		}
+		var netErr net.Error
+		if !errors.Is(got, context.Canceled) || !errors.As(got, &netErr) || !netErr.Timeout() {
+			t.Errorf("the cancellation and the timeout classification should both survive, got %v", got)
+		}
+
+		joined := redactTransportError(errors.Join(signed, fmt.Errorf("request %s failed", signedURL), context.DeadlineExceeded), "")
+		if want := "Get \"https://storage.example.com/blob/1\": context canceled\ncontext deadline exceeded"; joined.Error() != want {
+			t.Errorf("got %q, want %q", joined.Error(), want)
+		}
+		if !errors.Is(joined, context.Canceled) || !errors.Is(joined, context.DeadlineExceeded) {
+			t.Error("the sentinel siblings should still be reachable through the chain")
+		}
+	})
+
 	t.Run("keeps the cause beneath a URL on the API origin", func(t *testing.T) {
 		api := &url.Error{Op: "Get", URL: "https://api.example.com/boxes?page=2", Err: errors.New("connection refused")}
 		got := redactTransportError(api, "https://api.example.com")
@@ -349,6 +403,15 @@ func (timeoutError) Error() string {
 }
 func (timeoutError) Timeout() bool   { return true }
 func (timeoutError) Temporary() bool { return true }
+
+// cancelledTimeoutError is a custom transport's failure that wraps a cancellation and
+// classifies as a timeout at once.
+type cancelledTimeoutError struct{}
+
+func (cancelledTimeoutError) Error() string   { return "cancelled: " + context.Canceled.Error() }
+func (cancelledTimeoutError) Unwrap() error   { return context.Canceled }
+func (cancelledTimeoutError) Timeout() bool   { return true }
+func (cancelledTimeoutError) Temporary() bool { return false }
 
 // opaqueWrapperError wraps an error without rendering it.
 type opaqueWrapperError struct{ cause error }
