@@ -119,6 +119,7 @@ jobs:
           RUSTUP_TOOLCHAIN: ${{ steps.msrv.outputs.version }}
         with:
           workspaces: rust
+          save-if: ${{ github.ref == 'refs/heads/main' }}
 
       # RUSTUP_TOOLCHAIN outranks rust-toolchain.toml, which would otherwise pick the
       # pinned stable back up.
@@ -152,6 +153,7 @@ jobs:
           RUSTUP_TOOLCHAIN: nightly
         with:
           workspaces: rust
+          save-if: ${{ github.ref == 'refs/heads/main' }}
 
       # What docs.rs will do with the crate: nightly rustdoc with `--cfg docsrs`, so a
       # feature-gated item's badge renders and a nightly-only doc lint is heard here rather
@@ -248,6 +250,7 @@ jobs:
           workspaces: |
             rust
             conformance/runner/rust
+          save-if: ${{ github.ref == 'refs/heads/main' }}
 
       - name: Run conformance tests
         run: make conformance-rs
