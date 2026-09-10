@@ -49,7 +49,7 @@ mod transport {
     /// nothing else: no redirects, which the SDK follows for itself, the body handed over
     /// as it arrives, and a deadline of its own, since the trait leaves timeouts to the
     /// transport and a stalled mock would otherwise hang the test.
-    pub struct DevTransport {
+    pub(crate) struct DevTransport {
         http: reqwest::Client,
     }
 
