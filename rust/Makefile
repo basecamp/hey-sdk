@@ -64,9 +64,15 @@ deny:
 # tarball, check the metadata, so a missing file, a path dependency or a metadata slip
 # surfaces on the pull request rather than on the tag. --allow-dirty so it runs before a
 # commit as well as after; CI's checkout is clean anyway.
+# The dry run unpacks the crate under target/package to build it once more from the
+# tarball. That copy carries the crate's tests/ directory, and rust-cache's cleanup probes
+# every tests/ it finds in target/ for the nested target dirs that trybuild and macrotest
+# make, reporting each miss as an error annotation on the job. The tarball is what matters;
+# the unpacked copy goes as soon as it has been built.
 .PHONY: publish-check
 publish-check:
 	$(CARGO) publish -p hey-sdk --dry-run --locked --allow-dirty
+	rm -rf target/package/hey-sdk-*/
 
 # Run all checks: the same steps as CI's test-rust job, in the same order
 .PHONY: check

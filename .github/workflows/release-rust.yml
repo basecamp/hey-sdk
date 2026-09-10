@@ -120,6 +120,9 @@ jobs:
           VERSION: ${{ steps.version.outputs.version }}
         run: |
           cargo package -p "$CRATE" --locked
+          # The unpacked copy it built from carries tests/, which rust-cache's cleanup
+          # probes for nested target dirs and reports as errors when they are not there.
+          rm -rf "target/package/$CRATE-$VERSION"
           crate="target/package/$CRATE-$VERSION.crate"
           stamp=$(tar xzOf "$crate" "$CRATE-$VERSION/.cargo_vcs_info.json")
           echo "$stamp"
