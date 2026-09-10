@@ -33,17 +33,23 @@ impl Hooks for Log {
     }
 
     fn on_request_end(&self, info: &RequestInfo, result: &RequestResult<'_>) {
-        // `info.url` and anything else the hooks see is already redacted.
+        // The path, not the whole URL: a search's query string carries what was searched
+        // for, and a log is the wrong place for it.
         eprintln!(
             "   {} {} attempt {} -> {:?} in {:?}",
-            info.method, info.url, info.attempt, result.status, result.duration
+            info.method,
+            info.url.path(),
+            info.attempt,
+            result.status,
+            result.duration
         );
     }
 
     fn on_retry(&self, info: &RequestInfo, next_attempt: u32, cause: &Error) {
         eprintln!(
             "   resending {} {} as attempt {next_attempt}: {cause}",
-            info.method, info.url
+            info.method,
+            info.url.path()
         );
     }
 }
