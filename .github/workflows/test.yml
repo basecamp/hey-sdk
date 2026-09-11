@@ -56,11 +56,6 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-    env:
-      # mbx's store sweep is sized to 5% of the runner's disk, below the bundle the action
-      # imports, so on the job's first cargo command it evicted half of what was just
-      # restored. Nothing else writes to this store during the job.
-      MBX_GC_AUTO: "0"
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -72,21 +67,26 @@ jobs:
         run: rustup toolchain install && rustup show
 
       # The action installs the release named here, checking the archive against the digest
-      # GitHub reports for the immutable release. 1.10.1 is the first release with the export
-      # fix (jdx/mr-boxington#424) that main had been building from upstream to get.
+      # GitHub reports for the immutable release. 1.11.0 collapses equivalent C include roots
+      # (jdx/mr-boxington#429), so aws-lc's amalgamated bcm.c fits the manifest budget and
+      # caches, and prints an mbx[progress] line every 15 s on long builds in this log.
       # mbx keys each compilation on the content it reads, with checkout paths mapped to
       # placeholders, so the workspace crate restores on a pull request that leaves rust/
       # untouched; a warm target tree cannot do that on a fresh checkout's mtimes. `objects`
       # transports that content-addressed closure rather than the target tree. Entries are
       # saved on pushes to main only; pull requests, forks included, restore. The generation
-      # is the mbx commit main's bundle was written under: 1.10.1 stores the same objects
-      # under the same keys (only the cc adapter's predictions moved to a new namespace, and
-      # those are relearned on the first run), so the entry carries over. Bump it when a
-      # release changes what the store holds.
+      # is the mbx commit main's bundle was written under: 1.10.1 and 1.11.0 store the same
+      # objects under the same keys (the store crate is unchanged between them; 1.10.1 moved
+      # the cc adapter's predictions to a new namespace and 1.11.0 re-keys the C objects
+      # whose include roots it collapses, both relearned on the first run), so the entry
+      # carries over. Bump it when a release changes what the store holds. mbx's store
+      # sweep is sized to 5% of the runner's disk, below the bundle the action imports;
+      # since 1.3.1 the action exports MBX_GC_AUTO=0 for object-mode jobs on GitHub-hosted
+      # runners, so the restored objects outlive the job's first cargo command.
       - name: Cache cargo
-        uses: jdx/mr-boxington-action@7234d3dd1a6ca8f6c381eea8e4dfb03f18fcf777 # v1.3.0
+        uses: jdx/mr-boxington-action@a20e1ffcd962370fb2b6045c13b7b349f7b03386 # v1.3.1
         with:
-          version: 1.10.1
+          version: 1.11.0
           github-cache-mode: objects
           cache-generation: 68e48f140664c04682a7b33a1c7782b86484d21a
 
