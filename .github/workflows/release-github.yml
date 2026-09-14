@@ -18,11 +18,31 @@ jobs:
       actions: read
       contents: write
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Check out release target
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.tag || github.sha }}
+      - name: Check out current release controls
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          ref: ${{ github.workflow_sha }}
+          path: .release-control
+          sparse-checkout: scripts/release-languages.sh
+      - name: Select versioned release languages
+        id: activation
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          trap 'rm -rf .release-control' EXIT
+          languages=$(.release-control/scripts/release-languages.sh "$GITHUB_WORKSPACE" "$EVENT_NAME")
+          echo "languages=$languages" >> "$GITHUB_OUTPUT"
       - uses: basecamp/sdk/actions/release-orchestrate@main # zizmor: ignore[unpinned-uses] -- internal action tracking main by design (basecamp/sdk AGENTS.md); basecamp/sdk has no tags for Dependabot to advance a pin
         with:
           version: ${{ github.event.inputs.tag || github.ref_name }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          languages: go,rust
+          # The tagged commit provides the same immutable activation decision to
+          # release-typescript.yml and this orchestrator. Historical manual targets
+          # select the release workflows that existed in that target.
+          languages: ${{ steps.activation.outputs.languages }}
