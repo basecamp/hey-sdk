@@ -28,14 +28,17 @@ class Operation internal constructor(
     internal val id: String,
     /** What the call means, as the hooks hear it. */
     var info: OperationInfo,
-    /** The modelled route this sends, whose retry policy the client honours. A path the caller wrote has none. */
-    val route: Route?,
+    route: Route?,
     /** The HTTP method the operation is sent with. */
     val method: Method,
     /** The path the operation is sent to, parameters already filled in. */
     val path: String,
     internal var url: Url?,
 ) {
+    /** The modelled route this sends, whose retry policy the client honours. A path the caller wrote has none; a page after the first carries the first's. */
+    var route: Route? = route
+        internal set
+
     internal val query: MutableList<Pair<String, String>> = mutableListOf()
     internal var body: Body? = null
     internal var idempotent: Boolean = route?.idempotent ?: (method == Method.GET || method == Method.PUT || method == Method.DELETE)
@@ -173,9 +176,11 @@ class Operation internal constructor(
             )
         }
 
-        fun at(method: Method, url: Url): Operation {
+        /** A read of a URL HEY handed out, sent under [route]'s policy when the read that got it had one. */
+        fun at(method: Method, url: Url, route: Route? = null): Operation {
             val operation = raw(method, url.encodedPath)
             operation.url = url
+            operation.route = route
             return operation
         }
     }

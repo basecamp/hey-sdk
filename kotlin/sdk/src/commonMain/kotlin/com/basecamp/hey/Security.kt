@@ -35,7 +35,7 @@ internal fun requireSecureEndpoint(url: Url) {
     throw HeyException.Usage("$url must use HTTPS")
 }
 
-private val SENSITIVE_HEADERS = setOf("authorization", "cookie", "set-cookie", "x-csrf-token")
+private val SENSITIVE_HEADERS = setOf("authorization", "proxy-authorization", "cookie", "set-cookie", "x-csrf-token")
 
 /** Whether a header carries credentials and must be neither logged nor sent to another origin. */
 internal fun isSensitiveHeader(name: String): Boolean = name.lowercase() in SENSITIVE_HEADERS

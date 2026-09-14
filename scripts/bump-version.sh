@@ -30,7 +30,7 @@ if ! command -v cargo >/dev/null 2>&1; then
   exit 1
 fi
 
-# The synchronizer validates and stages every Go/TypeScript replacement before
+# The synchronizer validates and stages every Go, TypeScript and Kotlin replacement before
 # atomically installing any of them, so a late malformed target leaves no drift.
 node "$REPO_ROOT/scripts/sync-typescript-versions.mjs" --sdk-version "$VERSION"
 
@@ -40,34 +40,23 @@ if ! grep -Fq "const Version = \"$VERSION\"" "$VERSION_FILE"; then
   exit 1
 fi
 
+GRADLE_FILE="$REPO_ROOT/kotlin/sdk/build.gradle.kts"
+if ! grep -Fxq "version = \"$VERSION\"" "$GRADLE_FILE"; then
+  echo "ERROR: Version synchronization did not update $GRADLE_FILE" >&2
+  exit 1
+fi
+
+KOTLIN_VERSION_FILE="$REPO_ROOT/kotlin/sdk/src/commonMain/kotlin/com/basecamp/hey/HeyConfig.kt"
+if ! grep -Fq "const val VERSION = \"$VERSION\"" "$KOTLIN_VERSION_FILE"; then
+  echo "ERROR: Version synchronization did not update $KOTLIN_VERSION_FILE" >&2
+  exit 1
+fi
+
 sedi "s/^version = \".*\"/version = \"$VERSION\"/" "$CARGO_FILE"
 if ! grep -Fxq "version = \"$VERSION\"" "$CARGO_FILE"; then
   echo "ERROR: Version substitution did not match in $CARGO_FILE" >&2
   exit 1
 fi
-
-GRADLE_FILE="$REPO_ROOT/kotlin/sdk/build.gradle.kts"
-sedi "s/^version = \".*\"/version = \"$VERSION\"/" "$GRADLE_FILE"
-if ! grep -Fxq "version = \"$VERSION\"" "$GRADLE_FILE"; then
-  echo "ERROR: Version substitution did not match in $GRADLE_FILE" >&2
-  exit 1
-fi
-
-KOTLIN_VERSION_FILE="$REPO_ROOT/kotlin/sdk/src/commonMain/kotlin/com/basecamp/hey/HeyConfig.kt"
-sedi "s/^        const val VERSION = \".*\"/        const val VERSION = \"$VERSION\"/" "$KOTLIN_VERSION_FILE"
-if ! grep -Fq "const val VERSION = \"$VERSION\"" "$KOTLIN_VERSION_FILE"; then
-  echo "ERROR: Version substitution did not match in $KOTLIN_VERSION_FILE" >&2
-  exit 1
-fi
-
-# The Kotlin READMEs name the whole version in the dependency line.
-for README in "$REPO_ROOT/README.md" "$REPO_ROOT/kotlin/README.md"; do
-  sedi "s|implementation(\"com.basecamp:hey-sdk:[0-9.]*\")|implementation(\"com.basecamp:hey-sdk:$VERSION\")|" "$README"
-  if ! grep -Fq "implementation(\"com.basecamp:hey-sdk:$VERSION\")" "$README"; then
-    echo "ERROR: Kotlin dependency substitution did not match in $README" >&2
-    exit 1
-  fi
-done
 
 # The READMEs show a consumer two ways in: the crates.io requirement, which names the minor
 # (Cargo reads "0.31" as ">=0.31.0, <0.32.0"), and the git dependency pinned to the release

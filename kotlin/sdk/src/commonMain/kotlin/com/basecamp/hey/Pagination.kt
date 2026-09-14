@@ -89,9 +89,9 @@ suspend fun <T> HeyClient.nextPage(page: Page<T>): Page<T>? {
     if (!isSameOrigin(next, baseUrl)) {
         throw HeyException.Usage("pagination Link header points to a different origin: $next")
     }
-    val operation = Operation.at(Method.GET, next)
+    val operation = Operation.at(Method.GET, next, page.route)
     operation.info(page.info)
-    return sendPage(operation, page.deserializer, page.route)
+    return sendPage(operation, page.deserializer)
 }
 
 /**

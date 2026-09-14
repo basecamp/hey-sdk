@@ -321,19 +321,17 @@ class HeyClient internal constructor(
     /** Sends an operation that answers a status meaning "nothing there" with null. */
     suspend inline fun <reified T> sendOptional(operation: Operation): T? = sendOptional(operation, serializer<T>())
 
-    /** Sends a paginated read and keeps the cursor HEY answered with. */
-    suspend fun <T> sendPage(operation: Operation, deserializer: DeserializationStrategy<T>): Page<T> =
-        sendPage(operation, deserializer, operation.route)
-
-    /** Sends a paginated read and keeps the cursor HEY answered with. */
-    suspend inline fun <reified T> sendPage(operation: Operation): Page<T> = sendPage(operation, serializer<T>())
-
-    internal suspend fun <T> sendPage(operation: Operation, deserializer: DeserializationStrategy<T>, route: Route?): Page<T> {
+    /** Sends a paginated read and keeps the cursor HEY answered with, and the route, so the next page is read under the same policy. */
+    suspend fun <T> sendPage(operation: Operation, deserializer: DeserializationStrategy<T>): Page<T> {
         val label = operation.label()
         val info = operation.info
+        val route = operation.route
         val response = execute(operation)
         return Page.of(decode(response, deserializer, label), response, info, route, deserializer)
     }
+
+    /** Sends a paginated read and keeps the cursor HEY answered with. */
+    suspend inline fun <reified T> sendPage(operation: Operation): Page<T> = sendPage(operation, serializer<T>())
 
     /** Sends a form request and reads the redirect it answered with. */
     suspend fun sendForm(operation: Operation): FormResponse = FormResponse.of(execute(operation))
@@ -368,14 +366,17 @@ class HeyClient internal constructor(
             val response = dispatch(operation)
             hooks.safeOperationEnd(info, OperationResult(elapsedSince(started)))
             return response
-        } catch (error: HeyException) {
-            hooks.safeOperationEnd(info, OperationResult(elapsedSince(started), error))
-            throw error
-        } catch (error: CancellationException) {
-            hooks.safeOperationEnd(info, OperationResult(elapsedSince(started), HeyException.Network("operation cancelled", retryable = false)))
+        } catch (error: Throwable) {
+            // Whatever ended the operation — an error from HEY, a cancellation, a token
+            // provider that threw — the hooks hear the end of what they heard the start of.
+            hooks.safeOperationEnd(info, OperationResult(elapsedSince(started), reported(error, "operation cancelled")))
             throw error
         }
     }
+
+    /** What the hooks are told an operation or request failed with: a cancellation is named as one. */
+    private fun reported(error: Throwable, cancelled: String): Throwable =
+        if (error is CancellationException) HeyException.Network(cancelled, retryable = false) else error
 
     private fun elapsedSince(started: Long): Duration = (currentTimeMillis() - started).milliseconds
 
@@ -450,8 +451,9 @@ class HeyClient internal constructor(
             hooks.safeRequestStart(info)
             val started = currentTimeMillis()
             val sent = try {
-                Result.success(transmit(operation, url, prepared.request))
+                Result.success(transmit(operation, url, prepared))
             } catch (error: CancellationException) {
+                hooks.safeRequestEnd(info, RequestResult(0, elapsedSince(started), error = reported(error, "request cancelled")))
                 throw error
             } catch (error: HeyException) {
                 Result.failure(error)
@@ -478,7 +480,13 @@ class HeyClient internal constructor(
             val (finalUrl, response) = sent.getOrThrow()
             val status = response.status.value
             val retryable = status in budget.retryOn
-            if (status == 401 && !refreshed && refreshCredentials(signedUnder)) {
+            val renewed = status == 401 && !refreshed && try {
+                refreshCredentials(signedUnder)
+            } catch (error: Throwable) {
+                hooks.safeRequestEnd(info, RequestResult(status, duration, error = reported(error, "request cancelled")))
+                throw error
+            }
+            if (renewed) {
                 val cause = HeyException.Auth("Token refreshed")
                 hooks.safeRequestEnd(info, RequestResult(status, duration, error = cause))
                 hooks.safeRetry(info, attempt + 1, cause, 0)
@@ -545,7 +553,12 @@ class HeyClient internal constructor(
         return builder.build()
     }
 
-    private class Prepared(val request: HttpRequestBuilder, val cached: Pair<String, CachedResponse>?)
+    private class Prepared(
+        val request: HttpRequestBuilder,
+        val cached: Pair<String, CachedResponse>?,
+        /** The headers the auth strategy put on the request, lowercased: what a hop to another origin must not carry. */
+        val credentialHeaders: Set<String>,
+    )
 
     /** Builds the request for one attempt, and looks the response cache up the first time it is asked for a key. */
     private suspend fun prepare(operation: Operation, url: Url, previous: Pair<String, CachedResponse>?): Prepared {
@@ -558,7 +571,12 @@ class HeyClient internal constructor(
             request.header(HttpHeaders.ContentType, body.contentType)
             request.setBody(body.bytes)
         }
+        val beforeAuth = request.headers.build()
         shared.auth.authenticate(request)
+        val credentialHeaders = request.headers.names()
+            .filter { name -> request.headers.getAll(name) != beforeAuth.getAll(name) }
+            .map { it.lowercase() }
+            .toSet()
 
         val cache = cacheFor(operation)
         val credential = request.headers[HttpHeaders.Authorization]
@@ -570,7 +588,7 @@ class HeyClient internal constructor(
             cached = null
         }
         cached?.second?.etag?.takeIf { it.isNotEmpty() }?.let { request.header(HttpHeaders.IfNoneMatch, it) }
-        return Prepared(request, cached)
+        return Prepared(request, cached, credentialHeaders)
     }
 
     private fun lookUp(cache: ResponseCache, key: String): Pair<String, CachedResponse> {
@@ -592,11 +610,12 @@ class HeyClient internal constructor(
     /**
      * Sends one request and follows the redirects it is answered with, up to [MAX_REDIRECTS]
      * hops, unless the operation is one that takes the redirect for its answer. Credentials
-     * stay on the origin they were meant for: a hop to another origin goes out without them.
+     * stay on the origin they were meant for: a hop to another origin goes out without the
+     * headers the auth strategy set, whatever it called them, and without the usual suspects.
      */
-    private suspend fun transmit(operation: Operation, start: Url, first: HttpRequestBuilder): Pair<Url, HttpResponse> {
+    private suspend fun transmit(operation: Operation, start: Url, prepared: Prepared): Pair<Url, HttpResponse> {
         var url = start
-        var request = first
+        var request = prepared.request
         var hops = 0
         while (true) {
             val response = shared.http.request(request)
@@ -606,7 +625,7 @@ class HeyClient internal constructor(
                 throw HeyException.Network("${operation.label()} redirected more than $MAX_REDIRECTS times", retryable = false)
             }
             requireSecureEndpoint(next)
-            request = redirected(request, response.status.value, url, next)
+            request = redirected(request, response.status.value, url, next, prepared.credentialHeaders)
             url = next
             hops += 1
         }
@@ -618,14 +637,14 @@ class HeyClient internal constructor(
         return runCatching { URLBuilder(url).takeFrom(location).build() }.getOrNull()
     }
 
-    private fun redirected(outgoing: HttpRequestBuilder, status: Int, from: Url, to: Url): HttpRequestBuilder {
+    private fun redirected(outgoing: HttpRequestBuilder, status: Int, from: Url, to: Url, credentialHeaders: Set<String>): HttpRequestBuilder {
         val request = HttpRequestBuilder()
         val keepBody = status == 307 || status == 308 || outgoing.method == HttpMethod.Get || outgoing.method == HttpMethod.Head
         request.method = if (keepBody) outgoing.method else HttpMethod.Get
         request.url(to)
         val sameOrigin = isSameOrigin(from, to)
         outgoing.headers.entries().forEach { (name, values) ->
-            if (!sameOrigin && isSensitiveHeader(name)) return@forEach
+            if (!sameOrigin && (isSensitiveHeader(name) || name.lowercase() in credentialHeaders)) return@forEach
             if (!keepBody && (name.equals(HttpHeaders.ContentType, true) || name.equals(HttpHeaders.ContentLength, true))) return@forEach
             values.forEach { request.headers.append(name, it) }
         }
@@ -640,7 +659,7 @@ class HeyClient internal constructor(
         if (status == 304) {
             val entry = answered.cached?.second
             return if (entry != null && entry.etag.isNotEmpty()) {
-                Response(200, headers, entry.body, answered.url, fromCache = true, empty = false)
+                Response(200, entry.headersUpdatedBy(headers), entry.body, answered.url, fromCache = true, empty = false)
             } else {
                 throw HeyException.Api("304 received but no cached response available", httpStatus = 304, retryable = false)
             }
@@ -664,8 +683,15 @@ class HeyClient internal constructor(
         }
         if (status in 200..299) {
             val key = answered.cached?.first
-            val etag = headers[HttpHeaders.ETag]
-            if (key != null && etag != null && body.isNotEmpty()) shared.cache?.set(key, CachedResponse(etag, body))
+            val cache = shared.cache
+            if (key != null && cache != null) {
+                val etag = headers[HttpHeaders.ETag]
+                when {
+                    // An answer HEY says not to keep is not kept, and neither is what it replaced.
+                    forbidsStoring(headers) -> cache.invalidate(key)
+                    etag != null && body.isNotEmpty() -> cache.set(key, CachedResponse(etag, body, storableHeaders(headers)))
+                }
+            }
             return Response(status, headers, body, answered.url, fromCache = false, empty = false)
         }
         if (status in operation.emptyOn || (operation.captureRedirects && status in REDIRECT_STATUSES)) {
@@ -780,3 +806,13 @@ internal fun Method.ktor(): HttpMethod = when (this) {
     Method.PATCH -> HttpMethod.Patch
     Method.DELETE -> HttpMethod.Delete
 }
+
+/** Whether the answer carries `Cache-Control: no-store`, which forbids holding any part of it. */
+private fun forbidsStoring(headers: Headers): Boolean =
+    headers.getAll(HttpHeaders.CacheControl).orEmpty().any { value ->
+        value.split(',').any { directive -> directive.substringBefore('=').trim().equals("no-store", ignoreCase = true) }
+    }
+
+/** The headers a cache entry keeps beside the body: everything HEY sent that is not a credential. */
+private fun storableHeaders(headers: Headers): Map<String, List<String>> =
+    headers.entries().filter { (name, _) -> !isSensitiveHeader(name) }.associate { (name, values) -> name to values.toList() }

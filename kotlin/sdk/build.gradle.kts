@@ -45,6 +45,14 @@ tasks.withType<Test> {
     useJUnitPlatform()
 }
 
+// The same commit and toolchain build the same bytes, so the release workflow can tell a
+// re-run that finds the version already on GitHub Packages from one that finds something
+// else there: zip entry timestamps and directory order are the only things that would differ.
+tasks.withType<AbstractArchiveTask>().configureEach {
+    isPreserveFileTimestamps = false
+    isReproducibleFileOrder = true
+}
+
 publishing {
     repositories {
         maven {
@@ -54,6 +62,14 @@ publishing {
                 username = System.getenv("GITHUB_USER") ?: "x-access-token"
                 password = System.getenv("GITHUB_ACCESS_TOKEN") ?: ""
             }
+        }
+        // Every file the publication is made of, laid out as GitHub Packages will hold it. The
+        // release workflow publishes here first and checks each one against the remote before
+        // and after publishing, since a Maven version there is several files and a partial
+        // upload is one it can neither finish nor overwrite.
+        maven {
+            name = "staging"
+            url = uri(layout.buildDirectory.dir("staging-repo"))
         }
     }
 }

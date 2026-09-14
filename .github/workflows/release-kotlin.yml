@@ -94,11 +94,16 @@ jobs:
         with:
           cache-provider: basic
 
+      # The publication laid out as GitHub Packages would hold it, so the rehearsal shows
+      # every file a release would upload.
       - name: Build what would be published
         working-directory: kotlin
         run: |
-          ./gradlew --quiet :hey-sdk:publishToMavenLocal
+          rm -rf sdk/build/staging-repo
+          ./gradlew --quiet :hey-sdk:publishAllPublicationsToStagingRepository
           VERSION=$(sed -n 's/^version = "\(.*\)"$/\1/p' sdk/build.gradle.kts)
+          echo "Would publish com.basecamp:hey-sdk:${VERSION} to GitHub Packages as:"
+          (cd sdk/build/staging-repo && find . -type f ! -name '*.md5' ! -name '*.sha1' ! -name '*.sha256' ! -name '*.sha512' ! -name 'maven-metadata.xml' | sed 's|^\./|  |' | sort)
           echo "::notice::Dry run - would publish com.basecamp:hey-sdk:${VERSION} to GitHub Packages"
 
   publish:
@@ -109,6 +114,8 @@ jobs:
     permissions:
       contents: read
       packages: write
+    env:
+      REPOSITORY: https://maven.pkg.github.com/basecamp/hey-sdk
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -126,24 +133,50 @@ jobs:
         with:
           cache-provider: basic
 
-      # A version already there answers 409, which is the earlier run that failed after the
-      # upload; the job succeeds without publishing again, so a re-run is safe.
-      - name: Publish to GitHub Packages
+      # GitHub Packages holds a Maven version as several files and refuses to overwrite any
+      # of them, so a run that failed after some were uploaded leaves a version that cannot
+      # be finished. The publication is laid out locally first, then every file is checked
+      # against the remote: none there and the job publishes; all there byte for byte — a
+      # re-run of a finished release — and it has nothing to do; anything else and it fails
+      # naming the files, since the version has to be deleted before it can be published
+      # again. The same commit and toolchain build the same bytes (the archives are
+      # reproducible), which is what lets the check compare rather than guess.
+      - name: Check GitHub Packages for this version
+        id: check
         working-directory: kotlin
-        shell: bash
         env:
           GITHUB_USER: x-access-token
           GITHUB_ACCESS_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          set +e
-          output=$(./gradlew --quiet :hey-sdk:publish 2>&1)
-          status=$?
-          set -e
-          echo "$output"
-          if [ "$status" -eq 0 ]; then
-            echo "Published."
-          elif echo "$output" | grep -q "status code 409"; then
-            echo "Version already published; treating as success."
-          else
-            exit "$status"
+          rm -rf sdk/build/staging-repo
+          ./gradlew --quiet :hey-sdk:publishAllPublicationsToStagingRepository
+          state=$(bash ../scripts/kotlin-publish-state.sh sdk/build/staging-repo "$REPOSITORY")
+          echo "state=$state" >> "$GITHUB_OUTPUT"
+          echo "GitHub Packages: $state"
+
+      - name: Publish to GitHub Packages
+        if: steps.check.outputs.state == 'absent'
+        working-directory: kotlin
+        env:
+          GITHUB_USER: x-access-token
+          GITHUB_ACCESS_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: ./gradlew --quiet :hey-sdk:publish
+
+      # The upload is only a release once every file of it is there as built.
+      - name: Verify the publication
+        if: steps.check.outputs.state == 'absent'
+        working-directory: kotlin
+        env:
+          GITHUB_USER: x-access-token
+          GITHUB_ACCESS_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          state=$(bash ../scripts/kotlin-publish-state.sh sdk/build/staging-repo "$REPOSITORY")
+          if [ "$state" != "published" ]; then
+            echo "::error::GitHub Packages does not hold the whole publication after publishing (state: $state)"
+            exit 1
           fi
+          echo "Published."
+
+      - name: Already published
+        if: steps.check.outputs.state == 'published'
+        run: echo "Every file of this version is already on GitHub Packages, byte for byte; nothing to do."

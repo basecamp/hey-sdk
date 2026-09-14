@@ -1,12 +1,19 @@
 package com.basecamp.hey
 
 import com.basecamp.hey.generated.*
+import io.ktor.client.engine.HttpClientEngine
+import io.ktor.client.engine.mock.MockEngine
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
+import kotlin.time.Duration
 
 class HooksTest {
     private class Recording(val log: MutableList<String>, val name: String) : HeyHooks {
@@ -15,7 +22,7 @@ class HooksTest {
         }
 
         override fun onOperationEnd(info: OperationInfo, result: OperationResult) {
-            log += "$name:end:${info.operation}:${(result.error as? HeyException)?.code}"
+            log += "$name:end:${info.operation}:${describe(result.error)}"
         }
 
         override fun onRequestStart(info: RequestInfo) {
@@ -23,8 +30,22 @@ class HooksTest {
         }
 
         override fun onRequestEnd(info: RequestInfo, result: RequestResult) {
-            log += "$name:response:${result.statusCode}:${(result.error as? HeyException)?.code}"
+            log += "$name:response:${result.statusCode}:${describe(result.error)}"
         }
+
+        /** An SDK error by its code, anything else by its message. */
+        private fun describe(error: Throwable?): String? = when (error) {
+            null -> null
+            is HeyException -> error.code
+            else -> error.message
+        }
+    }
+
+    private fun HeyClientBuilder.record(log: MutableList<String>, engine: HttpClientEngine) {
+        this.engine = engine
+        hooks = Recording(log, "a")
+        timeout = Duration.INFINITE
+        maxRetryJitter = Duration.ZERO
     }
 
     @Test
@@ -61,5 +82,69 @@ class HooksTest {
         assertEquals(listOf("a:start", "b:start", "a:request", "b:request", "b:response", "a:response", "b:end", "a:end"), log.map { it.split(':').take(2).joinToString(":") })
         assertNotNull(chainHooks(NoopHooks) as? NoopHooks)
         assertNull((chainHooks(Recording(log, "x")) as? ChainHooks))
+    }
+
+    @Test
+    fun aTokenProviderThatThrowsStillEndsTheOperation() = runTest {
+        val hey = mockHey(ok("[]"))
+        val log = mutableListOf<String>()
+        val client = HeyClient {
+            accessToken(object : TokenProvider {
+                override suspend fun accessToken(): String = throw IllegalStateException("vault sealed")
+            })
+            record(log, hey.engine)
+        }
+        assertFailsWith<IllegalStateException> { client.boxes.list() }
+        assertEquals(listOf("a:start:Boxes.ListBoxes:box:false:null", "a:end:ListBoxes:vault sealed"), log)
+        assertEquals(0, hey.requests.size)
+    }
+
+    @Test
+    fun aRefreshThatThrowsStillEndsTheRequest() = runTest {
+        val hey = mockHey(status(401))
+        val log = mutableListOf<String>()
+        val client = HeyClient {
+            accessToken(object : TokenProvider {
+                override suspend fun accessToken(): String = "stale"
+                override suspend fun refresh(): Boolean = throw IllegalStateException("refresh exploded")
+            })
+            record(log, hey.engine)
+        }
+        assertFailsWith<IllegalStateException> { client.boxes.list() }
+        assertEquals(
+            listOf(
+                "a:start:Boxes.ListBoxes:box:false:null",
+                "a:request:GET:1",
+                "a:response:401:refresh exploded",
+                "a:end:ListBoxes:refresh exploded",
+            ),
+            log,
+        )
+    }
+
+    @Test
+    fun aCancelledRequestEndsWhatItStarted() = runTest {
+        val started = CompletableDeferred<Unit>()
+        val stalled = MockEngine {
+            started.complete(Unit)
+            awaitCancellation()
+        }
+        val log = mutableListOf<String>()
+        val client = HeyClient {
+            accessToken("test-token")
+            record(log, stalled)
+        }
+        val job = launch { client.boxes.list() }
+        started.await()
+        job.cancelAndJoin()
+        assertEquals(
+            listOf(
+                "a:start:Boxes.ListBoxes:box:false:null",
+                "a:request:GET:1",
+                "a:response:0:network",
+                "a:end:ListBoxes:network",
+            ),
+            log,
+        )
     }
 }

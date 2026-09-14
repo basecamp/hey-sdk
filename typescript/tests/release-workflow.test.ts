@@ -9,8 +9,11 @@ import {
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
-import { delimiter, join } from "node:path";
-import { execFileSync } from "node:child_process";
+import { delimiter, dirname, join } from "node:path";
+import { execFile, execFileSync } from "node:child_process";
+import { createServer } from "node:http";
+import type { AddressInfo } from "node:net";
+import { promisify } from "node:util";
 import { it, expect } from "vitest";
 
 it("uses one versioned publication decision for publishing and orchestration", () => {
@@ -221,6 +224,99 @@ exit 0
     expect(readFileSync(calls, "utf8")).toContain("publish ");
     expect(readFileSync(calls, "utf8")).not.toContain("--dry-run");
   } finally {
+    rmSync(temp, { recursive: true, force: true });
+  }
+});
+
+it("publishes the Kotlin library only to an empty version and skips only an identical one", async () => {
+  const workflow = readFileSync(
+    new URL("../../.github/workflows/release-kotlin.yml", import.meta.url),
+    "utf8",
+  );
+  expect(workflow).toContain("scripts/kotlin-publish-state.sh sdk/build/staging-repo");
+  expect(workflow).toContain("if: steps.check.outputs.state == 'absent'");
+  expect(workflow).not.toContain("409");
+
+  const temp = mkdtempSync(join(tmpdir(), "hey-kotlin-release-"));
+  const script = new URL("../../scripts/kotlin-publish-state.sh", import.meta.url).pathname;
+  const staging = join(temp, "staging");
+  const files: Record<string, string> = {
+    "com/basecamp/hey-sdk/1.2.3/hey-sdk-1.2.3.pom": "<project/>",
+    "com/basecamp/hey-sdk/1.2.3/hey-sdk-1.2.3.module": "{}",
+    "com/basecamp/hey-sdk-jvm/1.2.3/hey-sdk-jvm-1.2.3.jar": "jar bytes",
+    "com/basecamp/hey-sdk-jvm/1.2.3/hey-sdk-jvm-1.2.3.pom": "<project/>",
+  };
+  for (const [path, content] of Object.entries(files)) {
+    mkdirSync(dirname(join(staging, path)), { recursive: true });
+    writeFileSync(join(staging, path), content);
+    writeFileSync(join(staging, `${path}.sha1`), "sidecar");
+  }
+  writeFileSync(join(staging, "com/basecamp/hey-sdk/maven-metadata.xml"), "<metadata/>");
+
+  const remote = new Map<string, string>();
+  let broken = false;
+  const seen: string[] = [];
+  const authorizations = new Set<string | undefined>();
+  const server = createServer((request, response) => {
+    seen.push(request.url ?? "");
+    authorizations.add(request.headers.authorization);
+    if (broken) {
+      response.writeHead(500);
+      response.end();
+      return;
+    }
+    const body = remote.get((request.url ?? "").slice(1));
+    if (body === undefined) {
+      response.writeHead(404);
+      response.end("not here");
+      return;
+    }
+    response.writeHead(200);
+    response.end(body);
+  });
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const { port } = server.address() as AddressInfo;
+  const run = async () => {
+    const { stdout } = await promisify(execFile)(
+      "bash",
+      [script, staging, `http://127.0.0.1:${port}/`],
+      {
+        encoding: "utf8",
+        env: { ...process.env, GITHUB_USER: "x-access-token", GITHUB_ACCESS_TOKEN: "token" },
+      },
+    );
+    return stdout.trim();
+  };
+  try {
+    expect(await run()).toBe("absent");
+    expect(seen.sort()).toEqual(Object.keys(files).map((path) => `/${path}`).sort());
+    expect([...authorizations]).toEqual([
+      `Basic ${Buffer.from("x-access-token:token").toString("base64")}`,
+    ]);
+
+    for (const [path, content] of Object.entries(files)) remote.set(path, content);
+    expect(await run()).toBe("published");
+
+    const jar = "com/basecamp/hey-sdk-jvm/1.2.3/hey-sdk-jvm-1.2.3.jar";
+    remote.delete(jar);
+    await expect(run()).rejects.toThrow(/missing\s+com\/basecamp\/hey-sdk-jvm\/1\.2\.3\/hey-sdk-jvm-1\.2\.3\.jar/);
+    await expect(run()).rejects.toThrow(/Delete the version/);
+
+    remote.set(jar, "other bytes");
+    await expect(run()).rejects.toThrow(/different\s+com\/basecamp\/hey-sdk-jvm/);
+
+    broken = true;
+    await expect(run()).rejects.toThrow(/answered 500/);
+
+    const empty = join(temp, "empty");
+    mkdirSync(empty);
+    await expect(
+      promisify(execFile)("bash", [script, empty, `http://127.0.0.1:${port}/`], {
+        env: { ...process.env, GITHUB_USER: "x-access-token", GITHUB_ACCESS_TOKEN: "token" },
+      }),
+    ).rejects.toThrow(/nothing staged/);
+  } finally {
+    server.close();
     rmSync(temp, { recursive: true, force: true });
   }
 });
