@@ -603,6 +603,17 @@ func TestCallerAbsoluteURLReachesHooksProjected(t *testing.T) {
 			t.Errorf("the request reached the hooks as %q, want %q", got, want)
 		}
 	})
+
+	t.Run("a scheme in upper case is an absolute URL", func(t *testing.T) {
+		hooks.infos = nil
+		target := strings.Replace(server.URL, "http://", "HTTP://", 1) + "/rails/active_storage/disk/SECRETVALUE/file.txt"
+		if _, err := client.Get(context.Background(), target); err != nil {
+			t.Fatal(err)
+		}
+		if got := hooks.infos[0].URL; got != server.URL {
+			t.Errorf("the request reached the hooks as %q, want the projected URL", got)
+		}
+	})
 }
 
 // TestCallerAbsoluteURLTransportErrorRendersNoSignedURL dials a closed port through

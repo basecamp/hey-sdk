@@ -667,7 +667,14 @@ func (c *Client) doRequest(ctx context.Context, method, path string, body any) (
 
 // isAbsoluteURL reports whether path is an absolute URL rather than an API path.
 func isAbsoluteURL(path string) bool {
-	return strings.HasPrefix(path, "https://") || strings.HasPrefix(path, "http://")
+	return hasScheme(path, "https") || hasScheme(path, "http")
+}
+
+// hasScheme reports whether rawURL begins with scheme and "://", in any case, as
+// net/url reads a scheme.
+func hasScheme(rawURL, scheme string) bool {
+	prefix := scheme + "://"
+	return len(rawURL) >= len(prefix) && strings.EqualFold(rawURL[:len(prefix)], prefix)
 }
 
 // markCallerURL marks ctx when path is a caller's absolute URL, on any origin: the one
@@ -987,13 +994,13 @@ func (c *Client) bufferBound(req *http.Request) int64 {
 func (c *Client) buildURL(path string) (string, error) {
 	var resolved string
 	switch {
-	case strings.HasPrefix(path, "https://"):
+	case hasScheme(path, "https"):
 		resolved = path
-	case strings.HasPrefix(path, "http://"):
+	case hasScheme(path, "http"):
 		// Allow http:// when the base URL itself uses http:// and the host matches
 		// (local development). Reject http:// to different hosts to prevent
 		// leaking credentials.
-		if !strings.HasPrefix(c.cfg.BaseURL, "http://") || extractHost(c.cfg.BaseURL) != extractHost(path) {
+		if !hasScheme(c.cfg.BaseURL, "http") || extractHost(c.cfg.BaseURL) != extractHost(path) {
 			return "", fmt.Errorf("URL must use HTTPS, got: %s", describeOrigin(path))
 		}
 		resolved = path
