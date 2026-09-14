@@ -24,7 +24,8 @@ type GatingHooks interface {
 // whole, except on the requests whose URL can be signed — the attachment upload's
 // storage request, every hop of a blob download, which HEY answers with a redirect to
 // a signed storage URL, and a request built from a caller's absolute URL: those reach
-// the hooks as their origin alone.
+// the hooks as their origin alone. A relative path is an API path and reaches the
+// hooks whole, a signed storage path handed to a raw helper in relative form included.
 type RequestInfo struct {
 	Method  string
 	URL     string
