@@ -35,8 +35,11 @@ class PostingsService(client: HeyClient) : GeneratedPostingsService(client) {
     suspend fun moveToBox(boxId: Long, postingIds: List<Long>) =
         movePostings(MovePostingsRequestContent(postingIds = selection(postingIds), boxId = boxId))
 
-    /** Moves postings to the box of a kind, resolving the box index once per client. */
-    suspend fun moveTo(kind: BoxKind, postingIds: List<Long>) = moveToBox(client.boxes.idByKind(kind), selection(postingIds))
+    /** Moves postings to the box of a kind, resolving the box index once per client. An empty selection is refused before the index is read. */
+    suspend fun moveTo(kind: BoxKind, postingIds: List<Long>) {
+        val selected = selection(postingIds)
+        moveToBox(client.boxes.idByKind(kind), selected)
+    }
 
     /** Moves postings to Set Aside. */
     suspend fun moveToSetAside(postingIds: List<Long>) = moveTo(BoxKind.SET_ASIDE, postingIds)

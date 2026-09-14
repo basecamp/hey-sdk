@@ -1,8 +1,6 @@
 package com.basecamp.hey
 
-import io.ktor.http.URLBuilder
 import io.ktor.http.Url
-import io.ktor.http.takeFrom
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.serialization.DeserializationStrategy
@@ -41,9 +39,7 @@ class Page<T> internal constructor(
             route: Route?,
             deserializer: DeserializationStrategy<T>,
         ): Page<T> {
-            val nextUrl = response.header("Link")?.let(::nextLink)?.let { target ->
-                runCatching { URLBuilder(response.url).takeFrom(target).build() }.getOrNull()
-            }
+            val nextUrl = response.header("Link")?.let(::nextLink)?.let { target -> resolveReference(response.url, target) }
             val nextPage = nextUrl?.parameters?.get("page")
             val totalCount = response.header("X-Total-Count")?.trim()?.toLongOrNull()
             return Page(value, nextUrl, nextPage, totalCount, info, route, deserializer)

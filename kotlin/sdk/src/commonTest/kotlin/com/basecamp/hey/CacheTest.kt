@@ -120,6 +120,40 @@ class CacheTest {
     }
 
     @Test
+    fun whatA304MovesIsWhatTheNextReadGoesOutWith() = runTest {
+        val hey = mockHey(
+            ok("[]", mapOf("ETag" to "\"v1\"", "Link" to "</boxes.json?page=2>; rel=\"next\"")),
+            status(304, headers = mapOf("ETag" to "\"v2\"", "Link" to "</boxes.json?page=3>; rel=\"next\"")),
+            status(304, headers = mapOf("ETag" to "\"v2\"")),
+        )
+        val client = hey.client { enableCache = true }
+        client.boxes.list()
+        assertEquals("3", client.boxes.list().nextPage)
+        assertEquals("3", client.boxes.list().nextPage, "the cursor the 304 moved is what the entry keeps")
+        assertEquals("\"v1\"", hey.requests[1].header("If-None-Match"))
+        assertEquals("\"v2\"", hey.requests[2].header("If-None-Match"), "the validator the 304 moved is what the next read sends")
+    }
+
+    @Test
+    fun a304SayingNoStoreEndsTheEntry() = runTest {
+        val hey = mockHey(
+            ok("[]", mapOf("ETag" to "\"v1\"")),
+            status(304, headers = mapOf("ETag" to "\"v1\"", "Cache-Control" to "no-store")),
+            ok("[]"),
+        )
+        val store = InMemoryCache()
+        val client = hey.client {
+            enableCache = true
+            cache = store
+        }
+        client.boxes.list()
+        client.boxes.list()
+        assertEquals(0, store.size)
+        client.boxes.list()
+        assertNull(hey.requests[2].header("If-None-Match"))
+    }
+
+    @Test
     fun theKeyNeverHoldsTheCredential() {
         val key = cacheKey("https://app.hey.com/boxes.json", "Bearer secret")
         assertEquals(64, key.length)

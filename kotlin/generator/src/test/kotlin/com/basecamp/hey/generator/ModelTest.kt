@@ -131,6 +131,31 @@ class ModelTest {
     }
 
     @Test
+    fun aRequestBodyTheGeneratorCannotSendIsRefused() {
+        val markSeen = """"operationId":"MarkBoxSeen","tags":["Boxes"],"""
+        val inline = boxPaths.replace(
+            markSeen,
+            markSeen + """"requestBody":{"content":{"application/json":{"schema":{"type":"object","properties":{"seen":{"type":"boolean"}}}}}},""",
+        )
+        assertContains(assertFailsWith<GeneratorException> { model(inline, boxSchemas) }.message!!, "MarkBoxSeen takes a request body with a schema that is not a \$ref")
+
+        val form = boxPaths.replace(
+            markSeen,
+            markSeen + """"requestBody":{"content":{"application/x-www-form-urlencoded":{"schema":{"${'$'}ref":"#/components/schemas/Box"}}}},""",
+        )
+        assertContains(assertFailsWith<GeneratorException> { model(form, boxSchemas) }.message!!, "MarkBoxSeen takes a application/x-www-form-urlencoded request body")
+
+        val referenced = boxPaths.replace(markSeen, markSeen + """"requestBody":{"${'$'}ref":"#/components/requestBodies/Seen"},""")
+        assertContains(assertFailsWith<GeneratorException> { model(referenced, boxSchemas) }.message!!, "MarkBoxSeen takes a \$ref request body")
+
+        val supported = boxPaths.replace(
+            markSeen,
+            markSeen + """"requestBody":{"content":{"application/json":{"schema":{"${'$'}ref":"#/components/schemas/Box"}}}},""",
+        )
+        assertEquals("Box", model(supported, boxSchemas).services.single { it.name == "boxes" }.operations.single { it.id == "MarkBoxSeen" }.body)
+    }
+
+    @Test
     fun aMethodCollisionIsRefused() {
         val paths = boxPaths.replace(""""operationId":"MarkBoxSeen"""", """"operationId":"ListBox"""")
         val error = assertFailsWith<GeneratorException> { model(paths, boxSchemas) }

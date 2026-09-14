@@ -10,6 +10,7 @@ import io.ktor.client.plugins.HttpRequestTimeoutException
 import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.request.HttpRequestBuilder
 import io.ktor.client.request.header
+import io.ktor.client.request.prepareRequest
 import io.ktor.client.request.request
 import io.ktor.client.request.setBody
 import io.ktor.client.request.url
@@ -44,6 +45,9 @@ private val RETRYABLE_STATUSES = listOf(429, 500, 502, 503, 504)
 private const val ACCOUNT_FILTER_PARAMETER = "filtered_account_id"
 private const val MAX_REDIRECTS = 10
 private val REDIRECT_STATUSES = setOf(301, 302, 303, 307, 308)
+
+/** The redirects a browser form answers a completed write with. A 301, 307 or 308 is a request to send it again, not an answer. */
+private val FORM_ANSWER_STATUSES = setOf(302, 303)
 
 /**
  * Builder DSL for configuring a [HeyClient].
@@ -425,13 +429,33 @@ class HeyClient internal constructor(
     private class Budget(val attempts: Int, val retryOn: List<Int>, val delay: Duration)
 
     private class Answered(
-        val url: Url,
-        val response: HttpResponse,
-        val status: Int,
+        val received: Received,
         val cached: Pair<String, CachedResponse>?,
         val info: RequestInfo,
         val duration: Duration,
+    ) {
+        val status: Int get() = received.status
+    }
+
+    /**
+     * An answer read whole while the connection was still live, which is all the SDK keeps
+     * of a response: the status and headers, the body up to its bound, and the refusal when
+     * the body ran past it, so the transport can be done with the response before the retry
+     * loop looks at any of it.
+     */
+    private class Received(
+        val url: Url,
+        val status: Int,
+        val headers: Headers,
+        val body: ByteArray,
+        val refusal: HeyException?,
     )
+
+    /** What one send came back with: the answer, or the place a redirect points. */
+    private sealed class Outcome {
+        class Answer(val received: Received) : Outcome()
+        class Redirect(val next: Url, val status: Int) : Outcome()
+    }
 
     /** Sends the operation as many times as its retry budget and HEY's answers call for, and hands back the answer it stopped on. */
     private suspend fun attempt(operation: Operation, url: Url): Answered {
@@ -477,8 +501,8 @@ class HeyClient internal constructor(
                 throw error
             }
 
-            val (finalUrl, response) = sent.getOrThrow()
-            val status = response.status.value
+            val received = sent.getOrThrow()
+            val status = received.status
             val retryable = status in budget.retryOn
             val renewed = status == 401 && !refreshed && try {
                 refreshCredentials(signedUnder)
@@ -496,8 +520,8 @@ class HeyClient internal constructor(
                 continue
             }
             if (retryable && attempt < attempts) {
-                val cause = HeyException.fromResponse(status, operation.method, response.headers, ByteArray(0))
-                val retryAfter = if (status == 429) retryAfterSeconds(response.headers["Retry-After"]) else null
+                val cause = HeyException.fromResponse(status, operation.method, received.headers, ByteArray(0))
+                val retryAfter = if (status == 429) retryAfterSeconds(received.headers["Retry-After"]) else null
                 val wait = if (retryAfter != null && retryAfter > 0) retryAfter.seconds else waitFor(delay)
                 hooks.safeRequestEnd(info, RequestResult(status, duration, error = cause))
                 hooks.safeRetry(info, attempt + 1, cause, wait.inWholeMilliseconds)
@@ -506,7 +530,7 @@ class HeyClient internal constructor(
                 attempt += 1
                 continue
             }
-            return Answered(finalUrl, response, status, cached, info, duration)
+            return Answered(received, cached, info, duration)
         }
     }
 
@@ -545,12 +569,21 @@ class HeyClient internal constructor(
             }
         }
         for ((name, value) in operation.query) builder.parameters.append(name, value)
-        val accountId = accountId
-        if (accountId != null && isSameOrigin(builder.build(), shared.baseUrl)) {
-            builder.parameters.remove(ACCOUNT_FILTER_PARAMETER)
-            builder.parameters.append(ACCOUNT_FILTER_PARAMETER, accountId.toString())
-        }
-        return builder.build()
+        return scoped(builder.build())
+    }
+
+    /**
+     * The URL with the client's account scope on it, when it has one and the URL is HEY's:
+     * whatever the URL carried for the filter already, the scope wins, on the first request
+     * and on every redirect that stays on the origin.
+     */
+    private fun scoped(url: Url): Url {
+        val accountId = accountId ?: return url
+        if (!isSameOrigin(url, shared.baseUrl)) return url
+        return URLBuilder(url).apply {
+            parameters.remove(ACCOUNT_FILTER_PARAMETER)
+            parameters.append(ACCOUNT_FILTER_PARAMETER, accountId.toString())
+        }.build()
     }
 
     private class Prepared(
@@ -612,29 +645,54 @@ class HeyClient internal constructor(
      * hops, unless the operation is one that takes the redirect for its answer. Credentials
      * stay on the origin they were meant for: a hop to another origin goes out without the
      * headers the auth strategy set, whatever it called them, and without the usual suspects.
+     * A hop that stays on HEY keeps the client's account scope.
+     *
+     * Each response is read through Ktor's streaming form, so the body is bounded while it
+     * is still arriving rather than after the transport has held all of it.
      */
-    private suspend fun transmit(operation: Operation, start: Url, prepared: Prepared): Pair<Url, HttpResponse> {
+    private suspend fun transmit(operation: Operation, start: Url, prepared: Prepared): Received {
         var url = start
         var request = prepared.request
         var hops = 0
         while (true) {
-            val response = shared.http.request(request)
-            val next = if (operation.captureRedirects) null else redirectTarget(url, response)
-            if (next == null) return url to response
-            if (hops == MAX_REDIRECTS) {
-                throw HeyException.Network("${operation.label()} redirected more than $MAX_REDIRECTS times", retryable = false)
+            val outcome = shared.http.prepareRequest(request).execute { response ->
+                val next = if (operation.captureRedirects) null else redirectTarget(url, response)
+                if (next != null) Outcome.Redirect(next, response.status.value) else Outcome.Answer(receive(operation, url, response))
             }
-            requireSecureEndpoint(next)
-            request = redirected(request, response.status.value, url, next, prepared.credentialHeaders)
-            url = next
-            hops += 1
+            when (outcome) {
+                is Outcome.Answer -> return outcome.received
+                is Outcome.Redirect -> {
+                    if (hops == MAX_REDIRECTS) {
+                        throw HeyException.Network("${operation.label()} redirected more than $MAX_REDIRECTS times", retryable = false)
+                    }
+                    val next = scoped(outcome.next)
+                    requireSecureEndpoint(next)
+                    request = redirected(request, outcome.status, url, next, prepared.credentialHeaders)
+                    url = next
+                    hops += 1
+                }
+            }
+        }
+    }
+
+    /** Reads what the SDK keeps of a response while the connection is live: a 304 has no body to read, and a body past its bound is refused there and then. */
+    private suspend fun receive(operation: Operation, url: Url, response: HttpResponse): Received {
+        val status = response.status.value
+        val headers = response.headers
+        if (status == 304) return Received(url, status, headers, ByteArray(0), refusal = null)
+        val parsed = operation.accept == "application/json" || operation.accept == "text/html"
+        val bound = if (parsed) shared.config.maxResponseBodyBytes else HeyConfig.MAX_RESPONSE_BODY_BYTES
+        return try {
+            Received(url, status, headers, readBody(response, bound), refusal = null)
+        } catch (refusal: HeyException) {
+            Received(url, status, headers, ByteArray(0), refusal)
         }
     }
 
     private fun redirectTarget(url: Url, response: HttpResponse): Url? {
         if (response.status.value !in REDIRECT_STATUSES) return null
         val location = response.headers[HttpHeaders.Location] ?: return null
-        return runCatching { URLBuilder(url).takeFrom(location).build() }.getOrNull()
+        return resolveReference(url, location)
     }
 
     private fun redirected(outgoing: HttpRequestBuilder, status: Int, from: Url, to: Url, credentialHeaders: Set<String>): HttpRequestBuilder {
@@ -652,23 +710,30 @@ class HeyClient internal constructor(
         return request
     }
 
-    private suspend fun finish(operation: Operation, answered: Answered): Response {
-        val response = answered.response
-        val status = answered.status
-        val headers: Headers = response.headers
+    private fun finish(operation: Operation, answered: Answered): Response {
+        val received = answered.received
+        val status = received.status
+        val headers = received.headers
         if (status == 304) {
-            val entry = answered.cached?.second
-            return if (entry != null && entry.etag.isNotEmpty()) {
-                Response(200, entry.headersUpdatedBy(headers), entry.body, answered.url, fromCache = true, empty = false)
-            } else {
+            val (key, entry) = answered.cached ?: (null to null)
+            if (entry == null || entry.etag.isEmpty()) {
                 throw HeyException.Api("304 received but no cached response available", httpStatus = 304, retryable = false)
             }
+            // The 304 answers with the cached body under the cached headers, updated by what
+            // it carried, and the entry keeps that update: a validator or cursor HEY moved
+            // is what the next read goes out with, and a no-store on the 304 ends the entry.
+            val merged = entry.headersUpdatedBy(headers)
+            val cache = shared.cache
+            if (cache != null && key != null) {
+                if (forbidsStoring(merged)) {
+                    cache.invalidate(key)
+                } else {
+                    cache.set(key, CachedResponse(merged[HttpHeaders.ETag] ?: entry.etag, entry.body, storableHeaders(merged)))
+                }
+            }
+            return Response(200, merged, entry.body, received.url, fromCache = true, empty = false)
         }
-        val parsed = operation.accept == "application/json" || operation.accept == "text/html"
-        val bound = if (parsed) shared.config.maxResponseBodyBytes else HeyConfig.MAX_RESPONSE_BODY_BYTES
-        val body = try {
-            readBody(response, bound)
-        } catch (refusal: HeyException) {
+        received.refusal?.let { refusal ->
             if (status in 200..299) throw refusal
             val error = HeyException.fromResponse(status, operation.method, headers, ByteArray(0))
             throw HeyException.Api(
@@ -681,6 +746,7 @@ class HeyClient internal constructor(
                 responseTooLarge = true,
             )
         }
+        val body = received.body
         if (status in 200..299) {
             val key = answered.cached?.first
             val cache = shared.cache
@@ -692,10 +758,18 @@ class HeyClient internal constructor(
                     etag != null && body.isNotEmpty() -> cache.set(key, CachedResponse(etag, body, storableHeaders(headers)))
                 }
             }
-            return Response(status, headers, body, answered.url, fromCache = false, empty = false)
+            return Response(status, headers, body, received.url, fromCache = false, empty = false)
         }
-        if (status in operation.emptyOn || (operation.captureRedirects && status in REDIRECT_STATUSES)) {
-            return Response(status, headers, body, answered.url, fromCache = false, empty = true)
+        if (status in operation.emptyOn || (operation.captureRedirects && status in FORM_ANSWER_STATUSES)) {
+            return Response(status, headers, body, received.url, fromCache = false, empty = true)
+        }
+        if (operation.captureRedirects && status in REDIRECT_STATUSES) {
+            throw HeyException.Api(
+                "${operation.label()} answered $status; a form write completes with a 302 or 303, and a $status asks for the request again",
+                httpStatus = status,
+                retryable = false,
+                requestId = headers["X-Request-Id"],
+            )
         }
         throw HeyException.fromResponse(status, operation.method, headers, body)
     }
@@ -710,7 +784,11 @@ class HeyClient internal constructor(
             if (read < 0) break
             size += read
             if (size > bound) {
-                throw HeyException.Api("response body exceeds $bound bytes", httpStatus = null, retryable = false, responseTooLarge = true)
+                val refusal = HeyException.Api("response body exceeds $bound bytes", httpStatus = null, retryable = false, responseTooLarge = true)
+                // Let the transport go of the rest right here, rather than leaving a body it
+                // will never be read for the connection's cleanup to drain or wait on.
+                channel.cancel(refusal)
+                throw refusal
             }
         }
         return out.copyOf(size)

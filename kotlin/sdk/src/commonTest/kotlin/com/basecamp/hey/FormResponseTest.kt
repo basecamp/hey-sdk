@@ -41,4 +41,20 @@ class FormResponseTest {
         assertFailsWith<HeyException.Api> { client.sendForm(client.form(Method.POST, "/workflows")) }
         assertEquals(2, hey.requests.size)
     }
+
+    @Test
+    fun onlyA302Or303CompletesAFormWrite() = runTest {
+        for (accepted in listOf(302, 303)) {
+            val hey = mockHey(status(accepted, headers = mapOf("Location" to "/workflows/7")))
+            val response = hey.client().sendForm(hey.client().form(Method.POST, "/workflows"))
+            assertEquals(accepted, response.status)
+            assertEquals(7L, response.extractId())
+        }
+        for (refused in listOf(301, 307, 308)) {
+            val hey = mockHey(status(refused, headers = mapOf("Location" to "/workflows/7")))
+            val error = assertFailsWith<HeyException.Api> { hey.client().sendForm(hey.client().form(Method.POST, "/workflows")) }
+            assertEquals(refused, error.httpStatus)
+            assertEquals(1, hey.requests.size, "a $refused is not followed by a form request either")
+        }
+    }
 }

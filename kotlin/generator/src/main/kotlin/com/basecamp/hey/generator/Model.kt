@@ -220,7 +220,7 @@ private fun buildServices(openapi: JsonObject, behavior: JsonObject, naming: Nam
                 resourceType = naming.resourceTypeFor(id, service),
                 pathParams = pathParams(operationObject, path),
                 queryParams = queryParams(operationObject),
-                body = bodyOf(operationObject, naming),
+                body = bodyOf(id, operationObject, naming),
                 response = responseOf(id, operationObject, naming),
                 idempotent = idempotent(httpMethod, operationObject),
                 readonly = semantics["readonly"]?.let { (it as? JsonPrimitive)?.booleanOrNull }
@@ -281,9 +281,33 @@ private fun paramKind(parameter: JsonObject): ParamKind {
     }
 }
 
-private fun bodyOf(operation: JsonObject, naming: Naming): String? =
-    operation.obj("requestBody")?.obj("content")?.obj("application/json")?.obj("schema")?.string("\$ref")
-        ?.let { naming.typeFor(referenceName(it)) }
+/**
+ * The type an operation's request body is, or null when it takes none. A body the generator
+ * cannot send as the model describes it — in another representation, through a `\$ref`
+ * request body, or with a schema that is not a `\$ref` — fails generation naming the
+ * operation, rather than becoming a method that quietly sends nothing.
+ */
+private fun bodyOf(id: String, operation: JsonObject, naming: Naming): String? {
+    val requestBody = operation.obj("requestBody") ?: return null
+    if (requestBody.containsKey("\$ref")) {
+        throw GeneratorException("$id takes a \$ref request body, which the generator does not resolve; write the body inline")
+    }
+    val content = requestBody.obj("content") ?: throw GeneratorException("$id takes a request body with no content")
+    val representations = content.keys.toList()
+    val mediaType = when (representations.size) {
+        0 -> throw GeneratorException("$id takes a request body with no representation")
+        1 -> representations.single()
+        else -> throw GeneratorException(
+            "$id takes a request body in ${representations.size} representations (${representations.joinToString(", ")}); the generator sends one",
+        )
+    }
+    if (mediaType != "application/json") {
+        throw GeneratorException("$id takes a $mediaType request body, which the generator has no representation for; it sends application/json")
+    }
+    val reference = content.obj(mediaType)?.obj("schema")?.string("\$ref")
+        ?: throw GeneratorException("$id takes a request body with a schema that is not a \$ref to components.schemas")
+    return naming.typeFor(referenceName(reference))
+}
 
 private fun responseOf(id: String, operation: JsonObject, naming: Naming): Response {
     val responses = operation.obj("responses") ?: throw GeneratorException("$id has no responses")

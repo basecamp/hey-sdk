@@ -2,6 +2,8 @@ package com.basecamp.hey
 
 import kotlinx.coroutines.flow.toList
 import com.basecamp.hey.generated.*
+import com.basecamp.hey.generated.services.GetContactOptions
+import io.ktor.http.Url
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -20,6 +22,25 @@ class PaginationTest {
         assertEquals("/y", nextLink("""</x>; rel=prev, </y>; REL=NEXT"""))
         assertNull(nextLink("""</x>; rel="prev""""))
         assertNull(nextLink("garbage"))
+    }
+
+    @Test
+    fun aReferenceTakesNothingOfTheRequestsQuery() {
+        val base = Url("https://app.hey.com/contacts/88.json?page=older&filtered_account_id=42#x")
+        assertEquals("https://app.hey.com/contacts/88.json?page=next", resolveReference(base, "/contacts/88.json?page=next").toString())
+        assertEquals("https://app.hey.com/contacts/88.json", resolveReference(base, "/contacts/88.json").toString())
+        assertEquals("https://files.example.com/export.json", resolveReference(base, "https://files.example.com/export.json").toString())
+        assertEquals("https://app.hey.com/contacts/89.json?page=1", resolveReference(base, "89.json?page=1").toString())
+    }
+
+    @Test
+    fun theNextPageDoesNotInheritTheCursorItWasAskedWith() = runTest {
+        val hey = mockHey(ok("""{"id":88}""", mapOf("Link" to "</contacts/88.json?page=next>; rel=\"next\"")), ok("""{"id":88}"""))
+        val client = hey.client()
+        val first = client.contacts.get(88, GetContactOptions(page = "older"))
+        assertEquals("next", first.nextPage)
+        client.nextPage(first)
+        assertEquals(listOf("next"), hey.requests[1].url.parameters.getAll("page"))
     }
 
     @Test

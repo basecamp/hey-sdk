@@ -32,8 +32,9 @@ class FormResponse internal constructor(
     }
 
     internal companion object {
+        /** The client hands over a 302 or 303 with its `Location`, or the document a `.json` path answered; any other redirect failed before it got here. */
         fun of(response: Response): FormResponse =
-            if (response.status in 300..399) {
+            if (response.empty && response.status in 300..399) {
                 FormResponse(response.header("Location"), response.status, "")
             } else {
                 FormResponse(null, response.status, response.text())
