@@ -53,4 +53,30 @@ class RedirectTest {
         assertEquals("Bearer secret", hop.header("Authorization"))
         assertEquals("session=abc", hop.header("Cookie"))
     }
+
+    @Test
+    fun aHopOnHeyKeepsTheAccountScopeWhateverTheLocationSaid() = runTest {
+        val hey = mockHey(
+            ok(IDENTITY),
+            status(302, headers = mapOf("Location" to "/boxes/all.json")),
+            ok("[]"),
+            status(302, headers = mapOf("Location" to "/boxes/all.json?filtered_account_id=7")),
+            ok("[]"),
+        )
+        val work = hey.client().forAccount(42)
+        work.boxes.list()
+        work.boxes.list()
+
+        assertEquals("42", hey.requests[1].query("filtered_account_id"))
+        assertEquals("42", hey.requests[2].query("filtered_account_id"), "the hop is scoped when the Location leaves the filter off")
+        assertEquals("42", hey.requests[4].query("filtered_account_id"), "and when the Location names another account")
+        assertEquals(listOf("42"), hey.requests[4].url.parameters.getAll("filtered_account_id"))
+    }
+
+    @Test
+    fun aHopOffHeyCarriesNoAccountScope() = runTest {
+        val hey = mockHey(ok(IDENTITY), status(302, headers = mapOf("Location" to "https://files.example.com/export.json")), ok("[]"))
+        hey.client().forAccount(42).boxes.list()
+        assertNull(hey.requests[2].query("filtered_account_id"))
+    }
 }

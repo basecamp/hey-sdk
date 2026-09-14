@@ -166,5 +166,9 @@ class ServicesTest {
         assertEquals(2L, body(hey.requests[1]).getValue("box_id").jsonPrimitive.content.toLong())
         assertFailsWith<HeyException.Api> { client.boxes.idByKind(BoxKind.BUBBLE_UP) }
         assertFailsWith<HeyException.Usage> { client.postings.moveToSetAside(emptyList()) }
+
+        val cold = mockHey()
+        assertFailsWith<HeyException.Usage> { cold.client().postings.moveTo(BoxKind.IMBOX, emptyList()) }
+        assertEquals(0, cold.requests.size, "an empty selection is refused before the box index is read")
     }
 }

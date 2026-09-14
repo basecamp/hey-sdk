@@ -1,7 +1,9 @@
 package com.basecamp.hey
 
+import io.ktor.http.URLBuilder
 import io.ktor.http.Url
 import io.ktor.http.parseUrl
+import io.ktor.http.takeFrom
 
 /**
  * Parses an absolute URL with Ktor's own parser — the same parser the transport dials with
@@ -13,6 +15,21 @@ internal fun parseAbsoluteUrl(url: String): Url? {
     if (!url.startsWith("${parsed.protocol.name}://", ignoreCase = true)) return null
     return parsed
 }
+
+/**
+ * A URL reference HEY sent — a `Location`, a `Link` target — resolved against the URL it came
+ * in. An absolute reference stands on its own; a relative one takes the base's origin and
+ * nothing else of it, so the query the request went out with never rides along to where the
+ * answer points. Null when the reference will not parse.
+ */
+internal fun resolveReference(base: Url, reference: String): Url? =
+    parseAbsoluteUrl(reference) ?: runCatching {
+        URLBuilder(base).apply {
+            encodedParameters.clear()
+            fragment = ""
+            takeFrom(reference)
+        }.build()
+    }.getOrNull()
 
 /** Whether a host is this machine: `localhost`, a `.localhost` name, or a loopback address. */
 internal fun isLocalhostHost(host: String): Boolean {
