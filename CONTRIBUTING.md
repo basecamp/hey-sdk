@@ -10,6 +10,8 @@
   API-compatibility check locally (`cargo semver-checks -p hey-sdk --baseline-rev origin/main`
   from `rust/`); CI runs it on every pull request
 - Node 22.12+, 24 or 26 and npm; `make ts-install` uses the frozen lockfile
+- JDK 17 for the Kotlin library (`.mise.toml` pins a Temurin 17 for mise users); Gradle comes
+  with the wrapper under `kotlin/`
 - Make
 - jq
 
@@ -29,23 +31,31 @@
    (`make url-routes`, `./scripts/generate-shape-fingerprint`, `./scripts/generate-route-coverage`)
 3. Run `make go-generate` to regenerate the Go client, then add or update the hand-written
    service in `go/pkg/hey`
-4. Run `make rs-generate` and `make ts-generate` to regenerate Rust and TypeScript
-5. Add Go, Rust and TypeScript tests
+4. Run `make rs-generate`, `make ts-generate` and `make kt-generate` to regenerate Rust,
+   TypeScript and Kotlin
+5. Add Go, Rust, TypeScript and Kotlin tests
 6. Add conformance tests if the operation has behavioral requirements, with dispatch arms in
-   the Go and Rust runners
+   the Go, Rust and Kotlin runners
 7. Run `make check`
 
 The full step-by-step, including how the drift gates work, is in [AGENTS.md](AGENTS.md).
 
 ## Versioning
 
-The Go module and the Rust crate share one version and one `vX.Y.Z` tag. Pre-1.0, a breaking
+The Go module, the Rust crate and the Kotlin library share one version and one `vX.Y.Z` tag. Pre-1.0, a breaking
 change bumps the minor version and an additive one the patch. For Rust, what counts as
 breaking is decided once, by the type policy in
 [rust/hey-sdk/README.md](rust/hey-sdk/README.md#versioning): request-side types are literal
 and exhaustive, so a new field there is a minor; response-side types and open enums are
 `#[non_exhaustive]`, so a new field or variant there is a patch. Say which in the PR when a
 change touches a public type.
+
+The Kotlin library follows basecamp-sdk's policy: no binary-compatibility promise across
+versions (recompile against each release), and source compatibility kept append-only where
+the model allows. A generated model is a data class whose required members come first
+without defaults and whose optional members follow with `null` defaults, so a member the
+model adds is an addition for a caller that names its arguments; a member the model makes
+required is a source break, called out in the release notes.
 
 The crate's minimum supported Rust version is 1.88 (`rust-version` in `rust/Cargo.toml`). It
 moves only when a dependency or a language feature the crate needs requires it, as a minor
@@ -56,20 +66,22 @@ release with a line in the release notes.
 Two steps, in this order.
 
 ```bash
-make bump VERSION=x.y.z     # rewrites Go, Rust and TypeScript versions and lockfiles
+make bump VERSION=x.y.z     # rewrites Go, Rust, TypeScript and Kotlin versions and lockfiles
 # commit that, open a PR, merge it
 make release VERSION=x.y.z  # runs the gate, then tags vx.y.z and go/vx.y.z
 ```
 
 The bump has to land on main *before* the tag, because the release workflows check that
-`version.go` and `Cargo.toml` match the tag they were pushed for and refuse to publish
-otherwise. `make release` checks the same thing up front, so a forgotten bump fails
+`version.go`, `Cargo.toml` and `build.gradle.kts` match the tag they were pushed for and
+refuse to publish otherwise. `make release` checks the same thing up front, so a forgotten bump fails
 locally in a second rather than on GitHub after the tags are already pushed; its gate
 includes `cargo publish --dry-run`, so a crate that would not package fails there too.
 
-The `vx.y.z` tag runs three workflows: `release-go.yml` tags the module, `release-rust.yml`
-publishes the crate to crates.io, and `release-github.yml` waits for both and then creates
-the GitHub release. Both git tags matter: the plain one triggers the release and is what a
+The `vx.y.z` tag runs four workflows: `release-go.yml` tags the module, `release-rust.yml`
+publishes the crate to crates.io, `release-kotlin.yml` publishes the library to GitHub
+Packages with the workflow's own `GITHUB_TOKEN` (no secret to provision; a re-run after a
+partial publish succeeds on the 409), and `release-github.yml` waits and then creates the
+GitHub release. Both git tags matter: the plain one triggers the release and is what a
 git-dependency on the crate pins (there is no `rust/vx.y.z` tag; Cargo does not resolve tags
 by path), and the `go/` one is what `go get github.com/basecamp/hey-sdk/go` resolves, since
 the module lives in a subdirectory.

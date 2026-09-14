@@ -9,7 +9,7 @@
     "mockResponses": [
       {
         "status": 200,
-        "body": {"id": 9007199254740993, "name": "Large ID Box", "type": "Imbox", "position": 0}
+        "body": {"id": 9007199254740993, "kind": "imbox", "name": "Large ID Box", "type": "Imbox", "position": 0}
       }
     ],
     "assertions": [

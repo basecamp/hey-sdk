@@ -12,7 +12,7 @@
           "Link": "</boxes.json?page=2>; rel=\"next\"",
           "X-Total-Count": "75"
         },
-        "body": [{"id": 1}, {"id": 2}]
+        "body": [{"id": 1, "kind": "imbox", "name": "Imbox"}, {"id": 2, "kind": "feedbox", "name": "The Feed"}]
       }
     ],
     "assertions": [
@@ -100,7 +100,13 @@
       {
         "status": 200,
         "body": {
-          "Calendar::Event": [{"id": 702, "title": "Weekly planning"}]
+          "Calendar::Event": [
+            {
+              "id": 702,
+              "type": "Calendar::Event",
+              "title": "Weekly planning"
+            }
+          ]
         }
       }
     ],

@@ -1,10 +1,11 @@
 # HEY SDK -- Agent Instructions
 
-Go, Rust and TypeScript clients for the HEY API, generated from the Smithy spec in `spec/`.
+Go, Rust, TypeScript and Kotlin clients for the HEY API, generated from the Smithy spec in `spec/`.
 
-**Shipped SDKs: Go, Rust and TypeScript.** Run `make ts-install` once (`npm ci`), then
-`make check` for all three languages. Ruby/Swift/Kotlin Makefile targets remain inherited
-placeholders; do not enable `make check-full`, which invokes missing SDKs. TypeScript
+**Shipped SDKs: Go, Rust, TypeScript and Kotlin.** Run `make ts-install` once (`npm ci`),
+have a JDK 17 on hand (`.mise.toml` pins one), then `make check` for all four languages.
+Ruby/Swift Makefile targets remain inherited placeholders; do not enable `make check-full`,
+which invokes missing SDKs. TypeScript
 operations, types, routes and metadata are generated; do not hand-edit
 `typescript/src/generated`. See `typescript/README.md` and `TYPESCRIPT_RELEASE.md`.
 
@@ -13,7 +14,7 @@ operations, types, routes and metadata are generated; do not hand-edit
 1. **Never hand-write API methods.** Operations are generated from the Smithy spec.
 2. **Never construct URL paths manually.** Use the generated route table -- no
    `fmt.Sprintf` or `format!` for paths.
-3. **Every new operation needs tests.** Go, Rust and TypeScript unit/operation-coverage
+3. **Every new operation needs tests.** Go, Rust, TypeScript and Kotlin unit/operation-coverage
    tests, plus a conformance test when the change is behavioral.
 4. **Run `make check` before committing.**
 
@@ -153,6 +154,82 @@ paths. `Operation::quiet` skips the operation hooks while still firing the reque
 for a read-back made inside another operation — `Publications::publish` and
 `Workflows::stage_topic` use it so the hooks see one operation, as Go's do.
 
+### Kotlin
+
+```
+openapi.json + behavior-model.json -> kotlin/generator -> kotlin/sdk/src/commonMain/kotlin/com/basecamp/hey/generated/
+                                                                    |
+                          hand-written subclasses in kotlin/sdk/src/commonMain/kotlin/com/basecamp/hey/services
+```
+
+The Kotlin library follows the conventions of the company-wide
+[basecamp-sdk](https://github.com/basecamp/basecamp-sdk) Kotlin SDK rather than the Rust
+crate's, so a reader of one is a reader of the other: a Kotlin Multiplatform build with a JVM
+target (`commonMain`/`jvmMain`, `expect`/`actual` for the platform bits in `Platform.kt`),
+`HeyConfig` carrying `VERSION` and `API_VERSION`, a builder DSL (`HeyClient { accessToken(..) }`)
+with `enableCache`/`enableRetry`/`maxRetries`/`maxPages`/`timeout`/`hooks`, generated models
+under `generated/models` and services under `generated/services`, `<Operation>Options` data
+classes for optional query parameters, `ServiceAccessors.kt` extension properties on the
+client (`client.boxes`, imported from `com.basecamp.hey.generated`), a `BaseService` every
+generated service extends, hand-written subclasses of the generated services for the
+conveniences (`com.basecamp.hey.services.MessagesService` extends
+`com.basecamp.hey.generated.services.MessagesService`), a sealed `HeyException` with string
+`code`s and `exitCode`, `HeyHooks` with `onRetry(info, attempt, error, delayMs)`, and
+`consoleHooks()`/`chainHooks()`.
+
+`kotlin/generator` is a small Kotlin program, run through the Gradle build under `kotlin/`,
+that reads `openapi.json`, `behavior-model.json` and `kotlin/generator/names.toml` and
+writes `models/<Schema>.kt` (one `@Serializable` data class or typealias per schema),
+`Routes.kt` (one `Route` per operation, with idempotency, empty-on statuses, pagination style
+and the retry policy), `services/<Service>Service.kt` (one class per service, one suspend
+method per operation) and `ServiceAccessors.kt`. The hand-written core in
+`kotlin/sdk/src/commonMain/kotlin/com/basecamp/hey` (client, retries, cache, auth,
+pagination, account scope) knows nothing about individual operations; everything
+operation-specific comes from the model, and the retry loop reads each route's policy as the
+Rust one does.
+
+`names.toml` is the Kotlin twin of `rust/generator/names.toml`: `[services]` (tag to
+service), `[operation_services]` (an operation filed under another service, following Go's
+placement), `[operation_methods]` (a method name the derivation gets wrong), `[type_names]`
+(a schema renamed away from a Kotlin collision; none today), `[resource_types]` and
+`[operation_resource_types]` (the noun the hooks report), and `[hand_written_services]` (the
+subclass the client's accessor constructs, which makes the generated class `open`). Method
+names are camelCase of the Rust ones: `ListBoxes` is `client.boxes.list()`,
+`GetBoxPostingChanges` is `client.postings.getBoxChanges(..)`. Service classes take a
+`Service` suffix (`BoxesService`), as basecamp-sdk's do, and are reached as camelCase
+properties of the client (`client.timeTracks`).
+
+Models follow basecamp-sdk's strictness: a required member has no default, so a body that
+leaves one out fails to decode as a non-retryable `api_error` rather than reading as a
+fabricated zero (Go and Rust read the zero); an optional member is nullable and null. That
+makes Kotlin the strictest reader of a conformance mock body, which is why several fixtures
+that Go and Rust accepted had to be brought to the model's shape. Request bodies are the
+model's own `@Serializable` types (basecamp-sdk flattens its bodies into generated `Body`
+classes, which HEY's nested payloads do not suit). `x-hey-sensitive` strings are
+`SensitiveString`s that print as `[REDACTED]`; dates and timestamps stay strings. An
+operation whose 2xx body is `text/html` becomes a method that asks for the page as HEY
+serves it and answers a `String`; any other representation, two on one status, or a schema
+that is not a `$ref` fails generation naming the operation. A paginated read answers a `Page`
+with the cursor and `X-Total-Count`, walked with `nextPage`/`eachPage`/`pages`, rather than
+basecamp-sdk's auto-aggregated `ListResult`: HEY's paginated responses are objects with
+geared cursors, so there is nothing generic to aggregate.
+
+`kt-check-drift` runs the generator in `--check` mode, so stale generated code fails the
+gate. `kt-check` is what CI's `test-kotlin` job runs: the library's build and tests with
+every warning an error, the generator's own tests (naming and a small model put through
+`Model.build` and the emitters) and the conformance runner's. `HeyConfig.API_VERSION` is
+kept in step with `openapi.json` by `scripts/sync-api-version.sh`, like Go's `APIVersion`.
+
+The hand-written services in `kotlin/sdk/src/commonMain/kotlin/com/basecamp/hey/services`
+are `BoxesService`, `CalendarEventsService`, `EntriesService`, `MessagesService`,
+`PostingsService`, `TimeTracksService` and `WorkflowsService`. The naming convention is
+Rust's: a hand-written method keeps its plain name where the generated service leaves it
+free, and takes the name the model gives the operation it sends where the generated method
+already holds it -- `markPostingsSeen(ids)` alongside the generated `markSeen(body)`. A
+form-backed write goes through `HeyClient.form`/`sendForm` with `writeInfo` saying what it
+means; a page HEY serves as HTML is read by `WorkflowStageView.parse`, with the rules Go and
+Rust read it by.
+
 ## Adding an operation
 
 1. Edit `spec/hey.smithy`
@@ -175,16 +252,22 @@ for a read-back made inside another operation — `Publications::publish` and
 6. `make rs-generate` -- regenerates `rust/hey-sdk/src/generated`. If the generator
    refuses a method name, add an override to `rust/generator/names.toml`.
 7. Run `make ts-generate` to refresh all TypeScript generated artifacts.
-8. Add Go and TypeScript unit tests, Rust tests where the change touches hand-written
-   Rust, and a conformance case under `conformance/tests/` for behavioral changes. A
-   conformance case also needs a dispatch arm in both `conformance/runner/go/main.go`
-   and `conformance/runner/rust/src/operations.rs`.
-9. `make check`
+8. `make kt-generate` -- regenerates the Kotlin generated tree. If the generator refuses a
+   method name, add an override to `kotlin/generator/names.toml`.
+9. Add Go and TypeScript unit tests, Rust and Kotlin tests where the change touches
+   hand-written code in those SDKs, and a conformance case under `conformance/tests/` for
+   behavioral changes. A conformance case also needs a dispatch arm in
+   `conformance/runner/go/main.go`, `conformance/runner/rust/src/operations.rs` and
+   `conformance/runner/kotlin/src/main/kotlin/com/basecamp/hey/conformance/Operations.kt`.
+   Kotlin is the strictest reader of a mock body -- a required member left out, or an
+   object-typed response mocked as an array, fails there and nowhere else -- so a mock body
+   has to be the shape the model says.
+10. `make check`
 
 `make check` resolves to `check-mvp`: `smithy-check`, `behavior-model-check`,
 `drift-check-mvp`, `url-routes-check`, `go-check`, `go-check-drift`, `rs-check`,
-`rs-check-drift`, `ts-check`, `sync-api-version-check` and `conformance-mvp` (Go, Rust
-and TypeScript). `drift-check-mvp` is coverage freshness + forward (every modelled
+`rs-check-drift`, `ts-check`, `kt-check`, `kt-check-drift`, `sync-api-version-check` and
+`conformance-mvp` (Go, Rust, TypeScript and Kotlin). `drift-check-mvp` is coverage freshness + forward (every modelled
 route exists in `spec/route-snapshot.json`) + reverse (every JSON-capable snapshot
 route is modelled or listed in `spec/excluded-routes.json` with a reason) + shape
 fingerprint. Adding an operation for a route that haystack does not serve, or
@@ -199,4 +282,5 @@ moves, and run `./scripts/sync-api-version.sh` so `APIVersion` follows. It is th
 the API the SDK was built against, and it goes out in the User-Agent alongside the SDK's
 own version — that string is how HEY sees which contract a client is working from, so a
 stale date misreports it. The Rust crate's `API_VERSION` is generated into
-`rust/hey-sdk/src/generated/mod.rs`, so `make rs-generate` is what moves it.
+`rust/hey-sdk/src/generated/mod.rs`, so `make rs-generate` is what moves it. The Kotlin
+library's `HeyConfig.API_VERSION` moves with Go's, through `./scripts/sync-api-version.sh`.
