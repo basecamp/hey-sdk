@@ -55,13 +55,15 @@ examples:
 	$(CARGO) build -p hey-sdk --examples --all-features --locked
 
 # RustSec advisories, licences and the shape of the dependency graph, for this workspace and
-# the conformance runner's, against the one deny.toml. Needs cargo-deny installed.
+# the conformance runner's, against the one deny.toml: cargo-deny reads it from the working
+# directory, and its --config is a flag mbx forwards to the cargo metadata probe it runs
+# first, where cargo rejects deny.toml as a config file. Needs cargo-deny installed.
 .PHONY: deny
 deny:
 	@$(CARGO) deny --version >/dev/null 2>&1 || \
 		{ echo "ERROR: cargo-deny is not installed. Run: cargo install cargo-deny --locked"; exit 1; }
 	$(CARGO) deny --locked check
-	cd ../conformance/runner/rust && $(CARGO) deny --locked --config ../../../rust/deny.toml check
+	$(CARGO) deny --locked --manifest-path ../conformance/runner/rust/Cargo.toml check
 
 # Everything `cargo publish` does short of the upload: package the crate, build it from the
 # tarball, check the metadata, so a missing file, a path dependency or a metadata slip
