@@ -1073,9 +1073,9 @@ func TestTimeTracksService_ListPage(t *testing.T) {
 	if len(page.TimeTracks) != 1 || page.TimeTracks[0].Id != 701 {
 		t.Fatalf("expected time track 701, got %+v", page.TimeTracks)
 	}
-	// A track's category is the title as a plain string, not an object.
-	if got := page.TimeTracks[0].Category; got != "Client work" {
-		t.Errorf("category = %q, want \"Client work\"", got)
+	// A categorized track carries the category title.
+	if got := page.TimeTracks[0].Category; got == nil || *got != "Client work" {
+		t.Errorf("category = %v, want \"Client work\"", got)
 	}
 	if got := page.TimeTracks[0].Notes; got != "Reviewed the migration plan" {
 		t.Errorf("notes = %q, want the notes the track was filed with", got)
@@ -1110,9 +1110,9 @@ func TestTimeTracksService_ListPageOnLastPage(t *testing.T) {
 	if len(page.TimeTracks) != 1 {
 		t.Fatalf("expected one time track, got %+v", page.TimeTracks)
 	}
-	// An uncategorized track serves category: null, which is the empty string here.
-	if got := page.TimeTracks[0].Category; got != "" {
-		t.Errorf("category = %q, want empty for an uncategorized track", got)
+	// An uncategorized track preserves the explicit null as nil.
+	if got := page.TimeTracks[0].Category; got != nil {
+		t.Errorf("category = %q, want nil for an uncategorized track", *got)
 	}
 	if page.NextPage != "" {
 		t.Errorf("expected no cursor past the last page, got %q", page.NextPage)

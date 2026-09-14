@@ -79,10 +79,23 @@ fn render_schema(out: &mut String, schema: &Schema) {
                     writeln!(
                         out,
                         "    pub fn {}(&self) -> bool {{",
-                        variant_method(variant)
+                        variant_method(&variant.name)
                     )
                     .unwrap();
-                    writeln!(out, "        self.{discriminator} == \"{variant}\"").unwrap();
+                    if let [value] = variant.values.as_slice() {
+                        writeln!(out, "        self.{discriminator} == {value:?}").unwrap();
+                    } else {
+                        let accepted = variant
+                            .values
+                            .iter()
+                            .map(|value| format!("{value:?}"))
+                            .collect::<Vec<_>>()
+                            .join(" | ");
+                        out.push_str("        matches!(\n");
+                        writeln!(out, "            self.{discriminator}.as_str(),").unwrap();
+                        writeln!(out, "            {accepted}").unwrap();
+                        out.push_str("        )\n");
+                    }
                     out.push_str("    }\n\n");
                 }
                 out.push_str("}\n\n");
