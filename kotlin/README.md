@@ -199,9 +199,11 @@ one resend, for any operation.
 ## Cache
 
 Set `enableCache = true` on the builder and every JSON read goes out conditional on the
-`ETag` it last saw, with a 304 answered from the cache. Entries are held in memory, keyed by
-the URL and the credential together, so one identity's reading is never answered to another;
-`cache` on the builder swaps in a `ResponseCache` of your own.
+`ETag` it last saw, with a 304 answered from the cache under the headers the body was first
+read with, so a revalidated page keeps its `Link` and `X-Total-Count`. An answer marked
+`Cache-Control: no-store` is not held. Entries are held in memory, keyed by the URL and the
+credential together, so one identity's reading is never answered to another; `cache` on the
+builder swaps in a `ResponseCache` of your own.
 
 ## Hooks
 

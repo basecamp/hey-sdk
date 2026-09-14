@@ -1,18 +1,36 @@
 package com.basecamp.hey
 
-/** A response the cache holds for a URL: the validator HEY sent with it, and the body it validates. */
+import io.ktor.http.Headers
+import io.ktor.http.headers
+
+/**
+ * A response the cache holds for a URL: the validator HEY sent with it, the body it
+ * validates, and the headers that came with the body, so a 304 answers the page as it was
+ * first read — `Link` and `X-Total-Count` included, which a 304 need not repeat.
+ */
 class CachedResponse(
     /** The `ETag` HEY sent with the body, sent back as `If-None-Match` on the next read. */
     val etag: String,
     /** The body as HEY answered it. */
     val body: ByteArray,
+    /** The headers HEY answered the body with, less any credential. */
+    val headers: Map<String, List<String>> = emptyMap(),
 ) {
+    /** The cached headers, with each one the 304 carried replacing what was held under its name. */
+    internal fun headersUpdatedBy(fresh: Headers): Headers = headers {
+        for ((name, values) in this@CachedResponse.headers) appendAll(name, values)
+        fresh.forEach { name, values ->
+            remove(name)
+            appendAll(name, values)
+        }
+    }
+
     override fun equals(other: Any?): Boolean =
-        other is CachedResponse && other.etag == etag && other.body.contentEquals(body)
+        other is CachedResponse && other.etag == etag && other.body.contentEquals(body) && other.headers == headers
 
-    override fun hashCode(): Int = 31 * etag.hashCode() + body.contentHashCode()
+    override fun hashCode(): Int = 31 * (31 * etag.hashCode() + body.contentHashCode()) + headers.hashCode()
 
-    override fun toString(): String = "CachedResponse(etag=$etag, ${body.size} bytes)"
+    override fun toString(): String = "CachedResponse(etag=$etag, ${body.size} bytes, ${headers.size} headers)"
 }
 
 /** Stores JSON responses by `ETag` so a repeated read can be answered from a 304. */

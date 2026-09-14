@@ -79,9 +79,11 @@ includes `cargo publish --dry-run`, so a crate that would not package fails ther
 
 The `vx.y.z` tag runs four workflows: `release-go.yml` tags the module, `release-rust.yml`
 publishes the crate to crates.io, `release-kotlin.yml` publishes the library to GitHub
-Packages with the workflow's own `GITHUB_TOKEN` (no secret to provision; a re-run after a
-partial publish succeeds on the 409), and `release-github.yml` waits and then creates the
-GitHub release. Both git tags matter: the plain one triggers the release and is what a
+Packages with the workflow's own `GITHUB_TOKEN` (no secret to provision; a re-run of a
+finished release finds every file there byte for byte and does nothing, while a run that
+finds part of the version there fails naming the files, since GitHub Packages can neither
+finish nor overwrite a Maven version — delete it and re-run), and `release-github.yml` waits
+and then creates the GitHub release. Both git tags matter: the plain one triggers the release and is what a
 git-dependency on the crate pins (there is no `rust/vx.y.z` tag; Cargo does not resolve tags
 by path), and the `go/` one is what `go get github.com/basecamp/hey-sdk/go` resolves, since
 the module lives in a subdirectory.

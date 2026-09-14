@@ -52,6 +52,22 @@ class PaginationTest {
     }
 
     @Test
+    fun theNextPageIsReadUnderTheFirstPagesRetryPolicy() = runTest {
+        val link = mapOf("Link" to "</boxes.json?page=2>; rel=\"next\"")
+
+        val unnamed = mockHey(ok("[]", link), status(500), ok("[]"))
+        var client = unnamed.client()
+        val error = assertFailsWith<HeyException.Api> { client.nextPage(client.boxes.list()) }
+        assertEquals(500, error.httpStatus)
+        assertEquals(2, unnamed.requests.size, "ListBoxes' policy does not name 500, so the next page is not resent on it either")
+
+        val exhausted = mockHey(ok("[]", link), status(503), status(503), status(503), status(503), ok("[]"))
+        client = exhausted.client()
+        assertFailsWith<HeyException.Api> { client.nextPage(client.boxes.list()) }
+        assertEquals(4, exhausted.requests.size, "three sends for the next page, the policy's most, not the client's four")
+    }
+
+    @Test
     fun aWalkStopsAtThePageLimitAndSaysSo() = runTest {
         val endless = ok("[]", mapOf("Link" to "</boxes.json?page=next>; rel=\"next\""))
         val hey = mockHey(endless, endless, endless, endless)

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Atomically update explicit versions; --check verifies every shipped TS artifact.
+// Atomically update explicit versions across Go, TypeScript and Kotlin; --check verifies every one.
 import {
   existsSync,
   readFileSync,
@@ -78,6 +78,45 @@ plan("typescript/src/version.ts", (text) => {
   }
   return text;
 });
+function replaceLine(text, pattern, replacement, missing) {
+  if (!pattern.test(text)) throw new Error(missing);
+  return text.replace(pattern, replacement);
+}
+plan("kotlin/sdk/src/commonMain/kotlin/com/basecamp/hey/HeyConfig.kt", (text) => {
+  for (const [key, value] of [
+    ["VERSION", sdk],
+    ["API_VERSION", api],
+  ]) {
+    if (value === undefined) continue;
+    text = replaceLine(
+      text,
+      new RegExp(`^(\\s*)const val ${key} = "[^"]+"$`, "m"),
+      `$1const val ${key} = "${value}"`,
+      `Missing Kotlin ${key}`,
+    );
+  }
+  return text;
+});
+if (sdk !== undefined) {
+  plan("kotlin/sdk/build.gradle.kts", (text) =>
+    replaceLine(
+      text,
+      /^version = "[^"]+"$/m,
+      `version = "${sdk}"`,
+      "Missing Kotlin Gradle version",
+    ),
+  );
+  // The READMEs name the whole version in the Kotlin dependency line.
+  for (const readme of ["README.md", "kotlin/README.md"])
+    plan(readme, (text) =>
+      replaceLine(
+        text,
+        /implementation\("com\.basecamp:hey-sdk:[^"]+"\)/g,
+        `implementation("com.basecamp:hey-sdk:${sdk}")`,
+        `Missing Kotlin dependency line in ${readme}`,
+      ),
+    );
+}
 if (sdk !== undefined)
   for (const dir of ["typescript", "conformance/runner/typescript"])
     for (const name of ["package.json", "package-lock.json"])
