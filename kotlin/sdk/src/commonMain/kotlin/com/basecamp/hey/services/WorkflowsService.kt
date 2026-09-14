@@ -48,18 +48,19 @@ data class WorkflowStageView(
             val stage = document.descendants().firstOrNull { it.attribute("id") == "container_workflow_stage_$stageId" }
                 ?: throw HeyException.NotFound("workflow stage not found: $stageId")
             val name = stage.firstAtOrUnder { it.tag == "h2" }?.visibleText().orEmpty()
+            // Outermost cards only, in document order, found without recursion: the page's
+            // nesting is the server's to decide.
             val topics = mutableListOf<WorkflowStageTopic>()
-            fun collect(element: HtmlNode.Element) {
-                for (child in element.children) {
-                    if (child !is HtmlNode.Element) continue
-                    if (child.attribute("id")?.startsWith("topic_") == true) {
-                        topic(child)?.let { topics += it }
-                    } else {
-                        collect(child)
-                    }
+            val pending = ArrayDeque<HtmlNode.Element>()
+            stage.children.asReversed().filterIsInstance<HtmlNode.Element>().forEach(pending::addLast)
+            while (pending.isNotEmpty()) {
+                val element = pending.removeLast()
+                if (element.attribute("id")?.startsWith("topic_") == true) {
+                    topic(element)?.let { topics += it }
+                } else {
+                    element.children.asReversed().filterIsInstance<HtmlNode.Element>().forEach(pending::addLast)
                 }
             }
-            collect(stage)
             return WorkflowStageView(stageId, name, topics)
         }
 
