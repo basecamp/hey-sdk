@@ -650,3 +650,80 @@ func TestCallerInsecureURLRendersNoSignedURL(t *testing.T) {
 		t.Errorf("the rejection should name the origin, got %q", err)
 	}
 }
+
+// TestCallerMalformedURLRendersNoSignedValue hands each method that takes a caller's
+// URL one net/url rejects — a bad escape in the path with a signed query, a signed
+// value where the port goes — on an unscoped and an account-scoped client, and checks
+// the rejection renders neither the input nor the component the parser quotes, and no
+// request reaches the hooks. An ordinary API path that does not parse gets the same
+// fixed token.
+func TestCallerMalformedURLRendersNoSignedValue(t *testing.T) {
+	hooks := &requestRecordingHooks{}
+	root := NewClient(&Config{BaseURL: "https://127.0.0.1:1"}, &StaticTokenProvider{Token: "test-token"},
+		WithMaxRetries(0), WithHooks(hooks))
+	clients := map[string]*Client{"unscoped": root, "scoped": scopedTestClient(root, 11)}
+	targets := map[string]string{
+		"bad escape": "https://storage.example/%zz?signature=SECRETVALUE",
+		"bad port":   "https://storage.example:SECRETVALUE/blob",
+	}
+
+	for scope, client := range clients {
+		for shape, target := range targets {
+			for name, request := range callerURLRequests(client, target) {
+				t.Run(scope+"/"+shape+"/"+name, func(t *testing.T) {
+					hooks.infos = nil
+					err := request()
+					if err == nil {
+						t.Fatal("expected the malformed URL to be rejected")
+					}
+					for _, text := range renderings(err) {
+						if strings.Contains(text, "SECRETVALUE") || strings.Contains(text, "%zz") {
+							t.Errorf("the input leaked into %q", text)
+						}
+					}
+					if len(hooks.infos) != 0 {
+						t.Errorf("a request reached the hooks: %+v", hooks.infos)
+					}
+				})
+			}
+		}
+	}
+
+	t.Run("an ordinary API path that does not parse", func(t *testing.T) {
+		_, err := root.Get(context.Background(), "/%zz")
+		if err == nil || err.Error() != "invalid URL" {
+			t.Errorf("expected the fixed token, got %v", err)
+		}
+	})
+}
+
+// TestAttachmentsUploadMalformedTargetRendersNoSignedValue hands Upload a direct-upload
+// URL net/url rejects — a signed value where the port goes — and checks
+// RequireSecureEndpoint's rejection renders neither the input nor the component the
+// parser quotes.
+func TestAttachmentsUploadMalformedTargetRendersNoSignedValue(t *testing.T) {
+	const signedURL = "https://storage.example:SECRETVALUE/blob"
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{
+			"signed_id":"signed-123",
+			"attachable_sgid":"sgid-456",
+			"direct_upload":{"url":"` + signedURL + `","headers":{"Content-Type":"text/plain"}}
+		}`))
+	}))
+	t.Cleanup(server.Close)
+	client := NewClient(&Config{BaseURL: server.URL}, &StaticTokenProvider{Token: "test-token"}, WithMaxRetries(0))
+
+	_, err := client.Attachments().Upload(context.Background(), "note.txt", "text/plain", strings.NewReader("contents"))
+	if err == nil || !strings.Contains(err.Error(), "unsafe attachment upload target") {
+		t.Fatalf("expected the malformed upload target to be rejected, got %v", err)
+	}
+	for _, text := range renderings(err) {
+		if strings.Contains(text, "SECRETVALUE") {
+			t.Errorf("the signed value leaked into %q", text)
+		}
+	}
+	if !strings.Contains(err.Error(), "invalid URL") {
+		t.Errorf("the rejection should render the fixed token, got %q", err)
+	}
+}

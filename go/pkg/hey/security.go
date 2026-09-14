@@ -63,18 +63,17 @@ func truncateString(s string, maxLen int) string {
 	return s[:maxLen-3] + "..."
 }
 
-// requireHTTPS validates that the given URL uses the https:// scheme.
-// requireHTTPS rejects a URL whose scheme is not https. The error names the URL's
-// origin alone: HEY's direct-upload URL is signed, and the rejection is what a caller
-// logs.
+// errInvalidURL is the whole of what a URL that does not parse renders. net/url's own
+// error quotes the input, or the component it rejected, and the input can be signed.
+var errInvalidURL = errors.New("invalid URL")
+
+// requireHTTPS rejects a URL whose scheme is not https, or that does not parse. The
+// error names the URL's origin alone, or the fixed token: HEY's direct-upload URL is
+// signed, and the rejection is what a caller logs.
 func requireHTTPS(rawURL string) error {
 	u, err := url.Parse(rawURL)
 	if err != nil {
-		var parseErr *url.Error
-		if errors.As(err, &parseErr) {
-			err = parseErr.Err
-		}
-		return fmt.Errorf("invalid URL: %w", err)
+		return errInvalidURL
 	}
 	if !strings.EqualFold(u.Scheme, "https") {
 		return fmt.Errorf("URL must use HTTPS: %s", describeOrigin(rawURL))

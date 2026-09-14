@@ -980,28 +980,33 @@ func (c *Client) bufferBound(req *http.Request) int64 {
 	return MaxResponseBodyBytes
 }
 
+// buildURL resolves a caller's path to the URL a request is built from: an absolute
+// URL as given, an API path under the base URL. It is the one entry for a caller's
+// string, and parses what it returns once, so nothing downstream can fail to parse it
+// and render the input: a parse failure is the fixed token alone.
 func (c *Client) buildURL(path string) (string, error) {
-	if strings.HasPrefix(path, "https://") {
-		return path, nil
-	}
-	if strings.HasPrefix(path, "http://") {
+	var resolved string
+	switch {
+	case strings.HasPrefix(path, "https://"):
+		resolved = path
+	case strings.HasPrefix(path, "http://"):
 		// Allow http:// when the base URL itself uses http:// and the host matches
 		// (local development). Reject http:// to different hosts to prevent
 		// leaking credentials.
-		if strings.HasPrefix(c.cfg.BaseURL, "http://") {
-			baseHost := extractHost(c.cfg.BaseURL)
-			pathHost := extractHost(path)
-			if baseHost == pathHost {
-				return path, nil
-			}
+		if !strings.HasPrefix(c.cfg.BaseURL, "http://") || extractHost(c.cfg.BaseURL) != extractHost(path) {
+			return "", fmt.Errorf("URL must use HTTPS, got: %s", describeOrigin(path))
 		}
-		return "", fmt.Errorf("URL must use HTTPS, got: %s", describeOrigin(path))
+		resolved = path
+	default:
+		if !strings.HasPrefix(path, "/") {
+			path = "/" + path
+		}
+		resolved = strings.TrimSuffix(c.cfg.BaseURL, "/") + path
 	}
-	if !strings.HasPrefix(path, "/") {
-		path = "/" + path
+	if _, err := url.Parse(resolved); err != nil {
+		return "", errInvalidURL
 	}
-	base := strings.TrimSuffix(c.cfg.BaseURL, "/")
-	return base + path, nil
+	return resolved, nil
 }
 
 // extractHost returns the host:port portion of a URL string.
