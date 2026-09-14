@@ -63,7 +63,12 @@ pub(crate) struct Struct {
 
 pub(crate) struct Polymorphic {
     pub discriminator: String,
-    pub variants: Vec<String>,
+    pub variants: Vec<PolymorphicVariant>,
+}
+
+pub(crate) struct PolymorphicVariant {
+    pub name: String,
+    pub values: Vec<String>,
 }
 
 pub(crate) struct Field {
@@ -304,9 +309,37 @@ fn mark_request_side(schemas: &mut [Schema], services: &[Service]) {
 
 fn polymorphic_of(schema: &Value) -> Option<Polymorphic> {
     let extension = schema.get("x-hey-polymorphic")?;
+    let discriminator_values = extension
+        .get("discriminatorValues")
+        .and_then(Value::as_object);
+    let variants = extension["variants"]
+        .as_object()?
+        .keys()
+        .map(|name| PolymorphicVariant {
+            name: name.clone(),
+            values: discriminator_values
+                .and_then(|values| values.get(name))
+                .and_then(Value::as_array)
+                .map_or_else(
+                    || vec![name.clone()],
+                    |values| {
+                        let values: Vec<String> = values
+                            .iter()
+                            .filter_map(Value::as_str)
+                            .map(str::to_string)
+                            .collect();
+                        if values.is_empty() {
+                            vec![name.clone()]
+                        } else {
+                            values
+                        }
+                    },
+                ),
+        })
+        .collect();
     Some(Polymorphic {
         discriminator: extension["discriminator"].as_str()?.to_string(),
-        variants: extension["variants"].as_object()?.keys().cloned().collect(),
+        variants,
     })
 }
 

@@ -1,0 +1,26 @@
+[
+  {
+    "file": "calendar-events.json",
+    "name": "All-day calendar event updates omit clock times",
+    "operation": "UpdateCalendarEvent",
+    "reason": "Go-only handwritten calendar-event form update; PATCH/PUT excluded in spec/excluded-routes.json and absent from Smithy/OpenAPI. Not part of the TypeScript modeled surface."
+  },
+  {
+    "file": "credential-refresh.json",
+    "name": "A 401 on an SDK form request is answered by a refresh and one resend",
+    "operation": "UpdateCalendarEvent",
+    "reason": "Go-only handwritten calendar-event form update; PATCH/PUT excluded in spec/excluded-routes.json and absent from Smithy/OpenAPI. Not part of the TypeScript modeled surface."
+  },
+  {
+    "file": "credential-refresh.json",
+    "name": "A 401 that outlives the refresh on an SDK form request is surfaced after the one resend",
+    "operation": "UpdateCalendarEvent",
+    "reason": "Go-only handwritten calendar-event form update; PATCH/PUT excluded in spec/excluded-routes.json and absent from Smithy/OpenAPI. Not part of the TypeScript modeled surface."
+  },
+  {
+    "file": "paths.json",
+    "name": "GetWorkflowStage uses the HTML workflow stage path and reads the stage out of it",
+    "operation": "GetWorkflowStage",
+    "reason": "Go and Rust add a handwritten parsed view over the modeled HTML blob. The TypeScript generated operation returns the modeled raw HTML string, so the parsed-view assertions are outside its generated surface."
+  }
+]

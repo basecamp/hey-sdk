@@ -436,6 +436,43 @@ fn what_a_caller_sends_stays_literal_and_what_hey_answers_does_not() {
 }
 
 #[test]
+fn polymorphic_helpers_accept_modeled_aliases_and_fall_back_to_variant_names() {
+    let files = generate(
+        json!({}),
+        json!({
+            "Recording": {
+                "type": "object",
+                "x-hey-polymorphic": {
+                    "discriminator": "type",
+                    "variants": {
+                        "Calendar::Habit": ["days"],
+                        "Calendar::Todo": ["position"]
+                    },
+                    "discriminatorValues": {
+                        "Calendar::Todo": ["CalendarTodo", "Calendar::Todo"]
+                    }
+                },
+                "properties": {
+                    "type": { "type": "string" },
+                    "days": { "type": "array", "items": { "type": "integer" } },
+                    "position": { "type": "integer" }
+                },
+                "required": ["type"]
+            }
+        }),
+        &[],
+    );
+
+    let types = file(&files, "types.rs");
+    assert!(types.contains(
+        "pub fn is_calendar_todo(&self) -> bool {\n        matches!(\n            self.r#type.as_str(),\n            \"CalendarTodo\" | \"Calendar::Todo\"\n        )\n    }"
+    ));
+    assert!(types.contains(
+        "pub fn is_calendar_habit(&self) -> bool {\n        self.r#type == \"Calendar::Habit\"\n    }"
+    ));
+}
+
+#[test]
 fn a_shape_that_mentions_itself_is_boxed_and_a_renamed_one_reaches_every_field() {
     let files = generate(
         json!({}),
