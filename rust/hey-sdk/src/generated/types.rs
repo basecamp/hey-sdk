@@ -1830,7 +1830,7 @@ pub struct PostingNote {
     pub content: Option<String>,
 }
 
-/// Recording — polymorphic by `type` (Calendar::Event, Calendar::Todo, etc.)
+/// Recording — polymorphic by `type`, with direct and namespaced calendar wire values
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 #[non_exhaustive]
 pub struct Recording {
@@ -1859,9 +1859,7 @@ pub struct Recording {
     /// ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub updated_at: Option<DateTime>,
-    /// Discriminator — the recordable's Ruby class name: Calendar::Event, Calendar::Todo,
-    /// Calendar::JournalEntry, Calendar::Habit, Calendar::TimeTrack, Calendar::Countdown,
-    /// Calendar::DayBackground, Calendar::DayTitle or Calendar::Habit::Completion.
+    /// Discriminator with direct (`CalendarTodo`) and namespaced (`Calendar::Todo`) values.
     #[serde(
         default,
         deserialize_with = "crate::types::null_as_default::deserialize"
@@ -1935,6 +1933,7 @@ pub struct Recording {
     pub stopped_at: Option<DateTime>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub notes: Option<String>,
+    /// HEY emits explicit JSON null when a time track has no category.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub category: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -1945,31 +1944,43 @@ pub struct Recording {
 
 impl Recording {
     pub fn is_calendar_event(&self) -> bool {
-        self.r#type == "Calendar::Event"
+        matches!(self.r#type.as_str(), "CalendarEvent" | "Calendar::Event")
     }
 
     pub fn is_calendar_todo(&self) -> bool {
-        self.r#type == "Calendar::Todo"
+        matches!(self.r#type.as_str(), "CalendarTodo" | "Calendar::Todo")
     }
 
     pub fn is_calendar_journal_entry(&self) -> bool {
-        self.r#type == "Calendar::JournalEntry"
+        matches!(
+            self.r#type.as_str(),
+            "CalendarJournalEntry" | "Calendar::JournalEntry"
+        )
     }
 
     pub fn is_calendar_habit(&self) -> bool {
-        self.r#type == "Calendar::Habit"
+        matches!(self.r#type.as_str(), "CalendarHabit" | "Calendar::Habit")
     }
 
     pub fn is_calendar_time_track(&self) -> bool {
-        self.r#type == "Calendar::TimeTrack"
+        matches!(
+            self.r#type.as_str(),
+            "CalendarTimeTrack" | "Calendar::TimeTrack"
+        )
     }
 
     pub fn is_calendar_countdown(&self) -> bool {
-        self.r#type == "Calendar::Countdown"
+        matches!(
+            self.r#type.as_str(),
+            "CalendarCountdown" | "Calendar::Countdown"
+        )
     }
 
     pub fn is_calendar_day_background(&self) -> bool {
-        self.r#type == "Calendar::DayBackground"
+        matches!(
+            self.r#type.as_str(),
+            "CalendarDayBackground" | "Calendar::DayBackground"
+        )
     }
 }
 

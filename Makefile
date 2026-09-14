@@ -162,6 +162,7 @@ endif
 	@echo "Releasing v$(VERSION)..."
 	@git diff --quiet && git diff --cached --quiet || \
 		{ echo "ERROR: Working tree has uncommitted changes."; exit 1; }
+	@bash ./scripts/typescript-publish-state.sh > /dev/null
 	@grep -Fxq 'const Version = "$(VERSION)"' go/pkg/hey/version.go || \
 		{ echo "ERROR: go/pkg/hey/version.go does not say $(VERSION):"; \
 		  grep 'const Version' go/pkg/hey/version.go; \
@@ -173,6 +174,7 @@ endif
 		  grep '^version' rust/hey-sdk/Cargo.toml; \
 		  echo "       Run: make bump VERSION=$(VERSION) — then commit and merge that first."; \
 		  exit 1; }
+	@node scripts/sync-typescript-versions.mjs --check
 	@$(MAKE) check-mvp
 	git tag "v$(VERSION)"
 	git tag "go/v$(VERSION)"
@@ -240,7 +242,16 @@ rs-consumer-check:
 # TypeScript SDK
 #------------------------------------------------------------------------------
 
-.PHONY: ts-generate ts-generate-services ts-build ts-test ts-typecheck ts-check
+.PHONY: ts-install ts-generate ts-generate-services ts-build ts-test ts-typecheck ts-check ts-check-drift ts-smoke
+
+ts-install:
+	cd typescript && npm ci
+
+ts-check-drift:
+	cd typescript && npm run check:generated
+
+ts-smoke: ts-build
+	cd typescript && npm run smoke
 
 ts-generate:
 	cd typescript && npm run generate
@@ -257,7 +268,8 @@ ts-test:
 ts-typecheck:
 	cd typescript && npm run typecheck
 
-ts-check: ts-build ts-test ts-typecheck
+ts-check: ts-check-drift ts-build ts-test ts-typecheck
+	node scripts/sync-typescript-versions.mjs --check
 
 #------------------------------------------------------------------------------
 # Ruby SDK
@@ -342,14 +354,14 @@ conformance-swift:
 conformance-kt:
 	cd conformance/runner/kotlin && ./gradlew test
 
-# MVP: behavioral tests only (conformance/tests/*.json)
-conformance-mvp: conformance-go conformance-rs
+# Shipped SDKs: behavioral tests (conformance/tests/*.json)
+conformance-mvp: conformance-go conformance-rs conformance-ts
 
 # Full: MVP + full-surface tests (conformance/tests/ + conformance/tests/full/)
 conformance-full: conformance-go conformance-rs conformance-ts conformance-rb conformance-swift conformance-kt
 
-# Bare alias points to full
-conformance: conformance-full
+# Bare alias covers shipped SDKs only
+conformance: conformance-mvp
 
 audit-check:
 	@echo "==> Checking rubric audit..."
@@ -360,9 +372,10 @@ audit-check:
 # Progressive gates
 #------------------------------------------------------------------------------
 
-# Phase 0-1: Smithy model validation
+# Supported gate: Smithy + shipped Go, Rust and TypeScript SDKs
 check-mvp: smithy-check behavior-model-check drift-check-mvp \
-           url-routes-check go-check go-check-drift rs-check rs-check-drift conformance-mvp
+           url-routes-check go-check go-check-drift rs-check rs-check-drift \
+           ts-check sync-api-version-check conformance-mvp
 	@echo "==> MVP gate passed"
 
 # Phase 3: Full surface, all languages
@@ -385,7 +398,7 @@ clean: smithy-clean
 help:
 	@echo "HEY SDK Makefile"
 	@echo ""
-	@echo "  check-mvp   Run MVP gate (Smithy + Go + Rust + conformance)"
+	@echo "  check-mvp   Run MVP gate (Smithy + Go + Rust + TypeScript + conformance)"
 	@echo "  check-full  Run full gate (all languages + conformance + audit)"
 	@echo "  check       Alias for check-mvp"
 	@echo "  smithy-build   Regenerate OpenAPI from Smithy"

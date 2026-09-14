@@ -7,6 +7,13 @@ on:
 
 permissions: {}
 
+# Debug builds carry full DWARF by default, and in this workspace that is most of the bytes:
+# the test job's ~110 linked test binaries run 50–200 MB each and put its cache entry at
+# 2.5 GB compressed. Line tables keep file:line in a failing test's backtrace, which is all
+# a CI log needs, at ~2.6x less: 0.9 GB. Nothing here is debugged under a debugger.
+env:
+  CARGO_PROFILE_DEV_DEBUG: line-tables-only
+
 jobs:
   smithy-verify:
     permissions:
@@ -49,6 +56,11 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+    env:
+      # mbx's store sweep is sized to 5% of the runner's disk, below the bundle the action
+      # imports, so on the job's first cargo command it evicted half of what was just
+      # restored. Nothing else writes to this store during the job.
+      MBX_GC_AUTO: "0"
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -59,16 +71,24 @@ jobs:
       - name: Set up Rust
         run: rustup toolchain install && rustup show
 
+      # The action installs the release named here, checking the archive against the digest
+      # GitHub reports for the immutable release. 1.10.1 is the first release with the export
+      # fix (jdx/mr-boxington#424) that main had been building from upstream to get.
       # mbx keys each compilation on the content it reads, with checkout paths mapped to
       # placeholders, so the workspace crate restores on a pull request that leaves rust/
       # untouched; a warm target tree cannot do that on a fresh checkout's mtimes. `objects`
       # transports that content-addressed closure rather than the target tree. Entries are
-      # saved on pushes to main only; pull requests, forks included, restore.
+      # saved on pushes to main only; pull requests, forks included, restore. The generation
+      # is the mbx commit main's bundle was written under: 1.10.1 stores the same objects
+      # under the same keys (only the cc adapter's predictions moved to a new namespace, and
+      # those are relearned on the first run), so the entry carries over. Bump it when a
+      # release changes what the store holds.
       - name: Cache cargo
         uses: jdx/mr-boxington-action@7234d3dd1a6ca8f6c381eea8e4dfb03f18fcf777 # v1.3.0
         with:
-          version: 1.10.0
+          version: 1.10.1
           github-cache-mode: objects
+          cache-generation: 68e48f140664c04682a7b33a1c7782b86484d21a
 
       - name: Install cargo-deny
         uses: taiki-e/install-action@c3ec0de9ae7f1019cea21aa96aa0a895b9552063 # v2.87.9
@@ -119,6 +139,7 @@ jobs:
           RUSTUP_TOOLCHAIN: ${{ steps.msrv.outputs.version }}
         with:
           workspaces: rust
+          save-if: ${{ github.ref == 'refs/heads/main' }}
 
       # RUSTUP_TOOLCHAIN outranks rust-toolchain.toml, which would otherwise pick the
       # pinned stable back up.
@@ -152,6 +173,7 @@ jobs:
           RUSTUP_TOOLCHAIN: nightly
         with:
           workspaces: rust
+          save-if: ${{ github.ref == 'refs/heads/main' }}
 
       # What docs.rs will do with the crate: nightly rustdoc with `--cfg docsrs`, so a
       # feature-gated item's badge renders and a nightly-only doc lint is heard here rather
@@ -162,6 +184,25 @@ jobs:
           RUSTUP_TOOLCHAIN: nightly
           RUSTDOCFLAGS: --cfg docsrs -D warnings
         run: cargo doc -p hey-sdk --no-deps --all-features --locked
+
+  test-typescript:
+    name: TypeScript (Node ${{ matrix.node }})
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ['22.12.0', '24', '26']
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: ${{ matrix.node }}
+      - run: npm ci --prefix typescript
+      - run: make ts-check ts-smoke
 
   lint-go:
     name: Go Lint
@@ -206,11 +247,10 @@ jobs:
           advanced-security: false
 
   conformance:
-    name: Conformance Tests
+    name: Conformance Tests (Go and TypeScript)
     runs-on: ubuntu-latest
     permissions:
       contents: read
-    needs: [test-go]
     defaults:
       run:
         working-directory: conformance/runner/go
@@ -225,15 +265,20 @@ jobs:
           go-version-file: 'conformance/runner/go/go.mod'
           cache-dependency-path: 'conformance/runner/go/go.sum'
 
-      - name: Run conformance tests
-        run: go run .
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '24'
+      - run: npm ci --prefix typescript
+        working-directory: .
+      - name: Run Go and TypeScript conformance tests
+        run: make conformance-go conformance-ts
+        working-directory: .
 
   conformance-rust:
     name: Conformance Tests (Rust)
     runs-on: ubuntu-latest
     permissions:
       contents: read
-    needs: [test-rust]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -248,6 +293,7 @@ jobs:
           workspaces: |
             rust
             conformance/runner/rust
+          save-if: ${{ github.ref == 'refs/heads/main' }}
 
       - name: Run conformance tests
         run: make conformance-rs

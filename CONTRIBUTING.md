@@ -9,6 +9,7 @@
 - [`cargo-semver-checks`](https://github.com/obi1kenobi/cargo-semver-checks) only if you want the
   API-compatibility check locally (`cargo semver-checks -p hey-sdk --baseline-rev origin/main`
   from `rust/`); CI runs it on every pull request
+- Node 22.12+, 24 or 26 and npm; `make ts-install` uses the frozen lockfile
 - Make
 - jq
 
@@ -28,8 +29,8 @@
    (`make url-routes`, `./scripts/generate-shape-fingerprint`, `./scripts/generate-route-coverage`)
 3. Run `make go-generate` to regenerate the Go client, then add or update the hand-written
    service in `go/pkg/hey`
-4. Run `make rs-generate` to regenerate the Rust crate
-5. Add unit tests
+4. Run `make rs-generate` and `make ts-generate` to regenerate Rust and TypeScript
+5. Add Go, Rust and TypeScript tests
 6. Add conformance tests if the operation has behavioral requirements, with dispatch arms in
    the Go and Rust runners
 7. Run `make check`
@@ -55,7 +56,7 @@ release with a line in the release notes.
 Two steps, in this order.
 
 ```bash
-make bump VERSION=x.y.z     # rewrites go/pkg/hey/version.go, rust/hey-sdk/Cargo.toml and both Cargo.lock files
+make bump VERSION=x.y.z     # rewrites Go, Rust and TypeScript versions and lockfiles
 # commit that, open a PR, merge it
 make release VERSION=x.y.z  # runs the gate, then tags vx.y.z and go/vx.y.z
 ```
@@ -126,3 +127,11 @@ that tag; finish these steps and re-run the failed run.
 6. Revoke the token.
 7. `make release VERSION=x.y.z` from that same commit. The tag's `release-rust.yml` run finds
    the version already on crates.io and succeeds; the next tag is the first real exchange.
+
+### Publishing TypeScript
+
+TypeScript publishing is inactive until human npm/environment provisioning is complete.
+Read [TypeScript release setup](TYPESCRIPT_RELEASE.md) before changing
+`.github/typescript-publish-enabled` to `true`; `false` preserves Go and Rust release
+orchestration and means **npm is not published**. Manual TypeScript release dispatch is
+always a credential-free dry-run.
