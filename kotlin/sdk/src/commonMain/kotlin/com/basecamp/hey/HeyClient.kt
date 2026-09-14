@@ -6,7 +6,9 @@ import com.basecamp.hey.generated.models.Identity
 import io.ktor.client.HttpClient
 import io.ktor.client.HttpClientConfig
 import io.ktor.client.engine.HttpClientEngine
+import io.ktor.client.plugins.HttpRedirect
 import io.ktor.client.plugins.HttpRequestTimeoutException
+import io.ktor.client.plugins.pluginOrNull
 import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.request.HttpRequestBuilder
 import io.ktor.client.request.header
@@ -137,6 +139,12 @@ class HeyClientBuilder {
         }
         if (httpClient != null && engine != null) {
             throw HeyException.Usage("Cannot set both httpClient and engine. Use one or the other.")
+        }
+        // Ktor follows redirects by default, and would do so before this client could keep
+        // credentials off another origin or the account scope on a hop: a client built that
+        // way is refused rather than quietly stripped of those guarantees.
+        if (httpClient?.pluginOrNull(HttpRedirect) != null) {
+            throw HeyException.Usage("httpClient must be built with followRedirects = false; the SDK follows redirects itself")
         }
         if (timeout != Duration.INFINITE && !timeout.isPositive()) {
             throw HeyException.Usage("timeout must be positive or Duration.INFINITE, got: $timeout")
@@ -565,7 +573,8 @@ class HeyClient internal constructor(
             val full = if (operation.jsonSuffix) withJsonExtension(path) else path
             URLBuilder(shared.baseUrl).apply {
                 encodedPath = shared.baseUrl.encodedPath.trimEnd('/') + "/" + full.trimStart('/')
-                if (!query.isNullOrEmpty()) encodedParameters.appendAll(parseQueryString(query))
+                // The caller's query goes out as written; decoding it here would turn a %26 into a second parameter.
+                if (!query.isNullOrEmpty()) encodedParameters.appendAll(parseQueryString(query, decode = false))
             }
         }
         for ((name, value) in operation.query) builder.parameters.append(name, value)
@@ -680,8 +689,7 @@ class HeyClient internal constructor(
         val status = response.status.value
         val headers = response.headers
         if (status == 304) return Received(url, status, headers, ByteArray(0), refusal = null)
-        val parsed = operation.accept == "application/json" || operation.accept == "text/html"
-        val bound = if (parsed) shared.config.maxResponseBodyBytes else HeyConfig.MAX_RESPONSE_BODY_BYTES
+        val bound = if (isParsed(operation.accept)) shared.config.maxResponseBodyBytes else HeyConfig.MAX_RESPONSE_BODY_BYTES
         return try {
             Received(url, status, headers, readBody(response, bound), refusal = null)
         } catch (refusal: HeyException) {
@@ -894,3 +902,14 @@ private fun forbidsStoring(headers: Headers): Boolean =
 /** The headers a cache entry keeps beside the body: everything HEY sent that is not a credential. */
 private fun storableHeaders(headers: Headers): Map<String, List<String>> =
     headers.entries().filter { (name, _) -> !isSensitiveHeader(name) }.associate { (name, values) -> name to values.toList() }
+
+/**
+ * Whether the answer to a request that asked for this is a document the SDK holds whole and
+ * goes on to parse — JSON, a `+json` type, or HTML, anywhere in the `Accept` list — and so is
+ * held to the configured cap. Anything else, a blob or an export, is held to the fixed one.
+ */
+internal fun isParsed(accept: String): Boolean =
+    accept.isEmpty() || accept.split(',').any { part ->
+        val mediaType = part.substringBefore(';').trim()
+        mediaType == "application/json" || mediaType.endsWith("+json") || mediaType == "text/html"
+    }

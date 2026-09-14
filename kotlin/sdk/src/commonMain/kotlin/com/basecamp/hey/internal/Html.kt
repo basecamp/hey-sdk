@@ -16,12 +16,18 @@ internal sealed class HtmlNode {
         /** The element's classes, split on any whitespace. */
         val classes: List<String> get() = attribute("class")?.split(Regex("\\s+"))?.filter { it.isNotEmpty() }.orEmpty()
 
-        /** Every element under this one, in document order, this one excluded. */
+        /**
+         * Every element under this one, in document order, this one excluded. Walked without
+         * recursion: the page is the server's and its nesting is not bounded.
+         */
         fun descendants(): Sequence<Element> = sequence {
-            for (child in children) {
-                if (child is Element) {
-                    yield(child)
-                    yieldAll(child.descendants())
+            val pending = ArrayDeque<HtmlNode>()
+            children.asReversed().forEach(pending::addLast)
+            while (pending.isNotEmpty()) {
+                val node = pending.removeLast()
+                if (node is Element) {
+                    yield(node)
+                    node.children.asReversed().forEach(pending::addLast)
                 }
             }
         }
@@ -36,13 +42,14 @@ internal sealed class HtmlNode {
          */
         fun visibleText(): String {
             val text = StringBuilder()
-            fun walk(node: HtmlNode) {
-                when (node) {
+            val pending = ArrayDeque<HtmlNode>()
+            children.asReversed().forEach(pending::addLast)
+            while (pending.isNotEmpty()) {
+                when (val node = pending.removeLast()) {
                     is Text -> text.append(node.text)
-                    is Element -> if (!node.isVisuallyHidden()) node.children.forEach(::walk)
+                    is Element -> if (!node.isVisuallyHidden()) node.children.asReversed().forEach(pending::addLast)
                 }
             }
-            children.forEach(::walk)
             return text.split(Regex("\\s+")).filter { it.isNotEmpty() }.joinToString(" ")
         }
 

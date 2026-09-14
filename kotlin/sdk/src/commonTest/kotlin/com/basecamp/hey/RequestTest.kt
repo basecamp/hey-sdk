@@ -127,4 +127,29 @@ class RequestTest {
         assertEquals("2", hey.requests.single().query("y"))
         assertEquals(200, response.status)
     }
+
+    @Test
+    fun aRawPathsQueryGoesOutAsWritten() = runTest {
+        val hey = mockHey(ok("""{"ok":true}"""))
+        val client = hey.client()
+        client.execute(client.request(Method.GET, "/search?q=a%26b&plus=1%2B1"))
+        val url = hey.requests.single().url
+        assertEquals("q=a%26b&plus=1%2B1", url.encodedQuery)
+        assertEquals("a&b", url.parameters["q"])
+        assertEquals("1+1", url.parameters["plus"])
+    }
+
+    @Test
+    fun aDocumentIsHeldToTheConfiguredCapWhateverTheAcceptListSays() = runTest {
+        assertEquals(true, isParsed("text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"))
+        assertEquals(true, isParsed("application/vnd.api+json"))
+        assertEquals(true, isParsed(""))
+        assertEquals(false, isParsed("image/png"))
+        assertEquals(false, isParsed("*/*"))
+
+        val hey = mockHey(ok("<html>" + "x".repeat(2000) + "</html>", mapOf("Content-Type" to "text/html")))
+        val client = hey.client { maxResponseBodyBytes = 100 }
+        val error = assertFailsWith<HeyException.Api> { client.sendForm(client.form(Method.GET, "/workflows/new")) }
+        assertEquals(true, error.responseTooLarge)
+    }
 }

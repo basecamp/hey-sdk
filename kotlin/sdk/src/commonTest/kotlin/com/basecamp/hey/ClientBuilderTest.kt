@@ -72,4 +72,12 @@ class ClientBuilderTest {
         assertTrue(theirs.isActive)
         theirs.close()
     }
+
+    @Test
+    fun aCallersClientThatFollowsRedirectsItselfIsRefused() {
+        val follows = io.ktor.client.HttpClient(engine)
+        val error = assertFailsWith<HeyException.Usage> { HeyClient { accessToken("t"); httpClient = follows } }
+        assertTrue(error.message!!.contains("followRedirects = false"))
+        follows.close()
+    }
 }

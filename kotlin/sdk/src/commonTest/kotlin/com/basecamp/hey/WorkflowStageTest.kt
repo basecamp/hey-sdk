@@ -42,4 +42,20 @@ class WorkflowStageTest {
         assertEquals("Applied", view.name)
         assertEquals("/workflows/8801/stages/5512", hey.requests.single().path)
     }
+
+    @Test
+    fun aPageNestedBeyondAnyStackIsStillRead() {
+        val depth = 200_000
+        val page = buildString {
+            append("<section id=\"container_workflow_stage_5\"><h2>Applied</h2>")
+            repeat(depth) { append("<div>") }
+            append("<div id=\"topic_9\" data-identifier=\"77\"><h3>Deep</h3><p class=\"card__detail\">2 messages</p></div>")
+            repeat(depth) { append("</div>") }
+            append("</section>")
+        }
+        val view = WorkflowStageView.parse(page, 5)
+        assertEquals("Applied", view.name)
+        assertEquals(listOf(9L), view.topics.map { it.topicId })
+        assertEquals("Deep", view.topics.single().subject)
+    }
 }
