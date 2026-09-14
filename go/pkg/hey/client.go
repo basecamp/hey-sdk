@@ -287,7 +287,7 @@ func (c *Client) initGeneratedClient() {
 				url = scoped
 			}
 			info := RequestInfo{Method: retry.Request.Method, URL: url, Attempt: retry.Attempt - 1}
-			c.hooks.OnRetry(ctx, info, retry.Attempt, retryCause(retry))
+			c.hooks.OnRetry(ctx, info, retry.Attempt, retryCause(retry, c.cfg.BaseURL))
 		}
 
 		// A client with a response cache sends generated requests through it, so the
@@ -315,9 +315,9 @@ func (c *Client) initGeneratedClient() {
 // it to OnRetry: a transport failure as the SDK's network error, a response as CheckResponse
 // classifies it, and the 401 a credential refresh answered as the retryable authentication
 // error singleRequest hands doRequestURL, since the resend is the SDK's own doing.
-func retryCause(retry generated.Retry) error {
+func retryCause(retry generated.Retry, apiOrigin string) error {
 	if retry.Response == nil {
-		return ErrNetwork(retry.Err)
+		return networkError(retry.Err, apiOrigin)
 	}
 	cause := CheckResponse(retry.Response)
 	if authErr, ok := cause.(*Error); ok && authErr.Code == CodeAuth {
@@ -325,6 +325,17 @@ func retryCause(retry generated.Retry) error {
 		authErr.Retryable = true
 	}
 	return cause
+}
+
+// trustedOrigin is the API origin a network error on this request may keep its cause
+// beneath, or none for a request the hooks see projected: a blob download's redirect
+// can land on a signed URL of HEY's own origin, and there nothing beneath the URL is
+// this package's text.
+func (c *Client) trustedOrigin(ctx context.Context) string {
+	if isProjectedRequest(ctx) {
+		return ""
+	}
+	return c.cfg.BaseURL
 }
 
 // withJSONExtension appends ".json" to a request path whose last segment has no
@@ -380,6 +391,9 @@ func (c *Client) GetBlob(ctx context.Context, path string) (*Response, error) {
 
 	ctx = contextWithAccept(ctx, "*/*")
 	ctx = contextWithoutCache(ctx)
+	// HEY answers with a redirect to a signed storage URL, followed on this context:
+	// the hooks see every hop projected.
+	ctx = markProjectedRequest(ctx)
 	return c.doRequestURL(ctx, http.MethodGet, resolvedURL, nil)
 }
 
@@ -396,6 +410,7 @@ func (c *Client) DownloadBlob(ctx context.Context, path string, destination io.W
 
 	ctx = contextWithAccept(ctx, "*/*")
 	ctx = contextWithoutCache(ctx)
+	ctx = markProjectedRequest(ctx)
 	ctx, stream := contextWithStreamDestination(ctx, destination)
 	resp, err := c.doRequestURL(ctx, http.MethodGet, resolvedURL, nil)
 	if err != nil {
@@ -495,6 +510,7 @@ func (c *Client) doBodyRequest(ctx context.Context, method, path, contentType st
 	if err != nil {
 		return nil, err
 	}
+	ctx = markCallerURL(ctx, path)
 
 	resp, err := c.sendBodyRequest(ctx, method, reqURL, contentType, body, 1)
 	if apiErr, ok := err.(*Error); ok && apiErr.Retryable && apiErr.Code == CodeAuth {
@@ -542,7 +558,7 @@ func (c *Client) sendBodyRequest(ctx context.Context, method, reqURL, contentTyp
 
 	resp, err := noRedirectClient.Do(req)
 	if err != nil {
-		return nil, ErrNetwork(err)
+		return nil, networkError(err, c.trustedOrigin(ctx))
 	}
 	defer func() { _ = resp.Body.Close() }()
 
@@ -561,7 +577,7 @@ func (c *Client) sendBodyRequest(ctx context.Context, method, reqURL, contentTyp
 		// singleRequest bounds its own reads.
 		responseBody, err := limitedReadAll(resp.Body, MaxResponseBodyBytes)
 		if err != nil {
-			return nil, ErrNetwork(err)
+			return nil, networkError(err, c.trustedOrigin(ctx))
 		}
 		return &FormResponse{StatusCode: resp.StatusCode, Body: string(responseBody)}, nil
 
@@ -646,7 +662,35 @@ func (c *Client) doRequest(ctx context.Context, method, path string, body any) (
 	if err != nil {
 		return nil, err
 	}
-	return c.doRequestURL(ctx, method, url, body)
+	return c.doRequestURL(markCallerURL(ctx, path), method, url, body)
+}
+
+// isAbsoluteURL reports whether path is an absolute URL rather than an API path.
+func isAbsoluteURL(path string) bool {
+	return hasScheme(path, "https") || hasScheme(path, "http")
+}
+
+// hasScheme reports whether rawURL begins with scheme and "://", in any case, as
+// net/url reads a scheme.
+func hasScheme(rawURL, scheme string) bool {
+	prefix := scheme + "://"
+	return len(rawURL) >= len(prefix) && strings.EqualFold(rawURL[:len(prefix)], prefix)
+}
+
+// markCallerURL marks ctx when path is a caller's absolute URL, on any origin: the one
+// shape of URL here the SDK did not build, so the hooks, the network error and the
+// SDK's own error text see it projected, as they see a storage request. A relative
+// path is an API path and is shown whole. A credential-bearing storage path reaches
+// the SDK either as the absolute URL HEY hands out, which this marks, or through
+// GetBlob and DownloadBlob, which mark their own; one in relative form handed to a raw
+// helper is the caller's own text and is not recognised here, since no fixed prefix
+// covers HEY's credential-bearing routes (a signed key or token leads paths outside
+// the Active Storage mount as well as under it).
+func markCallerURL(ctx context.Context, path string) context.Context {
+	if isAbsoluteURL(path) {
+		return markProjectedRequest(ctx)
+	}
+	return ctx
 }
 
 func (c *Client) doRequestURL(ctx context.Context, method, url string, body any) (*Response, error) {
@@ -696,6 +740,9 @@ func (c *Client) doRequestURLWithBudget(ctx context.Context, method, url string,
 		return nil, err
 	}
 	url = requestURL
+	// The retry hook sees the URL as the request hooks do: projected on a request the
+	// transport projects (a blob download's URL can carry a query of its own).
+	hookURL := displayURL(ctx, url)
 
 	// Non-idempotent mutations: Don't retry on 429/5xx to avoid duplicating data.
 	// Only retry once after successful 401 token refresh.
@@ -706,7 +753,7 @@ func (c *Client) doRequestURLWithBudget(ctx context.Context, method, url string,
 		}
 		if apiErr, ok := err.(*Error); ok && apiErr.Retryable && apiErr.Code == CodeAuth {
 			c.logger.Debug("token refreshed, retrying mutation", "method", method)
-			info := RequestInfo{Method: method, URL: url, Attempt: 1}
+			info := RequestInfo{Method: method, URL: hookURL, Attempt: 1}
 			c.hooks.OnRetry(ctx, info, 2, err)
 			return c.singleRequest(ctx, method, url, body, 2)
 		}
@@ -755,7 +802,7 @@ func (c *Client) doRequestURLWithBudget(ctx context.Context, method, url string,
 			"errorCode", errorCodeForLog(lastErr),
 		)
 
-		info := RequestInfo{Method: method, URL: url, Attempt: attempt}
+		info := RequestInfo{Method: method, URL: hookURL, Attempt: attempt}
 		c.hooks.OnRetry(ctx, info, attempt+1, lastErr)
 
 		select {
@@ -815,7 +862,7 @@ func (c *Client) singleRequest(ctx context.Context, method, url string, body any
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		return nil, ErrNetwork(err)
+		return nil, networkError(err, c.trustedOrigin(ctx))
 	}
 	defer func() { _ = resp.Body.Close() }()
 
@@ -895,7 +942,7 @@ func (c *Client) singleRequest(ctx context.Context, method, url string, body any
 		return nil, ErrForbidden("Access denied")
 
 	case http.StatusNotFound:
-		return nil, ErrNotFound("Resource", url)
+		return nil, ErrNotFound("Resource", displayURL(ctx, url))
 
 	case http.StatusInternalServerError:
 		return nil, ErrAPI(500, "Server error (500)")
@@ -940,28 +987,33 @@ func (c *Client) bufferBound(req *http.Request) int64 {
 	return MaxResponseBodyBytes
 }
 
+// buildURL resolves a caller's path to the URL a request is built from: an absolute
+// URL as given, an API path under the base URL. It is the one entry for a caller's
+// string, and parses what it returns once, so nothing downstream can fail to parse it
+// and render the input: a parse failure is the fixed token alone.
 func (c *Client) buildURL(path string) (string, error) {
-	if strings.HasPrefix(path, "https://") {
-		return path, nil
-	}
-	if strings.HasPrefix(path, "http://") {
+	var resolved string
+	switch {
+	case hasScheme(path, "https"):
+		resolved = path
+	case hasScheme(path, "http"):
 		// Allow http:// when the base URL itself uses http:// and the host matches
 		// (local development). Reject http:// to different hosts to prevent
 		// leaking credentials.
-		if strings.HasPrefix(c.cfg.BaseURL, "http://") {
-			baseHost := extractHost(c.cfg.BaseURL)
-			pathHost := extractHost(path)
-			if baseHost == pathHost {
-				return path, nil
-			}
+		if !hasScheme(c.cfg.BaseURL, "http") || extractHost(c.cfg.BaseURL) != extractHost(path) {
+			return "", fmt.Errorf("URL must use HTTPS, got: %s", describeOrigin(path))
 		}
-		return "", fmt.Errorf("URL must use HTTPS, got: %s", path)
+		resolved = path
+	default:
+		if !strings.HasPrefix(path, "/") {
+			path = "/" + path
+		}
+		resolved = strings.TrimSuffix(c.cfg.BaseURL, "/") + path
 	}
-	if !strings.HasPrefix(path, "/") {
-		path = "/" + path
+	if _, err := url.Parse(resolved); err != nil {
+		return "", errInvalidURL
 	}
-	base := strings.TrimSuffix(c.cfg.BaseURL, "/")
-	return base + path, nil
+	return resolved, nil
 }
 
 // extractHost returns the host:port portion of a URL string.

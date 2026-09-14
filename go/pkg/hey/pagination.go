@@ -168,6 +168,7 @@ func (c *Client) GetAllWithLimit(ctx context.Context, path string, limit int) ([
 	if err != nil {
 		return nil, err
 	}
+	ctx = markCallerURL(ctx, path)
 	url := baseURL
 	var page int
 

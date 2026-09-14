@@ -183,6 +183,35 @@ func attemptFromContext(ctx context.Context) int {
 	return generated.AttemptFromContext(ctx)
 }
 
+// projectedRequestKey is the context key marking a request whose URL, on some hop, is
+// the credential: the attachment upload's PUT to the signed storage URL, and a blob
+// download, which HEY answers with a redirect to a signed storage URL that net/http
+// follows on the same context. The hooks see every hop of such a request projected to
+// its origin — a storage service can sign the query or the path. An API request's URL
+// carries no credential (the token is in the Authorization header), so the hooks see
+// it whole.
+type projectedRequestKey struct{}
+
+// markProjectedRequest marks ctx as belonging to a request the hooks see projected.
+func markProjectedRequest(ctx context.Context) context.Context {
+	return context.WithValue(ctx, projectedRequestKey{}, true)
+}
+
+// isProjectedRequest reports whether ctx carries the projection marker.
+func isProjectedRequest(ctx context.Context) bool {
+	v, _ := ctx.Value(projectedRequestKey{}).(bool)
+	return v
+}
+
+// displayURL is url as the hooks and the SDK's own error text show it: whole on an
+// API request, its origin alone on a request the transport projects.
+func displayURL(ctx context.Context, url string) string {
+	if isProjectedRequest(ctx) {
+		return projectURL(url, false)
+	}
+	return url
+}
+
 // loggingTransport wraps an http.RoundTripper to log requests and responses,
 // and calls observability hooks for all HTTP requests.
 type loggingTransport struct {
@@ -192,12 +221,22 @@ type loggingTransport struct {
 
 // RoundTrip implements http.RoundTripper with logging and hooks.
 func (t *loggingTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	projected := isProjectedRequest(req.Context())
+	displayURL := req.URL.String()
+	if projected {
+		displayURL = projectURL(displayURL, false)
+	}
 	info := RequestInfo{
 		Method:  req.Method,
-		URL:     req.URL.String(),
+		URL:     displayURL,
 		Attempt: attemptFromContext(req.Context()),
 	}
 	hookCtx := t.client.hooks.OnRequestStart(req.Context(), info)
+	if projected {
+		// A hook may hand back a context of its own; the redirect net/http derives
+		// from this request must still carry the mark.
+		hookCtx = markProjectedRequest(hookCtx)
+	}
 	startTime := time.Now()
 
 	req = req.WithContext(hookCtx)
@@ -216,6 +255,12 @@ func (t *loggingTransport) RoundTrip(req *http.Request) (*http.Response, error) 
 
 	if err != nil {
 		result.Error = err
+		if projected {
+			// A custom transport's failure is text this package cannot vouch for —
+			// a *url.Error of its own, or a message interpolating the URL — so the
+			// hooks get its classification alone.
+			result.Error, _ = classifyFailure(err)
+		}
 	} else {
 		result.StatusCode = resp.StatusCode
 		if resp.StatusCode == 429 || resp.StatusCode == 503 {
