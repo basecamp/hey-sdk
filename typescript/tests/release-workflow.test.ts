@@ -99,6 +99,7 @@ it("rejects malformed publication state before release tags or pushes", () => {
       "scripts",
       join("go", "pkg", "hey"),
       join("rust", "hey-sdk"),
+      join("kotlin", "sdk", "src", "commonMain", "kotlin", "com", "basecamp", "hey"),
       "bin",
     ])
       mkdirSync(join(temp, directory), { recursive: true });
@@ -114,6 +115,14 @@ it("rejects malformed publication state before release tags or pushes", () => {
     writeFileSync(
       join(temp, "rust", "hey-sdk", "Cargo.toml"),
       `[package]\nversion = "${version}"\n`,
+    );
+    writeFileSync(
+      join(temp, "kotlin", "sdk", "build.gradle.kts"),
+      `version = "${version}"\n`,
+    );
+    writeFileSync(
+      join(temp, "kotlin", "sdk", "src", "commonMain", "kotlin", "com", "basecamp", "hey", "HeyConfig.kt"),
+      `        const val VERSION = "${version}"\n`,
     );
     const calls = join(temp, "git-calls");
     const git = join(temp, "bin", "git");

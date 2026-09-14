@@ -29,6 +29,9 @@ it("bumps SDK manifests/constants/lock roots and syncs/checks API versions witho
       "typescript/package-lock.json",
       "conformance/runner/typescript/package.json",
       "conformance/runner/typescript/package-lock.json",
+      "kotlin/sdk/build.gradle.kts",
+      "kotlin/sdk/src/commonMain/kotlin/com/basecamp/hey/HeyConfig.kt",
+      "kotlin/README.md",
       "openapi.json",
     ]) {
       const target = join(temp, file);
@@ -55,6 +58,9 @@ it("bumps SDK manifests/constants/lock roots and syncs/checks API versions witho
       "typescript/package-lock.json",
       "conformance/runner/typescript/package.json",
       "conformance/runner/typescript/package-lock.json",
+      "kotlin/sdk/build.gradle.kts",
+      "kotlin/sdk/src/commonMain/kotlin/com/basecamp/hey/HeyConfig.kt",
+      "kotlin/README.md",
     ];
     const snapshot = () =>
       versionFiles.map((file) => readFileSync(join(temp, file), "utf8"));
@@ -170,6 +176,15 @@ it("bumps SDK manifests/constants/lock roots and syncs/checks API versions witho
     expect(
       readFileSync(join(temp, "typescript/src/version.ts"), "utf8"),
     ).toContain('const VERSION = "1.2.3"');
+    expect(readFileSync(join(temp, "kotlin/sdk/build.gradle.kts"), "utf8")).toMatch(
+      /^version = "1\.2\.3"$/m,
+    );
+    const heyConfig = join(temp, "kotlin/sdk/src/commonMain/kotlin/com/basecamp/hey/HeyConfig.kt");
+    expect(readFileSync(heyConfig, "utf8")).toContain('const val VERSION = "1.2.3"');
+    for (const readme of ["README.md", "kotlin/README.md"])
+      expect(readFileSync(join(temp, readme), "utf8")).toContain(
+        'implementation("com.basecamp:hey-sdk:1.2.3")',
+      );
     const spec = JSON.parse(readFileSync(join(temp, "openapi.json"), "utf8"));
     spec.info.version = "2027-01-02";
     writeFileSync(join(temp, "openapi.json"), JSON.stringify(spec));
@@ -180,6 +195,7 @@ it("bumps SDK manifests/constants/lock roots and syncs/checks API versions witho
     expect(
       readFileSync(join(temp, "typescript/src/version.ts"), "utf8"),
     ).toContain('const API_VERSION = "2027-01-02"');
+    expect(readFileSync(heyConfig, "utf8")).toContain('const val API_VERSION = "2027-01-02"');
     const manifest = join(temp, "typescript/package-lock.json"),
       before = readFileSync(manifest, "utf8");
     writeFileSync(

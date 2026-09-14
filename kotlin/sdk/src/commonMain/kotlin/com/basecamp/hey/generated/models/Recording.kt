@@ -6,15 +6,13 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 /**
- * Recording — polymorphic by `type` (Calendar::Event, Calendar::Todo, etc.)
+ * Recording — polymorphic by `type`, with direct and namespaced calendar wire values
  */
 @Serializable
 data class Recording(
     val id: Long,
     /**
-     * Discriminator — the recordable's Ruby class name: Calendar::Event, Calendar::Todo,
-     * Calendar::JournalEntry, Calendar::Habit, Calendar::TimeTrack, Calendar::Countdown,
-     * Calendar::DayBackground, Calendar::DayTitle or Calendar::Habit::Completion.
+     * Discriminator with direct (`CalendarTodo`) and namespaced (`Calendar::Todo`) values.
      */
     val type: String,
     @SerialName("parent_id")
@@ -101,6 +99,9 @@ data class Recording(
     @SerialName("stopped_at")
     val stoppedAt: String? = null,
     val notes: String? = null,
+    /**
+     * HEY emits explicit JSON null when a time track has no category.
+     */
     val category: String? = null,
     val label: String? = null,
     @SerialName("image_url")
