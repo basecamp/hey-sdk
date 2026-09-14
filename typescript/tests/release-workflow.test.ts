@@ -45,12 +45,32 @@ it("uses one versioned publication decision for publishing and orchestration", (
   expect(`${typescriptWorkflow}\n${githubWorkflow}`).not.toContain(
     "HEY_TYPESCRIPT_PUBLISH_ENABLED",
   );
+
+  // Kotlin is switched the same way, from the tagged commit, and is off until GitHub
+  // Packages publishing is sorted out.
+  const kotlinState = readFileSync(
+    new URL("../../.github/kotlin-publish-enabled", import.meta.url),
+    "utf8",
+  ).trim();
+  const kotlinWorkflow = readFileSync(
+    new URL("../../.github/workflows/release-kotlin.yml", import.meta.url),
+    "utf8",
+  );
+  expect(kotlinState).toBe("false");
+  expect(kotlinWorkflow).toContain("enabled=$(bash scripts/kotlin-publish-state.sh)");
+  expect(kotlinWorkflow).toContain(
+    "if: github.event_name == 'push' && needs.test.outputs.publish_enabled == 'true'",
+  );
+  expect(kotlinWorkflow).toContain(
+    "if: github.event_name == 'workflow_dispatch' || needs.test.outputs.publish_enabled != 'true'",
+  );
 });
 
 it("selects current and historical release languages without weakening state validation", () => {
   const temp = mkdtempSync(join(tmpdir(), "hey-release-languages-"));
   const selector = new URL("../../scripts/release-languages.sh", import.meta.url).pathname;
   const stateHelper = new URL("../../scripts/typescript-publish-state.sh", import.meta.url).pathname;
+  const kotlinHelper = new URL("../../scripts/kotlin-publish-state.sh", import.meta.url).pathname;
   let sequence = 0;
   const target = (setup: (root: string) => void, event = "workflow_dispatch") => {
     const root = join(temp, String(sequence++));
@@ -65,10 +85,30 @@ it("selects current and historical release languages without weakening state val
     writeFileSync(join(root, ".github", "typescript-publish-enabled"), state);
     copyFileSync(stateHelper, join(root, "scripts", "typescript-publish-state.sh"));
   });
+  const withKotlin = (typescript: string, kotlin: string) => target(root => {
+    writeFileSync(join(root, ".github", "typescript-publish-enabled"), typescript);
+    copyFileSync(stateHelper, join(root, "scripts", "typescript-publish-state.sh"));
+    writeFileSync(join(root, ".github", "kotlin-publish-enabled"), kotlin);
+    copyFileSync(kotlinHelper, join(root, "scripts", "kotlin-publish-state.sh"));
+  });
   try {
     expect(current("false\n")()).toBe("go,rust");
     expect(current("true\n")()).toBe("go,rust,typescript");
     expect(current("enabled\n")).toThrow();
+    expect(withKotlin("false\n", "false\n")()).toBe("go,rust");
+    expect(withKotlin("false\n", "true\n")()).toBe("go,rust,kotlin");
+    expect(withKotlin("true\n", "true\n")()).toBe("go,rust,typescript,kotlin");
+    expect(withKotlin("false\n", "enabled\n")).toThrow();
+    expect(target(root => {
+      writeFileSync(join(root, ".github", "typescript-publish-enabled"), "false\n");
+      copyFileSync(stateHelper, join(root, "scripts", "typescript-publish-state.sh"));
+      writeFileSync(join(root, ".github", "kotlin-publish-enabled"), "true\n");
+    })).toThrow();
+    expect(target(root => {
+      writeFileSync(join(root, ".github", "typescript-publish-enabled"), "false\n");
+      copyFileSync(stateHelper, join(root, "scripts", "typescript-publish-state.sh"));
+      writeFileSync(join(root, ".github", "workflows", "release-kotlin.yml"), "name: Kotlin\n");
+    })()).toBe("go,rust");
     expect(target(() => {})()).toBe("go");
     expect(target(root => writeFileSync(
       join(root, ".github", "workflows", "release-rust.yml"), "name: Rust\n",
@@ -111,6 +151,10 @@ it("rejects malformed publication state before release tags or pushes", () => {
       new URL("../../scripts/typescript-publish-state.sh", import.meta.url),
       join(temp, "scripts", "typescript-publish-state.sh"),
     );
+    copyFileSync(
+      new URL("../../scripts/kotlin-publish-state.sh", import.meta.url),
+      join(temp, "scripts", "kotlin-publish-state.sh"),
+    );
     writeFileSync(
       join(temp, "go", "pkg", "hey", "version.go"),
       `package hey\n\nconst Version = "${version}"\n`,
@@ -139,8 +183,9 @@ it("rejects malformed publication state before release tags or pushes", () => {
       PATH: `${join(temp, "bin")}${delimiter}${process.env.PATH ?? ""}`,
       MOCK_CALLS: calls,
     };
-    const release = (state: string) => {
+    const release = (state: string, kotlin = "false\n") => {
       writeFileSync(join(temp, ".github", "typescript-publish-enabled"), state);
+      writeFileSync(join(temp, ".github", "kotlin-publish-enabled"), kotlin);
       writeFileSync(calls, "");
       let error: unknown;
       try {
@@ -160,6 +205,9 @@ it("rejects malformed publication state before release tags or pushes", () => {
       expect(result.error).toBeDefined();
       expect(result.calls).not.toMatch(/(^|\n)(tag|push) /);
     }
+    const kotlinMalformed = release("false\n", "enabled\n");
+    expect(kotlinMalformed.error).toBeDefined();
+    expect(kotlinMalformed.calls).not.toMatch(/(^|\n)(tag|push) /);
 
     const valid = release("false\n");
     expect(valid.error).toBeUndefined();
@@ -233,12 +281,12 @@ it("publishes the Kotlin library only to an empty version and skips only an iden
     new URL("../../.github/workflows/release-kotlin.yml", import.meta.url),
     "utf8",
   );
-  expect(workflow).toContain("scripts/kotlin-publish-state.sh sdk/build/staging-repo");
+  expect(workflow).toContain("scripts/kotlin-packages-state.sh sdk/build/staging-repo");
   expect(workflow).toContain("if: steps.check.outputs.state == 'absent'");
   expect(workflow).not.toContain("409");
 
   const temp = mkdtempSync(join(tmpdir(), "hey-kotlin-release-"));
-  const script = new URL("../../scripts/kotlin-publish-state.sh", import.meta.url).pathname;
+  const script = new URL("../../scripts/kotlin-packages-state.sh", import.meta.url).pathname;
   const staging = join(temp, "staging");
   const files: Record<string, string> = {
     "com/basecamp/hey-sdk/1.2.3/hey-sdk-1.2.3.pom": "<project/>",
