@@ -74,7 +74,7 @@
       },
       {
         "status": 200,
-        "body": {}
+        "body": {"id": 12345, "type": "Calendar::Todo"}
       }
     ],
     "assertions": [

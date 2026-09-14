@@ -19,6 +19,7 @@
         "body": [
           {
             "id": 7,
+            "kind": "imbox",
             "name": "Imbox"
           }
         ]
@@ -79,6 +80,7 @@
         "body": [
           {
             "id": 7,
+            "kind": "imbox",
             "name": "Imbox"
           }
         ]
@@ -91,10 +93,12 @@
         "body": [
           {
             "id": 7,
+            "kind": "imbox",
             "name": "Imbox"
           },
           {
             "id": 8,
+            "kind": "feedbox",
             "name": "The Feed"
           }
         ]
@@ -154,6 +158,7 @@
         "body": [
           {
             "id": 7,
+            "kind": "imbox",
             "name": "Imbox"
           }
         ]
@@ -166,6 +171,7 @@
         "body": [
           {
             "id": 7,
+            "kind": "imbox",
             "name": "Imbox"
           }
         ]

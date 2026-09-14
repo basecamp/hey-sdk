@@ -210,6 +210,40 @@ jobs:
       - run: npm ci --prefix typescript
       - run: make ts-check ts-smoke
 
+  test-kotlin:
+    name: Kotlin Tests
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Java
+        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
+        with:
+          cache-provider: basic
+
+      # The library's build and tests with warnings as errors, the generator's own tests and
+      # the conformance runner's: the same target a developer runs.
+      - name: Build and test
+        run: make kt-check
+
+      # Regenerates into memory and compares with the checked-in tree, so a Smithy change
+      # that was not followed by `make kt-generate` fails here.
+      - name: Check generated code is up to date
+        run: make kt-check-drift
+
+      - name: Run the conformance fixtures
+        run: make conformance-kt
+
   lint-go:
     name: Go Lint
     runs-on: ubuntu-latest

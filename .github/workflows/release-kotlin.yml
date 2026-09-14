@@ -1,0 +1,149 @@
+name: Release Kotlin SDK
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:  # Manual trigger is always a dry run
+
+permissions: {}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  smithy:
+    permissions:
+      contents: read
+    uses: $/.github/workflows/smithy-verify.yml
+
+  test:
+    name: Test before release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Verify tag is on main
+        if: github.event_name == 'push'
+        run: |
+          git fetch origin main
+          git merge-base --is-ancestor "$GITHUB_SHA" origin/main
+
+      - name: Set up Java
+        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
+        # zizmor: ignore[cache-poisoning] -- cached deps are for testing, not release artifact generation
+        with:
+          cache-provider: basic
+
+      # The same gate a pull request passes. A tag is not the place to find out.
+      - name: Run the Kotlin gate
+        run: make kt-check kt-check-drift conformance-kt
+
+      # The version the library carries has to be the one the tag names, or the artifact
+      # would say one thing and the release another.
+      - name: Check the version matches the tag
+        if: github.event_name == 'push'
+        run: |
+          VERSION="${GITHUB_REF#refs/tags/v}"
+          GRADLE_VERSION=$(sed -n 's/^version = "\(.*\)"$/\1/p' kotlin/sdk/build.gradle.kts)
+          if [ "$GRADLE_VERSION" != "$VERSION" ]; then
+            echo "::error::kotlin/sdk/build.gradle.kts says $GRADLE_VERSION, the tag says $VERSION; run make bump first"
+            exit 1
+          fi
+          if ! grep -Fq "const val VERSION = \"$VERSION\"" kotlin/sdk/src/commonMain/kotlin/com/basecamp/hey/HeyConfig.kt; then
+            echo "::error::HeyConfig.kt does not say $VERSION; run make bump first"
+            exit 1
+          fi
+
+  # Gradle's publish task builds from the project rather than from a prepared file, so the
+  # rehearsal cannot hand an artifact to the publisher. It gets its own job instead, so the
+  # dry run never holds `packages: write`.
+  publish-dry-run:
+    name: Publish to GitHub Packages (dry run)
+    needs: [smithy, test]
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Java
+        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
+        # zizmor: ignore[cache-poisoning] -- cache is branch-isolated; fork PRs cannot write to this cache
+        with:
+          cache-provider: basic
+
+      - name: Build what would be published
+        working-directory: kotlin
+        run: |
+          ./gradlew --quiet :hey-sdk:publishToMavenLocal
+          VERSION=$(sed -n 's/^version = "\(.*\)"$/\1/p' sdk/build.gradle.kts)
+          echo "::notice::Dry run - would publish com.basecamp:hey-sdk:${VERSION} to GitHub Packages"
+
+  publish:
+    name: Publish to GitHub Packages
+    needs: [smithy, test]
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Java
+        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
+        # zizmor: ignore[cache-poisoning] -- cache is branch-isolated; fork PRs cannot write to this cache
+        with:
+          cache-provider: basic
+
+      # A version already there answers 409, which is the earlier run that failed after the
+      # upload; the job succeeds without publishing again, so a re-run is safe.
+      - name: Publish to GitHub Packages
+        working-directory: kotlin
+        shell: bash
+        env:
+          GITHUB_USER: x-access-token
+          GITHUB_ACCESS_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set +e
+          output=$(./gradlew --quiet :hey-sdk:publish 2>&1)
+          status=$?
+          set -e
+          echo "$output"
+          if [ "$status" -eq 0 ]; then
+            echo "Published."
+          elif echo "$output" | grep -q "status code 409"; then
+            echo "Version already published; treating as success."
+          else
+            exit "$status"
+          fi

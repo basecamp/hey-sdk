@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Bumps the SDK version across Go, Rust and TypeScript implementations.
+# Bumps the SDK version across the Go, Rust, TypeScript and Kotlin implementations.
 # Usage: scripts/bump-version.sh <version>
 # Example: scripts/bump-version.sh 0.3.0
 set -euo pipefail
@@ -46,6 +46,29 @@ if ! grep -Fxq "version = \"$VERSION\"" "$CARGO_FILE"; then
   exit 1
 fi
 
+GRADLE_FILE="$REPO_ROOT/kotlin/sdk/build.gradle.kts"
+sedi "s/^version = \".*\"/version = \"$VERSION\"/" "$GRADLE_FILE"
+if ! grep -Fxq "version = \"$VERSION\"" "$GRADLE_FILE"; then
+  echo "ERROR: Version substitution did not match in $GRADLE_FILE" >&2
+  exit 1
+fi
+
+KOTLIN_VERSION_FILE="$REPO_ROOT/kotlin/sdk/src/commonMain/kotlin/com/basecamp/hey/HeyConfig.kt"
+sedi "s/^        const val VERSION = \".*\"/        const val VERSION = \"$VERSION\"/" "$KOTLIN_VERSION_FILE"
+if ! grep -Fq "const val VERSION = \"$VERSION\"" "$KOTLIN_VERSION_FILE"; then
+  echo "ERROR: Version substitution did not match in $KOTLIN_VERSION_FILE" >&2
+  exit 1
+fi
+
+# The Kotlin READMEs name the whole version in the dependency line.
+for README in "$REPO_ROOT/README.md" "$REPO_ROOT/kotlin/README.md"; do
+  sedi "s|implementation(\"com.basecamp:hey-sdk:[0-9.]*\")|implementation(\"com.basecamp:hey-sdk:$VERSION\")|" "$README"
+  if ! grep -Fq "implementation(\"com.basecamp:hey-sdk:$VERSION\")" "$README"; then
+    echo "ERROR: Kotlin dependency substitution did not match in $README" >&2
+    exit 1
+  fi
+done
+
 # The READMEs show a consumer two ways in: the crates.io requirement, which names the minor
 # (Cargo reads "0.31" as ">=0.31.0, <0.32.0"), and the git dependency pinned to the release
 # tag, which names the whole version. Both move with the bump, and a README that no longer
@@ -69,4 +92,4 @@ done
 (cd "$REPO_ROOT/rust" && cargo update -q -w --offline)
 (cd "$REPO_ROOT/conformance/runner/rust" && cargo update -q -w --offline)
 
-echo "Done. Bumped Go, Rust and TypeScript versions and release documentation to $VERSION."
+echo "Done. Bumped Go, Rust, TypeScript and Kotlin versions and release documentation to $VERSION."
