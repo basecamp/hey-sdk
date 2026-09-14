@@ -163,6 +163,7 @@ endif
 	@git diff --quiet && git diff --cached --quiet || \
 		{ echo "ERROR: Working tree has uncommitted changes."; exit 1; }
 	@bash ./scripts/typescript-publish-state.sh > /dev/null
+	@bash ./scripts/kotlin-publish-state.sh > /dev/null
 	@grep -Fxq 'const Version = "$(VERSION)"' go/pkg/hey/version.go || \
 		{ echo "ERROR: go/pkg/hey/version.go does not say $(VERSION):"; \
 		  grep 'const Version' go/pkg/hey/version.go; \

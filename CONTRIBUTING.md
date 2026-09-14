@@ -79,11 +79,9 @@ includes `cargo publish --dry-run`, so a crate that would not package fails ther
 
 The `vx.y.z` tag runs four workflows: `release-go.yml` tags the module, `release-rust.yml`
 publishes the crate to crates.io, `release-kotlin.yml` publishes the library to GitHub
-Packages with the workflow's own `GITHUB_TOKEN` (no secret to provision; a re-run of a
-finished release finds every file there byte for byte and does nothing, while a run that
-finds part of the version there fails naming the files, since GitHub Packages can neither
-finish nor overwrite a Maven version — delete it and re-run), and `release-github.yml` waits
-and then creates the GitHub release. Both git tags matter: the plain one triggers the release and is what a
+Packages when `.github/kotlin-publish-enabled` says `true` (see [Publishing
+Kotlin](#publishing-kotlin); it says `false` today, so the tag only rehearses the build),
+and `release-github.yml` waits and then creates the GitHub release. Both git tags matter: the plain one triggers the release and is what a
 git-dependency on the crate pins (there is no `rust/vx.y.z` tag; Cargo does not resolve tags
 by path), and the `go/` one is what `go get github.com/basecamp/hey-sdk/go` resolves, since
 the module lives in a subdirectory.
@@ -141,6 +139,24 @@ that tag; finish these steps and re-run the failed run.
 6. Revoke the token.
 7. `make release VERSION=x.y.z` from that same commit. The tag's `release-rust.yml` run finds
    the version already on crates.io and succeeds; the next tag is the first real exchange.
+
+### Publishing Kotlin
+
+Kotlin publishing is switched off until GitHub Packages publishing is sorted out.
+`.github/kotlin-publish-enabled` holds exactly `true` or `false`, read from the tagged
+commit by both `release-kotlin.yml` and `release-github.yml` so the two agree; `false`
+means a tag still runs the Kotlin gate and rehearses the publication in a job without
+`packages: write`, nothing goes to GitHub Packages, and the GitHub release waits only for
+Go and Rust. Manual Kotlin release dispatch is always a dry run. Flip the file to `true` in
+a reviewed commit and merge it before the first tag that should publish.
+
+When it does publish, it is with the workflow's own `GITHUB_TOKEN` (no secret to
+provision). GitHub Packages holds a Maven version as several files and can neither finish
+nor overwrite one, so the job lays the publication out locally first and compares every
+file with the remote: none there and it publishes, all there byte for byte (a re-run of a
+finished release) and it does nothing, anything else and it fails naming the files — delete
+the version from the `com.basecamp.hey-sdk` and `com.basecamp.hey-sdk-jvm` packages, then
+re-run.
 
 ### Publishing TypeScript
 

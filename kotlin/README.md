@@ -215,7 +215,9 @@ is ignored.
 ## Install
 
 The library is published to [GitHub Packages](https://github.com/basecamp/hey-sdk/packages),
-which requires a token for every download, public packages included. Create a
+which requires a token for every download, public packages included. Publishing is switched
+off until it is sorted out (`.github/kotlin-publish-enabled`; see CONTRIBUTING.md), so until
+the first release lands there, build from a checkout with `./gradlew :hey-sdk:publishToMavenLocal`. Create a
 [classic personal access token](https://github.com/settings/tokens) with the `read:packages`
 scope, keep it in `~/.gradle/gradle.properties` as `gpr.user` and `gpr.key`, and declare the
 repository:

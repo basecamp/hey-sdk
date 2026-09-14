@@ -23,6 +23,8 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+    outputs:
+      publish_enabled: ${{ steps.activation.outputs.enabled }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -34,6 +36,14 @@ jobs:
         run: |
           git fetch origin main
           git merge-base --is-ancestor "$GITHUB_SHA" origin/main
+
+      # Whether this tag publishes at all, read from the tagged commit as
+      # release-github.yml reads it, so the two agree on what the release waits for.
+      - name: Read versioned publication state
+        id: activation
+        run: |
+          enabled=$(bash scripts/kotlin-publish-state.sh)
+          echo "enabled=$enabled" >> "$GITHUB_OUTPUT"
 
       - name: Set up Java
         uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
@@ -69,11 +79,12 @@ jobs:
 
   # Gradle's publish task builds from the project rather than from a prepared file, so the
   # rehearsal cannot hand an artifact to the publisher. It gets its own job instead, so the
-  # dry run never holds `packages: write`.
+  # dry run never holds `packages: write`. A tag pushed while publishing is switched off
+  # rehearses here too, so the release is proven buildable without anything going out.
   publish-dry-run:
     name: Publish to GitHub Packages (dry run)
     needs: [smithy, test]
-    if: github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'workflow_dispatch' || needs.test.outputs.publish_enabled != 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -98,18 +109,24 @@ jobs:
       # every file a release would upload.
       - name: Build what would be published
         working-directory: kotlin
+        env:
+          ENABLED: ${{ needs.test.outputs.publish_enabled }}
         run: |
           rm -rf sdk/build/staging-repo
           ./gradlew --quiet :hey-sdk:publishAllPublicationsToStagingRepository
           VERSION=$(sed -n 's/^version = "\(.*\)"$/\1/p' sdk/build.gradle.kts)
           echo "Would publish com.basecamp:hey-sdk:${VERSION} to GitHub Packages as:"
           (cd sdk/build/staging-repo && find . -type f ! -name '*.md5' ! -name '*.sha1' ! -name '*.sha256' ! -name '*.sha512' ! -name 'maven-metadata.xml' | sed 's|^\./|  |' | sort)
-          echo "::notice::Dry run - would publish com.basecamp:hey-sdk:${VERSION} to GitHub Packages"
+          if [ "$ENABLED" != true ]; then
+            echo '::notice::Kotlin publishing disabled: GitHub Packages NOT published; Go and Rust releases remain independent.'
+          else
+            echo "::notice::Dry run - would publish com.basecamp:hey-sdk:${VERSION} to GitHub Packages"
+          fi
 
   publish:
     name: Publish to GitHub Packages
     needs: [smithy, test]
-    if: github.event_name == 'push'
+    if: github.event_name == 'push' && needs.test.outputs.publish_enabled == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -150,7 +167,7 @@ jobs:
         run: |
           rm -rf sdk/build/staging-repo
           ./gradlew --quiet :hey-sdk:publishAllPublicationsToStagingRepository
-          state=$(bash ../scripts/kotlin-publish-state.sh sdk/build/staging-repo "$REPOSITORY")
+          state=$(bash ../scripts/kotlin-packages-state.sh sdk/build/staging-repo "$REPOSITORY")
           echo "state=$state" >> "$GITHUB_OUTPUT"
           echo "GitHub Packages: $state"
 
@@ -170,7 +187,7 @@ jobs:
           GITHUB_USER: x-access-token
           GITHUB_ACCESS_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          state=$(bash ../scripts/kotlin-publish-state.sh sdk/build/staging-repo "$REPOSITORY")
+          state=$(bash ../scripts/kotlin-packages-state.sh sdk/build/staging-repo "$REPOSITORY")
           if [ "$state" != "published" ]; then
             echo "::error::GitHub Packages does not hold the whole publication after publishing (state: $state)"
             exit 1
