@@ -210,4 +210,23 @@ class HooksTest {
             assertEquals(1, log.count { it.startsWith("a:end:") })
         }
     }
+
+    @Test
+    fun anOperationOfTwoRequestsEndsOnceBothAreInWithTheErrorTheCallerGets() = runTest {
+        val staged = mockHey(ok(""), status(422, """{"error":"no such stage"}"""))
+        val log = mutableListOf<String>()
+        val client = staged.client { hooks = Recording(log, "a") }
+        assertFailsWith<HeyException.Validation> { client.workflows.stageTopic(5, 8801, 99) }
+        assertEquals(
+            listOf("a:start:Workflows.CreateWorkflowStaging:workflow_staging:true:5", "a:request:POST:1", "a:response:200:null", "a:request:PATCH:1", "a:response:422:validation", "a:end:CreateWorkflowStaging:validation"),
+            log,
+        )
+
+        val published = mockHey(status(302, headers = mapOf("Location" to "/topics/5/sharing")), status(404, """{"error":"gone"}"""))
+        log.clear()
+        assertFailsWith<HeyException.NotFound> { published.client { hooks = Recording(log, "a") }.publications.publish(5) }
+        assertEquals(1, log.count { it.startsWith("a:start:") })
+        assertEquals("a:end:CreateTopicPublication:not_found", log.last())
+        assertEquals(listOf("a:response:302:null", "a:response:404:not_found"), log.filter { it.startsWith("a:response:") })
+    }
 }
