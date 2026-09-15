@@ -70,4 +70,20 @@ class BodyLimitTest {
             client.close()
         }
     }
+
+    @Test
+    fun aBodyExactlyAtTheCapIsRead() = runTest {
+        val cap = 100 * 1024
+        val body = "[" + "1,".repeat((cap - 4) / 2) + "1]"
+        val exact = body.padEnd(cap, ' ')
+        assertEquals(cap, exact.length)
+        val hey = mockHey(ok(exact))
+        val client = hey.client { maxResponseBodyBytes = cap }
+        val response = client.execute(client.request(Method.GET, "/big"))
+        assertEquals(cap, response.body.size)
+
+        val over = mockHey(ok(exact + " "))
+        val error = assertFailsWith<HeyException.Api> { over.client { maxResponseBodyBytes = cap }.execute(over.client { maxResponseBodyBytes = cap }.request(Method.GET, "/big")) }
+        assertEquals(true, error.responseTooLarge)
+    }
 }

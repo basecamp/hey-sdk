@@ -49,6 +49,10 @@ sealed class HeyException(
     /** Exit code for CLI applications (matches the Go and Rust SDKs). */
     val exitCode: Int get() = exitCodeFor(code)
 
+    /** The answer was longer than the client will hold in memory, so [body] is missing and [hint] says so. */
+    var responseTooLarge: Boolean = false
+        internal set
+
     /** The failure body as text, when there is one. */
     fun bodyText(): String? = body?.decodeToString()
 
@@ -112,9 +116,12 @@ sealed class HeyException(
         requestId: String? = null,
         body: ByteArray? = null,
         cause: Throwable? = null,
-        /** The answer was longer than the client will hold in memory. */
-        val responseTooLarge: Boolean = false,
-    ) : HeyException(message, CODE_API, hint, httpStatus, retryable, requestId, body, cause)
+        responseTooLarge: Boolean = false,
+    ) : HeyException(message, CODE_API, hint, httpStatus, retryable, requestId, body, cause) {
+        init {
+            this.responseTooLarge = responseTooLarge
+        }
+    }
 
     /** Validation error (400, 422). */
     class Validation(
@@ -200,11 +207,22 @@ sealed class HeyException(
          * is never echoed — and the body itself is kept on the error for a caller that needs
          * more of it than a hint.
          */
-        fun fromResponse(status: Int, method: Method, headers: Headers, body: ByteArray): HeyException {
+        fun fromResponse(status: Int, method: Method, headers: Headers, body: ByteArray): HeyException = fromResponse(status, method, headers, body, null)
+
+        /**
+         * As [fromResponse], for a failure whose body the client refused to hold: the error
+         * is still the one the status maps to, its hint is why the body is missing, and it
+         * says so in [responseTooLarge].
+         */
+        internal fun fromResponse(status: Int, method: Method, headers: Headers, body: ByteArray, refusal: HeyException?): HeyException {
             val requestId = headers["X-Request-Id"]
             val kept = if (body.size > MAX_ERROR_BODY_BYTES) body.copyOf(MAX_ERROR_BODY_BYTES) else body
             val stored = kept.takeIf { it.isNotEmpty() }
-            val message = serverMessage(body)
+            val message = serverMessage(body) ?: refusal?.message
+            return mapped(status, method, headers, message, requestId, stored).also { it.responseTooLarge = refusal != null }
+        }
+
+        private fun mapped(status: Int, method: Method, headers: Headers, message: String?, requestId: String?, stored: ByteArray?): HeyException {
             return when (status) {
                 401 -> Auth(hint = message, requestId = requestId, body = stored)
                 403 -> if (method == Method.GET) {

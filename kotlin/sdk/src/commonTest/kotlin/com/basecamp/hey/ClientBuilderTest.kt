@@ -6,6 +6,8 @@ import io.ktor.client.engine.mock.respond
 import kotlinx.coroutines.test.runTest
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
+import kotlin.time.Duration.Companion.microseconds
+import kotlin.time.Duration.Companion.milliseconds
 import kotlin.test.Test
 import kotlin.test.assertContains
 import kotlin.test.assertEquals
@@ -85,5 +87,12 @@ class ClientBuilderTest {
         assertFailsWith<HeyException.Usage> { HeyClient { accessToken("t"); engine = this@ClientBuilderTest.engine; maxRetryDelay = (-1).seconds } }
         assertFailsWith<HeyException.Usage> { HeyClient { accessToken("t"); engine = this@ClientBuilderTest.engine; baseRetryDelay = Duration.INFINITE } }
         HeyClient { accessToken("t"); engine = this@ClientBuilderTest.engine; maxRetryJitter = Duration.ZERO }.close()
+    }
+
+    @Test
+    fun aTimeoutBelowAMillisecondIsRefusedAsAUsageError() {
+        val error = assertFailsWith<HeyException.Usage> { HeyClient { accessToken("t"); engine = this@ClientBuilderTest.engine; timeout = 500.microseconds } }
+        assertTrue(error.message!!.contains("millisecond"), error.message)
+        HeyClient { accessToken("t"); engine = this@ClientBuilderTest.engine; timeout = 1.milliseconds }.close()
     }
 }
