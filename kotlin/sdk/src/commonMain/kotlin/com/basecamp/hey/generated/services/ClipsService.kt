@@ -18,7 +18,7 @@ data class ListClipsOptions(
  *
  * @generated from OpenAPI spec — do not edit directly
  */
-class ClipsService(client: HeyClient) : BaseService(client) {
+open class ClipsService(client: HeyClient) : BaseService(client) {
     /**
      * List clips, newest first
      * @param options Optional query parameters

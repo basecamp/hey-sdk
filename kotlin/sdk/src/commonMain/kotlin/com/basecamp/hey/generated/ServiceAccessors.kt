@@ -22,8 +22,8 @@ val HeyClient.boxes: com.basecamp.hey.services.BoxesService
     get() = service("Boxes") { com.basecamp.hey.services.BoxesService(this) }
 
 /** BulkReplies operations. */
-val HeyClient.bulkReplies: BulkRepliesService
-    get() = service("BulkReplies") { BulkRepliesService(this) }
+val HeyClient.bulkReplies: com.basecamp.hey.services.BulkRepliesService
+    get() = service("BulkReplies") { com.basecamp.hey.services.BulkRepliesService(this) }
 
 /** CalendarEvents operations. */
 val HeyClient.calendarEvents: com.basecamp.hey.services.CalendarEventsService
@@ -46,12 +46,12 @@ val HeyClient.clearances: ClearancesService
     get() = service("Clearances") { ClearancesService(this) }
 
 /** Clips operations. */
-val HeyClient.clips: ClipsService
-    get() = service("Clips") { ClipsService(this) }
+val HeyClient.clips: com.basecamp.hey.services.ClipsService
+    get() = service("Clips") { com.basecamp.hey.services.ClipsService(this) }
 
 /** Collections operations. */
-val HeyClient.collections: CollectionsService
-    get() = service("Collections") { CollectionsService(this) }
+val HeyClient.collections: com.basecamp.hey.services.CollectionsService
+    get() = service("Collections") { com.basecamp.hey.services.CollectionsService(this) }
 
 /** Contacts operations. */
 val HeyClient.contacts: ContactsService
@@ -66,8 +66,8 @@ val HeyClient.entries: com.basecamp.hey.services.EntriesService
     get() = service("Entries") { com.basecamp.hey.services.EntriesService(this) }
 
 /** Extenzions operations. */
-val HeyClient.extenzions: ExtenzionsService
-    get() = service("Extenzions") { ExtenzionsService(this) }
+val HeyClient.extenzions: com.basecamp.hey.services.ExtenzionsService
+    get() = service("Extenzions") { com.basecamp.hey.services.ExtenzionsService(this) }
 
 /** Folders operations. */
 val HeyClient.folders: FoldersService
@@ -102,8 +102,8 @@ val HeyClient.search: SearchService
     get() = service("Search") { SearchService(this) }
 
 /** Snippets operations. */
-val HeyClient.snippets: SnippetsService
-    get() = service("Snippets") { SnippetsService(this) }
+val HeyClient.snippets: com.basecamp.hey.services.SnippetsService
+    get() = service("Snippets") { com.basecamp.hey.services.SnippetsService(this) }
 
 /** Stickies operations. */
 val HeyClient.stickies: StickiesService

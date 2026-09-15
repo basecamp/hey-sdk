@@ -21,7 +21,7 @@ data class GetCollectionOptions(
  *
  * @generated from OpenAPI spec — do not edit directly
  */
-class CollectionsService(client: HeyClient) : BaseService(client) {
+open class CollectionsService(client: HeyClient) : BaseService(client) {
     /**
      * Get a collection and one page of its active, accessible threads
      * @param collectionId The collection ID
