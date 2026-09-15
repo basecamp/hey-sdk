@@ -135,4 +135,13 @@ class ErrorMappingTest {
         val refused = assertFailsWith<HeyException.Usage> { downgrade.client().boxes.list() }
         assertEquals("http://app.hey.com must use HTTPS", refused.message)
     }
+
+    @Test
+    fun aUrlInATransportMessageIsCutBackToItsOrigin() {
+        assertEquals("connect to https://host:8443 failed", redactUrls("connect to https://host:8443/path?sig=1 failed"))
+        assertEquals("https://files.example.com timed out", redactUrls("https://user:pw@files.example.com/x?sig=1 timed out"))
+        assertEquals("https://[::1]:8443", redactUrls("https://[::1]:8443/x#frag"))
+        assertEquals("[url=https://a, request_timeout=30000 ms]", redactUrls("[url=https://a/b?c, request_timeout=30000 ms]"))
+        assertEquals("no url here", redactUrls("no url here"))
+    }
 }

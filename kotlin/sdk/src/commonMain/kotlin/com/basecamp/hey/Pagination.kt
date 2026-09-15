@@ -30,6 +30,8 @@ class Page<T> internal constructor(
     val totalCount: Long?,
     internal val info: OperationInfo,
     internal val route: Route?,
+    /** Whether the read that produced this page left the cache alone, so the reads that walk on from it do too. */
+    internal val noCache: Boolean,
     internal val deserializer: DeserializationStrategy<T>,
 ) {
     /** Whether HEY named a page after this one. */
@@ -41,19 +43,26 @@ class Page<T> internal constructor(
         fun <T> of(
             value: T,
             response: Response,
+            baseUrl: Url,
             info: OperationInfo,
             route: Route?,
+            noCache: Boolean,
             deserializer: DeserializationStrategy<T>,
         ): Page<T> {
             val linked = response.header("Link")?.let(::nextLink)?.let { target -> resolveReference(response.url, target) }
             // A Link that names a further page carries the page parameter; one that does not is
-            // where to poll next — a change feed's last page says so — and no page at all.
+            // where to poll next — a change feed's last page says so — and no page at all. A
+            // cursor off HEY's origin is refused here, as a page off it is refused when followed:
+            // the header is the server's to write, and a caller would take the URL on trust.
             val pageParameter = route?.pageParameter ?: "page"
             val nextPage = linked?.parameters?.get(pageParameter)
             val nextUrl = linked?.takeIf { nextPage != null }
             val nextCursor = linked?.takeIf { nextPage == null }
+            if (nextCursor != null && !isSameOrigin(nextCursor, baseUrl)) {
+                throw HeyException.Usage("pagination Link header points to a different origin: ${nextCursor.protocol.name}://${nextCursor.host}")
+            }
             val totalCount = response.header("X-Total-Count")?.trim()?.toLongOrNull()
-            return Page(value, nextUrl, nextPage, nextCursor, totalCount, info, route, deserializer)
+            return Page(value, nextUrl, nextPage, nextCursor, totalCount, info, route, noCache, deserializer)
         }
     }
 }
@@ -98,6 +107,7 @@ suspend fun <T> HeyClient.nextPage(page: Page<T>): Page<T>? {
     }
     val operation = Operation.at(Method.GET, next, page.route)
     operation.info(page.info)
+    if (page.noCache) operation.noCache()
     return sendPage(operation, page.deserializer)
 }
 
