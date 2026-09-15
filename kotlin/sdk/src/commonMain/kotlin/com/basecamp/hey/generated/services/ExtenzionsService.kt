@@ -11,7 +11,7 @@ import com.basecamp.hey.services.BaseService
  *
  * @generated from OpenAPI spec — do not edit directly
  */
-class ExtenzionsService(client: HeyClient) : BaseService(client) {
+open class ExtenzionsService(client: HeyClient) : BaseService(client) {
     /**
      * Delete an extenzion. The id is the extenzion's contact id, the one its app_url
      * carries. Answers 204; forbidden when the caller cannot edit the extenzion.

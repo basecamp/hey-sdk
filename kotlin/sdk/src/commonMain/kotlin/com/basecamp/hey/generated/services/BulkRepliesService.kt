@@ -15,7 +15,7 @@ import com.basecamp.hey.services.BaseService
  *
  * @generated from OpenAPI spec — do not edit directly
  */
-class BulkRepliesService(client: HeyClient) : BaseService(client) {
+open class BulkRepliesService(client: HeyClient) : BaseService(client) {
     /**
      * Send one reply to every entry. Answers what was sent, not the replies themselves:
      * delivery is queued, and delayed while undo is still possible.

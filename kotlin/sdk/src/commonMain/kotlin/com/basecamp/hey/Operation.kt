@@ -128,6 +128,16 @@ class Operation internal constructor(
         return this
     }
 
+    /**
+     * Sends the path as written, with no `.json` put on it, and leaves `Accept` alone: for an
+     * endpoint that answers JSON only under its bare path — an autocomplete list — or streams
+     * a file rather than a document.
+     */
+    fun withoutJsonSuffix(): Operation {
+        jsonSuffix = false
+        return this
+    }
+
     /** Sends the path as written, with a browser's `Accept`: the way in to an endpoint HEY serves only as a form. */
     fun formRepresentation(): Operation {
         accept = BROWSER_ACCEPT

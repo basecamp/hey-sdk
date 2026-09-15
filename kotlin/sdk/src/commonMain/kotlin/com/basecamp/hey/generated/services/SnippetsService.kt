@@ -12,7 +12,7 @@ import com.basecamp.hey.services.BaseService
  *
  * @generated from OpenAPI spec — do not edit directly
  */
-class SnippetsService(client: HeyClient) : BaseService(client) {
+open class SnippetsService(client: HeyClient) : BaseService(client) {
     /**
      * List snippets, alphabetically
      */
