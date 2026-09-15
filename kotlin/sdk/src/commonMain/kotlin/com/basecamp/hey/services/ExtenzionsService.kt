@@ -86,7 +86,12 @@ class ExtenzionsService(client: HeyClient) : GeneratedExtenzionsService(client) 
     suspend fun update(accountId: Long, extenzionId: Long, params: UpdateExtenzionParams): Extenzion? {
         val fields = mutableListOf<Pair<String, String>>()
         params.name?.takeIf { it.isNotEmpty() }?.let { fields += "extenzion[name]" to it }
-        params.members?.forEach { fields += "extenzion[members][]" to it }
+        // The membership is replaced when the field is present at all, so an empty list has to
+        // be on the wire as one blank value — a form carries no empty array — while null, which
+        // leaves the membership alone, sends nothing.
+        params.members?.let { members ->
+            if (members.isEmpty()) fields += "extenzion[members][]" to "" else members.forEach { fields += "extenzion[members][]" to it }
+        }
         val operation = client.form(Method.PATCH, "/accounts/$accountId/domains/extenzions/$extenzionId.json")
         operation.info(writeInfo("Extenzions", "UpdateExtenzion", "extenzion", extenzionId))
         operation.form(fields)

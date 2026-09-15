@@ -182,15 +182,18 @@ class WorkflowsService(client: HeyClient) : GeneratedWorkflowsService(client) {
      * Adds a topic to a workflow in the stage named. HEY creates the workflow membership
      * before selecting the stage, so a failure to select it leaves the topic in the
      * workflow's first stage; the generated [createStaging] is the first of those two
-     * requests on its own. The stage selection is a quiet send, so the hooks hear
-     * `Workflows.CreateWorkflowStaging` once, as they do in Go and Rust.
+     * requests on its own. Both requests go quiet inside one operation, so the hooks hear
+     * `Workflows.CreateWorkflowStaging` once, as they do in Go and Rust, and hear it end
+     * only once the stage is selected — with the failure, when selecting it fails.
      */
     suspend fun stageTopic(topicId: Long, workflowId: Long, stageId: Long) {
-        val operation = client.operation(Routes.CREATE_WORKFLOW_STAGING, listOf(topicId, workflowId))
-        operation.info(writeInfo("Workflows", "CreateWorkflowStaging", "workflow_staging", topicId))
-        operation.formRepresentation()
-        client.sendUnit(operation)
-        moveToStage(topicId, workflowId, stageId, null)
+        client.asOperation(writeInfo("Workflows", "CreateWorkflowStaging", "workflow_staging", topicId)) {
+            val operation = client.operation(Routes.CREATE_WORKFLOW_STAGING, listOf(topicId, workflowId))
+            operation.formRepresentation()
+            operation.quiet()
+            client.sendUnit(operation)
+            moveToStage(topicId, workflowId, stageId, null)
+        }
     }
 
     /**

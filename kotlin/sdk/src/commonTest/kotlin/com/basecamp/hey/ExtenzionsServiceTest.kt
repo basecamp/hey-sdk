@@ -83,4 +83,14 @@ class ExtenzionsServiceTest {
         val unreadable = assertFailsWith<HeyException.Api> { hey.client().extenzions.create(1, CreateExtenzionParams("sales")) }
         assertTrue(unreadable.message.orEmpty().startsWith("no contact id in"), unreadable.message)
     }
+
+    @Test
+    fun anEmptyMembershipClearsAndANullOneIsLeftAlone() = runTest {
+        val hey = mockHey(status(302, headers = mapOf("Location" to "/accounts/1/domains/extenzions/7")), status(302, headers = mapOf("Location" to "/accounts/1/domains/extenzions/7")))
+        val client = hey.client()
+        client.extenzions.update(1, 7, UpdateExtenzionParams(members = emptyList()))
+        client.extenzions.update(1, 7, UpdateExtenzionParams(members = null))
+        assertEquals(listOf(""), formPairs(hey.requests[0].body).filter { it.first == "extenzion[members][]" }.map { it.second }, "an empty list goes out as one blank value, which HEY reads as a membership of none")
+        assertEquals(emptyList(), formPairs(hey.requests[1].body).filter { it.first == "extenzion[members][]" }, "null sends nothing, so the membership stays as it was")
+    }
 }

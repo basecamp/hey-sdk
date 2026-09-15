@@ -15,23 +15,24 @@ import com.basecamp.hey.generated.services.PublicationsService as GeneratedPubli
 class PublicationsService(client: HeyClient) : GeneratedPublicationsService(client) {
     /**
      * Publishes a thread and answers its public link. The redirect lands on the sharing
-     * panel rather than carrying the link, so the publication is read back; that read is a
-     * quiet one, so the hooks hear `Publications.CreateTopicPublication` once and see both
-     * requests under it, as they do in Go. The operation's own end still lands after the
-     * first of the two, the SDK having no seam for wrapping a block of them.
+     * panel rather than carrying the link, so the publication is read back. Both requests
+     * go quiet inside one operation, so the hooks hear `Publications.CreateTopicPublication`
+     * once, see both requests under it, as they do in Go, and hear it end only once the
+     * link is in hand — with the failure, when the read-back fails.
      *
      * HEY answers a forbidden error on accounts that are not eligible to publish.
      */
-    suspend fun publish(topicId: Long): TopicPublication {
-        val operation = client.form(Method.POST, "/topics/$topicId/publication")
-        operation.info(writeInfo("Publications", "CreateTopicPublication", "publication", topicId))
-        operation.form(emptyList())
-        client.sendUnit(operation)
-        val read = client.operation(Routes.GET_TOPIC_PUBLICATION, listOf(topicId))
-        read.resourceId(topicId)
-        read.quiet()
-        return client.send(read)
-    }
+    suspend fun publish(topicId: Long): TopicPublication =
+        client.asOperation(writeInfo("Publications", "CreateTopicPublication", "publication", topicId)) {
+            val operation = client.form(Method.POST, "/topics/$topicId/publication")
+            operation.form(emptyList())
+            operation.quiet()
+            client.sendUnit(operation)
+            val read = client.operation(Routes.GET_TOPIC_PUBLICATION, listOf(topicId))
+            read.resourceId(topicId)
+            read.quiet()
+            client.send(read)
+        }
 
     /** Unpublishes a thread, breaking its public link. */
     suspend fun unpublish(topicId: Long) {

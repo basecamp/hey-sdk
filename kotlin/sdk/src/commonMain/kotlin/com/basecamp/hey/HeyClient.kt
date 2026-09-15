@@ -385,12 +385,23 @@ class HeyClient internal constructor(
     suspend fun <T> execute(operation: Operation, transform: (Response) -> T): T {
         if (shared.closed) throw HeyException.Usage("client is closed")
         if (operation.quiet) return transform(dispatch(operation))
+        return asOperation(operation.info) { transform(dispatch(operation)) }
+    }
+
+    /**
+     * Runs [block] as one operation the hooks hear: started before it, ended after it with
+     * whatever it answered or threw. A convenience made of several requests — a form post
+     * and the read-back that answers it — sends each of them quiet inside this, so the
+     * hooks hear one operation that ends when the last request is in, with the error the
+     * caller gets when any of them fails.
+     */
+    internal suspend fun <T> asOperation(info: OperationInfo, block: suspend () -> T): T {
+        if (shared.closed) throw HeyException.Usage("client is closed")
         val hooks = shared.hooks
-        val info = operation.info
         val started = currentTimeMillis()
         hooks.safeOperationStart(info)
         try {
-            val value = transform(dispatch(operation))
+            val value = block()
             hooks.safeOperationEnd(info, OperationResult(elapsedSince(started)))
             return value
         } catch (error: Throwable) {
