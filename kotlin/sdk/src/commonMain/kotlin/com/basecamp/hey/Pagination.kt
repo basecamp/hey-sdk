@@ -82,7 +82,10 @@ fun nextLink(header: String): String? {
         val target = afterStart.substring(0, end)
         val rest = afterStart.substring(end + 1)
         val paramsEnd = rest.indexOf('<').let { if (it < 0) rest.length else it }
-        if (linkIsNext(rest.substring(0, paramsEnd))) return target
+        // The comma that separates this link value from the next is not part of its last
+        // parameter: `rel="next", <...>` names next, not `next",`.
+        val params = rest.substring(0, paramsEnd).trimEnd().removeSuffix(",")
+        if (linkIsNext(params)) return target
         remaining = rest.substring(paramsEnd)
     }
 }

@@ -70,6 +70,11 @@ internal fun redactUrls(text: String): String = URL_IN_TEXT.replace(text) { "${i
 internal fun redactLocation(location: String): String {
     val absolute = parseAbsoluteUrl(location)
     if (absolute != null) return "${absolute.protocol.name}://${absolute.host}${absolute.encodedPath}"
+    // A network-path reference carries an authority, and so can carry a userinfo, without a scheme.
+    if (location.startsWith("//")) {
+        parseAbsoluteUrl("https:$location")?.let { return "//${it.host}${it.encodedPath}" }
+        return "//"
+    }
     return location.substringBefore('?').substringBefore('#')
 }
 

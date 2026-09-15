@@ -61,13 +61,14 @@ class FormResponseTest {
 
     @Test
     fun aLocationWithoutAnIdIsNeverQuotedWhole() = runTest {
-        for (location in listOf("/done?sig=distinctive-secret", "https://app.hey.com/done?sig=distinctive-secret#f", "https://u:distinctive-secret@app.hey.com/done", "::not a url::?sig=distinctive-secret")) {
+        for (location in listOf("/done?sig=distinctive-secret", "https://app.hey.com/done?sig=distinctive-secret#f", "https://u:distinctive-secret@app.hey.com/done", "//u:distinctive-secret@app.hey.com/done?sig=x", "::not a url::?sig=distinctive-secret")) {
             val error = assertFailsWith<HeyException.Api> { form(302, location).extractId() }
             assertEquals(false, error.message!!.contains("distinctive"), error.message)
             assertEquals(false, error.toString().contains("distinctive"))
         }
         assertEquals("/done", redactLocation("/done?sig=x#y"))
         assertEquals("https://app.hey.com/done", redactLocation("https://u:p@app.hey.com/done?sig=x"))
+        assertEquals("//app.hey.com/done", redactLocation("//u:p@app.hey.com/done?sig=x"))
 
         val hey = mockHey(status(204, headers = mapOf("Location" to "/messages/new?sig=distinctive-secret")))
         val seen = mutableListOf<Throwable>()

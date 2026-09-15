@@ -69,11 +69,15 @@ class Response internal constructor(
  */
 internal fun decodeHint(message: String?): String {
     if (message == null) return "body does not decode"
+    // The decoder quotes the input after "JSON input:"; only what comes before is its own
+    // diagnostic, and only names shaped like the model's — a field, a path of fields and
+    // indexes — are taken from that, since a map key in a path is the body's.
+    val diagnostic = message.substringBefore("JSON input")
     val parts = mutableListOf<String>()
-    Regex("Field '([^']*)' is required")
-        .find(message)
+    Regex("Field '([A-Za-z0-9_]+)' is required")
+        .find(diagnostic)
         ?.let { parts += "missing required field '${it.groupValues[1]}'" }
-    Regex("path: (\\$[^\\s,]*)").find(message)?.let { parts += "at path ${it.groupValues[1]}" }
-    Regex("offset (\\d+)").find(message)?.let { parts += "at offset ${it.groupValues[1]}" }
+    Regex("path: (\\$(?:\\.[A-Za-z0-9_]+|\\[\\d+\\])*)(?=[\\s,]|$)").find(diagnostic)?.let { parts += "at path ${it.groupValues[1]}" }
+    Regex("offset (\\d+)").find(diagnostic)?.let { parts += "at offset ${it.groupValues[1]}" }
     return if (parts.isEmpty()) "body does not decode" else "body does not decode: " + parts.joinToString(", ")
 }

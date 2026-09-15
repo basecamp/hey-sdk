@@ -314,12 +314,11 @@ fun valuesMatch(expected: JsonElement, actual: JsonElement): Boolean {
     if (expected is JsonPrimitive && actual is JsonPrimitive) {
         if (expected.isString != actual.isString) return false
         if (expected.isString) return expected.content == actual.content
-        val expectedLong = expected.longOrNull
-        val actualLong = actual.longOrNull
-        if (expectedLong != null && actualLong != null) return expectedLong == actualLong
-        val expectedDouble = expected.doubleOrNull
-        val actualDouble = actual.doubleOrNull
-        if (expectedDouble != null && actualDouble != null) return expectedDouble == actualDouble
+        // Exact decimal arithmetic: 1 and 1.0 are the same number, 9007199254740993 and
+        // 9007199254740992.0 are not, whatever a double would make of them.
+        val expectedNumber = expected.content.toBigDecimalOrNull()
+        val actualNumber = actual.content.toBigDecimalOrNull()
+        if (expectedNumber != null && actualNumber != null) return expectedNumber.compareTo(actualNumber) == 0
         val expectedBool = expected.booleanOrNull
         val actualBool = actual.booleanOrNull
         if (expectedBool != null && actualBool != null) return expectedBool == actualBool
