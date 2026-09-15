@@ -190,8 +190,8 @@ try {
 
 Each route carries the retry policy the model gives it: how many sends in all, which statuses
 earn another, and the wait before the second. The client's own settings only make that
-gentler — `maxRetries` caps the sends, `baseDelay` holds the first wait up, `maxDelay` holds
-every wait down — so an operation the model calls non-idempotent is sent once whatever the
+gentler — `maxRetries` caps the sends, `baseRetryDelay` holds the first wait up,
+`maxRetryDelay` holds every wait down — so an operation the model calls non-idempotent is sent once whatever the
 client says, and one whose policy allows two sends gets two however high the client's ceiling.
 A `Retry-After` on a 429 is honoured as given. A 401 is answered by one credential refresh and
 one resend, for any operation.

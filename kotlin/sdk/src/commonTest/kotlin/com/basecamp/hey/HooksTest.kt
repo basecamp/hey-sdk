@@ -147,4 +147,18 @@ class HooksTest {
             log,
         )
     }
+
+    @Test
+    fun anAnswerThatWillNotReadEndsTheOperationWithThatError() = runTest {
+        val hey = mockHey(ok("""{"id":"not a number"}"""), ok("<section id=\"container_workflow_stage_1\"></section>", mapOf("Content-Type" to "text/html")))
+        val log = mutableListOf<String>()
+        val client = hey.client { hooks = Recording(log, "a") }
+        assertFailsWith<HeyException.Api> { client.boxes.get(1) }
+        assertEquals("a:end:GetBox:api_error", log.last())
+        assertEquals(1, log.count { it.startsWith("a:end:") })
+
+        log.clear()
+        assertFailsWith<HeyException.NotFound> { client.workflows.stage(8801, 5) }
+        assertEquals(listOf("a:start:Workflows.GetWorkflowStage:workflow_stage:false:5", "a:request:GET:1", "a:response:200:null", "a:end:GetWorkflowStage:not_found"), log)
+    }
 }

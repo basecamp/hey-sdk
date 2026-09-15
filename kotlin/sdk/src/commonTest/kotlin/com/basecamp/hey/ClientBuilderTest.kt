@@ -1,8 +1,9 @@
 package com.basecamp.hey
 
+import com.basecamp.hey.generated.*
 import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.respond
-import kotlinx.coroutines.isActive
+import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertContains
 import kotlin.test.assertEquals
@@ -63,21 +64,16 @@ class ClientBuilderTest {
     }
 
     @Test
-    fun aClientTheSdkBuiltIsClosedAndACallersIsNot() {
-        val owned = HeyClient { accessToken("t"); engine = this@ClientBuilderTest.engine }
-        owned.close()
-        val theirs = io.ktor.client.HttpClient(engine) { followRedirects = false }
-        val shared = HeyClient { accessToken("t"); httpClient = theirs }
-        shared.close()
-        assertTrue(theirs.isActive)
-        theirs.close()
-    }
-
-    @Test
-    fun aCallersClientThatFollowsRedirectsItselfIsRefused() {
-        val follows = io.ktor.client.HttpClient(engine)
-        val error = assertFailsWith<HeyException.Usage> { HeyClient { accessToken("t"); httpClient = follows } }
-        assertTrue(error.message!!.contains("followRedirects = false"))
-        follows.close()
+    fun closingADerivedClientLeavesTheTransportToTheRoot() = runTest {
+        val hey = mockHey(ok(IDENTITY), ok(IDENTITY), ok("[]"), ok("[]"))
+        val root = hey.client()
+        val work = root.forAccount(42)
+        val other = root.forAccount(42)
+        work.close()
+        other.boxes.list()
+        root.boxes.list()
+        assertEquals(4, hey.requests.size, "the root and a sibling still send after a derived client is closed")
+        root.close()
+        assertFailsWith<Exception> { root.boxes.list() }
     }
 }

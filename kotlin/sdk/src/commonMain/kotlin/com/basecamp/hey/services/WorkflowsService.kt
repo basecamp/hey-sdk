@@ -1,6 +1,7 @@
 package com.basecamp.hey.services
 
 import com.basecamp.hey.HeyClient
+import com.basecamp.hey.generated.Routes
 import com.basecamp.hey.HeyException
 import com.basecamp.hey.internal.HtmlNode
 import com.basecamp.hey.internal.parseHtml
@@ -82,7 +83,14 @@ data class WorkflowStageView(
 
 /** Workflows service with the stage page reader on top of the generated surface (`get`, `getStage`, `createStaging`, `moveStaging`). */
 class WorkflowsService(client: HeyClient) : GeneratedWorkflowsService(client) {
-    /** Reads a stage's page and the cards on it. The generated [getStage] answers the page itself. */
-    suspend fun stage(workflowId: Long, stageId: Long): WorkflowStageView =
-        WorkflowStageView.parse(getStage(workflowId, stageId), stageId)
+    /**
+     * Reads a stage's page and the cards on it. The generated [getStage] answers the page
+     * itself; this sends the same route and parses inside the operation, so a page without
+     * the stage ends the operation the hooks hear with the error the caller gets.
+     */
+    suspend fun stage(workflowId: Long, stageId: Long): WorkflowStageView {
+        val operation = client.operation(Routes.GET_WORKFLOW_STAGE, listOf(workflowId, stageId))
+        operation.resourceId(stageId)
+        return client.execute(operation) { WorkflowStageView.parse(it.text(), stageId) }
+    }
 }

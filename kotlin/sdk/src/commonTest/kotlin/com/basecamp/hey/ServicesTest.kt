@@ -2,6 +2,13 @@ package com.basecamp.hey
 
 import com.basecamp.hey.services.BoxKind
 import com.basecamp.hey.services.CalendarEventUpdate
+import com.basecamp.hey.services.Countdown
+import com.basecamp.hey.services.CountdownUnit
+import com.basecamp.hey.services.EventContent
+import com.basecamp.hey.services.Repeat
+import com.basecamp.hey.services.RepeatFrequency
+import com.basecamp.hey.services.RepeatUntil
+import com.basecamp.hey.services.UpdateCalendarEventParams
 import com.basecamp.hey.services.DraftContent
 import com.basecamp.hey.services.MessageContent
 import com.basecamp.hey.services.OccurrenceId
@@ -20,11 +27,20 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import kotlin.time.Duration.Companion.hours
+import kotlin.time.Duration.Companion.minutes
 
 class ServicesTest {
     private fun body(request: RecordedRequest): JsonObject = Json.parseToJsonElement(request.body).jsonObject
 
-    private fun formFields(body: String): Map<String, String> = body.split('&').associate {
+        /** Every value a form body carries under one name, in order, since a name may repeat for a list. */
+    private fun formValues(body: String, name: String): List<String> =
+        body.split('&').filter { it.isNotEmpty() }.map { pair ->
+            val (key, value) = pair.split('=', limit = 2).let { it[0] to it.getOrElse(1) { "" } }
+            key.decodeURLQueryComponent(plusIsSpace = true) to value.decodeURLQueryComponent(plusIsSpace = true)
+        }.filter { it.first == name }.map { it.second }
+
+private fun formFields(body: String): Map<String, String> = body.split('&').associate {
         it.substringBefore('=').decodeURLQueryComponent() to it.substringAfter('=').decodeURLQueryComponent()
     }
 
@@ -124,6 +140,74 @@ class ServicesTest {
         val timed = formFields(hey.requests[1].body)
         assertEquals("09:30:00", timed["calendar_event[starts_at_time]"])
         assertEquals("0", timed["calendar_event[all_day]"])
+    }
+
+    @Test
+    fun aWholeEventUpdateSendsEverythingHeyWouldOtherwiseClear() = runTest {
+        val hey = mockHey(ok("""{"id":99,"type":"Calendar::Event","summary":"Standup"}"""), status(302, headers = mapOf("Location" to "/calendar/events/99")))
+        val client = hey.client()
+        val params = UpdateCalendarEventParams(
+            title = "Standup",
+            allDay = false,
+            startTime = "09:30",
+            endTime = "10:00",
+            startTimeZone = "Europe/Zagreb",
+            reminders = listOf(10.minutes, 1.hours),
+            content = EventContent(notes = "<p>Agenda</p>", location = "Room 4", link = "https://example.com/call", entryId = 5),
+            attendees = emptyList(),
+            highlighted = true,
+            countdown = Countdown(3, CountdownUnit.WEEKS),
+            repeat = Repeat(RepeatFrequency.EVERY_WEEK, RepeatUntil.COUNT, count = 12),
+        )
+        val recording = client.calendarEvents.updateEvent(99, params)
+        assertEquals(99L, recording.id)
+        assertEquals("Standup", recording.summary)
+
+        val request = hey.requests[0]
+        assertEquals("PATCH", request.method)
+        assertEquals("/calendar/events/99.json", request.path)
+        assertEquals("application/x-www-form-urlencoded", request.header("Content-Type"))
+        val fields = formFields(request.body)
+        assertEquals("Standup", fields["calendar_event[summary]"])
+        assertEquals("09:30:00", fields["calendar_event[starts_at_time]"])
+        assertEquals("<p>Agenda</p>", fields["calendar_event[description]"])
+        assertEquals("Room 4", fields["calendar_event[location]"])
+        assertEquals("https://example.com/call", fields["calendar_event[url]"])
+        assertEquals("5", fields["calendar_event[entry_id]"])
+        assertEquals("", fields["calendar_event[attendance_email_addresses][]"], "an empty guest list goes out as one blank value")
+        assertEquals("1", fields["calendar_event[highlighted]"])
+        assertEquals("", fields["calendar_event[highlight_id]"])
+        assertEquals("3", fields["countdown_interval_duration_value"])
+        assertEquals("604800", fields["countdown_interval_duration_unit"])
+        assertEquals("every_week", fields["repeat_frequency"])
+        assertEquals("count", fields["calendar_recurrence_schedule[recurs_until_type]"])
+        assertEquals("12", fields["calendar_recurrence_schedule[recurs_count]"])
+        assertEquals("1", fields["calendar_event[set_time_zone]"])
+        assertEquals("Europe/Zagreb", fields["calendar_event[starts_at_time_zone_name]"])
+        assertEquals("Europe/Zagreb", fields["calendar_event[ends_at_time_zone_name]"], "the one zone named stands in for the other")
+        assertEquals(listOf("600", "3600"), formValues(request.body, "timed_reminder_durations[]"))
+
+        val defaults = UpdateCalendarEventParams(title = "Renamed")
+        val fallback = client.calendarEvents.updateEvent(99, defaults)
+        assertEquals(99L, fallback.id, "an older server answers a redirect, whose URL still names the recording")
+        val cleared = formFields(hey.requests[1].body)
+        assertEquals("", cleared["calendar_event[description]"], "what the params leave empty goes out empty, since HEY clears it either way")
+        assertEquals("", cleared["calendar_event[entry_id]"])
+        assertNull(cleared["countdown_interval_duration_value"], "a zero countdown sends nothing, which deletes it")
+        assertNull(cleared["calendar_event[attendance_email_addresses][]"], "a null guest list is left alone")
+        assertNull(cleared["calendar_event[set_time_zone]"], "no zone named says nothing about zones")
+    }
+
+    @Test
+    fun anOccurrenceUpdateKeepsTheSeriesScheduleUnlessToldOtherwise() = runTest {
+        val hey = mockHey(ok("""{"id":0,"type":"Calendar::Event","parent_id":153688907}"""))
+        val client = hey.client()
+        client.calendarEvents.updateOccurrence(OccurrenceId.parse("153688907_2026-08-21"), OccurrenceScope.THIS_AND_FOLLOWING, UpdateCalendarEventParams(title = "Moved"))
+        val request = hey.requests.single()
+        assertEquals("/calendar/events/153688907/occurrences/2026-08-21.json", request.path)
+        val fields = formFields(request.body)
+        assertEquals("1", fields["apply_to_future"])
+        assertEquals("custom", fields["repeat_frequency"], "silence would end the series, so the schedule is kept in so many words")
     }
 
     @Test

@@ -1,6 +1,7 @@
 package com.basecamp.hey
 
 import com.basecamp.hey.generated.models.MarkPostingsRequestContent
+import com.basecamp.hey.generated.models.Recording
 import com.basecamp.hey.generated.Routes
 import com.basecamp.hey.generated.services.GetContactOptions
 import com.basecamp.hey.generated.*
@@ -151,5 +152,15 @@ class RequestTest {
         val client = hey.client { maxResponseBodyBytes = 100 }
         val error = assertFailsWith<HeyException.Api> { client.sendForm(client.form(Method.GET, "/workflows/new")) }
         assertEquals(true, error.responseTooLarge)
+    }
+
+    @Test
+    fun aRecordingIsRecognisedByEitherSpellingOfItsType() {
+        val direct = heyJson.decodeFromString(Recording.serializer(), """{"id":1,"type":"CalendarEvent"}""")
+        val namespaced = heyJson.decodeFromString(Recording.serializer(), """{"id":1,"type":"Calendar::Event"}""")
+        assertEquals(true, direct.isCalendarEvent)
+        assertEquals(true, namespaced.isCalendarEvent)
+        assertEquals(false, direct.isCalendarTodo)
+        assertEquals(true, heyJson.decodeFromString(Recording.serializer(), """{"id":2,"type":"CalendarTodo"}""").isCalendarTodo)
     }
 }

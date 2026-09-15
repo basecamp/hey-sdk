@@ -37,7 +37,7 @@ class ModelTest {
     }
 
     private val boxSchemas = """{
-        "Box": {"type":"object","properties":{"id":{"type":"integer","format":"int64"},"kind":{"type":"string"},"owner":{"${'$'}ref":"#/components/schemas/Owner"},"created_at":{"type":"string"},"trial_ends_on":{"type":"string"},"email_address":{"type":"string","x-hey-sensitive":{"category":"pii"}},"labels":{"type":"array","items":{"type":"string"}},"extra":{"type":"object"},"counts":{"type":"object","additionalProperties":{"type":"integer","format":"int32"}}},"required":["id","kind"],"x-hey-polymorphic":{"discriminator":"kind","variants":{"topic":["name"],"Calendar::Event":[]}}},
+        "Box": {"type":"object","properties":{"id":{"type":"integer","format":"int64"},"kind":{"type":"string"},"owner":{"${'$'}ref":"#/components/schemas/Owner"},"created_at":{"type":"string"},"trial_ends_on":{"type":"string"},"email_address":{"type":"string","x-hey-sensitive":{"category":"pii"}},"labels":{"type":"array","items":{"type":"string"}},"extra":{"type":"object"},"counts":{"type":"object","additionalProperties":{"type":"integer","format":"int32"}}},"required":["id","kind"],"x-hey-polymorphic":{"discriminator":"kind","variants":{"topic":["name"],"Calendar::Event":[]},"discriminatorValues":{"Calendar::Event":["CalendarEvent","Calendar::Event"]}}},
         "Owner": {"type":"object","properties":{"name":{"type":"string"}}},
         "GetBoxResponseContent": {"${'$'}ref":"#/components/schemas/Box"},
         "ListBoxesResponseContent": {"type":"array","items":{"${'$'}ref":"#/components/schemas/Box"}},
@@ -67,7 +67,9 @@ class ModelTest {
         assertEquals(FieldType.ListOf(FieldType.Str), byName.getValue("labels").kind)
         assertEquals(FieldType.Json, byName.getValue("extra").kind)
         assertEquals(FieldType.MapOf(FieldType.Int32), byName.getValue("counts").kind)
-        assertEquals(listOf("topic", "Calendar::Event"), shape.polymorphic?.variants)
+        assertEquals(listOf("topic", "Calendar::Event"), shape.polymorphic?.variants?.map { it.name })
+        assertEquals(listOf("topic"), shape.polymorphic?.variants?.get(0)?.values, "a variant the model gives no aliases is matched by its name")
+        assertEquals(listOf("CalendarEvent", "Calendar::Event"), shape.polymorphic?.variants?.get(1)?.values)
         assertIs<Shape.Alias>(model.schemas.first { it.name == "GetBoxResponseContent" }.shape)
         assertEquals(
             FieldType.ListOf(FieldType.Named("Box")),
@@ -178,7 +180,7 @@ class ModelTest {
         assertContains(box, "@SerialName(\"email_address\")\n    val emailAddress: SensitiveString? = null,")
         assertContains(box, "val counts: Map<String, Int>? = null,")
         assertContains(box, "val isTopic: Boolean get() = kind == \"topic\"")
-        assertContains(box, "val isCalendarEvent: Boolean get() = kind == \"Calendar::Event\"")
+        assertContains(box, "val isCalendarEvent: Boolean get() = kind in setOf(\"CalendarEvent\", \"Calendar::Event\")")
         assertContains(files.getValue("models/ListBoxesResponseContent.kt"), "typealias ListBoxesResponseContent = List<Box>")
         assertContains(files.getValue("models/StagePage.kt"), "typealias StagePage = String")
 

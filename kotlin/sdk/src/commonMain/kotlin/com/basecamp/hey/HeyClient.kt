@@ -6,9 +6,7 @@ import com.basecamp.hey.generated.models.Identity
 import io.ktor.client.HttpClient
 import io.ktor.client.HttpClientConfig
 import io.ktor.client.engine.HttpClientEngine
-import io.ktor.client.plugins.HttpRedirect
 import io.ktor.client.plugins.HttpRequestTimeoutException
-import io.ktor.client.plugins.pluginOrNull
 import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.request.HttpRequestBuilder
 import io.ktor.client.request.header
@@ -112,11 +110,14 @@ class HeyClientBuilder {
     /** Observability hooks. */
     var hooks: HeyHooks = NoopHooks
 
-    /** Custom Ktor [HttpClientEngine] (e.g., for testing with MockEngine). */
+    /**
+     * Custom Ktor [HttpClientEngine] (e.g., for testing with MockEngine). The client built
+     * on it is the SDK's own: unlike basecamp-sdk there is no way to hand over a configured
+     * [HttpClient], since a plugin on one — a retry, a default request, redirect following,
+     * response validation — would run ahead of the retry policy, the credential handling on
+     * redirects, the error mapping and the timeout this client is responsible for.
+     */
     var engine: HttpClientEngine? = null
-
-    /** Pre-configured Ktor [HttpClient] to use instead of creating one internally. It must not follow redirects on its own. */
-    var httpClient: HttpClient? = null
 
     /** Set a static access token. */
     fun accessToken(token: String) {
@@ -136,15 +137,6 @@ class HeyClientBuilder {
     internal fun build(): HeyClient {
         if (tokenProvider != null && authStrategy != null) {
             throw HeyException.Usage("Cannot set both accessToken and auth. Use one or the other.")
-        }
-        if (httpClient != null && engine != null) {
-            throw HeyException.Usage("Cannot set both httpClient and engine. Use one or the other.")
-        }
-        // Ktor follows redirects by default, and would do so before this client could keep
-        // credentials off another origin or the account scope on a hop: a client built that
-        // way is refused rather than quietly stripped of those guarantees.
-        if (httpClient?.pluginOrNull(HttpRedirect) != null) {
-            throw HeyException.Usage("httpClient must be built with followRedirects = false; the SDK follows redirects itself")
         }
         if (timeout != Duration.INFINITE && !timeout.isPositive()) {
             throw HeyException.Usage("timeout must be positive or Duration.INFINITE, got: $timeout")
@@ -173,18 +165,16 @@ class HeyClientBuilder {
             throw HeyException.Usage(error.message ?: "invalid configuration")
         }
 
-        val ownsHttpClient = httpClient == null
-        val http = httpClient ?: (engine?.let { HttpClient(it) { configure(timeout) } } ?: HttpClient { configure(timeout) })
+        val http = engine?.let { HttpClient(it) { configure(timeout) } } ?: HttpClient { configure(timeout) }
         val shared = Shared(
             config = config,
             baseUrl = parsed,
             http = http,
-            ownsHttpClient = ownsHttpClient,
             auth = resolvedAuth,
             cache = if (enableCache) cache ?: InMemoryCache() else null,
             hooks = hooks,
         )
-        return HeyClient(shared, null, ScopeState())
+        return HeyClient(shared, null, ScopeState(), root = true)
     }
 
     private fun HttpClientConfig<*>.configure(timeout: Duration) {
@@ -214,7 +204,6 @@ internal class Shared(
     val config: HeyConfig,
     val baseUrl: Url,
     val http: HttpClient,
-    val ownsHttpClient: Boolean,
     val auth: AuthStrategy,
     val cache: ResponseCache?,
     val hooks: HeyHooks,
@@ -258,6 +247,8 @@ class HeyClient internal constructor(
     /** The linked account this client presents, or null for All Accounts. */
     val accountId: Long?,
     internal val scope: ScopeState,
+    /** Whether this is the client the builder made, which owns the transport; a client derived from it does not. */
+    private val root: Boolean,
 ) {
     @PublishedApi
     internal val serviceCache: MutableMap<String, Any> = createServiceCache()
@@ -308,8 +299,7 @@ class HeyClient internal constructor(
     /** Sends an operation and decodes its JSON body. */
     suspend fun <T> send(operation: Operation, deserializer: DeserializationStrategy<T>): T {
         val label = operation.label()
-        val response = execute(operation)
-        return decode(response, deserializer, label)
+        return execute(operation) { response -> decode(response, deserializer, label) }
     }
 
     /** Sends an operation and decodes its JSON body as [T]. */
@@ -321,13 +311,12 @@ class HeyClient internal constructor(
     }
 
     /** Sends an operation and reads its body as text: the HTML page a route serves no JSON for. */
-    suspend fun sendText(operation: Operation): String = execute(operation).text()
+    suspend fun sendText(operation: Operation): String = execute(operation) { it.text() }
 
     /** Sends an operation that answers a status meaning "nothing there" with null. */
     suspend fun <T> sendOptional(operation: Operation, deserializer: DeserializationStrategy<T>): T? {
         val label = operation.label()
-        val response = execute(operation)
-        return if (response.empty) null else decode(response, deserializer, label)
+        return execute(operation) { response -> if (response.empty) null else decode(response, deserializer, label) }
     }
 
     /** Sends an operation that answers a status meaning "nothing there" with null. */
@@ -338,15 +327,14 @@ class HeyClient internal constructor(
         val label = operation.label()
         val info = operation.info
         val route = operation.route
-        val response = execute(operation)
-        return Page.of(decode(response, deserializer, label), response, info, route, deserializer)
+        return execute(operation) { response -> Page.of(decode(response, deserializer, label), response, info, route, deserializer) }
     }
 
     /** Sends a paginated read and keeps the cursor HEY answered with. */
     suspend inline fun <reified T> sendPage(operation: Operation): Page<T> = sendPage(operation, serializer<T>())
 
     /** Sends a form request and reads the redirect it answered with. */
-    suspend fun sendForm(operation: Operation): FormResponse = FormResponse.of(execute(operation))
+    suspend fun sendForm(operation: Operation): FormResponse = execute(operation) { FormResponse.of(it) }
 
     private fun <T> decode(response: Response, deserializer: DeserializationStrategy<T>, label: String): T =
         try {
@@ -368,16 +356,23 @@ class HeyClient internal constructor(
      * cached body on 304. Non-2xx statuses become errors unless the operation treats them as
      * empty.
      */
-    suspend fun execute(operation: Operation): Response {
-        if (operation.quiet) return dispatch(operation)
+    suspend fun execute(operation: Operation): Response = execute(operation) { it }
+
+    /**
+     * Sends an operation and reads its answer with [transform] — a decode, a parse — inside
+     * the operation the hooks hear, so an answer that will not read ends the operation with
+     * the error the caller gets, and its duration counts the reading.
+     */
+    suspend fun <T> execute(operation: Operation, transform: (Response) -> T): T {
+        if (operation.quiet) return transform(dispatch(operation))
         val hooks = shared.hooks
         val info = operation.info
         val started = currentTimeMillis()
         hooks.safeOperationStart(info)
         try {
-            val response = dispatch(operation)
+            val value = transform(dispatch(operation))
             hooks.safeOperationEnd(info, OperationResult(elapsedSince(started)))
-            return response
+            return value
         } catch (error: Throwable) {
             // Whatever ended the operation — an error from HEY, a cancellation, a token
             // provider that threw — the hooks hear the end of what they heard the start of.
@@ -820,14 +815,14 @@ class HeyClient internal constructor(
      */
     suspend fun forAccount(accountId: Long): HeyClient {
         if (accountId <= 0) throw HeyException.Usage("account id must be positive")
-        val root = HeyClient(shared, null, ScopeState())
-        val identity = root.identity()
+        val unscoped = HeyClient(shared, null, ScopeState(), root = false)
+        val identity = unscoped.identity()
         val accessible = identity.accounts.orEmpty().any { it.id == accountId && accountIsAccessible(it) }
         if (!accessible) throw HeyException.NotFound("accessible account not found: $accountId")
         val scope = ScopeState()
         scope.defaultSenderId = defaultSenderFor(identity, accountId)
         scope.accountUserId = identity.allUsers.orEmpty().firstOrNull { it.accountId == accountId }?.id
-        return HeyClient(shared, accountId, scope)
+        return HeyClient(shared, accountId, scope, root = false)
     }
 
     /**
@@ -862,9 +857,13 @@ class HeyClient internal constructor(
     /** The identity read the client makes for itself, sent as the `GetIdentity` operation. */
     private suspend fun identity(): Identity = send(operation(Routes.GET_IDENTITY, emptyList()))
 
-    /** Shuts down the HTTP client, when the SDK created it. A caller-provided one stays the caller's. */
+    /**
+     * Shuts down the HTTP client. Only the client the builder made does so: one derived with
+     * [forAccount] shares the transport with the client it came from and its siblings, and
+     * closing it closes nothing.
+     */
     fun close() {
-        if (shared.ownsHttpClient) shared.http.close()
+        if (root) shared.http.close()
     }
 }
 

@@ -3,14 +3,24 @@ package com.basecamp.hey.services
 import com.basecamp.hey.HeyClient
 import com.basecamp.hey.HeyException
 import com.basecamp.hey.Method
+import com.basecamp.hey.OperationInfo
+import com.basecamp.hey.generated.models.Recording
 import com.basecamp.hey.generated.services.DeleteCalendarEventOccurrenceOptions
+import com.basecamp.hey.heyJson
 import com.basecamp.hey.writeInfo
+import kotlin.time.Duration
 import com.basecamp.hey.generated.services.CalendarEventsService as GeneratedCalendarEventsService
 
 /**
- * A partial revision of an event: only the fields named are sent, and HEY leaves the rest as
- * they are. Clock times belong to a timed event, so an all-day revision leaves them off
- * however they are set here.
+ * A partial revision of an event, and partial only in what it names: the six fields here
+ * are sent when set and HEY leaves the title, dates and times alone otherwise. The notes,
+ * location, link, attached entry, attendees, reminders and countdown a caller says nothing
+ * about are cleared, because HEY reads every calendar write as a form and defaults each of
+ * those to nothing. A revision that keeps any of them goes through [UpdateCalendarEventParams]
+ * and [CalendarEventsService.updateEvent], which take them all.
+ *
+ * Clock times belong to a timed event, so an all-day revision leaves them off however they
+ * are set here.
  */
 data class CalendarEventUpdate(
     val title: String? = null,
@@ -23,6 +33,154 @@ data class CalendarEventUpdate(
     val startTime: String? = null,
     /** `HH:MM`. */
     val endTime: String? = null,
+)
+
+/**
+ * An event's content, which is a replacement rather than a patch.
+ *
+ * HEY reads these four out of the submitted parameters and then defaults every one of them
+ * to nothing, so a write that says nothing about a field clears it. There is no way to send
+ * a subset: the fields left empty here are the fields the event loses. An update therefore
+ * has to read the event first and pass back whatever it means to keep.
+ *
+ * The title is not in here, and that is not an oversight: HEY leaves the summary alone when
+ * it is not submitted, so it stays a partial field like the rest of a partial write.
+ */
+data class EventContent(
+    /**
+     * HEY's `calendar_event[description]` — Trix rich text, so HTML going in. It does not
+     * round-trip: HEY serves the notes back as plain text, so keeping formatted notes through
+     * an update means holding the HTML the caller sent, not the text HEY answered.
+     */
+    val notes: String = "",
+    /** A plain string. HEY truncates it at 3900 characters rather than refusing it. */
+    val location: String = "",
+    /** Validated as a URL and capped at 2500 characters, so a malformed one is a 422 rather than a silent drop. */
+    val link: String? = null,
+    /** The email attached to the event, HEY's `calendar_event[entry_id]`. A read serves it back as `attached_entry`. */
+    val entryId: Long? = null,
+)
+
+/** A countdown's unit, written as the number of seconds HEY's own form submits and the only form it reads. */
+enum class CountdownUnit(val seconds: Int) {
+    /** A day: 86,400 seconds. */
+    DAYS(86_400),
+
+    /** A week: 604,800 seconds. */
+    WEEKS(604_800),
+
+    /** A month as HEY averages one: 2,629,746 seconds. */
+    MONTHS(2_629_746),
+}
+
+/**
+ * The countdown HEY runs up to an event. Like [EventContent] it is resend-or-lose-it: HEY
+ * reads the pair on every editable write and a missing value deletes the countdown, so a
+ * zero [value] means the event has none once the write lands. A countdown is a child
+ * recording rather than a field on the event, so it cannot be read back from one. 1 through
+ * 30 is what the web app offers.
+ */
+data class Countdown(
+    /** How many units. Zero is no countdown. */
+    val value: Int = 0,
+    /** What the value counts in. */
+    val unit: CountdownUnit = CountdownUnit.DAYS,
+)
+
+/**
+ * How often an event repeats. HEY has no day-of-week parameter, so [EVERY_WEEKDAY] — a
+ * hardcoded Monday to Friday — is the only weekday set that can be expressed.
+ */
+enum class RepeatFrequency(val wire: String) {
+    EVERY_DAY("every_day"),
+    EVERY_WEEKDAY("every_weekday"),
+    EVERY_WEEK("every_week"),
+    EVERY_OTHER_WEEK("every_other_week"),
+    EVERY_DAY_OF_MONTH("every_day_of_month"),
+    EVERY_YEAR("every_year"),
+
+    /** Keeps whatever schedule the event already has instead of naming a new one. */
+    CUSTOM("custom"),
+}
+
+/** When a recurrence stops. */
+enum class RepeatUntil(val wire: String) {
+    /** The event never stops repeating. */
+    FOREVER("forever"),
+
+    /** It stops after [Repeat.untilDate]. */
+    DATE("date"),
+
+    /** It stops after [Repeat.count] occurrences. */
+    COUNT("count"),
+}
+
+/**
+ * An event's recurrence. The default is [RepeatFrequency.CUSTOM] with no end, which says
+ * "keep the schedule the event already has". On an occurrence update that makes a default
+ * [Repeat] and a null one mean the same thing, since [CalendarEventsService.updateOccurrence]
+ * sends `custom` for a null one anyway. On a whole-event update a null writes no recurrence
+ * field at all.
+ */
+data class Repeat(
+    val frequency: RepeatFrequency = RepeatFrequency.CUSTOM,
+    /** When it stops. Null says nothing about an end. */
+    val until: RepeatUntil? = null,
+    /** `YYYY-MM-DD`, read only when [until] is [RepeatUntil.DATE]. */
+    val untilDate: String? = null,
+    /** Read only when [until] is [RepeatUntil.COUNT]. */
+    val count: Int? = null,
+)
+
+/**
+ * A revision of a calendar event, whole. The nullable fields are a partial update: only the
+ * ones named are sent, and HEY leaves the rest as they are.
+ *
+ * The rest are not, and the reason is on HEY's side. It reads the zones, the content, the
+ * reminders and the countdown out of the submitted parameters on every write and defaults
+ * each of them to nothing, so an update saying nothing about one clears it. A caller keeping
+ * any of them reads the event and sends them back.
+ */
+data class UpdateCalendarEventParams(
+    /**
+     * Moves the event to another calendar. It has to be one the identity can file on — owned
+     * or shared, not a subscription; the personal calendar answers 404 all the same.
+     */
+    val calendarId: Long? = null,
+    val title: String? = null,
+    /** `YYYY-MM-DD`. */
+    val startsAt: String? = null,
+    /** `YYYY-MM-DD`. */
+    val endsAt: String? = null,
+    val allDay: Boolean? = null,
+    /** `HH:MM`. Clock times belong to a timed event, so an all-day revision leaves them off however they are set here. */
+    val startTime: String? = null,
+    /** `HH:MM`. */
+    val endTime: String? = null,
+    /**
+     * The IANA zone the start is written in, as on a create. An empty string says the time
+     * is UTC and clears the zone the event was saved with; null leaves it out of the request,
+     * which HEY also reads as clearing it.
+     */
+    val startTimeZone: String? = null,
+    /** The zone the end is written in, read as [startTimeZone] is. */
+    val endTimeZone: String? = null,
+    /**
+     * Resend-or-lose-it, like the zones: HEY reads the list on every write and unschedules
+     * everything when it is empty. Several go in one write and HEY de-duplicates them; only
+     * the list matching the event's all-day flag is read.
+     */
+    val reminders: List<Duration> = emptyList(),
+    /** The notes, location, link and attached entry, a replacement rather than a patch. Read [EventContent] before using it. */
+    val content: EventContent = EventContent(),
+    /** Replaces the guest list. Null leaves it alone; an empty list removes every guest. */
+    val attendees: List<String>? = null,
+    /** Circles or uncircles the event. Null leaves it as it is. */
+    val highlighted: Boolean? = null,
+    /** Resend-or-lose-it too: a zero value deletes the event's countdown. */
+    val countdown: Countdown = Countdown(),
+    /** Changes the recurrence. Null leaves it untouched on a whole-event update, and keeps the series' schedule on an occurrence update. */
+    val repeat: Repeat? = null,
 )
 
 /**
@@ -64,9 +222,11 @@ enum class OccurrenceScope(val wire: String) {
 }
 
 /**
- * Calendar events service with the form-backed update on top of the generated surface
+ * Calendar events service with the form-backed updates on top of the generated surface
  * (`delete`, `deleteOccurrence`). HEY's calendar writes are Rails form posts rather than
- * JSON, so an update goes out form-encoded under `calendar_event[...]`.
+ * JSON, so an update goes out form-encoded under `calendar_event[...]`. [updateEvent] and
+ * [updateOccurrence] take the whole of an event, as Go's and Rust's do; [update] names the
+ * six fields a revision usually means, and clears the rest — read it before using it.
  */
 class CalendarEventsService(client: HeyClient) : GeneratedCalendarEventsService(client) {
     /**
@@ -80,6 +240,44 @@ class CalendarEventsService(client: HeyClient) : GeneratedCalendarEventsService(
         operation.form(updateFields(update))
         operation.accept("application/json")
         client.sendUnit(operation)
+    }
+
+    /** Revises an event from the whole of [params] and answers it as a recording. */
+    suspend fun updateEvent(eventId: Long, params: UpdateCalendarEventParams): Recording =
+        write(
+            "/calendar/events/$eventId.json",
+            writeInfo("CalendarEvents", "UpdateCalendarEvent", "calendar_event", eventId),
+            updateEventFields(params),
+        )
+
+    /**
+     * Revises one day of a repeating event and answers it as a recording. A date that is not
+     * an occurrence of that series is a 404, as is an event the caller cannot edit. A null
+     * [UpdateCalendarEventParams.repeat] keeps the series' schedule: HEY would read silence
+     * here as "stop repeating".
+     */
+    suspend fun updateOccurrence(occurrence: OccurrenceId, scope: OccurrenceScope, params: UpdateCalendarEventParams): Recording {
+        val fields = updateEventFields(params).toMutableList()
+        fields += "apply_to_future" to checkbox(scope == OccurrenceScope.THIS_AND_FOLLOWING)
+        if (params.repeat == null) fields += "repeat_frequency" to RepeatFrequency.CUSTOM.wire
+        return write(
+            "/calendar/events/${occurrence.eventId}/occurrences/${occurrence.date}.json",
+            writeInfo("CalendarEvents", "UpdateCalendarEventOccurrence", "calendar_event", occurrence.eventId),
+            fields,
+        )
+    }
+
+    /** Posts a calendar form to a `.json` path and reads the recording it answers, or the id in the redirect an older server sends. */
+    private suspend fun write(path: String, info: OperationInfo, fields: List<Pair<String, String>>): Recording {
+        val operation = client.form(Method.PATCH, path)
+        operation.info(info)
+        operation.form(fields)
+        val answered = client.sendForm(operation)
+        return if (answered.body.isEmpty()) {
+            Recording(id = answered.extractId(), type = "Calendar::Event")
+        } else {
+            heyJson.decodeFromString(Recording.serializer(), answered.body)
+        }
     }
 
     /**
@@ -105,5 +303,76 @@ internal fun updateFields(update: CalendarEventUpdate): List<Pair<String, String
         update.startTime?.let { fields += "calendar_event[starts_at_time]" to "$it:00" }
         update.endTime?.let { fields += "calendar_event[ends_at_time]" to "$it:00" }
     }
+    return fields
+}
+
+private const val ATTENDEES = "calendar_event[attendance_email_addresses][]"
+private const val ALL_DAY_REMINDERS = "all_day_reminder_durations[]"
+private const val TIMED_REMINDERS = "timed_reminder_durations[]"
+
+private fun checkbox(value: Boolean): String = if (value) "1" else "0"
+
+/** Form-encodes a whole-event update; the occurrence update builds on it. */
+internal fun updateEventFields(params: UpdateCalendarEventParams): List<Pair<String, String>> {
+    val fields = mutableListOf<Pair<String, String>>()
+    params.title?.let { fields += "calendar_event[summary]" to it }
+    params.startsAt?.let { fields += "calendar_event[starts_at]" to it }
+    params.endsAt?.let { fields += "calendar_event[ends_at]" to it }
+    params.allDay?.let { fields += "calendar_event[all_day]" to checkbox(it) }
+    if (params.allDay != true) {
+        params.startTime?.let { fields += "calendar_event[starts_at_time]" to "$it:00" }
+        params.endTime?.let { fields += "calendar_event[ends_at_time]" to "$it:00" }
+    }
+    params.calendarId?.let { fields += "calendar_event[calendar_id]" to it.toString() }
+
+    // The content goes out whole every time, because HEY clears what it is not sent.
+    val content = params.content
+    fields += "calendar_event[description]" to content.notes
+    fields += "calendar_event[location]" to content.location
+    fields += "calendar_event[url]" to content.link.orEmpty()
+    // A zero id names no entry, so it goes out blank rather than as "0", which HEY would look up and refuse.
+    fields += "calendar_event[entry_id]" to (content.entryId?.takeIf { it != 0L }?.toString().orEmpty())
+
+    // The guest list is replaced wholesale when it is submitted at all; an empty list needs a
+    // blank value on the wire to say so, since a form carries no empty array.
+    params.attendees?.let { addresses ->
+        if (addresses.isEmpty()) fields += ATTENDEES to "" else addresses.forEach { fields += ATTENDEES to it }
+    }
+    // The empty highlight_id is what makes "off" mean off: HEY destroys the existing highlight
+    // when the key is there and empty, and builds one when the flag is on.
+    params.highlighted?.let {
+        fields += "calendar_event[highlighted]" to checkbox(it)
+        fields += "calendar_event[highlight_id]" to ""
+    }
+    // A zero countdown sends no value at all, which is how HEY is told to delete it.
+    if (params.countdown.value > 0) {
+        fields += "countdown_interval_duration_value" to params.countdown.value.toString()
+        fields += "countdown_interval_duration_unit" to params.countdown.unit.seconds.toString()
+    }
+    params.repeat?.let { repeat ->
+        fields += "repeat_frequency" to repeat.frequency.wire
+        repeat.until?.let { fields += "calendar_recurrence_schedule[recurs_until_type]" to it.wire }
+        if (repeat.until == RepeatUntil.DATE) fields += "calendar_recurrence_schedule[recurs_until_date]" to repeat.untilDate.orEmpty()
+        if (repeat.until == RepeatUntil.COUNT) fields += "calendar_recurrence_schedule[recurs_count]" to (repeat.count ?: 0).toString()
+    }
+
+    // The zones, and the flag that makes HEY honour them: without it both names are dropped
+    // and the times are read in UTC. Naming none is a complete answer — convert to UTC.
+    val startsIn = params.startTimeZone
+    val endsIn = params.endTimeZone
+    if (startsIn != null || endsIn != null) {
+        if (startsIn.isNullOrEmpty() && endsIn.isNullOrEmpty()) {
+            fields += "calendar_event[set_time_zone]" to checkbox(false)
+        } else {
+            val start = startsIn.orEmpty().ifEmpty { endsIn.orEmpty() }
+            val end = endsIn.orEmpty().ifEmpty { startsIn.orEmpty() }
+            fields += "calendar_event[set_time_zone]" to checkbox(true)
+            fields += "calendar_event[starts_at_time_zone_name]" to start
+            fields += "calendar_event[ends_at_time_zone_name]" to end
+        }
+    }
+
+    val remindersKey = if (params.allDay == true) ALL_DAY_REMINDERS else TIMED_REMINDERS
+    for (reminder in params.reminders) fields += remindersKey to reminder.inWholeSeconds.toString()
     return fields
 }
