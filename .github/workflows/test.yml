@@ -244,6 +244,10 @@ jobs:
       - name: Run the conformance fixtures
         run: make conformance-kt
 
+      # The oldest Kotlin the README promises has to be able to read what the jar carries.
+      - name: Compile a consumer with the oldest supported Kotlin
+        run: make kt-consumer-check
+
   lint-go:
     name: Go Lint
     runs-on: ubuntu-latest

@@ -2,6 +2,9 @@ package com.basecamp.hey
 
 import com.basecamp.hey.generated.*
 import kotlinx.coroutines.test.runTest
+import io.ktor.client.request.HttpRequestBuilder
+import io.ktor.client.request.header
+import io.ktor.http.HttpHeaders
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -107,7 +110,7 @@ class CacheTest {
             cache = store
         }
         client.boxes.list()
-        val held = store.get(cacheKey("https://app.hey.com/boxes.json", "Bearer test-token"))!!
+        val held = store.get(cacheKey("https://app.hey.com/boxes.json", "authorization: Bearer test-token"))!!
         assertEquals(setOf("ETag", "Link", "X-Total-Count", "Content-Type"), held.headers.keys, "the entry keeps what came with the body, less any credential")
 
         val revalidated = client.boxes.list()
@@ -172,5 +175,49 @@ class CacheTest {
         assertEquals("""{"n":1}""", second.text(), "the entry holds its own bytes")
         second.body.fill(0)
         assertEquals("""{"n":1}""", client.execute(client.request(Method.GET, "/thing")).text(), "and hands out its own copy each time")
+    }
+
+    /** A strategy that signs with a header of its own: an API key, a cookie, whatever the caller's HEY takes. */
+    private class HeaderAuth(private val name: String, private val value: String, private val bearer: String? = null) : AuthStrategy {
+        override suspend fun authenticate(request: HttpRequestBuilder) {
+            request.header(name, value)
+            bearer?.let { request.header(HttpHeaders.Authorization, "Bearer $it") }
+        }
+    }
+
+    @Test
+    fun aStrategyWithoutABearerStillGetsRevalidation() = runTest {
+        val hey = mockHey(ok("[]", mapOf("ETag" to "\"v1\"")), status(304, headers = mapOf("ETag" to "\"v1\"")))
+        val client = HeyClient {
+            auth(HeaderAuth("X-Api-Key", "key-123"))
+            engine = hey.engine
+            enableCache = true
+        }
+        client.boxes.list()
+        client.boxes.list()
+        assertEquals("\"v1\"", hey.requests[1].header("If-None-Match"), "the key partitions the cache as a bearer would")
+    }
+
+    @Test
+    fun twoIdentitiesThatShareABearerButNotACookieNeverShareAnEntry() = runTest {
+        val store = InMemoryCache()
+        val hey = mockHey(ok("""{"who":"a"}""", mapOf("ETag" to "\"same\"")), ok("""{"who":"b"}""", mapOf("ETag" to "\"same\"")), status(304))
+        val a = HeyClient {
+            auth(HeaderAuth(HttpHeaders.Cookie, "session=a", bearer = "shared"))
+            engine = hey.engine
+            enableCache = true
+            cache = store
+        }
+        val b = HeyClient {
+            auth(HeaderAuth(HttpHeaders.Cookie, "session=b", bearer = "shared"))
+            engine = hey.engine
+            enableCache = true
+            cache = store
+        }
+        a.execute(a.request(Method.GET, "/me"))
+        assertEquals("""{"who":"b"}""", b.execute(b.request(Method.GET, "/me")).text())
+        assertNull(hey.requests[1].header("If-None-Match"), "b is not asked to validate a's entry")
+        assertEquals(2, store.size, "one entry each")
+        assertEquals("""{"who":"a"}""", a.execute(a.request(Method.GET, "/me")).text(), "and a's 304 answers a's body")
     }
 }

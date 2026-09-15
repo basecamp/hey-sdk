@@ -68,4 +68,15 @@ class AssertionHelpersTest {
         recorded.queries[0] = listOf("filtered_account_id" to "42")
         checkAll(run(recorded, expected))
     }
+
+    @Test
+    fun aScalarFormFieldHasToBeThereExactlyOnce() {
+        val recorded = Recorded()
+        recorded.bodies += "calendar_event%5Bsummary%5D=Expected&calendar_event%5Bsummary%5D=Wrong".encodeToByteArray()
+        val expected = Assertion(type = "requestForm", expected = Json.parseToJsonElement("""{"calendar_event[summary]":"Expected"}"""))
+        val error = assertFailsWith<AssertionFailure> { checkAll(run(recorded, expected)) }
+        assertTrue(error.message!!.contains("once, got it 2 times"), error.message)
+        recorded.bodies[0] = "calendar_event%5Bsummary%5D=Expected".encodeToByteArray()
+        checkAll(run(recorded, expected))
+    }
 }

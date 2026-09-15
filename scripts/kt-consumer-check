@@ -1,0 +1,70 @@
+#!/usr/bin/env bash
+# Builds a consumer of the Kotlin library the way one would: the library is published to a
+# scratch Maven repository, and a throwaway Gradle project that depends on it by coordinates
+# is compiled with the oldest Kotlin the README says it supports, on a Gradle that Kotlin
+# runs on. What this catches is a promise the artifact cannot keep — the library and its
+# dependencies write Kotlin metadata a consumer's compiler must be able to read, and every
+# Kotlin bump moves that — and a generated type or service the published jar leaves out.
+set -euo pipefail
+
+root="$(cd "$(dirname "$0")/.." && pwd)"
+readme="$root/kotlin/README.md"
+minimum="$(sed -n 's/.*Requires JDK 17 and Kotlin \([0-9]*\.[0-9]*\) or newer.*/\1/p' "$readme" | head -1)"
+[ -n "$minimum" ] || { echo "kotlin/README.md does not say which Kotlin it requires" >&2; exit 1; }
+version="$(sed -n 's/^version = "\(.*\)"$/\1/p' "$root/kotlin/sdk/build.gradle.kts")"
+
+# The oldest patch of the minimum minor, on the Gradle that minor was released against.
+kotlin="$minimum.0"
+case "$minimum" in
+  2.3) gradle="9.2.1" ;;
+  2.4) gradle="9.7.1" ;;
+  *) echo "no Gradle known for Kotlin $minimum; add it to scripts/kt-consumer-check" >&2; exit 1 ;;
+esac
+
+work="$(mktemp -d "${TMPDIR:-/tmp}/hey-sdk-consumer.XXXXXX")"
+trap 'rm -rf "$work"' EXIT
+
+echo "consumer: publishing hey-sdk $version to $work/repo"
+(cd "$root/kotlin" && ./gradlew --quiet :hey-sdk:publishAllPublicationsToStagingRepository -Phey.staging="$work/repo")
+
+mkdir -p "$work/consumer/src/main/kotlin" "$work/consumer/gradle/wrapper"
+cp "$root/kotlin/gradlew" "$work/consumer/"
+cp "$root/kotlin/gradle/wrapper/gradle-wrapper.jar" "$work/consumer/gradle/wrapper/"
+cat > "$work/consumer/gradle/wrapper/gradle-wrapper.properties" <<PROPERTIES
+distributionBase=GRADLE_USER_HOME
+distributionPath=wrapper/dists
+distributionUrl=https\\://services.gradle.org/distributions/gradle-$gradle-bin.zip
+zipStoreBase=GRADLE_USER_HOME
+zipStorePath=wrapper/dists
+PROPERTIES
+cat > "$work/consumer/settings.gradle.kts" <<'SETTINGS'
+pluginManagement { repositories { gradlePluginPortal(); mavenCentral() } }
+rootProject.name = "consumer"
+SETTINGS
+cat > "$work/consumer/build.gradle.kts" <<BUILD
+plugins { kotlin("jvm") version "$kotlin" }
+repositories {
+    maven { url = uri("$work/repo") }
+    mavenCentral()
+}
+dependencies { implementation("com.basecamp:hey-sdk:$version") }
+kotlin { jvmToolchain(17) }
+BUILD
+# A client, a generated service, a generated model and the route table: the surface a
+# consumer reaches first.
+cat > "$work/consumer/src/main/kotlin/Main.kt" <<'KOTLIN'
+import com.basecamp.hey.HeyClient
+import com.basecamp.hey.generated.Routes
+import com.basecamp.hey.generated.boxes
+import com.basecamp.hey.generated.models.Box
+
+fun main() {
+    val client = HeyClient { accessToken("token") }
+    val box = Box(id = 1, kind = "imbox", name = "Imbox")
+    println("${Routes.LIST_BOXES.id} ${client.boxes} ${box.id}")
+}
+KOTLIN
+
+echo "consumer: compiling with Kotlin $kotlin on Gradle $gradle"
+(cd "$work/consumer" && ./gradlew --quiet --no-daemon compileKotlin)
+echo "consumer: ok (hey-sdk $version, Kotlin $kotlin)"

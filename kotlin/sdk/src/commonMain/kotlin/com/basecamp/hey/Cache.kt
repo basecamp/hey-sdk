@@ -71,7 +71,8 @@ class InMemoryCache : ResponseCache {
 }
 
 /**
- * The key a read is cached under: the URL and the credential it went out with, hashed, so
- * one identity's reading is never answered to another and the token never sits in a key.
+ * The key a read is cached under: the URL and the credentials it went out with — every
+ * header the auth strategy set, not only `Authorization` — hashed, so one identity's reading
+ * is never answered to another and no token sits in a key.
  */
-internal fun cacheKey(url: String, credential: String): String = sha256Hex("$credential\n$url".encodeToByteArray())
+internal fun cacheKey(url: String, credentials: String): String = sha256Hex("$credentials\n$url".encodeToByteArray())

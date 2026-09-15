@@ -69,7 +69,7 @@ publishing {
         // upload is one it can neither finish nor overwrite.
         maven {
             name = "staging"
-            url = uri(layout.buildDirectory.dir("staging-repo"))
+            url = (findProperty("hey.staging") as String?)?.let { uri(it) } ?: uri(layout.buildDirectory.dir("staging-repo"))
         }
     }
 }

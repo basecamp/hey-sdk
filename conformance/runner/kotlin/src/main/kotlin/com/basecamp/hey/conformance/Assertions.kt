@@ -188,11 +188,15 @@ private fun checkRequestForm(run: Run, assertion: Assertion, which: Which) {
     val raw = which.pick(run.recorded.bodies) ?: fail(noRequests())
     val fields = queryPairs(raw.decodeToString())
     for ((name, want) in expected) {
-        val got = fields.firstOrNull { it.first == name }?.second
+        // A scalar the fixture expects once has to be there exactly once: a second copy with
+        // another value is a form the server may read either way.
+        val values = fields.filter { it.first == name }.map { it.second }
+        val got = values.singleOrNull()
         when {
-            want is JsonNull && got == null -> {}
-            want is JsonNull -> fail("${assertion.type}: expected form field \"$name\" to be absent, got \"$got\"")
-            got == null -> fail("${assertion.type}: expected form field \"$name\" = ${display(want)}, but it is absent")
+            want is JsonNull && values.isEmpty() -> {}
+            want is JsonNull -> fail("${assertion.type}: expected form field \"$name\" to be absent, got \"${values.joinToString("&")}\"")
+            values.isEmpty() -> fail("${assertion.type}: expected form field \"$name\" = ${display(want)}, but it is absent")
+            values.size > 1 -> fail("${assertion.type}: expected form field \"$name\" = ${display(want)} once, got it ${values.size} times")
             got != display(want) -> fail("${assertion.type}: expected form field \"$name\" = ${display(want)}, got \"$got\"")
         }
     }

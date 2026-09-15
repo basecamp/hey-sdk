@@ -4,6 +4,7 @@ import com.basecamp.hey.generated.*
 import io.ktor.client.request.HttpRequestBuilder
 import io.ktor.client.request.header
 import io.ktor.http.HttpHeaders
+import io.ktor.http.encodedPath
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -117,5 +118,40 @@ class RedirectTest {
         assertFailsWith<HeyException.Auth> { client.boxes.list() }
         assertEquals(0, refreshes, "HEY's credentials were not the ones rejected")
         assertEquals(2, hey.requests.size, "and nothing is sent again")
+    }
+
+    /** A strategy that signs the method and path, as an HMAC scheme does: a hop to another URL needs a signature of its own. */
+    private class SigningAuth : AuthStrategy {
+        override suspend fun authenticate(request: HttpRequestBuilder) {
+            request.header("X-Signature", "${request.method.value} ${request.url.encodedPath}")
+        }
+    }
+
+    @Test
+    fun aHopOnTheSameOriginIsSignedForWhereItGoes() = runTest {
+        val hey = mockHey(
+            status(302, headers = mapOf("Location" to "/boxes/all.json")),
+            ok("[]"),
+            status(303, headers = mapOf("Location" to "/postings/seen.json")),
+            ok(""),
+            status(302, headers = mapOf("Location" to "https://files.example.com/export.json")),
+            ok("[]"),
+        )
+        val client = HeyClient {
+            auth(SigningAuth())
+            engine = hey.engine
+            timeout = Duration.INFINITE
+        }
+        client.boxes.list()
+        assertEquals("GET /boxes.json", hey.requests[0].header("X-Signature"))
+        assertEquals("GET /boxes/all.json", hey.requests[1].header("X-Signature"), "signed again for the URL the hop goes to")
+
+        client.execute(client.request(Method.POST, "/postings/mark").jsonBody("{}"))
+        assertEquals("POST /postings/mark.json", hey.requests[2].header("X-Signature"))
+        assertEquals("GET", hey.requests[3].method, "a 303 turns the POST into a GET")
+        assertEquals("GET /postings/seen.json", hey.requests[3].header("X-Signature"), "and the signature says so")
+
+        client.boxes.list()
+        assertNull(hey.requests[5].header("X-Signature"), "a hop off the origin is never signed")
     }
 }

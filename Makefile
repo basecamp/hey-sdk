@@ -322,7 +322,7 @@ swift-check:
 # Kotlin SDK
 #------------------------------------------------------------------------------
 
-.PHONY: kt-generate kt-generate-services kt-build kt-test kt-check kt-check-drift
+.PHONY: kt-generate kt-generate-services kt-build kt-test kt-check kt-check-drift kt-consumer-check
 
 # The Gradle build under kotlin/ wants JDK 17; .mise.toml pins one for mise users.
 GRADLE := cd kotlin && ./gradlew --quiet
@@ -350,6 +350,11 @@ kt-check:
 # Regenerate into memory and compare with the checked-in tree; stale generated code fails.
 kt-check-drift:
 	$(GRADLE) :generator:run --args="--check"
+
+# Publish the library to a scratch repository and compile a consumer against it with the
+# oldest Kotlin kotlin/README.md promises, so the promise is one the artifact keeps.
+kt-consumer-check:
+	./scripts/kt-consumer-check
 
 #------------------------------------------------------------------------------
 # Conformance
@@ -437,6 +442,7 @@ help:
 	@echo "  kt-check       What CI runs: the Kotlin library's build and tests, the generator's"
 	@echo "                 tests and the conformance runner's"
 	@echo "  kt-check-drift Fail if kotlin/sdk/src/commonMain/kotlin/com/basecamp/hey/generated is stale"
+	@echo "  kt-consumer-check Compile a consumer of the published library with the oldest Kotlin the README promises"
 	@echo "  kt-generate    Regenerate the Kotlin generated tree from openapi.json"
 	@echo "  conformance-kt Run the shared conformance fixtures against the Kotlin library"
 	@echo "  clean          Remove build artifacts"

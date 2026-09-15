@@ -243,8 +243,11 @@ geared cursors, so there is nothing generic to aggregate.
 `kt-check-drift` runs the generator in `--check` mode, so stale generated code fails the
 gate. `kt-check` is what CI's `test-kotlin` job runs: the library's build and tests with
 every warning an error, the generator's own tests (naming and a small model put through
-`Model.build` and the emitters) and the conformance runner's. `HeyConfig.API_VERSION` is
-kept in step with `openapi.json` by `scripts/sync-api-version.sh`, like Go's `APIVersion`.
+`Model.build` and the emitters) and the conformance runner's. `kt-consumer-check` publishes
+the library to a scratch repository and compiles a consumer of it with the oldest Kotlin
+`kotlin/README.md` promises (the script reads the number from the README), since the
+library's and Ktor's metadata set that floor and a Kotlin bump moves it. `HeyConfig.API_VERSION`
+is kept in step with `openapi.json` by `scripts/sync-api-version.sh`, like Go's `APIVersion`.
 
 The hand-written services in `kotlin/sdk/src/commonMain/kotlin/com/basecamp/hey/services`
 are `BoxesService`, `CalendarEventsService`, `EntriesService`, `MessagesService`,

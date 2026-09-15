@@ -272,7 +272,7 @@ class HeyClient internal constructor(
      */
     inline fun <reified T : Any> service(key: String, crossinline factory: () -> T): T =
         @Suppress("UNCHECKED_CAST")
-        (serviceCache.getOrPut(key) { factory() } as T)
+        (serviceCache.getOrCreate(key) { factory() } as T)
 
     /** Starts a request for one of the modelled routes. Generated service methods call this. */
     fun operation(route: Route, params: List<Any>): Operation = Operation.forRoute(route, params)
@@ -601,11 +601,44 @@ class HeyClient internal constructor(
     private class Prepared(
         val request: HttpRequestBuilder,
         val cached: Pair<String, CachedResponse>?,
-        /** The headers the auth strategy put on the request, lowercased: what a hop to another origin must not carry. */
-        val credentialHeaders: Set<String>,
+        /** What the auth strategy put on the request: the headers a hop to another origin must not carry, and what partitions the cache. */
+        val credentials: Credentials,
         /** How many refreshes had happened when the request was signed, so a 401 knows whether its credentials are already stale. */
         val signedUnder: Long,
     )
+
+    /** The headers an auth strategy added or changed on a request, by lowercased name, with their values. */
+    private class Credentials(val headers: Map<String, List<String>>) {
+        val names: Set<String> get() = headers.keys
+
+        /**
+         * What partitions the cache: every credential header, canonically ordered, so a
+         * cookie-signed identity is kept apart from a bearer-signed one and two identities
+         * that share a bearer but differ in another header are kept apart too. Empty when
+         * the strategy set nothing, in which case nothing is cached.
+         */
+        val partition: String? get() =
+            headers.entries.sortedBy { it.key }.joinToString("\n") { (name, values) -> "$name: ${values.joinToString(", ")}" }.ifEmpty { null }
+    }
+
+    /**
+     * Signs a request with the auth strategy, under the refresh lock so no refresh lands
+     * between the signing and the count that says which credentials went out, and answers
+     * what the strategy put on it. A hop that stays on the origin is signed again for its
+     * own URL and method, since a strategy may sign those, once the previous signature is
+     * off; a hop to another origin is never signed.
+     */
+    private suspend fun sign(request: HttpRequestBuilder): Pair<Credentials, Long> {
+        val before = request.headers.build()
+        val signedUnder = shared.refreshing.withLock {
+            shared.auth.authenticate(request)
+            shared.refreshes
+        }
+        val added = request.headers.names()
+            .filter { name -> request.headers.getAll(name) != before.getAll(name) }
+            .associate { name -> name.lowercase() to request.headers.getAll(name).orEmpty().toList() }
+        return Credentials(added) to signedUnder
+    }
 
     /** Builds the request for one attempt, and looks the response cache up the first time it is asked for a key. */
     private suspend fun prepare(operation: Operation, url: Url, previous: Pair<String, CachedResponse>?): Prepared {
@@ -618,29 +651,19 @@ class HeyClient internal constructor(
             request.header(HttpHeaders.ContentType, body.contentType)
             request.setBody(body.bytes)
         }
-        // Signed and counted under the refresh lock, so no refresh lands between the two: the
-        // count says exactly which credentials went out, as the Rust crate's read lock does.
-        val beforeAuth = request.headers.build()
-        val signedUnder = shared.refreshing.withLock {
-            shared.auth.authenticate(request)
-            shared.refreshes
-        }
-        val credentialHeaders = request.headers.names()
-            .filter { name -> request.headers.getAll(name) != beforeAuth.getAll(name) }
-            .map { it.lowercase() }
-            .toSet()
+        val (credentials, signedUnder) = sign(request)
 
         val cache = cacheFor(operation)
-        val credential = request.headers[HttpHeaders.Authorization]
+        val partition = credentials.partition
         var cached = previous
-        if (cache != null && credential != null) {
-            val key = cacheKey(url.toString(), credential)
+        if (cache != null && partition != null) {
+            val key = cacheKey(url.toString(), partition)
             if (cached == null || cached.first != key) cached = lookUp(cache, key)
         } else {
             cached = null
         }
         cached?.second?.etag?.takeIf { it.isNotEmpty() }?.let { request.header(HttpHeaders.IfNoneMatch, it) }
-        return Prepared(request, cached, credentialHeaders, signedUnder)
+        return Prepared(request, cached, credentials, signedUnder)
     }
 
     private fun lookUp(cache: ResponseCache, key: String): Pair<String, CachedResponse> {
@@ -672,6 +695,7 @@ class HeyClient internal constructor(
     private suspend fun transmit(operation: Operation, start: Url, prepared: Prepared): Received {
         var url = start
         var request = prepared.request
+        var credentials = prepared.credentials
         var hops = 0
         var authenticated = true
         while (true) {
@@ -687,8 +711,12 @@ class HeyClient internal constructor(
                     }
                     val next = scoped(outcome.next)
                     requireSecureEndpoint(next)
-                    if (!isSameOrigin(url, next)) authenticated = false
-                    request = redirected(request, outcome.status, url, next, prepared.credentialHeaders)
+                    val sameOrigin = isSameOrigin(url, next)
+                    if (!sameOrigin) authenticated = false
+                    request = redirected(request, outcome.status, url, next, credentials.names)
+                    // The signature was for the URL and method the hop left behind; on the
+                    // origin it is made again for the ones it goes to, and off it never is.
+                    if (sameOrigin && authenticated) credentials = sign(request).first
                     url = next
                     hops += 1
                 }
@@ -715,6 +743,11 @@ class HeyClient internal constructor(
         return resolveReference(url, location)
     }
 
+    /**
+     * The request for the hop: the outgoing one's headers less the validator, less the
+     * strategy's own headers (they are put back by a fresh signing when the hop stays on the
+     * origin), and less anything credential-like when it does not.
+     */
     private fun redirected(outgoing: HttpRequestBuilder, status: Int, from: Url, to: Url, credentialHeaders: Set<String>): HttpRequestBuilder {
         val request = HttpRequestBuilder()
         val keepBody = status == 307 || status == 308 || outgoing.method == HttpMethod.Get || outgoing.method == HttpMethod.Head
@@ -724,7 +757,8 @@ class HeyClient internal constructor(
         outgoing.headers.entries().forEach { (name, values) ->
             // The validator was the resource asked for's; the one pointed to has its own.
             if (name.equals(HttpHeaders.IfNoneMatch, true)) return@forEach
-            if (!sameOrigin && (isSensitiveHeader(name) || name.lowercase() in credentialHeaders)) return@forEach
+            if (name.lowercase() in credentialHeaders) return@forEach
+            if (!sameOrigin && isSensitiveHeader(name)) return@forEach
             if (!keepBody && (name.equals(HttpHeaders.ContentType, true) || name.equals(HttpHeaders.ContentLength, true))) return@forEach
             values.forEach { request.headers.append(name, it) }
         }
