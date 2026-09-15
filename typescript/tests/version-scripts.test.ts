@@ -29,6 +29,9 @@ it("bumps SDK manifests/constants/lock roots and syncs/checks API versions witho
       "typescript/package-lock.json",
       "conformance/runner/typescript/package.json",
       "conformance/runner/typescript/package-lock.json",
+      "kotlin/sdk/build.gradle.kts",
+      "kotlin/sdk/src/commonMain/kotlin/com/basecamp/hey/HeyConfig.kt",
+      "kotlin/README.md",
       "openapi.json",
     ]) {
       const target = join(temp, file);
@@ -55,6 +58,9 @@ it("bumps SDK manifests/constants/lock roots and syncs/checks API versions witho
       "typescript/package-lock.json",
       "conformance/runner/typescript/package.json",
       "conformance/runner/typescript/package-lock.json",
+      "kotlin/sdk/build.gradle.kts",
+      "kotlin/sdk/src/commonMain/kotlin/com/basecamp/hey/HeyConfig.kt",
+      "kotlin/README.md",
     ];
     const snapshot = () =>
       versionFiles.map((file) => readFileSync(join(temp, file), "utf8"));
@@ -94,6 +100,44 @@ it("bumps SDK manifests/constants/lock roots and syncs/checks API versions witho
     ).toThrow();
     expect(snapshot()).toEqual(beforeMalformedTarget);
     writeFileSync(lateLock, validLateLock);
+
+    // Kotlin's targets are staged with the rest, so one of them missing leaves the Go,
+    // Rust and TypeScript files as they were.
+    const gradle = join(temp, "kotlin/sdk/build.gradle.kts");
+    const validGradle = readFileSync(gradle, "utf8");
+    writeFileSync(gradle, validGradle.replace(/^version = /m, "// version = "));
+    const beforeMalformedKotlin = snapshot();
+    expect(() =>
+      execFileSync("bash", ["scripts/bump-version.sh", "2.3.4"], {
+        cwd: temp,
+        env: bumpEnvironment,
+        stdio: "pipe",
+      }),
+    ).toThrow();
+    expect(snapshot()).toEqual(beforeMalformedKotlin);
+    writeFileSync(gradle, validGradle);
+
+    const kotlinConfig = join(temp, "kotlin/sdk/src/commonMain/kotlin/com/basecamp/hey/HeyConfig.kt");
+    const validKotlinConfig = readFileSync(kotlinConfig, "utf8");
+    writeFileSync(
+      kotlinConfig,
+      validKotlinConfig.replace("const val API_VERSION =", "const val MISSING_API_VERSION ="),
+    );
+    const beforeMalformedKotlinAPI = snapshot();
+    expect(() =>
+      execFileSync("bash", ["scripts/sync-api-version.sh"], {
+        cwd: temp,
+        stdio: "pipe",
+      }),
+    ).toThrow();
+    expect(snapshot()).toEqual(beforeMalformedKotlinAPI);
+    expect(() =>
+      execFileSync("bash", ["scripts/sync-api-version.sh", "--check"], {
+        cwd: temp,
+        stdio: "pipe",
+      }),
+    ).toThrow();
+    writeFileSync(kotlinConfig, validKotlinConfig);
 
     const openapiPath = join(temp, "openapi.json");
     const validOpenAPI = readFileSync(openapiPath, "utf8");
@@ -170,6 +214,15 @@ it("bumps SDK manifests/constants/lock roots and syncs/checks API versions witho
     expect(
       readFileSync(join(temp, "typescript/src/version.ts"), "utf8"),
     ).toContain('const VERSION = "1.2.3"');
+    expect(readFileSync(join(temp, "kotlin/sdk/build.gradle.kts"), "utf8")).toMatch(
+      /^version = "1\.2\.3"$/m,
+    );
+    const heyConfig = join(temp, "kotlin/sdk/src/commonMain/kotlin/com/basecamp/hey/HeyConfig.kt");
+    expect(readFileSync(heyConfig, "utf8")).toContain('const val VERSION = "1.2.3"');
+    for (const readme of ["README.md", "kotlin/README.md"])
+      expect(readFileSync(join(temp, readme), "utf8")).toContain(
+        'implementation("com.basecamp:hey-sdk:1.2.3")',
+      );
     const spec = JSON.parse(readFileSync(join(temp, "openapi.json"), "utf8"));
     spec.info.version = "2027-01-02";
     writeFileSync(join(temp, "openapi.json"), JSON.stringify(spec));
@@ -180,6 +233,7 @@ it("bumps SDK manifests/constants/lock roots and syncs/checks API versions witho
     expect(
       readFileSync(join(temp, "typescript/src/version.ts"), "utf8"),
     ).toContain('const API_VERSION = "2027-01-02"');
+    expect(readFileSync(heyConfig, "utf8")).toContain('const val API_VERSION = "2027-01-02"');
     const manifest = join(temp, "typescript/package-lock.json"),
       before = readFileSync(manifest, "utf8");
     writeFileSync(

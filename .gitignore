@@ -56,10 +56,11 @@ swift/Package.resolved
 
 # Kotlin SDK build artifacts
 kotlin/.gradle/
+kotlin/.kotlin/
 kotlin/build/
 kotlin/sdk/build/
 kotlin/generator/build/
-kotlin/conformance/build/
+conformance/runner/kotlin/build/
 
 # TypeScript SDK build artifacts
 typescript/coverage/

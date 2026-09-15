@@ -21,7 +21,7 @@
     "method": "GET",
     "path": "/calendar/ongoing_time_track.json",
     "mockResponses": [
-      {"status": 200, "body": {"id": 123, "started_at": "2026-03-04T10:00:00Z"}}
+      {"status": 200, "body": {"id": 123, "type": "Calendar::TimeTrack", "started_at": "2026-03-04T10:00:00Z"}}
     ],
     "assertions": [
       {"type": "noError"},

@@ -1,0 +1,199 @@
+name: Release Kotlin SDK
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:  # Manual trigger is always a dry run
+
+permissions: {}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  smithy:
+    permissions:
+      contents: read
+    uses: $/.github/workflows/smithy-verify.yml
+
+  test:
+    name: Test before release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      publish_enabled: ${{ steps.activation.outputs.enabled }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Verify tag is on main
+        if: github.event_name == 'push'
+        run: |
+          git fetch origin main
+          git merge-base --is-ancestor "$GITHUB_SHA" origin/main
+
+      # Whether this tag publishes at all, read from the tagged commit as
+      # release-github.yml reads it, so the two agree on what the release waits for.
+      - name: Read versioned publication state
+        id: activation
+        run: |
+          enabled=$(bash scripts/kotlin-publish-state.sh)
+          echo "enabled=$enabled" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Java
+        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
+        # zizmor: ignore[cache-poisoning] -- cached deps are for testing, not release artifact generation
+        with:
+          cache-provider: basic
+
+      # The same gate a pull request passes. A tag is not the place to find out.
+      - name: Run the Kotlin gate
+        run: make kt-check kt-check-drift conformance-kt kt-consumer-check
+
+      # The version the library carries has to be the one the tag names, or the artifact
+      # would say one thing and the release another.
+      - name: Check the version matches the tag
+        if: github.event_name == 'push'
+        run: |
+          VERSION="${GITHUB_REF#refs/tags/v}"
+          GRADLE_VERSION=$(sed -n 's/^version = "\(.*\)"$/\1/p' kotlin/sdk/build.gradle.kts)
+          if [ "$GRADLE_VERSION" != "$VERSION" ]; then
+            echo "::error::kotlin/sdk/build.gradle.kts says $GRADLE_VERSION, the tag says $VERSION; run make bump first"
+            exit 1
+          fi
+          if ! grep -Fq "const val VERSION = \"$VERSION\"" kotlin/sdk/src/commonMain/kotlin/com/basecamp/hey/HeyConfig.kt; then
+            echo "::error::HeyConfig.kt does not say $VERSION; run make bump first"
+            exit 1
+          fi
+
+  # Gradle's publish task builds from the project rather than from a prepared file, so the
+  # rehearsal cannot hand an artifact to the publisher. It gets its own job instead, so the
+  # dry run never holds `packages: write`. A tag pushed while publishing is switched off
+  # rehearses here too, so the release is proven buildable without anything going out.
+  publish-dry-run:
+    name: Publish to GitHub Packages (dry run)
+    needs: [smithy, test]
+    if: github.event_name == 'workflow_dispatch' || needs.test.outputs.publish_enabled != 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Java
+        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
+        # zizmor: ignore[cache-poisoning] -- cache is branch-isolated; fork PRs cannot write to this cache
+        with:
+          cache-provider: basic
+
+      # The publication laid out as GitHub Packages would hold it, so the rehearsal shows
+      # every file a release would upload.
+      - name: Build what would be published
+        working-directory: kotlin
+        env:
+          ENABLED: ${{ needs.test.outputs.publish_enabled }}
+        run: |
+          rm -rf sdk/build/staging-repo
+          ./gradlew --quiet :hey-sdk:publishAllPublicationsToStagingRepository
+          VERSION=$(sed -n 's/^version = "\(.*\)"$/\1/p' sdk/build.gradle.kts)
+          echo "Would publish com.basecamp:hey-sdk:${VERSION} to GitHub Packages as:"
+          (cd sdk/build/staging-repo && find . -type f ! -name '*.md5' ! -name '*.sha1' ! -name '*.sha256' ! -name '*.sha512' ! -name 'maven-metadata.xml' | sed 's|^\./|  |' | sort)
+          if [ "$ENABLED" != true ]; then
+            echo '::notice::Kotlin publishing disabled: GitHub Packages NOT published; Go and Rust releases remain independent.'
+          else
+            echo "::notice::Dry run - would publish com.basecamp:hey-sdk:${VERSION} to GitHub Packages"
+          fi
+
+  publish:
+    name: Publish to GitHub Packages
+    needs: [smithy, test]
+    if: github.event_name == 'push' && needs.test.outputs.publish_enabled == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    env:
+      REPOSITORY: https://maven.pkg.github.com/basecamp/hey-sdk
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Java
+        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
+        # zizmor: ignore[cache-poisoning] -- cache is branch-isolated; fork PRs cannot write to this cache
+        with:
+          cache-provider: basic
+
+      # GitHub Packages holds a Maven version as several files and refuses to overwrite any
+      # of them, so a run that failed after some were uploaded leaves a version that cannot
+      # be finished. The publication is laid out locally first, then every file is checked
+      # against the remote: none there and the job publishes; all there byte for byte — a
+      # re-run of a finished release — and it has nothing to do; anything else and it fails
+      # naming the files, since the version has to be deleted before it can be published
+      # again. The same commit and toolchain build the same bytes (the archives are
+      # reproducible), which is what lets the check compare rather than guess.
+      - name: Check GitHub Packages for this version
+        id: check
+        working-directory: kotlin
+        env:
+          GITHUB_USER: x-access-token
+          GITHUB_ACCESS_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          rm -rf sdk/build/staging-repo
+          ./gradlew --quiet :hey-sdk:publishAllPublicationsToStagingRepository
+          state=$(bash ../scripts/kotlin-packages-state.sh sdk/build/staging-repo "$REPOSITORY")
+          echo "state=$state" >> "$GITHUB_OUTPUT"
+          echo "GitHub Packages: $state"
+
+      - name: Publish to GitHub Packages
+        if: steps.check.outputs.state == 'absent'
+        working-directory: kotlin
+        env:
+          GITHUB_USER: x-access-token
+          GITHUB_ACCESS_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: ./gradlew --quiet :hey-sdk:publish
+
+      # The upload is only a release once every file of it is there as built.
+      - name: Verify the publication
+        if: steps.check.outputs.state == 'absent'
+        working-directory: kotlin
+        env:
+          GITHUB_USER: x-access-token
+          GITHUB_ACCESS_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          state=$(bash ../scripts/kotlin-packages-state.sh sdk/build/staging-repo "$REPOSITORY")
+          if [ "$state" != "published" ]; then
+            echo "::error::GitHub Packages does not hold the whole publication after publishing (state: $state)"
+            exit 1
+          fi
+          echo "Published."
+
+      - name: Already published
+        if: steps.check.outputs.state == 'published'
+        run: echo "Every file of this version is already on GitHub Packages, byte for byte; nothing to do."

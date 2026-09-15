@@ -163,6 +163,7 @@ endif
 	@git diff --quiet && git diff --cached --quiet || \
 		{ echo "ERROR: Working tree has uncommitted changes."; exit 1; }
 	@bash ./scripts/typescript-publish-state.sh > /dev/null
+	@bash ./scripts/kotlin-publish-state.sh > /dev/null
 	@grep -Fxq 'const Version = "$(VERSION)"' go/pkg/hey/version.go || \
 		{ echo "ERROR: go/pkg/hey/version.go does not say $(VERSION):"; \
 		  grep 'const Version' go/pkg/hey/version.go; \
@@ -175,6 +176,13 @@ endif
 		  echo "       Run: make bump VERSION=$(VERSION) — then commit and merge that first."; \
 		  exit 1; }
 	@node scripts/sync-typescript-versions.mjs --check
+	@grep -Fxq 'version = "$(VERSION)"' kotlin/sdk/build.gradle.kts || \
+		{ echo "ERROR: kotlin/sdk/build.gradle.kts does not say $(VERSION):"; \
+		  grep '^version' kotlin/sdk/build.gradle.kts; \
+		  echo "       Run: make bump VERSION=$(VERSION) — then commit and merge that first."; \
+		  exit 1; }
+	@grep -Fq 'const val VERSION = "$(VERSION)"' kotlin/sdk/src/commonMain/kotlin/com/basecamp/hey/HeyConfig.kt || \
+		{ echo "ERROR: kotlin HeyConfig.kt does not say $(VERSION). Run: make bump VERSION=$(VERSION)"; exit 1; }
 	@$(MAKE) check-mvp
 	git tag "v$(VERSION)"
 	git tag "go/v$(VERSION)"
@@ -314,21 +322,39 @@ swift-check:
 # Kotlin SDK
 #------------------------------------------------------------------------------
 
-.PHONY: kt-generate-services kt-build kt-test kt-check kt-check-drift
+.PHONY: kt-generate kt-generate-services kt-build kt-test kt-check kt-check-drift kt-consumer-check
 
-kt-generate-services:
-	cd kotlin && ./gradlew :generator:run --args="$(CURDIR)/openapi.json $(CURDIR)/behavior-model.json"
+# The Gradle build under kotlin/ wants JDK 17; .mise.toml pins one for mise users.
+GRADLE := cd kotlin && ./gradlew --quiet
+
+# Regenerate kotlin/sdk/src/commonMain/kotlin/com/basecamp/hey/generated from openapi.json and
+# behavior-model.json. The generator runs from the repository root and reads
+# kotlin/generator/names.toml for its naming overrides.
+kt-generate:
+	$(GRADLE) :generator:run
+
+# Kept as an alias for the name the shared SDK seed uses.
+kt-generate-services: kt-generate
 
 kt-build:
-	cd kotlin && ./gradlew :sdk:build
+	$(GRADLE) :hey-sdk:build -x allTests
 
 kt-test:
-	cd kotlin && ./gradlew :sdk:test
+	$(GRADLE) :hey-sdk:allTests
 
-kt-check: kt-build kt-test
+# Every step CI's test-kotlin job runs before the conformance suite: the library's build and
+# tests with warnings as errors, the generator's own tests, and the conformance runner's.
+kt-check:
+	$(GRADLE) :hey-sdk:check :generator:test :conformance:test
 
+# Regenerate into memory and compare with the checked-in tree; stale generated code fails.
 kt-check-drift:
-	./scripts/check-kotlin-service-drift.sh
+	$(GRADLE) :generator:run --args="--check"
+
+# Publish the library to a scratch repository and compile a consumer against it with the
+# oldest Kotlin kotlin/README.md promises, so the promise is one the artifact keeps.
+kt-consumer-check:
+	./scripts/kt-consumer-check
 
 #------------------------------------------------------------------------------
 # Conformance
@@ -351,14 +377,16 @@ conformance-rb:
 conformance-swift:
 	$(MAKE) -C conformance/runner/swift test
 
+# The Kotlin runner lives under conformance/runner/kotlin with the other runners and is a
+# subproject of the kotlin/ Gradle build, so it runs through that build's wrapper.
 conformance-kt:
-	cd conformance/runner/kotlin && ./gradlew test
+	$(GRADLE) :conformance:run
 
 # Shipped SDKs: behavioral tests (conformance/tests/*.json)
-conformance-mvp: conformance-go conformance-rs conformance-ts
+conformance-mvp: conformance-go conformance-rs conformance-ts conformance-kt
 
 # Full: MVP + full-surface tests (conformance/tests/ + conformance/tests/full/)
-conformance-full: conformance-go conformance-rs conformance-ts conformance-rb conformance-swift conformance-kt
+conformance-full: conformance-go conformance-rs conformance-ts conformance-kt conformance-rb conformance-swift
 
 # Bare alias covers shipped SDKs only
 conformance: conformance-mvp
@@ -372,10 +400,10 @@ audit-check:
 # Progressive gates
 #------------------------------------------------------------------------------
 
-# Supported gate: Smithy + shipped Go, Rust and TypeScript SDKs
+# Supported gate: Smithy + shipped Go, Rust, TypeScript and Kotlin SDKs
 check-mvp: smithy-check behavior-model-check drift-check-mvp \
            url-routes-check go-check go-check-drift rs-check rs-check-drift \
-           ts-check sync-api-version-check conformance-mvp
+           ts-check kt-check kt-check-drift sync-api-version-check conformance-mvp
 	@echo "==> MVP gate passed"
 
 # Phase 3: Full surface, all languages
@@ -398,7 +426,7 @@ clean: smithy-clean
 help:
 	@echo "HEY SDK Makefile"
 	@echo ""
-	@echo "  check-mvp   Run MVP gate (Smithy + Go + Rust + TypeScript + conformance)"
+	@echo "  check-mvp   Run MVP gate (Smithy + Go + Rust + TypeScript + Kotlin + conformance)"
 	@echo "  check-full  Run full gate (all languages + conformance + audit)"
 	@echo "  check       Alias for check-mvp"
 	@echo "  smithy-build   Regenerate OpenAPI from Smithy"
@@ -411,5 +439,11 @@ help:
 	@echo "  rs-generate    Regenerate rust/hey-sdk/src/generated from openapi.json"
 	@echo "  rs-test        Rust tests only; rs-lint, rs-examples, rs-deny, rs-publish-check likewise"
 	@echo "  conformance-rs Run the shared conformance fixtures against the Rust crate"
+	@echo "  kt-check       What CI runs: the Kotlin library's build and tests, the generator's"
+	@echo "                 tests and the conformance runner's"
+	@echo "  kt-check-drift Fail if kotlin/sdk/src/commonMain/kotlin/com/basecamp/hey/generated is stale"
+	@echo "  kt-consumer-check Compile a consumer of the published library with the oldest Kotlin the README promises"
+	@echo "  kt-generate    Regenerate the Kotlin generated tree from openapi.json"
+	@echo "  conformance-kt Run the shared conformance fixtures against the Kotlin library"
 	@echo "  clean          Remove build artifacts"
 	@echo "  help           Show this help"
