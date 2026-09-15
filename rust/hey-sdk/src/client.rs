@@ -1065,8 +1065,9 @@ impl Client {
     ///
     /// Credentials stay on the origin they were meant for: a hop to another origin goes out
     /// without the `Authorization`, the way a browser would send it, which is how a blob
-    /// request ends up at the storage service without HEY's token. A 301, 302 or 303 turns
-    /// anything but a GET or HEAD into a GET without its body; a 307 or 308 keeps both.
+    /// request ends up at the storage service without HEY's token. A 303 turns anything but
+    /// a GET or HEAD into a GET without its body, a 301 or 302 does that to a POST alone,
+    /// and a 307 or 308 keeps both.
     async fn transmit(
         &self,
         operation: &Operation,
@@ -1434,11 +1435,7 @@ fn redirected(
     from: &Url,
     next: &Url,
 ) -> Result<Request<Bytes>, Error> {
-    let keeps_method = method == Method::GET
-        || method == Method::HEAD
-        || status == StatusCode::TEMPORARY_REDIRECT
-        || status == StatusCode::PERMANENT_REDIRECT;
-    let (method, body) = if keeps_method {
+    let (method, body) = if keeps_method(&method, status) {
         (method, body)
     } else {
         headers.remove(CONTENT_TYPE);
@@ -1459,6 +1456,19 @@ fn redirected(
         .map_err(Error::from_std)?;
     *request.headers_mut() = headers;
     Ok(request)
+}
+
+/// Whether a redirect is followed with the request as it was, or as a GET without its body.
+/// A 303 says fetch the answer, whatever the method; a 301 or 302 is only allowed to turn a
+/// POST into a GET, and leaves a PUT, PATCH or DELETE as it was, since a GET in its place
+/// would report a mutation done that never reached where it was sent; a 307 or 308 keeps
+/// everything.
+fn keeps_method(method: &Method, status: StatusCode) -> bool {
+    match status {
+        StatusCode::SEE_OTHER => method == Method::GET || method == Method::HEAD,
+        StatusCode::MOVED_PERMANENTLY | StatusCode::FOUND => method != Method::POST,
+        _ => true,
+    }
 }
 
 fn parse_base_url(base_url: &str) -> Result<Url, Error> {
@@ -1556,7 +1566,7 @@ mod tests {
     /// so the client is exercised here with no `reqwest` in the picture.
     struct Canned {
         answer: Box<Answer>,
-        sent: Mutex<Vec<(Method, String, HeaderMap)>>,
+        sent: Mutex<Vec<(Method, String, HeaderMap, Bytes)>>,
     }
 
     type Answer = dyn Fn(&Request<Bytes>) -> HttpResponse<Body> + Send + Sync;
@@ -1571,7 +1581,7 @@ mod tests {
             })
         }
 
-        fn sent(&self) -> Vec<(Method, String, HeaderMap)> {
+        fn sent(&self) -> Vec<(Method, String, HeaderMap, Bytes)> {
             self.sent.lock().unwrap().clone()
         }
     }
@@ -1583,6 +1593,7 @@ mod tests {
                 request.method().clone(),
                 request.uri().to_string(),
                 request.headers().clone(),
+                request.body().clone(),
             ));
             Ok((self.answer)(&request))
         }
@@ -1595,7 +1606,11 @@ mod tests {
     }
 
     fn redirect(location: &str) -> HttpResponse<Body> {
-        let mut response = answer(302, "");
+        redirect_with(302, location)
+    }
+
+    fn redirect_with(status: u16, location: &str) -> HttpResponse<Body> {
+        let mut response = answer(status, "");
         response
             .headers_mut()
             .insert("location", HeaderValue::from_str(location).unwrap());
@@ -1713,6 +1728,84 @@ mod tests {
         assert_eq!(sent.len(), 2);
         assert_eq!(sent[1].1, "https://hey.test/new.json");
         assert_eq!(sent[1].2[AUTHORIZATION], "Bearer secret");
+    }
+
+    /// Sends a write with a JSON body to `/old`, answered by a redirect of the given status
+    /// to `/new`, and hands back the request the second hop went out as.
+    async fn hop_of(method: Method, status: u16) -> (Method, HeaderMap, Bytes) {
+        let http = Canned::new(move |request| {
+            if request.uri().path() == "/old.json" {
+                redirect_with(status, "/new.json")
+            } else {
+                answer(200, "{}")
+            }
+        });
+        let client = client_over(http.clone());
+        let mut operation = client.request(method, "/old");
+        operation
+            .json(&serde_json::json!({ "name": "renamed" }))
+            .unwrap();
+
+        client.execute(operation).await.unwrap();
+
+        let sent = http.sent();
+        assert_eq!(sent.len(), 2);
+        assert_eq!(sent[1].1, "https://hey.test/new.json");
+        let (method, _, headers, body) = sent.into_iter().nth(1).unwrap();
+        (method, headers, body)
+    }
+
+    /// A 301 or 302 may only turn a POST into a GET: a PUT, PATCH or DELETE followed as a
+    /// GET would report a mutation done that never reached where it was sent.
+    #[tokio::test]
+    async fn a_302_keeps_a_put_and_its_body() {
+        let (method, headers, body) = hop_of(Method::PUT, 302).await;
+
+        assert_eq!(method, Method::PUT);
+        assert_eq!(body, r#"{"name":"renamed"}"#);
+        assert_eq!(headers[CONTENT_TYPE], "application/json");
+    }
+
+    #[tokio::test]
+    async fn a_301_keeps_a_delete() {
+        let (method, _, _) = hop_of(Method::DELETE, 301).await;
+
+        assert_eq!(method, Method::DELETE);
+    }
+
+    #[tokio::test]
+    async fn a_302_turns_a_post_into_a_get_without_its_body() {
+        let (method, headers, body) = hop_of(Method::POST, 302).await;
+
+        assert_eq!(method, Method::GET);
+        assert!(body.is_empty());
+        assert!(headers.get(CONTENT_TYPE).is_none());
+        assert!(headers.get(CONTENT_LENGTH).is_none());
+    }
+
+    /// A 303 says fetch the answer, whatever was sent.
+    #[tokio::test]
+    async fn a_303_turns_a_delete_into_a_get() {
+        let (method, _, body) = hop_of(Method::DELETE, 303).await;
+
+        assert_eq!(method, Method::GET);
+        assert!(body.is_empty());
+    }
+
+    #[tokio::test]
+    async fn a_307_keeps_a_patch_and_its_body() {
+        let (method, _, body) = hop_of(Method::PATCH, 307).await;
+
+        assert_eq!(method, Method::PATCH);
+        assert_eq!(body, r#"{"name":"renamed"}"#);
+    }
+
+    #[tokio::test]
+    async fn a_308_keeps_a_post_and_its_body() {
+        let (method, _, body) = hop_of(Method::POST, 308).await;
+
+        assert_eq!(method, Method::POST);
+        assert_eq!(body, r#"{"name":"renamed"}"#);
     }
 
     #[tokio::test]
