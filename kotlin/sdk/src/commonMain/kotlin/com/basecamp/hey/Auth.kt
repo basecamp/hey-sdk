@@ -17,6 +17,11 @@ import io.ktor.http.HttpHeaders
  *     override suspend fun refresh() = store.renew()
  * }
  * ```
+ *
+ * The client asks for the token under the same lock it refreshes under, so a request is
+ * signed with credentials a refresh cannot change halfway: [accessToken] and [refresh] are
+ * called one at a time, and neither may use the client itself, which would wait on that
+ * lock forever.
  */
 interface TokenProvider {
     /** Returns the current access token. */
@@ -46,6 +51,8 @@ class StaticTokenProvider(token: String) : TokenProvider {
  * Controls how authentication is applied to HTTP requests. The default strategy is
  * [BearerAuth], which uses a [TokenProvider] to set the Authorization header with a Bearer
  * token. Custom strategies can implement alternative auth schemes such as cookie-based auth.
+ * [authenticate] and [refresh] are called one at a time, under the client's refresh lock, and
+ * neither may send a request through the client itself.
  */
 interface AuthStrategy {
     /** Apply authentication to the given request builder. Called before every HTTP request. */
