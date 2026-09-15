@@ -7,6 +7,7 @@ import io.ktor.http.HttpHeaders
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertNull
 import kotlin.time.Duration
 
@@ -78,5 +79,43 @@ class RedirectTest {
         val hey = mockHey(ok(IDENTITY), status(302, headers = mapOf("Location" to "https://files.example.com/export.json")), ok("[]"))
         hey.client().forAccount(42).boxes.list()
         assertNull(hey.requests[2].query("filtered_account_id"))
+    }
+
+    @Test
+    fun aRedirectNeitherCarriesNorTakesTheCacheEntryOfTheUrlAskedFor() = runTest {
+        val hey = mockHey(
+            ok("""{"which":"a"}""", mapOf("ETag" to "\"x\"")),
+            status(302, headers = mapOf("Location" to "/b.json")),
+            ok("""{"which":"b"}""", mapOf("ETag" to "\"x\"")),
+            status(304, headers = mapOf("ETag" to "\"x\"")),
+        )
+        val client = hey.client { enableCache = true }
+        val a = client.request(Method.GET, "/a")
+        assertEquals("""{"which":"a"}""", client.execute(a).text())
+        assertEquals("""{"which":"b"}""", client.execute(client.request(Method.GET, "/a")).text(), "the answer reached through the redirect is b's")
+        assertNull(hey.requests[2].header("If-None-Match"), "b is not asked to validate a's entry")
+        assertEquals("/b.json", hey.requests[2].path)
+        assertEquals("""{"which":"a"}""", client.execute(client.request(Method.GET, "/a")).text(), "a's entry is still a's, not b's")
+        assertEquals("\"x\"", hey.requests[3].header("If-None-Match"))
+    }
+
+    @Test
+    fun a401FromAHopThatCarriedNoCredentialsRefreshesNothing() = runTest {
+        var refreshes = 0
+        val hey = mockHey(status(302, headers = mapOf("Location" to "https://files.example.com/export.json")), status(401), ok("[]"))
+        val client = HeyClient {
+            accessToken(object : TokenProvider {
+                override suspend fun accessToken(): String = "token"
+                override suspend fun refresh(): Boolean {
+                    refreshes += 1
+                    return true
+                }
+            })
+            engine = hey.engine
+            timeout = Duration.INFINITE
+        }
+        assertFailsWith<HeyException.Auth> { client.boxes.list() }
+        assertEquals(0, refreshes, "HEY's credentials were not the ones rejected")
+        assertEquals(2, hey.requests.size, "and nothing is sent again")
     }
 }

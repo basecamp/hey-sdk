@@ -452,6 +452,10 @@ class HeyClient internal constructor(
         val headers: Headers,
         val body: ByteArray,
         val refusal: HeyException?,
+        /** Whether a redirect was followed to get here: the answer is then another resource's, not the one the cache entry was for. */
+        val redirected: Boolean,
+        /** Whether the request this answers went out with the credentials: a hop to another origin drops them, and they do not come back. */
+        val authenticated: Boolean,
     )
 
     /** What one send came back with: the answer, or the place a redirect points. */
@@ -507,7 +511,9 @@ class HeyClient internal constructor(
             val received = sent.getOrThrow()
             val status = received.status
             val retryable = status in budget.retryOn
-            val renewed = status == 401 && !refreshed && try {
+            // A 401 from a hop that carried no credentials rejected none of HEY's: there is
+            // nothing to refresh, and nothing a resend would change.
+            val renewed = status == 401 && received.authenticated && !refreshed && try {
                 refreshCredentials(signedUnder)
             } catch (error: Throwable) {
                 hooks.safeRequestEnd(info, RequestResult(status, duration, error = reported(error, "request cancelled")))
@@ -533,7 +539,9 @@ class HeyClient internal constructor(
                 attempt += 1
                 continue
             }
-            return Answered(received, cached, info, duration)
+            // An answer reached through a redirect is another resource's: the entry looked up
+            // for the URL asked for neither satisfies its 304 nor takes its body.
+            return Answered(received, cached.takeUnless { received.redirected }, info, duration)
         }
     }
 
@@ -665,10 +673,11 @@ class HeyClient internal constructor(
         var url = start
         var request = prepared.request
         var hops = 0
+        var authenticated = true
         while (true) {
             val outcome = shared.http.prepareRequest(request).execute { response ->
                 val next = if (operation.captureRedirects) null else redirectTarget(url, response)
-                if (next != null) Outcome.Redirect(next, response.status.value) else Outcome.Answer(receive(operation, url, response))
+                if (next != null) Outcome.Redirect(next, response.status.value) else Outcome.Answer(receive(operation, url, response, hops > 0, authenticated))
             }
             when (outcome) {
                 is Outcome.Answer -> return outcome.received
@@ -678,6 +687,7 @@ class HeyClient internal constructor(
                     }
                     val next = scoped(outcome.next)
                     requireSecureEndpoint(next)
+                    if (!isSameOrigin(url, next)) authenticated = false
                     request = redirected(request, outcome.status, url, next, prepared.credentialHeaders)
                     url = next
                     hops += 1
@@ -687,15 +697,15 @@ class HeyClient internal constructor(
     }
 
     /** Reads what the SDK keeps of a response while the connection is live: a 304 has no body to read, and a body past its bound is refused there and then. */
-    private suspend fun receive(operation: Operation, url: Url, response: HttpResponse): Received {
+    private suspend fun receive(operation: Operation, url: Url, response: HttpResponse, redirected: Boolean, authenticated: Boolean): Received {
         val status = response.status.value
         val headers = response.headers
-        if (status == 304) return Received(url, status, headers, ByteArray(0), refusal = null)
+        if (status == 304) return Received(url, status, headers, ByteArray(0), refusal = null, redirected, authenticated)
         val bound = if (isParsed(operation.accept)) shared.config.maxResponseBodyBytes else HeyConfig.MAX_RESPONSE_BODY_BYTES
         return try {
-            Received(url, status, headers, readBody(response, bound), refusal = null)
+            Received(url, status, headers, readBody(response, bound), refusal = null, redirected, authenticated)
         } catch (refusal: HeyException) {
-            Received(url, status, headers, ByteArray(0), refusal)
+            Received(url, status, headers, ByteArray(0), refusal, redirected, authenticated)
         }
     }
 
@@ -712,6 +722,8 @@ class HeyClient internal constructor(
         request.url(to)
         val sameOrigin = isSameOrigin(from, to)
         outgoing.headers.entries().forEach { (name, values) ->
+            // The validator was the resource asked for's; the one pointed to has its own.
+            if (name.equals(HttpHeaders.IfNoneMatch, true)) return@forEach
             if (!sameOrigin && (isSensitiveHeader(name) || name.lowercase() in credentialHeaders)) return@forEach
             if (!keepBody && (name.equals(HttpHeaders.ContentType, true) || name.equals(HttpHeaders.ContentLength, true))) return@forEach
             values.forEach { request.headers.append(name, it) }
