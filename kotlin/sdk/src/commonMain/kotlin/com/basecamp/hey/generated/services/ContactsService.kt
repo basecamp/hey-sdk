@@ -35,7 +35,7 @@ data class ListContactsOptions(
  *
  * @generated from OpenAPI spec — do not edit directly
  */
-class ContactsService(client: HeyClient) : BaseService(client) {
+open class ContactsService(client: HeyClient) : BaseService(client) {
     /**
      * Bundle a contact so their mail arrives grouped
      * @param contactId The contact ID

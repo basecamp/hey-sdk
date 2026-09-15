@@ -31,7 +31,7 @@ data class AdvancedSearchOptions(
  *
  * @generated from OpenAPI spec — do not edit directly
  */
-class SearchService(client: HeyClient) : BaseService(client) {
+open class SearchService(client: HeyClient) : BaseService(client) {
     /**
      * Get the options the advanced search refine form offers.
      *

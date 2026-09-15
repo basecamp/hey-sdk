@@ -32,7 +32,7 @@ data class GetMyClearancesOptions(
  *
  * @generated from OpenAPI spec — do not edit directly
  */
-class ClearancesService(client: HeyClient) : BaseService(client) {
+open class ClearancesService(client: HeyClient) : BaseService(client) {
     /**
      * Screen several senders out at once. ids is a comma-separated list.
      * @param body Request body

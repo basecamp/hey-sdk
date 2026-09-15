@@ -18,7 +18,7 @@ import com.basecamp.hey.services.BaseService
  *
  * @generated from OpenAPI spec — do not edit directly
  */
-class IdentityService(client: HeyClient) : BaseService(client) {
+open class IdentityService(client: HeyClient) : BaseService(client) {
     /**
      * Get the current identity (authenticated user profile)
      */
