@@ -67,7 +67,9 @@ interface AuthStrategy {
 class BearerAuth(private val tokenProvider: TokenProvider) : AuthStrategy {
     override suspend fun authenticate(request: HttpRequestBuilder) {
         val token = tokenProvider.accessToken()
-        if (token.any { it == '\r' || it == '\n' }) {
+        // The whole of what a header value may not carry, not only the line breaks: the
+        // transport would refuse the rest too, quoting the token in its refusal.
+        if (token.any { (it.code < 0x20 && it != '\t') || it.code == 0x7F }) {
             throw HeyException.Auth("access token is not a valid header value")
         }
         request.header(HttpHeaders.Authorization, "Bearer $token")

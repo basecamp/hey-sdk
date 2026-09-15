@@ -36,4 +36,22 @@ class RouteTest {
         assertEquals("a%20b%2Fc%3Fd", encodePathSegment("a b/c?d"))
         assertEquals("caf%C3%A9", encodePathSegment("café"))
     }
+
+    @Test
+    fun aPastedUrlIsRecognisedWhateverItCarries() {
+        val topic = router.recognize("https://app.hey.com/topics/456?x=1#y")!!
+        assertEquals("GetTopic", topic.operation())
+        assertEquals("456", topic.resourceId())
+        assertEquals(listOf("topicId" to "456"), topic.params)
+        assertEquals("ListBoxes", router.recognize("/boxes.json")!!.operation())
+        assertEquals("GetBox", router.recognize("/boxes/123.json")!!.operation())
+        assertEquals("123", router.recognize("/boxes/123.json/")!!.resourceId())
+        val group = router.recognize("https://app.hey.com/boxes/123/groups/7.json?page=2")!!
+        assertEquals(listOf("boxId" to "123", "groupId" to "7"), group.params)
+        assertEquals("7", group.resourceId())
+        assertEquals("Boxes", router.recognize("/boxes/1")!!.resource)
+        assertEquals(true, router.recognize("/boxes/1")!!.operations.containsKey(Method.GET), "every method the pattern serves is named, the GET first among them")
+        assertNull(router.recognize("/nothing/like/this"))
+        assertNull(router.recognize("https://app.hey.com/"))
+    }
 }

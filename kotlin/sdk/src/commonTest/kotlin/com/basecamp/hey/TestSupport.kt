@@ -31,10 +31,16 @@ internal class RecordedRequest(val method: String, val url: Url, val headers: He
 internal class MockHey(private val answers: List<Answer>) {
     val requests = mutableListOf<RecordedRequest>()
 
+    /** Handlers run on the engine's own threads, so two requests in flight at once record under one lock and take their answer by the index that gave them. */
+    private val recording = Any()
+
     val engine = MockEngine { request ->
         val body = request.body.toByteArray().decodeToString()
-        requests += RecordedRequest(request.method.value, request.url, request.headers, body, request.body.contentType?.toString())
-        val answer = answers.getOrNull(requests.size - 1) ?: Answer(500, """{"error":"No more mock responses"}""")
+        val index = synchronized(recording) {
+            requests += RecordedRequest(request.method.value, request.url, request.headers, body, request.body.contentType?.toString())
+            requests.size - 1
+        }
+        val answer = answers.getOrNull(index) ?: Answer(500, """{"error":"No more mock responses"}""")
         answer.failure?.let { throw it }
         respond(
             content = answer.body ?: "",

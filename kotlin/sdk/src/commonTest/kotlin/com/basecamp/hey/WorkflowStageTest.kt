@@ -3,6 +3,9 @@ package com.basecamp.hey
 import com.basecamp.hey.services.WorkflowStageView
 import com.basecamp.hey.generated.*
 import kotlinx.coroutines.test.runTest
+import kotlin.test.assertTrue
+import kotlin.time.Duration.Companion.seconds
+import kotlin.time.measureTime
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -68,5 +71,18 @@ class WorkflowStageTest {
             assertEquals("", view.name, hidden)
             assertEquals("", view.topics.single().subject, hidden)
         }
+    }
+
+    @Test
+    fun aPageOfStrayCloseTagsIsReadInLinearTime() {
+        val n = 200_000
+        val page = buildString {
+            append("<section id=\"container_workflow_stage_5\"><h2>Applied</h2>")
+            repeat(n) { append("<div>") }
+            repeat(n) { append("</span>") }
+            append("<div id=\"topic_9\" data-identifier=\"77\"><h3>Deep</h3><p class=\"card__detail\">2 messages</p></div></section>")
+        }
+        val elapsed = measureTime { assertEquals(listOf(9L), WorkflowStageView.parse(page, 5).topics.map { it.topicId }) }
+        assertTrue(elapsed < 5.seconds, "stray close tags took $elapsed")
     }
 }

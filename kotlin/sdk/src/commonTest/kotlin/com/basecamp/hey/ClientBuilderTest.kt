@@ -78,7 +78,9 @@ class ClientBuilderTest {
         root.boxes.list()
         assertEquals(4, hey.requests.size, "the root and a sibling still send after a derived client is closed")
         root.close()
-        assertFailsWith<Exception> { root.boxes.list() }
+        val error = assertFailsWith<HeyException.Usage> { root.boxes.list() }
+        assertEquals("client is closed", error.message)
+        assertFailsWith<HeyException.Usage> { other.boxes.list() }
     }
 
     @Test

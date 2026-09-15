@@ -226,6 +226,10 @@ internal class Shared(
     /** The refresh in flight, for every stale request to wait on; null between refreshes. */
     var refresh: Deferred<Boolean>? = null
 
+    /** Set once the root client closes: a request after that is a mistake the caller is told about, not a cancellation. */
+    @Volatile
+    var closed: Boolean = false
+
     /** Where the client runs what outlives a request: a refresh. Cancelled when the root client closes. */
     val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 }
@@ -379,6 +383,7 @@ class HeyClient internal constructor(
      * the error the caller gets, and its duration counts the reading.
      */
     suspend fun <T> execute(operation: Operation, transform: (Response) -> T): T {
+        if (shared.closed) throw HeyException.Usage("client is closed")
         if (operation.quiet) return transform(dispatch(operation))
         val hooks = shared.hooks
         val info = operation.info
@@ -596,6 +601,7 @@ class HeyClient internal constructor(
      * token nobody holds, and every other stale request is waiting on the same one.
      */
     private suspend fun refreshCredentials(signedUnder: Long): Boolean {
+        if (shared.closed) throw HeyException.Usage("client is closed")
         val refresh = shared.refreshing.withLock {
             if (shared.refreshes != signedUnder) return true
             shared.refresh ?: shared.scope.async {
@@ -679,7 +685,13 @@ class HeyClient internal constructor(
     private suspend fun sign(request: HttpRequestBuilder): Pair<Credentials, Long> {
         val before = request.headers.build()
         val signedUnder = shared.refreshing.withLock {
-            shared.auth.authenticate(request)
+            try {
+                shared.auth.authenticate(request)
+            } catch (refused: IllegalArgumentException) {
+                // The transport's refusal of a header value quotes the value; a credential is
+                // exactly what a strategy sets, so the refusal is passed on without it.
+                throw HeyException.Auth("auth strategy set a header that is not a valid header value")
+            }
             shared.refreshes
         }
         val added = request.headers.names()
@@ -982,6 +994,7 @@ class HeyClient internal constructor(
      */
     fun close() {
         if (!root) return
+        shared.closed = true
         shared.scope.cancel()
         shared.http.close()
     }

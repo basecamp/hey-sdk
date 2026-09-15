@@ -17,6 +17,8 @@ import kotlin.time.Duration
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.yield
 import kotlin.concurrent.Volatile
+import io.ktor.client.request.HttpRequestBuilder
+import io.ktor.client.request.header
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -212,5 +214,34 @@ class CredentialRefreshTest {
         assertEquals(1, credentials.refreshes, "the refresh the cancelled request started is the only one")
         assertEquals("Bearer renewed", hey.requests[1].header("Authorization"))
         assertEquals(2, hey.requests.size)
+    }
+
+    @Test
+    fun aCredentialThatIsNotAHeaderValueIsRefusedWithoutBeingQuoted() = runTest {
+        val seen = mutableListOf<Throwable>()
+        val recording = object : HeyHooks {
+            override fun onOperationEnd(info: OperationInfo, result: OperationResult) { result.error?.let { seen += it } }
+            override fun onRequestEnd(info: RequestInfo, result: RequestResult) { result.error?.let { seen += it } }
+        }
+        val hey = mockHey(ok("[]"))
+        val bearer = hey.client {
+            accessToken("secret\u000Btoken")
+            hooks = recording
+        }
+        val refusedToken = assertFailsWith<HeyException.Auth> { bearer.boxes.list() }
+        assertEquals(0, hey.requests.size)
+
+        val cookie = HeyClient {
+            auth(object : AuthStrategy {
+                override suspend fun authenticate(request: HttpRequestBuilder) { request.header(HttpHeaders.Cookie, "session=\u0001abc") }
+            })
+            engine = hey.engine
+            hooks = recording
+        }
+        val refusedCookie = assertFailsWith<HeyException.Auth> { cookie.boxes.list() }
+        for (error in seen + refusedToken + refusedCookie) {
+            val rendered = error.toString() + (error as? HeyException)?.hint + error.stackTraceToString()
+            assertEquals(false, rendered.contains("secret") || rendered.contains("abc"), rendered)
+        }
     }
 }
