@@ -4,6 +4,7 @@ import io.ktor.http.Url
 import io.ktor.http.headersOf
 import com.basecamp.hey.generated.*
 import kotlinx.coroutines.test.runTest
+import com.basecamp.hey.services.DraftContent
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -56,5 +57,22 @@ class FormResponseTest {
             assertEquals(refused, error.httpStatus)
             assertEquals(1, hey.requests.size, "a $refused is not followed by a form request either")
         }
+    }
+
+    @Test
+    fun aLocationWithoutAnIdIsNeverQuotedWhole() = runTest {
+        for (location in listOf("/done?sig=distinctive-secret", "https://app.hey.com/done?sig=distinctive-secret#f", "https://u:distinctive-secret@app.hey.com/done", "::not a url::?sig=distinctive-secret")) {
+            val error = assertFailsWith<HeyException.Api> { form(302, location).extractId() }
+            assertEquals(false, error.message!!.contains("distinctive"), error.message)
+            assertEquals(false, error.toString().contains("distinctive"))
+        }
+        assertEquals("/done", redactLocation("/done?sig=x#y"))
+        assertEquals("https://app.hey.com/done", redactLocation("https://u:p@app.hey.com/done?sig=x"))
+
+        val hey = mockHey(status(204, headers = mapOf("Location" to "/messages/new?sig=distinctive-secret")))
+        val seen = mutableListOf<Throwable>()
+        val client = hey.client { hooks = object : HeyHooks { override fun onOperationEnd(info: OperationInfo, result: OperationResult) { result.error?.let { seen += it } } } }
+        val error = assertFailsWith<HeyException.Api> { client.messages.createDraft(DraftContent(subject = "s", content = "c", to = listOf("a@example.com"), actingSenderId = 100)) }
+        assertEquals(false, (error.message + error.toString() + seen.joinToString { it.toString() }).contains("distinctive"))
     }
 }

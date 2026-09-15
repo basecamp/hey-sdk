@@ -23,12 +23,12 @@ class FormResponse internal constructor(
         val target = location?.takeIf { it.isNotEmpty() }
             ?: throw HeyException.Api("no location header in response", httpStatus = null, retryable = false)
         val path = if (target.contains("://")) {
-            (parseUrl(target) ?: throw HeyException.Api("failed to parse location URL: $target", httpStatus = null, retryable = false)).encodedPath
+            (parseUrl(target) ?: throw HeyException.Api("failed to parse location URL: ${redactLocation(target)}", httpStatus = null, retryable = false)).encodedPath
         } else {
             target.substringBefore('?').substringBefore('#')
         }
         return path.trimEnd('/').split('/').asReversed().firstNotNullOfOrNull { it.toLongOrNull() }
-            ?: throw HeyException.Api("no numeric ID found in location: $target", httpStatus = null, retryable = false)
+            ?: throw HeyException.Api("no numeric ID found in location: ${redactLocation(target)}", httpStatus = null, retryable = false)
     }
 
     internal companion object {

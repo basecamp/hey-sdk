@@ -2,6 +2,7 @@ package com.basecamp.hey.services
 
 import com.basecamp.hey.HeyClient
 import com.basecamp.hey.HeyException
+import com.basecamp.hey.redactLocation
 import com.basecamp.hey.Response
 import com.basecamp.hey.generated.Routes
 import com.basecamp.hey.generated.models.CreateMessageRequestContent
@@ -168,10 +169,10 @@ internal fun entryIdFromLocation(response: Response): Long {
     val location = response.header("Location")
         ?: throw HeyException.Api("draft saved but the response named no Location; cannot report the draft's id", httpStatus = response.status, retryable = false)
     val path = runCatching { URLBuilder(response.url).takeFrom(location).build().encodedPath }.getOrNull()
-        ?: throw HeyException.Api("draft saved but its Location \"$location\" is unreadable", httpStatus = response.status, retryable = false)
+        ?: throw HeyException.Api("draft saved but its Location \"${redactLocation(location)}\" is unreadable", httpStatus = response.status, retryable = false)
     val entryId = path.trimEnd('/').substringAfterLast('/').toLongOrNull()
     if (entryId == null || entryId <= 0) {
-        throw HeyException.Api("draft saved but its Location \"$location\" names no entry id", httpStatus = response.status, retryable = false)
+        throw HeyException.Api("draft saved but its Location \"${redactLocation(location)}\" names no entry id", httpStatus = response.status, retryable = false)
     }
     return entryId
 }
