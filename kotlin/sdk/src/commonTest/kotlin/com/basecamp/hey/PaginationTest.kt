@@ -111,4 +111,26 @@ class PaginationTest {
         val ids = client.pages(client.boxes.list()).toList().flatMap { page -> page.value.map { it.id } }
         assertEquals(listOf(1L, 2L, 3L), ids)
     }
+
+    @Test
+    fun aChangeFeedsLastLinkIsTheCursorToPollNextNotAPage() = runTest {
+        val feed = """{"added":[],"updated":[],"deleted":[]}"""
+        val hey = mockHey(
+            ok(feed, mapOf("Link" to "</boxes/7/postings/changes.json?since=2026-09-15T10:00:00Z&page=2>; rel=\"next\"")),
+            ok(feed, mapOf("Link" to "</boxes/7/postings/changes.json?since=2026-09-15T10:05:00Z>; rel=\"next\"")),
+            ok(feed, mapOf("ETag" to "\"x\"")),
+        )
+        val client = hey.client { enableCache = true }
+        val visited = mutableListOf<Page<*>>()
+        client.eachPage(client.postings.changes(7, "2026-09-15T10:00:00Z")) { visited += it; true }
+        assertEquals(2, visited.size, "the walk reads the increment's second page and stops")
+        assertEquals(2, hey.requests.size)
+        assertEquals("2", hey.requests[1].query("page"))
+        assertEquals(false, visited.last().hasNext)
+        assertEquals("2026-09-15T10:05:00Z", visited.last().nextCursor?.parameters?.get("since"), "and hands back where to poll next")
+        assertNull(visited.last().nextPage)
+
+        client.postings.changes(7, "2026-09-15T10:05:00Z")
+        assertNull(hey.requests[2].header("If-None-Match"), "a change-feed read is never served from or held in the cache")
+    }
 }

@@ -299,7 +299,8 @@ dependencies {
 The library is on [GitHub Packages](https://github.com/basecamp/hey-sdk/packages), which wants
 a token with the `read:packages` scope for every download; [kotlin/README.md](kotlin/README.md#install)
 has the three steps. Publishing there is switched off until it is sorted out, so until the
-first release lands, build from a checkout. Requires JDK 17 and Kotlin 2.3 or newer.
+first release lands, `cd kotlin && ./gradlew :hey-sdk:publishToMavenLocal` and depend on it from
+`mavenLocal()`. Requires JDK 17 and Kotlin 2.3 or newer.
 
 ### Authenticate
 

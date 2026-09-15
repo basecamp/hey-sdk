@@ -81,6 +81,8 @@ data class Route(
     val emptyOn: List<Int>,
     /** How the route pages, when it does. */
     val pagination: Pagination,
+    /** The query parameter a `Link` names a further page with, when the route pages; a `Link` without it is a cursor to poll next, not a page. */
+    val pageParameter: String?,
     /** The retry policy the model attaches to the route. */
     val retry: RetryPolicy,
 ) {

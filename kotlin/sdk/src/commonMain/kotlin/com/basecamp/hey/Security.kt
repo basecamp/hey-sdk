@@ -49,8 +49,13 @@ internal fun isSameOrigin(a: Url, b: Url): Boolean =
 internal fun requireSecureEndpoint(url: Url) {
     val scheme = url.protocol.name.lowercase()
     if (scheme == "https" || (scheme == "http" && isLocalhost(url))) return
-    throw HeyException.Usage("$url must use HTTPS")
+    throw HeyException.Usage("${url.protocol.name}://${url.host} must use HTTPS")
 }
+
+private val URL_IN_TEXT = Regex("([a-zA-Z][a-zA-Z0-9+.-]*://[^/?#\\s\"'<>]+)[^\\s\"'<>]*")
+
+/** The text with every URL in it cut back to its origin: a path or a query is what carries a signed credential. */
+internal fun redactUrls(text: String): String = URL_IN_TEXT.replace(text) { it.groupValues[1] }
 
 private val SENSITIVE_HEADERS = setOf("authorization", "proxy-authorization", "cookie", "set-cookie", "x-csrf-token")
 

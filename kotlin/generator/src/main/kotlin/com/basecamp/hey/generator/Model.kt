@@ -101,6 +101,7 @@ class Operation(
     val readonly: Boolean,
     val emptyOn: List<Int>,
     val pagination: Pagination,
+    val pageParameter: String?,
     val retry: Retry,
 )
 
@@ -245,6 +246,7 @@ private fun buildServices(openapi: JsonObject, behavior: JsonObject, naming: Nam
                     ?: throw GeneratorException("$id has no readonly in behavior-model.json"),
                 emptyOn = statusCodes(operationObject.obj("x-hey-empty-on")?.get("statusCodes")),
                 pagination = pagination(semantics),
+                pageParameter = semantics.obj("pagination")?.string("pageParameter"),
                 retry = retry(semantics),
             )
         }

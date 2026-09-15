@@ -41,6 +41,7 @@ internal sealed class HtmlNode {
          * screen readers only is left out.
          */
         fun visibleText(): String {
+            if (isVisuallyHidden()) return ""
             val text = StringBuilder()
             val pending = ArrayDeque<HtmlNode>()
             children.asReversed().forEach(pending::addLast)

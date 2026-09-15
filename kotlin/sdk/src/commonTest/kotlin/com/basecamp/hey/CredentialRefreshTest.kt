@@ -14,6 +14,9 @@ import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.headersOf
 import kotlin.time.Duration
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.yield
+import kotlin.concurrent.Volatile
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -174,5 +177,40 @@ class CredentialRefreshTest {
             tokens,
             "the resend starts the operation over from the URL asked for, through the redirect again",
         )
+    }
+
+    /**
+     * A refresh belongs to the client: the request that earned it being cancelled leaves it
+     * to finish, and the next stale request is signed with what it renewed rather than
+     * starting one of its own.
+     */
+    @Test
+    fun aCancelledRequestDoesNotCancelTheRefreshItStarted() = runTest {
+        val gate = CompletableDeferred<Unit>()
+        val credentials = object : TokenProvider {
+            @Volatile var token = "stale"
+            @Volatile var refreshes = 0
+            override suspend fun accessToken(): String = token
+            override suspend fun refresh(): Boolean {
+                refreshes += 1
+                gate.await()
+                token = "renewed"
+                return true
+            }
+        }
+        val hey = mockHey(status(401), ok("[]"))
+        val client = hey.client { accessToken(credentials) }
+        val first = launch { client.boxes.list() }
+        while (credentials.refreshes == 0) yield()
+        first.cancelAndJoin()
+        assertEquals(1, hey.requests.size)
+        val second = launch { client.boxes.list() }
+        runCurrent()
+        assertEquals(1, hey.requests.size, "the second request waits to be signed until the refresh is done")
+        gate.complete(Unit)
+        second.join()
+        assertEquals(1, credentials.refreshes, "the refresh the cancelled request started is the only one")
+        assertEquals("Bearer renewed", hey.requests[1].header("Authorization"))
+        assertEquals(2, hey.requests.size)
     }
 }

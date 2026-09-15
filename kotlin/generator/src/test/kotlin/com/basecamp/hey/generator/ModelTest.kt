@@ -181,7 +181,7 @@ class ModelTest {
         val model = model(
             boxPaths,
             boxSchemas,
-            mapOf("ListBoxes" to """{"readonly":true,"pagination":{"style":"link"},"retry":{"max":3,"base_delay_ms":1000,"retry_on":[429,503]}}"""),
+            mapOf("ListBoxes" to """{"readonly":true,"pagination":{"style":"link","pageParameter":"page"},"retry":{"max":3,"base_delay_ms":1000,"retry_on":[429,503]}}"""),
         )
         val files = render(model)
         val box = files.getValue("models/Box.kt")
@@ -216,6 +216,8 @@ class ModelTest {
         assertContains(routes, "package com.basecamp.hey.generated")
         assertContains(routes, "val LIST_BOXES: Route = Route(")
         assertContains(routes, "pagination = Pagination.LINK,")
+        assertContains(routes, "pageParameter = \"page\",")
+        assertContains(routes, "pageParameter = null,")
         assertContains(routes, "retry = RetryPolicy(max = 3, baseDelayMs = 1000L, retryOn = listOf(429, 503)),")
         assertContains(routes, "RouteParam(\"boxId\", ParamRole.RECORDING, ParamKind.INT64),")
         assertContains(routes, "html = true,")
