@@ -40,6 +40,7 @@ class Operation internal constructor(
         internal set
 
     internal val query: MutableList<Pair<String, String>> = mutableListOf()
+    internal val headers: MutableList<Pair<String, String>> = mutableListOf()
     internal var body: Body? = null
     internal var idempotent: Boolean = route?.idempotent ?: (method == Method.GET || method == Method.PUT || method == Method.DELETE)
     internal var emptyOn: List<Int> = route?.emptyOn ?: emptyList()
@@ -50,6 +51,7 @@ class Operation internal constructor(
     internal var noCache: Boolean = false
     internal var captureRedirects: Boolean = false
     internal var quiet: Boolean = false
+    internal var unsigned: Boolean = false
 
     /** Adds a query parameter. The same name may be added more than once. */
     fun query(name: String, value: Any): Operation {
@@ -81,6 +83,12 @@ class Operation internal constructor(
     /** A body of the caller's own, with its content type. */
     fun bodyBytes(contentType: String, bytes: ByteArray): Operation {
         body = Body(contentType, bytes)
+        return this
+    }
+
+    /** Adds a header of the caller's own. A credential is the auth strategy's to add, not this. */
+    fun header(name: String, value: String): Operation {
+        headers += name to value
         return this
     }
 
@@ -140,6 +148,17 @@ class Operation internal constructor(
      */
     fun quiet(): Operation {
         quiet = true
+        return this
+    }
+
+    /**
+     * Sends the request without the client's credentials, and takes a 401 as the answer it
+     * is rather than a reason to refresh them: for a URL that authenticates itself, on an
+     * origin that is not HEY's. The hooks hear the URL cut back to its origin, since such a
+     * URL carries its signature in the open.
+     */
+    internal fun unsigned(): Operation {
+        unsigned = true
         return this
     }
 

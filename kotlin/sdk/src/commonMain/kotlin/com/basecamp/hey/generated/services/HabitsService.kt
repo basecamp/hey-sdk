@@ -17,7 +17,7 @@ import com.basecamp.hey.services.BaseService
  *
  * @generated from OpenAPI spec — do not edit directly
  */
-class HabitsService(client: HeyClient) : BaseService(client) {
+open class HabitsService(client: HeyClient) : BaseService(client) {
     /**
      * Complete a habit for a day
      * @param day The day

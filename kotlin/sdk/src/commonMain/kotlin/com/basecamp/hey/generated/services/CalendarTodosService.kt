@@ -18,7 +18,7 @@ import com.basecamp.hey.services.BaseService
  *
  * @generated from OpenAPI spec — do not edit directly
  */
-class CalendarTodosService(client: HeyClient) : BaseService(client) {
+open class CalendarTodosService(client: HeyClient) : BaseService(client) {
     /**
      * Complete a calendar todo
      * @param todoId The todo ID

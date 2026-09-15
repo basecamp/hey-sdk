@@ -14,7 +14,7 @@ import com.basecamp.hey.services.BaseService
  *
  * @generated from OpenAPI spec — do not edit directly
  */
-class AttachmentsService(client: HeyClient) : BaseService(client) {
+open class AttachmentsService(client: HeyClient) : BaseService(client) {
     /**
      * Create an Active Storage direct upload for an outgoing attachment.
      * The returned URL is self-authenticating and accepts the raw file bytes via PUT.

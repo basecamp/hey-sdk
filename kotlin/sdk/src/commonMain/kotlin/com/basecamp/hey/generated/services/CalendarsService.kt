@@ -22,7 +22,7 @@ data class GetCalendarRecordingsOptions(
  *
  * @generated from OpenAPI spec — do not edit directly
  */
-class CalendarsService(client: HeyClient) : BaseService(client) {
+open class CalendarsService(client: HeyClient) : BaseService(client) {
     /**
      * Get recordings for a calendar
      * @param calendarId The calendar ID

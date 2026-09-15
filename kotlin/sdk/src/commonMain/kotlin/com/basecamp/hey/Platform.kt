@@ -19,3 +19,9 @@ internal expect fun sha256Hex(bytes: ByteArray): String
 
 /** The current instant as an ISO 8601 timestamp, the form HEY takes a time in. */
 internal expect fun nowIso8601(): String
+
+/** The MD5 of [bytes], which is the checksum Active Storage wants a blob reserved with. */
+internal expect fun md5(bytes: ByteArray): ByteArray
+
+/** Today where this machine is, as `YYYY-MM-DD`: the day a calendar write with no day named is filed on, as Go and Rust file it. */
+internal expect fun todayLocalDate(): String
