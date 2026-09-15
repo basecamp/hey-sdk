@@ -201,7 +201,11 @@ Two deliberate departures from basecamp-sdk's builder: there is no `httpClient` 
 response validation) would run ahead of the retry policy, the credential handling on
 redirects, the error mapping and the timeout the client is responsible for; and the operation
 the hooks hear runs until the answer is decoded or parsed, so an answer that will not read
-ends the operation with the error the caller gets rather than as a success.
+ends the operation with the error the caller gets rather than as a success. The hooks
+agree with the caller the other way too: a change feed's 409, which the convenience hands
+back as a full-sync answer, ends its operation as a success (Rust's hooks hear the Conflict).
+Durations are measured on a monotonic clock, so a wall clock stepped while a request is out
+does not show up in them.
 
 `kotlin/generator` is a small Kotlin program, run through the Gradle build under `kotlin/`,
 that reads `openapi.json`, `behavior-model.json` and `kotlin/generator/names.toml` and

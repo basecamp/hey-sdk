@@ -217,7 +217,8 @@ builder swaps in a `ResponseCache` of your own.
 `hooks` on the builder takes a `HeyHooks`: told when an operation starts and how it ended,
 when each request goes out and what it answered, and about each resend before it is made.
 Several sets go on as one with `chainHooks`; `consoleHooks()` prints them. A hook that throws
-is ignored.
+is ignored. An operation ends the way the caller sees it end: a change feed's 409, handed
+back as a full-sync answer, is a success, and the durations come from a monotonic clock.
 
 ## Install
 

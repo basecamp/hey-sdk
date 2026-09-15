@@ -11,9 +11,6 @@ internal expect fun <V> createServiceCache(): MutableMap<String, V>
 @PublishedApi
 internal expect fun <V : Any> MutableMap<String, V>.getOrCreate(key: String, factory: () -> V): V
 
-/** The current time in milliseconds since the epoch. */
-internal expect fun currentTimeMillis(): Long
-
 /** The SHA-256 of [bytes], as lowercase hex. */
 internal expect fun sha256Hex(bytes: ByteArray): String
 

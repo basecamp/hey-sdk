@@ -35,12 +35,16 @@ interface TokenProvider {
     suspend fun refresh(): Boolean = false
 }
 
-/** A [TokenProvider] that always returns the same token. It prints as `[REDACTED]`. */
+/**
+ * A [TokenProvider] that always returns the same token. It prints as `[REDACTED]`. A blank
+ * token — what an unset environment variable hands over — is refused as a
+ * [HeyException.Usage], the failure every other mistake in the client's setup is.
+ */
 class StaticTokenProvider(token: String) : TokenProvider {
     private val token = SensitiveString(token)
 
     init {
-        require(token.isNotBlank()) { "Access token must not be blank" }
+        if (token.isBlank()) throw HeyException.Usage("Access token must not be blank")
     }
 
     override suspend fun accessToken(): String = token.expose()

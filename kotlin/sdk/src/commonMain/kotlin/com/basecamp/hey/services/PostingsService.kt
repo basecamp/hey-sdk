@@ -187,28 +187,34 @@ class PostingsService(client: HeyClient) : GeneratedPostingsService(client) {
         operation.queryOptional("page", cursor.page)
         operation.queryOptional("per_page", cursor.perPage)
         operation.noCache()
-        val page = try {
-            client.sendPage<GetBoxPostingChangesResponseContent>(operation)
-        } catch (conflict: HeyException.Conflict) {
-            return PostingChanges(fullSyncRequired = true)
-        }
-        // Both links are read whole: the page within an increment can move the since, the
-        // version or the size along with the page, and the read that follows sends what HEY
-        // issued, not a page number pinned to the cursor this read started from.
-        val nextPage = page.nextUrl?.let { next ->
-            if (!isSameOrigin(next, client.baseUrl)) {
-                throw HeyException.Usage("pagination Link header points to a different origin: ${next.protocol.name}://${next.host}")
+        // The 409 is the answer the caller gets, not a failure, so the request goes quiet
+        // inside an operation that ends well either way: the hooks hear the read succeed
+        // when what they are handed is a full-sync answer.
+        operation.quiet()
+        return client.asOperation(operation.info) {
+            val page = try {
+                client.sendPage<GetBoxPostingChangesResponseContent>(operation)
+            } catch (conflict: HeyException.Conflict) {
+                return@asOperation PostingChanges(fullSyncRequired = true)
             }
-            PostingChangesCursor.fromUrl(next.toString())
+            // Both links are read whole: the page within an increment can move the since, the
+            // version or the size along with the page, and the read that follows sends what HEY
+            // issued, not a page number pinned to the cursor this read started from.
+            val nextPage = page.nextUrl?.let { next ->
+                if (!isSameOrigin(next, client.baseUrl)) {
+                    throw HeyException.Usage("pagination Link header points to a different origin: ${next.protocol.name}://${next.host}")
+                }
+                PostingChangesCursor.fromUrl(next.toString())
+            }
+            PostingChanges(
+                added = page.value.added.orEmpty(),
+                updated = page.value.updated.orEmpty(),
+                deleted = page.value.deleted.orEmpty(),
+                nextPage = nextPage,
+                nextCursor = page.nextCursor?.let { PostingChangesCursor.fromUrl(it.toString()) },
+                fullSyncRequired = false,
+            )
         }
-        return PostingChanges(
-            added = page.value.added.orEmpty(),
-            updated = page.value.updated.orEmpty(),
-            deleted = page.value.deleted.orEmpty(),
-            nextPage = nextPage,
-            nextCursor = page.nextCursor?.let { PostingChangesCursor.fromUrl(it.toString()) },
-            fullSyncRequired = false,
-        )
     }
 
     /** Moves postings to a box. */

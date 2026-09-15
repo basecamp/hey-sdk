@@ -41,6 +41,8 @@ import kotlin.random.Random
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
+import kotlin.time.TimeMark
+import kotlin.time.TimeSource
 
 /** The wait before the first resend of a path the model says nothing about; each one after doubles it. */
 private val DEFAULT_BASE_DELAY: Duration = 1.seconds
@@ -116,6 +118,13 @@ class HeyClientBuilder {
     var hooks: HeyHooks = NoopHooks
 
     /**
+     * What the durations the hooks are told are measured on: a monotonic clock, so a clock
+     * set back or stepped forward while a request is out does not show up in them. Only a
+     * test has reason to hand over another.
+     */
+    internal var timeSource: TimeSource = TimeSource.Monotonic
+
+    /**
      * Custom Ktor [HttpClientEngine] (e.g., for testing with MockEngine). The client built
      * on it is the SDK's own: unlike basecamp-sdk there is no way to hand over a configured
      * [HttpClient], since a plugin on one — a retry, a default request, redirect following,
@@ -187,6 +196,7 @@ class HeyClientBuilder {
             auth = resolvedAuth,
             cache = if (enableCache) cache ?: InMemoryCache() else null,
             hooks = hooks,
+            timeSource = timeSource,
         )
         return HeyClient(shared, null, ScopeState(), root = true)
     }
@@ -221,6 +231,7 @@ internal class Shared(
     val auth: AuthStrategy,
     val cache: ResponseCache?,
     val hooks: HeyHooks,
+    val timeSource: TimeSource,
 ) {
     /** How many times the credentials have been refreshed, so a 401 answered after someone else refreshed is resent rather than refreshed again. */
     @Volatile
@@ -404,7 +415,7 @@ class HeyClient internal constructor(
     internal suspend fun <T> asOperation(info: OperationInfo, block: suspend () -> T): T {
         if (shared.closed) throw HeyException.Usage("client is closed")
         val hooks = shared.hooks
-        val started = currentTimeMillis()
+        val started = shared.timeSource.markNow()
         hooks.safeOperationStart(info)
         try {
             val value = block()
@@ -422,7 +433,8 @@ class HeyClient internal constructor(
     private fun reported(error: Throwable, cancelled: String): Throwable =
         if (error is CancellationException) HeyException.Network(cancelled, retryable = false) else error
 
-    private fun elapsedSince(started: Long): Duration = (currentTimeMillis() - started).milliseconds
+    /** How long since [started] on the client's clock, which only runs forward. */
+    private fun elapsedSince(started: TimeMark): Duration = started.elapsedNow()
 
     private suspend fun dispatch(operation: Operation): Response {
         val url = urlFor(operation)
@@ -525,7 +537,7 @@ class HeyClient internal constructor(
             // A URL that authenticates itself carries its signature in the open, so the hooks hear its origin and nothing more.
             val info = RequestInfo(operation.method.name, if (operation.unsigned) redactUrls(url.toString()) else url.toString(), attempt)
             hooks.safeRequestStart(info)
-            val started = currentTimeMillis()
+            val started = shared.timeSource.markNow()
             val sent = try {
                 Result.success(transmit(operation, url, prepared))
             } catch (error: CancellationException) {

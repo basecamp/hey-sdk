@@ -13,8 +13,6 @@ internal actual fun <V> createServiceCache(): MutableMap<String, V> = Concurrent
 internal actual fun <V : Any> MutableMap<String, V>.getOrCreate(key: String, factory: () -> V): V =
     (this as ConcurrentHashMap<String, V>).computeIfAbsent(key) { factory() }
 
-internal actual fun currentTimeMillis(): Long = System.currentTimeMillis()
-
 internal actual fun sha256Hex(bytes: ByteArray): String =
     MessageDigest.getInstance("SHA-256").digest(bytes).joinToString("") { "%02x".format(it) }
 

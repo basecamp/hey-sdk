@@ -4,7 +4,6 @@ import com.basecamp.hey.HeyClient
 import com.basecamp.hey.HeyException
 import com.basecamp.hey.Method
 import com.basecamp.hey.Operation
-import com.basecamp.hey.OperationInfo
 import com.basecamp.hey.generated.Routes
 import com.basecamp.hey.json
 import com.basecamp.hey.generated.models.CreateDirectUploadRequestContent
@@ -45,13 +44,14 @@ class AttachmentsService(client: HeyClient) : GeneratedAttachmentsService(client
                 contentType = contentType ?: DEFAULT_CONTENT_TYPE,
             ),
         )
-        // Both requests go quiet inside one operation, so the hooks hear
-        // Attachments.CreateDirectUpload once and hear it end only once the bytes are stored,
-        // with the failure when the storage service refuses them.
-        return client.asOperation(OperationInfo(service = "Attachments", operation = "CreateDirectUpload", resourceType = "direct_upload", isMutation = true)) {
-            val reservation = client.operation(Routes.CREATE_DIRECT_UPLOAD, emptyList())
-            reservation.json(body)
-            reservation.quiet()
+        // Both requests go quiet inside one operation — the reservation's, as the model
+        // describes it — so the hooks hear Attachments.CreateDirectUpload once and hear it
+        // end only once the bytes are stored, with the failure when the storage service
+        // refuses them.
+        val reservation = client.operation(Routes.CREATE_DIRECT_UPLOAD, emptyList())
+        reservation.json(body)
+        reservation.quiet()
+        return client.asOperation(reservation.info) {
             val upload = reserved(client.send<DirectUpload>(reservation))
             store(upload.directUpload, content)
             upload

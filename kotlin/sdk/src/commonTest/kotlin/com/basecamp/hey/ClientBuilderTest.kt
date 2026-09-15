@@ -54,6 +54,20 @@ class ClientBuilderTest {
     }
 
     @Test
+    fun aBlankTokenIsAUsageError() {
+        // An unset environment variable hands over "", and the failure is the one every
+        // other mistake in the setup is, not a bare IllegalArgumentException.
+        for (blank in listOf("", "   ", "\t\n")) {
+            val fromBuilder = assertFailsWith<HeyException.Usage> { HeyClient { accessToken(blank); engine = this@ClientBuilderTest.engine } }
+            assertEquals(HeyException.CODE_USAGE, fromBuilder.code)
+            assertEquals("Access token must not be blank", fromBuilder.message)
+            val direct = assertFailsWith<HeyException.Usage> { StaticTokenProvider(blank) }
+            assertEquals("Access token must not be blank", direct.message)
+            assertEquals(false, direct.toString().contains("\t"), "what was handed over is not echoed back")
+        }
+    }
+
+    @Test
     fun theSettingsAreChecked() {
         assertFailsWith<HeyException.Usage> { HeyClient { accessToken("t"); maxPages = 0; engine = this@ClientBuilderTest.engine } }
         assertFailsWith<HeyException.Usage> { HeyClient { accessToken("t"); maxRetries = -1; engine = this@ClientBuilderTest.engine } }

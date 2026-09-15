@@ -147,22 +147,27 @@ class CalendarsService(client: HeyClient) : GeneratedCalendarsService(client) {
         operation.resourceId(calendarId)
         cursor.applyTo(operation)
         operation.noCache()
-        val page = try {
-            client.sendPage<RecordingChangesPayload>(operation)
-        } catch (tooFarBehind: HeyException.Conflict) {
-            // A 409 is the feed saying the cursor is too far behind for an increment to carry
-            // the difference, or speaks a version it no longer does: an answer, not a failure.
-            return RecordingChanges(fullSyncRequired = true)
+        // A 409 is the feed saying the cursor is too far behind for an increment to carry
+        // the difference, or speaks a version it no longer does: an answer, not a failure.
+        // So the request goes quiet inside an operation that ends well either way, and the
+        // hooks hear the read succeed when what they are handed is a full-sync answer.
+        operation.quiet()
+        return client.asOperation(operation.info) {
+            val page = try {
+                client.sendPage<RecordingChangesPayload>(operation)
+            } catch (tooFarBehind: HeyException.Conflict) {
+                return@asOperation RecordingChanges(fullSyncRequired = true)
+            }
+            val (nextPage, nextCursor) = nextCursors(page.nextUrl, page.nextCursor)
+            RecordingChanges(
+                added = page.value.added,
+                updated = page.value.updated,
+                deleted = flattenDeletedRecordings(page.value.deleted),
+                nextPage = nextPage,
+                nextCursor = nextCursor,
+                fullSyncRequired = false,
+            )
         }
-        val (nextPage, nextCursor) = nextCursors(page.nextUrl, page.nextCursor)
-        return RecordingChanges(
-            added = page.value.added,
-            updated = page.value.updated,
-            deleted = flattenDeletedRecordings(page.value.deleted),
-            nextPage = nextPage,
-            nextCursor = nextCursor,
-            fullSyncRequired = false,
-        )
     }
 
     /**
