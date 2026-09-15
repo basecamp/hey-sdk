@@ -146,15 +146,23 @@ class CredentialRefreshTest {
             }
         }
         val firstAnswer = CompletableDeferred<Unit>()
+        val firstAsked = CompletableDeferred<Unit>()
         val seen = mutableMapOf<String, Int>()
         val tokens = mutableListOf<String>()
+        val recording = Any()
         val engine = MockEngine { request ->
             val path = request.url.encodedPath
-            val visit = (seen[path] ?: 0) + 1
-            seen[path] = visit
-            tokens += "$path ${request.headers["Authorization"]}"
+            // Handlers run on the engine's own threads: the record is taken under a lock, and
+            // b is not sent until a's first request has been seen, so the order is the test's.
+            val visit = synchronized(recording) {
+                val visit = (seen[path] ?: 0) + 1
+                seen[path] = visit
+                tokens += "$path ${request.headers["Authorization"]}"
+                visit
+            }
             when {
                 path == "/a.json" -> {
+                    firstAsked.complete(Unit)
                     firstAnswer.await()
                     respond("", HttpStatusCode.Found, headersOf("Location", "/a2.json"))
                 }
@@ -168,7 +176,7 @@ class CredentialRefreshTest {
             timeout = Duration.INFINITE
         }
         val a = launch { client.execute(client.request(Method.GET, "/a")) }
-        runCurrent()
+        firstAsked.await()
         client.execute(client.request(Method.GET, "/b"))
         assertEquals(1, refreshes, "b's 401 refreshed while a's first answer was still to come")
         firstAnswer.complete(Unit)
