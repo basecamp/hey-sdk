@@ -142,17 +142,21 @@ class ContactsService(client: HeyClient) : GeneratedContactsService(client) {
     /**
      * Sends a contact write, rewording the two refusals it can answer with in HEY's own
      * words: a 409 says which addresses clash, a 422 what the model rejected. Both are still
-     * failures, and the hooks are told so; only the message changes, and the body stays on
-     * the error for [ContactConflict.fromError] to read.
+     * failures, and the hooks are told so, with the reworded error the caller gets; the body
+     * stays on it for [ContactConflict.fromError] to read.
      */
-    private suspend fun <T> write(operation: Operation, deserializer: DeserializationStrategy<T>): T =
-        try {
-            client.send(operation, deserializer)
-        } catch (error: HeyException.Conflict) {
-            throw HeyException.Conflict(conflictMessage(error), hint = error.hint, requestId = error.requestId, body = error.body)
-        } catch (error: HeyException.Validation) {
-            throw HeyException.Validation(rejectionMessage(error), hint = error.hint, requestId = error.requestId, body = error.body)
+    private suspend fun <T> write(operation: Operation, deserializer: DeserializationStrategy<T>): T {
+        operation.quiet()
+        return client.asOperation(operation.info) {
+            try {
+                client.send(operation, deserializer)
+            } catch (error: HeyException.Conflict) {
+                throw HeyException.Conflict(conflictMessage(error), hint = error.hint, requestId = error.requestId, body = error.body)
+            } catch (error: HeyException.Validation) {
+                throw HeyException.Validation(rejectionMessage(error), hint = error.hint, requestId = error.requestId, body = error.body)
+            }
         }
+    }
 }
 
 private fun contactPayload(params: ContactParams): ContactPayload =

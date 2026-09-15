@@ -38,12 +38,15 @@ data class HeyConfig(
     val maxResponseBodyBytes: Int = DEFAULT_MAX_RESPONSE_BODY_BYTES,
 ) {
     init {
-        require(maxPages > 0) { "maxPages must be > 0, got: $maxPages" }
-        require(maxRetries >= 0) { "maxRetries must be >= 0, got: $maxRetries" }
+        // A setting the client cannot run on is a usage error, from here as from the builder.
+        if (maxPages <= 0) throw HeyException.Usage("maxPages must be > 0, got: $maxPages")
+        if (maxRetries < 0) throw HeyException.Usage("maxRetries must be >= 0, got: $maxRetries")
         // A wait has to be one the client can wait: finite, and not negative.
-        baseRetryDelay?.let { require(it.isFinite() && !it.isNegative()) { "baseRetryDelay must be finite and >= 0, got: $it" } }
-        require(maxRetryDelay.isFinite() && !maxRetryDelay.isNegative()) { "maxRetryDelay must be finite and >= 0, got: $maxRetryDelay" }
-        require(maxRetryJitter.isFinite() && !maxRetryJitter.isNegative()) { "maxRetryJitter must be finite and >= 0, got: $maxRetryJitter" }
+        if (baseRetryDelay != null && !(baseRetryDelay.isFinite() && !baseRetryDelay.isNegative())) {
+            throw HeyException.Usage("baseRetryDelay must be finite and >= 0, got: $baseRetryDelay")
+        }
+        if (!(maxRetryDelay.isFinite() && !maxRetryDelay.isNegative())) throw HeyException.Usage("maxRetryDelay must be finite and >= 0, got: $maxRetryDelay")
+        if (!(maxRetryJitter.isFinite() && !maxRetryJitter.isNegative())) throw HeyException.Usage("maxRetryJitter must be finite and >= 0, got: $maxRetryJitter")
     }
 
     companion object {

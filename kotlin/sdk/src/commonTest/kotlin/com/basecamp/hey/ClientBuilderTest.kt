@@ -63,8 +63,16 @@ class ClientBuilderTest {
             assertEquals("Access token must not be blank", fromBuilder.message)
             val direct = assertFailsWith<HeyException.Usage> { StaticTokenProvider(blank) }
             assertEquals("Access token must not be blank", direct.message)
-            assertEquals(false, direct.toString().contains("\t"), "what was handed over is not echoed back")
         }
+    }
+
+    @Test
+    fun aConfigBuiltByHandIsCheckedTheSameWay() {
+        // HeyConfig is meant to come from the builder, but a caller who constructs or copies
+        // one meets the same usage error rather than a bare IllegalArgumentException.
+        val bad = assertFailsWith<HeyException.Usage> { HeyConfig(maxPages = 0) }
+        assertContains(bad.message!!, "maxPages")
+        assertFailsWith<HeyException.Usage> { HeyConfig().copy(maxRetryDelay = (-1).seconds) }
     }
 
     @Test

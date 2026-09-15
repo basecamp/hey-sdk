@@ -23,17 +23,23 @@ class TimeTracksService(client: HeyClient) : GeneratedTimeTracksService(client) 
     /**
      * Starts a time track: [start] with the one refusal it can meet named. A track already
      * running answers 409, which arrives as [HeyException.Conflict] carrying HEY's own
-     * message, so a caller can branch on it.
+     * message, so a caller can branch on it. The rewording happens inside the operation, so
+     * the hooks hear the failure the caller gets.
      */
-    suspend fun startTracking(): Recording =
-        try {
-            start()
-        } catch (error: HeyException) {
-            if (error.httpStatus == 409) {
-                throw HeyException.Conflict(error.hint ?: "a time track is already running", requestId = error.requestId, body = error.body)
+    suspend fun startTracking(): Recording {
+        val operation = client.operation(Routes.START_TIME_TRACK, emptyList())
+        operation.quiet()
+        return client.asOperation(operation.info) {
+            try {
+                client.send<Recording>(operation)
+            } catch (error: HeyException) {
+                if (error.httpStatus == 409) {
+                    throw HeyException.Conflict(error.hint ?: "a time track is already running", requestId = error.requestId, body = error.body)
+                }
+                throw error
             }
-            throw error
         }
+    }
 
     /** Stops the running time track by setting its end to now. */
     suspend fun stop(timeTrackId: Long) {

@@ -154,8 +154,10 @@ val second = client.nextPage(first)                 // one page on, or null at t
 ```
 
 A `Link` pointing off the HEY origin — another host, or a downgrade to plain HTTP — is refused
-rather than followed. A walk that reaches the client's `maxPages` with pages still to read
-fails rather than answering a shorter list that looks complete.
+rather than followed. A list walk that reaches the client's `maxPages` with pages still to
+read fails rather than answering a shorter list that looks complete; a change-feed walk
+(`allChanges`, `allCalendarChanges`, `allRecordingChanges`) stops there and names the page it
+did not read in `nextPage`, which a complete answer never carries.
 
 ### Linked accounts
 

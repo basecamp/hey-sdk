@@ -73,23 +73,25 @@ class CalendarsService(client: HeyClient) : GeneratedCalendarsService(client) {
 
     /**
      * Reads the calendar changes feed from a cursor to its end, following the pages the feed
-     * hands out. A walk that reaches the client's page limit with pages still to read stops
-     * there and fails, as every walk in this SDK does, rather than answering a shorter list
-     * that looks complete.
+     * hands out. Reading stops at the client's page limit, as [PostingsService.allChanges]
+     * stops; the answer then names the page it did not read in [CalendarChanges.nextPage],
+     * which a complete answer never does, so it cannot pass for the end of the feed.
      */
     suspend fun allCalendarChanges(cursor: CalendarChangesCursor): CalendarChanges {
         val added = mutableListOf<ListedCalendar>()
         val updated = mutableListOf<Calendar>()
         val deleted = mutableListOf<DeletedCalendar>()
+        var nextCursor: CalendarChangesCursor? = null
         var next = cursor
         repeat(client.config.maxPages) {
             val changes = calendarChanges(next)
             added += changes.added
             updated += changes.updated
             deleted += changes.deleted
-            next = changes.nextPage ?: return CalendarChanges(added, updated, deleted, nextPage = null, nextCursor = changes.nextCursor)
+            nextCursor = changes.nextCursor
+            next = changes.nextPage ?: return CalendarChanges(added, updated, deleted, nextPage = null, nextCursor = nextCursor)
         }
-        throw pagesExhausted("calendar changes")
+        return CalendarChanges(added, updated, deleted, nextPage = next, nextCursor = nextCursor)
     }
 
     /** Reads one page of the calendar changes feed. */
@@ -101,27 +103,34 @@ class CalendarsService(client: HeyClient) : GeneratedCalendarsService(client) {
         operation.info(changesInfo("GetCalendarChanges", "calendar"))
         cursor.applyTo(operation)
         operation.noCache()
-        val page = client.sendPage<CalendarChangesPayload>(operation)
-        val (nextPage, nextCursor) = nextCursors(page.nextUrl, page.nextCursor)
-        return CalendarChanges(
-            added = page.value.added,
-            updated = page.value.updated,
-            deleted = page.value.deleted,
-            nextPage = nextPage,
-            nextCursor = nextCursor,
-        )
+        // Read inside the operation, as the recording feed is, so a link the client refuses
+        // ends the operation the hooks hear with that refusal.
+        operation.quiet()
+        return client.asOperation(operation.info) {
+            val page = client.sendPage<CalendarChangesPayload>(operation)
+            val (nextPage, nextCursor) = nextCursors(page.nextUrl, page.nextCursor)
+            CalendarChanges(
+                added = page.value.added,
+                updated = page.value.updated,
+                deleted = page.value.deleted,
+                nextPage = nextPage,
+                nextCursor = nextCursor,
+            )
+        }
     }
 
     /**
      * Reads a calendar's recording changes feed from a cursor to its end, following the
      * pages the feed hands out. A cursor the feed has left behind ends the walk on the spot
-     * with [RecordingChanges.fullSyncRequired]; a walk that reaches the client's page limit
-     * with pages still to read stops there and fails.
+     * with [RecordingChanges.fullSyncRequired]. Reading stops at the client's page limit, as
+     * [PostingsService.allChanges] stops; the answer then names the page it did not read in
+     * [RecordingChanges.nextPage], which a complete answer never does.
      */
     suspend fun allRecordingChanges(calendarId: Long, cursor: CalendarChangesCursor): RecordingChanges {
         val added = linkedMapOf<String, MutableList<Recording>>()
         val updated = linkedMapOf<String, MutableList<Recording>>()
         val deleted = mutableListOf<DeletedRecording>()
+        var nextCursor: CalendarChangesCursor? = null
         var next = cursor
         repeat(client.config.maxPages) {
             val changes = recordingChanges(calendarId, next)
@@ -129,9 +138,10 @@ class CalendarsService(client: HeyClient) : GeneratedCalendarsService(client) {
             added.merge(changes.added)
             updated.merge(changes.updated)
             deleted += changes.deleted
-            next = changes.nextPage ?: return RecordingChanges(added, updated, deleted, nextPage = null, nextCursor = changes.nextCursor)
+            nextCursor = changes.nextCursor
+            next = changes.nextPage ?: return RecordingChanges(added, updated, deleted, nextPage = null, nextCursor = nextCursor)
         }
-        throw pagesExhausted("recording changes")
+        return RecordingChanges(added, updated, deleted, nextPage = next, nextCursor = nextCursor)
     }
 
     /** Reads one page of a calendar's recording changes feed. */
@@ -185,8 +195,6 @@ class CalendarsService(client: HeyClient) : GeneratedCalendarsService(client) {
         return if (cursor.page != null) cursor to null else null to cursor
     }
 
-    private fun pagesExhausted(feed: String): HeyException =
-        HeyException.Api("$feed pagination stopped after ${client.config.maxPages} pages with more to read", httpStatus = null, retryable = false)
 }
 
 private fun changesInfo(operation: String, resourceType: String): OperationInfo =

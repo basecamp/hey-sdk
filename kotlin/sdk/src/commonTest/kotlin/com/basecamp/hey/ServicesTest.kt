@@ -645,12 +645,22 @@ private fun formFields(body: String): Map<String, String> = body.split('&').asso
     }
 
     @Test
-    fun aChangesWalkStopsAtThePageLimitAndSaysSo() = runTest {
-        val page = ok("""{"added":[],"updated":[],"deleted":[]}""", mapOf("Link" to "</calendar/changes.json?since=2026-09-15T10:00:00.000Z&page=2>; rel=\"next\""))
+    fun aChangesWalkStopsAtThePageLimitAndSaysWhereItStopped() = runTest {
+        val page = ok("""{"added":[{"recording_changes_url":"/calendars/1/recording/changes.json"}],"updated":[],"deleted":[]}""", mapOf("Link" to "</calendar/changes.json?since=2026-09-15T10:00:00.000Z&page=2>; rel=\"next\""))
         val hey = mockHey(page, page, page)
         val client = hey.client { maxPages = 2 }
-        assertFailsWith<HeyException.Api> { client.calendars.allCalendarChanges(CalendarChangesCursor(since = "2026-09-15T10:00:00.000Z")) }
+        val capped = client.calendars.allCalendarChanges(CalendarChangesCursor(since = "2026-09-15T10:00:00.000Z"))
         assertEquals(2, hey.requests.size)
+        assertEquals(2, capped.added.size, "what was read is answered")
+        assertEquals(CalendarChangesCursor(since = "2026-09-15T10:00:00.000Z", page = "2"), capped.nextPage, "and the page not read is named, so the answer does not look complete")
+        assertNull(capped.nextCursor)
+
+        val recordingPage = ok("""{"added":{},"updated":{},"deleted":{}}""", mapOf("Link" to "</calendars/3/recording/changes.json?since=2026-09-15T10:00:00.000Z&v=1&page=2>; rel=\"next\""))
+        val recordings = mockHey(recordingPage, recordingPage, recordingPage)
+        val cappedRecordings = recordings.client { maxPages = 2 }.calendars.allRecordingChanges(3, CalendarChangesCursor(since = "2026-09-15T10:00:00.000Z", version = "1"))
+        assertEquals(2, recordings.requests.size)
+        assertEquals(CalendarChangesCursor(since = "2026-09-15T10:00:00.000Z", version = "1", page = "2"), cappedRecordings.nextPage)
+        assertEquals(false, cappedRecordings.fullSyncRequired)
     }
 
     @Test
