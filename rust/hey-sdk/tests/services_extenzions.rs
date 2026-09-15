@@ -172,6 +172,30 @@ async fn a_revision_replaces_the_whole_membership_when_it_names_one() {
     );
 }
 
+/// HEY replaces the membership whenever the field is on the wire at all, and a form carries
+/// no empty array: an emptied roster goes out as one blank value, where sending nothing
+/// would leave the roster as it was, which is what `None` means.
+#[tokio::test]
+async fn an_empty_membership_goes_out_as_one_blank_member() {
+    let server = MockServer::start().await;
+    mock_update(&server).await;
+
+    client(&server)
+        .extenzions()
+        .update(
+            1,
+            10,
+            &UpdateExtenzionParams {
+                members: Some(Vec::new()),
+                ..UpdateExtenzionParams::default()
+            },
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(sent_form(&server).await, ["extenzion[members][]="]);
+}
+
 #[tokio::test]
 async fn an_update_that_only_redirects_hands_nothing_back() {
     let server = MockServer::start().await;

@@ -354,6 +354,95 @@ async fn an_all_day_update_omits_the_clock_times() {
     );
 }
 
+/// HEY reads the reminder list matching the event's all-day flag as it stands after the
+/// write, and unschedules every reminder when that list is absent. An update that leaves the
+/// flag alone cannot know which list that is, so it sends both; the one HEY does not read is
+/// ignored.
+#[tokio::test]
+async fn an_update_that_leaves_all_day_alone_files_its_reminders_under_both_lists() {
+    let server = MockServer::start().await;
+    mock_update(&server, updated()).await;
+
+    client(&server)
+        .calendar_events()
+        .update_event(99, &reminders_only(None))
+        .await
+        .unwrap();
+
+    assert_eq!(
+        sent_form(&server).await,
+        [
+            "calendar_event[description]=",
+            "calendar_event[location]=",
+            "calendar_event[url]=",
+            "calendar_event[entry_id]=",
+            "all_day_reminder_durations[]=600",
+            "all_day_reminder_durations[]=86400",
+            "timed_reminder_durations[]=600",
+            "timed_reminder_durations[]=86400",
+        ]
+    );
+}
+
+#[tokio::test]
+async fn an_update_that_makes_the_event_all_day_files_its_reminders_as_all_day_ones() {
+    let server = MockServer::start().await;
+    mock_update(&server, updated()).await;
+
+    client(&server)
+        .calendar_events()
+        .update_event(99, &reminders_only(Some(true)))
+        .await
+        .unwrap();
+
+    assert_eq!(
+        sent_form(&server).await,
+        [
+            "calendar_event[all_day]=1",
+            "calendar_event[description]=",
+            "calendar_event[location]=",
+            "calendar_event[url]=",
+            "calendar_event[entry_id]=",
+            "all_day_reminder_durations[]=600",
+            "all_day_reminder_durations[]=86400",
+        ]
+    );
+}
+
+#[tokio::test]
+async fn an_update_that_makes_the_event_timed_files_its_reminders_as_timed_ones() {
+    let server = MockServer::start().await;
+    mock_update(&server, updated()).await;
+
+    client(&server)
+        .calendar_events()
+        .update_event(99, &reminders_only(Some(false)))
+        .await
+        .unwrap();
+
+    assert_eq!(
+        sent_form(&server).await,
+        [
+            "calendar_event[all_day]=0",
+            "calendar_event[description]=",
+            "calendar_event[location]=",
+            "calendar_event[url]=",
+            "calendar_event[entry_id]=",
+            "timed_reminder_durations[]=600",
+            "timed_reminder_durations[]=86400",
+        ]
+    );
+}
+
+/// An update naming two reminders and nothing else but the all-day flag.
+fn reminders_only(all_day: Option<bool>) -> UpdateCalendarEventParams {
+    UpdateCalendarEventParams {
+        all_day,
+        reminders: vec![Duration::from_secs(600), Duration::from_secs(86400)],
+        ..UpdateCalendarEventParams::default()
+    }
+}
+
 /// An event can start in one zone and finish in another, which is what a flight is.
 #[tokio::test]
 async fn an_event_can_start_in_one_zone_and_finish_in_another() {

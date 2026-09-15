@@ -705,12 +705,17 @@ fn update_event_fields(params: &UpdateCalendarEventParams) -> Vec<(&'static str,
         );
     }
 
-    let reminders_key = if params.all_day == Some(true) {
-        ALL_DAY_REMINDERS
-    } else {
-        TIMED_REMINDERS
+    // HEY reads the list matching the event's all-day flag as it stands after the write. An
+    // update that leaves the flag alone cannot know which that is, so it sends both lists:
+    // the one HEY does not read is ignored, and the one it does keeps the reminders scheduled.
+    let reminders_keys: &[&'static str] = match params.all_day {
+        Some(true) => &[ALL_DAY_REMINDERS],
+        Some(false) => &[TIMED_REMINDERS],
+        None => &[ALL_DAY_REMINDERS, TIMED_REMINDERS],
     };
-    push_reminders(&mut fields, reminders_key, &params.reminders);
+    for key in reminders_keys {
+        push_reminders(&mut fields, key, &params.reminders);
+    }
     fields
 }
 
