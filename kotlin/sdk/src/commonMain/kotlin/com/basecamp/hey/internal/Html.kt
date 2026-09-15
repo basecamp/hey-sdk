@@ -68,6 +68,18 @@ private val RAW_TEXT_ELEMENTS = setOf("script", "style")
 internal fun parseHtml(html: String): HtmlNode.Element {
     val root = HtmlNode.Element("#root", emptyMap())
     val stack = ArrayDeque<HtmlNode.Element>().apply { addLast(root) }
+    // How many of each tag are open, so a close tag for one that is not is answered without
+    // walking the stack: a page of stray close tags is the server's to send, and it reads
+    // in time linear in its length either way.
+    val openCount = HashMap<String, Int>()
+    fun push(element: HtmlNode.Element) {
+        stack.addLast(element)
+        openCount[element.tag] = (openCount[element.tag] ?: 0) + 1
+    }
+    fun pop() {
+        val element = stack.removeLast()
+        openCount[element.tag] = (openCount[element.tag] ?: 1) - 1
+    }
     var index = 0
     while (index < html.length) {
         val open = html.indexOf('<', index)
@@ -88,8 +100,10 @@ internal fun parseHtml(html: String): HtmlNode.Element {
             html.startsWith("</", open) -> {
                 val end = html.indexOf('>', open)
                 val name = (if (end < 0) html.substring(open + 2) else html.substring(open + 2, end)).trim().lowercase()
-                val depth = stack.indexOfLast { it.tag == name }
-                if (depth > 0) while (stack.size > depth) stack.removeLast()
+                if ((openCount[name] ?: 0) > 0) {
+                    val depth = stack.indexOfLast { it.tag == name }
+                    if (depth > 0) while (stack.size > depth) pop()
+                }
                 index = if (end < 0) html.length else end + 1
             }
             else -> {
@@ -110,7 +124,7 @@ internal fun parseHtml(html: String): HtmlNode.Element {
                         index = closeEnd
                     }
                     selfClosing || name in VOID_ELEMENTS -> {}
-                    else -> stack.addLast(element)
+                    else -> push(element)
                 }
             }
         }
