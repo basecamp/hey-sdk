@@ -556,7 +556,9 @@ class HeyClient internal constructor(
             if (retryable && attempt < attempts) {
                 val cause = HeyException.fromResponse(status, operation.method, received.headers, ByteArray(0))
                 val retryAfter = if (status == 429) retryAfterSeconds(received.headers["Retry-After"]) else null
-                val wait = if (retryAfter != null && retryAfter > 0) retryAfter.seconds else waitFor(delay)
+                // A Retry-After is honoured as given, zero included: HEY saying "now" is not a
+                // reason to wait the backoff instead.
+                val wait = if (retryAfter != null) retryAfter.seconds else waitFor(delay)
                 hooks.safeRequestEnd(info, RequestResult(status, duration, error = cause))
                 hooks.safeRetry(info, attempt + 1, cause, wait.inWholeMilliseconds)
                 delay(wait)
@@ -657,11 +659,14 @@ class HeyClient internal constructor(
         /**
          * What partitions the cache: every credential header, canonically ordered, so a
          * cookie-signed identity is kept apart from a bearer-signed one and two identities
-         * that share a bearer but differ in another header are kept apart too. Empty when
-         * the strategy set nothing, in which case nothing is cached.
+         * that share a bearer but differ in another header are kept apart too. Each name and
+         * each value goes in with its length in front, so two values can never read as one
+         * and one as two. Empty when the strategy set nothing, in which case nothing is cached.
          */
         val partition: String? get() =
-            headers.entries.sortedBy { it.key }.joinToString("\n") { (name, values) -> "$name: ${values.joinToString(", ")}" }.ifEmpty { null }
+            headers.entries.sortedBy { it.key }
+                .joinToString("") { (name, values) -> "${name.length}:$name${values.size}:" + values.joinToString("") { "${it.length}:$it" } }
+                .ifEmpty { null }
     }
 
     /**

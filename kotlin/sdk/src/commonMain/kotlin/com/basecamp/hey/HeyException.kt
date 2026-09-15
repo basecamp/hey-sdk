@@ -123,7 +123,7 @@ sealed class HeyException(
         }
     }
 
-    /** Validation error (400, 422). */
+    /** Validation error: HEY's 422. A 400 is an [Api] error with that status, as it is in the Go and Rust SDKs. */
     class Validation(
         message: String = "validation error",
         hint: String? = null,

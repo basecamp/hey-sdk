@@ -110,7 +110,7 @@ class CacheTest {
             cache = store
         }
         client.boxes.list()
-        val held = store.get(cacheKey("https://app.hey.com/boxes.json", "authorization: Bearer test-token"))!!
+        val held = store.get(cacheKey("https://app.hey.com/boxes.json", "13:authorization1:17:Bearer test-token"))!!
         assertEquals(setOf("ETag", "Link", "X-Total-Count", "Content-Type"), held.headers.keys, "the entry keeps what came with the body, less any credential")
 
         val revalidated = client.boxes.list()
@@ -219,5 +219,24 @@ class CacheTest {
         assertNull(hey.requests[1].header("If-None-Match"), "b is not asked to validate a's entry")
         assertEquals(2, store.size, "one entry each")
         assertEquals("""{"who":"a"}""", a.execute(a.request(Method.GET, "/me")).text(), "and a's 304 answers a's body")
+    }
+
+    /** A strategy that sets one header several times, as a list, or once with the list's spelling. */
+    private class ListAuth(private val values: List<String>) : AuthStrategy {
+        override suspend fun authenticate(request: HttpRequestBuilder) {
+            for (value in values) request.headers.append("X-Key", value)
+        }
+    }
+
+    @Test
+    fun twoSpellingsOfAHeaderThatReadTheSameNeverShareAnEntry() = runTest {
+        val store = InMemoryCache()
+        val hey = mockHey(ok("""{"who":"A SECRET"}""", mapOf("ETag" to "\"same\"")), ok("""{"who":"b"}""", mapOf("ETag" to "\"same\"")))
+        val two = HeyClient { auth(ListAuth(listOf("alpha", "beta"))); engine = hey.engine; enableCache = true; cache = store }
+        val one = HeyClient { auth(ListAuth(listOf("alpha, beta"))); engine = hey.engine; enableCache = true; cache = store }
+        two.execute(two.request(Method.GET, "/me"))
+        assertEquals("""{"who":"b"}""", one.execute(one.request(Method.GET, "/me")).text())
+        assertNull(hey.requests[1].header("If-None-Match"), "the one-value identity is not asked to validate the two-value identity's entry")
+        assertEquals(2, store.size)
     }
 }
