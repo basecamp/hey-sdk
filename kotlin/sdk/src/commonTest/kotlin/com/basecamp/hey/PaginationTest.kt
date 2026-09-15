@@ -20,6 +20,9 @@ class PaginationTest {
         assertEquals("/boxes.json?page=2", nextLink("""</boxes.json?page=2>; rel="next""""))
         assertEquals("/x", nextLink("""</x>; rel="next prev""""))
         assertEquals("/y", nextLink("""</x>; rel=prev, </y>; REL=NEXT"""))
+        assertEquals("/boxes.json?page=2", nextLink("""</boxes.json?page=2>; rel="next", </boxes.json?page=1>; rel="prev""""), "next before another relation, quoted")
+        assertEquals("/boxes.json?page=2", nextLink("""</boxes.json?page=2>; rel=next, </boxes.json?page=1>; rel=prev"""), "and unquoted")
+        assertEquals("/x?a=1,2", nextLink("""</x?a=1,2>; rel="next", </y>; rel="prev""""), "a comma in the target stays")
         assertNull(nextLink("""</x>; rel="prev""""))
         assertNull(nextLink("garbage"))
     }
@@ -145,5 +148,17 @@ class PaginationTest {
         val hey = mockHey(ok("""{"added":[],"updated":[],"deleted":[]}""", mapOf("Link" to "<https://evil.example.com/changes.json?since=x>; rel=\"next\"")))
         val error = assertFailsWith<HeyException.Usage> { hey.client().postings.changes(7, "2026-09-15T10:00:00Z") }
         assertEquals(false, error.message!!.contains("since=x"), "the refusal names the origin, not the URL")
+    }
+
+    @Test
+    fun aWalkFollowsANextThatComesBeforeAPrev() = runTest {
+        val hey = mockHey(
+            ok("""[{"id":1,"kind":"imbox","name":"a"}]""", mapOf("Link" to "</boxes.json?page=2>; rel=\"next\", </boxes.json?page=0>; rel=\"prev\"")),
+            ok("""[{"id":2,"kind":"imbox","name":"b"}]""", mapOf("Link" to "</boxes.json?page=1>; rel=\"prev\"")),
+        )
+        val client = hey.client()
+        val ids = client.pages(client.boxes.list()).toList().flatMap { page -> page.value.map { it.id } }
+        assertEquals(listOf(1L, 2L), ids)
+        assertEquals("2", hey.requests[1].query("page"))
     }
 }

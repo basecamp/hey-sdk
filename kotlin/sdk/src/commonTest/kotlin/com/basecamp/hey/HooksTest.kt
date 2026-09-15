@@ -9,6 +9,7 @@ import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
+import com.basecamp.hey.services.DraftContent
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -194,5 +195,19 @@ class HooksTest {
             ),
             log.filter { it.startsWith("a:start:") },
         )
+    }
+
+    @Test
+    fun aDraftSaveWhoseLocationNamesNoIdEndsTheOperationWithThatError() = runTest {
+        val hey = mockHey(status(204), status(204, headers = mapOf("Location" to "/messages/new")))
+        val log = mutableListOf<String>()
+        val client = hey.client { hooks = Recording(log, "a") }
+        val draft = DraftContent(subject = "s", content = "c", actingSenderId = 100)
+        for (attempt in 1..2) {
+            log.clear()
+            assertFailsWith<HeyException.Api> { client.messages.createDraft(draft) }
+            assertEquals("a:end:CreateMessage:api_error", log.last())
+            assertEquals(1, log.count { it.startsWith("a:end:") })
+        }
     }
 }

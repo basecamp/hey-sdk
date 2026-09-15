@@ -33,6 +33,7 @@ class AssertionHelpersTest {
         assertTrue(valuesMatch(JsonPrimitive(true), JsonPrimitive(true)))
         assertEquals(false, valuesMatch(JsonPrimitive(1), JsonPrimitive(2)))
         assertTrue(valuesMatch(JsonPrimitive(1), JsonPrimitive(1.0)), "a number is the same number however it is spelled")
+        assertEquals(false, valuesMatch(JsonPrimitive(9007199254740993L), Json.parseToJsonElement("9007199254740992.0")), "and a double that lost a digit is not the same number")
         assertEquals(false, valuesMatch(JsonPrimitive(1), JsonPrimitive("1")), "but a string of a number is not a number")
         assertEquals(false, valuesMatch(JsonPrimitive(true), JsonPrimitive("true")))
         assertEquals(false, valuesMatch(JsonPrimitive("1"), JsonPrimitive(1)))

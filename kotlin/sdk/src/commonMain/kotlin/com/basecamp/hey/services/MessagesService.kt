@@ -91,7 +91,7 @@ class MessagesService(client: HeyClient) : GeneratedMessagesService(client) {
     suspend fun createDraft(draft: DraftContent): Long {
         val operation = client.operation(Routes.CREATE_MESSAGE, emptyList())
         operation.json(draftedRequest(draft))
-        return entryIdFromLocation(client.execute(operation))
+        return client.execute(operation) { entryIdFromLocation(it) }
     }
 
     /** Revises a draft in place from the whole of [draft]. A trashed draft is silently restored by the revision. */

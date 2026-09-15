@@ -108,6 +108,17 @@ class ErrorMappingTest {
         assertEquals("body does not decode: missing required field 'kind', at path \$", decodeHint("Field 'kind' is required for type 'Box', but it was missing at path: \$"))
         assertEquals("body does not decode: at path \$.id, at offset 42", decodeHint("Unexpected JSON token at offset 42: Expected quotation mark '\"', but had '}' instead at path: \$.id\nJSON input: {\"secret\":1}"))
         assertEquals("body does not decode", decodeHint(null))
+        assertEquals(
+            "body does not decode",
+            decodeHint("Unexpected JSON token at path: \$.entries['distinctive@example.com']\nJSON input: {\"entries\":{\"distinctive@example.com\":1}}"),
+            "a map key in the path is the body's, so the path is left out",
+        )
+        assertEquals("body does not decode: at path \$.entries[0].id", decodeHint("Unexpected JSON token at path: \$.entries[0].id"))
+        assertEquals("body does not decode: at path \$.id", decodeHint("boom at path: \$.id\nJSON input: Field 'distinctive@example.com' is required"))
+
+        val echoing = mockHey(ok("""{"id":"bad","email_address":"Field 'distinctive@example.com' is required for type 'Contact', but it was missing at path: ${'$'}.x"}"""))
+        val error = assertFailsWith<HeyException.Api> { echoing.client().contacts.get(1) }
+        assertEquals(false, (error.toString() + error.hint + error.stackTraceToString()).contains("distinctive"), error.hint)
     }
 
     @Test

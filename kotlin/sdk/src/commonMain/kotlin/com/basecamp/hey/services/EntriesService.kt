@@ -57,7 +57,7 @@ class EntriesService(client: HeyClient) : GeneratedEntriesService(client) {
         val operation = client.operation(Routes.CREATE_REPLY, listOf(entryId))
         operation.resourceId(entryId)
         operation.json(body)
-        return entryIdFromLocation(client.execute(operation))
+        return client.execute(operation) { entryIdFromLocation(it) }
     }
 
     private suspend fun senderFor(reply: ReplyContent): Long =
