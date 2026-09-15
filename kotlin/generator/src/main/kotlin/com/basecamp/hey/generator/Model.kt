@@ -241,7 +241,7 @@ private fun buildServices(openapi: JsonObject, behavior: JsonObject, naming: Nam
                 queryParams = queryParams(operationObject),
                 body = bodyOf(id, operationObject, naming),
                 response = responseOf(id, operationObject, naming),
-                idempotent = idempotent(httpMethod, operationObject),
+                idempotent = idempotent(httpMethod, operationObject, semantics),
                 readonly = semantics["readonly"]?.let { (it as? JsonPrimitive)?.booleanOrNull }
                     ?: throw GeneratorException("$id has no readonly in behavior-model.json"),
                 emptyOn = statusCodes(operationObject.obj("x-hey-empty-on")?.get("statusCodes")),
@@ -371,9 +371,19 @@ private fun representationOf(id: String, status: String, response: JsonObject, n
     return if (mediaType == "text/html") Response.Html(name) else Response.Json(name)
 }
 
-private fun idempotent(httpMethod: String, operation: JsonObject): Boolean =
-    operation.obj("x-hey-idempotent")?.get("natural")?.let { (it as? JsonPrimitive)?.booleanOrNull }
-        ?: (httpMethod in listOf("get", "head", "put", "delete"))
+/**
+ * Whether the route may be sent again after a failure: an explicit `x-hey-idempotent`
+ * override first (UpdateMessage is a PUT that is not); otherwise what the behaviour model
+ * says, as the TypeScript generator reads it — a read, or an operation the Smithy model
+ * calls idempotent, which is how a PATCH earns a resend — with the verb standing in when
+ * the model says neither.
+ */
+private fun idempotent(httpMethod: String, operation: JsonObject, semantics: JsonObject): Boolean {
+    operation.obj("x-hey-idempotent")?.get("natural")?.let { (it as? JsonPrimitive)?.booleanOrNull }?.let { return it }
+    val readonly = (semantics["readonly"] as? JsonPrimitive)?.booleanOrNull ?: false
+    val modelled = (semantics["idempotent"] as? JsonPrimitive)?.booleanOrNull ?: false
+    return readonly || modelled || httpMethod in listOf("get", "head", "put", "delete")
+}
 
 private fun pagination(semantics: JsonObject): Pagination =
     when (val style = semantics.obj("pagination")?.string("style")) {

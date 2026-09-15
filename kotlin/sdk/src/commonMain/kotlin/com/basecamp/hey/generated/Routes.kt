@@ -83,7 +83,7 @@ object Routes {
         resource = "Contacts",
         resourceType = "clearance",
         params = emptyList(),
-        idempotent = false,
+        idempotent = true,
         readonly = false,
         html = false,
         emptyOn = emptyList(),
@@ -2373,7 +2373,7 @@ object Routes {
         params = listOf(
             RouteParam("todoId", ParamRole.RECORDING, ParamKind.INT64),
         ),
-        idempotent = false,
+        idempotent = true,
         readonly = false,
         html = false,
         emptyOn = emptyList(),
@@ -2394,7 +2394,7 @@ object Routes {
         params = listOf(
             RouteParam("clearanceId", ParamRole.RECORDING, ParamKind.INT64),
         ),
-        idempotent = false,
+        idempotent = true,
         readonly = false,
         html = false,
         emptyOn = emptyList(),
@@ -2415,7 +2415,7 @@ object Routes {
         params = listOf(
             RouteParam("collectionId", ParamRole.RECORDING, ParamKind.INT64),
         ),
-        idempotent = false,
+        idempotent = true,
         readonly = false,
         html = false,
         emptyOn = emptyList(),
@@ -2436,7 +2436,7 @@ object Routes {
         params = listOf(
             RouteParam("contactId", ParamRole.RECORDING, ParamKind.INT64),
         ),
-        idempotent = false,
+        idempotent = true,
         readonly = false,
         html = false,
         emptyOn = emptyList(),
@@ -2457,7 +2457,7 @@ object Routes {
         params = listOf(
             RouteParam("contactId", ParamRole.PARENT, ParamKind.INT64),
         ),
-        idempotent = false,
+        idempotent = true,
         readonly = false,
         html = false,
         emptyOn = emptyList(),
@@ -2478,7 +2478,7 @@ object Routes {
         params = listOf(
             RouteParam("contactId", ParamRole.PARENT, ParamKind.INT64),
         ),
-        idempotent = false,
+        idempotent = true,
         readonly = false,
         html = false,
         emptyOn = emptyList(),
@@ -2518,7 +2518,7 @@ object Routes {
         params = listOf(
             RouteParam("habitId", ParamRole.RECORDING, ParamKind.INT64),
         ),
-        idempotent = false,
+        idempotent = true,
         readonly = false,
         html = false,
         emptyOn = emptyList(),
@@ -2581,7 +2581,7 @@ object Routes {
         params = listOf(
             RouteParam("clearanceId", ParamRole.RECORDING, ParamKind.INT64),
         ),
-        idempotent = false,
+        idempotent = true,
         readonly = false,
         html = false,
         emptyOn = emptyList(),
@@ -2602,7 +2602,7 @@ object Routes {
         params = listOf(
             RouteParam("stickyId", ParamRole.RECORDING, ParamKind.INT64),
         ),
-        idempotent = false,
+        idempotent = true,
         readonly = false,
         html = false,
         emptyOn = emptyList(),

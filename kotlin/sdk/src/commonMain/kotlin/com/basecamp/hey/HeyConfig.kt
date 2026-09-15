@@ -40,6 +40,10 @@ data class HeyConfig(
     init {
         require(maxPages > 0) { "maxPages must be > 0, got: $maxPages" }
         require(maxRetries >= 0) { "maxRetries must be >= 0, got: $maxRetries" }
+        // A wait has to be one the client can wait: finite, and not negative.
+        baseRetryDelay?.let { require(it.isFinite() && !it.isNegative()) { "baseRetryDelay must be finite and >= 0, got: $it" } }
+        require(maxRetryDelay.isFinite() && !maxRetryDelay.isNegative()) { "maxRetryDelay must be finite and >= 0, got: $maxRetryDelay" }
+        require(maxRetryJitter.isFinite() && !maxRetryJitter.isNegative()) { "maxRetryJitter must be finite and >= 0, got: $maxRetryJitter" }
     }
 
     companion object {

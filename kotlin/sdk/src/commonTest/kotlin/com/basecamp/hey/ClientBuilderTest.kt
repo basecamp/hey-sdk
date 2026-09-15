@@ -4,6 +4,8 @@ import com.basecamp.hey.generated.*
 import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.respond
 import kotlinx.coroutines.test.runTest
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.seconds
 import kotlin.test.Test
 import kotlin.test.assertContains
 import kotlin.test.assertEquals
@@ -75,5 +77,13 @@ class ClientBuilderTest {
         assertEquals(4, hey.requests.size, "the root and a sibling still send after a derived client is closed")
         root.close()
         assertFailsWith<Exception> { root.boxes.list() }
+    }
+
+    @Test
+    fun aRetryWaitHasToBeOneTheClientCanWait() {
+        assertFailsWith<HeyException.Usage> { HeyClient { accessToken("t"); engine = this@ClientBuilderTest.engine; maxRetryJitter = Duration.INFINITE } }
+        assertFailsWith<HeyException.Usage> { HeyClient { accessToken("t"); engine = this@ClientBuilderTest.engine; maxRetryDelay = (-1).seconds } }
+        assertFailsWith<HeyException.Usage> { HeyClient { accessToken("t"); engine = this@ClientBuilderTest.engine; baseRetryDelay = Duration.INFINITE } }
+        HeyClient { accessToken("t"); engine = this@ClientBuilderTest.engine; maxRetryJitter = Duration.ZERO }.close()
     }
 }

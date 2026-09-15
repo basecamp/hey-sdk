@@ -5,6 +5,7 @@ import com.basecamp.hey.generated.models.MessagePayload
 import com.basecamp.hey.generated.*
 import kotlinx.coroutines.test.runTest
 import java.io.IOException
+import com.basecamp.hey.generated.Routes
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -137,5 +138,15 @@ class RetryTest {
         val error = assertFailsWith<HeyException.Network> { exhausted.client().boxes.list() }
         assertTrue(error.retryable, "still retryable once the budget is spent: the caller may try again")
         assertEquals(3, exhausted.requests.size)
+    }
+
+    @Test
+    fun aPatchTheModelCallsIdempotentIsResent() = runTest {
+        val hey = mockHey(status(503), ok(""))
+        val client = hey.client()
+        client.sendUnit(client.operation(Routes.UPDATE_STICKY, listOf(1)).jsonBody("{}"))
+        assertEquals(2, hey.requests.size, "UpdateSticky is a PATCH the model calls idempotent")
+        assertEquals(true, Routes.UPDATE_STICKY.idempotent)
+        assertEquals(false, Routes.UPDATE_MESSAGE.idempotent, "and UpdateMessage's override still stands")
     }
 }

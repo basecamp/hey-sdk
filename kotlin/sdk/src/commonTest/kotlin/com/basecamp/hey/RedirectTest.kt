@@ -154,4 +154,32 @@ class RedirectTest {
         client.boxes.list()
         assertNull(hey.requests[5].header("X-Signature"), "a hop off the origin is never signed")
     }
+
+    @Test
+    fun aStrategyThatCannotSignAHopFailsAsItselfAndIsNotResent() = runTest {
+        var signings = 0
+        val failing = object : AuthStrategy {
+            override suspend fun authenticate(request: HttpRequestBuilder) {
+                signings += 1
+                if (signings > 1) throw IllegalStateException("signer offline")
+                request.header("X-Signature", "ok")
+            }
+        }
+        val hey = mockHey(status(302, headers = mapOf("Location" to "/boxes/all.json")), ok("[]"))
+        val log = mutableListOf<String>()
+        val client = HeyClient {
+            auth(failing)
+            engine = hey.engine
+            timeout = Duration.INFINITE
+            hooks = object : HeyHooks {
+                override fun onRetry(info: RequestInfo, attempt: Int, error: Throwable, delayMs: Long) { log += "retry" }
+                override fun onRequestEnd(info: RequestInfo, result: RequestResult) { log += "request:${result.error?.message}" }
+                override fun onOperationEnd(info: OperationInfo, result: OperationResult) { log += "operation:${result.error?.message}" }
+            }
+        }
+        val error = assertFailsWith<IllegalStateException> { client.boxes.list() }
+        assertEquals("signer offline", error.message)
+        assertEquals(1, hey.requests.size, "the hop is never sent and nothing is resent")
+        assertEquals(listOf("request:signer offline", "operation:signer offline"), log)
+    }
 }

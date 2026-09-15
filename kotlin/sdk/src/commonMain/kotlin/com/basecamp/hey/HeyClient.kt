@@ -472,6 +472,9 @@ class HeyClient internal constructor(
         val signedUnder: Long,
     )
 
+    /** The auth strategy failed to sign a hop; the failure is passed on as the strategy threw it. */
+    private class Unsigned(val failure: Throwable) : RuntimeException(failure)
+
     /** What one send came back with: the answer, or the place a redirect points. */
     private sealed class Outcome {
         class Answer(val received: Received) : Outcome()
@@ -499,6 +502,11 @@ class HeyClient internal constructor(
             } catch (error: CancellationException) {
                 hooks.safeRequestEnd(info, RequestResult(0, elapsedSince(started), error = reported(error, "request cancelled")))
                 throw error
+            } catch (unsigned: Unsigned) {
+                // The strategy could not sign a hop: its failure, as it would be on the
+                // first request, not a network failure a resend would repeat.
+                hooks.safeRequestEnd(info, RequestResult(0, elapsedSince(started), error = unsigned.failure))
+                throw unsigned.failure
             } catch (error: HeyException) {
                 Result.failure(error)
             } catch (error: Exception) {
@@ -750,7 +758,13 @@ class HeyClient internal constructor(
                     // origin it is made again for the ones it goes to, and off it never is. The
                     // count moves with it: a 401 on the hop is about the credentials it carried.
                     if (sameOrigin && authenticated) {
-                        val (signed, count) = sign(request)
+                        val (signed, count) = try {
+                            sign(request)
+                        } catch (error: CancellationException) {
+                            throw error
+                        } catch (error: Throwable) {
+                            throw Unsigned(error)
+                        }
                         credentials = signed
                         signedUnder = count
                     }
