@@ -435,7 +435,7 @@ fn build_services(
                 query_params: query_params(operation)?,
                 body: body_of(operation, naming)?,
                 response: response_of(operation, naming)?,
-                idempotent: idempotent(http_method, operation),
+                idempotent: idempotent(http_method, operation, semantics),
                 readonly: readonly(semantics, id)?,
                 empty_on: empty_on(operation),
                 pagination: pagination(semantics)?,
@@ -603,11 +603,17 @@ fn representation_of(
     })
 }
 
-fn idempotent(http_method: &str, operation: &Value) -> bool {
-    match operation["x-hey-idempotent"]["natural"].as_bool() {
-        Some(natural) => natural,
-        None => matches!(http_method, "get" | "head" | "put" | "delete"),
+/// Whether the operation may be sent again. The explicit `x-hey-idempotent.natural` has the
+/// last word either way — `UpdateMessage` is a PUT the spec calls not idempotent — and short
+/// of one the behavior model's own `readonly` or `idempotent` says so, which is how a PATCH
+/// earns a resend; the verb stands in when the model says neither.
+fn idempotent(http_method: &str, operation: &Value, semantics: &Value) -> bool {
+    if let Some(natural) = operation["x-hey-idempotent"]["natural"].as_bool() {
+        return natural;
     }
+    let readonly = semantics["readonly"].as_bool().unwrap_or(false);
+    let modelled = semantics["idempotent"].as_bool().unwrap_or(false);
+    readonly || modelled || matches!(http_method, "get" | "head" | "put" | "delete")
 }
 
 fn readonly(semantics: &Value, id: &str) -> Result<bool, String> {

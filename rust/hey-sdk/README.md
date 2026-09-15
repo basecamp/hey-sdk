@@ -321,9 +321,11 @@ wait between them. The client honours that policy on the first request and on ev
 `min(max, max_retries + 1)`, `base_delay` is the least the client waits before the first
 resend, `max_jitter` is added to every wait, and `max_delay` is the most it waits between any
 two, jitter included — the one setting that can shorten the policy's own wait, and the way a
-test suite winds the backoff down. A positive `Retry-After` on a 429 the policy names is honoured as given,
-as a count of seconds or as an HTTP-date, above `max_delay` if need be. A route the model
-gives no policy is sent once, and so is any operation that is not idempotent, whatever its
+test suite winds the backoff down. A positive `Retry-After` on any status the policy resends
+on — a 503 saying how long the outage will last as much as a 429 saying how long to back off —
+is honoured as given, as a count of seconds or as an HTTP-date, above `max_delay` if need
+be. A route the model gives no policy is sent once, and so is any operation that is not
+idempotent, whatever its
 policy says. A path the caller wrote has no policy to bring, so an idempotent one runs on the
 client's settings alone and is resent on 429, 500, 502, 503 and 504; `get_all` and
 `follow_pagination` read every page that way. Any operation is resent once after a 401 that

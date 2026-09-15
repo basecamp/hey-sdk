@@ -52,19 +52,47 @@ fn json_body(schema: &str) -> Value {
     json!({ "content": { "application/json": { "schema": { "$ref": format!("#/components/schemas/{schema}") } } } })
 }
 
+/// A bodiless write on one record, with whatever `x-hey-idempotent` the case needs: `null`
+/// for none, which leaves the model and the verb to decide.
+fn write(verb: &str, id: &str, tag: &str, idempotent: Value) -> Value {
+    let mut operation = json!({
+        "operationId": id,
+        "tags": [tag],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "integer", "format": "int64" } }],
+        "responses": { "200": { "description": "done" } },
+    });
+    if !idempotent.is_null() {
+        operation["x-hey-idempotent"] = idempotent;
+    }
+    json!({ verb: operation })
+}
+
+/// A behavior-model entry for a write: not read-only, resent on the usual statuses, and
+/// called idempotent only when the case says so.
+fn write_semantics(idempotent: Option<bool>) -> Value {
+    let mut entry = json!({ "readonly": false, "retry": { "max": 2, "base_delay_ms": 1000, "retry_on": [429, 503] } });
+    if let Some(idempotent) = idempotent {
+        entry["idempotent"] = json!(idempotent);
+    }
+    entry
+}
+
 fn build(paths: Value, schemas: Value, operations: &[&str]) -> Result<Model, String> {
+    build_under(paths, schemas, &behavior(operations))
+}
+
+fn build_under(paths: Value, schemas: Value, behavior: &Value) -> Result<Model, String> {
     let naming = Naming::parse(NAMES).unwrap();
     let resource_types = ResourceTypes::parse(NAMES).unwrap();
-    Model::build(
-        &openapi(paths, schemas),
-        &behavior(operations),
-        &naming,
-        &resource_types,
-    )
+    Model::build(&openapi(paths, schemas), behavior, &naming, &resource_types)
 }
 
 fn generate(paths: Value, schemas: Value, operations: &[&str]) -> BTreeMap<PathBuf, String> {
     crate::render(&build(paths, schemas, operations).unwrap())
+}
+
+fn generate_under(paths: Value, schemas: Value, behavior: &Value) -> BTreeMap<PathBuf, String> {
+    crate::render(&build_under(paths, schemas, behavior).unwrap())
 }
 
 fn file<'a>(files: &'a BTreeMap<PathBuf, String>, name: &str) -> &'a str {
@@ -320,6 +348,31 @@ fn json_and_empty_responses_take_their_own_send() {
     let routes = file(&files, "routes.rs");
     assert!(route(routes, "GET_BOX").contains("    html: false,\n"));
     assert!(route(routes, "GET_BOX_SEEN").contains("    html: false,\n"));
+}
+
+/// A PATCH is resent only when the model calls the operation idempotent, since the verb
+/// alone promises nothing; the explicit `x-hey-idempotent.natural` has the last word either
+/// way, so a PUT the spec says is not idempotent is sent once whatever the model adds.
+#[test]
+fn idempotency_is_read_from_the_model_before_the_verb() {
+    let files = generate_under(
+        json!({
+            "/boxes/{id}": write("patch", "UpdateBox", "Boxes", Value::Null),
+            "/boxes/{id}/name": write("patch", "RenameBox", "Boxes", Value::Null),
+            "/boxes/{id}/body": write("put", "ReplaceBox", "Boxes", json!({ "natural": false })),
+        }),
+        box_schema(),
+        &json!({ "operations": {
+            "UpdateBox": write_semantics(Some(true)),
+            "RenameBox": write_semantics(None),
+            "ReplaceBox": write_semantics(Some(true)),
+        } }),
+    );
+
+    let routes = file(&files, "routes.rs");
+    assert!(route(routes, "UPDATE_BOX").contains("    idempotent: true,\n"));
+    assert!(route(routes, "RENAME_BOX").contains("    idempotent: false,\n"));
+    assert!(route(routes, "REPLACE_BOX").contains("    idempotent: false,\n"));
 }
 
 #[test]

@@ -55,7 +55,7 @@ pub struct UpdateExtenzionParams {
     /// An empty name is no name, and is left off the wire like a `None` one.
     pub name: Option<String>,
     /// The whole membership, which replaces what the extenzion had rather than adding to
-    /// it.
+    /// it. `None` leaves it alone; an empty list removes every member.
     pub members: Option<Vec<String>>,
 }
 
@@ -120,9 +120,16 @@ impl Extenzions<'_> {
         {
             fields.push(("extenzion[name]", name.as_str()));
         }
+        // The membership is replaced when the field is present at all, so an empty list has
+        // to be on the wire as one blank value — a form carries no empty array — while `None`,
+        // which leaves the membership alone, sends nothing.
         if let Some(members) = &params.members {
-            for member in members {
-                fields.push(("extenzion[members][]", member));
+            if members.is_empty() {
+                fields.push(("extenzion[members][]", ""));
+            } else {
+                for member in members {
+                    fields.push(("extenzion[members][]", member));
+                }
             }
         }
 
