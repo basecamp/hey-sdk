@@ -146,6 +146,9 @@ class HeyClientBuilder {
         if (timeout != Duration.INFINITE && !timeout.isPositive()) {
             throw HeyException.Usage("timeout must be positive or Duration.INFINITE, got: $timeout")
         }
+        if (timeout.isFinite() && timeout.inWholeMilliseconds == 0L) {
+            throw HeyException.Usage("timeout must be at least one millisecond or Duration.INFINITE, got: $timeout")
+        }
         val resolvedAuth = authStrategy
             ?: tokenProvider?.let { BearerAuth(it) }
             ?: throw HeyException.Usage("Authentication must be configured. Use accessToken(\"token\") or auth(strategy).")
@@ -848,16 +851,10 @@ class HeyClient internal constructor(
         }
         received.refusal?.let { refusal ->
             if (status in 200..299) throw refusal
-            val error = HeyException.fromResponse(status, operation.method, headers, ByteArray(0))
-            throw HeyException.Api(
-                error.message ?: "API error: $status",
-                httpStatus = status,
-                hint = refusal.message,
-                retryable = error.retryable,
-                requestId = error.requestId,
-                cause = refusal,
-                responseTooLarge = true,
-            )
+            // The status is what matters about a failure, and a body the client would not
+            // hold is no reason to lose it: the error is the one the status maps to, told why
+            // its body is missing.
+            throw HeyException.fromResponse(status, operation.method, headers, ByteArray(0), refusal)
         }
         val body = received.body
         if (status in 200..299) {
@@ -887,12 +884,18 @@ class HeyClient internal constructor(
         throw HeyException.fromResponse(status, operation.method, headers, body)
     }
 
+    /**
+     * Reads a body up to its bound and refuses it on the first byte past. The buffer never
+     * grows past the bound plus one byte — the one that proves the bound was passed — so a
+     * body at the bound is held once and a body past it costs no more than the bound.
+     */
     private suspend fun readBody(response: HttpResponse, bound: Int): ByteArray {
         val channel = response.bodyAsChannel()
-        var out = ByteArray(16 * 1024)
+        val limit = if (bound == Int.MAX_VALUE) Int.MAX_VALUE else bound + 1
+        var out = ByteArray(minOf(16 * 1024, limit))
         var size = 0
         while (true) {
-            if (size == out.size) out = out.copyOf(out.size * 2)
+            if (size == out.size) out = out.copyOf(minOf(out.size.toLong() * 2, limit.toLong()).toInt())
             val read = channel.readAvailable(out, size, out.size - size)
             if (read < 0) break
             size += read

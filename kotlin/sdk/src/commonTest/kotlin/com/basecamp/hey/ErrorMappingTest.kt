@@ -160,4 +160,29 @@ class ErrorMappingTest {
             assertEquals(true, redacted.startsWith("connect to https://host") || redacted.startsWith("https://host") || redacted.startsWith("see https://host"), redacted)
         }
     }
+
+    @Test
+    fun anOversizedErrorBodyKeepsTheErrorItsStatusMeans() = runTest {
+        val big = """{"errors":["${"x".repeat(2000)}"]}"""
+        val hey = mockHey(
+            status(422, big, mapOf("X-Request-Id" to "req-422")),
+            status(429, big, mapOf("Retry-After" to "3")),
+            status(404, big),
+            status(500, big),
+        )
+        val client = hey.client { maxResponseBodyBytes = 100; enableRetry = false }
+        val validation = assertFailsWith<HeyException.Validation> { client.contacts.get(1) }
+        assertEquals(422, validation.httpStatus)
+        assertEquals(HeyException.CODE_VALIDATION, validation.code)
+        assertEquals("req-422", validation.requestId)
+        assertNull(validation.body, "the body the client refused is not kept")
+        assertEquals(true, validation.responseTooLarge)
+        assertEquals("response body exceeds 100 bytes", validation.hint)
+        val limited = assertFailsWith<HeyException.RateLimit> { client.contacts.get(1) }
+        assertEquals(3L, limited.retryAfterSeconds)
+        assertFailsWith<HeyException.NotFound> { client.contacts.get(1) }
+        val api = assertFailsWith<HeyException.Api> { client.contacts.get(1) }
+        assertEquals(500, api.httpStatus)
+        assertEquals(true, api.responseTooLarge)
+    }
 }

@@ -249,9 +249,12 @@ enum class OccurrenceScope(val wire: String) {
  */
 class CalendarEventsService(client: HeyClient) : GeneratedCalendarEventsService(client) {
     /**
-     * Revises an event. HEY reads a calendar write out of submitted form parameters, so this
-     * posts a form to the JSON path and names only the fields the revision carries; the rest
-     * keep their value.
+     * Revises an event's title, dates and times, and nothing else — partial only in what it
+     * names. HEY reads a calendar write out of submitted form parameters and defaults the
+     * notes, location, link, attached entry, attendees, reminders and countdown to nothing,
+     * so every one of those the event had is cleared by this call. A revision that keeps any
+     * of them goes through [updateEvent], which takes them all; read the event first and
+     * send back what it should keep.
      */
     suspend fun update(eventId: Long, update: CalendarEventUpdate) {
         val operation = client.request(Method.PATCH, "/calendar/events/$eventId")
