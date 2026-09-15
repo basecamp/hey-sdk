@@ -20,6 +20,12 @@ class Page<T> internal constructor(
     val nextUrl: Url?,
     /** The opaque cursor for the page after this one, to pass as `page` on the same read. */
     val nextPage: String?,
+    /**
+     * Where to read next once the pages run out, when HEY named one: a change feed's last
+     * page links to the cursor to poll from later rather than to another page. A walk stops
+     * here; the URL is the caller's to come back to.
+     */
+    val nextCursor: Url?,
     /** The `X-Total-Count` header, when the read carried one. */
     val totalCount: Long?,
     internal val info: OperationInfo,
@@ -29,7 +35,7 @@ class Page<T> internal constructor(
     /** Whether HEY named a page after this one. */
     val hasNext: Boolean get() = nextUrl != null
 
-    override fun toString(): String = "Page(value=$value, nextPage=$nextPage, totalCount=$totalCount)"
+    override fun toString(): String = "Page(value=$value, nextPage=$nextPage, nextCursor=$nextCursor, totalCount=$totalCount)"
 
     internal companion object {
         fun <T> of(
@@ -39,10 +45,15 @@ class Page<T> internal constructor(
             route: Route?,
             deserializer: DeserializationStrategy<T>,
         ): Page<T> {
-            val nextUrl = response.header("Link")?.let(::nextLink)?.let { target -> resolveReference(response.url, target) }
-            val nextPage = nextUrl?.parameters?.get("page")
+            val linked = response.header("Link")?.let(::nextLink)?.let { target -> resolveReference(response.url, target) }
+            // A Link that names a further page carries the page parameter; one that does not is
+            // where to poll next — a change feed's last page says so — and no page at all.
+            val pageParameter = route?.pageParameter ?: "page"
+            val nextPage = linked?.parameters?.get(pageParameter)
+            val nextUrl = linked?.takeIf { nextPage != null }
+            val nextCursor = linked?.takeIf { nextPage == null }
             val totalCount = response.header("X-Total-Count")?.trim()?.toLongOrNull()
-            return Page(value, nextUrl, nextPage, totalCount, info, route, deserializer)
+            return Page(value, nextUrl, nextPage, nextCursor, totalCount, info, route, deserializer)
         }
     }
 }
@@ -83,7 +94,7 @@ private fun linkIsNext(params: String): Boolean =
 suspend fun <T> HeyClient.nextPage(page: Page<T>): Page<T>? {
     val next = page.nextUrl ?: return null
     if (!isSameOrigin(next, baseUrl)) {
-        throw HeyException.Usage("pagination Link header points to a different origin: $next")
+        throw HeyException.Usage("pagination Link header points to a different origin: ${next.protocol.name}://${next.host}")
     }
     val operation = Operation.at(Method.GET, next, page.route)
     operation.info(page.info)

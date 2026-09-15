@@ -21,7 +21,8 @@ import io.ktor.http.HttpHeaders
  * The client asks for the token under the same lock it refreshes under, so a request is
  * signed with credentials a refresh cannot change halfway: [accessToken] and [refresh] are
  * called one at a time, and neither may use the client itself, which would wait on that
- * lock forever.
+ * lock forever. A refresh runs in the client's own scope: the request that earned it being
+ * cancelled does not cancel it, and every stale request waits on the same one.
  */
 interface TokenProvider {
     /** Returns the current access token. */

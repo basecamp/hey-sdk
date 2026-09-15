@@ -5,6 +5,7 @@ import com.basecamp.hey.generated.models.MessagePayload
 import io.ktor.http.headersOf
 import com.basecamp.hey.generated.*
 import kotlinx.coroutines.test.runTest
+import java.io.IOException
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -107,5 +108,31 @@ class ErrorMappingTest {
         assertEquals("body does not decode: missing required field 'kind', at path \$", decodeHint("Field 'kind' is required for type 'Box', but it was missing at path: \$"))
         assertEquals("body does not decode: at path \$.id, at offset 42", decodeHint("Unexpected JSON token at offset 42: Expected quotation mark '\"', but had '}' instead at path: \$.id\nJSON input: {\"secret\":1}"))
         assertEquals("body does not decode", decodeHint(null))
+    }
+
+    @Test
+    fun aFailureOnAHopNeverQuotesWhereTheHopWent() = runTest {
+        val secret = "sig=distinctive-secret"
+        val hey = mockHey(
+            status(302, headers = mapOf("Location" to "https://files.example.com/export.json?$secret")),
+            Answer(0, failure = IOException("connect to https://files.example.com/export.json?$secret failed")),
+        )
+        val seen = mutableListOf<Throwable>()
+        val client = hey.client {
+            enableRetry = false
+            hooks = object : HeyHooks {
+                override fun onRequestEnd(info: RequestInfo, result: RequestResult) { result.error?.let { seen += it } }
+                override fun onOperationEnd(info: OperationInfo, result: OperationResult) { result.error?.let { seen += it } }
+            }
+        }
+        val error = assertFailsWith<HeyException.Network> { client.boxes.list() }
+        val everything = listOf(error.toString(), error.message, error.hint, error.stackTraceToString()) +
+            generateSequence(error.cause) { it.cause }.map { it.toString() } + seen.map { it.toString() + (it as? HeyException)?.hint }
+        assertEquals(false, everything.any { it?.contains("distinctive") == true }, "the signed target leaked: $everything")
+        assertEquals("connect to https://files.example.com failed", error.hint)
+
+        val downgrade = mockHey(status(302, headers = mapOf("Location" to "http://app.hey.com/export.json?$secret")))
+        val refused = assertFailsWith<HeyException.Usage> { downgrade.client().boxes.list() }
+        assertEquals("http://app.hey.com must use HTTPS", refused.message)
     }
 }

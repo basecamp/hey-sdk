@@ -9,6 +9,9 @@ import com.basecamp.hey.json
 import com.basecamp.hey.generated.models.MarkPostingsRequestContent
 import com.basecamp.hey.generated.models.MovePostingsRequestContent
 import com.basecamp.hey.generated.models.TrashPostingsRequestContent
+import com.basecamp.hey.generated.models.GetBoxPostingChangesResponseContent
+import com.basecamp.hey.generated.services.GetBoxPostingChangesOptions
+import com.basecamp.hey.Page
 import com.basecamp.hey.generated.services.PostingsService as GeneratedPostingsService
 
 /**
@@ -48,6 +51,23 @@ class PostingsService(client: HeyClient) : GeneratedPostingsService(client) {
     /** Mutes postings. */
     suspend fun mutePostings(postingIds: List<Long>) =
         bulk(Routes.MUTE_POSTINGS, postingIds, MarkPostingsRequestContent(selection(postingIds)))
+
+    /**
+     * Reads a box's change feed from a cursor, as the generated [getBoxChanges] does but
+     * without the response cache: a cursor URL never repeats, so a cached answer would never
+     * be revalidated and a long-running watch would grow the cache one dead entry per read.
+     * The page's `nextCursor` is where to poll from next once its pages run out.
+     */
+    suspend fun changes(boxId: Long, since: String, options: GetBoxPostingChangesOptions? = null): Page<GetBoxPostingChangesResponseContent> {
+        val operation = client.operation(Routes.GET_BOX_POSTING_CHANGES, listOf(boxId))
+        operation.resourceId(boxId)
+        operation.query("since", since)
+        operation.queryOptional("v", options?.v)
+        operation.queryOptional("page", options?.page)
+        operation.queryOptional("per_page", options?.perPage)
+        operation.noCache()
+        return client.sendPage(operation)
+    }
 
     /** Moves postings to a box. */
     suspend fun moveToBox(boxId: Long, postingIds: List<Long>) =

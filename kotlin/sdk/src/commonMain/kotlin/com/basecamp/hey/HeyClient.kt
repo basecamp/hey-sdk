@@ -6,7 +6,6 @@ import com.basecamp.hey.generated.models.Identity
 import io.ktor.client.HttpClient
 import io.ktor.client.HttpClientConfig
 import io.ktor.client.engine.HttpClientEngine
-import io.ktor.client.plugins.HttpRequestTimeoutException
 import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.request.HttpRequestBuilder
 import io.ktor.client.request.header
@@ -26,6 +25,12 @@ import io.ktor.http.parseQueryString
 import io.ktor.http.takeFrom
 import io.ktor.utils.io.readAvailable
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Deferred
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.async
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -214,6 +219,12 @@ internal class Shared(
 
     /** One refresh at a time. */
     val refreshing = Mutex()
+
+    /** The refresh in flight, for every stale request to wait on; null between refreshes. */
+    var refresh: Deferred<Boolean>? = null
+
+    /** Where the client runs what outlives a request: a refresh. Cancelled when the root client closes. */
+    val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 }
 
 /**
@@ -546,29 +557,47 @@ class HeyClient internal constructor(
         }
     }
 
+    /**
+     * A transport failure as the SDK reports it: what went wrong, with any URL the transport
+     * quoted cut back to its origin, since a redirect target can carry a signed query. The
+     * transport's own exception is not kept, for the same reason. A timeout is as retryable
+     * as any other failure to get an answer; the operation's idempotency and its budget say
+     * whether it is resent.
+     */
     private fun networkFailure(error: Exception): HeyException =
         HeyException.Network(
             "Network error",
-            hint = HeyException.truncateMessage(error.message ?: error::class.simpleName ?: "unknown"),
-            cause = error,
-            // An attempt that ran the whole request budget out is a slowness a resend tends to repeat.
-            retryable = error !is HttpRequestTimeoutException,
+            hint = HeyException.truncateMessage(redactUrls(error.message ?: error::class.simpleName ?: "unknown")),
+            retryable = true,
         )
 
     /**
      * Answers a 401 with fresh credentials, once for all the requests the stale ones earned
      * it on. Refreshes go one at a time, and a request that was signed before the last
      * refresh is simply resent: the credentials it will pick up are already the new ones.
+     *
+     * The refresh runs in the client's own scope rather than the request's, so a request
+     * cancelled while waiting for it leaves it running: a refresh half done is a rotated
+     * token nobody holds, and every other stale request is waiting on the same one.
      */
-    private suspend fun refreshCredentials(signedUnder: Long): Boolean = shared.refreshing.withLock {
-        when {
-            shared.refreshes != signedUnder -> true
-            shared.auth.refresh() -> {
-                shared.refreshes += 1
-                true
-            }
-            else -> false
+    private suspend fun refreshCredentials(signedUnder: Long): Boolean {
+        val refresh = shared.refreshing.withLock {
+            if (shared.refreshes != signedUnder) return true
+            shared.refresh ?: shared.scope.async {
+                // Under the lock for its whole run, so no request is signed while the
+                // credentials are changing hands, and the count moves with them.
+                shared.refreshing.withLock {
+                    try {
+                        val renewed = shared.auth.refresh()
+                        if (renewed) shared.refreshes += 1
+                        renewed
+                    } finally {
+                        shared.refresh = null
+                    }
+                }
+            }.also { shared.refresh = it }
         }
+        return refresh.await()
     }
 
     internal fun urlFor(operation: Operation): Url {
@@ -924,7 +953,9 @@ class HeyClient internal constructor(
      * closing it closes nothing.
      */
     fun close() {
-        if (root) shared.http.close()
+        if (!root) return
+        shared.scope.cancel()
+        shared.http.close()
     }
 }
 

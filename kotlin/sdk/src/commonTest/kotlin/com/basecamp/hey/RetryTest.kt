@@ -125,4 +125,17 @@ class RetryTest {
         assertFailsWith<HeyException.NotFound> { hey.client().boxes.get(99999) }
         assertEquals(1, hey.requests.size)
     }
+
+    @Test
+    fun aTimeoutIsResentLikeAnyOtherFailureToGetAnAnswer() = runTest {
+        val timeout = io.ktor.client.plugins.HttpRequestTimeoutException("https://app.hey.com/boxes.json", 30_000L)
+        val hey = mockHey(Answer(0, failure = timeout), ok("[]"))
+        hey.client().boxes.list()
+        assertEquals(2, hey.requests.size)
+
+        val exhausted = mockHey(Answer(0, failure = timeout), Answer(0, failure = timeout), Answer(0, failure = timeout))
+        val error = assertFailsWith<HeyException.Network> { exhausted.client().boxes.list() }
+        assertTrue(error.retryable, "still retryable once the budget is spent: the caller may try again")
+        assertEquals(3, exhausted.requests.size)
+    }
 }

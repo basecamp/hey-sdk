@@ -31,6 +31,7 @@ object Routes {
         html = false,
         emptyOn = emptyList(),
         pagination = Pagination.NONE,
+        pageParameter = null,
         retry = RetryPolicy(max = 2, baseDelayMs = 1000L, retryOn = listOf(429, 503)),
     )
 
@@ -49,6 +50,7 @@ object Routes {
         html = false,
         emptyOn = emptyList(),
         pagination = Pagination.LINK,
+        pageParameter = null,
         retry = RetryPolicy(max = 3, baseDelayMs = 1000L, retryOn = listOf(429, 503)),
     )
 
@@ -67,6 +69,7 @@ object Routes {
         html = false,
         emptyOn = emptyList(),
         pagination = Pagination.NONE,
+        pageParameter = null,
         retry = RetryPolicy(max = 2, baseDelayMs = 1000L, retryOn = listOf(429, 503)),
     )
 
@@ -85,6 +88,7 @@ object Routes {
         html = false,
         emptyOn = emptyList(),
         pagination = Pagination.NONE,
+        pageParameter = null,
         retry = RetryPolicy(max = 2, baseDelayMs = 1000L, retryOn = listOf(429, 503)),
     )
 
@@ -105,6 +109,7 @@ object Routes {
         html = false,
         emptyOn = emptyList(),
         pagination = Pagination.NONE,
+        pageParameter = null,
         retry = RetryPolicy(max = 2, baseDelayMs = 1000L, retryOn = listOf(429, 503)),
     )
 
@@ -123,6 +128,7 @@ object Routes {
         html = false,
         emptyOn = emptyList(),
         pagination = Pagination.NONE,
+        pageParameter = null,
         retry = RetryPolicy(max = 2, baseDelayMs = 1000L, retryOn = listOf(429, 503)),
     )
 
@@ -143,6 +149,7 @@ object Routes {
         html = false,
         emptyOn = emptyList(),
         pagination = Pagination.NONE,
+        pageParameter = null,
         retry = RetryPolicy(max = 3, baseDelayMs = 1000L, retryOn = listOf(429, 503)),
     )
 
@@ -164,6 +171,7 @@ object Routes {
         html = false,
         emptyOn = emptyList(),
         pagination = Pagination.NONE,
+        pageParameter = null,
         retry = RetryPolicy(max = 3, baseDelayMs = 1000L, retryOn = listOf(429, 503)),
     )
 
@@ -184,6 +192,7 @@ object Routes {
         html = false,
         emptyOn = emptyList(),
         pagination = Pagination.NONE,
+        pageParameter = null,
         retry = RetryPolicy(max = 2, baseDelayMs = 1000L, retryOn = listOf(429, 503)),
     )
 
@@ -204,6 +213,7 @@ object Routes {
         html = false,
         emptyOn = emptyList(),
         pagination = Pagination.NONE,
+        pageParameter = null,
         retry = RetryPolicy(max = 2, baseDelayMs = 1000L, retryOn = listOf(429, 503)),
     )
 
@@ -222,6 +232,7 @@ object Routes {
         html = false,
         emptyOn = emptyList(),
         pagination = Pagination.NONE,
+        pageParameter = null,
         retry = RetryPolicy(max = 0, baseDelayMs = 1000L, retryOn = emptyList()),
     )
 
@@ -240,6 +251,7 @@ object Routes {
         html = false,
         emptyOn = emptyList(),
         pagination = Pagination.NONE,
+        pageParameter = null,
         retry = RetryPolicy(max = 2, baseDelayMs = 1000L, retryOn = listOf(429, 503)),
     )
 
@@ -258,6 +270,7 @@ object Routes {
         html = false,
         emptyOn = emptyList(),
         pagination = Pagination.NONE,
+        pageParameter = null,
         retry = RetryPolicy(max = 2, baseDelayMs = 1000L, retryOn = listOf(429, 503)),
     )
 
@@ -276,6 +289,7 @@ object Routes {
         html = false,
         emptyOn = emptyList(),
         pagination = Pagination.NONE,
+        pageParameter = null,
         retry = RetryPolicy(max = 0, baseDelayMs = 1000L, retryOn = emptyList()),
     )
 
@@ -294,6 +308,7 @@ object Routes {
         html = false,
         emptyOn = emptyList(),
         pagination = Pagination.NONE,
+        pageParameter = null,
         retry = RetryPolicy(max = 2, baseDelayMs = 1000L, retryOn = listOf(429, 503)),
     )
 
@@ -312,6 +327,7 @@ object Routes {
         html = false,
         emptyOn = emptyList(),
         pagination = Pagination.NONE,
+        pageParameter = null,
         retry = RetryPolicy(max = 2, baseDelayMs = 1000L, retryOn = listOf(429, 503)),
     )
 
@@ -330,6 +346,7 @@ object Routes {
         html = false,
         emptyOn = emptyList(),
         pagination = Pagination.NONE,
+        pageParameter = null,
         retry = RetryPolicy(max = 2, baseDelayMs = 1000L, retryOn = listOf(429, 503)),
     )
 
@@ -350,6 +367,7 @@ object Routes {
         html = false,
         emptyOn = emptyList(),
         pagination = Pagination.NONE,
+        pageParameter = null,
         retry = RetryPolicy(max = 2, baseDelayMs = 1000L, retryOn = listOf(429, 503)),
     )
 
@@ -368,6 +386,7 @@ object Routes {
         html = false,
         emptyOn = emptyList(),
         pagination = Pagination.NONE,
+        pageParameter = null,
         retry = RetryPolicy(max = 2, baseDelayMs = 1000L, retryOn = listOf(429, 503)),
     )
 
@@ -386,6 +405,7 @@ object Routes {
         html = false,
         emptyOn = emptyList(),
         pagination = Pagination.NONE,
+        pageParameter = null,
         retry = RetryPolicy(max = 2, baseDelayMs = 1000L, retryOn = listOf(429, 503)),
     )
 
@@ -407,6 +427,7 @@ object Routes {
         html = false,
         emptyOn = emptyList(),
         pagination = Pagination.NONE,
+        pageParameter = null,
         retry = RetryPolicy(max = 0, baseDelayMs = 1000L, retryOn = emptyList()),
     )
 
@@ -428,6 +449,7 @@ object Routes {
         html = false,
         emptyOn = emptyList(),
         pagination = Pagination.NONE,
+        pageParameter = null,
         retry = RetryPolicy(max = 2, baseDelayMs = 1000L, retryOn = listOf(429, 503)),
     )
 
@@ -449,6 +471,7 @@ object Routes {
         html = false,
         emptyOn = emptyList(),
         pagination = Pagination.NONE,
+        pageParameter = null,
         retry = RetryPolicy(max = 2, baseDelayMs = 1000L, retryOn = listOf(429, 503)),
     )
 
@@ -469,6 +492,7 @@ object Routes {
         html = false,
         emptyOn = emptyList(),
         pagination = Pagination.NONE,
+        pageParameter = null,
         retry = RetryPolicy(max = 3, baseDelayMs = 1000L, retryOn = listOf(429, 503)),
     )
 
@@ -490,6 +514,7 @@ object Routes {
         html = false,
         emptyOn = emptyList(),
         pagination = Pagination.NONE,
+        pageParameter = null,
         retry = RetryPolicy(max = 3, baseDelayMs = 1000L, retryOn = listOf(429, 503)),
     )
 
@@ -510,6 +535,7 @@ object Routes {
         html = false,
         emptyOn = emptyList(),
         pagination = Pagination.NONE,
+        pageParameter = null,
         retry = RetryPolicy(max = 3, baseDelayMs = 1000L, retryOn = listOf(429, 503)),
     )
 
@@ -530,6 +556,7 @@ object Routes {
         html = false,
         emptyOn = emptyList(),
         pagination = Pagination.NONE,
+        pageParameter = null,
         retry = RetryPolicy(max = 2, baseDelayMs = 1000L, retryOn = listOf(429, 503)),
     )
 
@@ -550,6 +577,7 @@ object Routes {
         html = false,
         emptyOn = emptyList(),
         pagination = Pagination.NONE,
+        pageParameter = null,
         retry = RetryPolicy(max = 2, baseDelayMs = 1000L, retryOn = listOf(429, 503)),
     )
 
@@ -571,6 +599,7 @@ object Routes {
         html = false,
         emptyOn = emptyList(),
         pagination = Pagination.NONE,
+        pageParameter = null,
         retry = RetryPolicy(max = 2, baseDelayMs = 1000L, retryOn = listOf(429, 503)),
     )
 
@@ -591,6 +620,7 @@ object Routes {
         html = false,
         emptyOn = emptyList(),
         pagination = Pagination.NONE,
+        pageParameter = null,
         retry = RetryPolicy(max = 2, baseDelayMs = 1000L, retryOn = listOf(429, 503)),
     )
 
@@ -611,6 +641,7 @@ object Routes {
         html = false,
         emptyOn = emptyList(),
         pagination = Pagination.NONE,
+        pageParameter = null,
         retry = RetryPolicy(max = 2, baseDelayMs = 1000L, retryOn = listOf(429, 503)),
     )
 
@@ -631,6 +662,7 @@ object Routes {
         html = false,
         emptyOn = emptyList(),
         pagination = Pagination.NONE,
+        pageParameter = null,
         retry = RetryPolicy(max = 2, baseDelayMs = 1000L, retryOn = listOf(429, 503)),
     )
 
@@ -649,6 +681,7 @@ object Routes {
         html = false,
         emptyOn = emptyList(),
         pagination = Pagination.NONE,
+        pageParameter = null,
         retry = RetryPolicy(max = 2, baseDelayMs = 1000L, retryOn = listOf(429, 503)),
     )
 
@@ -667,6 +700,7 @@ object Routes {
         html = false,
         emptyOn = emptyList(),
         pagination = Pagination.NONE,
+        pageParameter = null,
         retry = RetryPolicy(max = 2, baseDelayMs = 1000L, retryOn = listOf(429, 503)),
     )
 
@@ -685,6 +719,7 @@ object Routes {
         html = false,
         emptyOn = emptyList(),
         pagination = Pagination.NONE,
+        pageParameter = null,
         retry = RetryPolicy(max = 2, baseDelayMs = 1000L, retryOn = listOf(429, 503)),
     )
 
@@ -703,6 +738,7 @@ object Routes {
         html = false,
         emptyOn = emptyList(),
         pagination = Pagination.NONE,
+        pageParameter = null,
         retry = RetryPolicy(max = 3, baseDelayMs = 1000L, retryOn = listOf(429, 503)),
     )
 
@@ -721,6 +757,7 @@ object Routes {
         html = false,
         emptyOn = emptyList(),
         pagination = Pagination.NONE,
+        pageParameter = null,
         retry = RetryPolicy(max = 3, baseDelayMs = 1000L, retryOn = listOf(429, 503)),
     )
 
@@ -741,6 +778,7 @@ object Routes {
         html = false,
         emptyOn = emptyList(),
         pagination = Pagination.LINK,
+        pageParameter = null,
         retry = RetryPolicy(max = 3, baseDelayMs = 1000L, retryOn = listOf(429, 503)),
     )
 
@@ -762,6 +800,7 @@ object Routes {
         html = false,
         emptyOn = emptyList(),
         pagination = Pagination.LINK,
+        pageParameter = null,
         retry = RetryPolicy(max = 3, baseDelayMs = 1000L, retryOn = listOf(429, 503)),
     )
 
@@ -782,6 +821,7 @@ object Routes {
         html = false,
         emptyOn = emptyList(),
         pagination = Pagination.LINK,
+        pageParameter = "page",
         retry = RetryPolicy(max = 3, baseDelayMs = 1000L, retryOn = listOf(429, 503)),
     )
 
@@ -800,6 +840,7 @@ object Routes {
         html = false,
         emptyOn = emptyList(),
         pagination = Pagination.NONE,
+        pageParameter = null,
         retry = RetryPolicy(max = 3, baseDelayMs = 1000L, retryOn = listOf(429, 503)),
     )
 
@@ -820,6 +861,7 @@ object Routes {
         html = false,
         emptyOn = emptyList(),
         pagination = Pagination.LINK,
+        pageParameter = null,
         retry = RetryPolicy(max = 3, baseDelayMs = 1000L, retryOn = listOf(429, 503)),
     )
 
@@ -840,6 +882,7 @@ object Routes {
         html = false,
         emptyOn = emptyList(),
         pagination = Pagination.NONE,
+        pageParameter = null,
         retry = RetryPolicy(max = 3, baseDelayMs = 1000L, retryOn = listOf(429, 503)),
     )
 
@@ -860,6 +903,7 @@ object Routes {
         html = false,
         emptyOn = emptyList(),
         pagination = Pagination.WINDOW,
+        pageParameter = null,
         retry = RetryPolicy(max = 3, baseDelayMs = 1000L, retryOn = listOf(429, 503)),
     )
 
@@ -880,6 +924,7 @@ object Routes {
         html = false,
         emptyOn = emptyList(),
         pagination = Pagination.NONE,
+        pageParameter = null,
         retry = RetryPolicy(max = 3, baseDelayMs = 1000L, retryOn = listOf(429, 503)),
     )
 
@@ -900,6 +945,7 @@ object Routes {
         html = false,
         emptyOn = emptyList(),
         pagination = Pagination.NONE,
+        pageParameter = null,
         retry = RetryPolicy(max = 3, baseDelayMs = 1000L, retryOn = listOf(429, 503)),
     )
 
@@ -918,6 +964,7 @@ object Routes {
         html = false,
         emptyOn = emptyList(),
         pagination = Pagination.LINK,
+        pageParameter = null,
         retry = RetryPolicy(max = 3, baseDelayMs = 1000L, retryOn = listOf(429, 503)),
     )
 
@@ -938,6 +985,7 @@ object Routes {
         html = false,
         emptyOn = emptyList(),
         pagination = Pagination.LINK,
+        pageParameter = null,
         retry = RetryPolicy(max = 3, baseDelayMs = 1000L, retryOn = listOf(429, 503)),
     )
 
@@ -958,6 +1006,7 @@ object Routes {
         html = false,
         emptyOn = emptyList(),
         pagination = Pagination.LINK,
+        pageParameter = null,
         retry = RetryPolicy(max = 3, baseDelayMs = 1000L, retryOn = listOf(429, 503)),
     )
 
@@ -978,6 +1027,7 @@ object Routes {
         html = false,
         emptyOn = emptyList(),
         pagination = Pagination.NONE,
+        pageParameter = null,
         retry = RetryPolicy(max = 3, baseDelayMs = 1000L, retryOn = listOf(429, 503)),
     )
 
@@ -996,6 +1046,7 @@ object Routes {
         html = false,
         emptyOn = emptyList(),
         pagination = Pagination.LINK,
+        pageParameter = null,
         retry = RetryPolicy(max = 3, baseDelayMs = 1000L, retryOn = listOf(429, 503)),
     )
 
@@ -1014,6 +1065,7 @@ object Routes {
         html = false,
         emptyOn = emptyList(),
         pagination = Pagination.NONE,
+        pageParameter = null,
         retry = RetryPolicy(max = 3, baseDelayMs = 1000L, retryOn = listOf(429, 503)),
     )
 
@@ -1034,6 +1086,7 @@ object Routes {
         html = false,
         emptyOn = emptyList(),
         pagination = Pagination.LINK,
+        pageParameter = null,
         retry = RetryPolicy(max = 3, baseDelayMs = 1000L, retryOn = listOf(429, 503)),
     )
 
@@ -1052,6 +1105,7 @@ object Routes {
         html = false,
         emptyOn = emptyList(),
         pagination = Pagination.NONE,
+        pageParameter = null,
         retry = RetryPolicy(max = 3, baseDelayMs = 1000L, retryOn = listOf(429, 503)),
     )
 
@@ -1070,6 +1124,7 @@ object Routes {
         html = false,
         emptyOn = emptyList(),
         pagination = Pagination.NONE,
+        pageParameter = null,
         retry = RetryPolicy(max = 3, baseDelayMs = 1000L, retryOn = listOf(429, 503)),
     )
 
@@ -1088,6 +1143,7 @@ object Routes {
         html = false,
         emptyOn = emptyList(),
         pagination = Pagination.NONE,
+        pageParameter = null,
         retry = RetryPolicy(max = 3, baseDelayMs = 1000L, retryOn = listOf(429, 503)),
     )
 
@@ -1108,6 +1164,7 @@ object Routes {
         html = false,
         emptyOn = emptyList(),
         pagination = Pagination.NONE,
+        pageParameter = null,
         retry = RetryPolicy(max = 3, baseDelayMs = 1000L, retryOn = listOf(429, 503)),
     )
 
@@ -1126,6 +1183,7 @@ object Routes {
         html = false,
         emptyOn = emptyList(),
         pagination = Pagination.NONE,
+        pageParameter = null,
         retry = RetryPolicy(max = 3, baseDelayMs = 1000L, retryOn = listOf(429, 503)),
     )
 
@@ -1146,6 +1204,7 @@ object Routes {
         html = false,
         emptyOn = emptyList(),
         pagination = Pagination.NONE,
+        pageParameter = null,
         retry = RetryPolicy(max = 3, baseDelayMs = 1000L, retryOn = listOf(429, 503)),
     )
 
@@ -1166,6 +1225,7 @@ object Routes {
         html = false,
         emptyOn = emptyList(),
         pagination = Pagination.NONE,
+        pageParameter = null,
         retry = RetryPolicy(max = 3, baseDelayMs = 1000L, retryOn = listOf(429, 503)),
     )
 
@@ -1184,6 +1244,7 @@ object Routes {
         html = false,
         emptyOn = emptyList(),
         pagination = Pagination.LINK,
+        pageParameter = null,
         retry = RetryPolicy(max = 3, baseDelayMs = 1000L, retryOn = listOf(429, 503)),
     )
 
@@ -1202,6 +1263,7 @@ object Routes {
         html = false,
         emptyOn = emptyList(),
         pagination = Pagination.NONE,
+        pageParameter = null,
         retry = RetryPolicy(max = 3, baseDelayMs = 1000L, retryOn = listOf(429, 503)),
     )
 
@@ -1220,6 +1282,7 @@ object Routes {
         html = false,
         emptyOn = listOf(404),
         pagination = Pagination.NONE,
+        pageParameter = null,
         retry = RetryPolicy(max = 3, baseDelayMs = 1000L, retryOn = listOf(429, 503)),
     )
 
@@ -1238,6 +1301,7 @@ object Routes {
         html = false,
         emptyOn = emptyList(),
         pagination = Pagination.LINK,
+        pageParameter = null,
         retry = RetryPolicy(max = 3, baseDelayMs = 1000L, retryOn = listOf(429, 503)),
     )
 
@@ -1256,6 +1320,7 @@ object Routes {
         html = false,
         emptyOn = emptyList(),
         pagination = Pagination.LINK,
+        pageParameter = null,
         retry = RetryPolicy(max = 3, baseDelayMs = 1000L, retryOn = listOf(429, 503)),
     )
 
@@ -1276,6 +1341,7 @@ object Routes {
         html = false,
         emptyOn = emptyList(),
         pagination = Pagination.NONE,
+        pageParameter = null,
         retry = RetryPolicy(max = 3, baseDelayMs = 1000L, retryOn = listOf(429, 503)),
     )
 
@@ -1296,6 +1362,7 @@ object Routes {
         html = false,
         emptyOn = emptyList(),
         pagination = Pagination.LINK,
+        pageParameter = null,
         retry = RetryPolicy(max = 3, baseDelayMs = 1000L, retryOn = listOf(429, 503)),
     )
 
@@ -1316,6 +1383,7 @@ object Routes {
         html = false,
         emptyOn = emptyList(),
         pagination = Pagination.NONE,
+        pageParameter = null,
         retry = RetryPolicy(max = 3, baseDelayMs = 1000L, retryOn = listOf(429, 503)),
     )
 
@@ -1334,6 +1402,7 @@ object Routes {
         html = false,
         emptyOn = emptyList(),
         pagination = Pagination.NONE,
+        pageParameter = null,
         retry = RetryPolicy(max = 3, baseDelayMs = 1000L, retryOn = listOf(429, 503)),
     )
 
@@ -1352,6 +1421,7 @@ object Routes {
         html = false,
         emptyOn = emptyList(),
         pagination = Pagination.LINK,
+        pageParameter = null,
         retry = RetryPolicy(max = 3, baseDelayMs = 1000L, retryOn = listOf(429, 503)),
     )
 
@@ -1372,6 +1442,7 @@ object Routes {
         html = false,
         emptyOn = emptyList(),
         pagination = Pagination.NONE,
+        pageParameter = null,
         retry = RetryPolicy(max = 3, baseDelayMs = 1000L, retryOn = listOf(429, 503)),
     )
 
@@ -1393,6 +1464,7 @@ object Routes {
         html = true,
         emptyOn = emptyList(),
         pagination = Pagination.NONE,
+        pageParameter = null,
         retry = RetryPolicy(max = 3, baseDelayMs = 1000L, retryOn = listOf(429, 503)),
     )
 
@@ -1413,6 +1485,7 @@ object Routes {
         html = false,
         emptyOn = emptyList(),
         pagination = Pagination.NONE,
+        pageParameter = null,
         retry = RetryPolicy(max = 2, baseDelayMs = 1000L, retryOn = listOf(429, 503)),
     )
 
@@ -1433,6 +1506,7 @@ object Routes {
         html = false,
         emptyOn = emptyList(),
         pagination = Pagination.NONE,
+        pageParameter = null,
         retry = RetryPolicy(max = 3, baseDelayMs = 1000L, retryOn = listOf(429, 503)),
     )
 
@@ -1451,6 +1525,7 @@ object Routes {
         html = false,
         emptyOn = emptyList(),
         pagination = Pagination.LINK,
+        pageParameter = null,
         retry = RetryPolicy(max = 3, baseDelayMs = 1000L, retryOn = listOf(429, 503)),
     )
 
@@ -1469,6 +1544,7 @@ object Routes {
         html = false,
         emptyOn = emptyList(),
         pagination = Pagination.NONE,
+        pageParameter = null,
         retry = RetryPolicy(max = 3, baseDelayMs = 1000L, retryOn = listOf(429, 503)),
     )
 
@@ -1487,6 +1563,7 @@ object Routes {
         html = false,
         emptyOn = emptyList(),
         pagination = Pagination.NONE,
+        pageParameter = null,
         retry = RetryPolicy(max = 3, baseDelayMs = 1000L, retryOn = listOf(429, 503)),
     )
 
@@ -1505,6 +1582,7 @@ object Routes {
         html = false,
         emptyOn = emptyList(),
         pagination = Pagination.NONE,
+        pageParameter = null,
         retry = RetryPolicy(max = 3, baseDelayMs = 1000L, retryOn = listOf(429, 503)),
     )
 
@@ -1523,6 +1601,7 @@ object Routes {
         html = false,
         emptyOn = emptyList(),
         pagination = Pagination.LINK,
+        pageParameter = null,
         retry = RetryPolicy(max = 3, baseDelayMs = 1000L, retryOn = listOf(429, 503)),
     )
 
@@ -1541,6 +1620,7 @@ object Routes {
         html = false,
         emptyOn = emptyList(),
         pagination = Pagination.NONE,
+        pageParameter = null,
         retry = RetryPolicy(max = 3, baseDelayMs = 1000L, retryOn = listOf(429, 503)),
     )
 
@@ -1559,6 +1639,7 @@ object Routes {
         html = false,
         emptyOn = emptyList(),
         pagination = Pagination.LINK,
+        pageParameter = null,
         retry = RetryPolicy(max = 3, baseDelayMs = 1000L, retryOn = listOf(429, 503)),
     )
 
@@ -1577,6 +1658,7 @@ object Routes {
         html = false,
         emptyOn = emptyList(),
         pagination = Pagination.LINK,
+        pageParameter = null,
         retry = RetryPolicy(max = 3, baseDelayMs = 1000L, retryOn = listOf(429, 503)),
     )
 
@@ -1595,6 +1677,7 @@ object Routes {
         html = false,
         emptyOn = emptyList(),
         pagination = Pagination.LINK,
+        pageParameter = null,
         retry = RetryPolicy(max = 3, baseDelayMs = 1000L, retryOn = listOf(429, 503)),
     )
 
@@ -1613,6 +1696,7 @@ object Routes {
         html = false,
         emptyOn = emptyList(),
         pagination = Pagination.NONE,
+        pageParameter = null,
         retry = RetryPolicy(max = 3, baseDelayMs = 1000L, retryOn = listOf(429, 503)),
     )
 
@@ -1631,6 +1715,7 @@ object Routes {
         html = false,
         emptyOn = emptyList(),
         pagination = Pagination.NONE,
+        pageParameter = null,
         retry = RetryPolicy(max = 3, baseDelayMs = 1000L, retryOn = listOf(429, 503)),
     )
 
@@ -1649,6 +1734,7 @@ object Routes {
         html = false,
         emptyOn = emptyList(),
         pagination = Pagination.NONE,
+        pageParameter = null,
         retry = RetryPolicy(max = 3, baseDelayMs = 1000L, retryOn = listOf(429, 503)),
     )
 
@@ -1667,6 +1753,7 @@ object Routes {
         html = false,
         emptyOn = emptyList(),
         pagination = Pagination.LINK,
+        pageParameter = null,
         retry = RetryPolicy(max = 3, baseDelayMs = 1000L, retryOn = listOf(429, 503)),
     )
 
@@ -1687,6 +1774,7 @@ object Routes {
         html = false,
         emptyOn = emptyList(),
         pagination = Pagination.NONE,
+        pageParameter = null,
         retry = RetryPolicy(max = 2, baseDelayMs = 1000L, retryOn = listOf(429, 503)),
     )
 
@@ -1707,6 +1795,7 @@ object Routes {
         html = false,
         emptyOn = emptyList(),
         pagination = Pagination.NONE,
+        pageParameter = null,
         retry = RetryPolicy(max = 2, baseDelayMs = 1000L, retryOn = listOf(429, 503)),
     )
 
@@ -1725,6 +1814,7 @@ object Routes {
         html = false,
         emptyOn = emptyList(),
         pagination = Pagination.NONE,
+        pageParameter = null,
         retry = RetryPolicy(max = 2, baseDelayMs = 1000L, retryOn = listOf(429, 503)),
     )
 
@@ -1743,6 +1833,7 @@ object Routes {
         html = false,
         emptyOn = emptyList(),
         pagination = Pagination.NONE,
+        pageParameter = null,
         retry = RetryPolicy(max = 2, baseDelayMs = 1000L, retryOn = listOf(429, 503)),
     )
 
@@ -1761,6 +1852,7 @@ object Routes {
         html = false,
         emptyOn = emptyList(),
         pagination = Pagination.NONE,
+        pageParameter = null,
         retry = RetryPolicy(max = 2, baseDelayMs = 1000L, retryOn = listOf(429, 503)),
     )
 
@@ -1781,6 +1873,7 @@ object Routes {
         html = false,
         emptyOn = emptyList(),
         pagination = Pagination.NONE,
+        pageParameter = null,
         retry = RetryPolicy(max = 2, baseDelayMs = 1000L, retryOn = listOf(429, 503)),
     )
 
@@ -1799,6 +1892,7 @@ object Routes {
         html = false,
         emptyOn = emptyList(),
         pagination = Pagination.NONE,
+        pageParameter = null,
         retry = RetryPolicy(max = 2, baseDelayMs = 1000L, retryOn = listOf(429, 503)),
     )
 
@@ -1817,6 +1911,7 @@ object Routes {
         html = false,
         emptyOn = emptyList(),
         pagination = Pagination.NONE,
+        pageParameter = null,
         retry = RetryPolicy(max = 2, baseDelayMs = 1000L, retryOn = listOf(429, 503)),
     )
 
@@ -1837,6 +1932,7 @@ object Routes {
         html = false,
         emptyOn = emptyList(),
         pagination = Pagination.NONE,
+        pageParameter = null,
         retry = RetryPolicy(max = 2, baseDelayMs = 1000L, retryOn = listOf(429, 503)),
     )
 
@@ -1858,6 +1954,7 @@ object Routes {
         html = false,
         emptyOn = emptyList(),
         pagination = Pagination.NONE,
+        pageParameter = null,
         retry = RetryPolicy(max = 0, baseDelayMs = 1000L, retryOn = emptyList()),
     )
 
@@ -1876,6 +1973,7 @@ object Routes {
         html = false,
         emptyOn = emptyList(),
         pagination = Pagination.NONE,
+        pageParameter = null,
         retry = RetryPolicy(max = 2, baseDelayMs = 1000L, retryOn = listOf(429, 503)),
     )
 
@@ -1894,6 +1992,7 @@ object Routes {
         html = false,
         emptyOn = emptyList(),
         pagination = Pagination.NONE,
+        pageParameter = null,
         retry = RetryPolicy(max = 3, baseDelayMs = 1000L, retryOn = listOf(429, 503)),
     )
 
@@ -1914,6 +2013,7 @@ object Routes {
         html = false,
         emptyOn = emptyList(),
         pagination = Pagination.NONE,
+        pageParameter = null,
         retry = RetryPolicy(max = 3, baseDelayMs = 1000L, retryOn = listOf(429, 503)),
     )
 
@@ -1934,6 +2034,7 @@ object Routes {
         html = false,
         emptyOn = emptyList(),
         pagination = Pagination.NONE,
+        pageParameter = null,
         retry = RetryPolicy(max = 3, baseDelayMs = 1000L, retryOn = listOf(429, 503)),
     )
 
@@ -1952,6 +2053,7 @@ object Routes {
         html = false,
         emptyOn = emptyList(),
         pagination = Pagination.NONE,
+        pageParameter = null,
         retry = RetryPolicy(max = 2, baseDelayMs = 1000L, retryOn = listOf(429, 503)),
     )
 
@@ -1970,6 +2072,7 @@ object Routes {
         html = false,
         emptyOn = emptyList(),
         pagination = Pagination.NONE,
+        pageParameter = null,
         retry = RetryPolicy(max = 2, baseDelayMs = 1000L, retryOn = listOf(429, 503)),
     )
 
@@ -1990,6 +2093,7 @@ object Routes {
         html = false,
         emptyOn = emptyList(),
         pagination = Pagination.NONE,
+        pageParameter = null,
         retry = RetryPolicy(max = 2, baseDelayMs = 1000L, retryOn = listOf(429, 503)),
     )
 
@@ -2010,6 +2114,7 @@ object Routes {
         html = false,
         emptyOn = emptyList(),
         pagination = Pagination.NONE,
+        pageParameter = null,
         retry = RetryPolicy(max = 2, baseDelayMs = 1000L, retryOn = listOf(429, 503)),
     )
 
@@ -2030,6 +2135,7 @@ object Routes {
         html = false,
         emptyOn = emptyList(),
         pagination = Pagination.NONE,
+        pageParameter = null,
         retry = RetryPolicy(max = 2, baseDelayMs = 1000L, retryOn = listOf(429, 503)),
     )
 
@@ -2048,6 +2154,7 @@ object Routes {
         html = false,
         emptyOn = emptyList(),
         pagination = Pagination.NONE,
+        pageParameter = null,
         retry = RetryPolicy(max = 2, baseDelayMs = 1000L, retryOn = listOf(429, 503)),
     )
 
@@ -2066,6 +2173,7 @@ object Routes {
         html = false,
         emptyOn = emptyList(),
         pagination = Pagination.NONE,
+        pageParameter = null,
         retry = RetryPolicy(max = 2, baseDelayMs = 1000L, retryOn = listOf(429, 503)),
     )
 
@@ -2086,6 +2194,7 @@ object Routes {
         html = false,
         emptyOn = emptyList(),
         pagination = Pagination.NONE,
+        pageParameter = null,
         retry = RetryPolicy(max = 2, baseDelayMs = 1000L, retryOn = listOf(429, 503)),
     )
 
@@ -2106,6 +2215,7 @@ object Routes {
         html = false,
         emptyOn = emptyList(),
         pagination = Pagination.NONE,
+        pageParameter = null,
         retry = RetryPolicy(max = 2, baseDelayMs = 1000L, retryOn = listOf(429, 503)),
     )
 
@@ -2124,6 +2234,7 @@ object Routes {
         html = false,
         emptyOn = emptyList(),
         pagination = Pagination.NONE,
+        pageParameter = null,
         retry = RetryPolicy(max = 2, baseDelayMs = 1000L, retryOn = listOf(429, 503)),
     )
 
@@ -2144,6 +2255,7 @@ object Routes {
         html = false,
         emptyOn = emptyList(),
         pagination = Pagination.NONE,
+        pageParameter = null,
         retry = RetryPolicy(max = 2, baseDelayMs = 1000L, retryOn = listOf(429, 503)),
     )
 
@@ -2164,6 +2276,7 @@ object Routes {
         html = false,
         emptyOn = emptyList(),
         pagination = Pagination.NONE,
+        pageParameter = null,
         retry = RetryPolicy(max = 2, baseDelayMs = 1000L, retryOn = listOf(429, 503)),
     )
 
@@ -2184,6 +2297,7 @@ object Routes {
         html = false,
         emptyOn = emptyList(),
         pagination = Pagination.NONE,
+        pageParameter = null,
         retry = RetryPolicy(max = 3, baseDelayMs = 1000L, retryOn = listOf(429, 503)),
     )
 
@@ -2205,6 +2319,7 @@ object Routes {
         html = false,
         emptyOn = emptyList(),
         pagination = Pagination.NONE,
+        pageParameter = null,
         retry = RetryPolicy(max = 3, baseDelayMs = 1000L, retryOn = listOf(429, 503)),
     )
 
@@ -2223,6 +2338,7 @@ object Routes {
         html = false,
         emptyOn = emptyList(),
         pagination = Pagination.NONE,
+        pageParameter = null,
         retry = RetryPolicy(max = 2, baseDelayMs = 1000L, retryOn = listOf(429, 503)),
     )
 
@@ -2241,6 +2357,7 @@ object Routes {
         html = false,
         emptyOn = emptyList(),
         pagination = Pagination.NONE,
+        pageParameter = null,
         retry = RetryPolicy(max = 2, baseDelayMs = 1000L, retryOn = listOf(429, 503)),
     )
 
@@ -2261,6 +2378,7 @@ object Routes {
         html = false,
         emptyOn = emptyList(),
         pagination = Pagination.NONE,
+        pageParameter = null,
         retry = RetryPolicy(max = 2, baseDelayMs = 1000L, retryOn = listOf(429, 503)),
     )
 
@@ -2281,6 +2399,7 @@ object Routes {
         html = false,
         emptyOn = emptyList(),
         pagination = Pagination.NONE,
+        pageParameter = null,
         retry = RetryPolicy(max = 2, baseDelayMs = 1000L, retryOn = listOf(429, 503)),
     )
 
@@ -2301,6 +2420,7 @@ object Routes {
         html = false,
         emptyOn = emptyList(),
         pagination = Pagination.NONE,
+        pageParameter = null,
         retry = RetryPolicy(max = 2, baseDelayMs = 1000L, retryOn = listOf(429, 503)),
     )
 
@@ -2321,6 +2441,7 @@ object Routes {
         html = false,
         emptyOn = emptyList(),
         pagination = Pagination.NONE,
+        pageParameter = null,
         retry = RetryPolicy(max = 2, baseDelayMs = 1000L, retryOn = listOf(429, 503)),
     )
 
@@ -2341,6 +2462,7 @@ object Routes {
         html = false,
         emptyOn = emptyList(),
         pagination = Pagination.NONE,
+        pageParameter = null,
         retry = RetryPolicy(max = 2, baseDelayMs = 1000L, retryOn = listOf(429, 503)),
     )
 
@@ -2361,6 +2483,7 @@ object Routes {
         html = false,
         emptyOn = emptyList(),
         pagination = Pagination.NONE,
+        pageParameter = null,
         retry = RetryPolicy(max = 2, baseDelayMs = 1000L, retryOn = listOf(429, 503)),
     )
 
@@ -2379,6 +2502,7 @@ object Routes {
         html = false,
         emptyOn = emptyList(),
         pagination = Pagination.NONE,
+        pageParameter = null,
         retry = RetryPolicy(max = 3, baseDelayMs = 1000L, retryOn = listOf(429, 503)),
     )
 
@@ -2399,6 +2523,7 @@ object Routes {
         html = false,
         emptyOn = emptyList(),
         pagination = Pagination.NONE,
+        pageParameter = null,
         retry = RetryPolicy(max = 2, baseDelayMs = 1000L, retryOn = listOf(429, 503)),
     )
 
@@ -2419,6 +2544,7 @@ object Routes {
         html = false,
         emptyOn = emptyList(),
         pagination = Pagination.NONE,
+        pageParameter = null,
         retry = RetryPolicy(max = 2, baseDelayMs = 1000L, retryOn = listOf(429, 503)),
     )
 
@@ -2439,6 +2565,7 @@ object Routes {
         html = false,
         emptyOn = emptyList(),
         pagination = Pagination.NONE,
+        pageParameter = null,
         retry = RetryPolicy(max = 2, baseDelayMs = 1000L, retryOn = listOf(429, 503)),
     )
 
@@ -2459,6 +2586,7 @@ object Routes {
         html = false,
         emptyOn = emptyList(),
         pagination = Pagination.NONE,
+        pageParameter = null,
         retry = RetryPolicy(max = 2, baseDelayMs = 1000L, retryOn = listOf(429, 503)),
     )
 
@@ -2479,6 +2607,7 @@ object Routes {
         html = false,
         emptyOn = emptyList(),
         pagination = Pagination.NONE,
+        pageParameter = null,
         retry = RetryPolicy(max = 2, baseDelayMs = 1000L, retryOn = listOf(429, 503)),
     )
 
@@ -2497,6 +2626,7 @@ object Routes {
         html = false,
         emptyOn = emptyList(),
         pagination = Pagination.NONE,
+        pageParameter = null,
         retry = RetryPolicy(max = 3, baseDelayMs = 1000L, retryOn = listOf(429, 503)),
     )
 
@@ -2517,6 +2647,7 @@ object Routes {
         html = false,
         emptyOn = emptyList(),
         pagination = Pagination.NONE,
+        pageParameter = null,
         retry = RetryPolicy(max = 3, baseDelayMs = 1000L, retryOn = listOf(429, 503)),
     )
 

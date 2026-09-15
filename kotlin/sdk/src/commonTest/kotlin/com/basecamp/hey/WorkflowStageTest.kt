@@ -58,4 +58,15 @@ class WorkflowStageTest {
         assertEquals(listOf(9L), view.topics.map { it.topicId })
         assertEquals("Deep", view.topics.single().subject)
     }
+
+    @Test
+    fun aHeadingThatIsItselfHiddenIsNotTheName() {
+        for (hidden in listOf("sr-only", "screen-reader-only", "u-for-screen-reader", "visually-hidden")) {
+            val page = """<section id="container_workflow_stage_5"><h2 class="$hidden">Secret</h2>""" +
+                """<div id="topic_9" data-identifier="77"><h3 class="$hidden">Hush</h3><p class="card__detail">1 message</p></div></section>"""
+            val view = WorkflowStageView.parse(page, 5)
+            assertEquals("", view.name, hidden)
+            assertEquals("", view.topics.single().subject, hidden)
+        }
+    }
 }
