@@ -32,6 +32,9 @@ conformance/runner/ruby/Gemfile.lock
 conformance/runner/typescript/node_modules/
 conformance/runner/rust/target/
 
+# Go SDK build artifacts
+go/openapi.behavior.json
+
 # Rust SDK build artifacts
 rust/target/
 

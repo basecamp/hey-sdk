@@ -29,6 +29,13 @@ spec/hey.smithy -> openapi.json -> oapi-codegen -> go/pkg/generated/client.gen.g
 either by hand loses the change on the next generate. `go/pkg/hey` is **not** generated
 — those service wrappers are hand-written and you update them yourself.
 
+oapi-codegen sees the OpenAPI document alone, so `go generate` first runs
+`scripts/merge-behavior-model`, which decides each operation's idempotency — the
+`x-hey-idempotent` override first, otherwise `readonly || idempotent` from
+`behavior-model.json`, otherwise the verb, as the other generators decide it — and
+writes it onto the operation as `x-go-idempotent` in `go/openapi.behavior.json`, a
+build intermediate the template reads and git ignores.
+
 `go-check-drift` does not re-derive anything from the spec. It extracts the operations
 present in the checked-in `client.gen.go` and compares them with the `.gen.*WithResponse`
 calls in `go/pkg/hey`, failing when a wrapper calls an operation that no longer exists.

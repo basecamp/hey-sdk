@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -4053,5 +4054,46 @@ func TestWorldService_ImportSubscribers(t *testing.T) {
 	}
 	if !strings.Contains(string(body), `name="world_list_import[source]"; filename="subscribers.csv"`) {
 		t.Errorf("expected the CSV part, got %q", string(body))
+	}
+}
+
+// HEY reads the reminder list matching the event's all-day flag as it stands after the
+// write and unschedules the reminders when that list is absent. An update that says nothing
+// about the flag sends the durations under both lists, so an all-day event's reminders
+// survive a retitle: the list HEY does not read is ignored.
+func TestUpdateEventValues_RemindersGoUnderBothListsWhenAllDayIsNotSaid(t *testing.T) {
+	values := updateEventValues(UpdateCalendarEventParams{
+		Reminders: []time.Duration{24 * time.Hour, 30 * time.Minute},
+	})
+
+	want := []string{"86400", "1800"}
+	for _, key := range []string{"all_day_reminder_durations[]", "timed_reminder_durations[]"} {
+		if got := values[key]; !slices.Equal(got, want) {
+			t.Errorf("%s = %v, want %v", key, got, want)
+		}
+	}
+}
+
+// Naming the flag names the list HEY will read, and only that one is sent.
+func TestUpdateEventValues_RemindersFollowTheAllDayFlagWhenSaid(t *testing.T) {
+	for _, tc := range []struct {
+		allDay       bool
+		sent, unsent string
+	}{
+		{allDay: true, sent: "all_day_reminder_durations[]", unsent: "timed_reminder_durations[]"},
+		{allDay: false, sent: "timed_reminder_durations[]", unsent: "all_day_reminder_durations[]"},
+	} {
+		allDay := tc.allDay
+		values := updateEventValues(UpdateCalendarEventParams{
+			AllDay:    &allDay,
+			Reminders: []time.Duration{24 * time.Hour, 30 * time.Minute},
+		})
+
+		if got, want := values[tc.sent], []string{"86400", "1800"}; !slices.Equal(got, want) {
+			t.Errorf("all_day=%v: %s = %v, want %v", tc.allDay, tc.sent, got, want)
+		}
+		if _, ok := values[tc.unsent]; ok {
+			t.Errorf("all_day=%v: expected %s to be left out, got %v", tc.allDay, tc.unsent, values[tc.unsent])
+		}
 	}
 }

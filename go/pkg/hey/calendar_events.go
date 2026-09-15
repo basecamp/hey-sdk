@@ -284,8 +284,9 @@ type UpdateCalendarEventParams struct {
 	TimeZone *string
 	// Reminders is resend-or-lose-it, like the zones. HEY reads the list on every write and
 	// unschedules everything when it is empty, so an update that leaves it out removes the
-	// reminders the event had. Several durations go in one write and HEY de-duplicates them;
-	// only the list matching the event's all-day flag is read.
+	// reminders the event had. Several durations go in one write and HEY de-duplicates them.
+	// HEY reads only the list matching the event's all-day flag, so when AllDay is nil the
+	// durations go out under both lists and the one HEY does not read is ignored.
 	Reminders []time.Duration
 	// Content is the notes, location, link and attached entry, and it is a replacement rather
 	// than a patch — every field left empty is cleared on the event. See EventContentParams
@@ -379,9 +380,7 @@ func (s *CalendarEventsService) Create(ctx context.Context, params CreateCalenda
 
 	if params.AllDay {
 		values.Set("calendar_event[all_day]", "1")
-		for _, r := range params.Reminders {
-			values.Add("all_day_reminder_durations[]", fmt.Sprintf("%d", int64(r.Seconds())))
-		}
+		setReminders(values, allDayRemindersKey, params.Reminders)
 	} else {
 		values.Set("calendar_event[all_day]", "0")
 		values.Set("calendar_event[starts_at_time]", params.StartTime+":00")
@@ -389,9 +388,7 @@ func (s *CalendarEventsService) Create(ctx context.Context, params CreateCalenda
 		setTimeZones(values,
 			timeZoneOr(params.StartTimeZone, params.TimeZone),
 			timeZoneOr(params.EndTimeZone, params.TimeZone))
-		for _, r := range params.Reminders {
-			values.Add("timed_reminder_durations[]", fmt.Sprintf("%d", int64(r.Seconds())))
-		}
+		setReminders(values, timedRemindersKey, params.Reminders)
 	}
 
 	resp, err := s.client.PostForm(ctx, "/calendar/events.json", values)
@@ -495,18 +492,33 @@ func updateEventValues(params UpdateCalendarEventParams) url.Values {
 		}
 		setTimeZones(values, start, end)
 	}
-	if params.Reminders != nil {
-		allDay := params.AllDay != nil && *params.AllDay
-		key := "timed_reminder_durations[]"
-		if allDay {
-			key = "all_day_reminder_durations[]"
-		}
-		for _, r := range params.Reminders {
-			values.Add(key, fmt.Sprintf("%d", int64(r.Seconds())))
-		}
+	// HEY reads the reminder list matching the event's all-day flag as it stands after the
+	// write, and unschedules the reminders when that list is absent. An update that leaves the
+	// flag alone cannot know which list that is, so it sends both: the one HEY does not read is
+	// ignored, and the one it does keeps the reminders scheduled.
+	switch {
+	case params.AllDay == nil:
+		setReminders(values, allDayRemindersKey, params.Reminders)
+		setReminders(values, timedRemindersKey, params.Reminders)
+	case *params.AllDay:
+		setReminders(values, allDayRemindersKey, params.Reminders)
+	default:
+		setReminders(values, timedRemindersKey, params.Reminders)
 	}
 
 	return values
+}
+
+const (
+	allDayRemindersKey = "all_day_reminder_durations[]"
+	timedRemindersKey  = "timed_reminder_durations[]"
+)
+
+// setReminders adds each reminder to the named list, in whole seconds.
+func setReminders(values url.Values, key string, reminders []time.Duration) {
+	for _, r := range reminders {
+		values.Add(key, fmt.Sprintf("%d", int64(r.Seconds())))
+	}
 }
 
 // Delete deletes a calendar event.
