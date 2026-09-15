@@ -141,7 +141,12 @@ class ErrorMappingTest {
         assertEquals("connect to https://host:8443 failed", redactUrls("connect to https://host:8443/path?sig=1 failed"))
         assertEquals("https://files.example.com timed out", redactUrls("https://user:pw@files.example.com/x?sig=1 timed out"))
         assertEquals("https://[::1]:8443", redactUrls("https://[::1]:8443/x#frag"))
-        assertEquals("[url=https://a, request_timeout=30000 ms]", redactUrls("[url=https://a/b?c, request_timeout=30000 ms]"))
+        assertEquals("[url=https://a request_timeout=30000 ms]", redactUrls("[url=https://a/b?c, request_timeout=30000 ms]"))
         assertEquals("no url here", redactUrls("no url here"))
+        for (text in listOf("connect to https://host/path?safe=x,token=distinctive failed", "https://host/(a)b=distinctive failed", "see https://host/x?a=1]&t=distinctive.")) {
+            val redacted = redactUrls(text)
+            assertEquals(false, redacted.contains("distinctive"), "$text -> $redacted")
+            assertEquals(true, redacted.startsWith("connect to https://host") || redacted.startsWith("https://host") || redacted.startsWith("see https://host"), redacted)
+        }
     }
 }

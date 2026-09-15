@@ -52,11 +52,26 @@ internal fun requireSecureEndpoint(url: Url) {
     throw HeyException.Usage("${url.protocol.name}://${url.host} must use HTTPS")
 }
 
-/** A URL in prose: scheme, an optional userinfo, a host (an IPv6 one in brackets) with its port, and whatever follows up to the punctuation prose ends it with. */
-private val URL_IN_TEXT = Regex("([a-zA-Z][a-zA-Z0-9+.-]*://)(?:[^/?#\\s\"'<>@,\\])]*@)?(\\[[^\\]\\s]*\\](?::\\d+)?|[^/?#\\s\"'<>,\\])]+)[^\\s\"'<>,\\])]*")
+/**
+ * A URL in prose: scheme, an optional userinfo, a host (an IPv6 one in brackets) with its
+ * port, and then everything up to whitespace or a quote. A comma or a bracket is legal in a
+ * query, so a secret could sit past one; the whole token goes rather than the part before
+ * some punctuation, at the cost of a trailing comma or bracket the prose meant.
+ */
+private val URL_IN_TEXT = Regex("([a-zA-Z][a-zA-Z0-9+.-]*://)(?:[^/?#\\s\"'<>@]*@)?(\\[[^\\]\\s]*\\](?::\\d+)?|[^/?#\\s\"'<>]+)[^\\s\"'<>]*")
 
 /** The text with every URL in it cut back to its origin: a path or a query carries a signed credential, and a userinfo a password. */
 internal fun redactUrls(text: String): String = URL_IN_TEXT.replace(text) { "${it.groupValues[1]}${it.groupValues[2]}" }
+
+/**
+ * A `Location` as an error may name it: the path alone, with no userinfo, query or fragment,
+ * since a signed query is what a redirect target is likeliest to carry.
+ */
+internal fun redactLocation(location: String): String {
+    val absolute = parseAbsoluteUrl(location)
+    if (absolute != null) return "${absolute.protocol.name}://${absolute.host}${absolute.encodedPath}"
+    return location.substringBefore('?').substringBefore('#')
+}
 
 private val SENSITIVE_HEADERS = setOf("authorization", "proxy-authorization", "cookie", "set-cookie", "x-csrf-token")
 
