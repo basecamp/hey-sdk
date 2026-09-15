@@ -231,9 +231,12 @@ library's and Ktor's metadata set that floor and a Kotlin bump moves it. `HeyCon
 is kept in step with `openapi.json` by `scripts/sync-api-version.sh`, like Go's `APIVersion`.
 
 The hand-written services in `kotlin/sdk/src/commonMain/kotlin/com/basecamp/hey/services`
-are `BoxesService`, `CalendarEventsService`, `EntriesService`, `MessagesService`,
-`PostingsService`, `TimeTracksService` and `WorkflowsService`. The naming convention is
-Rust's: a hand-written method keeps its plain name where the generated service leaves it
+are the Kotlin twins of `rust/hey-sdk/src/services/*.rs`, one per service the Rust crate
+writes conveniences for (26 subclasses of the generated services, registered in
+`kotlin/generator/names.toml` under `[hand_written_services]`, plus `WorldService` and its
+`HeyClient.world` accessor, which has no generated counterpart), ported method for method
+with the same wire fields. A convenience Rust or Go gains is a convenience Kotlin gains too.
+The naming convention is Rust's: a hand-written method keeps its plain name where the generated service leaves it
 free, and takes the name the model gives the operation it sends where the generated method
 already holds it -- `markPostingsSeen(ids)` alongside the generated `markSeen(body)`. A
 form-backed write goes through `HeyClient.form`/`sendForm` with `writeInfo` saying what it

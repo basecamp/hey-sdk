@@ -86,7 +86,8 @@ One handle per resource, all extension properties of the client in
 `bulkReplies`, `calendarEvents`, `calendarPeriods`, `calendarTodos`, `calendars`,
 `clearances`, `clips`, `collections`, `contacts`, `designations`, `entries`, `extenzions`,
 `folders`, `habits`, `identity`, `journal`, `messages`, `postings`, `publications`,
-`search`, `snippets`, `stickies`, `timeTracks`, `topics`, `workflows`.
+`search`, `snippets`, `stickies`, `timeTracks`, `topics`, `workflows`; and `world`, in
+`com.basecamp.hey.services`, for HEY World, which the model has no route for.
 
 Every method the model describes is generated, and named for the operation with the
 service's noun dropped: `ListBoxes` is `client.boxes.list()`, `GetBoxPostingChanges` is
@@ -96,15 +97,21 @@ a request body is the model's own request type from `com.basecamp.hey.generated.
 Operation ids, methods and paths are all in `com.basecamp.hey.generated.Routes`.
 
 On top of those, `com.basecamp.hey.services` holds hand-written subclasses of the generated
-services — `MessagesService`, `EntriesService`, `BoxesService`, `PostingsService`,
-`TimeTracksService`, `CalendarEventsService`, `WorkflowsService` — which the accessors hand
-out, so their conveniences sit beside the generated methods without a further import. They
-take the arguments a caller has rather than a request body, and cover the parts of HEY the
-model cannot describe. A hand-written method keeps the plain name where the generated
-service leaves it free, and takes the model's own name for the operation where it does not:
-`postings.markPostingsSeen(ids)` alongside the generated `postings.markSeen(body)`. One that
-changes the shape of the call may take a descriptive name instead: `timeTracks.startTracking()`
-names the conflict a running track answers with.
+services, one for every service the Go and Rust SDKs write conveniences for — `attachments`,
+`boxes`, `bulkReplies`, `calendarEvents`, `calendarPeriods`, `calendarTodos`, `calendars`,
+`clearances`, `clips`, `collections`, `contacts`, `designations`, `entries`, `extenzions`,
+`habits`, `identity`, `journal`, `messages`, `postings`, `publications`, `search`, `snippets`,
+`stickies`, `timeTracks`, `topics` and `workflows`, plus `WorldService` — which the accessors
+hand out, so their conveniences sit beside the generated methods without a further import.
+They take the arguments a caller has rather than a request body, and cover the parts of HEY
+the model cannot describe: the browser forms that create a calendar event or a workflow,
+publish a topic, upload an attachment, or post to HEY World, and the change feeds a sync
+walks (`postings.changes`, `calendars.recordingChanges`), which answer a cursor to resume
+from and say when HEY wants the box read in full. A hand-written method keeps the plain name
+where the generated service leaves it free, and takes the model's own name for the operation
+where it does not: `postings.markPostingsSeen(ids)` alongside the generated
+`postings.markSeen(body)`. One that changes the shape of the call may take a descriptive
+name instead: `timeTracks.startTracking()` names the conflict a running track answers with.
 
 Every model is a `@Serializable` data class. Its required members come first, without
 defaults, so a body that leaves one out fails to decode as a non-retryable `api_error` rather
