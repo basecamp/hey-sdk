@@ -752,3 +752,53 @@ func TestAttachmentUploadHopsCarryNoCookieFromAJar(t *testing.T) {
 		}
 	}
 }
+
+// freshContextHooks hands every request a context of its own, as a hook is free to.
+type freshContextHooks struct{ NoopHooks }
+
+func (freshContextHooks) OnRequestStart(context.Context, RequestInfo) context.Context {
+	return context.Background()
+}
+
+// The credential strip reads the redirect state off the request as net/http hands it to
+// the transport chain, before a hook can hand the chain a context of its own that no
+// longer carries it: a jar on the client — given here directly, since the built client
+// takes none through an option — has its cookies held back from a hop off the origin
+// whatever the hooks do with the context.
+func TestCredentialStripSurvivesAHookReplacingTheContext(t *testing.T) {
+	var targetHeaders http.Header
+	target := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		targetHeaders = r.Header.Clone()
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = io.WriteString(w, `{}`)
+	}))
+	t.Cleanup(target.Close)
+	source := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if _, err := r.Cookie("remembered"); err != nil {
+			t.Errorf("HEY's own request should carry the jar's cookie: %v", err)
+		}
+		http.Redirect(w, r, target.URL+"/export.json", http.StatusFound)
+	}))
+	t.Cleanup(source.Close)
+
+	jar, err := cookiejar.New(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	sourceURL, _ := url.Parse(source.URL)
+	jar.SetCookies(sourceURL, []*http.Cookie{{Name: "remembered", Value: "jarred"}})
+	auth := &signingAuth{}
+	auth.signature.Store("signed")
+	client := NewClient(&Config{BaseURL: source.URL}, nil, WithAuthStrategy(auth),
+		WithHooks(freshContextHooks{}), WithMaxRetries(0))
+	client.httpClient.Jar = jar
+
+	if _, err := client.Get(context.Background(), "/export.json"); err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range []string{"Cookie", "X-Signature", "Authorization"} {
+		if got := targetHeaders.Get(name); got != "" {
+			t.Errorf("the cross-origin target received %s: %q", name, got)
+		}
+	}
+}

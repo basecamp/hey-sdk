@@ -271,8 +271,9 @@ func noteCredentialHeaders(req *http.Request, before http.Header) {
 // policy marked as off the origin, at the last point before the wire. The policy's own
 // deletions are not the end of it: net/http adds a Jar's cookies to a hop after
 // CheckRedirect has run, and a jar scopes cookies by host alone, so a hop to another port
-// of the same host — another origin — would carry them. Every client gets one, over its
-// own transport.
+// of the same host — another origin — would carry them. Every client gets one, outermost,
+// on the request as net/http hands it over and before anything beneath can replace the
+// context the redirect state is read from.
 type credentialStrippingTransport struct {
 	inner http.RoundTripper
 }

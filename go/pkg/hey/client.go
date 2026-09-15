@@ -207,14 +207,15 @@ func NewClient(cfg *Config, tokenProvider TokenProvider, opts ...ClientOption) *
 			transport = newDefaultTransport()
 		}
 
-		// The credential strip sits directly over the transport that goes to the wire, as
-		// it does on a supplied client. The cap sits inside the logging transport, so
-		// logging and hooks see every round trip, and outside the transport that
-		// negotiated the encoding, so it counts the decompressed bytes a parser would
-		// buffer.
-		transport = &credentialStrippingTransport{inner: transport}
+		// The cap sits inside the logging transport, so logging and hooks see every round
+		// trip, and outside the transport that negotiated the encoding, so it counts the
+		// decompressed bytes a parser would buffer. The credential strip sits outside them
+		// all, on the request as net/http hands it over: a hook may give the chain beneath
+		// a context of its own, and the redirect state the strip reads must not be lost
+		// with the one it replaced.
 		transport = &bodyLimitTransport{inner: transport, limit: c.httpOpts.responseBodyLimit()}
 		transport = &loggingTransport{inner: transport, client: c}
+		transport = &credentialStrippingTransport{inner: transport}
 
 		c.httpClient = &http.Client{
 			Timeout:       c.httpOpts.Timeout,
