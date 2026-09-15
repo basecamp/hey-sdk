@@ -177,6 +177,13 @@ conveniences (`com.basecamp.hey.services.MessagesService` extends
 `code`s and `exitCode`, `HeyHooks` with `onRetry(info, attempt, error, delayMs)`, and
 `consoleHooks()`/`chainHooks()`.
 
+Two deliberate departures from basecamp-sdk's builder: there is no `httpClient` option, only
+`engine`, since a plugin on a caller's client (a retry, a default request, redirect following,
+response validation) would run ahead of the retry policy, the credential handling on
+redirects, the error mapping and the timeout the client is responsible for; and the operation
+the hooks hear runs until the answer is decoded or parsed, so an answer that will not read
+ends the operation with the error the caller gets rather than as a success.
+
 `kotlin/generator` is a small Kotlin program, run through the Gradle build under `kotlin/`,
 that reads `openapi.json`, `behavior-model.json` and `kotlin/generator/names.toml` and
 writes `models/<Schema>.kt` (one `@Serializable` data class or typealias per schema),

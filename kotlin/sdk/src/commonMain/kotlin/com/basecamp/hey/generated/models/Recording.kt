@@ -107,24 +107,24 @@ data class Recording(
     @SerialName("image_url")
     val imageUrl: String? = null,
 ) {
-    /** Whether the record's `type` is `Calendar::Event`. */
-    val isCalendarEvent: Boolean get() = type == "Calendar::Event"
+    /** Whether the record's `type` is `Calendar::Event`, by any of the values HEY writes it as. */
+    val isCalendarEvent: Boolean get() = type in setOf("CalendarEvent", "Calendar::Event")
 
-    /** Whether the record's `type` is `Calendar::Todo`. */
-    val isCalendarTodo: Boolean get() = type == "Calendar::Todo"
+    /** Whether the record's `type` is `Calendar::Todo`, by any of the values HEY writes it as. */
+    val isCalendarTodo: Boolean get() = type in setOf("CalendarTodo", "Calendar::Todo")
 
-    /** Whether the record's `type` is `Calendar::JournalEntry`. */
-    val isCalendarJournalEntry: Boolean get() = type == "Calendar::JournalEntry"
+    /** Whether the record's `type` is `Calendar::JournalEntry`, by any of the values HEY writes it as. */
+    val isCalendarJournalEntry: Boolean get() = type in setOf("CalendarJournalEntry", "Calendar::JournalEntry")
 
-    /** Whether the record's `type` is `Calendar::Habit`. */
-    val isCalendarHabit: Boolean get() = type == "Calendar::Habit"
+    /** Whether the record's `type` is `Calendar::Habit`, by any of the values HEY writes it as. */
+    val isCalendarHabit: Boolean get() = type in setOf("CalendarHabit", "Calendar::Habit")
 
-    /** Whether the record's `type` is `Calendar::TimeTrack`. */
-    val isCalendarTimeTrack: Boolean get() = type == "Calendar::TimeTrack"
+    /** Whether the record's `type` is `Calendar::TimeTrack`, by any of the values HEY writes it as. */
+    val isCalendarTimeTrack: Boolean get() = type in setOf("CalendarTimeTrack", "Calendar::TimeTrack")
 
-    /** Whether the record's `type` is `Calendar::Countdown`. */
-    val isCalendarCountdown: Boolean get() = type == "Calendar::Countdown"
+    /** Whether the record's `type` is `Calendar::Countdown`, by any of the values HEY writes it as. */
+    val isCalendarCountdown: Boolean get() = type in setOf("CalendarCountdown", "Calendar::Countdown")
 
-    /** Whether the record's `type` is `Calendar::DayBackground`. */
-    val isCalendarDayBackground: Boolean get() = type == "Calendar::DayBackground"
+    /** Whether the record's `type` is `Calendar::DayBackground`, by any of the values HEY writes it as. */
+    val isCalendarDayBackground: Boolean get() = type in setOf("CalendarDayBackground", "Calendar::DayBackground")
 }

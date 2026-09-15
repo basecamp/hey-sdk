@@ -86,8 +86,10 @@ private fun renderStruct(out: StringBuilder, name: String, shape: Shape.Struct) 
         val discriminator = fieldIdent(polymorphic.discriminator)
         out.appendLine(" {")
         for (variant in polymorphic.variants) {
-            out.appendLine("    /** Whether the record's `${polymorphic.discriminator}` is `$variant`. */")
-            out.appendLine("    val ${variantProperty(variant)}: Boolean get() = $discriminator == ${literal(variant)}")
+            val values = variant.values
+            val test = if (values.size == 1) "$discriminator == ${literal(values.single())}" else "$discriminator in setOf(${values.joinToString(", ") { literal(it) }})"
+            out.appendLine("    /** Whether the record's `${polymorphic.discriminator}` is `${variant.name}`${if (values.size > 1) ", by any of the values HEY writes it as" else ""}. */")
+            out.appendLine("    val ${variantProperty(variant.name)}: Boolean get() = $test")
             out.appendLine()
         }
         out.setLength(out.length - 1)

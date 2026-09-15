@@ -1,6 +1,7 @@
 package com.basecamp.hey.generator
 
 import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.booleanOrNull
@@ -40,7 +41,11 @@ sealed class Shape {
     class Alias(val kind: FieldType) : Shape()
 }
 
-class Polymorphic(val discriminator: String, val variants: List<String>)
+/** A schema with a discriminator: each variant is named by the model, and matched by every value the model says HEY may send for it. */
+class Polymorphic(val discriminator: String, val variants: List<Variant>) {
+    /** One variant and the discriminator values that mean it: the namespaced name and, where the model declares them, its aliases. */
+    class Variant(val name: String, val values: List<String>)
+}
 
 class Field(
     val wireName: String,
@@ -163,7 +168,14 @@ private fun polymorphicOf(schema: JsonObject): Polymorphic? {
     val extension = schema.obj("x-hey-polymorphic") ?: return null
     val discriminator = extension.string("discriminator") ?: return null
     val variants = extension.obj("variants")?.keys?.toList() ?: return null
-    return Polymorphic(discriminator, variants)
+    val aliases = extension.obj("discriminatorValues")
+    return Polymorphic(
+        discriminator,
+        variants.map { variant ->
+            val values = (aliases?.get(variant) as? JsonArray)?.map { it.jsonPrimitive.content } ?: listOf(variant)
+            Polymorphic.Variant(variant, values)
+        },
+    )
 }
 
 private fun fieldType(name: String, property: JsonObject, naming: Naming): FieldType {
