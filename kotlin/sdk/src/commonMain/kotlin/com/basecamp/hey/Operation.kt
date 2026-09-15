@@ -86,8 +86,8 @@ class Operation internal constructor(
         return this
     }
 
-    /** Adds a header of the caller's own. A credential is the auth strategy's to add, not this. */
-    fun header(name: String, value: String): Operation {
+    /** Adds a header HEY handed the request — the storage put's — as the SDK's own business, not a caller's: a credential is the auth strategy's to add, and a header the cache would need to key on is none of these. */
+    internal fun header(name: String, value: String): Operation {
         headers += name to value
         return this
     }

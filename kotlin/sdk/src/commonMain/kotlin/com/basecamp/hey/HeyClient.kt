@@ -633,7 +633,9 @@ class HeyClient internal constructor(
             }
         }
         for ((name, value) in operation.query) builder.parameters.append(name, value)
-        return scoped(builder.build())
+        // An unsigned request goes to a URL that authenticates itself, as built: the account
+        // scope is HEY's parameter, not the storage service's, even when the two share an origin.
+        return if (operation.unsigned) builder.build() else scoped(builder.build())
     }
 
     /**
