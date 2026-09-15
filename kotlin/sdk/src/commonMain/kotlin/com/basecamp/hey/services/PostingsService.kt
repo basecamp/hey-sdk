@@ -12,6 +12,7 @@ import com.basecamp.hey.generated.models.TrashPostingsRequestContent
 import com.basecamp.hey.generated.models.GetBoxPostingChangesResponseContent
 import com.basecamp.hey.generated.models.DeletedPosting
 import com.basecamp.hey.generated.models.Posting
+import com.basecamp.hey.isSameOrigin
 import com.basecamp.hey.parseAbsoluteUrl
 import com.basecamp.hey.generated.services.PostingsService as GeneratedPostingsService
 
@@ -76,11 +77,20 @@ class PostingsService(client: HeyClient) : GeneratedPostingsService(client) {
         } catch (conflict: HeyException.Conflict) {
             return PostingChanges(fullSyncRequired = true)
         }
+        // Both links are read whole: the page within an increment can move the since, the
+        // version or the size along with the page, and the read that follows sends what HEY
+        // issued, not a page number pinned to the cursor this read started from.
+        val nextPage = page.nextUrl?.let { next ->
+            if (!isSameOrigin(next, client.baseUrl)) {
+                throw HeyException.Usage("pagination Link header points to a different origin: ${next.protocol.name}://${next.host}")
+            }
+            PostingChangesCursor.fromUrl(next.toString())
+        }
         return PostingChanges(
             added = page.value.added.orEmpty(),
             updated = page.value.updated.orEmpty(),
             deleted = page.value.deleted.orEmpty(),
-            nextPage = page.nextPage,
+            nextPage = nextPage,
             nextCursor = page.nextCursor?.let { PostingChangesCursor.fromUrl(it.toString()) },
             fullSyncRequired = false,
         )
@@ -147,8 +157,8 @@ data class PostingChanges(
     val updated: List<Posting> = emptyList(),
     /** The postings that left the box. */
     val deleted: List<DeletedPosting> = emptyList(),
-    /** The page within this increment to read next, while there is one. */
-    val nextPage: String? = null,
+    /** The page within this increment to read next, while there is one: a whole cursor, as HEY issued it. */
+    val nextPage: PostingChangesCursor? = null,
     /** Where to resume once this increment is read, when HEY named one. */
     val nextCursor: PostingChangesCursor? = null,
     /** Whether HEY refused the cursor and the box has to be read in full. */

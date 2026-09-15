@@ -423,7 +423,8 @@ class HeyClient internal constructor(
      */
     private fun budget(operation: Operation): Budget {
         val config = shared.config
-        val ceiling = config.maxRetries + 1
+        // One send plus the retries, without wrapping when the retries are as many as an Int holds.
+        val ceiling = if (config.maxRetries == Int.MAX_VALUE) Int.MAX_VALUE else config.maxRetries + 1
         val policy = operation.route?.retry
         val (attempts, retryOn, delay) = when {
             policy != null && policy.max > 0 -> Triple(
@@ -779,7 +780,11 @@ class HeyClient internal constructor(
     private suspend fun receive(operation: Operation, url: Url, response: HttpResponse, redirected: Boolean, authenticated: Boolean, signedUnder: Long): Received {
         val status = response.status.value
         val headers = response.headers
-        if (status == 304) return Received(url, status, headers, ByteArray(0), refusal = null, redirected, authenticated, signedUnder)
+        // A 304, a status the operation takes for "nothing there", and the redirect a form
+        // takes for its answer carry nothing the SDK reads, so their bodies are not read at
+        // all — and so cannot be refused for their size.
+        val bodyless = status == 304 || status in operation.emptyOn || (operation.captureRedirects && status in FORM_ANSWER_STATUSES)
+        if (bodyless) return Received(url, status, headers, ByteArray(0), refusal = null, redirected, authenticated, signedUnder)
         val bound = if (isParsed(operation.accept)) shared.config.maxResponseBodyBytes else HeyConfig.MAX_RESPONSE_BODY_BYTES
         return try {
             Received(url, status, headers, readBody(response, bound), refusal = null, redirected, authenticated, signedUnder)
