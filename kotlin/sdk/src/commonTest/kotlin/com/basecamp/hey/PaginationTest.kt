@@ -119,7 +119,7 @@ class PaginationTest {
     @Test
     fun aChangeFeedAnswersItsPagesThenTheCursorToPollNext() = runTest {
         val hey = mockHey(
-            ok("""{"added":[{"id":1,"kind":"topic"}],"updated":[],"deleted":[]}""", mapOf("Link" to "</boxes/7/postings/changes.json?since=2026-09-15T10:00:00Z&page=2>; rel=\"next\"")),
+            ok("""{"added":[{"id":1,"kind":"topic"}],"updated":[],"deleted":[]}""", mapOf("Link" to "</boxes/7/postings/changes.json?since=2026-09-15T10:01:00Z&v=2&per_page=50&page=2>; rel=\"next\"")),
             ok("""{"added":[],"updated":[],"deleted":[{"id":2}]}""", mapOf("Link" to "</boxes/7/postings/changes.json?since=2026-09-15T10:05:00Z&v=2>; rel=\"next\"")),
             status(409, """{"error":"cursor too old"}"""),
         )
@@ -131,13 +131,16 @@ class PaginationTest {
         assertFailsWith<HeyException.Usage> { client.postings.changes(7, PostingChangesCursor(since = "")) }
         val first = client.postings.changes(7, PostingChangesCursor("2026-09-15T10:00:00Z"))
         assertEquals(listOf(1L), first.added.map { it.id })
-        assertEquals("2", first.nextPage, "the increment has another page")
+        assertEquals(PostingChangesCursor("2026-09-15T10:01:00Z", version = "2", page = "2", perPage = "50"), first.nextPage, "the increment has another page, and the link to it is kept whole")
         assertNull(first.nextCursor)
-        val second = client.postings.changes(7, PostingChangesCursor("2026-09-15T10:00:00Z", page = first.nextPage))
+        val second = client.postings.changes(7, first.nextPage!!)
         assertEquals(listOf(2L), second.deleted.map { it.id })
         assertNull(second.nextPage)
         assertEquals(PostingChangesCursor("2026-09-15T10:05:00Z", version = "2"), second.nextCursor, "and the last page names where to resume")
         assertEquals("2", hey.requests[1].query("page"))
+        assertEquals("2026-09-15T10:01:00Z", hey.requests[1].query("since"), "the next read sends the cursor as HEY issued it")
+        assertEquals("2", hey.requests[1].query("v"))
+        assertEquals("50", hey.requests[1].query("per_page"))
         assertEquals(0, store.size, "no page of the feed is held")
 
         val stale = client.postings.changes(7, second.nextCursor!!)
@@ -163,5 +166,12 @@ class PaginationTest {
         val ids = client.pages(client.boxes.list()).toList().flatMap { page -> page.value.map { it.id } }
         assertEquals(listOf(1L, 2L), ids)
         assertEquals("2", hey.requests[1].query("page"))
+    }
+
+    @Test
+    fun aNextPageOffTheOriginIsRefusedForTheChangeFeedToo() = runTest {
+        val hey = mockHey(ok("""{"added":[],"updated":[],"deleted":[]}""", mapOf("Link" to "<https://evil.example.com/changes.json?since=x&page=2>; rel=\"next\"")))
+        val error = assertFailsWith<HeyException.Usage> { hey.client().postings.changes(7, PostingChangesCursor("2026-09-15T10:00:00Z")) }
+        assertEquals(false, error.message!!.contains("since=x"))
     }
 }

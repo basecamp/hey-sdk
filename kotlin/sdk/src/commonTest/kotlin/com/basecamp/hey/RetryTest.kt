@@ -149,4 +149,11 @@ class RetryTest {
         assertEquals(true, Routes.UPDATE_STICKY.idempotent)
         assertEquals(false, Routes.UPDATE_MESSAGE.idempotent, "and UpdateMessage's override still stands")
     }
+
+    @Test
+    fun aRetryCeilingAsHighAsAnIntHoldsDoesNotWrap() = runTest {
+        val hey = mockHey(status(503), ok("[]"))
+        hey.client { maxRetries = Int.MAX_VALUE }.boxes.list()
+        assertEquals(2, hey.requests.size)
+    }
 }

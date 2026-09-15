@@ -163,4 +163,14 @@ class RequestTest {
         assertEquals(false, direct.isCalendarTodo)
         assertEquals(true, heyJson.decodeFromString(Recording.serializer(), """{"id":2,"type":"CalendarTodo"}""").isCalendarTodo)
     }
+
+    @Test
+    fun aStatusTakenForNothingThereIsNotReadPastTheCap() = runTest {
+        val big = "x".repeat(2000)
+        val hey = mockHey(status(404, """{"error":"$big"}"""), status(302, """<html>$big</html>""", mapOf("Location" to "/workflows/7")))
+        val client = hey.client { maxResponseBodyBytes = 100 }
+        assertNull(client.timeTracks.getOngoing(), "an oversized 404 the route takes for nothing there is still nothing there")
+        val answer = client.sendForm(client.form(Method.POST, "/workflows"))
+        assertEquals("/workflows/7", answer.location, "and an oversized redirect a form takes for its answer still answers")
+    }
 }
