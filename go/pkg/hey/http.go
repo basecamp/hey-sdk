@@ -261,6 +261,33 @@ func noteCredentialHeaders(req *http.Request, before http.Header) {
 	}
 }
 
+// credentialStrippingTransport holds HEY's credentials back from a hop the redirect
+// policy marked as off the origin, at the last point before the wire. The policy's own
+// deletions are not the end of it: net/http adds a Jar's cookies to a hop after
+// CheckRedirect has run, and a jar scopes cookies by host alone, so a hop to another port
+// of the same host — another origin — would carry them. Every client gets one, over its
+// own transport.
+type credentialStrippingTransport struct {
+	inner http.RoundTripper
+}
+
+// RoundTrip sends the request as it is unless the chain it belongs to has left the origin,
+// in which case it sends a copy without the cookies, the Authorization and every header
+// the strategy set: the request handed in is the caller's to keep as it was.
+func (t *credentialStrippingTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	state := redirectStateFromContext(req.Context())
+	if state == nil || !state.unauthenticated {
+		return t.inner.RoundTrip(req)
+	}
+	stripped := req.Clone(req.Context())
+	stripped.Header.Del("Cookie")
+	stripped.Header.Del("Authorization")
+	for _, name := range state.credentialHeaders {
+		stripped.Header.Del(name)
+	}
+	return t.inner.RoundTrip(stripped)
+}
+
 // displayURL is url as the hooks and the SDK's own error text show it: whole on an
 // API request, its origin alone on a request the transport projects.
 func displayURL(ctx context.Context, url string) string {

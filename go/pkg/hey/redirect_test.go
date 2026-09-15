@@ -6,7 +6,9 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/http/cookiejar"
 	"net/http/httptest"
+	"net/url"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -554,5 +556,82 @@ func TestSuppliedRedirectPolicyCannotRestoreWhatTheSDKStrips(t *testing.T) {
 		if got := targetHeaders.Get(name); got != "" {
 			t.Errorf("the cross-origin target received %s: %q", name, got)
 		}
+	}
+}
+
+// cookieAuth is a strategy that carries its credential as a cookie, and can renew it.
+type cookieAuth struct {
+	session   atomic.Value
+	refreshes atomic.Int64
+}
+
+func (a *cookieAuth) Authenticate(_ context.Context, req *http.Request) error {
+	req.AddCookie(&http.Cookie{Name: "session", Value: a.session.Load().(string)})
+	req.Header.Set("X-Signature", "signed")
+	return nil
+}
+
+func (a *cookieAuth) Refresh(context.Context) error {
+	a.refreshes.Add(1)
+	a.session.Store("renewed")
+	return nil
+}
+
+// net/http adds a jar's cookies to a hop after CheckRedirect has run, and a jar scopes
+// them by host alone, so a hop to another port of the same host — another origin — would
+// get them back after the policy removed them. The credentials are stripped again at the
+// transport, the last point before the wire, on the SDK's own client and a supplied one
+// with a jar alike; and the 401 the hop answers, having carried none, refreshes nothing.
+func TestCrossOriginHopOnTheSameHostCarriesNoCookieFromAJarOrTheStrategy(t *testing.T) {
+	for _, supplied := range []bool{false, true} {
+		t.Run(fmt.Sprintf("supplied=%v", supplied), func(t *testing.T) {
+			var requests atomic.Int64
+			var targetHeaders http.Header
+			target := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				requests.Add(1)
+				targetHeaders = r.Header.Clone()
+				http.Error(w, "unauthorized", http.StatusUnauthorized)
+			}))
+			t.Cleanup(target.Close)
+			source := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				requests.Add(1)
+				if cookie, err := r.Cookie("session"); err != nil || cookie.Value != "secret" {
+					t.Errorf("HEY's own request lost its session cookie: %v", r.Header.Get("Cookie"))
+				}
+				http.Redirect(w, r, target.URL+"/export.json", http.StatusFound)
+			}))
+			t.Cleanup(source.Close)
+
+			auth := &cookieAuth{}
+			auth.session.Store("secret")
+			opts := []ClientOption{WithAuthStrategy(auth), WithMaxRetries(1)}
+			if supplied {
+				jar, err := cookiejar.New(nil)
+				if err != nil {
+					t.Fatal(err)
+				}
+				sourceURL, _ := url.Parse(source.URL)
+				jar.SetCookies(sourceURL, []*http.Cookie{{Name: "remembered", Value: "jarred"}})
+				opts = append(opts, WithHTTPClient(&http.Client{Jar: jar}))
+			}
+			client := NewClient(&Config{BaseURL: source.URL}, nil, opts...)
+
+			_, err := client.Get(context.Background(), "/export.json")
+			var apiErr *Error
+			if !errors.As(err, &apiErr) || apiErr.Code != CodeAuth {
+				t.Fatalf("expected the authentication failure, got %v", err)
+			}
+			for _, name := range []string{"Cookie", "X-Signature", "Authorization"} {
+				if got := targetHeaders.Get(name); got != "" {
+					t.Errorf("the cross-origin target received %s: %q", name, got)
+				}
+			}
+			if refreshes := auth.refreshes.Load(); refreshes != 0 {
+				t.Errorf("expected no refresh, got %d: the hop carried no credential to reject", refreshes)
+			}
+			if requests.Load() != 2 {
+				t.Errorf("expected the request and its one hop, got %d requests", requests.Load())
+			}
+		})
 	}
 }

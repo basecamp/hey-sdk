@@ -127,10 +127,11 @@ type ClientOption func(*Client)
 // WithHTTPClient sets a custom HTTP client. It replaces the one NewClient would build, so
 // none of what that one carries — the request timeout, the response body cap, logging and
 // hooks — applies to it. Its redirect policy is kept and decides each hop first; a hop it
-// accepts then gets the cleanup every client's hops get, as the last thing before it is
-// sent: a hop off the origin goes out without the credentials, and no hop carries the
-// validator of the URL asked for. WithTransport keeps all of that and swaps only the
-// transport underneath.
+// accepts then gets the cleanup every client's hops get: a hop off the origin goes out
+// without the credentials, and no hop carries the validator of the URL asked for. Its
+// transport is kept too, beneath the one that holds the credentials back from such a hop
+// at the wire, past anything a Jar adds. WithTransport keeps all of what the built client
+// carries and swaps only the transport underneath.
 func WithHTTPClient(c *http.Client) ClientOption {
 	return func(client *Client) {
 		client.httpClient = c
@@ -190,10 +191,15 @@ func NewClient(cfg *Config, tokenProvider TokenProvider, opts ...ClientOption) *
 	if c.httpClient != nil {
 		// The caller's client is used as given but for its redirect policy, which still
 		// decides each hop and is followed by the SDK's own cleanup of the hops it
-		// accepts. The copy keeps the caller's client as it was, since the same one may be
-		// in use elsewhere.
+		// accepts, and for its transport, which the credential strip wraps. The copy
+		// keeps the caller's client as it was, since the same one may be in use elsewhere.
 		supplied := *c.httpClient
 		supplied.CheckRedirect = redirectPolicy(c.httpClient.CheckRedirect)
+		transport := c.httpClient.Transport
+		if transport == nil {
+			transport = http.DefaultTransport
+		}
+		supplied.Transport = &credentialStrippingTransport{inner: transport}
 		c.httpClient = &supplied
 	} else {
 		transport := c.httpOpts.Transport
@@ -201,9 +207,12 @@ func NewClient(cfg *Config, tokenProvider TokenProvider, opts ...ClientOption) *
 			transport = newDefaultTransport()
 		}
 
-		// The cap sits inside the logging transport, so logging and hooks see every round
-		// trip, and outside the transport that negotiated the encoding, so it counts the
-		// decompressed bytes a parser would buffer.
+		// The credential strip sits directly over the transport that goes to the wire, as
+		// it does on a supplied client. The cap sits inside the logging transport, so
+		// logging and hooks see every round trip, and outside the transport that
+		// negotiated the encoding, so it counts the decompressed bytes a parser would
+		// buffer.
+		transport = &credentialStrippingTransport{inner: transport}
 		transport = &bodyLimitTransport{inner: transport, limit: c.httpOpts.responseBodyLimit()}
 		transport = &loggingTransport{inner: transport, client: c}
 
@@ -240,10 +249,11 @@ func NewClient(cfg *Config, tokenProvider TokenProvider, opts ...ClientOption) *
 // redirectPolicy is the CheckRedirect every client runs. The policy the caller set on a
 // client of their own, or net/http's own limit when they set none, decides whether the
 // hop is taken; the SDK's bookkeeping and cleanup then come last, so nothing the caller's
-// policy put on the request outlives them: net/http sends the hop as CheckRedirect leaves
-// it. A hop never carries the validator of the URL asked for — the one pointed to has its
-// own — and a hop off the origin goes out without the credentials the strategy set, as
-// does every hop after it, whether or not it comes back.
+// policy put on the request outlives them. A hop never carries the validator of the URL
+// asked for — the one pointed to has its own — and a hop off the origin goes out without
+// the credentials the strategy set, as does every hop after it, whether or not it comes
+// back. The strip is made again at the transport, since net/http adds a Jar's cookies to
+// the hop only after this has run.
 func redirectPolicy(next func(req *http.Request, via []*http.Request) error) func(req *http.Request, via []*http.Request) error {
 	return func(req *http.Request, via []*http.Request) error {
 		if next != nil {
