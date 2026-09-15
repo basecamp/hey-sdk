@@ -7,6 +7,7 @@ use std::time::{Duration, Instant};
 
 use chrono::Utc;
 use hey_sdk::http::Method;
+use hey_sdk::models::CreateMessageRequestContent;
 use hey_sdk::routes::{self, Pagination, Retry, Route};
 use hey_sdk::{Client, Config, StaticTokenProvider};
 use serde_json::{Value, json};
@@ -469,4 +470,58 @@ async fn the_wait_hey_asked_for_is_not_held_down() {
     client(&server).boxes().list().await.unwrap();
 
     assert!(started.elapsed() >= Duration::from_secs(1));
+}
+
+/// `UpdateSticky` is a PATCH the model calls idempotent, with `max: 2` on `[429, 503]`: a
+/// 503 earns the one resend the policy allows, where the verb alone would have sent it once.
+#[tokio::test]
+async fn a_patch_the_model_calls_idempotent_is_resent_under_its_policy() {
+    let server = MockServer::start().await;
+    Mock::given(method("PATCH"))
+        .and(path("/stickies/1.json"))
+        .respond_with(ResponseTemplate::new(503))
+        .up_to_n_times(1)
+        .with_priority(1)
+        .mount(&server)
+        .await;
+    always(
+        &server,
+        "PATCH",
+        "/stickies/1.json",
+        ResponseTemplate::new(200)
+            .set_body_json(json!({ "id": 1, "body": "Call the electrician" })),
+    )
+    .await;
+
+    let edited = client(&server)
+        .stickies()
+        .update_sticky(1, "Call the electrician", None)
+        .await
+        .unwrap();
+
+    assert_eq!(edited.body.as_deref(), Some("Call the electrician"));
+    assert_eq!(requests(&server).await, 2);
+}
+
+/// `UpdateMessage` is a PUT the spec marks `natural: false`: the verb would promise a
+/// resend, and the explicit word overrides it, so a 503 is the answer.
+#[tokio::test]
+async fn a_put_the_spec_calls_not_idempotent_is_sent_once() {
+    let server = MockServer::start().await;
+    always(
+        &server,
+        "PUT",
+        "/messages/5.json",
+        ResponseTemplate::new(503),
+    )
+    .await;
+
+    let error = client(&server)
+        .messages()
+        .update(5, &CreateMessageRequestContent::default())
+        .await
+        .unwrap_err();
+
+    assert_eq!(error.http_status(), Some(503));
+    assert_eq!(requests(&server).await, 1);
 }

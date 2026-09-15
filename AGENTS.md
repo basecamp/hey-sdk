@@ -45,7 +45,12 @@ openapi.json + behavior-model.json -> rust/generator -> rust/hey-sdk/src/generat
 `rust/generator` is a small Rust binary that reads `openapi.json` and `behavior-model.json`
 and writes `types.rs` (every schema), `routes.rs` (one `Route` static per operation, with
 idempotency, empty-on statuses, pagination style and the retry policy) and
-`services/*.rs` (one struct per service, one async method per operation). The hand-written
+`services/*.rs` (one struct per service, one async method per operation). A route's
+`idempotent` — what lets the retry loop resend it — is the spec's explicit
+`x-hey-idempotent.natural` when there is one, otherwise the behavior model's own `readonly`
+or `idempotent` (which is how a PATCH earns a resend), and only when the model says neither
+the verb (GET, HEAD, PUT, DELETE); the Kotlin and TypeScript generators read it the same
+way. The hand-written
 core in `rust/hey-sdk/src` (client, retries, cache, auth, pagination, account scope) knows
 nothing about individual operations; everything operation-specific comes from the model. The
 retry loop reads each route's policy — `max` is Smithy's `maxAttempts`, the sends in all —
