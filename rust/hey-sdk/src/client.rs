@@ -791,8 +791,8 @@ impl Client {
                 let sent = span
                     .wrap(self.transmit(operation, url.clone(), request))
                     .await;
-                if let Ok((_, response)) = &sent {
-                    span.answered(response.status());
+                if let Ok(received) = &sent {
+                    span.answered(received.response.status());
                 }
                 sent
             };
@@ -818,11 +818,14 @@ impl Client {
                         return Err(error);
                     }
                 }
-                Ok((final_url, response)) => {
-                    let status = response.status();
+                Ok(received) => {
+                    let status = received.response.status();
                     let retryable = budget.retry_on.contains(&status.as_u16());
-                    let retry_after = retry_after_asked(status, response.headers());
+                    let retry_after = retry_after_asked(status, received.response.headers());
+                    // A 401 from a hop that carried no credentials rejected none of HEY's:
+                    // there is nothing to refresh, and nothing a resend would change.
                     if status == StatusCode::UNAUTHORIZED
+                        && received.authenticated
                         && !refreshed
                         && self.refresh_credentials(signed_under).await
                     {
@@ -847,7 +850,7 @@ impl Client {
                         let cause = Error::from_response(
                             status,
                             &operation.method,
-                            response.headers(),
+                            received.response.headers(),
                             &[],
                         );
                         sending.end(&RequestResult {
@@ -871,10 +874,18 @@ impl Client {
                         delay = self.next_delay(delay);
                         attempt += 1;
                     } else {
+                        // An answer reached through a redirect is another resource's: the
+                        // entry looked up for the URL asked for neither satisfies its 304
+                        // nor takes its body.
+                        let cached = if received.redirected {
+                            None
+                        } else {
+                            cached.take()
+                        };
                         return Ok(Answered {
-                            url: final_url,
-                            response,
-                            cached: cached.take(),
+                            url: received.url,
+                            response: received.response,
+                            cached,
                             sending,
                             duration,
                             retryable,
@@ -1049,7 +1060,8 @@ impl Client {
 
     /// Sends one request and follows the redirects it is answered with, up to
     /// [`MAX_REDIRECTS`] hops, unless the operation is one that takes the redirect for its
-    /// answer. Hands back the URL the answer came from along with the answer.
+    /// answer. Hands back the answer with the URL it came from, whether a redirect was
+    /// followed on the way, and whether the hop it came from carried the credentials.
     ///
     /// Credentials stay on the origin they were meant for: a hop to another origin goes out
     /// without the `Authorization`, the way a browser would send it, which is how a blob
@@ -1060,8 +1072,9 @@ impl Client {
         operation: &Operation,
         mut url: Url,
         mut request: Request<Bytes>,
-    ) -> Result<(Url, HttpResponse<Body>), Error> {
+    ) -> Result<Received, Error> {
         let mut hops = 0;
+        let mut authenticated = true;
         loop {
             let outgoing = (
                 request.method().clone(),
@@ -1075,7 +1088,14 @@ impl Client {
                 redirect_target(&url, &response)
             };
             match next {
-                None => return Ok((url, response)),
+                None => {
+                    return Ok(Received {
+                        url,
+                        response,
+                        redirected: hops > 0,
+                        authenticated,
+                    });
+                }
                 Some(_) if hops == MAX_REDIRECTS => {
                     return Err(Error::new(
                         ErrorCode::Network,
@@ -1088,6 +1108,11 @@ impl Client {
                 }
                 Some(next) => {
                     require_secure_endpoint(&next)?;
+                    // The credentials come off on the way to another origin and do not go
+                    // back on for a hop that returns: from here on nothing is signed.
+                    if !is_same_origin(&next, &url) {
+                        authenticated = false;
+                    }
                     request = redirected(outgoing, response.status(), &url, &next)?;
                     url = next;
                     hops += 1;
@@ -1323,6 +1348,17 @@ impl Drop for Sending {
     }
 }
 
+/// What one send came back with: the answer, the URL it came from once any redirects were
+/// followed, whether any were, and whether the hop that answered went out with the
+/// credentials — which it did not once any hop left the origin, since they do not come
+/// back for one that returns.
+struct Received {
+    url: Url,
+    response: HttpResponse<Body>,
+    redirected: bool,
+    authenticated: bool,
+}
+
 /// One answer from HEY with its body unread: what the retry loop settled on, the URL it
 /// came from once any redirects were followed, and what the hooks still have to be told
 /// about it once the body has been dealt with.
@@ -1390,7 +1426,8 @@ fn redirect_target(url: &Url, response: &HttpResponse<Body>) -> Option<Url> {
 }
 
 /// The request to send to `next` on the way there from `from`: the same one, less the
-/// credentials when the origin changes, and reduced to a GET when the status asks for it.
+/// cache validator, less the credentials when the origin changes, and reduced to a GET
+/// when the status asks for it.
 fn redirected(
     (method, mut headers, body): (Method, HeaderMap, Bytes),
     status: StatusCode,
@@ -1408,6 +1445,8 @@ fn redirected(
         headers.remove(CONTENT_LENGTH);
         (Method::GET, Bytes::new())
     };
+    // The validator was the resource asked for's; the one pointed to has its own.
+    headers.remove(IF_NONE_MATCH);
     if !is_same_origin(next, from) {
         headers.remove(AUTHORIZATION);
         headers.remove(COOKIE);
@@ -1503,12 +1542,14 @@ pub(crate) async fn read_body(
 #[cfg(test)]
 mod tests {
     use std::sync::Mutex;
+    use std::sync::atomic::AtomicUsize;
 
     use async_trait::async_trait;
     use serde_json::Value;
 
     use super::*;
     use crate::auth::StaticTokenProvider;
+    use crate::cache::InMemoryCache;
 
     /// An [`HttpClient`] with no network behind it: it answers each request from a closure
     /// and keeps what it was sent. This is the second implementation the trait exists for,
@@ -1561,13 +1602,75 @@ mod tests {
         response
     }
 
+    fn tagged(body: &'static str, etag: &str) -> HttpResponse<Body> {
+        let mut response = answer(200, body);
+        response
+            .headers_mut()
+            .insert("etag", HeaderValue::from_str(etag).unwrap());
+        response
+    }
+
+    fn not_modified(etag: &str) -> HttpResponse<Body> {
+        let mut response = answer(304, "");
+        response
+            .headers_mut()
+            .insert("etag", HeaderValue::from_str(etag).unwrap());
+        response
+    }
+
     fn client_over(http: Arc<Canned>) -> Client {
+        client_with(http, StaticTokenProvider::new("secret"))
+    }
+
+    fn client_with(http: Arc<Canned>, provider: impl TokenProvider + 'static) -> Client {
         Client::builder(Config::default().with_base_url("https://hey.test"))
-            .token_provider(StaticTokenProvider::new("secret"))
+            .token_provider(provider)
             .http_client(http)
             .max_retries(0)
             .build()
             .unwrap()
+    }
+
+    fn caching_client_over(http: Arc<Canned>) -> Client {
+        Client::builder(Config::default().with_base_url("https://hey.test"))
+            .token_provider(StaticTokenProvider::new("secret"))
+            .http_client(http)
+            .cache(InMemoryCache::new())
+            .max_retries(0)
+            .build()
+            .unwrap()
+    }
+
+    /// A provider whose token can be renewed, and which counts how often it was asked to.
+    struct Renewing {
+        token: Mutex<String>,
+        refreshes: AtomicUsize,
+    }
+
+    impl Renewing {
+        fn new() -> Arc<Renewing> {
+            Arc::new(Renewing {
+                token: Mutex::new("stale".to_string()),
+                refreshes: AtomicUsize::new(0),
+            })
+        }
+
+        fn refreshes(&self) -> usize {
+            self.refreshes.load(Ordering::SeqCst)
+        }
+    }
+
+    #[async_trait]
+    impl TokenProvider for Renewing {
+        async fn access_token(&self) -> Result<String, Error> {
+            Ok(self.token.lock().unwrap().clone())
+        }
+
+        async fn refresh(&self) -> bool {
+            self.refreshes.fetch_add(1, Ordering::SeqCst);
+            *self.token.lock().unwrap() = "fresh".to_string();
+            true
+        }
     }
 
     #[tokio::test]
@@ -1689,6 +1792,177 @@ mod tests {
 
         assert_eq!(created.location.as_deref(), Some("/workflows/8801"));
         assert_eq!(http.sent().len(), 1);
+    }
+
+    #[tokio::test]
+    async fn a_redirect_neither_carries_nor_takes_the_cache_entry_of_the_url_asked_for() {
+        // /a is answered, then redirected to /b, then answered 304. /b carries the same
+        // ETag, so an entry that took b's body under a's key would pass the 304 off as a.
+        let reads = Mutex::new(0);
+        let http = Canned::new(move |request| {
+            if request.uri().path() == "/a.json" {
+                let mut reads = reads.lock().unwrap();
+                *reads += 1;
+                match *reads {
+                    1 => tagged(r#"{"which":"a"}"#, "\"x\""),
+                    2 => redirect("/b.json"),
+                    _ => not_modified("\"x\""),
+                }
+            } else {
+                tagged(r#"{"which":"b"}"#, "\"x\"")
+            }
+        });
+        let client = caching_client_over(http.clone());
+
+        let first = client
+            .execute(client.request(Method::GET, "/a"))
+            .await
+            .unwrap();
+        let through = client
+            .execute(client.request(Method::GET, "/a"))
+            .await
+            .unwrap();
+        let again = client
+            .execute(client.request(Method::GET, "/a"))
+            .await
+            .unwrap();
+
+        assert_eq!(first.body, r#"{"which":"a"}"#);
+        assert_eq!(
+            through.body, r#"{"which":"b"}"#,
+            "the answer reached through the redirect is b's"
+        );
+        assert!(!through.from_cache);
+        assert_eq!(
+            again.body, r#"{"which":"a"}"#,
+            "a's entry is still a's, not b's"
+        );
+        assert!(again.from_cache);
+        let sent = http.sent();
+        assert_eq!(sent.len(), 4);
+        assert_eq!(sent[1].2[IF_NONE_MATCH], "\"x\"");
+        assert_eq!(sent[2].1, "https://hey.test/b.json");
+        assert!(
+            sent[2].2.get(IF_NONE_MATCH).is_none(),
+            "b is not asked to validate a's entry"
+        );
+        assert_eq!(sent[3].2[IF_NONE_MATCH], "\"x\"");
+    }
+
+    #[tokio::test]
+    async fn a_304_from_a_redirect_target_is_not_answered_from_the_cache() {
+        let reads = Mutex::new(0);
+        let http = Canned::new(move |request| {
+            if request.uri().path() == "/a.json" {
+                let mut reads = reads.lock().unwrap();
+                *reads += 1;
+                if *reads == 1 {
+                    tagged(r#"{"which":"a"}"#, "\"x\"")
+                } else {
+                    redirect("/b.json")
+                }
+            } else {
+                not_modified("\"x\"")
+            }
+        });
+        let client = caching_client_over(http.clone());
+
+        client
+            .execute(client.request(Method::GET, "/a"))
+            .await
+            .unwrap();
+        let error = client
+            .execute(client.request(Method::GET, "/a"))
+            .await
+            .unwrap_err();
+
+        assert_eq!(error.http_status(), Some(304));
+        assert_eq!(http.sent().len(), 3);
+    }
+
+    #[tokio::test]
+    async fn a_401_from_a_hop_that_carried_no_credentials_refreshes_nothing() {
+        let http = Canned::new(|request| {
+            if request.uri().host() == Some("hey.test") {
+                redirect("https://files.test/export.json")
+            } else {
+                answer(401, "")
+            }
+        });
+        let provider = Renewing::new();
+        let client = client_with(http.clone(), provider.clone());
+
+        let error = client
+            .execute(client.request(Method::GET, "/boxes"))
+            .await
+            .unwrap_err();
+
+        assert_eq!(error.code(), ErrorCode::Auth);
+        assert_eq!(error.http_status(), Some(401));
+        assert_eq!(
+            provider.refreshes(),
+            0,
+            "HEY's credentials were not the ones rejected"
+        );
+        assert_eq!(http.sent().len(), 2, "and nothing is sent again");
+    }
+
+    #[tokio::test]
+    async fn a_hop_back_to_the_origin_does_not_bring_the_credentials_with_it() {
+        let http = Canned::new(|request| match request.uri().host() {
+            Some("hey.test") if request.uri().path() == "/boxes.json" => {
+                redirect("https://files.test/boxes")
+            }
+            Some("hey.test") => answer(401, ""),
+            _ => redirect("https://hey.test/elsewhere.json"),
+        });
+        let provider = Renewing::new();
+        let client = client_with(http.clone(), provider.clone());
+
+        let error = client
+            .execute(client.request(Method::GET, "/boxes"))
+            .await
+            .unwrap_err();
+
+        assert_eq!(error.code(), ErrorCode::Auth);
+        assert_eq!(provider.refreshes(), 0);
+        let sent = http.sent();
+        assert_eq!(sent.len(), 3);
+        assert_eq!(sent[2].1, "https://hey.test/elsewhere.json");
+        assert!(sent[2].2.get(AUTHORIZATION).is_none());
+    }
+
+    #[tokio::test]
+    async fn a_401_on_a_redirect_that_stayed_on_the_origin_is_still_refreshed() {
+        let http = Canned::new(|request| {
+            if request.uri().path() == "/old.json" {
+                redirect("/new.json")
+            } else if request
+                .headers()
+                .get(AUTHORIZATION)
+                .is_some_and(|token| token == "Bearer fresh")
+            {
+                answer(200, r#"{"moved":true}"#)
+            } else {
+                answer(401, "")
+            }
+        });
+        let provider = Renewing::new();
+        let client = client_with(http.clone(), provider.clone());
+
+        let response = client
+            .execute(client.request(Method::GET, "/old"))
+            .await
+            .unwrap();
+
+        assert_eq!(response.body, r#"{"moved":true}"#);
+        assert_eq!(provider.refreshes(), 1);
+        let sent = http.sent();
+        assert_eq!(sent.len(), 4);
+        assert_eq!(sent[1].1, "https://hey.test/new.json");
+        assert_eq!(sent[1].2[AUTHORIZATION], "Bearer stale");
+        assert_eq!(sent[3].1, "https://hey.test/new.json");
+        assert_eq!(sent[3].2[AUTHORIZATION], "Bearer fresh");
     }
 
     #[test]
