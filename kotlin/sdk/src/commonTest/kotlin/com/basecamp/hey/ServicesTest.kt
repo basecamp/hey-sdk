@@ -463,6 +463,37 @@ private fun formFields(body: String): Map<String, String> = body.split('&').asso
     }
 
     @Test
+    fun aStorageOnHeysOwnOriginIsPutToAsBuiltWithoutTheAccountScope() = runTest {
+        val hey = mockHey(ok(IDENTITY), ok(directUpload("https://app.hey.com/rails/active_storage/disk/token123")), ok(""))
+        val work = hey.client().forAccount(42)
+        work.attachments.upload("a.txt", "text/plain", "x".encodeToByteArray())
+        assertEquals("42", hey.requests[1].query("filtered_account_id"), "the reservation is HEY's and is scoped")
+        assertNull(hey.requests[2].query("filtered_account_id"), "the put is the storage service's and is not")
+        assertNull(hey.requests[2].header("Authorization"))
+    }
+
+    @Test
+    fun aStorageThatRefusesOrRedirectsGetsNoCredentialsEitherWay() = runTest {
+        var refreshes = 0
+        val credentials = object : TokenProvider {
+            override suspend fun accessToken(): String = "token"
+            override suspend fun refresh(): Boolean { refreshes += 1; return true }
+        }
+        val refusing = mockHey(ok(directUpload("https://storage.example.com/blobs/abc")), status(401))
+        val error = assertFailsWith<HeyException.Auth> { refusing.client { accessToken(credentials) }.attachments.upload("a.txt", "text/plain", "x".encodeToByteArray()) }
+        assertEquals(401, error.httpStatus)
+        assertEquals(0, refreshes, "a 401 from storage rejected none of HEY's credentials")
+        assertEquals(2, refusing.requests.size, "and nothing is resent")
+
+        val redirecting = mockHey(ok(directUpload("https://storage.example.com/blobs/abc")), status(307, headers = mapOf("Location" to "https://storage.example.com/blobs/abc-moved")), ok(""))
+        redirecting.client { accessToken(credentials) }.attachments.upload("a.txt", "text/plain", "x".encodeToByteArray())
+        assertEquals(3, redirecting.requests.size)
+        assertEquals("/blobs/abc-moved", redirecting.requests[2].path)
+        assertNull(redirecting.requests[2].header("Authorization"), "a hop on storage's own origin is not signed: the put never was")
+        assertEquals("x", redirecting.requests[2].body, "a 307 keeps the bytes")
+    }
+
+    @Test
     fun anAttachmentWithNoContentTypeIsAStreamOfBytesAndOneWithoutAFilenameIsRefused() = runTest {
         val hey = mockHey(ok(directUpload("https://storage.example.com/blobs/abc", headers = """{"Content-Type":"application/octet-stream"}""")), ok(""))
         val client = hey.client()
