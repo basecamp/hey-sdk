@@ -126,10 +126,11 @@ type ClientOption func(*Client)
 
 // WithHTTPClient sets a custom HTTP client. It replaces the one NewClient would build, so
 // none of what that one carries — the request timeout, the response body cap, logging and
-// hooks — applies to it. Its redirect policy is kept, and runs after the SDK's own, which
-// every client gets: a hop off the origin goes out without the credentials, and no hop
-// carries the validator of the URL asked for. WithTransport keeps all of that and swaps
-// only the transport underneath.
+// hooks — applies to it. Its redirect policy is kept and decides each hop first; a hop it
+// accepts then gets the cleanup every client's hops get, as the last thing before it is
+// sent: a hop off the origin goes out without the credentials, and no hop carries the
+// validator of the URL asked for. WithTransport keeps all of that and swaps only the
+// transport underneath.
 func WithHTTPClient(c *http.Client) ClientOption {
 	return func(client *Client) {
 		client.httpClient = c
@@ -187,9 +188,10 @@ func NewClient(cfg *Config, tokenProvider TokenProvider, opts ...ClientOption) *
 	}
 
 	if c.httpClient != nil {
-		// The caller's client is used as given but for its redirect policy, which the
-		// SDK's bookkeeping runs ahead of: the copy keeps the caller's own client as it
-		// was, since the same one may be in use elsewhere.
+		// The caller's client is used as given but for its redirect policy, which still
+		// decides each hop and is followed by the SDK's own cleanup of the hops it
+		// accepts. The copy keeps the caller's client as it was, since the same one may be
+		// in use elsewhere.
 		supplied := *c.httpClient
 		supplied.CheckRedirect = redirectPolicy(c.httpClient.CheckRedirect)
 		c.httpClient = &supplied
@@ -251,6 +253,9 @@ func redirectPolicy(next func(req *http.Request, via []*http.Request) error) fun
 		} else if len(via) >= 10 {
 			return fmt.Errorf("stopped after 10 redirects")
 		}
+		// A send without a state — the attachment upload's PUT to storage, which carries no
+		// credentials of HEY's and whose answer is never cached — still gets the cleanup,
+		// on a state nothing will read.
 		state := redirectStateFromContext(req.Context())
 		if state == nil {
 			state = &redirectState{}

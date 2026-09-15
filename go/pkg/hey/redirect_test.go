@@ -385,8 +385,8 @@ func TestSuppliedHTTPClientKeepsTheCacheEntryOfTheURLAskedForAcrossARedirect(t *
 	}
 }
 
-// The policy a supplied client came with still has the last word on each hop, after the
-// SDK's bookkeeping has run.
+// The policy a supplied client came with decides each hop before the SDK does anything
+// with it: a hop the policy declines is not followed, and the answer is the redirect.
 func TestSuppliedHTTPClientKeepsItsOwnRedirectPolicy(t *testing.T) {
 	var hops atomic.Int64
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -415,7 +415,7 @@ func TestSuppliedHTTPClientKeepsItsOwnRedirectPolicy(t *testing.T) {
 
 // A generated operation whose chain left the origin gets the same answer to a 401 from
 // there: no refresh and no resend, with or without the cache in the way.
-func TestGeneratedOperationsRefreshNothingOnAUnauthorizedFromACrossOriginHop(t *testing.T) {
+func TestGeneratedOperationsRefreshNothingWhenACrossOriginHopAnswers401(t *testing.T) {
 	for _, cached := range []bool{false, true} {
 		t.Run(fmt.Sprintf("cache=%v", cached), func(t *testing.T) {
 			var requests atomic.Int64
