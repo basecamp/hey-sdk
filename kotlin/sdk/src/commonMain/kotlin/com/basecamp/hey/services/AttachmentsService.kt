@@ -4,6 +4,9 @@ import com.basecamp.hey.HeyClient
 import com.basecamp.hey.HeyException
 import com.basecamp.hey.Method
 import com.basecamp.hey.Operation
+import com.basecamp.hey.OperationInfo
+import com.basecamp.hey.generated.Routes
+import com.basecamp.hey.json
 import com.basecamp.hey.generated.models.CreateDirectUploadRequestContent
 import com.basecamp.hey.generated.models.DirectUpload
 import com.basecamp.hey.generated.models.DirectUploadBlob
@@ -42,9 +45,17 @@ class AttachmentsService(client: HeyClient) : GeneratedAttachmentsService(client
                 contentType = contentType ?: DEFAULT_CONTENT_TYPE,
             ),
         )
-        val upload = reserved(createDirectUpload(body))
-        store(upload.directUpload, content)
-        return upload
+        // Both requests go quiet inside one operation, so the hooks hear
+        // Attachments.CreateDirectUpload once and hear it end only once the bytes are stored,
+        // with the failure when the storage service refuses them.
+        return client.asOperation(OperationInfo(service = "Attachments", operation = "CreateDirectUpload", resourceType = "direct_upload", isMutation = true)) {
+            val reservation = client.operation(Routes.CREATE_DIRECT_UPLOAD, emptyList())
+            reservation.json(body)
+            reservation.quiet()
+            val upload = reserved(client.send<DirectUpload>(reservation))
+            store(upload.directUpload, content)
+            upload
+        }
     }
 
     /**
@@ -52,7 +63,7 @@ class AttachmentsService(client: HeyClient) : GeneratedAttachmentsService(client
      * the HEY API: the storage URL authenticates itself and takes exactly the headers HEY
      * named — including any `Authorization` the storage service wants, which is why the HEY
      * credentials must not ride along — so the request goes out unsigned, once, and quietly:
-     * the reservation is the operation the hooks heard, and this is its second request.
+     * the reservation and this are the two requests of the one operation the hooks hear.
      */
     private suspend fun store(target: DirectUploadTarget, content: ByteArray) {
         val url = parseAbsoluteUrl(target.url)

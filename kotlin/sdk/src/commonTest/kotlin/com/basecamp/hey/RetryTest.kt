@@ -164,4 +164,18 @@ class RetryTest {
         assertEquals(3, hey.requests.size)
         assertEquals(0L, testScheduler.currentTime, "neither a literal zero nor a date already past is a reason to wait the backoff")
     }
+
+    @Test
+    fun aRetryAfterOnA503IsHonouredToo() = runTest {
+        val hey = mockHey(status(503, headers = mapOf("Retry-After" to "2")), ok("[]"))
+        var waited = -1L
+        hey.client {
+            hooks = object : HeyHooks {
+                override fun onRetry(info: RequestInfo, attempt: Int, error: Throwable, delayMs: Long) { waited = delayMs }
+            }
+        }.boxes.list()
+        assertEquals(2, hey.requests.size)
+        assertEquals(2000L, waited, "the outage window HEY named is the wait")
+        assertEquals(2000L, testScheduler.currentTime)
+    }
 }

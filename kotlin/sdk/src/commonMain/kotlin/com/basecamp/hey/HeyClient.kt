@@ -572,7 +572,9 @@ class HeyClient internal constructor(
             }
             if (retryable && attempt < attempts) {
                 val cause = HeyException.fromResponse(status, operation.method, received.headers, ByteArray(0))
-                val retryAfter = if (status == 429) retryAfterSeconds(received.headers["Retry-After"]) else null
+                // A Retry-After on any status that earns a resend — a 503 says how long the
+                // outage is expected to last as plainly as a 429 says how long to back off.
+                val retryAfter = retryAfterSeconds(received.headers["Retry-After"])
                 // A Retry-After is honoured as given, zero included: HEY saying "now" is not a
                 // reason to wait the backoff instead.
                 val wait = if (retryAfter != null) retryAfter.seconds else waitFor(delay)
@@ -843,7 +845,15 @@ class HeyClient internal constructor(
      */
     private fun redirected(outgoing: HttpRequestBuilder, status: Int, from: Url, to: Url, credentialHeaders: Set<String>): HttpRequestBuilder {
         val request = HttpRequestBuilder()
-        val keepBody = status == 307 || status == 308 || outgoing.method == HttpMethod.Get || outgoing.method == HttpMethod.Head
+        // A 303 says fetch the answer, whatever the method; a 301 or 302 is only allowed to
+        // turn a POST into a GET, and leaves a PUT, PATCH or DELETE as it was, since a GET in
+        // its place would report a mutation done that never reached where it was sent; a 307
+        // or 308 keeps everything.
+        val keepBody = when (status) {
+            303 -> outgoing.method == HttpMethod.Get || outgoing.method == HttpMethod.Head
+            301, 302 -> outgoing.method != HttpMethod.Post
+            else -> true
+        }
         request.method = if (keepBody) outgoing.method else HttpMethod.Get
         request.url(to)
         val sameOrigin = isSameOrigin(from, to)
