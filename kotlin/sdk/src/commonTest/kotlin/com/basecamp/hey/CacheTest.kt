@@ -239,4 +239,26 @@ class CacheTest {
         assertNull(hey.requests[1].header("If-None-Match"), "the one-value identity is not asked to validate the two-value identity's entry")
         assertEquals(2, store.size)
     }
+
+    @Test
+    fun aCredentialHeyEchoesIsNotKeptInTheCache() = runTest {
+        val hey = mockHey(
+            ok("[]", mapOf("ETag" to "\"v1\"", "X-Api-Key" to "key-123", "X-Echo" to "fine")),
+            status(304, headers = mapOf("ETag" to "\"v1\"", "X-Api-Key" to "key-123")),
+        )
+        val store = InMemoryCache()
+        val client = HeyClient {
+            auth(HeaderAuth("X-Api-Key", "key-123"))
+            engine = hey.engine
+            enableCache = true
+            cache = store
+        }
+        client.boxes.list()
+        val entry = store.get(cacheKey("https://app.hey.com/boxes.json", "9:x-api-key1:7:key-123"))!!
+        assertEquals(null, entry.headers.keys.firstOrNull { it.equals("X-Api-Key", ignoreCase = true) }, "the key the strategy signs with is not kept, echoed or not")
+        assertEquals(listOf("fine"), entry.headers["X-Echo"])
+        client.boxes.list()
+        val again = store.get(cacheKey("https://app.hey.com/boxes.json", "9:x-api-key1:7:key-123"))!!
+        assertEquals(null, again.headers.keys.firstOrNull { it.equals("X-Api-Key", ignoreCase = true) }, "nor after a 304 that echoes it")
+    }
 }

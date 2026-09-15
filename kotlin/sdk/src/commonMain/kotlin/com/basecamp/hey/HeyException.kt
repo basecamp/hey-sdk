@@ -271,7 +271,8 @@ sealed class HeyException(
  */
 internal fun retryAfterSeconds(value: String?): Long? {
     val trimmed = value?.trim()?.takeIf { it.isNotEmpty() } ?: return null
-    trimmed.toLongOrNull()?.let { return it.coerceAtLeast(0) }
+    // delay-seconds is digits only: a negative number is not a wait of nothing, it is no wait HEY named.
+    trimmed.toLongOrNull()?.let { return if (it < 0) null else it }
     val target = runCatching { trimmed.fromHttpToGmtDate() }.getOrNull() ?: return null
     val remaining = target.timestamp - GMTDate().timestamp
     return if (remaining > 0) (remaining + 999) / 1000 else 0

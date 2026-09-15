@@ -154,6 +154,12 @@ class HeyClientBuilder {
             ?: throw HeyException.Usage("Authentication must be configured. Use accessToken(\"token\") or auth(strategy).")
         val parsed = parseAbsoluteUrl(baseUrl) ?: throw HeyException.Usage("Invalid base URL: $baseUrl")
         requireSecureEndpoint(parsed)
+        // A base URL is an origin and a path prefix, nothing more: a query would ride along
+        // on every request, and a userinfo or fragment would ride into every URL the hooks
+        // and logs see.
+        if (parsed.encodedQuery.isNotEmpty() || parsed.user != null || parsed.encodedFragment.isNotEmpty()) {
+            throw HeyException.Usage("base URL must carry no query, credentials or fragment: ${parsed.protocol.name}://${parsed.host}")
+        }
 
         val config = try {
             HeyConfig(
@@ -468,6 +474,8 @@ class HeyClient internal constructor(
         val cached: Pair<String, CachedResponse>?,
         val info: RequestInfo,
         val duration: Duration,
+        /** The headers the auth strategy set on the request, lowercased: what an answer that echoes them must not leave in the cache. */
+        val credentialNames: Set<String>,
     ) {
         val status: Int get() = received.status
     }
@@ -587,7 +595,7 @@ class HeyClient internal constructor(
             }
             // An answer reached through a redirect is another resource's: the entry looked up
             // for the URL asked for neither satisfies its 304 nor takes its body.
-            return Answered(received, cached.takeUnless { received.redirected }, info, duration)
+            return Answered(received, cached.takeUnless { received.redirected }, info, duration, prepared.credentials.names)
         }
     }
 
@@ -887,7 +895,7 @@ class HeyClient internal constructor(
                 if (forbidsStoring(merged)) {
                     cache.invalidate(key)
                 } else {
-                    cache.set(key, CachedResponse(merged[HttpHeaders.ETag] ?: entry.etag, entry.body, storableHeaders(merged)))
+                    cache.set(key, CachedResponse(merged[HttpHeaders.ETag] ?: entry.etag, entry.body, storableHeaders(merged, answered.credentialNames)))
                 }
             }
             // The caller gets a copy: the entry's bytes are the cache's, and a Response's body is the caller's to do with as it likes.
@@ -909,7 +917,7 @@ class HeyClient internal constructor(
                 when {
                     // An answer HEY says not to keep is not kept, and neither is what it replaced.
                     forbidsStoring(headers) -> cache.invalidate(key)
-                    etag != null && body.isNotEmpty() -> cache.set(key, CachedResponse(etag, body.copyOf(), storableHeaders(headers)))
+                    etag != null && body.isNotEmpty() -> cache.set(key, CachedResponse(etag, body.copyOf(), storableHeaders(headers, answered.credentialNames)))
                 }
             }
             return Response(status, headers, body, received.url, fromCache = false, empty = false)
@@ -1059,8 +1067,11 @@ private fun forbidsStoring(headers: Headers): Boolean =
     }
 
 /** The headers a cache entry keeps beside the body: everything HEY sent that is not a credential. */
-private fun storableHeaders(headers: Headers): Map<String, List<String>> =
-    headers.entries().filter { (name, _) -> !isSensitiveHeader(name) }.associate { (name, values) -> name to values.toList() }
+/** The headers a cache entry keeps beside the body: everything HEY sent that is not a credential — the usual suspects, and whatever the strategy signs with, should HEY echo it. */
+private fun storableHeaders(headers: Headers, credentialNames: Set<String>): Map<String, List<String>> =
+    headers.entries()
+        .filter { (name, _) -> !isSensitiveHeader(name) && name.lowercase() !in credentialNames }
+        .associate { (name, values) -> name to values.toList() }
 
 /**
  * Whether the answer to a request that asked for this is a document the SDK holds whole and

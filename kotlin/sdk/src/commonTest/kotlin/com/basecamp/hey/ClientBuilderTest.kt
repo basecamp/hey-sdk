@@ -97,4 +97,13 @@ class ClientBuilderTest {
         assertTrue(error.message!!.contains("millisecond"), error.message)
         HeyClient { accessToken("t"); engine = this@ClientBuilderTest.engine; timeout = 1.milliseconds }.close()
     }
+
+    @Test
+    fun aBaseUrlIsAnOriginAndAPathPrefixAndNothingMore() {
+        for (base in listOf("https://app.hey.com?filtered_account_id=42", "https://user:pass@app.hey.com", "https://app.hey.com/#fragment")) {
+            val error = assertFailsWith<HeyException.Usage> { HeyClient { accessToken("t"); engine = this@ClientBuilderTest.engine; baseUrl = base } }
+            assertEquals(false, error.message!!.contains("pass") || error.message!!.contains("42") || error.message!!.contains("#fragment"), "the refusal names the origin, not what was refused: ${error.message}")
+        }
+        HeyClient { accessToken("t"); engine = this@ClientBuilderTest.engine; baseUrl = "https://app.hey.com/prefix" }.close()
+    }
 }
