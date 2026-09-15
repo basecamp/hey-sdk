@@ -170,6 +170,20 @@ class ModelTest {
     }
 
     @Test
+    fun idempotencyComesFromTheOverrideThenTheModelThenTheVerb() {
+        val markSeen = """"operationId":"MarkBoxSeen","tags":["Boxes"],"x-hey-idempotent":{"natural":true},"""
+        val patched = boxPaths.replace(markSeen, """"operationId":"MarkBoxSeen","tags":["Boxes"],""").replace(""""/boxes/{boxId}/observation.json": {"post":""", """"/boxes/{boxId}/observation.json": {"patch":""")
+        val fromModel = model(patched, boxSchemas, mapOf("MarkBoxSeen" to """{"readonly":false,"idempotent":true}"""))
+        assertTrue(fromModel.services.first { it.name == "boxes" }.operations.single { it.id == "MarkBoxSeen" }.idempotent, "a PATCH the model calls idempotent is")
+        val fromVerb = model(patched, boxSchemas, mapOf("MarkBoxSeen" to """{"readonly":false}"""))
+        assertEquals(false, fromVerb.services.first { it.name == "boxes" }.operations.single { it.id == "MarkBoxSeen" }.idempotent, "and one it says nothing about goes by its verb")
+
+        val put = boxPaths.replace(markSeen, """"operationId":"MarkBoxSeen","tags":["Boxes"],"x-hey-idempotent":{"natural":false},""").replace(""""/boxes/{boxId}/observation.json": {"post":""", """"/boxes/{boxId}/observation.json": {"put":""")
+        val overridden = model(put, boxSchemas, mapOf("MarkBoxSeen" to """{"readonly":false,"idempotent":true}"""))
+        assertEquals(false, overridden.services.first { it.name == "boxes" }.operations.single { it.id == "MarkBoxSeen" }.idempotent, "the override wins over the model, as UpdateMessage needs")
+    }
+
+    @Test
     fun aMethodCollisionIsRefused() {
         val paths = boxPaths.replace(""""operationId":"MarkBoxSeen"""", """"operationId":"ListBox"""")
         val error = assertFailsWith<GeneratorException> { model(paths, boxSchemas) }

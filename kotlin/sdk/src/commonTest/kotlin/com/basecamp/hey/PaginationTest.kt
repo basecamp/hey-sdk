@@ -2,6 +2,7 @@ package com.basecamp.hey
 
 import kotlinx.coroutines.flow.toList
 import com.basecamp.hey.generated.*
+import com.basecamp.hey.services.PostingChangesCursor
 import com.basecamp.hey.generated.services.GetContactOptions
 import io.ktor.http.Url
 import kotlinx.coroutines.test.runTest
@@ -116,37 +117,39 @@ class PaginationTest {
     }
 
     @Test
-    fun aChangeFeedsLastLinkIsTheCursorToPollNextNotAPage() = runTest {
-        val feed = """{"added":[],"updated":[],"deleted":[]}"""
+    fun aChangeFeedAnswersItsPagesThenTheCursorToPollNext() = runTest {
         val hey = mockHey(
-            ok(feed, mapOf("Link" to "</boxes/7/postings/changes.json?since=2026-09-15T10:00:00Z&page=2>; rel=\"next\"")),
-            ok(feed, mapOf("Link" to "</boxes/7/postings/changes.json?since=2026-09-15T10:05:00Z>; rel=\"next\"")),
-            ok(feed, mapOf("ETag" to "\"x\"")),
+            ok("""{"added":[{"id":1,"kind":"topic"}],"updated":[],"deleted":[]}""", mapOf("Link" to "</boxes/7/postings/changes.json?since=2026-09-15T10:00:00Z&page=2>; rel=\"next\"")),
+            ok("""{"added":[],"updated":[],"deleted":[{"id":2}]}""", mapOf("Link" to "</boxes/7/postings/changes.json?since=2026-09-15T10:05:00Z&v=2>; rel=\"next\"")),
+            status(409, """{"error":"cursor too old"}"""),
         )
         val store = InMemoryCache()
         val client = hey.client {
             enableCache = true
             cache = store
         }
-        assertFailsWith<HeyException.Usage> { client.postings.changes(7, "") }
-        val visited = mutableListOf<Page<*>>()
-        client.eachPage(client.postings.changes(7, "2026-09-15T10:00:00Z")) { visited += it; true }
-        assertEquals(2, visited.size, "the walk reads the increment's second page and stops")
-        assertEquals(2, hey.requests.size)
+        assertFailsWith<HeyException.Usage> { client.postings.changes(7, PostingChangesCursor(since = "")) }
+        val first = client.postings.changes(7, PostingChangesCursor("2026-09-15T10:00:00Z"))
+        assertEquals(listOf(1L), first.added.map { it.id })
+        assertEquals("2", first.nextPage, "the increment has another page")
+        assertNull(first.nextCursor)
+        val second = client.postings.changes(7, PostingChangesCursor("2026-09-15T10:00:00Z", page = first.nextPage))
+        assertEquals(listOf(2L), second.deleted.map { it.id })
+        assertNull(second.nextPage)
+        assertEquals(PostingChangesCursor("2026-09-15T10:05:00Z", version = "2"), second.nextCursor, "and the last page names where to resume")
         assertEquals("2", hey.requests[1].query("page"))
-        assertEquals(0, store.size, "no page of the feed is held, the ones a walk reads included")
-        assertEquals(false, visited.last().hasNext)
-        assertEquals("2026-09-15T10:05:00Z", visited.last().nextCursor?.parameters?.get("since"), "and hands back where to poll next")
-        assertNull(visited.last().nextPage)
+        assertEquals(0, store.size, "no page of the feed is held")
 
-        client.postings.changes(7, "2026-09-15T10:05:00Z")
-        assertNull(hey.requests[2].header("If-None-Match"), "a change-feed read is never served from or held in the cache")
+        val stale = client.postings.changes(7, second.nextCursor!!)
+        assertEquals(true, stale.fullSyncRequired, "a 409 is HEY refusing the cursor: read the box in full")
+        assertEquals(emptyList(), stale.added)
+        assertEquals(3, hey.requests.size, "and it is not resent")
     }
 
     @Test
     fun aCursorOffTheOriginIsRefused() = runTest {
         val hey = mockHey(ok("""{"added":[],"updated":[],"deleted":[]}""", mapOf("Link" to "<https://evil.example.com/changes.json?since=x>; rel=\"next\"")))
-        val error = assertFailsWith<HeyException.Usage> { hey.client().postings.changes(7, "2026-09-15T10:00:00Z") }
+        val error = assertFailsWith<HeyException.Usage> { hey.client().postings.changes(7, PostingChangesCursor("2026-09-15T10:00:00Z")) }
         assertEquals(false, error.message!!.contains("since=x"), "the refusal names the origin, not the URL")
     }
 
