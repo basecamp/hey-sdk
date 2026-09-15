@@ -456,6 +456,8 @@ class HeyClient internal constructor(
         val redirected: Boolean,
         /** Whether the request this answers went out with the credentials: a hop to another origin drops them, and they do not come back. */
         val authenticated: Boolean,
+        /** How many refreshes had happened when the request this answers was signed — the last signing, when a hop was signed again. */
+        val signedUnder: Long,
     )
 
     /** What one send came back with: the answer, or the place a redirect points. */
@@ -476,7 +478,6 @@ class HeyClient internal constructor(
 
         while (true) {
             val prepared = prepare(operation, url, cached)
-            val signedUnder = prepared.signedUnder
             cached = prepared.cached
             val info = RequestInfo(operation.method.name, url.toString(), attempt)
             hooks.safeRequestStart(info)
@@ -514,7 +515,7 @@ class HeyClient internal constructor(
             // A 401 from a hop that carried no credentials rejected none of HEY's: there is
             // nothing to refresh, and nothing a resend would change.
             val renewed = status == 401 && received.authenticated && !refreshed && try {
-                refreshCredentials(signedUnder)
+                refreshCredentials(received.signedUnder)
             } catch (error: Throwable) {
                 hooks.safeRequestEnd(info, RequestResult(status, duration, error = reported(error, "request cancelled")))
                 throw error
@@ -696,12 +697,13 @@ class HeyClient internal constructor(
         var url = start
         var request = prepared.request
         var credentials = prepared.credentials
+        var signedUnder = prepared.signedUnder
         var hops = 0
         var authenticated = true
         while (true) {
             val outcome = shared.http.prepareRequest(request).execute { response ->
                 val next = if (operation.captureRedirects) null else redirectTarget(url, response)
-                if (next != null) Outcome.Redirect(next, response.status.value) else Outcome.Answer(receive(operation, url, response, hops > 0, authenticated))
+                if (next != null) Outcome.Redirect(next, response.status.value) else Outcome.Answer(receive(operation, url, response, hops > 0, authenticated, signedUnder))
             }
             when (outcome) {
                 is Outcome.Answer -> return outcome.received
@@ -715,8 +717,13 @@ class HeyClient internal constructor(
                     if (!sameOrigin) authenticated = false
                     request = redirected(request, outcome.status, url, next, credentials.names)
                     // The signature was for the URL and method the hop left behind; on the
-                    // origin it is made again for the ones it goes to, and off it never is.
-                    if (sameOrigin && authenticated) credentials = sign(request).first
+                    // origin it is made again for the ones it goes to, and off it never is. The
+                    // count moves with it: a 401 on the hop is about the credentials it carried.
+                    if (sameOrigin && authenticated) {
+                        val (signed, count) = sign(request)
+                        credentials = signed
+                        signedUnder = count
+                    }
                     url = next
                     hops += 1
                 }
@@ -725,15 +732,15 @@ class HeyClient internal constructor(
     }
 
     /** Reads what the SDK keeps of a response while the connection is live: a 304 has no body to read, and a body past its bound is refused there and then. */
-    private suspend fun receive(operation: Operation, url: Url, response: HttpResponse, redirected: Boolean, authenticated: Boolean): Received {
+    private suspend fun receive(operation: Operation, url: Url, response: HttpResponse, redirected: Boolean, authenticated: Boolean, signedUnder: Long): Received {
         val status = response.status.value
         val headers = response.headers
-        if (status == 304) return Received(url, status, headers, ByteArray(0), refusal = null, redirected, authenticated)
+        if (status == 304) return Received(url, status, headers, ByteArray(0), refusal = null, redirected, authenticated, signedUnder)
         val bound = if (isParsed(operation.accept)) shared.config.maxResponseBodyBytes else HeyConfig.MAX_RESPONSE_BODY_BYTES
         return try {
-            Received(url, status, headers, readBody(response, bound), refusal = null, redirected, authenticated)
+            Received(url, status, headers, readBody(response, bound), refusal = null, redirected, authenticated, signedUnder)
         } catch (refusal: HeyException) {
-            Received(url, status, headers, ByteArray(0), refusal, redirected, authenticated)
+            Received(url, status, headers, ByteArray(0), refusal, redirected, authenticated, signedUnder)
         }
     }
 
