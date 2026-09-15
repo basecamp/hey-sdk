@@ -203,6 +203,35 @@ func isProjectedRequest(ctx context.Context) bool {
 	return v
 }
 
+// redirectState is what the redirect policy records about one send, for the answer to
+// be read in its light. net/http builds every hop on the context of the request it was
+// handed, so the state travels with the chain and outlives it.
+type redirectState struct {
+	// followed is set once a redirect was taken: the answer is then for a URL other than
+	// the one asked for, so the cache entry of the one asked for neither serves it nor
+	// keeps it.
+	followed bool
+	// unauthenticated is set once a hop left the origin and lost its credentials, and
+	// stays set for the rest of the chain: a 401 from there rejected none of HEY's.
+	unauthenticated bool
+}
+
+type redirectStateKey struct{}
+
+// contextWithRedirectState gives ctx a fresh redirect state and hands it back for the
+// caller to read once the chain has been answered.
+func contextWithRedirectState(ctx context.Context) (context.Context, *redirectState) {
+	state := &redirectState{}
+	return context.WithValue(ctx, redirectStateKey{}, state), state
+}
+
+// redirectStateFromContext is the state a send registered, or nil for a request sent
+// without one.
+func redirectStateFromContext(ctx context.Context) *redirectState {
+	state, _ := ctx.Value(redirectStateKey{}).(*redirectState)
+	return state
+}
+
 // displayURL is url as the hooks and the SDK's own error text show it: whole on an
 // API request, its origin alone on a request the transport projects.
 func displayURL(ctx context.Context, url string) string {

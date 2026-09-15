@@ -38,9 +38,16 @@ func (d *cachingDoer) Do(req *http.Request) (*http.Response, error) {
 		}
 	}
 
-	resp, err := c.httpClient.Do(req)
+	ctx, redirected := contextWithRedirectState(req.Context())
+	resp, err := c.httpClient.Do(req.WithContext(ctx))
 	if err != nil {
 		return resp, err
+	}
+
+	// An answer reached through a redirect is another URL's: the entry keyed by the one
+	// asked for can neither stand in for it nor be replaced by it.
+	if redirected.followed {
+		return resp, nil
 	}
 
 	switch {

@@ -203,8 +203,17 @@ func NewClient(cfg *Config, tokenProvider TokenProvider, opts ...ClientOption) *
 				if len(via) >= 10 {
 					return fmt.Errorf("stopped after 10 redirects")
 				}
+				state := redirectStateFromContext(req.Context())
+				if state != nil {
+					state.followed = true
+				}
+				// The validator was the resource asked for's; the one pointed to has its own.
+				req.Header.Del("If-None-Match")
 				if len(via) > 0 && !isSameOrigin(req.URL.String(), via[0].URL.String()) {
 					req.Header.Del("Authorization")
+					if state != nil {
+						state.unauthenticated = true
+					}
 				}
 				return nil
 			},
@@ -826,6 +835,7 @@ func errorCodeForLog(err error) string {
 
 func (c *Client) singleRequest(ctx context.Context, method, url string, body any, attempt int) (*Response, error) {
 	ctx = contextWithAttempt(ctx, attempt)
+	ctx, redirected := contextWithRedirectState(ctx)
 
 	var bodyReader io.Reader
 	if body != nil {
@@ -867,6 +877,12 @@ func (c *Client) singleRequest(ctx context.Context, method, url string, body any
 	defer func() { _ = resp.Body.Close() }()
 
 	c.logger.Debug("http response", "status", resp.StatusCode)
+
+	// An answer reached through a redirect is another URL's: the entry keyed by the one
+	// asked for can neither stand in for it nor be replaced by it.
+	if redirected.followed {
+		cacheKey = ""
+	}
 
 	switch resp.StatusCode {
 	case http.StatusNotModified:
@@ -926,7 +942,9 @@ func (c *Client) singleRequest(ctx context.Context, method, url string, body any
 		return nil, &retryableError{err: rateErr, retryAfter: time.Duration(retryAfter) * time.Second}
 
 	case http.StatusUnauthorized:
-		if attempt == 1 && c.refreshCredentials(ctx) {
+		// A 401 from a hop that carried no credentials rejected none of HEY's: there is
+		// nothing to refresh, and nothing a resend would change.
+		if attempt == 1 && !redirected.unauthenticated && c.refreshCredentials(ctx) {
 			return nil, &Error{
 				Code:      CodeAuth,
 				Message:   "Token refreshed",
