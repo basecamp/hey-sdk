@@ -338,7 +338,8 @@ class HeyClient internal constructor(
         val label = operation.label()
         val info = operation.info
         val route = operation.route
-        return execute(operation) { response -> Page.of(decode(response, deserializer, label), response, info, route, deserializer) }
+        val noCache = operation.noCache
+        return execute(operation) { response -> Page.of(decode(response, deserializer, label), response, shared.baseUrl, info, route, noCache, deserializer) }
     }
 
     /** Sends a paginated read and keeps the cursor HEY answered with. */

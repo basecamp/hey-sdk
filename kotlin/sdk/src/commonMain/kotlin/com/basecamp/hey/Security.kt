@@ -52,10 +52,11 @@ internal fun requireSecureEndpoint(url: Url) {
     throw HeyException.Usage("${url.protocol.name}://${url.host} must use HTTPS")
 }
 
-private val URL_IN_TEXT = Regex("([a-zA-Z][a-zA-Z0-9+.-]*://[^/?#\\s\"'<>]+)[^\\s\"'<>]*")
+/** A URL in prose: scheme, an optional userinfo, a host (an IPv6 one in brackets) with its port, and whatever follows up to the punctuation prose ends it with. */
+private val URL_IN_TEXT = Regex("([a-zA-Z][a-zA-Z0-9+.-]*://)(?:[^/?#\\s\"'<>@,\\])]*@)?(\\[[^\\]\\s]*\\](?::\\d+)?|[^/?#\\s\"'<>,\\])]+)[^\\s\"'<>,\\])]*")
 
-/** The text with every URL in it cut back to its origin: a path or a query is what carries a signed credential. */
-internal fun redactUrls(text: String): String = URL_IN_TEXT.replace(text) { it.groupValues[1] }
+/** The text with every URL in it cut back to its origin: a path or a query carries a signed credential, and a userinfo a password. */
+internal fun redactUrls(text: String): String = URL_IN_TEXT.replace(text) { "${it.groupValues[1]}${it.groupValues[2]}" }
 
 private val SENSITIVE_HEADERS = setOf("authorization", "proxy-authorization", "cookie", "set-cookie", "x-csrf-token")
 

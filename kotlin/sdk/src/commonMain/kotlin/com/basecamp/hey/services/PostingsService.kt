@@ -59,6 +59,7 @@ class PostingsService(client: HeyClient) : GeneratedPostingsService(client) {
      * The page's `nextCursor` is where to poll from next once its pages run out.
      */
     suspend fun changes(boxId: Long, since: String, options: GetBoxPostingChangesOptions? = null): Page<GetBoxPostingChangesResponseContent> {
+        if (since.isEmpty()) throw HeyException.Usage("a change feed is read from a cursor: since is required")
         val operation = client.operation(Routes.GET_BOX_POSTING_CHANGES, listOf(boxId))
         operation.resourceId(boxId)
         operation.query("since", since)
