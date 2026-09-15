@@ -23,7 +23,7 @@ data class ListJournalEntriesOptions(
  *
  * @generated from OpenAPI spec — do not edit directly
  */
-class JournalService(client: HeyClient) : BaseService(client) {
+open class JournalService(client: HeyClient) : BaseService(client) {
     /**
      * Get journal entry for a day
      * @param day The day

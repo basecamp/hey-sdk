@@ -12,7 +12,7 @@ import com.basecamp.hey.services.BaseService
  *
  * @generated from OpenAPI spec — do not edit directly
  */
-class PublicationsService(client: HeyClient) : BaseService(client) {
+open class PublicationsService(client: HeyClient) : BaseService(client) {
     /**
      * Whether a thread is shared with a public link, and the link
      * @param topicId The topic ID

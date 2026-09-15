@@ -503,7 +503,8 @@ class HeyClient internal constructor(
         while (true) {
             val prepared = prepare(operation, url, cached)
             cached = prepared.cached
-            val info = RequestInfo(operation.method.name, url.toString(), attempt)
+            // A URL that authenticates itself carries its signature in the open, so the hooks hear its origin and nothing more.
+            val info = RequestInfo(operation.method.name, if (operation.unsigned) redactUrls(url.toString()) else url.toString(), attempt)
             hooks.safeRequestStart(info)
             val started = currentTimeMillis()
             val sent = try {
@@ -707,11 +708,14 @@ class HeyClient internal constructor(
         request.url(url)
         request.header(HttpHeaders.UserAgent, shared.config.userAgent)
         request.header(HttpHeaders.Accept, operation.accept)
+        for ((name, value) in operation.headers) request.header(name, value)
         operation.body?.let { body ->
             request.header(HttpHeaders.ContentType, body.contentType)
             request.setBody(body.bytes)
         }
-        val (credentials, signedUnder) = sign(request)
+        // An unsigned request goes out as built: no strategy touches it, so nothing partitions
+        // a cache for it and a 401 it earns is about the credentials it carried of its own.
+        val (credentials, signedUnder) = if (operation.unsigned) Credentials(emptyMap()) to shared.refreshes else sign(request)
 
         val cache = cacheFor(operation)
         val partition = credentials.partition
@@ -758,7 +762,7 @@ class HeyClient internal constructor(
         var credentials = prepared.credentials
         var signedUnder = prepared.signedUnder
         var hops = 0
-        var authenticated = true
+        var authenticated = !operation.unsigned
         while (true) {
             val outcome = shared.http.prepareRequest(request).execute { response ->
                 val next = if (operation.captureRedirects) null else redirectTarget(url, response)

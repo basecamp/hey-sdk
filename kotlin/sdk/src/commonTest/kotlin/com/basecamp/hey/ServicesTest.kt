@@ -1,6 +1,10 @@
 package com.basecamp.hey
 
 import com.basecamp.hey.services.BoxKind
+import com.basecamp.hey.services.CalendarChangesCursor
+import com.basecamp.hey.services.CreateCalendarEventParams
+import com.basecamp.hey.services.HabitParams
+import com.basecamp.hey.services.TodoChanges
 import com.basecamp.hey.services.CalendarEventUpdate
 import com.basecamp.hey.services.Countdown
 import com.basecamp.hey.services.CountdownUnit
@@ -25,6 +29,8 @@ import kotlinx.serialization.json.jsonPrimitive
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertContentEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.hours
@@ -285,5 +291,399 @@ private fun formFields(body: String): Map<String, String> = body.split('&').asso
             hey.client().calendarEvents.updateOccurrence(OccurrenceId.parse("9_2026-04-31"), OccurrenceScope.THIS_ONLY, UpdateCalendarEventParams())
         }
         assertEquals(0, hey.requests.size)
+    }
+
+    /** The operations and requests the hooks heard, in order, for what a convenience announces itself as. */
+    private class Transcript : HeyHooks {
+        val operations = mutableListOf<OperationInfo>()
+        val requests = mutableListOf<String>()
+        override fun onOperationStart(info: OperationInfo) {
+            operations += info
+        }
+
+        override fun onRequestStart(info: RequestInfo) {
+            requests += "${info.method} ${info.url}"
+        }
+    }
+
+    @Test
+    fun aCalendarEventIsCreatedFromAFormPostedToTheJsonPath() = runTest {
+        val hey = mockHey(ok("""{"id":7,"type":"Calendar::Event","summary":"Standup"}"""), status(302, headers = mapOf("Location" to "/calendar/events/8")))
+        val transcript = Transcript()
+        val client = hey.client { hooks = transcript }
+        val timed = CreateCalendarEventParams(
+            calendarId = 3,
+            title = "Standup",
+            startsAt = "2026-09-15",
+            startTime = "09:30",
+            endTime = "10:00",
+            endTimeZone = "Europe/Zagreb",
+            reminders = listOf(10.minutes),
+            content = EventContent(notes = "<p>Agenda</p>", location = "Room 4"),
+            attendees = listOf("a@example.com", "b@example.com"),
+            highlighted = true,
+            countdown = Countdown(2, CountdownUnit.DAYS),
+            repeat = Repeat(RepeatFrequency.EVERY_WEEKDAY, RepeatUntil.DATE, untilDate = "2026-12-31"),
+        )
+        val created = client.calendarEvents.create(timed)
+        assertEquals(7L, created.id)
+        val request = hey.requests[0]
+        assertEquals("POST", request.method)
+        assertEquals("/calendar/events.json", request.path)
+        assertEquals("application/x-www-form-urlencoded", request.header("Content-Type"))
+        val fields = formFields(request.body)
+        assertEquals("3", fields["calendar_event[calendar_id]"])
+        assertEquals("Standup", fields["calendar_event[summary]"])
+        assertEquals("2026-09-15", fields["calendar_event[starts_at]"])
+        assertEquals("2026-09-15", fields["calendar_event[ends_at]"], "the end defaults to the start")
+        assertEquals("0", fields["calendar_event[all_day]"])
+        assertEquals("09:30:00", fields["calendar_event[starts_at_time]"])
+        assertEquals("10:00:00", fields["calendar_event[ends_at_time]"])
+        assertEquals("1", fields["calendar_event[set_time_zone]"])
+        assertEquals("Europe/Zagreb", fields["calendar_event[starts_at_time_zone_name]"], "the one zone named stands in for the other")
+        assertEquals("Europe/Zagreb", fields["calendar_event[ends_at_time_zone_name]"])
+        assertEquals(listOf("600"), formValues(request.body, "timed_reminder_durations[]"))
+        assertEquals(emptyList(), formValues(request.body, "all_day_reminder_durations[]"))
+        assertEquals("<p>Agenda</p>", fields["calendar_event[description]"])
+        assertEquals("Room 4", fields["calendar_event[location]"])
+        assertEquals("", fields["calendar_event[url]"])
+        assertEquals("", fields["calendar_event[entry_id]"])
+        assertEquals(listOf("a@example.com", "b@example.com"), formValues(request.body, "calendar_event[attendance_email_addresses][]"))
+        assertEquals("1", fields["calendar_event[highlighted]"])
+        assertEquals("", fields["calendar_event[highlight_id]"])
+        assertEquals("2", fields["countdown_interval_duration_value"])
+        assertEquals("86400", fields["countdown_interval_duration_unit"])
+        assertEquals("every_weekday", fields["repeat_frequency"])
+        assertEquals("date", fields["calendar_recurrence_schedule[recurs_until_type]"])
+        assertEquals("2026-12-31", fields["calendar_recurrence_schedule[recurs_until_date]"])
+        assertEquals("CreateCalendarEvent", transcript.operations.single().operation)
+        assertEquals("CalendarEvents", transcript.operations.single().service)
+        assertNull(transcript.operations.single().resourceId, "a create names no record yet")
+
+        val allDay = client.calendarEvents.create(CreateCalendarEventParams(calendarId = 3, title = "Holiday", startsAt = "2026-12-24", endsAt = "2026-12-26", allDay = true, reminders = listOf(1.hours)))
+        assertEquals(8L, allDay.id, "an older server answers a redirect, whose URL still names the recording")
+        assertEquals("", allDay.type)
+        val whole = formFields(hey.requests[1].body)
+        assertEquals("1", whole["calendar_event[all_day]"])
+        assertEquals("2026-12-26", whole["calendar_event[ends_at]"])
+        assertNull(whole["calendar_event[starts_at_time]"], "an all-day event has no clock times")
+        assertNull(whole["calendar_event[set_time_zone]"], "and no zones to set them in")
+        assertEquals(listOf("3600"), formValues(hey.requests[1].body, "all_day_reminder_durations[]"))
+        assertNull(whole["countdown_interval_duration_value"])
+        assertNull(whole["repeat_frequency"])
+        assertNull(whole["calendar_event[highlighted]"], "unsaid on a create is not circled")
+        assertNull(whole["calendar_event[attendance_email_addresses][]"])
+    }
+
+    @Test
+    fun aTimedEventWithNoZoneIsReadInUtcAndOneWithoutTheEssentialsIsRefused() = runTest {
+        val hey = mockHey(ok("""{"id":7,"type":"Calendar::Event"}"""))
+        val client = hey.client()
+        client.calendarEvents.create(CreateCalendarEventParams(calendarId = 3, title = "Call", startsAt = "2026-09-15", startTime = "09:00", endTime = "09:30"))
+        val fields = formFields(hey.requests.single().body)
+        assertEquals("0", fields["calendar_event[set_time_zone]"], "a create always says what it means about the zones")
+        assertNull(fields["calendar_event[starts_at_time_zone_name]"])
+
+        assertFailsWith<HeyException.Usage> { client.calendarEvents.create(CreateCalendarEventParams(calendarId = 3, title = "", startsAt = "2026-09-15", allDay = true)) }
+        assertFailsWith<HeyException.Usage> { client.calendarEvents.create(CreateCalendarEventParams(calendarId = 3, title = "Call", startsAt = "", allDay = true)) }
+        assertFailsWith<HeyException.Usage> { client.calendarEvents.create(CreateCalendarEventParams(calendarId = 3, title = "Call", startsAt = "2026-09-15", startTime = "09:00")) }
+        assertEquals(1, hey.requests.size, "a refusal sends nothing")
+    }
+
+    @Test
+    fun publishingReadsThePublicLinkBackUnderTheOperationThatAskedForIt() = runTest {
+        val hey = mockHey(
+            status(302, headers = mapOf("Location" to "/topics/5/sharing")),
+            ok("""{"published":true,"url":"https://app.hey.com/p/abc"}"""),
+            status(302, headers = mapOf("Location" to "/topics/5")),
+        )
+        val transcript = Transcript()
+        val client = hey.client { hooks = transcript }
+        val publication = client.publications.publish(5)
+        assertTrue(publication.published)
+        assertEquals("https://app.hey.com/p/abc", publication.url)
+        assertEquals("POST", hey.requests[0].method)
+        assertEquals("/topics/5/publication", hey.requests[0].path, "a form post goes to the path as written")
+        assertEquals("application/x-www-form-urlencoded", hey.requests[0].header("Content-Type"))
+        assertEquals("", hey.requests[0].body)
+        assertEquals("GET", hey.requests[1].method)
+        assertEquals("/topics/5/publication.json", hey.requests[1].path)
+        assertEquals(listOf("CreateTopicPublication"), transcript.operations.map { it.operation }, "the read-back is quiet: one operation for two requests")
+        assertEquals("publication", transcript.operations.single().resourceType)
+        assertEquals(5L, transcript.operations.single().resourceId)
+        assertEquals(2, transcript.requests.size, "while the request hooks hear both")
+
+        client.publications.unpublish(5)
+        assertEquals("DELETE", hey.requests[2].method)
+        assertEquals("/topics/5/publication", hey.requests[2].path)
+        assertEquals("", hey.requests[2].body)
+        assertEquals("DeleteTopicPublication", transcript.operations[1].operation)
+    }
+
+    @Test
+    fun aThreadThatMayNotBePublishedIsRefusedWithoutAReadBack() = runTest {
+        val hey = mockHey(status(403, """{"error":"not eligible"}"""))
+        assertFailsWith<HeyException.Forbidden> { hey.client().publications.publish(5) }
+        assertEquals(1, hey.requests.size)
+    }
+
+    private fun directUpload(url: String, headers: String = """{"Content-Type":"application/pdf","Content-MD5":"XUFAKrxLKna5cZ2REBfFkg==","Authorization":"stale"}""") =
+        """{"signed_id":"signed-123","attachable_sgid":"sgid-456","direct_upload":{"url":"$url","headers":$headers}}"""
+
+    @Test
+    fun anUploadReservesABlobAndPutsTheBytesWhereHeySaid() = runTest {
+        val hey = mockHey(ok(directUpload("https://storage.example.com/blobs/abc?signature=secret")), ok(""))
+        val transcript = Transcript()
+        val client = hey.client { hooks = transcript }
+        val upload = client.attachments.upload("report.pdf", "application/pdf", "hello".encodeToByteArray())
+        assertEquals("signed-123", upload.signedId)
+        assertEquals("sgid-456", upload.attachableSgid)
+
+        val reservation = hey.requests[0]
+        assertEquals("POST", reservation.method)
+        assertEquals("/rails/active_storage/direct_uploads.json", reservation.path)
+        val blob = body(reservation).getValue("blob").jsonObject
+        assertEquals("report.pdf", blob.getValue("filename").jsonPrimitive.content)
+        assertEquals(5L, blob.getValue("byte_size").jsonPrimitive.content.toLong())
+        assertEquals("XUFAKrxLKna5cZ2REBfFkg==", blob.getValue("checksum").jsonPrimitive.content, "the MD5 of the bytes, base64 as Active Storage wants it")
+        assertEquals("application/pdf", blob.getValue("content_type").jsonPrimitive.content)
+
+        val stored = hey.requests[1]
+        assertEquals("PUT", stored.method)
+        assertEquals("storage.example.com", stored.url.host)
+        assertEquals("/blobs/abc", stored.path)
+        assertEquals("secret", stored.query("signature"))
+        assertEquals("hello", stored.body)
+        assertEquals("application/pdf", stored.header("Content-Type"))
+        assertEquals("XUFAKrxLKna5cZ2REBfFkg==", stored.header("Content-MD5"))
+        assertNull(stored.header("Authorization"), "HEY's credentials stay on HEY, and so does the stale one it echoed")
+        assertEquals("Bearer test-token", reservation.header("Authorization"))
+        assertEquals(listOf("CreateDirectUpload"), transcript.operations.map { it.operation }, "the reservation is the operation; the bytes are its second request")
+        assertEquals("PUT https://storage.example.com", transcript.requests[1], "a URL that signs itself is heard as its origin alone")
+    }
+
+    @Test
+    fun anAttachmentWithNoContentTypeIsAStreamOfBytesAndOneWithoutAFilenameIsRefused() = runTest {
+        val hey = mockHey(ok(directUpload("https://storage.example.com/blobs/abc", headers = """{"Content-Type":"application/octet-stream"}""")), ok(""))
+        val client = hey.client()
+        client.attachments.upload("notes.bin", null, ByteArray(0))
+        assertEquals("application/octet-stream", body(hey.requests[0]).getValue("blob").jsonObject.getValue("content_type").jsonPrimitive.content)
+        assertEquals("", hey.requests[1].body, "empty content is an empty attachment, not a mistake")
+        assertFailsWith<HeyException.Usage> { client.attachments.upload("", "text/plain", "x".encodeToByteArray()) }
+        assertEquals(2, hey.requests.size)
+    }
+
+    @Test
+    fun anUploadThatCannotBeMadeSafelyIsRefusedBeforeTheBytesGo() = runTest {
+        val empty = mockHey(ok("""{"signed_id":"","attachable_sgid":"","direct_upload":{"url":""}}"""))
+        val refused = assertFailsWith<HeyException.Api> { empty.client().attachments.upload("a.txt", null, "x".encodeToByteArray()) }
+        assertEquals("HEY returned an empty attachment upload response", refused.message)
+        assertEquals(1, empty.requests.size)
+
+        val insecure = mockHey(ok(directUpload("http://storage.example.com/blobs/abc")))
+        val unsafe = assertFailsWith<HeyException.Usage> { insecure.client().attachments.upload("a.txt", null, "x".encodeToByteArray()) }
+        assertTrue(unsafe.message!!.startsWith("unsafe attachment upload target"))
+        assertEquals(1, insecure.requests.size)
+
+        val storage = mockHey(ok(directUpload("https://storage.example.com/blobs/abc")), status(403, "<Error>denied</Error>", mapOf("Content-Type" to "application/xml")))
+        val denied = assertFailsWith<HeyException.Forbidden> { storage.client().attachments.upload("a.txt", null, "x".encodeToByteArray()) }
+        assertEquals(403, denied.httpStatus)
+        assertEquals(2, storage.requests.size, "the bytes go once")
+    }
+
+    @Test
+    fun aJournalEntryIsReadAndWrittenAsItsContent() = runTest {
+        val hey = mockHey(
+            status(204),
+            ok("""{"id":1,"type":"Calendar::JournalEntry","content":"plain","content_html":"<p>rich</p>"}"""),
+            ok("""{"id":1,"type":"Calendar::JournalEntry","content":"plain","content_html":""}"""),
+            ok("""{"id":1,"type":"Calendar::JournalEntry","content":"written"}"""),
+            status(204),
+        )
+        val transcript = Transcript()
+        val client = hey.client { hooks = transcript }
+        assertNull(client.journal.entry("2026-09-15"), "a day without an entry answers nothing, which is null rather than a body that will not decode")
+        assertEquals("/calendar/days/2026-09-15/journal_entry.json", hey.requests[0].path)
+        assertEquals("<p>rich</p>", client.journal.getContent("2026-09-15"))
+        assertEquals("plain", client.journal.getContent("2026-09-15"), "a blank rendered body is not the entry")
+        val written = client.journal.updateContent("2026-09-15", "written")
+        assertEquals("written", written?.content)
+        assertEquals("PATCH", hey.requests[3].method)
+        assertEquals("written", body(hey.requests[3]).getValue("calendar_journal_entry").jsonObject.getValue("content").jsonPrimitive.content)
+        assertNull(client.journal.updateContent("2026-09-15", ""), "empty content removes the entry, which HEY answers with nothing")
+        assertEquals(listOf("GetJournalEntry", "GetJournalContent", "GetJournalContent", "UpdateJournalEntry", "UpdateJournalEntry"), transcript.operations.map { it.operation })
+    }
+
+    @Test
+    fun theCalendarIndexIsReadWithWhatALiveFollowerNeeds() = runTest {
+        val hey = mockHey(
+            ok("""{"calendars":[{"calendar":{"id":3,"name":"Work"},"recording_changes_url":"https://app.hey.com/calendars/3/recording/changes?since=2026-09-15T10:00:00.000Z&v=1","signed_stream_name":"stream-3"}],"calendar_changes_url":"https://app.hey.com/calendar/changes?since=2026-09-15T10:00:00.000Z","selected_calendar_ids":[3]}"""),
+            ok("""{"selected_calendar_ids":[]}"""),
+        )
+        val client = hey.client()
+        val list = client.calendars.listWithChanges()
+        assertEquals("/calendars.json", hey.requests[0].path)
+        assertEquals("Work", list.calendars.single().calendar?.name)
+        assertEquals("stream-3", list.calendars.single().signedStreamName)
+        assertEquals(listOf(3L), list.selectedCalendarIds)
+        assertEquals(CalendarChangesCursor(since = "2026-09-15T10:00:00.000Z"), CalendarChangesCursor.fromUrl(list.calendarChangesUrl!!), "a calendar changes URL carries no version")
+        assertEquals(CalendarChangesCursor(since = "2026-09-15T10:00:00.000Z", version = "1"), CalendarChangesCursor.fromUrl(list.calendars.single().recordingChangesUrl!!))
+        assertFailsWith<HeyException.Usage> { CalendarChangesCursor.fromUrl("/calendar/changes?since=x") }
+
+        assertEquals(emptyList(), client.calendars.toggleSelection(3))
+        assertEquals("POST", hey.requests[1].method)
+        assertEquals("/calendars/3/toggle.json", hey.requests[1].path)
+    }
+
+    @Test
+    fun theCalendarChangesFeedAnswersItsPagesThenTheCursorToPollNext() = runTest {
+        val hey = mockHey(
+            ok("""{"added":[{"calendar":{"id":4},"signed_stream_name":"stream-4"}],"updated":[],"deleted":[]}""", mapOf("Link" to "</calendar/changes.json?since=2026-09-15T10:00:00.000Z&page=2&per_page=50>; rel=\"next\"")),
+            ok("""{"added":[],"updated":[{"id":3,"name":"Renamed"}],"deleted":[{"id":2,"deleted_at":"2026-09-15T10:04:00.000Z"}]}""", mapOf("Link" to "</calendar/changes.json?since=2026-09-15T10:05:00.000Z>; rel=\"next\"")),
+            ok("""{"added":[],"updated":[],"deleted":[]}"""),
+        )
+        val store = InMemoryCache()
+        val transcript = Transcript()
+        val client = hey.client {
+            enableCache = true
+            cache = store
+            hooks = transcript
+        }
+        assertFailsWith<HeyException.Usage> { client.calendars.calendarChanges(CalendarChangesCursor()) }
+        val all = client.calendars.allCalendarChanges(CalendarChangesCursor(since = "2026-09-15T10:00:00.000Z"))
+        assertEquals("stream-4", all.added.single().signedStreamName)
+        assertEquals("Renamed", all.updated.single().name)
+        assertEquals(listOf(2L), all.deleted.map { it.id })
+        assertNull(all.nextPage)
+        assertEquals(CalendarChangesCursor(since = "2026-09-15T10:05:00.000Z"), all.nextCursor, "the last page names where to resume")
+        assertEquals("/calendar/changes.json", hey.requests[0].path)
+        assertEquals("2026-09-15T10:00:00.000Z", hey.requests[0].query("since"))
+        assertNull(hey.requests[0].query("v"), "the version is never invented")
+        assertEquals("2", hey.requests[1].query("page"))
+        assertEquals("50", hey.requests[1].query("per_page"), "the next read sends the cursor as HEY issued it")
+        assertEquals(0, store.size, "no page of the feed is held")
+        assertEquals(listOf("GetCalendarChanges", "GetCalendarChanges"), transcript.operations.map { it.operation })
+        assertEquals("calendar", transcript.operations[0].resourceType)
+        assertFalse(transcript.operations[0].isMutation)
+
+        val quiet = client.calendars.calendarChanges(all.nextCursor!!)
+        assertNull(quiet.nextCursor, "nothing changed, so the cursor that produced this page still stands")
+        assertNull(quiet.nextPage)
+    }
+
+    @Test
+    fun theRecordingChangesFeedKeepsTheWiresGroupingAndFoldsTheDeletions() = runTest {
+        val hey = mockHey(
+            ok(
+                """{"added":{"Calendar::Event":[{"id":10,"type":"Calendar::Event"}]},"updated":{},"deleted":{"Calendar::Event":[{"id":11,"deleted_at":"2026-09-15T10:01:00.000Z","type":"Calendar::Event"}],"Calendar::Todo":[{"id":11,"deleted_at":"2026-09-15T10:01:00.000Z","type":"Calendar::Event"},{"id":12,"deleted_at":"2026-09-15T10:02:00.000Z","type":"Calendar::Todo"}]}}""",
+                mapOf("Link" to "</calendars/3/recording/changes.json?since=2026-09-15T10:00:00.000Z&v=1&page=2>; rel=\"next\""),
+            ),
+            ok("""{"added":{"Calendar::Event":[{"id":13,"type":"Calendar::Event"}],"Calendar::Habit":[{"id":14,"type":"Calendar::Habit"}]}}""", mapOf("Link" to "</calendars/3/recording/changes.json?since=2026-09-15T10:05:00.000Z&v=1>; rel=\"next\"")),
+            status(409, """{"error":"too far behind"}"""),
+        )
+        val transcript = Transcript()
+        val client = hey.client { hooks = transcript }
+        assertFailsWith<HeyException.Usage> { client.calendars.recordingChanges(3, CalendarChangesCursor(version = "1")) }
+        assertFailsWith<HeyException.Usage> { client.calendars.recordingChanges(3, CalendarChangesCursor(since = "2026-09-15T10:00:00.000Z")) }
+        assertTrue(hey.requests.isEmpty())
+
+        val all = client.calendars.allRecordingChanges(3, CalendarChangesCursor(since = "2026-09-15T10:00:00.000Z", version = "1"))
+        assertEquals(listOf(10L, 13L), all.added.getValue("Calendar::Event").map { it.id }, "pages merge within a type key")
+        assertEquals(listOf(14L), all.added.getValue("Calendar::Habit").map { it.id })
+        assertEquals(listOf(11L, 12L), all.deleted.map { it.id }, "a deletion repeated under every key arrives once")
+        assertEquals("Calendar::Todo", all.deleted[1].type)
+        assertEquals(CalendarChangesCursor(since = "2026-09-15T10:05:00.000Z", version = "1"), all.nextCursor)
+        assertEquals("/calendars/3/recording/changes.json", hey.requests[0].path)
+        assertEquals("1", hey.requests[0].query("v"))
+        assertEquals("2", hey.requests[1].query("page"))
+        assertEquals("GetCalendarRecordingChanges", transcript.operations[0].operation)
+        assertEquals("recording", transcript.operations[0].resourceType)
+        assertEquals(3L, transcript.operations[0].resourceId)
+
+        val stale = client.calendars.allRecordingChanges(3, all.nextCursor!!)
+        assertTrue(stale.fullSyncRequired, "a 409 is the feed refusing the cursor: read the calendar in full")
+        assertEquals(emptyMap(), stale.added)
+        assertEquals(3, hey.requests.size, "and it is not resent")
+    }
+
+    @Test
+    fun aChangesLinkOffTheOriginIsRefused() = runTest {
+        val hey = mockHey(ok("""{"added":[],"updated":[],"deleted":[]}""", mapOf("Link" to "<https://evil.example.com/calendar/changes.json?since=x&page=2>; rel=\"next\"")))
+        val error = assertFailsWith<HeyException.Usage> { hey.client().calendars.calendarChanges(CalendarChangesCursor(since = "2026-09-15T10:00:00.000Z")) }
+        assertFalse(error.message!!.contains("since=x"), "the refusal names the origin, not the URL")
+    }
+
+    @Test
+    fun aChangesWalkStopsAtThePageLimitAndSaysSo() = runTest {
+        val page = ok("""{"added":[],"updated":[],"deleted":[]}""", mapOf("Link" to "</calendar/changes.json?since=2026-09-15T10:00:00.000Z&page=2>; rel=\"next\""))
+        val hey = mockHey(page, page, page)
+        val client = hey.client { maxPages = 2 }
+        assertFailsWith<HeyException.Api> { client.calendars.allCalendarChanges(CalendarChangesCursor(since = "2026-09-15T10:00:00.000Z")) }
+        assertEquals(2, hey.requests.size)
+    }
+
+    @Test
+    fun calendarPeriodsAreReadByTheDateTheyAreDrawnFrom() = runTest {
+        val period = """{"starts_at":"2026-09-15","ends_at":"2026-09-15","kind":"day","recordings":{}}"""
+        val year = """{"starts_at":"2026-01-01","ends_at":"2026-12-31","kind":"year","padding_days_count":3,"days":[],"spanned_events":[]}"""
+        val hey = mockHey(ok(period), ok("""{"days":[$period]}"""), ok(period), ok("""{"weeks":[]}"""), ok(year))
+        val client = hey.client()
+        client.calendarPeriods.day("now")
+        assertEquals("/calendar/days/now.json", hey.requests[0].path)
+        assertEquals(1, client.calendarPeriods.days("").size)
+        assertEquals("/calendar/days.json", hey.requests[1].path)
+        assertNull(hey.requests[1].query("starts_at"), "an empty date is left off the wire for HEY to pick the default")
+        client.calendarPeriods.week("2026-09-15")
+        assertEquals("/calendar/weeks/2026-09-15.json", hey.requests[2].path)
+        client.calendarPeriods.weeks(centeredAt = "2026-09-15")
+        assertEquals("/calendar/weeks.json", hey.requests[3].path)
+        assertEquals("2026-09-15", hey.requests[3].query("centered_at"))
+        assertNull(hey.requests[3].query("starts_at"))
+        client.calendarPeriods.year("2026-01-01")
+        assertEquals("/calendar/years/2026-01-01.json", hey.requests[4].path)
+    }
+
+    @Test
+    fun aTodoIsFiledOnABareDayAndAnEditThatChangesNothingIsRefused() = runTest {
+        val hey = mockHey(ok("""{"id":1,"type":"Calendar::Todo"}"""), ok("""{"id":1,"type":"Calendar::Todo"}"""), ok("""{"id":1,"type":"Calendar::Todo"}"""))
+        val client = hey.client()
+        client.calendarTodos.createTodo("Buy milk", "2026-09-16")
+        assertEquals("POST", hey.requests[0].method)
+        assertEquals("/calendar/todos.json", hey.requests[0].path)
+        val filed = body(hey.requests[0]).getValue("calendar_todo").jsonObject
+        assertEquals("Buy milk", filed.getValue("title").jsonPrimitive.content)
+        assertEquals("2026-09-16", filed.getValue("starts_at").jsonPrimitive.content)
+
+        client.calendarTodos.createTodo("Buy milk")
+        val today = body(hey.requests[1]).getValue("calendar_todo").jsonObject.getValue("starts_at").jsonPrimitive.content
+        assertTrue(Regex("\\d{4}-\\d{2}-\\d{2}").matches(today), "no day is today, as a bare date: $today")
+
+        client.calendarTodos.updateTodo(1, TodoChanges(title = "", focused = true))
+        assertEquals("PATCH", hey.requests[2].method)
+        assertEquals("/calendar/todos/1.json", hey.requests[2].path)
+        val changed = body(hey.requests[2]).getValue("calendar_todo").jsonObject
+        assertEquals(setOf("focused"), changed.keys, "an empty title is no title, and says nothing")
+        assertFailsWith<HeyException.Usage> { client.calendarTodos.updateTodo(1, TodoChanges(title = "")) }
+        assertFailsWith<HeyException.Usage> { client.calendarTodos.updateTodo(1, TodoChanges(startsAt = "2026-02-30")) }
+        assertFailsWith<HeyException.Usage> { client.calendarTodos.createTodo("Buy milk", "tomorrow") }
+        assertEquals(3, hey.requests.size)
+    }
+
+    @Test
+    fun aHabitIsWrittenInItsPartsWithTheEmptyOnesLeftOff() = runTest {
+        val hey = mockHey(ok("""{"id":5,"type":"Calendar::Habit"}"""), ok("""{"id":5,"type":"Calendar::Habit"}"""))
+        val client = hey.client()
+        val created = client.habits.createHabit(HabitParams(name = "Run", icon = "shoe", color = "green", days = listOf(1, 3, 5)))
+        assertEquals(5L, created.id)
+        assertEquals("POST", hey.requests[0].method)
+        assertEquals("/calendar/habits.json", hey.requests[0].path)
+        val habit = body(hey.requests[0]).getValue("calendar_habit").jsonObject
+        assertEquals("Run", habit.getValue("name").jsonPrimitive.content)
+        assertEquals(listOf(1, 3, 5), habit.getValue("days").jsonArray.map { it.jsonPrimitive.content.toInt() })
+
+        client.habits.updateHabit(5, HabitParams(name = "Jog"))
+        assertEquals("PATCH", hey.requests[1].method)
+        assertEquals("/calendar/habits/5.json", hey.requests[1].path)
+        assertEquals(setOf("name"), body(hey.requests[1]).getValue("calendar_habit").jsonObject.keys, "fields left empty are kept by HEY, so they are not sent")
     }
 }

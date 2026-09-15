@@ -120,10 +120,17 @@ UpdateWorkflowStage = "workflow_stage"
 # the client constructs instead of the generated class so the conveniences it adds are
 # reachable without an import. The generated class is emitted `open` for these.
 [hand_written_services]
+attachments = "com.basecamp.hey.services.AttachmentsService"
 boxes = "com.basecamp.hey.services.BoxesService"
 calendar_events = "com.basecamp.hey.services.CalendarEventsService"
+calendar_periods = "com.basecamp.hey.services.CalendarPeriodsService"
+calendar_todos = "com.basecamp.hey.services.CalendarTodosService"
+calendars = "com.basecamp.hey.services.CalendarsService"
 entries = "com.basecamp.hey.services.EntriesService"
+habits = "com.basecamp.hey.services.HabitsService"
+journal = "com.basecamp.hey.services.JournalService"
 messages = "com.basecamp.hey.services.MessagesService"
 postings = "com.basecamp.hey.services.PostingsService"
+publications = "com.basecamp.hey.services.PublicationsService"
 time_tracks = "com.basecamp.hey.services.TimeTracksService"
 workflows = "com.basecamp.hey.services.WorkflowsService"

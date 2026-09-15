@@ -14,8 +14,8 @@ import com.basecamp.hey.generated.services.*
  */
 
 /** Attachments operations. */
-val HeyClient.attachments: AttachmentsService
-    get() = service("Attachments") { AttachmentsService(this) }
+val HeyClient.attachments: com.basecamp.hey.services.AttachmentsService
+    get() = service("Attachments") { com.basecamp.hey.services.AttachmentsService(this) }
 
 /** Boxes operations. */
 val HeyClient.boxes: com.basecamp.hey.services.BoxesService
@@ -30,16 +30,16 @@ val HeyClient.calendarEvents: com.basecamp.hey.services.CalendarEventsService
     get() = service("CalendarEvents") { com.basecamp.hey.services.CalendarEventsService(this) }
 
 /** CalendarPeriods operations. */
-val HeyClient.calendarPeriods: CalendarPeriodsService
-    get() = service("CalendarPeriods") { CalendarPeriodsService(this) }
+val HeyClient.calendarPeriods: com.basecamp.hey.services.CalendarPeriodsService
+    get() = service("CalendarPeriods") { com.basecamp.hey.services.CalendarPeriodsService(this) }
 
 /** CalendarTodos operations. */
-val HeyClient.calendarTodos: CalendarTodosService
-    get() = service("CalendarTodos") { CalendarTodosService(this) }
+val HeyClient.calendarTodos: com.basecamp.hey.services.CalendarTodosService
+    get() = service("CalendarTodos") { com.basecamp.hey.services.CalendarTodosService(this) }
 
 /** Calendars operations. */
-val HeyClient.calendars: CalendarsService
-    get() = service("Calendars") { CalendarsService(this) }
+val HeyClient.calendars: com.basecamp.hey.services.CalendarsService
+    get() = service("Calendars") { com.basecamp.hey.services.CalendarsService(this) }
 
 /** Clearances operations. */
 val HeyClient.clearances: ClearancesService
@@ -74,16 +74,16 @@ val HeyClient.folders: FoldersService
     get() = service("Folders") { FoldersService(this) }
 
 /** Habits operations. */
-val HeyClient.habits: HabitsService
-    get() = service("Habits") { HabitsService(this) }
+val HeyClient.habits: com.basecamp.hey.services.HabitsService
+    get() = service("Habits") { com.basecamp.hey.services.HabitsService(this) }
 
 /** Identity operations. */
 val HeyClient.identity: IdentityService
     get() = service("Identity") { IdentityService(this) }
 
 /** Journal operations. */
-val HeyClient.journal: JournalService
-    get() = service("Journal") { JournalService(this) }
+val HeyClient.journal: com.basecamp.hey.services.JournalService
+    get() = service("Journal") { com.basecamp.hey.services.JournalService(this) }
 
 /** Messages operations. */
 val HeyClient.messages: com.basecamp.hey.services.MessagesService
@@ -94,8 +94,8 @@ val HeyClient.postings: com.basecamp.hey.services.PostingsService
     get() = service("Postings") { com.basecamp.hey.services.PostingsService(this) }
 
 /** Publications operations. */
-val HeyClient.publications: PublicationsService
-    get() = service("Publications") { PublicationsService(this) }
+val HeyClient.publications: com.basecamp.hey.services.PublicationsService
+    get() = service("Publications") { com.basecamp.hey.services.PublicationsService(this) }
 
 /** Search operations. */
 val HeyClient.search: SearchService

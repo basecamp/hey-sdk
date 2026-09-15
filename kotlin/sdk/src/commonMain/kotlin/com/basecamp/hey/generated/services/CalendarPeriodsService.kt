@@ -27,7 +27,7 @@ data class ListCalendarWeeksOptions(
  *
  * @generated from OpenAPI spec — do not edit directly
  */
-class CalendarPeriodsService(client: HeyClient) : BaseService(client) {
+open class CalendarPeriodsService(client: HeyClient) : BaseService(client) {
     /**
      * Get one day
      * @param day The day
