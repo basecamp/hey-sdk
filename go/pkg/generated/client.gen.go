@@ -3410,7 +3410,7 @@ func (c *Client) DeleteHabit(ctx context.Context, habitId int64, reqEditors ...R
 	}, true, "DeleteHabit", reqEditors...)
 }
 
-// UpdateHabitWithBody executes the UpdateHabit operation.
+// UpdateHabitWithBody is marked as idempotent and will be retried on transient failures.
 
 func (c *Client) UpdateHabitWithBody(ctx context.Context, habitId int64, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	body, rewind, finish := resendableBody(body)
@@ -3420,13 +3420,13 @@ func (c *Client) UpdateHabitWithBody(ctx context.Context, habitId int64, content
 			return nil, err
 		}
 		return NewUpdateHabitRequestWithBody(c.Server, habitId, contentType, body)
-	}, false, "UpdateHabit", reqEditors...)
+	}, true, "UpdateHabit", reqEditors...)
 }
 
 func (c *Client) UpdateHabit(ctx context.Context, habitId int64, body UpdateHabitJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
 		return NewUpdateHabitRequest(c.Server, habitId, body)
-	}, false, "UpdateHabit", reqEditors...)
+	}, true, "UpdateHabit", reqEditors...)
 }
 
 // ResumeHabit is marked as idempotent and will be retried on transient failures.
@@ -3577,7 +3577,7 @@ func (c *Client) DeleteCalendarTodo(ctx context.Context, todoId int64, reqEditor
 	}, true, "DeleteCalendarTodo", reqEditors...)
 }
 
-// UpdateCalendarTodoWithBody executes the UpdateCalendarTodo operation.
+// UpdateCalendarTodoWithBody is marked as idempotent and will be retried on transient failures.
 
 func (c *Client) UpdateCalendarTodoWithBody(ctx context.Context, todoId int64, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	body, rewind, finish := resendableBody(body)
@@ -3587,13 +3587,13 @@ func (c *Client) UpdateCalendarTodoWithBody(ctx context.Context, todoId int64, c
 			return nil, err
 		}
 		return NewUpdateCalendarTodoRequestWithBody(c.Server, todoId, contentType, body)
-	}, false, "UpdateCalendarTodo", reqEditors...)
+	}, true, "UpdateCalendarTodo", reqEditors...)
 }
 
 func (c *Client) UpdateCalendarTodo(ctx context.Context, todoId int64, body UpdateCalendarTodoJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
 		return NewUpdateCalendarTodoRequest(c.Server, todoId, body)
-	}, false, "UpdateCalendarTodo", reqEditors...)
+	}, true, "UpdateCalendarTodo", reqEditors...)
 }
 
 // UncompleteCalendarTodo is marked as idempotent and will be retried on transient failures.
@@ -3668,7 +3668,7 @@ func (c *Client) GetClearances(ctx context.Context, params *GetClearancesParams,
 	}, true, "GetClearances", reqEditors...)
 }
 
-// BulkUpdateClearancesWithBody executes the BulkUpdateClearances operation.
+// BulkUpdateClearancesWithBody is marked as idempotent and will be retried on transient failures.
 
 func (c *Client) BulkUpdateClearancesWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	body, rewind, finish := resendableBody(body)
@@ -3678,13 +3678,13 @@ func (c *Client) BulkUpdateClearancesWithBody(ctx context.Context, contentType s
 			return nil, err
 		}
 		return NewBulkUpdateClearancesRequestWithBody(c.Server, contentType, body)
-	}, false, "BulkUpdateClearances", reqEditors...)
+	}, true, "BulkUpdateClearances", reqEditors...)
 }
 
 func (c *Client) BulkUpdateClearances(ctx context.Context, body BulkUpdateClearancesJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
 		return NewBulkUpdateClearancesRequest(c.Server, body)
-	}, false, "BulkUpdateClearances", reqEditors...)
+	}, true, "BulkUpdateClearances", reqEditors...)
 }
 
 // PuntClearances executes the PuntClearances operation.
@@ -3695,7 +3695,7 @@ func (c *Client) PuntClearances(ctx context.Context, reqEditors ...RequestEditor
 	}, false, "PuntClearances", reqEditors...)
 }
 
-// UpdateClearanceWithBody executes the UpdateClearance operation.
+// UpdateClearanceWithBody is marked as idempotent and will be retried on transient failures.
 
 func (c *Client) UpdateClearanceWithBody(ctx context.Context, clearanceId int64, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	body, rewind, finish := resendableBody(body)
@@ -3705,13 +3705,13 @@ func (c *Client) UpdateClearanceWithBody(ctx context.Context, clearanceId int64,
 			return nil, err
 		}
 		return NewUpdateClearanceRequestWithBody(c.Server, clearanceId, contentType, body)
-	}, false, "UpdateClearance", reqEditors...)
+	}, true, "UpdateClearance", reqEditors...)
 }
 
 func (c *Client) UpdateClearance(ctx context.Context, clearanceId int64, body UpdateClearanceJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
 		return NewUpdateClearanceRequest(c.Server, clearanceId, body)
-	}, false, "UpdateClearance", reqEditors...)
+	}, true, "UpdateClearance", reqEditors...)
 }
 
 // ListClips is marked as idempotent and will be retried on transient failures.
@@ -3738,7 +3738,7 @@ func (c *Client) GetCollection(ctx context.Context, collectionId int64, params *
 	}, true, "GetCollection", reqEditors...)
 }
 
-// UpdateCollectionWithBody executes the UpdateCollection operation.
+// UpdateCollectionWithBody is marked as idempotent and will be retried on transient failures.
 
 func (c *Client) UpdateCollectionWithBody(ctx context.Context, collectionId int64, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	body, rewind, finish := resendableBody(body)
@@ -3748,13 +3748,13 @@ func (c *Client) UpdateCollectionWithBody(ctx context.Context, collectionId int6
 			return nil, err
 		}
 		return NewUpdateCollectionRequestWithBody(c.Server, collectionId, contentType, body)
-	}, false, "UpdateCollection", reqEditors...)
+	}, true, "UpdateCollection", reqEditors...)
 }
 
 func (c *Client) UpdateCollection(ctx context.Context, collectionId int64, body UpdateCollectionJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
 		return NewUpdateCollectionRequest(c.Server, collectionId, body)
-	}, false, "UpdateCollection", reqEditors...)
+	}, true, "UpdateCollection", reqEditors...)
 }
 
 // ListContacts is marked as idempotent and will be retried on transient failures.
@@ -3800,7 +3800,7 @@ func (c *Client) GetContact(ctx context.Context, contactId int64, params *GetCon
 	}, true, "GetContact", reqEditors...)
 }
 
-// UpdateContactWithBody executes the UpdateContact operation.
+// UpdateContactWithBody is marked as idempotent and will be retried on transient failures.
 
 func (c *Client) UpdateContactWithBody(ctx context.Context, contactId int64, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	body, rewind, finish := resendableBody(body)
@@ -3810,13 +3810,13 @@ func (c *Client) UpdateContactWithBody(ctx context.Context, contactId int64, con
 			return nil, err
 		}
 		return NewUpdateContactRequestWithBody(c.Server, contactId, contentType, body)
-	}, false, "UpdateContact", reqEditors...)
+	}, true, "UpdateContact", reqEditors...)
 }
 
 func (c *Client) UpdateContact(ctx context.Context, contactId int64, body UpdateContactJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
 		return NewUpdateContactRequest(c.Server, contactId, body)
-	}, false, "UpdateContact", reqEditors...)
+	}, true, "UpdateContact", reqEditors...)
 }
 
 // UnbundleContact is marked as idempotent and will be retried on transient failures.
@@ -3835,7 +3835,7 @@ func (c *Client) BundleContact(ctx context.Context, contactId int64, reqEditors 
 	}, false, "BundleContact", reqEditors...)
 }
 
-// UpdateContactClearanceWithBody executes the UpdateContactClearance operation.
+// UpdateContactClearanceWithBody is marked as idempotent and will be retried on transient failures.
 
 func (c *Client) UpdateContactClearanceWithBody(ctx context.Context, contactId int64, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	body, rewind, finish := resendableBody(body)
@@ -3845,13 +3845,13 @@ func (c *Client) UpdateContactClearanceWithBody(ctx context.Context, contactId i
 			return nil, err
 		}
 		return NewUpdateContactClearanceRequestWithBody(c.Server, contactId, contentType, body)
-	}, false, "UpdateContactClearance", reqEditors...)
+	}, true, "UpdateContactClearance", reqEditors...)
 }
 
 func (c *Client) UpdateContactClearance(ctx context.Context, contactId int64, body UpdateContactClearanceJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
 		return NewUpdateContactClearanceRequest(c.Server, contactId, body)
-	}, false, "UpdateContactClearance", reqEditors...)
+	}, true, "UpdateContactClearance", reqEditors...)
 }
 
 // DeleteContactNote is marked as idempotent and will be retried on transient failures.
@@ -3870,7 +3870,7 @@ func (c *Client) GetContactNote(ctx context.Context, contactId int64, reqEditors
 	}, true, "GetContactNote", reqEditors...)
 }
 
-// UpdateContactNoteWithBody executes the UpdateContactNote operation.
+// UpdateContactNoteWithBody is marked as idempotent and will be retried on transient failures.
 
 func (c *Client) UpdateContactNoteWithBody(ctx context.Context, contactId int64, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	body, rewind, finish := resendableBody(body)
@@ -3880,13 +3880,13 @@ func (c *Client) UpdateContactNoteWithBody(ctx context.Context, contactId int64,
 			return nil, err
 		}
 		return NewUpdateContactNoteRequestWithBody(c.Server, contactId, contentType, body)
-	}, false, "UpdateContactNote", reqEditors...)
+	}, true, "UpdateContactNote", reqEditors...)
 }
 
 func (c *Client) UpdateContactNote(ctx context.Context, contactId int64, body UpdateContactNoteJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
 		return NewUpdateContactNoteRequest(c.Server, contactId, body)
-	}, false, "UpdateContactNote", reqEditors...)
+	}, true, "UpdateContactNote", reqEditors...)
 }
 
 // RevealContact executes the RevealContact operation.
@@ -4077,7 +4077,7 @@ func (c *Client) GetMyClearances(ctx context.Context, params *GetMyClearancesPar
 	}, true, "GetMyClearances", reqEditors...)
 }
 
-// UpdateMyClearanceWithBody executes the UpdateMyClearance operation.
+// UpdateMyClearanceWithBody is marked as idempotent and will be retried on transient failures.
 
 func (c *Client) UpdateMyClearanceWithBody(ctx context.Context, clearanceId int64, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	body, rewind, finish := resendableBody(body)
@@ -4087,13 +4087,13 @@ func (c *Client) UpdateMyClearanceWithBody(ctx context.Context, clearanceId int6
 			return nil, err
 		}
 		return NewUpdateMyClearanceRequestWithBody(c.Server, clearanceId, contentType, body)
-	}, false, "UpdateMyClearance", reqEditors...)
+	}, true, "UpdateMyClearance", reqEditors...)
 }
 
 func (c *Client) UpdateMyClearance(ctx context.Context, clearanceId int64, body UpdateMyClearanceJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
 		return NewUpdateMyClearanceRequest(c.Server, clearanceId, body)
-	}, false, "UpdateMyClearance", reqEditors...)
+	}, true, "UpdateMyClearance", reqEditors...)
 }
 
 // GetNavigation is marked as idempotent and will be retried on transient failures.
@@ -4458,7 +4458,7 @@ func (c *Client) DeleteSticky(ctx context.Context, stickyId int64, reqEditors ..
 	}, true, "DeleteSticky", reqEditors...)
 }
 
-// UpdateStickyWithBody executes the UpdateSticky operation.
+// UpdateStickyWithBody is marked as idempotent and will be retried on transient failures.
 
 func (c *Client) UpdateStickyWithBody(ctx context.Context, stickyId int64, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	body, rewind, finish := resendableBody(body)
@@ -4468,13 +4468,13 @@ func (c *Client) UpdateStickyWithBody(ctx context.Context, stickyId int64, conte
 			return nil, err
 		}
 		return NewUpdateStickyRequestWithBody(c.Server, stickyId, contentType, body)
-	}, false, "UpdateSticky", reqEditors...)
+	}, true, "UpdateSticky", reqEditors...)
 }
 
 func (c *Client) UpdateSticky(ctx context.Context, stickyId int64, body UpdateStickyJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
 		return NewUpdateStickyRequest(c.Server, stickyId, body)
-	}, false, "UpdateSticky", reqEditors...)
+	}, true, "UpdateSticky", reqEditors...)
 }
 
 // GetEverythingTopics is marked as idempotent and will be retried on transient failures.
@@ -10441,8 +10441,9 @@ type OperationMetadata struct {
 }
 
 // operationMetadata maps operation IDs to their metadata.
-// This is generated from x-hey-* extensions in the OpenAPI spec.
-// GET/HEAD/PUT/DELETE operations are always considered idempotent for retry purposes.
+// This is generated from x-hey-* extensions in the OpenAPI spec and the behavior model.
+// Idempotent is the same judgement the operation's method makes when it decides whether
+// to spend its retry policy or send once.
 var operationMetadata = map[string]OperationMetadata{
 	"DeleteExtenzion":               {Idempotent: true, HasSensitiveParams: false},
 	"AdvancedSearch":                {Idempotent: true, HasSensitiveParams: false},
@@ -10470,7 +10471,7 @@ var operationMetadata = map[string]OperationMetadata{
 	"DeleteCalendarEventOccurrence": {Idempotent: true, HasSensitiveParams: false},
 	"CreateHabit":                   {Idempotent: false, HasSensitiveParams: false},
 	"DeleteHabit":                   {Idempotent: true, HasSensitiveParams: false},
-	"UpdateHabit":                   {Idempotent: false, HasSensitiveParams: false},
+	"UpdateHabit":                   {Idempotent: true, HasSensitiveParams: false},
 	"ResumeHabit":                   {Idempotent: true, HasSensitiveParams: false},
 	"StopHabit":                     {Idempotent: false, HasSensitiveParams: false},
 	"UpdateFirstWeekDay":            {Idempotent: true, HasSensitiveParams: false},
@@ -10484,7 +10485,7 @@ var operationMetadata = map[string]OperationMetadata{
 	"UpdateTimeTrack":               {Idempotent: true, HasSensitiveParams: false},
 	"CreateCalendarTodo":            {Idempotent: false, HasSensitiveParams: false},
 	"DeleteCalendarTodo":            {Idempotent: true, HasSensitiveParams: false},
-	"UpdateCalendarTodo":            {Idempotent: false, HasSensitiveParams: false},
+	"UpdateCalendarTodo":            {Idempotent: true, HasSensitiveParams: false},
 	"UncompleteCalendarTodo":        {Idempotent: true, HasSensitiveParams: false},
 	"CompleteCalendarTodo":          {Idempotent: true, HasSensitiveParams: false},
 	"ListCalendarWeeks":             {Idempotent: true, HasSensitiveParams: false},
@@ -10494,24 +10495,24 @@ var operationMetadata = map[string]OperationMetadata{
 	"GetCalendarRecordings":         {Idempotent: true, HasSensitiveParams: false},
 	"ToggleCalendar":                {Idempotent: false, HasSensitiveParams: false},
 	"GetClearances":                 {Idempotent: true, HasSensitiveParams: false},
-	"BulkUpdateClearances":          {Idempotent: false, HasSensitiveParams: false},
+	"BulkUpdateClearances":          {Idempotent: true, HasSensitiveParams: false},
 	"PuntClearances":                {Idempotent: false, HasSensitiveParams: false},
-	"UpdateClearance":               {Idempotent: false, HasSensitiveParams: false},
+	"UpdateClearance":               {Idempotent: true, HasSensitiveParams: false},
 	"ListClips":                     {Idempotent: true, HasSensitiveParams: false},
 	"ListCollections":               {Idempotent: true, HasSensitiveParams: false},
 	"GetCollection":                 {Idempotent: true, HasSensitiveParams: false},
-	"UpdateCollection":              {Idempotent: false, HasSensitiveParams: false},
+	"UpdateCollection":              {Idempotent: true, HasSensitiveParams: false},
 	"ListContacts":                  {Idempotent: true, HasSensitiveParams: false},
 	"CreateContact":                 {Idempotent: false, HasSensitiveParams: false},
 	"HideContact":                   {Idempotent: true, HasSensitiveParams: false},
 	"GetContact":                    {Idempotent: true, HasSensitiveParams: false},
-	"UpdateContact":                 {Idempotent: false, HasSensitiveParams: false},
+	"UpdateContact":                 {Idempotent: true, HasSensitiveParams: false},
 	"UnbundleContact":               {Idempotent: true, HasSensitiveParams: false},
 	"BundleContact":                 {Idempotent: false, HasSensitiveParams: false},
-	"UpdateContactClearance":        {Idempotent: false, HasSensitiveParams: false},
+	"UpdateContactClearance":        {Idempotent: true, HasSensitiveParams: false},
 	"DeleteContactNote":             {Idempotent: true, HasSensitiveParams: false},
 	"GetContactNote":                {Idempotent: true, HasSensitiveParams: false},
-	"UpdateContactNote":             {Idempotent: false, HasSensitiveParams: false},
+	"UpdateContactNote":             {Idempotent: true, HasSensitiveParams: false},
 	"RevealContact":                 {Idempotent: false, HasSensitiveParams: false},
 	"ListDrafts":                    {Idempotent: true, HasSensitiveParams: false},
 	"DeleteDraft":                   {Idempotent: true, HasSensitiveParams: false},
@@ -10527,10 +10528,10 @@ var operationMetadata = map[string]OperationMetadata{
 	"GetImboxSeen":                  {Idempotent: true, HasSensitiveParams: false},
 	"CreateMessage":                 {Idempotent: false, HasSensitiveParams: false},
 	"GetMessage":                    {Idempotent: true, HasSensitiveParams: false},
-	"UpdateMessage":                 {Idempotent: true, HasSensitiveParams: false},
+	"UpdateMessage":                 {Idempotent: false, HasSensitiveParams: false},
 	"GetMessageEdit":                {Idempotent: true, HasSensitiveParams: false},
 	"GetMyClearances":               {Idempotent: true, HasSensitiveParams: false},
-	"UpdateMyClearance":             {Idempotent: false, HasSensitiveParams: false},
+	"UpdateMyClearance":             {Idempotent: true, HasSensitiveParams: false},
 	"GetNavigation":                 {Idempotent: true, HasSensitiveParams: false},
 	"GetTrailbox":                   {Idempotent: true, HasSensitiveParams: false},
 	"RemovePostingsFromBoxGroup":    {Idempotent: true, HasSensitiveParams: false},
@@ -10557,7 +10558,7 @@ var operationMetadata = map[string]OperationMetadata{
 	"CreateSticky":                  {Idempotent: false, HasSensitiveParams: false},
 	"MoveSticky":                    {Idempotent: false, HasSensitiveParams: false},
 	"DeleteSticky":                  {Idempotent: true, HasSensitiveParams: false},
-	"UpdateSticky":                  {Idempotent: false, HasSensitiveParams: false},
+	"UpdateSticky":                  {Idempotent: true, HasSensitiveParams: false},
 	"GetEverythingTopics":           {Idempotent: true, HasSensitiveParams: false},
 	"GetSentTopics":                 {Idempotent: true, HasSensitiveParams: false},
 	"GetSpamTopics":                 {Idempotent: true, HasSensitiveParams: false},

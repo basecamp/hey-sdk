@@ -1,0 +1,58 @@
+#!/usr/bin/env bash
+# merge-behavior-model — Write the OpenAPI document the Go generator reads
+#
+# oapi-codegen hands its templates the OpenAPI document and nothing else, but whether
+# an operation may be resent is the behavior model's to say as much as the spec's. This
+# decides it for every operation, as the TypeScript, Rust and Kotlin generators decide
+# it from behavior-model.json themselves, and writes the verdict onto the operation as
+# x-go-idempotent, a hint for go/templates/client.tmpl in the vein of the x-go-type
+# hints enhance-openapi-go-types.sh adds:
+#
+#   1. The x-hey-idempotent override has the first word, in either direction —
+#      natural: true opts a POST in, natural: false opts a PUT out (UpdateMessage
+#      delivers).
+#   2. Otherwise the behavior model's: a read, or an operation the Smithy model marks
+#      @idempotent, which is how a PATCH earns a resend.
+#   3. The verb stands in when the model says neither: GET, HEAD, PUT and DELETE.
+#
+# An operation with no behavior-model.json entry fails the build, as it does in the
+# TypeScript generator.
+#
+# Usage: merge-behavior-model OPENAPI BEHAVIOR_MODEL OUTPUT
+set -euo pipefail
+
+if [[ $# -ne 3 ]]; then
+    echo "usage: $0 OPENAPI BEHAVIOR_MODEL OUTPUT" >&2
+    exit 2
+fi
+
+OPENAPI_FILE="$1"
+MODEL_FILE="$2"
+OUTPUT_FILE="$3"
+
+if ! command -v jq &> /dev/null; then
+    echo "ERROR: jq is required but not installed." >&2
+    exit 1
+fi
+
+jq --slurpfile model "$MODEL_FILE" '
+  $model[0].operations as $operations
+  | .paths |= with_entries(
+      .value |= with_entries(
+        .key as $method
+        | if (.value | type) == "object" and .value.operationId != null then
+            .value.operationId as $id
+            | ($operations[$id] // error("\($id) has no entry in behavior-model.json")) as $semantics
+            | .value["x-go-idempotent"] = (
+                if (.value["x-hey-idempotent"].natural | type) == "boolean" then
+                  .value["x-hey-idempotent"].natural
+                else
+                  $semantics.readonly == true
+                  or $semantics.idempotent == true
+                  or ($method | IN("get", "head", "put", "delete"))
+                end
+              )
+          else . end
+      )
+    )
+' "$OPENAPI_FILE" > "$OUTPUT_FILE"

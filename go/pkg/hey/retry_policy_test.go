@@ -237,3 +237,91 @@ func TestFollowPaginationWithoutAnOperationRunsOnTheClientSettings(t *testing.T)
 		t.Errorf("page two requests = %d, want 3", got)
 	}
 }
+
+// UpdateSticky is a PATCH the Smithy model marks @idempotent, and its policy allows two
+// sends. The verb alone would have it sent once; the model has it resent, through the
+// generated client...
+func TestModelledIdempotentPatchIsResentThroughTheGeneratedClient(t *testing.T) {
+	server, requests := policyTestServer(t, `{"id": 1, "body": "note", "size": "small"}`, 503, 200)
+	root := NewClient(&Config{BaseURL: server.URL}, &StaticTokenProvider{Token: "token"},
+		WithMaxRetries(3), WithBaseDelay(time.Millisecond))
+
+	resp, err := root.genClient().UpdateStickyWithResponse(context.Background(), 1, generated.StickyRequestContent{
+		Sticky: generated.StickyPayload{Body: "note"},
+	})
+	if err != nil {
+		t.Fatalf("expected the resend to answer: %v", err)
+	}
+	if resp.JSON200 == nil || resp.JSON200.Id != 1 {
+		t.Errorf("expected the resend's sticky, got %+v", resp.JSON200)
+	}
+	if got := requests.Load(); got != 2 {
+		t.Errorf("requests = %d, want the policy's 2", got)
+	}
+}
+
+// ...and through the hand-written wrapper that calls into it.
+func TestModelledIdempotentPatchIsResentThroughTheWrapper(t *testing.T) {
+	server, requests := policyTestServer(t, `{"id": 1, "body": "note", "size": "small"}`, 503, 200)
+	root := NewClient(&Config{BaseURL: server.URL}, &StaticTokenProvider{Token: "token"},
+		WithMaxRetries(3), WithBaseDelay(time.Millisecond))
+
+	sticky, err := root.Stickies().Update(context.Background(), 1, "note", "small")
+	if err != nil {
+		t.Fatalf("expected the resend to answer: %v", err)
+	}
+	if sticky == nil || sticky.Id != 1 {
+		t.Errorf("expected the resend's sticky, got %+v", sticky)
+	}
+	if got := requests.Load(); got != 2 {
+		t.Errorf("requests = %d, want the policy's 2", got)
+	}
+}
+
+// UpdateMessage is a PUT, which the verb would resend, and the model calls it idempotent
+// too; but the write can deliver, so the spec opts it out with natural: false, and the
+// override has the first word: the 503 is the answer.
+func TestOptedOutPutIsSentOnce(t *testing.T) {
+	server, requests := policyTestServer(t, `{}`, 503, 200)
+	root := NewClient(&Config{BaseURL: server.URL}, &StaticTokenProvider{Token: "token"},
+		WithMaxRetries(3), WithBaseDelay(time.Millisecond))
+
+	err := root.Messages().UpdateDraft(context.Background(), 1, DraftContent{
+		Subject: "Hello", Content: "<p>Hi</p>", ActingSenderID: 7,
+	})
+	if err == nil {
+		t.Fatal("expected the 503 to surface")
+	}
+	if got := requests.Load(); got != 1 {
+		t.Errorf("requests = %d, want 1", got)
+	}
+}
+
+// IsIdempotent is the judgement every generated method makes before spending its policy:
+// the x-hey-idempotent override first, then the behavior model, then the verb.
+func TestIsIdempotentReadsTheOverrideThenTheModelThenTheVerb(t *testing.T) {
+	for operation, want := range map[string]bool{
+		// The PATCHes the Smithy model marks @idempotent.
+		"BulkUpdateClearances":   true,
+		"UpdateCalendarTodo":     true,
+		"UpdateClearance":        true,
+		"UpdateCollection":       true,
+		"UpdateContact":          true,
+		"UpdateContactClearance": true,
+		"UpdateContactNote":      true,
+		"UpdateHabit":            true,
+		"UpdateMyClearance":      true,
+		"UpdateSticky":           true,
+		// The override, in either direction: a POST opted in, a PUT opted out.
+		"CompleteHabit": true,
+		"UpdateMessage": false,
+		// A read, and the verb where the model says neither.
+		"ListBoxes":    true,
+		"DeleteSticky": true,
+		"CreateSticky": false,
+	} {
+		if got := generated.IsIdempotent(operation); got != want {
+			t.Errorf("IsIdempotent(%q) = %v, want %v", operation, got, want)
+		}
+	}
+}

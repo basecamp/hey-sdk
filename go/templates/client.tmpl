@@ -477,29 +477,15 @@ type ClientInterface interface {
 }
 
 
-{{/* Generate client methods with retry support based on x-hey-idempotent */}}
+{{/* Generate client methods with retry support. Idempotency decides whether an
+     operation spends its retry policy or is sent once: x-go-idempotent is the verdict
+     scripts/merge-behavior-model writes onto every operation from the x-hey-idempotent
+     override, the behavior model and the verb, in that order. */}}
 {{range . -}}
 {{$hasParams := .RequiresParamObject -}}
 {{$pathParams := .PathParams -}}
 {{$opid := .OperationId -}}
-{{/* Idempotency decides retries: the HTTP method sets the default, and an
-     x-hey-idempotent extension overrides it in either direction — natural: true
-     opts a POST in, natural: false opts a PUT out (a PUT that delivers, say). */}}
-{{$isIdempotent := false -}}
-{{if or (eq .Method "GET") (eq .Method "HEAD") (eq .Method "PUT") (eq .Method "DELETE") -}}
-{{$isIdempotent = true -}}
-{{end -}}
-{{if .Spec -}}
-{{if .Spec.Extensions -}}
-{{with index .Spec.Extensions "x-hey-idempotent" -}}
-{{if index . "natural" -}}
-{{$isIdempotent = true -}}
-{{else -}}
-{{$isIdempotent = false -}}
-{{end -}}
-{{end -}}
-{{end -}}
-{{end -}}
+{{$isIdempotent := index .Spec.Extensions "x-go-idempotent" -}}
 
 {{if $isIdempotent}}
 // {{$opid}}{{if .HasBody}}WithBody{{end}} is marked as idempotent and will be retried on transient failures.
@@ -725,22 +711,14 @@ type OperationMetadata struct {
 }
 
 // operationMetadata maps operation IDs to their metadata.
-// This is generated from x-hey-* extensions in the OpenAPI spec.
-// GET/HEAD/PUT/DELETE operations are always considered idempotent for retry purposes.
+// This is generated from x-hey-* extensions in the OpenAPI spec and the behavior model.
+// Idempotent is the same judgement the operation's method makes when it decides whether
+// to spend its retry policy or send once.
 var operationMetadata = map[string]OperationMetadata{
 {{range . -}}
 {{$opid := .OperationId -}}
-{{$isIdempotent := false -}}
+{{$isIdempotent := index .Spec.Extensions "x-go-idempotent" -}}
 {{$hasSensitive := false -}}
-{{if or (eq .Method "GET") (eq .Method "HEAD") (eq .Method "PUT") (eq .Method "DELETE") -}}
-{{$isIdempotent = true -}}
-{{else if .Spec -}}
-{{if .Spec.Extensions -}}
-{{if index .Spec.Extensions "x-hey-idempotent" -}}
-{{$isIdempotent = true -}}
-{{end -}}
-{{end -}}
-{{end -}}
 {{if .Spec -}}
 {{if .Spec.Extensions -}}
 {{if index .Spec.Extensions "x-hey-sensitive" -}}
