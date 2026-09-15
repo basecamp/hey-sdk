@@ -185,4 +185,14 @@ class ErrorMappingTest {
         assertEquals(500, api.httpStatus)
         assertEquals(true, api.responseTooLarge)
     }
+
+    @Test
+    fun a400IsAnApiErrorAsItIsInTheOtherSdks() = runTest {
+        val hey = mockHey(status(400, """{"error":"unparsable timestamp"}"""))
+        val error = assertFailsWith<HeyException.Api> { hey.client().boxes.list() }
+        assertEquals(400, error.httpStatus)
+        assertEquals(HeyException.CODE_API, error.code)
+        assertEquals(false, error.retryable)
+        assertEquals("unparsable timestamp", error.hint)
+    }
 }

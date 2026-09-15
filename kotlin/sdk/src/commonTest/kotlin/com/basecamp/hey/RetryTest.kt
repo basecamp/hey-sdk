@@ -156,4 +156,12 @@ class RetryTest {
         hey.client { maxRetries = Int.MAX_VALUE }.boxes.list()
         assertEquals(2, hey.requests.size)
     }
+
+    @Test
+    fun aRetryAfterOfZeroMeansNow() = runTest {
+        val hey = mockHey(status(429, headers = mapOf("Retry-After" to "0")), status(429, headers = mapOf("Retry-After" to "Thu, 01 Jan 2015 00:00:00 GMT")), ok("[]"))
+        hey.client().boxes.list()
+        assertEquals(3, hey.requests.size)
+        assertEquals(0L, testScheduler.currentTime, "neither a literal zero nor a date already past is a reason to wait the backoff")
+    }
 }
