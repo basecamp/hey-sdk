@@ -190,6 +190,7 @@ private fun formFields(body: String): Map<String, String> = body.split('&').asso
         val defaults = UpdateCalendarEventParams(title = "Renamed")
         val fallback = client.calendarEvents.updateEvent(99, defaults)
         assertEquals(99L, fallback.id, "an older server answers a redirect, whose URL still names the recording")
+        assertEquals("", fallback.type, "and nothing else about it, so the type is not invented")
         val cleared = formFields(hey.requests[1].body)
         assertEquals("", cleared["calendar_event[description]"], "what the params leave empty goes out empty, since HEY clears it either way")
         assertEquals("", cleared["calendar_event[entry_id]"])

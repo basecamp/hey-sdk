@@ -158,6 +158,18 @@ class ModelTest {
     }
 
     @Test
+    fun discriminatorValuesAreReadTheWayTheOtherGeneratorsReadThem() {
+        val declared = """"discriminatorValues":{"Calendar::Event":["CalendarEvent","Calendar::Event"]}"""
+        val empty = model(boxPaths, boxSchemas.replace(declared, """"discriminatorValues":{"Calendar::Event":[]}"""))
+        val event = (empty.schemas.first { it.name == "Box" }.shape as Shape.Struct).polymorphic!!.variants[1]
+        assertEquals(listOf("Calendar::Event"), event.values, "an empty list means the name alone, never a check that cannot be true")
+
+        val stray = boxSchemas.replace(declared, """"discriminatorValues":{"Calendar::Todo":["CalendarTodo"]}""")
+        val error = assertFailsWith<GeneratorException> { model(boxPaths, stray) }
+        assertContains(error.message!!, "Box: discriminatorValues names Calendar::Todo, which is not a variant")
+    }
+
+    @Test
     fun aMethodCollisionIsRefused() {
         val paths = boxPaths.replace(""""operationId":"MarkBoxSeen"""", """"operationId":"ListBox"""")
         val error = assertFailsWith<GeneratorException> { model(paths, boxSchemas) }

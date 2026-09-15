@@ -6,7 +6,7 @@ import com.basecamp.hey.Method
 import com.basecamp.hey.OperationInfo
 import com.basecamp.hey.generated.models.Recording
 import com.basecamp.hey.generated.services.DeleteCalendarEventOccurrenceOptions
-import com.basecamp.hey.heyJson
+import com.basecamp.hey.FormResponse
 import com.basecamp.hey.writeInfo
 import kotlin.time.Duration
 import com.basecamp.hey.generated.services.CalendarEventsService as GeneratedCalendarEventsService
@@ -267,16 +267,18 @@ class CalendarEventsService(client: HeyClient) : GeneratedCalendarEventsService(
         )
     }
 
-    /** Posts a calendar form to a `.json` path and reads the recording it answers, or the id in the redirect an older server sends. */
+    /**
+     * Posts a calendar form to a `.json` path and reads the recording it answers, inside the
+     * operation the hooks hear. An older server answers a redirect instead, whose URL still
+     * names the recording's id; the type is not in it, so it stays empty as Go's and Rust's do.
+     */
     private suspend fun write(path: String, info: OperationInfo, fields: List<Pair<String, String>>): Recording {
         val operation = client.form(Method.PATCH, path)
         operation.info(info)
         operation.form(fields)
-        val answered = client.sendForm(operation)
-        return if (answered.body.isEmpty()) {
-            Recording(id = answered.extractId(), type = "Calendar::Event")
-        } else {
-            heyJson.decodeFromString(Recording.serializer(), answered.body)
+        return client.execute(operation) { response ->
+            val answered = FormResponse.of(response)
+            if (answered.body.isEmpty()) Recording(id = answered.extractId(), type = "") else response.json(Recording.serializer())
         }
     }
 
