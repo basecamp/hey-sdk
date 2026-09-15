@@ -13,7 +13,7 @@ import com.basecamp.hey.services.BaseService
  *
  * @generated from OpenAPI spec — do not edit directly
  */
-class DesignationsService(client: HeyClient) : BaseService(client) {
+open class DesignationsService(client: HeyClient) : BaseService(client) {
     /**
      * Designate a contact to a box, so everything they send lands there
      * @param boxId The box ID

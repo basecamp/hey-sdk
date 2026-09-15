@@ -50,7 +50,7 @@ data class TrashTopicOptions(
  *
  * @generated from OpenAPI spec — do not edit directly
  */
-class TopicsService(client: HeyClient) : BaseService(client) {
+open class TopicsService(client: HeyClient) : BaseService(client) {
     /**
      * Empty the spam box. Runs synchronously, so it can take a while on a large mailbox.
      */

@@ -22,7 +22,7 @@ data class ListStickiesOptions(
  *
  * @generated from OpenAPI spec — do not edit directly
  */
-class StickiesService(client: HeyClient) : BaseService(client) {
+open class StickiesService(client: HeyClient) : BaseService(client) {
     /**
      * Write a new sticky
      * @param body Request body
