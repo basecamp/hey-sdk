@@ -125,9 +125,13 @@ func (r *Response) UnmarshalData(v any) error {
 type ClientOption func(*Client)
 
 // WithHTTPClient sets a custom HTTP client. It replaces the one NewClient would build, so
-// none of what that one carries — the request timeout, credential stripping on cross-origin
-// redirects, the response body cap, logging and hooks — applies to it. WithTransport keeps
-// all of that and swaps only the transport underneath.
+// none of what that one carries — the request timeout, the response body cap, logging and
+// hooks — applies to it. Its redirect policy is kept and decides each hop first; a hop it
+// accepts then gets the cleanup every client's hops get: a hop off the origin goes out
+// without the credentials, and no hop carries the validator of the URL asked for. Its
+// transport is kept too, beneath the one that holds the credentials back from such a hop
+// at the wire, past anything a Jar adds. WithTransport keeps all of what the built client
+// carries and swaps only the transport underneath.
 func WithHTTPClient(c *http.Client) ClientOption {
 	return func(client *Client) {
 		client.httpClient = c
@@ -184,7 +188,20 @@ func NewClient(cfg *Config, tokenProvider TokenProvider, opts ...ClientOption) *
 		c.authStrategy = &BearerAuth{TokenProvider: c.tokenProvider}
 	}
 
-	if c.httpClient == nil {
+	if c.httpClient != nil {
+		// The caller's client is used as given but for its redirect policy, which still
+		// decides each hop and is followed by the SDK's own cleanup of the hops it
+		// accepts, and for its transport, which the credential strip wraps. The copy
+		// keeps the caller's client as it was, since the same one may be in use elsewhere.
+		supplied := *c.httpClient
+		supplied.CheckRedirect = redirectPolicy(c.httpClient.CheckRedirect)
+		transport := c.httpClient.Transport
+		if transport == nil {
+			transport = http.DefaultTransport
+		}
+		supplied.Transport = &credentialStrippingTransport{inner: transport}
+		c.httpClient = &supplied
+	} else {
 		transport := c.httpOpts.Transport
 		if transport == nil {
 			transport = newDefaultTransport()
@@ -192,22 +209,18 @@ func NewClient(cfg *Config, tokenProvider TokenProvider, opts ...ClientOption) *
 
 		// The cap sits inside the logging transport, so logging and hooks see every round
 		// trip, and outside the transport that negotiated the encoding, so it counts the
-		// decompressed bytes a parser would buffer.
+		// decompressed bytes a parser would buffer. The credential strip sits outside them
+		// all, on the request as net/http hands it over: a hook may give the chain beneath
+		// a context of its own, and the redirect state the strip reads must not be lost
+		// with the one it replaced.
 		transport = &bodyLimitTransport{inner: transport, limit: c.httpOpts.responseBodyLimit()}
 		transport = &loggingTransport{inner: transport, client: c}
+		transport = &credentialStrippingTransport{inner: transport}
 
 		c.httpClient = &http.Client{
-			Timeout:   c.httpOpts.Timeout,
-			Transport: transport,
-			CheckRedirect: func(req *http.Request, via []*http.Request) error {
-				if len(via) >= 10 {
-					return fmt.Errorf("stopped after 10 redirects")
-				}
-				if len(via) > 0 && !isSameOrigin(req.URL.String(), via[0].URL.String()) {
-					req.Header.Del("Authorization")
-				}
-				return nil
-			},
+			Timeout:       c.httpOpts.Timeout,
+			Transport:     transport,
+			CheckRedirect: redirectPolicy(nil),
 		}
 	}
 
@@ -234,11 +247,62 @@ func NewClient(cfg *Config, tokenProvider TokenProvider, opts ...ClientOption) *
 	return c
 }
 
+// redirectPolicy is the CheckRedirect every client runs. The policy the caller set on a
+// client of their own, or net/http's own limit when they set none, decides whether the
+// hop is taken; the SDK's bookkeeping and cleanup then come last, so nothing the caller's
+// policy put on the request outlives them. A hop never carries the validator of the URL
+// asked for — the one pointed to has its own — and a hop off the origin goes out without
+// the credentials the strategy set, as does every hop after it, whether or not it comes
+// back. The strip is made again at the transport, since net/http adds a Jar's cookies to
+// the hop only after this has run.
+func redirectPolicy(next func(req *http.Request, via []*http.Request) error) func(req *http.Request, via []*http.Request) error {
+	return func(req *http.Request, via []*http.Request) error {
+		if next != nil {
+			if err := next(req, via); err != nil {
+				return err
+			}
+		} else if len(via) >= 10 {
+			return fmt.Errorf("stopped after 10 redirects")
+		}
+		// A send without a state of its own — the attachment upload's PUT to storage — is
+		// given one on its first hop, and every later hop takes over the hop before's:
+		// net/http builds each hop on the first request's context, not the last hop's. It
+		// goes onto the hop in place, since the hop is net/http's to send and the transport
+		// reads the state there.
+		state := redirectStateFromContext(req.Context())
+		if state == nil && len(via) > 0 {
+			state = redirectStateOfHop(via[len(via)-1])
+		}
+		if state == nil {
+			state = &redirectState{}
+		}
+		if redirectStateFromContext(req.Context()) != state {
+			*req = *req.WithContext(context.WithValue(req.Context(), redirectStateKey{}, state))
+		}
+		state.followed = true
+		req.Header.Del("If-None-Match")
+		if len(via) > 0 && !isSameOrigin(req.URL.String(), via[0].URL.String()) {
+			state.unauthenticated = true
+		}
+		if state.unauthenticated {
+			req.Header.Del("Authorization")
+			for _, name := range state.credentialHeaders {
+				req.Header.Del(name)
+			}
+		}
+		return nil
+	}
+}
+
 // refreshCredentials renews what the next request will authenticate with, and reports
 // whether anything was able to. The strategy is asked before the token provider because a
 // client given both is authenticated by the strategy, so the strategy is what holds the
-// credentials a 401 was about.
+// credentials a 401 was about. A 401 from a hop that carried no credentials rejected none
+// of HEY's: there is nothing to refresh, and nothing a resend would change.
 func (c *Client) refreshCredentials(ctx context.Context) bool {
+	if state := redirectStateFromContext(ctx); state != nil && state.unauthenticated {
+		return false
+	}
 	if refresher, ok := c.authStrategy.(TokenRefresher); ok {
 		return refresher.Refresh(ctx) == nil
 	}
@@ -302,6 +366,7 @@ func (c *Client) initGeneratedClient() {
 			generated.WithHTTPClient(doer),
 			generated.WithRetryConfig(retryCfg),
 			generated.WithAuthRefresher(c.refreshCredentials),
+			generated.WithAttemptContext(withRedirectState),
 			generated.WithRetryHook(retryHook),
 			generated.WithRequestEditorFn(authEditor))
 		if err != nil {
@@ -826,6 +891,7 @@ func errorCodeForLog(err error) string {
 
 func (c *Client) singleRequest(ctx context.Context, method, url string, body any, attempt int) (*Response, error) {
 	ctx = contextWithAttempt(ctx, attempt)
+	ctx, redirected := contextWithRedirectState(ctx)
 
 	var bodyReader io.Reader
 	if body != nil {
@@ -867,6 +933,12 @@ func (c *Client) singleRequest(ctx context.Context, method, url string, body any
 	defer func() { _ = resp.Body.Close() }()
 
 	c.logger.Debug("http response", "status", resp.StatusCode)
+
+	// An answer reached through a redirect is another URL's: the entry keyed by the one
+	// asked for can neither stand in for it nor be replaced by it.
+	if redirected.followed {
+		cacheKey = ""
+	}
 
 	switch resp.StatusCode {
 	case http.StatusNotModified:

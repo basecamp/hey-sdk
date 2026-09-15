@@ -301,7 +301,7 @@ func TestBodyLimitDecidesByTheRequest(t *testing.T) {
 func TestBodyLimitOptionDefaults(t *testing.T) {
 	for _, configured := range []int64{0, -1} {
 		client, _ := newCappedTestClient(t, serveOversizedJSON(false), WithMaxResponseBodyBytes(configured))
-		inner := client.httpClient.Transport.(*loggingTransport).inner
+		inner := client.httpClient.Transport.(*credentialStrippingTransport).inner.(*loggingTransport).inner
 		capped, ok := inner.(*bodyLimitTransport)
 		if !ok || capped.limit != DefaultMaxResponseBodyBytes {
 			t.Errorf("MaxResponseBodyBytes %d: transport %T, want the default cap of %d", configured, inner, DefaultMaxResponseBodyBytes)

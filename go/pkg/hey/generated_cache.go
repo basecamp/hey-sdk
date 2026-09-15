@@ -2,6 +2,7 @@ package hey
 
 import (
 	"bytes"
+	"context"
 	"io"
 	"net/http"
 	"strconv"
@@ -38,9 +39,23 @@ func (d *cachingDoer) Do(req *http.Request) (*http.Response, error) {
 		}
 	}
 
+	// The generated client sends every attempt with a redirect state of its own; a
+	// request from anywhere else is given one here.
+	redirected := redirectStateFromContext(req.Context())
+	if redirected == nil {
+		var ctx context.Context
+		ctx, redirected = contextWithRedirectState(req.Context())
+		req = req.WithContext(ctx)
+	}
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
 		return resp, err
+	}
+
+	// An answer reached through a redirect is another URL's: the entry keyed by the one
+	// asked for can neither stand in for it nor be replaced by it.
+	if redirected.followed {
+		return resp, nil
 	}
 
 	switch {

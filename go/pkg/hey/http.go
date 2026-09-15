@@ -3,6 +3,7 @@ package hey
 import (
 	"context"
 	"net/http"
+	"slices"
 	"time"
 
 	"github.com/basecamp/hey-sdk/go/pkg/generated"
@@ -201,6 +202,97 @@ func markProjectedRequest(ctx context.Context) context.Context {
 func isProjectedRequest(ctx context.Context) bool {
 	v, _ := ctx.Value(projectedRequestKey{}).(bool)
 	return v
+}
+
+// redirectState is what the redirect policy records about one send, for the answer to
+// be read in its light. net/http builds every hop on the context of the request it was
+// handed, so the state travels with the chain and outlives it.
+type redirectState struct {
+	// credentialHeaders names every header the auth strategy set on the request, whatever
+	// it called them: what a hop that leaves the origin goes out without.
+	credentialHeaders []string
+	// followed is set once a redirect was taken: the answer is then for a URL other than
+	// the one asked for, so the cache entry of the one asked for neither serves it nor
+	// keeps it.
+	followed bool
+	// unauthenticated is set once a hop left the origin and lost its credentials, and
+	// stays set for the rest of the chain: a 401 from there rejected none of HEY's.
+	unauthenticated bool
+}
+
+type redirectStateKey struct{}
+
+// contextWithRedirectState gives ctx a fresh redirect state and hands it back for the
+// caller to read once the chain has been answered.
+func contextWithRedirectState(ctx context.Context) (context.Context, *redirectState) {
+	state := &redirectState{}
+	return context.WithValue(ctx, redirectStateKey{}, state), state
+}
+
+// withRedirectState is ctx as the generated client derives each attempt's context: with a
+// fresh redirect state for the redirect policy to fill and refreshCredentials to read.
+func withRedirectState(ctx context.Context) context.Context {
+	ctx, _ = contextWithRedirectState(ctx)
+	return ctx
+}
+
+// redirectStateFromContext is the state a send registered, or nil for a request sent
+// without one.
+func redirectStateFromContext(ctx context.Context) *redirectState {
+	state, _ := ctx.Value(redirectStateKey{}).(*redirectState)
+	return state
+}
+
+// redirectStateOfHop is the state a hop already sent was given, or nil when it was given
+// none.
+func redirectStateOfHop(hop *http.Request) *redirectState {
+	return redirectStateFromContext(hop.Context())
+}
+
+// noteCredentialHeaders records on the request's redirect state every header the auth
+// strategy set or changed, given the headers as they were before it ran: whatever the
+// strategy called it, that header is a credential, and a hop off the origin goes out
+// without it. The state is read from the request rather than an editor's context because
+// the generated client edits each attempt on the operation's context while the state is
+// the attempt's own.
+func noteCredentialHeaders(req *http.Request, before http.Header) {
+	state := redirectStateFromContext(req.Context())
+	if state == nil {
+		return
+	}
+	for name, values := range req.Header {
+		if !slices.Equal(before.Values(name), values) {
+			state.credentialHeaders = append(state.credentialHeaders, name)
+		}
+	}
+}
+
+// credentialStrippingTransport holds HEY's credentials back from a hop the redirect
+// policy marked as off the origin, at the last point before the wire. The policy's own
+// deletions are not the end of it: net/http adds a Jar's cookies to a hop after
+// CheckRedirect has run, and a jar scopes cookies by host alone, so a hop to another port
+// of the same host — another origin — would carry them. Every client gets one, outermost,
+// on the request as net/http hands it over and before anything beneath can replace the
+// context the redirect state is read from.
+type credentialStrippingTransport struct {
+	inner http.RoundTripper
+}
+
+// RoundTrip sends the request as it is unless the chain it belongs to has left the origin,
+// in which case it sends a copy without the cookies, the Authorization and every header
+// the strategy set: the request handed in is the caller's to keep as it was.
+func (t *credentialStrippingTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	state := redirectStateFromContext(req.Context())
+	if state == nil || !state.unauthenticated {
+		return t.inner.RoundTrip(req)
+	}
+	stripped := req.Clone(req.Context())
+	stripped.Header.Del("Cookie")
+	stripped.Header.Del("Authorization")
+	for _, name := range state.credentialHeaders {
+		stripped.Header.Del(name)
+	}
+	return t.inner.RoundTrip(stripped)
 }
 
 // displayURL is url as the hooks and the SDK's own error text show it: whole on an

@@ -131,9 +131,11 @@ func (c *Client) seedAccountIdentity(identity *generated.Identity) {
 // document, and form requests.
 func (c *Client) prepareAPIRequest(ctx context.Context, req *http.Request) error {
 	c.applyAccountScope(req.URL)
+	before := req.Header.Clone()
 	if err := c.authStrategy.Authenticate(ctx, req); err != nil {
 		return err
 	}
+	noteCredentialHeaders(req, before)
 	req.Header.Set("User-Agent", c.userAgent)
 	return nil
 }
