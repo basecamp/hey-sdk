@@ -59,7 +59,7 @@ jobs:
 
       # The same gate a pull request passes. A tag is not the place to find out.
       - name: Run the Kotlin gate
-        run: make kt-check kt-check-drift conformance-kt
+        run: make kt-check kt-check-drift conformance-kt kt-consumer-check
 
       # The version the library carries has to be the one the tag names, or the artifact
       # would say one thing and the release another.

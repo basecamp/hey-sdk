@@ -13,7 +13,7 @@ dependencies {
 ```
 
 The library is published to GitHub Packages, which wants a token for every download, public
-packages included. See [Install](#install). Requires JDK 17 and Kotlin 2.0 or newer.
+packages included. See [Install](#install). Requires JDK 17 and Kotlin 2.3 or newer.
 
 ## Authenticate
 
@@ -240,7 +240,9 @@ dependencies {
 ```
 
 `mavenCentral()` is for the library's own dependencies: Ktor, kotlinx.serialization and
-kotlinx.coroutines. Maven users depend on `com.basecamp:hey-sdk-jvm`, not `hey-sdk`: Gradle
+kotlinx.coroutines. Kotlin 2.3 is the oldest compiler that can read what the jar and those
+dependencies carry; `make kt-consumer-check` compiles a consumer with it, so the number here
+is one the artifact keeps. Maven users depend on `com.basecamp:hey-sdk-jvm`, not `hey-sdk`: Gradle
 reads the module metadata beside the root artifact and redirects to the JVM variant, Maven
 does not, and the root jar it would resolve holds no classes. Declare a `<repository>` and a
 `<server>` in `settings.xml` carrying the same token.

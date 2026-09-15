@@ -4,6 +4,13 @@ package com.basecamp.hey
 @PublishedApi
 internal expect fun <V> createServiceCache(): MutableMap<String, V>
 
+/**
+ * The value under [key] in a cache made by [createServiceCache], made with [factory] the
+ * first time and only then: two callers asking at the same moment get the same value.
+ */
+@PublishedApi
+internal expect fun <V : Any> MutableMap<String, V>.getOrCreate(key: String, factory: () -> V): V
+
 /** The current time in milliseconds since the epoch. */
 internal expect fun currentTimeMillis(): Long
 
