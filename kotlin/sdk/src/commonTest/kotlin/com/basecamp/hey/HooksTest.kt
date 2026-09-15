@@ -1,6 +1,7 @@
 package com.basecamp.hey
 
 import com.basecamp.hey.generated.*
+import com.basecamp.hey.services.UpdateCalendarEventParams
 import io.ktor.client.engine.HttpClientEngine
 import io.ktor.client.engine.mock.MockEngine
 import kotlinx.coroutines.CompletableDeferred
@@ -150,11 +151,20 @@ class HooksTest {
 
     @Test
     fun anAnswerThatWillNotReadEndsTheOperationWithThatError() = runTest {
-        val hey = mockHey(ok("""{"id":"not a number"}"""), ok("<section id=\"container_workflow_stage_1\"></section>", mapOf("Content-Type" to "text/html")))
+        val hey = mockHey(
+            ok("""{"id":"not a number"}"""),
+            ok("""{"summary":"no id or type"}"""),
+            ok("<section id=\"container_workflow_stage_1\"></section>", mapOf("Content-Type" to "text/html")),
+        )
         val log = mutableListOf<String>()
         val client = hey.client { hooks = Recording(log, "a") }
         assertFailsWith<HeyException.Api> { client.boxes.get(1) }
         assertEquals("a:end:GetBox:api_error", log.last())
+        assertEquals(1, log.count { it.startsWith("a:end:") })
+
+        log.clear()
+        assertFailsWith<HeyException.Api> { client.calendarEvents.updateEvent(99, UpdateCalendarEventParams(title = "x")) }
+        assertEquals("a:end:UpdateCalendarEvent:api_error", log.last(), "a calendar write that answers something other than a recording ends the same way")
         assertEquals(1, log.count { it.startsWith("a:end:") })
 
         log.clear()

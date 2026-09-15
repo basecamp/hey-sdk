@@ -156,7 +156,7 @@ private fun buildSchemas(openapi: JsonObject, naming: Naming): List<Schema> {
                     recursive = kind.mentions(name),
                 )
             }
-            Shape.Struct(fields, polymorphicOf(schema))
+            Shape.Struct(fields, polymorphicOf(schemaName, schema))
         } else {
             Shape.Alias(fieldType(schemaName, schema, naming))
         }
@@ -164,16 +164,22 @@ private fun buildSchemas(openapi: JsonObject, naming: Naming): List<Schema> {
     }
 }
 
-private fun polymorphicOf(schema: JsonObject): Polymorphic? {
+private fun polymorphicOf(name: String, schema: JsonObject): Polymorphic? {
     val extension = schema.obj("x-hey-polymorphic") ?: return null
     val discriminator = extension.string("discriminator") ?: return null
     val variants = extension.obj("variants")?.keys?.toList() ?: return null
     val aliases = extension.obj("discriminatorValues")
+    // A value list for a variant the schema does not declare is a model error, as the
+    // TypeScript generator treats it; an empty or missing list means the name alone, as the
+    // Rust generator treats it. Neither becomes a check that can never be true.
+    aliases?.keys?.firstOrNull { it !in variants }?.let { stray ->
+        throw GeneratorException("$name: discriminatorValues names $stray, which is not a variant")
+    }
     return Polymorphic(
         discriminator,
         variants.map { variant ->
-            val values = (aliases?.get(variant) as? JsonArray)?.map { it.jsonPrimitive.content } ?: listOf(variant)
-            Polymorphic.Variant(variant, values)
+            val declared = (aliases?.get(variant) as? JsonArray)?.map { it.jsonPrimitive.content }?.filter { it.isNotEmpty() }
+            Polymorphic.Variant(variant, declared?.takeIf { it.isNotEmpty() } ?: listOf(variant))
         },
     )
 }
