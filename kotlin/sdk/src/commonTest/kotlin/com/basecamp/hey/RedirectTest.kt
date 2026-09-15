@@ -182,4 +182,14 @@ class RedirectTest {
         assertEquals(1, hey.requests.size, "the hop is never sent and nothing is resent")
         assertEquals(listOf("request:signer offline", "operation:signer offline"), log)
     }
+
+    @Test
+    fun aRedirectToNowhereIsTheAnswer() = runTest {
+        for (location in listOf("", "   ")) {
+            val hey = mockHey(status(302, headers = mapOf("Location" to location)))
+            val error = assertFailsWith<HeyException.Api> { hey.client().boxes.get(7) }
+            assertEquals(302, error.httpStatus)
+            assertEquals(1, hey.requests.size, "a redirect that names nowhere is not followed anywhere")
+        }
+    }
 }

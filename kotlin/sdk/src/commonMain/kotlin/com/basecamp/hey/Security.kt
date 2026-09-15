@@ -18,18 +18,25 @@ internal fun parseAbsoluteUrl(url: String): Url? {
 
 /**
  * A URL reference HEY sent — a `Location`, a `Link` target — resolved against the URL it came
- * in. An absolute reference stands on its own; a relative one takes the base's origin and
- * nothing else of it, so the query the request went out with never rides along to where the
- * answer points. Null when the reference will not parse.
+ * in, as RFC 3986 resolves one. An absolute reference stands on its own; a relative one is
+ * resolved against the base's path, and never takes the query the request went out with, so
+ * that never rides along to where the answer points. A reference that names nothing — empty,
+ * blank — is null, as is one that will not parse: a redirect to nowhere is not followed.
  */
-internal fun resolveReference(base: Url, reference: String): Url? =
-    parseAbsoluteUrl(reference) ?: runCatching {
+internal fun resolveReference(base: Url, reference: String): Url? {
+    val trimmed = reference.trim()
+    if (trimmed.isEmpty()) return null
+    parseAbsoluteUrl(trimmed)?.let { return it }
+    return runCatching {
         URLBuilder(base).apply {
             encodedParameters.clear()
             fragment = ""
-            takeFrom(reference)
+            // Ktor reads a reference that starts at the query or the fragment as a path
+            // segment; RFC 3986 keeps the base's path in front of it.
+            takeFrom(if (trimmed[0] == '?' || trimmed[0] == '#') base.encodedPath + trimmed else trimmed)
         }.build()
     }.getOrNull()
+}
 
 /** Whether a host is this machine: `localhost`, a `.localhost` name, or a loopback address. */
 internal fun isLocalhostHost(host: String): Boolean {
