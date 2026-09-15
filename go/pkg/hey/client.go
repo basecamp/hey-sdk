@@ -235,13 +235,22 @@ func NewClient(cfg *Config, tokenProvider TokenProvider, opts ...ClientOption) *
 	return c
 }
 
-// redirectPolicy is the CheckRedirect every client runs: what the SDK must know and do on
-// each hop, then the policy the caller set on a client of their own, or net/http's own
-// limit when they set none. A hop never carries the validator of the URL asked for — the
-// one pointed to has its own — and a hop off the origin goes out without the credentials
-// the strategy set, as does every hop after it, whether or not it comes back.
+// redirectPolicy is the CheckRedirect every client runs. The policy the caller set on a
+// client of their own, or net/http's own limit when they set none, decides whether the
+// hop is taken; the SDK's bookkeeping and cleanup then come last, so nothing the caller's
+// policy put on the request outlives them: net/http sends the hop as CheckRedirect leaves
+// it. A hop never carries the validator of the URL asked for — the one pointed to has its
+// own — and a hop off the origin goes out without the credentials the strategy set, as
+// does every hop after it, whether or not it comes back.
 func redirectPolicy(next func(req *http.Request, via []*http.Request) error) func(req *http.Request, via []*http.Request) error {
 	return func(req *http.Request, via []*http.Request) error {
+		if next != nil {
+			if err := next(req, via); err != nil {
+				return err
+			}
+		} else if len(via) >= 10 {
+			return fmt.Errorf("stopped after 10 redirects")
+		}
 		state := redirectStateFromContext(req.Context())
 		if state == nil {
 			state = &redirectState{}
@@ -256,12 +265,6 @@ func redirectPolicy(next func(req *http.Request, via []*http.Request) error) fun
 			for _, name := range state.credentialHeaders {
 				req.Header.Del(name)
 			}
-		}
-		if next != nil {
-			return next(req, via)
-		}
-		if len(via) >= 10 {
-			return fmt.Errorf("stopped after 10 redirects")
 		}
 		return nil
 	}

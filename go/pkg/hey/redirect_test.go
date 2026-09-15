@@ -500,3 +500,59 @@ func TestGeneratedOperationsRetryOnceAfterRefreshOnASameOriginRedirectChain(t *t
 		t.Errorf("requests = %v, want %v", seen, want)
 	}
 }
+
+// The caller's policy decides whether a hop is taken, and the SDK's cleanup is the last
+// thing to touch the hop before it goes out: a policy that copies every header from the
+// first request, as many do, restores nothing a cross-origin target must not see.
+func TestSuppliedRedirectPolicyCannotRestoreWhatTheSDKStrips(t *testing.T) {
+	var targetHeaders http.Header
+	target := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		targetHeaders = r.Header.Clone()
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = io.WriteString(w, `{"which":"b"}`)
+	}))
+	t.Cleanup(target.Close)
+
+	var aRequests atomic.Int64
+	source := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		if aRequests.Add(1) == 1 {
+			w.Header().Set("ETag", `"x"`)
+			_, _ = io.WriteString(w, `{"which":"a"}`)
+			return
+		}
+		http.Redirect(w, r, target.URL+"/b.json", http.StatusFound)
+	}))
+	t.Cleanup(source.Close)
+
+	var policyCalls atomic.Int64
+	supplied := &http.Client{CheckRedirect: func(req *http.Request, via []*http.Request) error {
+		policyCalls.Add(1)
+		for name, values := range via[0].Header {
+			req.Header[name] = values
+		}
+		return nil
+	}}
+	auth := &signingAuth{}
+	auth.signature.Store("signed")
+	client := NewClient(&Config{BaseURL: source.URL}, nil, WithAuthStrategy(auth),
+		WithHTTPClient(supplied), WithMaxRetries(0), WithCache(NewCache(t.TempDir())))
+
+	for _, want := range []string{`{"which":"a"}`, `{"which":"b"}`} {
+		resp, err := client.Get(context.Background(), "/a.json")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if string(resp.Data) != want {
+			t.Fatalf("answer = %s, want %s", resp.Data, want)
+		}
+	}
+	if policyCalls.Load() != 1 {
+		t.Errorf("the caller's policy was consulted %d times, want once", policyCalls.Load())
+	}
+	for _, name := range []string{"If-None-Match", "X-Signature", "Authorization"} {
+		if got := targetHeaders.Get(name); got != "" {
+			t.Errorf("the cross-origin target received %s: %q", name, got)
+		}
+	}
+}
