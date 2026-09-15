@@ -243,6 +243,12 @@ func redirectStateFromContext(ctx context.Context) *redirectState {
 	return state
 }
 
+// redirectStateOfHop is the state a hop already sent was given, or nil when it was given
+// none.
+func redirectStateOfHop(hop *http.Request) *redirectState {
+	return redirectStateFromContext(hop.Context())
+}
+
 // noteCredentialHeaders records on the request's redirect state every header the auth
 // strategy set or changed, given the headers as they were before it ran: whatever the
 // strategy called it, that header is a credential, and a hop off the origin goes out

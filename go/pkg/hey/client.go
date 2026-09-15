@@ -263,12 +263,20 @@ func redirectPolicy(next func(req *http.Request, via []*http.Request) error) fun
 		} else if len(via) >= 10 {
 			return fmt.Errorf("stopped after 10 redirects")
 		}
-		// A send without a state — the attachment upload's PUT to storage, which carries no
-		// credentials of HEY's and whose answer is never cached — still gets the cleanup,
-		// on a state nothing will read.
+		// A send without a state of its own — the attachment upload's PUT to storage — is
+		// given one on its first hop, and every later hop takes over the hop before's:
+		// net/http builds each hop on the first request's context, not the last hop's. It
+		// goes onto the hop in place, since the hop is net/http's to send and the transport
+		// reads the state there.
 		state := redirectStateFromContext(req.Context())
+		if state == nil && len(via) > 0 {
+			state = redirectStateOfHop(via[len(via)-1])
+		}
 		if state == nil {
 			state = &redirectState{}
+		}
+		if redirectStateFromContext(req.Context()) != state {
+			*req = *req.WithContext(context.WithValue(req.Context(), redirectStateKey{}, state))
 		}
 		state.followed = true
 		req.Header.Del("If-None-Match")

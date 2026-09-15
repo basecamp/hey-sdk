@@ -9,6 +9,7 @@ import (
 	"net/http/cookiejar"
 	"net/http/httptest"
 	"net/url"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -633,5 +634,121 @@ func TestCrossOriginHopOnTheSameHostCarriesNoCookieFromAJarOrTheStrategy(t *test
 				t.Errorf("expected the request and its one hop, got %d requests", requests.Load())
 			}
 		})
+	}
+}
+
+// A send with no redirect state of its own — one made straight on the HTTP client, as the
+// attachment upload's PUT to storage is — gets one on its first hop, and the hops after
+// take it over, so a supplied client's jar has its cookies held back from every hop off
+// the origin, not only the first.
+func TestStatelessSendCarriesNoCookieFromAJarAcrossConsecutiveCrossOriginHops(t *testing.T) {
+	var mu sync.Mutex
+	cookies := map[string]string{}
+	record := func(name string, r *http.Request) {
+		mu.Lock()
+		cookies[name] = r.Header.Get("Cookie")
+		mu.Unlock()
+	}
+	last := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		record("last", r)
+		_, _ = io.WriteString(w, "done")
+	}))
+	t.Cleanup(last.Close)
+	middle := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		record("middle", r)
+		http.Redirect(w, r, last.URL+"/last", http.StatusFound)
+	}))
+	t.Cleanup(middle.Close)
+	first := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		record("first", r)
+		http.Redirect(w, r, middle.URL+"/middle", http.StatusFound)
+	}))
+	t.Cleanup(first.Close)
+
+	jar, err := cookiejar.New(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	firstURL, _ := url.Parse(first.URL)
+	jar.SetCookies(firstURL, []*http.Cookie{{Name: "remembered", Value: "jarred"}})
+	client := NewClient(&Config{BaseURL: first.URL}, &StaticTokenProvider{Token: "token"},
+		WithHTTPClient(&http.Client{Jar: jar}), WithMaxRetries(0))
+
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, first.URL+"/first", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp, err := client.httpClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = resp.Body.Close()
+
+	mu.Lock()
+	defer mu.Unlock()
+	if cookies["first"] != "remembered=jarred" {
+		t.Errorf("the request itself should carry the jar's cookie, got %q", cookies["first"])
+	}
+	for _, hop := range []string{"middle", "last"} {
+		if cookies[hop] != "" {
+			t.Errorf("the %s hop received Cookie: %q", hop, cookies[hop])
+		}
+	}
+}
+
+// The attachment upload's PUT to storage is such a send: a redirect off the storage
+// origin, and any after it, carries none of a supplied jar's cookies.
+func TestAttachmentUploadHopsCarryNoCookieFromAJar(t *testing.T) {
+	var mu sync.Mutex
+	cookies := map[string]string{}
+	record := func(name string, r *http.Request) {
+		mu.Lock()
+		cookies[name] = r.Header.Get("Cookie")
+		mu.Unlock()
+	}
+	last := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		record("last", r)
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	t.Cleanup(last.Close)
+	middle := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		record("middle", r)
+		http.Redirect(w, r, last.URL+"/last", http.StatusTemporaryRedirect)
+	}))
+	t.Cleanup(middle.Close)
+	storage := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		record("storage", r)
+		http.Redirect(w, r, middle.URL+"/middle", http.StatusTemporaryRedirect)
+	}))
+	t.Cleanup(storage.Close)
+	hey := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		record("hey", r)
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = io.WriteString(w, `{"signed_id":"signed-123","attachable_sgid":"sgid-456","direct_upload":{"url":"`+storage.URL+`/blob?signature=abc","headers":{"Content-Type":"text/plain"}}}`)
+	}))
+	t.Cleanup(hey.Close)
+
+	jar, err := cookiejar.New(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	heyURL, _ := url.Parse(hey.URL)
+	jar.SetCookies(heyURL, []*http.Cookie{{Name: "remembered", Value: "jarred"}})
+	client := NewClient(&Config{BaseURL: hey.URL}, &StaticTokenProvider{Token: "token"},
+		WithHTTPClient(&http.Client{Jar: jar}), WithMaxRetries(0))
+
+	if _, err := client.Attachments().Upload(context.Background(), "note.txt", "text/plain", strings.NewReader("contents")); err != nil {
+		t.Fatal(err)
+	}
+
+	mu.Lock()
+	defer mu.Unlock()
+	if cookies["storage"] != "remembered=jarred" {
+		t.Errorf("the storage request itself should carry the jar's cookie for the host, got %q", cookies["storage"])
+	}
+	for _, hop := range []string{"middle", "last"} {
+		if cookies[hop] != "" {
+			t.Errorf("the %s hop received Cookie: %q", hop, cookies[hop])
+		}
 	}
 }
