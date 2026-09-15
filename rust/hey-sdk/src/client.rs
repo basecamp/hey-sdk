@@ -821,7 +821,7 @@ impl Client {
                 Ok(received) => {
                     let status = received.response.status();
                     let retryable = budget.retry_on.contains(&status.as_u16());
-                    let retry_after = retry_after_asked(status, received.response.headers());
+                    let retry_after = retry_after_asked(retryable, received.response.headers());
                     // A 401 from a hop that carried no credentials rejected none of HEY's:
                     // there is nothing to refresh, and nothing a resend would change.
                     if status == StatusCode::UNAUTHORIZED
@@ -863,10 +863,12 @@ impl Client {
                         });
                         crate::trace::debug!(operation = label(operation), attempt, %status, "retryable status, retrying");
                         hooks.on_retry(&sending.info, attempt + 1, &cause);
+                        // A `Retry-After` on any status that earns a resend: a 503 says how
+                        // long the outage is expected to last as plainly as a 429 says how
+                        // long to back off. One that asks for nothing, or that could not be
+                        // read, leaves the backoff to decide.
                         match retry_after {
-                            Some(seconds)
-                                if status == StatusCode::TOO_MANY_REQUESTS && seconds > 0 =>
-                            {
+                            Some(seconds) if seconds > 0 => {
                                 self.wait_as_asked(Duration::from_secs(seconds)).await;
                             }
                             _ => self.wait(delay).await,
@@ -1510,9 +1512,10 @@ fn request_id(headers: &HeaderMap) -> Option<&str> {
         .and_then(|value| value.to_str().ok())
 }
 
-/// The wait HEY asked for, on the two statuses that carry one.
-fn retry_after_asked(status: StatusCode, headers: &HeaderMap) -> Option<u64> {
-    if status == StatusCode::TOO_MANY_REQUESTS || status == StatusCode::SERVICE_UNAVAILABLE {
+/// The wait HEY asked for, on a status that earns a resend. A `Retry-After` on any other
+/// answer is not a wait the client will take, so it is not one it reports.
+fn retry_after_asked(retryable: bool, headers: &HeaderMap) -> Option<u64> {
+    if retryable {
         retry_after_seconds(headers)
     } else {
         None

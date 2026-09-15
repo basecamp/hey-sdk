@@ -325,6 +325,37 @@ async fn a_rate_limit_the_policy_names_is_waited_out_as_the_date_asks() {
     );
 }
 
+/// A 503 says how long the outage is expected to last as plainly as a 429 says how long to
+/// back off, so its `Retry-After` is waited out the same way.
+#[tokio::test]
+async fn an_outage_the_policy_names_is_waited_out_as_retry_after_asks() {
+    let server = MockServer::start().await;
+    first(
+        &server,
+        "/boxes.json",
+        1,
+        ResponseTemplate::new(503).insert_header("Retry-After", "2"),
+    )
+    .await;
+    always(
+        &server,
+        "GET",
+        "/boxes.json",
+        ResponseTemplate::new(200).set_body_json(json!([])),
+    )
+    .await;
+
+    let started = Instant::now();
+    client(&server).boxes().list().await.unwrap();
+    let waited = started.elapsed();
+
+    assert_eq!(requests(&server).await, 2);
+    assert!(
+        waited >= Duration::from_secs(2),
+        "resent after only {waited:?}"
+    );
+}
+
 /// The pages after the first are read under the policy of the route the first came from,
 /// not as anonymous requests with the client's defaults.
 #[tokio::test]
