@@ -74,6 +74,22 @@ class CacheTest {
     }
 
     @Test
+    fun aSuccessWithoutAValidatorEndsWhatWasHeld() = runTest {
+        val hey = mockHey(ok("""{"n":"a"}""", mapOf("ETag" to "\"v1\"")), ok("""{"n":"b"}"""), ok("""{"n":"c"}"""))
+        val store = InMemoryCache()
+        val client = hey.client {
+            enableCache = true
+            cache = store
+        }
+        assertEquals("""{"n":"a"}""", client.execute(client.request(Method.GET, "/thing")).text())
+        assertEquals("""{"n":"b"}""", client.execute(client.request(Method.GET, "/thing")).text())
+        assertEquals("\"v1\"", hey.requests[1].header("If-None-Match"))
+        assertEquals(0, store.size, "b replaced a, and cannot be revalidated, so nothing is held")
+        client.execute(client.request(Method.GET, "/thing"))
+        assertNull(hey.requests[2].header("If-None-Match"), "a's validator is not sent for a body HEY has moved on from")
+    }
+
+    @Test
     fun aNoStoreAnswerEvictsWhatWasHeldForTheKey() = runTest {
         val hey = mockHey(
             ok("[]", mapOf("ETag" to "\"v1\"")),

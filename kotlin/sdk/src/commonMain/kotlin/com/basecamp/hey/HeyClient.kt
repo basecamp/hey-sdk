@@ -918,6 +918,10 @@ class HeyClient internal constructor(
                     // An answer HEY says not to keep is not kept, and neither is what it replaced.
                     forbidsStoring(headers) -> cache.invalidate(key)
                     etag != null && body.isNotEmpty() -> cache.set(key, CachedResponse(etag, body.copyOf(), storableHeaders(headers, answered.credentialNames)))
+                    // A success that cannot be revalidated — no validator, or nothing to hold —
+                    // has replaced what was held, so the old entry goes rather than being sent
+                    // back as a validator for a body HEY has moved on from.
+                    else -> cache.invalidate(key)
                 }
             }
             return Response(status, headers, body, received.url, fromCache = false, empty = false)

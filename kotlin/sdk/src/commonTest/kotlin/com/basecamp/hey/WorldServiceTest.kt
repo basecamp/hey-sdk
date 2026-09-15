@@ -119,4 +119,13 @@ class WorldServiceTest {
         assertNull(postToken("/world/posts/ABCD"), "only lowercase hex is a token")
         assertNull(postToken("/topics/4471829"))
     }
+
+    @Test
+    fun anImportFilenameWithALineBreakIsRefusedBeforeAnythingIsSent() = runTest {
+        val hey = mockHey()
+        for (filename in listOf("a\r\nContent-Type: text/html\r\n", "a\nb.csv", "a\rb")) {
+            assertFailsWith<HeyException.Usage> { hey.client().world.importSubscribers("list@example.com", filename, "x".encodeToByteArray()) }
+        }
+        assertEquals(0, hey.requests.size)
+    }
 }

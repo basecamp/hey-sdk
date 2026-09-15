@@ -126,6 +126,9 @@ private fun postPath(token: String): String = POST_PATH + encodePathSegment(toke
  * naming the boundary it was built with.
  */
 internal fun subscriberImportBody(filename: String, csv: ByteArray): Pair<String, ByteArray> {
+    // The filename goes into a header line of the multipart body as written; a line break in
+    // it would end that line and start another part's headers.
+    if (filename.any { it == '\r' || it == '\n' }) throw HeyException.Usage("a subscriber import filename cannot contain a line break")
     val boundary = Random.nextBytes(16).joinToString("") { byte -> (byte.toInt() and 0xFF).toString(16).padStart(2, '0') }
     val head = "--$boundary\r\nContent-Disposition: form-data; name=\"$IMPORT_PART\"; filename=\"${escapeQuotes(importFilename(filename))}\"\r\nContent-Type: application/octet-stream\r\n\r\n"
     val tail = "\r\n--$boundary--\r\n"

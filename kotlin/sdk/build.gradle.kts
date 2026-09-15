@@ -48,12 +48,34 @@ tasks.withType<Test> {
 // The same commit and toolchain build the same bytes, so the release workflow can tell a
 // re-run that finds the version already on GitHub Packages from one that finds something
 // else there: zip entry timestamps and directory order are the only things that would differ.
+// The repository's MIT notice travels inside every archive, binary and sources alike, since a
+// distributed copy has to carry it; the POM names the licence too, for the tools that read it.
 tasks.withType<AbstractArchiveTask>().configureEach {
     isPreserveFileTimestamps = false
     isReproducibleFileOrder = true
+    from(rootProject.file("../LICENSE")) {
+        into("META-INF")
+    }
 }
 
 publishing {
+    publications.withType<MavenPublication>().configureEach {
+        pom {
+            name.set("HEY SDK for Kotlin")
+            description.set("Kotlin client for the HEY API, generated from its Smithy model")
+            url.set("https://github.com/basecamp/hey-sdk")
+            licenses {
+                license {
+                    name.set("MIT License")
+                    url.set("https://opensource.org/licenses/MIT")
+                }
+            }
+            scm {
+                url.set("https://github.com/basecamp/hey-sdk")
+                connection.set("scm:git:https://github.com/basecamp/hey-sdk.git")
+            }
+        }
+    }
     repositories {
         maven {
             name = "GitHubPackages"

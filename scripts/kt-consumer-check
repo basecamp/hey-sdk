@@ -27,6 +27,21 @@ trap 'rm -rf "$work"' EXIT
 echo "consumer: publishing hey-sdk $version to $work/repo"
 (cd "$root/kotlin" && ./gradlew --quiet :hey-sdk:publishAllPublicationsToStagingRepository -Phey.staging="$work/repo")
 
+# Every jar carries the MIT notice and every POM names the licence: a distributed copy has to.
+for jar in $(find "$work/repo" -name '*.jar'); do
+  if ! unzip -l "$jar" | grep -q 'META-INF/LICENSE$'; then
+    echo "consumer: $jar carries no META-INF/LICENSE" >&2
+    exit 1
+  fi
+done
+for pom in $(find "$work/repo" -name '*.pom'); do
+  if ! grep -q '<name>MIT License</name>' "$pom"; then
+    echo "consumer: $pom does not name the MIT licence" >&2
+    exit 1
+  fi
+done
+echo "consumer: every jar carries the notice and every POM names the licence"
+
 mkdir -p "$work/consumer/src/main/kotlin" "$work/consumer/gradle/wrapper"
 cp "$root/kotlin/gradlew" "$work/consumer/"
 cp "$root/kotlin/gradle/wrapper/gradle-wrapper.jar" "$work/consumer/gradle/wrapper/"
