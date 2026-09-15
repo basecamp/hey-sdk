@@ -35,6 +35,10 @@ class PaginationTest {
         assertEquals("https://app.hey.com/contacts/88.json", resolveReference(base, "/contacts/88.json").toString())
         assertEquals("https://files.example.com/export.json", resolveReference(base, "https://files.example.com/export.json").toString())
         assertEquals("https://app.hey.com/contacts/89.json?page=1", resolveReference(base, "89.json?page=1").toString())
+        assertEquals("https://app.hey.com/contacts/88.json?page=next", resolveReference(base, "?page=next").toString(), "a query-only reference keeps the base's path")
+        assertEquals("https://app.hey.com/contacts/88.json#top", resolveReference(base, "#top").toString(), "a fragment-only reference keeps the path")
+        assertNull(resolveReference(base, ""), "a reference that names nothing resolves to nothing")
+        assertNull(resolveReference(base, "   "))
     }
 
     @Test
@@ -173,5 +177,17 @@ class PaginationTest {
         val hey = mockHey(ok("""{"added":[],"updated":[],"deleted":[]}""", mapOf("Link" to "<https://evil.example.com/changes.json?since=x&page=2>; rel=\"next\"")))
         val error = assertFailsWith<HeyException.Usage> { hey.client().postings.changes(7, PostingChangesCursor("2026-09-15T10:00:00Z")) }
         assertEquals(false, error.message!!.contains("since=x"))
+    }
+
+    @Test
+    fun aQueryOnlyNextLinkIsAPage() = runTest {
+        val hey = mockHey(ok("[]", mapOf("Link" to "<?page=2>; rel=\"next\"")), ok("[]"))
+        val client = hey.client()
+        val first = client.boxes.list()
+        assertEquals("2", first.nextPage)
+        assertNull(first.nextCursor)
+        client.nextPage(first)
+        assertEquals("/boxes.json", hey.requests[1].path)
+        assertEquals("2", hey.requests[1].query("page"))
     }
 }
