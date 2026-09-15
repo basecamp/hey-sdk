@@ -4,6 +4,7 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonPrimitive
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
@@ -31,11 +32,40 @@ class AssertionHelpersTest {
         assertTrue(valuesMatch(JsonPrimitive("Imbox"), JsonPrimitive("Imbox")))
         assertTrue(valuesMatch(JsonPrimitive(true), JsonPrimitive(true)))
         assertEquals(false, valuesMatch(JsonPrimitive(1), JsonPrimitive(2)))
+        assertTrue(valuesMatch(JsonPrimitive(1), JsonPrimitive(1.0)), "a number is the same number however it is spelled")
+        assertEquals(false, valuesMatch(JsonPrimitive(1), JsonPrimitive("1")), "but a string of a number is not a number")
+        assertEquals(false, valuesMatch(JsonPrimitive(true), JsonPrimitive("true")))
+        assertEquals(false, valuesMatch(JsonPrimitive("1"), JsonPrimitive(1)))
     }
 
     @Test
     fun queryPairsAreDecoded() {
         assertEquals(listOf("posting_ids" to "1,2", "page" to "older"), queryPairs("posting_ids=1%2C2&page=older"))
         assertEquals(emptyList(), queryPairs(null))
+    }
+
+    private fun run(recorded: Recorded, vararg assertions: Assertion): Run =
+        Run(TestCase(name = "t", operation = "ListBoxes", assertions = assertions.toList()), Result.success(Outcome.Unit), recorded, "http://127.0.0.1:1")
+
+    @Test
+    fun everyWaitBetweenRequestsIsChecked() {
+        val recorded = Recorded()
+        recorded.times += listOf(0L, 1_000_000_000L, 1_001_000_000L)
+        val minimum = Assertion(type = "delayBetweenRequests", min = 1000.0)
+        val error = assertFailsWith<AssertionFailure> { checkAll(run(recorded, minimum)) }
+        assertTrue(error.message!!.contains("before request 3"), error.message)
+        recorded.times[2] = 2_000_000_000L
+        checkAll(run(recorded, minimum))
+    }
+
+    @Test
+    fun aScalarQueryParameterHasToBeThereExactlyOnce() {
+        val recorded = Recorded()
+        recorded.queries += listOf(listOf("filtered_account_id" to "42", "filtered_account_id" to "42"))
+        val expected = Assertion(type = "requestQuery", expected = Json.parseToJsonElement("""{"filtered_account_id":"42"}"""))
+        val error = assertFailsWith<AssertionFailure> { checkAll(run(recorded, expected)) }
+        assertTrue(error.message!!.contains("once, got it 2 times"), error.message)
+        recorded.queries[0] = listOf("filtered_account_id" to "42")
+        checkAll(run(recorded, expected))
     }
 }

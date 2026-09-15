@@ -188,6 +188,13 @@ data class UpdateCalendarEventParams(
  * on, as HEY's `occurrence_id` (`<event id>_<YYYY-MM-DD>`) names it.
  */
 data class OccurrenceId(val eventId: Long, val date: String) {
+    init {
+        // Both parts go into an authenticated write's path, so both are checked here, whichever
+        // way the id was made: a positive event, and a day the calendar actually has.
+        if (eventId <= 0) throw HeyException.Usage("occurrence id names no event: $eventId")
+        if (!isCalendarDate(date)) throw HeyException.Usage("occurrence id names no date: \"$date\" is not a YYYY-MM-DD the calendar has")
+    }
+
     companion object {
         /** Reads HEY's `occurrence_id`. */
         fun parse(source: String): OccurrenceId {
@@ -195,9 +202,21 @@ data class OccurrenceId(val eventId: Long, val date: String) {
             if (separator < 0) throw HeyException.Usage("occurrence id \"$source\" is not <event id>_<YYYY-MM-DD>")
             val eventId = source.substring(0, separator).toLongOrNull()?.takeIf { it > 0 }
                 ?: throw HeyException.Usage("occurrence id \"$source\" names no event")
-            val date = source.substring(separator + 1)
-            if (!Regex("\\d{4}-\\d{2}-\\d{2}").matches(date)) throw HeyException.Usage("occurrence id \"$source\" names no date")
-            return OccurrenceId(eventId, date)
+            return OccurrenceId(eventId, source.substring(separator + 1))
+        }
+
+        /** Whether the text is a `YYYY-MM-DD` the calendar has: a month of 1 to 12 and a day that month has, February 29 in leap years only. */
+        internal fun isCalendarDate(date: String): Boolean {
+            val match = Regex("(\\d{4})-(\\d{2})-(\\d{2})").matchEntire(date) ?: return false
+            val (year, month, day) = match.destructured.toList().map { it.toInt() }
+            if (month !in 1..12 || day < 1) return false
+            val leap = year % 4 == 0 && (year % 100 != 0 || year % 400 == 0)
+            val days = when (month) {
+                2 -> if (leap) 29 else 28
+                4, 6, 9, 11 -> 30
+                else -> 31
+            }
+            return day <= days
         }
     }
 
@@ -374,7 +393,14 @@ internal fun updateEventFields(params: UpdateCalendarEventParams): List<Pair<Str
         }
     }
 
-    val remindersKey = if (params.allDay == true) ALL_DAY_REMINDERS else TIMED_REMINDERS
-    for (reminder in params.reminders) fields += remindersKey to reminder.inWholeSeconds.toString()
+    // HEY reads the list matching the event's all-day flag as it stands after the write. An
+    // update that leaves the flag alone cannot know which that is, so it sends both lists: the
+    // one HEY does not read is ignored, and the one it does keeps the reminders scheduled.
+    val remindersKeys = when (params.allDay) {
+        true -> listOf(ALL_DAY_REMINDERS)
+        false -> listOf(TIMED_REMINDERS)
+        null -> listOf(ALL_DAY_REMINDERS, TIMED_REMINDERS)
+    }
+    for (key in remindersKeys) for (reminder in params.reminders) fields += key to reminder.inWholeSeconds.toString()
     return fields
 }

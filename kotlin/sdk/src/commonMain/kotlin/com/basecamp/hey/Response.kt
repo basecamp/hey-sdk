@@ -38,26 +38,42 @@ class Response internal constructor(
         return try {
             heyJson.decodeFromString(deserializer, text())
         } catch (error: SerializationException) {
-            throw HeyException.Api(
-                "unexpected JSON in the response",
-                httpStatus = status,
-                hint = HeyException.truncateMessage(error.message ?: "unreadable"),
-                retryable = false,
-                requestId = header("X-Request-Id"),
-                cause = error,
-            )
+            throw undecodable(error)
         } catch (error: IllegalArgumentException) {
-            throw HeyException.Api(
-                "unexpected JSON in the response",
-                httpStatus = status,
-                hint = HeyException.truncateMessage(error.message ?: "unreadable"),
-                retryable = false,
-                requestId = header("X-Request-Id"),
-                cause = error,
-            )
+            throw undecodable(error)
         }
     }
 
+    /**
+     * The error for a body that will not decode. It says where the body went wrong — the
+     * field, the path, the offset — and never what the body held: the decoder's own message
+     * quotes the input, and a body can carry an address or a name, so neither the message
+     * nor the exception that carried it is kept.
+     */
+    private fun undecodable(error: Exception): HeyException.Api =
+        HeyException.Api(
+            "unexpected JSON in the response",
+            httpStatus = status,
+            hint = decodeHint(error.message),
+            retryable = false,
+            requestId = header("X-Request-Id"),
+        )
+
     /** Decodes the body as [T]. */
     inline fun <reified T> json(): T = json(serializer<T>())
+}
+
+/**
+ * What a decoder's message says about where it stopped, with the input it quotes left out:
+ * a required field it names, the path it reached, the offset it reached.
+ */
+internal fun decodeHint(message: String?): String {
+    if (message == null) return "body does not decode"
+    val parts = mutableListOf<String>()
+    Regex("Field '([^']*)' is required")
+        .find(message)
+        ?.let { parts += "missing required field '${it.groupValues[1]}'" }
+    Regex("path: (\\$[^\\s,]*)").find(message)?.let { parts += "at path ${it.groupValues[1]}" }
+    Regex("offset (\\d+)").find(message)?.let { parts += "at offset ${it.groupValues[1]}" }
+    return if (parts.isEmpty()) "body does not decode" else "body does not decode: " + parts.joinToString(", ")
 }

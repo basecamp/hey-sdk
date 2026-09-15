@@ -161,4 +161,16 @@ class CacheTest {
         assertEquals(key, cacheKey("https://app.hey.com/boxes.json", "Bearer secret"))
         assertEquals(false, key == cacheKey("https://app.hey.com/boxes.json", "Bearer other"))
     }
+
+    @Test
+    fun aCallerCannotWriteIntoTheCacheThroughTheBodyItWasHanded() = runTest {
+        val hey = mockHey(ok("""{"n":1}""", mapOf("ETag" to "\"v1\"")), status(304, headers = mapOf("ETag" to "\"v1\"")), status(304, headers = mapOf("ETag" to "\"v1\"")))
+        val client = hey.client { enableCache = true }
+        val first = client.execute(client.request(Method.GET, "/thing"))
+        first.body.fill(0)
+        val second = client.execute(client.request(Method.GET, "/thing"))
+        assertEquals("""{"n":1}""", second.text(), "the entry holds its own bytes")
+        second.body.fill(0)
+        assertEquals("""{"n":1}""", client.execute(client.request(Method.GET, "/thing")).text(), "and hands out its own copy each time")
+    }
 }
