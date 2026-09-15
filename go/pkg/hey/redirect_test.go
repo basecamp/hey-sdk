@@ -219,3 +219,284 @@ func TestUnauthorizedOnASameOriginRedirectChainIsRetriedAfterARefresh(t *testing
 		t.Errorf("requests = %v, want %v", seen, want)
 	}
 }
+
+// signingAuth is a strategy that carries its credential under a header of its own rather
+// than Authorization, and can renew it.
+type signingAuth struct {
+	signature atomic.Value
+	refreshes atomic.Int64
+}
+
+func (a *signingAuth) Authenticate(_ context.Context, req *http.Request) error {
+	req.Header.Set("X-Signature", a.signature.Load().(string))
+	return nil
+}
+
+func (a *signingAuth) Refresh(context.Context) error {
+	a.refreshes.Add(1)
+	a.signature.Store("renewed")
+	return nil
+}
+
+// Whatever header the strategy set is the credential, so a hop off the origin goes out
+// without it too, and a 401 from there refreshes nothing.
+func TestCrossOriginHopCarriesNoneOfTheHeadersTheStrategySet(t *testing.T) {
+	var requests atomic.Int64
+	target := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requests.Add(1)
+		if signature := r.Header.Get("X-Signature"); signature != "" {
+			t.Errorf("the cross-origin hop carried the signature %q", signature)
+		}
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+	}))
+	t.Cleanup(target.Close)
+
+	source := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requests.Add(1)
+		if r.Header.Get("X-Signature") != "signed" {
+			t.Errorf("HEY's own request lost its signature: %q", r.Header.Get("X-Signature"))
+		}
+		http.Redirect(w, r, target.URL+"/export.json", http.StatusFound)
+	}))
+	t.Cleanup(source.Close)
+
+	auth := &signingAuth{}
+	auth.signature.Store("signed")
+	client := NewClient(&Config{BaseURL: source.URL}, nil, WithAuthStrategy(auth), WithMaxRetries(1))
+
+	_, err := client.Get(context.Background(), "/export.json")
+	var apiErr *Error
+	if !errors.As(err, &apiErr) || apiErr.Code != CodeAuth {
+		t.Fatalf("expected the authentication failure, got %v", err)
+	}
+	if refreshes := auth.refreshes.Load(); refreshes != 0 {
+		t.Errorf("expected no refresh, got %d: the signature never reached the target", refreshes)
+	}
+	if requests.Load() != 2 {
+		t.Errorf("expected the request and its one hop, got %d requests", requests.Load())
+	}
+}
+
+// A hop that stays on the origin keeps every header the strategy set, and a hop back to
+// the origin after one that left it gets none of them back.
+func TestSameOriginHopKeepsTheHeadersTheStrategySetUntilTheChainLeaves(t *testing.T) {
+	var mu sync.Mutex
+	signatures := map[string]string{}
+	var elsewhere *httptest.Server
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		signatures[r.URL.Path] = r.Header.Get("X-Signature")
+		mu.Unlock()
+		switch r.URL.Path {
+		case "/start.json":
+			http.Redirect(w, r, "/next.json", http.StatusFound)
+		case "/next.json":
+			http.Redirect(w, r, elsewhere.URL+"/away.json", http.StatusFound)
+		case "/back.json":
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = io.WriteString(w, `{"ok":true}`)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	t.Cleanup(server.Close)
+	elsewhere = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		signatures["away"] = r.Header.Get("X-Signature")
+		mu.Unlock()
+		http.Redirect(w, r, server.URL+"/back.json", http.StatusFound)
+	}))
+	t.Cleanup(elsewhere.Close)
+
+	auth := &signingAuth{}
+	auth.signature.Store("signed")
+	client := NewClient(&Config{BaseURL: server.URL}, nil, WithAuthStrategy(auth), WithMaxRetries(0))
+
+	if _, err := client.Get(context.Background(), "/start.json"); err != nil {
+		t.Fatal(err)
+	}
+	mu.Lock()
+	defer mu.Unlock()
+	want := map[string]string{"/start.json": "signed", "/next.json": "signed", "away": "", "/back.json": ""}
+	if fmt.Sprint(signatures) != fmt.Sprint(want) {
+		t.Errorf("signatures by hop = %v, want %v", signatures, want)
+	}
+}
+
+// A client supplied with WithHTTPClient runs the same redirect bookkeeping: the hop
+// carries no validator, and the answer neither comes from nor goes into the entry of the
+// URL asked for.
+func TestSuppliedHTTPClientKeepsTheCacheEntryOfTheURLAskedForAcrossARedirect(t *testing.T) {
+	var mu sync.Mutex
+	var aRequests int
+	bConditional := "unset"
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		defer mu.Unlock()
+		w.Header().Set("Content-Type", "application/json")
+		switch r.URL.Path {
+		case "/a.json":
+			aRequests++
+			switch aRequests {
+			case 1:
+				w.Header().Set("ETag", `"x"`)
+				_, _ = io.WriteString(w, `{"which":"a"}`)
+			case 2:
+				http.Redirect(w, r, "/b.json", http.StatusFound)
+			default:
+				if r.Header.Get("If-None-Match") == `"x"` {
+					w.WriteHeader(http.StatusNotModified)
+					return
+				}
+				t.Errorf("third GET /a validated with %q, want a's own ETag", r.Header.Get("If-None-Match"))
+				w.Header().Set("ETag", `"x"`)
+				_, _ = io.WriteString(w, `{"which":"a"}`)
+			}
+		case "/b.json":
+			bConditional = r.Header.Get("If-None-Match")
+			w.Header().Set("ETag", `"y"`)
+			_, _ = io.WriteString(w, `{"which":"b"}`)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	t.Cleanup(server.Close)
+
+	supplied := &http.Client{}
+	client := NewClient(&Config{BaseURL: server.URL}, &StaticTokenProvider{Token: "token"},
+		WithHTTPClient(supplied), WithMaxRetries(0), WithCache(NewCache(t.TempDir())))
+	if supplied.CheckRedirect != nil {
+		t.Fatal("the caller's own client was changed")
+	}
+
+	for i, want := range []string{`{"which":"a"}`, `{"which":"b"}`, `{"which":"a"}`} {
+		resp, err := client.Get(context.Background(), "/a.json")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if string(resp.Data) != want {
+			t.Fatalf("answer %d = %s, want %s", i+1, resp.Data, want)
+		}
+	}
+	mu.Lock()
+	defer mu.Unlock()
+	if bConditional != "" {
+		t.Errorf("b was asked to validate %q, want no validator: the entry was a's", bConditional)
+	}
+}
+
+// The policy a supplied client came with still has the last word on each hop, after the
+// SDK's bookkeeping has run.
+func TestSuppliedHTTPClientKeepsItsOwnRedirectPolicy(t *testing.T) {
+	var hops atomic.Int64
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		hops.Add(1)
+		http.Redirect(w, r, "/elsewhere.json", http.StatusFound)
+	}))
+	t.Cleanup(server.Close)
+
+	var seen []string
+	supplied := &http.Client{CheckRedirect: func(req *http.Request, via []*http.Request) error {
+		seen = append(seen, req.URL.Path)
+		return http.ErrUseLastResponse
+	}}
+	client := NewClient(&Config{BaseURL: server.URL}, &StaticTokenProvider{Token: "token"},
+		WithHTTPClient(supplied), WithMaxRetries(0))
+
+	_, err := client.Get(context.Background(), "/start.json")
+	var apiErr *Error
+	if !errors.As(err, &apiErr) || apiErr.HTTPStatus != http.StatusFound {
+		t.Fatalf("expected the redirect the caller's policy declined to follow, got %v", err)
+	}
+	if hops.Load() != 1 || len(seen) != 1 || seen[0] != "/elsewhere.json" {
+		t.Errorf("hops = %d, policy consulted for %v; want one send and the policy asked once", hops.Load(), seen)
+	}
+}
+
+// A generated operation whose chain left the origin gets the same answer to a 401 from
+// there: no refresh and no resend, with or without the cache in the way.
+func TestGeneratedOperationsRefreshNothingOnAUnauthorizedFromACrossOriginHop(t *testing.T) {
+	for _, cached := range []bool{false, true} {
+		t.Run(fmt.Sprintf("cache=%v", cached), func(t *testing.T) {
+			var requests atomic.Int64
+			target := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				requests.Add(1)
+				if authorization := r.Header.Get("Authorization"); authorization != "" {
+					t.Errorf("the cross-origin hop carried %q", authorization)
+				}
+				http.Error(w, "unauthorized", http.StatusUnauthorized)
+			}))
+			t.Cleanup(target.Close)
+			source := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				requests.Add(1)
+				http.Redirect(w, r, target.URL+"/boxes.json", http.StatusFound)
+			}))
+			t.Cleanup(source.Close)
+
+			auth := &refreshingAuth{refreshed: "fresh"}
+			auth.token.Store("stale")
+			opts := []ClientOption{WithAuthStrategy(auth), WithMaxRetries(1)}
+			if cached {
+				opts = append(opts, WithCache(NewCache(t.TempDir())))
+			}
+			root := NewClient(&Config{BaseURL: source.URL}, nil, opts...)
+			client := scopedTestClient(root, 42)
+
+			_, err := client.Boxes().List(context.Background())
+			var apiErr *Error
+			if !errors.As(err, &apiErr) || apiErr.Code != CodeAuth {
+				t.Fatalf("expected the authentication failure, got %v", err)
+			}
+			if refreshes := auth.refreshes.Load(); refreshes != 0 {
+				t.Errorf("expected no refresh, got %d: HEY's credentials were not the ones rejected", refreshes)
+			}
+			if requests.Load() != 2 {
+				t.Errorf("expected the request and its one hop, got %d requests", requests.Load())
+			}
+		})
+	}
+}
+
+// A generated operation whose chain stayed on HEY still has its 401 answered by a refresh
+// and one more send.
+func TestGeneratedOperationsRetryOnceAfterRefreshOnASameOriginRedirectChain(t *testing.T) {
+	var mu sync.Mutex
+	var seen []string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		seen = append(seen, r.URL.Path+" "+r.Header.Get("Authorization"))
+		mu.Unlock()
+		switch r.URL.Path {
+		case "/boxes.json":
+			http.Redirect(w, r, "/all-boxes.json", http.StatusFound)
+		case "/all-boxes.json":
+			if r.Header.Get("Authorization") != "Bearer fresh" {
+				http.Error(w, "unauthorized", http.StatusUnauthorized)
+				return
+			}
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = io.WriteString(w, `[]`)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	t.Cleanup(server.Close)
+
+	auth := &refreshingAuth{refreshed: "fresh"}
+	auth.token.Store("stale")
+	root := NewClient(&Config{BaseURL: server.URL}, nil, WithAuthStrategy(auth), WithMaxRetries(0))
+	client := scopedTestClient(root, 42)
+
+	if _, err := client.Boxes().List(context.Background()); err != nil {
+		t.Fatalf("expected the resend after a refresh to succeed: %v", err)
+	}
+	if refreshes := auth.refreshes.Load(); refreshes != 1 {
+		t.Errorf("expected one refresh, got %d", refreshes)
+	}
+	mu.Lock()
+	defer mu.Unlock()
+	want := []string{"/boxes.json Bearer stale", "/all-boxes.json Bearer stale", "/boxes.json Bearer fresh", "/all-boxes.json Bearer fresh"}
+	if fmt.Sprint(seen) != fmt.Sprint(want) {
+		t.Errorf("requests = %v, want %v", seen, want)
+	}
+}

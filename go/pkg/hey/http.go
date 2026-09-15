@@ -3,6 +3,7 @@ package hey
 import (
 	"context"
 	"net/http"
+	"slices"
 	"time"
 
 	"github.com/basecamp/hey-sdk/go/pkg/generated"
@@ -207,6 +208,9 @@ func isProjectedRequest(ctx context.Context) bool {
 // be read in its light. net/http builds every hop on the context of the request it was
 // handed, so the state travels with the chain and outlives it.
 type redirectState struct {
+	// credentialHeaders names every header the auth strategy set on the request, whatever
+	// it called them: what a hop that leaves the origin goes out without.
+	credentialHeaders []string
 	// followed is set once a redirect was taken: the answer is then for a URL other than
 	// the one asked for, so the cache entry of the one asked for neither serves it nor
 	// keeps it.
@@ -225,11 +229,36 @@ func contextWithRedirectState(ctx context.Context) (context.Context, *redirectSt
 	return context.WithValue(ctx, redirectStateKey{}, state), state
 }
 
+// withRedirectState is ctx as the generated client derives each attempt's context: with a
+// fresh redirect state for the redirect policy to fill and refreshCredentials to read.
+func withRedirectState(ctx context.Context) context.Context {
+	ctx, _ = contextWithRedirectState(ctx)
+	return ctx
+}
+
 // redirectStateFromContext is the state a send registered, or nil for a request sent
 // without one.
 func redirectStateFromContext(ctx context.Context) *redirectState {
 	state, _ := ctx.Value(redirectStateKey{}).(*redirectState)
 	return state
+}
+
+// noteCredentialHeaders records on the request's redirect state every header the auth
+// strategy set or changed, given the headers as they were before it ran: whatever the
+// strategy called it, that header is a credential, and a hop off the origin goes out
+// without it. The state is read from the request rather than an editor's context because
+// the generated client edits each attempt on the operation's context while the state is
+// the attempt's own.
+func noteCredentialHeaders(req *http.Request, before http.Header) {
+	state := redirectStateFromContext(req.Context())
+	if state == nil {
+		return
+	}
+	for name, values := range req.Header {
+		if !slices.Equal(before.Values(name), values) {
+			state.credentialHeaders = append(state.credentialHeaders, name)
+		}
+	}
 }
 
 // displayURL is url as the hooks and the SDK's own error text show it: whole on an

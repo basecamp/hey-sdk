@@ -2296,6 +2296,12 @@ type Client struct {
 	// this retry is safe for non-idempotent operations too (optional).
 	AuthRefresher func(ctx context.Context) bool
 
+	// AttemptContext derives the context each attempt of an operation is built and sent
+	// on from the operation's own, after the attempt and operation marks are set, so a
+	// caller can give every send state of its own to read back once it is answered
+	// (optional).
+	AttemptContext func(ctx context.Context) context.Context
+
 	// RetryHook is told about each resend before it is made (optional).
 	RetryHook RetryHook
 
@@ -2379,10 +2385,20 @@ func WithRetryConfig(cfg RetryConfig) ClientOption {
 }
 
 // WithAuthRefresher sets the callback a 401 response consults before the request is
-// sent once more with renewed credentials.
+// sent once more with renewed credentials. It is asked on the context of the request
+// that drew the 401, as the attempt was sent, so whatever AttemptContext gave that
+// send is there to read.
 func WithAuthRefresher(fn func(ctx context.Context) bool) ClientOption {
 	return func(c *Client) error {
 		c.AuthRefresher = fn
+		return nil
+	}
+}
+
+// WithAttemptContext sets the function each attempt's context is derived through.
+func WithAttemptContext(fn func(ctx context.Context) context.Context) ClientOption {
+	return func(c *Client) error {
+		c.AttemptContext = fn
 		return nil
 	}
 }
@@ -2442,7 +2458,7 @@ func (c *Client) doWithRetry(ctx context.Context, buildRequest func() (*http.Req
 		maxAttempts = policy.MaxAttempts
 	}
 	resp, req, err := c.doAttempts(ctx, buildRequest, 1, maxAttempts, policy, operationId, reqEditors...)
-	if err != nil || resp.StatusCode != http.StatusUnauthorized || c.AuthRefresher == nil || !c.AuthRefresher(ctx) {
+	if err != nil || resp.StatusCode != http.StatusUnauthorized || c.AuthRefresher == nil || !c.AuthRefresher(req.Context()) {
 		return resp, err
 	}
 	_ = resp.Body.Close()
@@ -2549,7 +2565,11 @@ func (c *Client) doAttempts(ctx context.Context, buildRequest func() (*http.Requ
 		if err != nil {
 			return nil, nil, err
 		}
-		req = req.WithContext(ContextWithOperation(ContextWithAttempt(ctx, attempt), operationId))
+		attemptCtx := ContextWithOperation(ContextWithAttempt(ctx, attempt), operationId)
+		if c.AttemptContext != nil {
+			attemptCtx = c.AttemptContext(attemptCtx)
+		}
+		req = req.WithContext(attemptCtx)
 		if err := c.applyEditors(ctx, req, reqEditors); err != nil {
 			return nil, nil, err
 		}

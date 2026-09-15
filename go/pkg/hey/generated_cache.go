@@ -2,6 +2,7 @@ package hey
 
 import (
 	"bytes"
+	"context"
 	"io"
 	"net/http"
 	"strconv"
@@ -38,8 +39,15 @@ func (d *cachingDoer) Do(req *http.Request) (*http.Response, error) {
 		}
 	}
 
-	ctx, redirected := contextWithRedirectState(req.Context())
-	resp, err := c.httpClient.Do(req.WithContext(ctx))
+	// The generated client sends every attempt with a redirect state of its own; a
+	// request from anywhere else is given one here.
+	redirected := redirectStateFromContext(req.Context())
+	if redirected == nil {
+		var ctx context.Context
+		ctx, redirected = contextWithRedirectState(req.Context())
+		req = req.WithContext(ctx)
+	}
+	resp, err := c.httpClient.Do(req)
 	if err != nil {
 		return resp, err
 	}

@@ -125,9 +125,11 @@ func (r *Response) UnmarshalData(v any) error {
 type ClientOption func(*Client)
 
 // WithHTTPClient sets a custom HTTP client. It replaces the one NewClient would build, so
-// none of what that one carries — the request timeout, credential stripping on cross-origin
-// redirects, the response body cap, logging and hooks — applies to it. WithTransport keeps
-// all of that and swaps only the transport underneath.
+// none of what that one carries — the request timeout, the response body cap, logging and
+// hooks — applies to it. Its redirect policy is kept, and runs after the SDK's own, which
+// every client gets: a hop off the origin goes out without the credentials, and no hop
+// carries the validator of the URL asked for. WithTransport keeps all of that and swaps
+// only the transport underneath.
 func WithHTTPClient(c *http.Client) ClientOption {
 	return func(client *Client) {
 		client.httpClient = c
@@ -184,7 +186,14 @@ func NewClient(cfg *Config, tokenProvider TokenProvider, opts ...ClientOption) *
 		c.authStrategy = &BearerAuth{TokenProvider: c.tokenProvider}
 	}
 
-	if c.httpClient == nil {
+	if c.httpClient != nil {
+		// The caller's client is used as given but for its redirect policy, which the
+		// SDK's bookkeeping runs ahead of: the copy keeps the caller's own client as it
+		// was, since the same one may be in use elsewhere.
+		supplied := *c.httpClient
+		supplied.CheckRedirect = redirectPolicy(c.httpClient.CheckRedirect)
+		c.httpClient = &supplied
+	} else {
 		transport := c.httpOpts.Transport
 		if transport == nil {
 			transport = newDefaultTransport()
@@ -197,26 +206,9 @@ func NewClient(cfg *Config, tokenProvider TokenProvider, opts ...ClientOption) *
 		transport = &loggingTransport{inner: transport, client: c}
 
 		c.httpClient = &http.Client{
-			Timeout:   c.httpOpts.Timeout,
-			Transport: transport,
-			CheckRedirect: func(req *http.Request, via []*http.Request) error {
-				if len(via) >= 10 {
-					return fmt.Errorf("stopped after 10 redirects")
-				}
-				state := redirectStateFromContext(req.Context())
-				if state != nil {
-					state.followed = true
-				}
-				// The validator was the resource asked for's; the one pointed to has its own.
-				req.Header.Del("If-None-Match")
-				if len(via) > 0 && !isSameOrigin(req.URL.String(), via[0].URL.String()) {
-					req.Header.Del("Authorization")
-					if state != nil {
-						state.unauthenticated = true
-					}
-				}
-				return nil
-			},
+			Timeout:       c.httpOpts.Timeout,
+			Transport:     transport,
+			CheckRedirect: redirectPolicy(nil),
 		}
 	}
 
@@ -243,11 +235,47 @@ func NewClient(cfg *Config, tokenProvider TokenProvider, opts ...ClientOption) *
 	return c
 }
 
+// redirectPolicy is the CheckRedirect every client runs: what the SDK must know and do on
+// each hop, then the policy the caller set on a client of their own, or net/http's own
+// limit when they set none. A hop never carries the validator of the URL asked for — the
+// one pointed to has its own — and a hop off the origin goes out without the credentials
+// the strategy set, as does every hop after it, whether or not it comes back.
+func redirectPolicy(next func(req *http.Request, via []*http.Request) error) func(req *http.Request, via []*http.Request) error {
+	return func(req *http.Request, via []*http.Request) error {
+		state := redirectStateFromContext(req.Context())
+		if state == nil {
+			state = &redirectState{}
+		}
+		state.followed = true
+		req.Header.Del("If-None-Match")
+		if len(via) > 0 && !isSameOrigin(req.URL.String(), via[0].URL.String()) {
+			state.unauthenticated = true
+		}
+		if state.unauthenticated {
+			req.Header.Del("Authorization")
+			for _, name := range state.credentialHeaders {
+				req.Header.Del(name)
+			}
+		}
+		if next != nil {
+			return next(req, via)
+		}
+		if len(via) >= 10 {
+			return fmt.Errorf("stopped after 10 redirects")
+		}
+		return nil
+	}
+}
+
 // refreshCredentials renews what the next request will authenticate with, and reports
 // whether anything was able to. The strategy is asked before the token provider because a
 // client given both is authenticated by the strategy, so the strategy is what holds the
-// credentials a 401 was about.
+// credentials a 401 was about. A 401 from a hop that carried no credentials rejected none
+// of HEY's: there is nothing to refresh, and nothing a resend would change.
 func (c *Client) refreshCredentials(ctx context.Context) bool {
+	if state := redirectStateFromContext(ctx); state != nil && state.unauthenticated {
+		return false
+	}
 	if refresher, ok := c.authStrategy.(TokenRefresher); ok {
 		return refresher.Refresh(ctx) == nil
 	}
@@ -311,6 +339,7 @@ func (c *Client) initGeneratedClient() {
 			generated.WithHTTPClient(doer),
 			generated.WithRetryConfig(retryCfg),
 			generated.WithAuthRefresher(c.refreshCredentials),
+			generated.WithAttemptContext(withRedirectState),
 			generated.WithRetryHook(retryHook),
 			generated.WithRequestEditorFn(authEditor))
 		if err != nil {
@@ -942,9 +971,7 @@ func (c *Client) singleRequest(ctx context.Context, method, url string, body any
 		return nil, &retryableError{err: rateErr, retryAfter: time.Duration(retryAfter) * time.Second}
 
 	case http.StatusUnauthorized:
-		// A 401 from a hop that carried no credentials rejected none of HEY's: there is
-		// nothing to refresh, and nothing a resend would change.
-		if attempt == 1 && !redirected.unauthenticated && c.refreshCredentials(ctx) {
+		if attempt == 1 && c.refreshCredentials(ctx) {
 			return nil, &Error{
 				Code:      CodeAuth,
 				Message:   "Token refreshed",
