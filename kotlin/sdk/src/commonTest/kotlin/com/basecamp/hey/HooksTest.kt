@@ -229,4 +229,20 @@ class HooksTest {
         assertEquals("a:end:CreateTopicPublication:not_found", log.last())
         assertEquals(listOf("a:response:302:null", "a:response:404:not_found"), log.filter { it.startsWith("a:response:") })
     }
+
+    @Test
+    fun anUploadEndsItsOperationOnlyOnceTheBytesAreStored() = runTest {
+        val hey = mockHey(
+            ok("""{"signed_id":"s","attachable_sgid":"g","direct_upload":{"url":"https://storage.example.com/blobs/abc","headers":{"Content-Type":"text/plain"}}}"""),
+            status(403, """{"error":"no"}"""),
+        )
+        val log = mutableListOf<String>()
+        val client = hey.client { hooks = Recording(log, "a") }
+        val error = assertFailsWith<HeyException.Forbidden> { client.attachments.upload("a.txt", "text/plain", "x".encodeToByteArray()) }
+        assertEquals(403, error.httpStatus)
+        assertEquals(1, log.count { it.startsWith("a:start:") })
+        assertEquals("a:start:Attachments.CreateDirectUpload:direct_upload:true:null", log.first())
+        assertEquals(listOf("a:response:200:null", "a:response:403:forbidden"), log.filter { it.startsWith("a:response:") })
+        assertEquals("a:end:CreateDirectUpload:forbidden", log.last(), "the operation ends after the put, with the put's failure")
+    }
 }

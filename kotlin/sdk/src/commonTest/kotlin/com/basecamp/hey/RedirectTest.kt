@@ -192,4 +192,22 @@ class RedirectTest {
             assertEquals(1, hey.requests.size, "a redirect that names nowhere is not followed anywhere")
         }
     }
+
+    @Test
+    fun a301Or302TurnsOnlyAPostIntoAGet() = runTest {
+        for (status in listOf(301, 302)) {
+            val hey = mockHey(status(status, headers = mapOf("Location" to "/moved.json")), ok("{}"), status(status, headers = mapOf("Location" to "/moved.json")), ok("{}"))
+            val client = hey.client()
+            client.execute(client.request(Method.PUT, "/thing").jsonBody("""{"a":1}"""))
+            assertEquals("PUT", hey.requests[1].method, "a $status leaves a PUT a PUT")
+            assertEquals("""{"a":1}""", hey.requests[1].body, "with its body")
+            client.execute(client.request(Method.POST, "/thing").jsonBody("""{"a":1}"""))
+            assertEquals("GET", hey.requests[3].method, "and turns a POST into a GET")
+            assertEquals("", hey.requests[3].body)
+        }
+        val hey = mockHey(status(303, headers = mapOf("Location" to "/answer.json")), ok("{}"))
+        val client = hey.client()
+        client.execute(client.request(Method.DELETE, "/thing"))
+        assertEquals("GET", hey.requests[1].method, "a 303 says fetch the answer, whatever the method")
+    }
 }
