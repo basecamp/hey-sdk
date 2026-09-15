@@ -256,4 +256,34 @@ private fun formFields(body: String): Map<String, String> = body.split('&').asso
         assertFailsWith<HeyException.Usage> { cold.client().postings.moveTo(BoxKind.IMBOX, emptyList()) }
         assertEquals(0, cold.requests.size, "an empty selection is refused before the box index is read")
     }
+
+    @Test
+    fun remindersGoUnderTheListHeyWillRead() = runTest {
+        val hey = mockHey(ok("""{"id":1,"type":"Calendar::Event"}"""), ok("""{"id":1,"type":"Calendar::Event"}"""), ok("""{"id":1,"type":"Calendar::Event"}"""))
+        val client = hey.client()
+        client.calendarEvents.updateEvent(1, UpdateCalendarEventParams(allDay = true, reminders = listOf(1.hours)))
+        client.calendarEvents.updateEvent(1, UpdateCalendarEventParams(allDay = false, reminders = listOf(1.hours)))
+        client.calendarEvents.updateEvent(1, UpdateCalendarEventParams(reminders = listOf(1.hours)))
+        assertEquals(listOf("3600"), formValues(hey.requests[0].body, "all_day_reminder_durations[]"))
+        assertEquals(emptyList(), formValues(hey.requests[0].body, "timed_reminder_durations[]"))
+        assertEquals(listOf("3600"), formValues(hey.requests[1].body, "timed_reminder_durations[]"))
+        assertEquals(emptyList(), formValues(hey.requests[1].body, "all_day_reminder_durations[]"))
+        assertEquals(listOf("3600"), formValues(hey.requests[2].body, "all_day_reminder_durations[]"), "an update that leaves the flag alone cannot know which list HEY reads, so it sends both")
+        assertEquals(listOf("3600"), formValues(hey.requests[2].body, "timed_reminder_durations[]"))
+    }
+
+    @Test
+    fun anOccurrenceIdIsCheckedHoweverItIsMade() = runTest {
+        assertEquals("2024-02-29", OccurrenceId.parse("9_2024-02-29").date)
+        assertFailsWith<HeyException.Usage> { OccurrenceId.parse("9_2023-02-29") }
+        assertFailsWith<HeyException.Usage> { OccurrenceId.parse("9_2026-02-30") }
+        assertFailsWith<HeyException.Usage> { OccurrenceId.parse("9_2026-13-01") }
+        assertFailsWith<HeyException.Usage> { OccurrenceId(9, "../../42") }
+        assertFailsWith<HeyException.Usage> { OccurrenceId(0, "2026-01-01") }
+        val hey = mockHey()
+        assertFailsWith<HeyException.Usage> {
+            hey.client().calendarEvents.updateOccurrence(OccurrenceId.parse("9_2026-04-31"), OccurrenceScope.THIS_ONLY, UpdateCalendarEventParams())
+        }
+        assertEquals(0, hey.requests.size)
+    }
 }

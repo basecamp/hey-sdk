@@ -171,4 +171,28 @@ class HooksTest {
         assertFailsWith<HeyException.NotFound> { client.workflows.stage(8801, 5) }
         assertEquals(listOf("a:start:Workflows.GetWorkflowStage:workflow_stage:false:5", "a:request:GET:1", "a:response:200:null", "a:end:GetWorkflowStage:not_found"), log)
     }
+
+    @Test
+    fun aSelectionOfOnePostingNamesItToTheHooks() = runTest {
+        val hey = mockHey(ok(""), ok(""), ok(""), ok(""), ok(""), ok(""))
+        val log = mutableListOf<String>()
+        val client = hey.client { hooks = Recording(log, "a") }
+        client.postings.markPostingsSeen(listOf(7))
+        client.postings.markPostingsUnseen(listOf(7, 8))
+        client.postings.trashPostings(listOf(9))
+        client.postings.mutePostings(listOf(10))
+        client.postings.moveToBox(3, listOf(11))
+        client.postings.moveToBox(3, listOf(11, 12))
+        assertEquals(
+            listOf(
+                "a:start:Postings.MarkPostingsSeen:posting:true:7",
+                "a:start:Postings.MarkPostingsUnseen:posting:true:null",
+                "a:start:Postings.TrashPostings:posting:true:9",
+                "a:start:Postings.MutePostings:posting:true:10",
+                "a:start:Postings.MovePostings:posting:true:11",
+                "a:start:Postings.MovePostings:posting:true:null",
+            ),
+            log.filter { it.startsWith("a:start:") },
+        )
+    }
 }

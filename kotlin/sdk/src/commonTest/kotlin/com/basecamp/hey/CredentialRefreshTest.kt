@@ -5,6 +5,9 @@ import com.basecamp.hey.generated.models.CreateContactRequestContent
 import com.basecamp.hey.services.CalendarEventUpdate
 import com.basecamp.hey.generated.*
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.runCurrent
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -76,5 +79,42 @@ class CredentialRefreshTest {
         val failing = mockHey(status(503))
         assertFailsWith<HeyException.Api> { failing.client().calendarEvents.update(99, CalendarEventUpdate(title = "After")) }
         assertEquals(1, failing.requests.size)
+    }
+
+    /** A request is signed under the refresh lock, so a refresh cannot land between the signing and the count that says which credentials went out. */
+    @Test
+    fun signingAndRefreshingNeverInterleave() = runTest {
+        val gate = CompletableDeferred<Unit>()
+        var inside = 0
+        var mostInside = 0
+        var calls = 0
+        val credentials = object : TokenProvider {
+            var token = "stale"
+            override suspend fun accessToken(): String {
+                calls += 1
+                inside += 1
+                mostInside = maxOf(mostInside, inside)
+                if (calls == 1) gate.await()
+                inside -= 1
+                return token
+            }
+
+            override suspend fun refresh(): Boolean {
+                token = "refreshed"
+                return true
+            }
+        }
+        val hey = mockHey(status(401), status(401), ok("[]"), ok("[]"))
+        val client = hey.client { accessToken(credentials) }
+        val a = launch { client.boxes.list() }
+        val b = launch { client.boxes.list() }
+        runCurrent()
+        assertEquals(1, calls, "the second request waits for the first to be signed")
+        gate.complete(Unit)
+        a.join()
+        b.join()
+        assertEquals(1, mostInside, "one request is signed at a time")
+        assertEquals(4, hey.requests.size)
+        assertEquals(listOf("Bearer stale", "Bearer stale", "Bearer refreshed", "Bearer refreshed"), hey.requests.map { it.header("Authorization") })
     }
 }

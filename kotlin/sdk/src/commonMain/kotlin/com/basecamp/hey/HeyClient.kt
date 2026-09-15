@@ -471,8 +471,8 @@ class HeyClient internal constructor(
         var cached: Pair<String, CachedResponse>? = null
 
         while (true) {
-            val signedUnder = shared.refreshes
             val prepared = prepare(operation, url, cached)
+            val signedUnder = prepared.signedUnder
             cached = prepared.cached
             val info = RequestInfo(operation.method.name, url.toString(), attempt)
             hooks.safeRequestStart(info)
@@ -595,6 +595,8 @@ class HeyClient internal constructor(
         val cached: Pair<String, CachedResponse>?,
         /** The headers the auth strategy put on the request, lowercased: what a hop to another origin must not carry. */
         val credentialHeaders: Set<String>,
+        /** How many refreshes had happened when the request was signed, so a 401 knows whether its credentials are already stale. */
+        val signedUnder: Long,
     )
 
     /** Builds the request for one attempt, and looks the response cache up the first time it is asked for a key. */
@@ -608,8 +610,13 @@ class HeyClient internal constructor(
             request.header(HttpHeaders.ContentType, body.contentType)
             request.setBody(body.bytes)
         }
+        // Signed and counted under the refresh lock, so no refresh lands between the two: the
+        // count says exactly which credentials went out, as the Rust crate's read lock does.
         val beforeAuth = request.headers.build()
-        shared.auth.authenticate(request)
+        val signedUnder = shared.refreshing.withLock {
+            shared.auth.authenticate(request)
+            shared.refreshes
+        }
         val credentialHeaders = request.headers.names()
             .filter { name -> request.headers.getAll(name) != beforeAuth.getAll(name) }
             .map { it.lowercase() }
@@ -625,7 +632,7 @@ class HeyClient internal constructor(
             cached = null
         }
         cached?.second?.etag?.takeIf { it.isNotEmpty() }?.let { request.header(HttpHeaders.IfNoneMatch, it) }
-        return Prepared(request, cached, credentialHeaders)
+        return Prepared(request, cached, credentialHeaders, signedUnder)
     }
 
     private fun lookUp(cache: ResponseCache, key: String): Pair<String, CachedResponse> {
@@ -734,7 +741,8 @@ class HeyClient internal constructor(
                     cache.set(key, CachedResponse(merged[HttpHeaders.ETag] ?: entry.etag, entry.body, storableHeaders(merged)))
                 }
             }
-            return Response(200, merged, entry.body, received.url, fromCache = true, empty = false)
+            // The caller gets a copy: the entry's bytes are the cache's, and a Response's body is the caller's to do with as it likes.
+            return Response(200, merged, entry.body.copyOf(), received.url, fromCache = true, empty = false)
         }
         received.refusal?.let { refusal ->
             if (status in 200..299) throw refusal
@@ -758,7 +766,7 @@ class HeyClient internal constructor(
                 when {
                     // An answer HEY says not to keep is not kept, and neither is what it replaced.
                     forbidsStoring(headers) -> cache.invalidate(key)
-                    etag != null && body.isNotEmpty() -> cache.set(key, CachedResponse(etag, body, storableHeaders(headers)))
+                    etag != null && body.isNotEmpty() -> cache.set(key, CachedResponse(etag, body.copyOf(), storableHeaders(headers)))
                 }
             }
             return Response(status, headers, body, received.url, fromCache = false, empty = false)

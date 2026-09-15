@@ -2,7 +2,10 @@ package com.basecamp.hey.services
 
 import com.basecamp.hey.HeyClient
 import com.basecamp.hey.HeyException
+import com.basecamp.hey.Route
+import com.basecamp.hey.generated.Routes
 import com.basecamp.hey.generated.boxes
+import com.basecamp.hey.json
 import com.basecamp.hey.generated.models.MarkPostingsRequestContent
 import com.basecamp.hey.generated.models.MovePostingsRequestContent
 import com.basecamp.hey.generated.models.TrashPostingsRequestContent
@@ -19,21 +22,36 @@ class PostingsService(client: HeyClient) : GeneratedPostingsService(client) {
         return postingIds
     }
 
+    /**
+     * Sends a bulk route over a selection: an empty one is refused before anything is sent,
+     * and a selection of one names the posting it acts on, for the hooks, as Go's and Rust's do.
+     */
+    private suspend inline fun <reified T> bulk(route: Route, postingIds: List<Long>, body: T) {
+        val operation = client.operation(route, emptyList())
+        postingIds.singleOrNull()?.let { operation.resourceId(it) }
+        operation.json(body)
+        client.sendUnit(operation)
+    }
+
     /** Marks postings seen. The generated [markSeen] takes the request body. */
-    suspend fun markPostingsSeen(postingIds: List<Long>) = markSeen(MarkPostingsRequestContent(selection(postingIds)))
+    suspend fun markPostingsSeen(postingIds: List<Long>) =
+        bulk(Routes.MARK_POSTINGS_SEEN, postingIds, MarkPostingsRequestContent(selection(postingIds)))
 
     /** Marks postings unseen. */
-    suspend fun markPostingsUnseen(postingIds: List<Long>) = markUnseen(MarkPostingsRequestContent(selection(postingIds)))
+    suspend fun markPostingsUnseen(postingIds: List<Long>) =
+        bulk(Routes.MARK_POSTINGS_UNSEEN, postingIds, MarkPostingsRequestContent(selection(postingIds)))
 
     /** Trashes postings. */
-    suspend fun trashPostings(postingIds: List<Long>) = trash(TrashPostingsRequestContent(postingIds = selection(postingIds)))
+    suspend fun trashPostings(postingIds: List<Long>) =
+        bulk(Routes.TRASH_POSTINGS, postingIds, TrashPostingsRequestContent(postingIds = selection(postingIds)))
 
     /** Mutes postings. */
-    suspend fun mutePostings(postingIds: List<Long>) = mute(MarkPostingsRequestContent(selection(postingIds)))
+    suspend fun mutePostings(postingIds: List<Long>) =
+        bulk(Routes.MUTE_POSTINGS, postingIds, MarkPostingsRequestContent(selection(postingIds)))
 
     /** Moves postings to a box. */
     suspend fun moveToBox(boxId: Long, postingIds: List<Long>) =
-        movePostings(MovePostingsRequestContent(postingIds = selection(postingIds), boxId = boxId))
+        bulk(Routes.MOVE_POSTINGS, postingIds, MovePostingsRequestContent(postingIds = selection(postingIds), boxId = boxId))
 
     /** Moves postings to the box of a kind, resolving the box index once per client. An empty selection is refused before the index is read. */
     suspend fun moveTo(kind: BoxKind, postingIds: List<Long>) {

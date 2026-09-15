@@ -59,11 +59,13 @@ private fun checkRequestCount(run: Run, assertion: Assertion) {
     if (run.recorded.count.toLong() != expected) fail("Expected $expected requests, got ${run.recorded.count}")
 }
 
+/** Every wait between one request and the next, not only the first: a backoff that collapses after the second send is still a broken backoff. */
 private fun checkDelayBetweenRequests(run: Run, assertion: Assertion) {
-    if (run.recorded.times.size < 2) return
-    val delay = (run.recorded.times[1] - run.recorded.times[0]) / 1_000_000
     val minimum = assertion.min.toLong()
-    if (delay < minimum) fail("Expected delay >= ${minimum}ms, got ${delay}ms")
+    for (index in 1 until run.recorded.times.size) {
+        val delay = (run.recorded.times[index] - run.recorded.times[index - 1]) / 1_000_000
+        if (delay < minimum) fail("Expected delay >= ${minimum}ms before request ${index + 1}, got ${delay}ms")
+    }
 }
 
 private fun emptyStatuses(operation: String): List<Int> = Routes.ALL.firstOrNull { it.id == operation }?.emptyOn.orEmpty()
@@ -147,11 +149,15 @@ private fun checkRequestQuery(run: Run, assertion: Assertion, which: Which) {
     val expected = expectedObject(assertion, assertion.type)
     val query = which.pick(run.recorded.queries) ?: fail(noRequests())
     for ((name, want) in expected) {
-        val got = query.firstOrNull { it.first == name }?.second
+        // A scalar the fixture expects once has to be there exactly once: a second copy of an
+        // account filter is a request scoped to two accounts, whichever HEY reads.
+        val values = query.filter { it.first == name }.map { it.second }
+        val got = values.singleOrNull()
         when {
-            want is JsonNull && got == null -> {}
-            want is JsonNull -> fail("Expected ${which.label} query param \"$name\" to be absent, got \"$got\"")
-            got == null -> fail("Expected ${which.label} query param $name=${display(want)}, got \"\"")
+            want is JsonNull && values.isEmpty() -> {}
+            want is JsonNull -> fail("Expected ${which.label} query param \"$name\" to be absent, got \"${values.joinToString("&")}\"")
+            values.isEmpty() -> fail("Expected ${which.label} query param $name=${display(want)}, got \"\"")
+            values.size > 1 -> fail("Expected ${which.label} query param $name=${display(want)} once, got it ${values.size} times")
             got != display(want) -> fail("Expected ${which.label} query param $name=${display(want)}, got \"$got\"")
         }
     }
@@ -294,17 +300,28 @@ fun lookup(value: JsonElement, path: String): JsonElement? {
     return current
 }
 
+/**
+ * Whether two JSON values are the same value of the same kind. A number and the string of
+ * that number are not: an SDK that writes `"1"` where the fixture expects `1` has changed the
+ * type on the wire, which is what these fixtures exist to catch. Numbers compare as numbers,
+ * so `1` and `1.0` agree.
+ */
 fun valuesMatch(expected: JsonElement, actual: JsonElement): Boolean {
-    val expectedLong = (expected as? JsonPrimitive)?.longOrNull
-    val actualLong = (actual as? JsonPrimitive)?.longOrNull
-    if (expectedLong != null && actualLong != null) return expectedLong == actualLong
-    val expectedDouble = (expected as? JsonPrimitive)?.doubleOrNull
-    val actualDouble = (actual as? JsonPrimitive)?.doubleOrNull
-    if (expectedDouble != null && actualDouble != null) return expectedDouble == actualDouble
-    val expectedBool = (expected as? JsonPrimitive)?.booleanOrNull
-    val actualBool = (actual as? JsonPrimitive)?.booleanOrNull
-    if (expectedBool != null && actualBool != null) return expectedBool == actualBool
-    return display(expected) == display(actual)
+    if (expected is JsonPrimitive && actual is JsonPrimitive) {
+        if (expected.isString != actual.isString) return false
+        if (expected.isString) return expected.content == actual.content
+        val expectedLong = expected.longOrNull
+        val actualLong = actual.longOrNull
+        if (expectedLong != null && actualLong != null) return expectedLong == actualLong
+        val expectedDouble = expected.doubleOrNull
+        val actualDouble = actual.doubleOrNull
+        if (expectedDouble != null && actualDouble != null) return expectedDouble == actualDouble
+        val expectedBool = expected.booleanOrNull
+        val actualBool = actual.booleanOrNull
+        if (expectedBool != null && actualBool != null) return expectedBool == actualBool
+        return expected.content == actual.content
+    }
+    return expected == actual
 }
 
 fun display(value: JsonElement): String = if (value is JsonPrimitive && value.isString) value.content else value.toString()

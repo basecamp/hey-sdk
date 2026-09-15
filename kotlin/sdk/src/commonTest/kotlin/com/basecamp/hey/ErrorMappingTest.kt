@@ -92,4 +92,20 @@ class ErrorMappingTest {
         assertEquals(false, error.retryable)
         assertEquals("Validation: validation error: Subject can't be blank", error.toString())
     }
+
+    @Test
+    fun aBodyThatWillNotDecodeIsNeverQuotedBack() = runTest {
+        val hey = mockHey(ok("""{"email_address":"distinctive@example.com","id":}"""), ok("""{"email_address":"distinctive@example.com","id":"x"}"""))
+        val client = hey.client()
+        for (attempt in 1..2) {
+            val error = assertFailsWith<HeyException.Api> { client.contacts.get(1) }
+            val everything = listOf(error.toString(), error.message, error.hint, error.stackTraceToString()) +
+                generateSequence(error.cause) { it.cause }.map { it.toString() }
+            assertEquals(false, everything.any { it?.contains("distinctive") == true }, "the address leaked: $everything")
+            assertNull(error.cause, "the decoder's own exception quotes the body, so it is not kept")
+        }
+        assertEquals("body does not decode: missing required field 'kind', at path \$", decodeHint("Field 'kind' is required for type 'Box', but it was missing at path: \$"))
+        assertEquals("body does not decode: at path \$.id, at offset 42", decodeHint("Unexpected JSON token at offset 42: Expected quotation mark '\"', but had '}' instead at path: \$.id\nJSON input: {\"secret\":1}"))
+        assertEquals("body does not decode", decodeHint(null))
+    }
 }
