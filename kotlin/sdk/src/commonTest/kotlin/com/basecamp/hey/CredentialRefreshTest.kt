@@ -8,6 +8,12 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runCurrent
+import io.ktor.client.engine.mock.MockEngine
+import io.ktor.client.engine.mock.respond
+import io.ktor.http.HttpHeaders
+import io.ktor.http.HttpStatusCode
+import io.ktor.http.headersOf
+import kotlin.time.Duration
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -116,5 +122,57 @@ class CredentialRefreshTest {
         assertEquals(1, mostInside, "one request is signed at a time")
         assertEquals(4, hey.requests.size)
         assertEquals(listOf("Bearer stale", "Bearer stale", "Bearer refreshed", "Bearer refreshed"), hey.requests.map { it.header("Authorization") })
+    }
+
+    /**
+     * A hop signed again after someone else's refresh carries the new credentials, so a 401
+     * on it is about those, and earns the refresh it deserves rather than a bare resend.
+     */
+    @Test
+    fun a401OnAHopSignedAfterARefreshIsRefreshedAgain() = runTest {
+        var refreshes = 0
+        val credentials = object : TokenProvider {
+            var token = "t0"
+            override suspend fun accessToken(): String = token
+            override suspend fun refresh(): Boolean {
+                refreshes += 1
+                token = "t$refreshes"
+                return true
+            }
+        }
+        val firstAnswer = CompletableDeferred<Unit>()
+        val seen = mutableMapOf<String, Int>()
+        val tokens = mutableListOf<String>()
+        val engine = MockEngine { request ->
+            val path = request.url.encodedPath
+            val visit = (seen[path] ?: 0) + 1
+            seen[path] = visit
+            tokens += "$path ${request.headers["Authorization"]}"
+            when {
+                path == "/a.json" -> {
+                    firstAnswer.await()
+                    respond("", HttpStatusCode.Found, headersOf("Location", "/a2.json"))
+                }
+                visit == 1 -> respond("", HttpStatusCode.Unauthorized)
+                else -> respond("[]", HttpStatusCode.OK, headersOf(HttpHeaders.ContentType, "application/json"))
+            }
+        }
+        val client = HeyClient {
+            accessToken(credentials)
+            this.engine = engine
+            timeout = Duration.INFINITE
+        }
+        val a = launch { client.execute(client.request(Method.GET, "/a")) }
+        runCurrent()
+        client.execute(client.request(Method.GET, "/b"))
+        assertEquals(1, refreshes, "b's 401 refreshed while a's first answer was still to come")
+        firstAnswer.complete(Unit)
+        a.join()
+        assertEquals(2, refreshes, "a's hop went out with the refreshed credentials, and their 401 is refreshed again")
+        assertEquals(
+            listOf("/a.json Bearer t0", "/b.json Bearer t0", "/b.json Bearer t1", "/a2.json Bearer t1", "/a.json Bearer t2", "/a2.json Bearer t2"),
+            tokens,
+            "the resend starts the operation over from the URL asked for, through the redirect again",
+        )
     }
 }
