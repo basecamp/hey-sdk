@@ -123,13 +123,16 @@ class HooksTest {
             })
             record(log, hey.engine)
         }
-        assertFailsWith<IllegalStateException> { client.boxes.list() }
+        // What the provider threw reaches the caller as an SDK failure, with it as the cause.
+        val error = assertFailsWith<HeyException.Auth> { client.boxes.list() }
+        assertEquals("credential refresh failed", error.message)
+        assertEquals("refresh exploded", error.cause?.message)
         assertEquals(
             listOf(
                 "a:start:Boxes.ListBoxes:box:false:null",
                 "a:request:GET:1",
-                "a:response:401:refresh exploded",
-                "a:end:ListBoxes:refresh exploded",
+                "a:response:401:auth_required",
+                "a:end:ListBoxes:auth_required",
             ),
             log,
         )

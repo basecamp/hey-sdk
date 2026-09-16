@@ -67,7 +67,8 @@ sealed class HeyException(
         hint: String? = null,
         requestId: String? = null,
         body: ByteArray? = null,
-    ) : HeyException(message, CODE_AUTH, hint, 401, false, requestId, body)
+        cause: Throwable? = null,
+    ) : HeyException(message, CODE_AUTH, hint, 401, false, requestId, body, cause)
 
     /** Forbidden error (403). */
     class Forbidden(

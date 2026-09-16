@@ -6,7 +6,10 @@ import com.basecamp.hey.services.CalendarEventUpdate
 import com.basecamp.hey.generated.*
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runCurrent
 import io.ktor.client.engine.mock.MockEngine
@@ -97,61 +100,127 @@ class CredentialRefreshTest {
     /**
      * A refresh that fails is one refresh: every request signed with the credentials it
      * could not renew gets its answer, rather than asking the issuer again for the same
-     * credentials during the same outage.
+     * credentials during the same outage. A request signed after the failure asks again.
      */
     @Test
     fun aFailedRefreshIsSharedByEveryRequestSignedWithTheCredentialsItWasFor() = runTest {
         for (throwing in listOf(false, true)) {
-            val outage = IllegalStateException("issuer down")
             var refreshes = 0
             val credentials = object : TokenProvider {
                 override suspend fun accessToken(): String = "stale"
                 override suspend fun refresh(): Boolean {
                     refreshes += 1
-                    if (throwing) throw outage
+                    if (throwing) throw IllegalStateException("issuer down")
                     return false
                 }
             }
-            // Neither 401 is answered until both requests are out, so both were signed
-            // with the credentials the one refresh fails to renew.
-            val bothOut = CompletableDeferred<Unit>()
-            var arrived = 0
-            val engine = MockEngine {
-                arrived += 1
-                if (arrived == 2) bothOut.complete(Unit)
-                bothOut.await()
-                respond("", HttpStatusCode.Unauthorized)
-            }
+            // Both requests go out before either is answered, so both are signed with the
+            // credentials the one refresh fails to renew; the second is answered only once
+            // the first has failed, so its 401 finds the failure already recorded.
+            val firstFailed = CompletableDeferred<Unit>()
+            val hey = Gated { arrival -> if (arrival == 2) firstFailed.await() }
             val client = HeyClient {
                 accessToken(credentials)
-                this.engine = engine
+                engine = hey.engine
                 timeout = Duration.INFINITE
+                hooks = object : HeyHooks {
+                    override fun onOperationEnd(info: OperationInfo, result: OperationResult) { firstFailed.complete(Unit) }
+                }
             }
             val a = async { runCatching { client.boxes.list() } }
             val b = async { runCatching { client.boxes.list() } }
             val outcomes = listOf(a.await(), b.await())
             assertEquals(1, refreshes, "one refresh for the one set of credentials, throwing=$throwing")
-            assertEquals(2, arrived, "and no resend, throwing=$throwing")
+            assertEquals(2, hey.arrivals, "and no resend, throwing=$throwing")
             for (outcome in outcomes) {
-                val error = outcome.exceptionOrNull()
-                // A joined await hands back a copy of what was thrown, so it is matched by kind and message.
-                if (throwing) assertEquals("issuer down", assertIs<IllegalStateException>(error, "what the refresh threw is what each request gets").message) else assertIs<HeyException.Auth>(error)
+                val error = assertIs<HeyException.Auth>(outcome.exceptionOrNull(), "throwing=$throwing")
+                if (throwing) {
+                    assertEquals("credential refresh failed", error.message)
+                    assertEquals("issuer down", error.cause?.message, "what the refresh threw reaches each request as the cause")
+                }
             }
 
             // A request signed after the failure earns a refresh of its own: its 401 is news.
-            var again = 0
-            val late = MockEngine { respond("", HttpStatusCode.Unauthorized) }
-            val fresh = HeyClient {
-                accessToken(object : TokenProvider {
-                    override suspend fun accessToken(): String = "stale"
-                    override suspend fun refresh(): Boolean { again += 1; return false }
-                })
-                this.engine = late
-                timeout = Duration.INFINITE
+            assertFailsWith<HeyException.Auth> { client.boxes.list() }
+            assertEquals(2, refreshes, "throwing=$throwing")
+            assertEquals(3, hey.arrivals)
+        }
+    }
+
+    /** A request whose 401 arrives while the failing refresh is still running joins it, and gets its answer too. */
+    @Test
+    fun aRequestJoinsTheFailingRefreshInFlight() = runTest {
+        val started = CompletableDeferred<Unit>()
+        val release = CompletableDeferred<Unit>()
+        var refreshes = 0
+        val credentials = object : TokenProvider {
+            override suspend fun accessToken(): String = "stale"
+            override suspend fun refresh(): Boolean {
+                refreshes += 1
+                started.complete(Unit)
+                release.await()
+                return false
             }
-            assertFailsWith<HeyException.Auth> { fresh.boxes.list() }
-            assertFailsWith<HeyException.Auth> { fresh.boxes.list() }
-            assertEquals(2, again, "each 401 on credentials no refresh has failed since they were signed is refreshed")
+        }
+        // Both go out before either is answered; the second is answered once the refresh
+        // the first earned is running, and the refresh is let go only after that.
+        val hey = Gated { arrival -> if (arrival == 2) started.await() }
+        val client = HeyClient {
+            accessToken(credentials)
+            engine = hey.engine
+            timeout = Duration.INFINITE
+        }
+        val a = async { runCatching { client.boxes.list() } }
+        val b = async { runCatching { client.boxes.list() } }
+        started.await()
+        release.complete(Unit)
+        assertIs<HeyException.Auth>(a.await().exceptionOrNull())
+        assertIs<HeyException.Auth>(b.await().exceptionOrNull())
+        assertEquals(1, refreshes)
+        assertEquals(2, hey.arrivals)
+    }
+
+    /** A timeout the provider puts on its own refresh is the refresh's answer, not the client's cancellation. */
+    @Test
+    fun aProviderThatTimesItselfOutFailsTheRefreshRatherThanCancellingTheRequest() = runTest {
+        var refreshes = 0
+        val credentials = object : TokenProvider {
+            override suspend fun accessToken(): String = "stale"
+            override suspend fun refresh(): Boolean {
+                refreshes += 1
+                return withTimeout(1) { awaitCancellation() }
+            }
+        }
+        val firstFailed = CompletableDeferred<Unit>()
+        val hey = Gated { arrival -> if (arrival == 2) firstFailed.await() }
+        val client = HeyClient {
+            accessToken(credentials)
+            engine = hey.engine
+            timeout = Duration.INFINITE
+            hooks = object : HeyHooks {
+                override fun onOperationEnd(info: OperationInfo, result: OperationResult) { firstFailed.complete(Unit) }
+            }
+        }
+        val a = async { runCatching { client.boxes.list() } }
+        val b = async { runCatching { client.boxes.list() } }
+        for (outcome in listOf(a.await(), b.await())) {
+            val error = assertIs<HeyException.Auth>(outcome.exceptionOrNull())
+            assertIs<TimeoutCancellationException>(error.cause)
+        }
+        assertEquals(1, refreshes, "the timed-out refresh is shared like any other failure")
+        assertEquals(2, hey.arrivals)
+    }
+
+    /** A HEY that answers every request 401, holding each answer until [hold] lets it go; handlers run on the engine's threads, so arrivals are counted under a lock. */
+    private class Gated(private val hold: suspend (arrival: Int) -> Unit) {
+        private val lock = Any()
+        var arrivals = 0
+            private set
+
+        val engine = MockEngine {
+            val arrival = synchronized(lock) { arrivals += 1; arrivals }
+            hold(arrival)
+            respond("", HttpStatusCode.Unauthorized)
         }
     }
 

@@ -30,7 +30,11 @@ interface TokenProvider {
 
     /**
      * Asked once when a request is answered with 401. Answer `true` when the next
-     * [accessToken] will hand out renewed credentials, and the request is sent again.
+     * [accessToken] will hand out renewed credentials, and the request is sent again. A
+     * refresh that answers `false` or throws is not repeated for the requests already signed
+     * with the credentials it could not renew: each of them fails with that answer, what was
+     * thrown reaching them as the cause of a [HeyException.Auth]. Only a request signed after
+     * the failure asks again.
      */
     suspend fun refresh(): Boolean = false
 }

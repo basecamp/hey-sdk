@@ -32,6 +32,8 @@ import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -672,12 +674,16 @@ class HeyClient internal constructor(
     private suspend fun runRefresh(): Boolean = shared.refreshing.withLock {
         val outcome = try {
             Result.success(shared.auth.refresh())
-        } catch (cancelled: CancellationException) {
-            // The client closed: no answer to share, and nothing left in flight.
-            withContext(NonCancellable) { shared.refreshGate.withLock { shared.refresh = null } }
-            throw cancelled
         } catch (error: Throwable) {
-            Result.failure(error)
+            if (error is CancellationException && !currentCoroutineContext().isActive) {
+                // The refresh itself was cancelled — the client closed — so there is no
+                // answer to share, and nothing left in flight.
+                withContext(NonCancellable) { shared.refreshGate.withLock { shared.refresh = null } }
+                throw error
+            }
+            // Anything else the strategy threw is its answer, a timeout of its own included:
+            // one every request signed under these credentials gets, as an SDK failure.
+            Result.failure(refreshFailed(error))
         }
         if (outcome.getOrNull() == true) shared.refreshes += 1
         shared.refreshGate.withLock {
@@ -687,6 +693,20 @@ class HeyClient internal constructor(
         }
         outcome.getOrThrow()
     }
+
+    /**
+     * What a strategy threw from its refresh, as the failure the caller gets: an SDK error of
+     * its own passes through, anything else becomes an authentication error carrying it as
+     * the cause, with its message in the hint less any URL, since a token endpoint's may
+     * carry a credential.
+     */
+    private fun refreshFailed(error: Throwable): HeyException =
+        error as? HeyException
+            ?: HeyException.Auth(
+                "credential refresh failed",
+                hint = HeyException.truncateMessage(redactUrls(error.message ?: error::class.simpleName ?: "unknown")),
+                cause = error,
+            )
 
     internal fun urlFor(operation: Operation): Url {
         val builder = operation.url?.let { URLBuilder(it) } ?: run {
