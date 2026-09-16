@@ -196,7 +196,7 @@ public enum HeyError: Error, Sendable, LocalizedError, CustomStringConvertible {
     /// in the body when it sent one as JSON — an HTML error page is never echoed — and the body
     /// itself is kept on the error for a caller that needs more of it than a hint. A body the
     /// client refused to hold leaves the error the status maps to, told why its body is missing.
-    static func fromResponse(status: Int, method: Method, headers: HTTPHeaders, body: Data, refusal: HeyError? = nil) -> HeyError {
+    static func fromResponse(status: Int, method: HTTPMethod, headers: HTTPHeaders, body: Data, refusal: HeyError? = nil) -> HeyError {
         let kept = body.count > maxErrorBodyBytes ? body.prefix(maxErrorBodyBytes) : body
         let serverMessage = Self.serverMessage(body) ?? refusal?.message
         let detail = ErrorDetail(

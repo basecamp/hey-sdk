@@ -152,7 +152,7 @@ final class HooksTests: XCTestCase {
         }
         let urls = URLs()
         let client = try hey.client(hooks: ChainHooks(transcript, urls))
-        var put = Operation.at(.put, try XCTUnwrap(URL(string: "https://storage.example.com/blobs/abc?signature=secret")))
+        var put = HeyOperation.at(.put, try XCTUnwrap(URL(string: "https://storage.example.com/blobs/abc?signature=secret")))
         put.unsigned()
         try await client.execute(put)
         XCTAssertEqual(urls.seen, ["https://storage.example.com"])

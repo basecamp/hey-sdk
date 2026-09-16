@@ -49,7 +49,7 @@ extension AttachmentsService {
         } catch let HeyError.usage(message, _) {
             throw HeyError.usage(message: "unsafe attachment upload target: \(message)")
         }
-        var operation = Operation.at(.put, url)
+        var operation = HeyOperation.at(.put, url)
         operation.unsigned()
         operation.quiet()
         operation.idempotent = false

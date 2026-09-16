@@ -125,7 +125,7 @@ extension ContactsService {
     /// 409 says which addresses clash, a 422 what the model rejected. Both are still failures, and
     /// the hooks are told so, with the reworded error the caller gets; the body stays on it for
     /// ``ContactConflict/fromError(_:)`` to read.
-    private func write<T: Decodable & Sendable>(_ operation: Operation, as type: T.Type) async throws -> T {
+    private func write<T: Decodable & Sendable>(_ operation: HeyOperation, as type: T.Type) async throws -> T {
         var request = operation
         request.quiet()
         let client = self.client

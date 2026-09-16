@@ -295,8 +295,12 @@ and tests on both Linux and macOS.
 Where Swift makes Kotlin's approach unworkable, the package does the nearest thing that keeps
 the behaviour:
 
-- A request is an `Operation` struct built with mutating methods (`var operation = try
-  client.operation(Routes.getBox, [boxId])`), not a builder chain.
+- A request is a `HeyOperation` struct built with mutating methods (`var operation = try
+  client.operation(Routes.getBox, [boxId])`), not a builder chain. It and the verb enum,
+  `HTTPMethod`, carry names Kotlin's `Operation` and `Method` cannot keep: Foundation has an
+  `Operation`, and on Apple platforms the Objective-C runtime a `Method`, so either would be
+  ambiguous in an app that imports Foundation beside `Hey`. `swift-consumer-check` names every
+  core public type beside `import Foundation`, on Linux and macOS, so a new collision fails there.
 - Refresh coordination runs on `AsyncMutex` (a lock a task can hold across `await`, since actors
   are re-entrant) and a detached `Task` shared by every stale request. A task cancelled while it
   waits to sign, or waits on a refresh another request started, stops waiting at once, as Go's

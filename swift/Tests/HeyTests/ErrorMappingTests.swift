@@ -4,7 +4,7 @@ import XCTest
 @testable import Hey
 
 final class ErrorMappingTests: XCTestCase {
-    private func map(_ status: Int, _ body: String = "", method: Method = .get, _ headers: [(String, String)] = []) -> HeyError {
+    private func map(_ status: Int, _ body: String = "", method: HTTPMethod = .get, _ headers: [(String, String)] = []) -> HeyError {
         HeyError.fromResponse(status: status, method: method, headers: HTTPHeaders(headers), body: Data(body.utf8))
     }
 

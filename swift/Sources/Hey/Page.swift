@@ -95,7 +95,7 @@ extension HeyClient {
         guard isSameOrigin(next, baseURL) else {
             throw HeyError.usage(message: "pagination Link header points to a different origin: \(originDescription(next))")
         }
-        var operation = Operation.at(.get, next, route: page.route)
+        var operation = HeyOperation.at(.get, next, route: page.route)
         operation.info = page.info
         if page.skipsCache { operation.noCache() }
         return try await sendPage(operation)

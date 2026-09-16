@@ -249,7 +249,7 @@ extension PostingsService {
 
     /// The operation for a bulk route: an empty selection is refused before anything is sent, and a
     /// selection of one names the posting it acts on.
-    private func selection(_ route: Route, _ postingIds: [Int]) throws -> Operation {
+    private func selection(_ route: Route, _ postingIds: [Int]) throws -> HeyOperation {
         _ = try requireSelection(postingIds)
         var operation = try client.operation(route, [])
         if postingIds.count == 1 { operation.resourceId(postingIds[0]) }

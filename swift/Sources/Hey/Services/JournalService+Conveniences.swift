@@ -34,7 +34,7 @@ extension JournalService {
     }
 
     /// The recording an answer carries, or nil for the bodiless answer a day without an entry gets.
-    private func journalRecording(_ operation: Operation) async throws -> Recording? {
+    private func journalRecording(_ operation: HeyOperation) async throws -> Recording? {
         try await client.execute(operation) { response in
             response.body.isEmpty ? nil : try response.json(Recording.self)
         }

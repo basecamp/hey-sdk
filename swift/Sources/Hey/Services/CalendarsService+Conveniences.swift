@@ -91,7 +91,7 @@ public struct CalendarChangesCursor: Sendable, Equatable, Hashable {
 
     /// Renders the cursor onto a request. The version is never invented here: a cursor read from a
     /// server-issued URL carries whichever version that feed speaks.
-    func apply(to operation: inout Operation) {
+    func apply(to operation: inout HeyOperation) {
         operation.queryOptional("since", since)
         operation.queryOptional("v", version)
         operation.queryOptional("page", page)

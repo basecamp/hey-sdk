@@ -122,15 +122,15 @@ public final class HeyClient: Sendable {
     ///
     /// - Throws: ``HeyError/usage(message:hint:)`` when `params` is not exactly as long as the
     ///   route's parameters, rather than sending a path with a `{param}` left in it.
-    public func operation(_ route: Route, _ params: [any CustomStringConvertible & Sendable]) throws -> Operation {
-        try Operation.forRoute(route, params)
+    public func operation(_ route: Route, _ params: [any CustomStringConvertible & Sendable]) throws -> HeyOperation {
+        try HeyOperation.forRoute(route, params)
     }
 
     /// Starts a request for a path the model does not cover. The path is relative to the base URL
     /// and gets the same credentials, `.json` suffix, account scope and retry treatment as a
     /// modelled one.
-    public func request(_ method: Method, _ path: String) -> Operation {
-        Operation.raw(method, path)
+    public func request(_ method: HTTPMethod, _ path: String) -> HeyOperation {
+        HeyOperation.raw(method, path)
     }
 
     /// A request to one of the endpoints HEY serves only as a browser form: the path as the caller
@@ -141,7 +141,7 @@ public final class HeyClient: Sendable {
     /// The model describes none of these paths, so say what the call means by setting
     /// ``Operation/info`` with ``writeInfo(service:operation:resourceType:resourceId:)`` before
     /// sending it.
-    public func form(_ method: Method, _ path: String) -> Operation {
+    public func form(_ method: HTTPMethod, _ path: String) -> HeyOperation {
         var operation = request(method, path)
         operation.formRepresentation()
         operation.captureRedirects()
@@ -152,30 +152,30 @@ public final class HeyClient: Sendable {
     // MARK: - Sending
 
     /// Sends an operation and decodes its JSON body.
-    public func send<T: Decodable & Sendable>(_ operation: Operation, as type: T.Type = T.self) async throws -> T {
+    public func send<T: Decodable & Sendable>(_ operation: HeyOperation, as type: T.Type = T.self) async throws -> T {
         let label = operation.label
         return try await execute(operation) { try decode($0, type, label) }
     }
 
     /// Sends an operation whose answer carries no body worth reading.
-    public func sendVoid(_ operation: Operation) async throws {
+    public func sendVoid(_ operation: HeyOperation) async throws {
         _ = try await execute(operation)
     }
 
     /// Sends an operation and reads its body as text: the HTML page a route serves no JSON for.
-    public func sendText(_ operation: Operation) async throws -> String {
+    public func sendText(_ operation: HeyOperation) async throws -> String {
         try await execute(operation) { $0.text() }
     }
 
     /// Sends an operation that answers a status meaning "nothing there" with nil.
-    public func sendOptional<T: Decodable & Sendable>(_ operation: Operation, as type: T.Type = T.self) async throws -> T? {
+    public func sendOptional<T: Decodable & Sendable>(_ operation: HeyOperation, as type: T.Type = T.self) async throws -> T? {
         let label = operation.label
         return try await execute(operation) { $0.empty ? nil : try decode($0, type, label) }
     }
 
     /// Sends a paginated read and keeps the cursor HEY answered with, and the route, so the next
     /// page is read under the same policy.
-    public func sendPage<T: Decodable & Sendable>(_ operation: Operation, as type: T.Type = T.self) async throws -> Page<T> {
+    public func sendPage<T: Decodable & Sendable>(_ operation: HeyOperation, as type: T.Type = T.self) async throws -> Page<T> {
         let label = operation.label
         let info = operation.info
         let route = operation.route
@@ -187,7 +187,7 @@ public final class HeyClient: Sendable {
     }
 
     /// Sends a form request and reads the redirect it answered with.
-    public func sendForm(_ operation: Operation) async throws -> FormResponse {
+    public func sendForm(_ operation: HeyOperation) async throws -> FormResponse {
         try await execute(operation) { FormResponse.of($0) }
     }
 
@@ -203,14 +203,14 @@ public final class HeyClient: Sendable {
     /// the operation is idempotent, resends once after a refreshed 401, and answers a cached body on
     /// 304. Non-2xx statuses become errors unless the operation treats them as empty.
     @discardableResult
-    public func execute(_ operation: Operation) async throws -> Response {
+    public func execute(_ operation: HeyOperation) async throws -> Response {
         try await execute(operation) { $0 }
     }
 
     /// Sends an operation and reads its answer with `transform` — a decode, a parse — inside the
     /// operation the hooks hear, so an answer that will not read ends the operation with the error
     /// the caller gets, and its duration counts the reading.
-    public func execute<T>(_ operation: Operation, transform: (Response) throws -> T) async throws -> T {
+    public func execute<T>(_ operation: HeyOperation, transform: (Response) throws -> T) async throws -> T {
         guard !shared.isClosed else { throw HeyError.usage(message: "client is closed") }
         if operation.isQuiet { return try transform(try await dispatch(operation)) }
         return try await asOperation(operation.info) { try transform(try await dispatch(operation)) }
@@ -243,7 +243,7 @@ public final class HeyClient: Sendable {
         isCancellation(error) ? HeyError.network(message: cancelled, retryable: false, detail: ErrorDetail()) : error
     }
 
-    private func dispatch(_ operation: Operation) async throws -> Response {
+    private func dispatch(_ operation: HeyOperation) async throws -> Response {
         let url = urlFor(operation)
         let answered = try await attempt(operation, url)
         let outcome = Result { try finish(operation, answered) }
@@ -260,7 +260,7 @@ public final class HeyClient: Sendable {
     /// the model; the client's settings only make that gentler. A path the caller wrote runs on the
     /// client's settings alone. Whatever the policy, an operation that is not idempotent is sent
     /// once, and so is everything when retries are off.
-    private func budget(_ operation: Operation) -> Budget {
+    private func budget(_ operation: HeyOperation) -> Budget {
         let config = shared.config
         // One send plus the retries, without wrapping when the retries are as many as an Int holds.
         let ceiling = config.maxRetries == Int.max ? Int.max : config.maxRetries + 1
@@ -332,7 +332,7 @@ public final class HeyClient: Sendable {
 
     /// Sends the operation as many times as its retry budget and HEY's answers call for, and hands
     /// back the answer it stopped on.
-    private func attempt(_ operation: Operation, _ url: URL) async throws -> Answered {
+    private func attempt(_ operation: HeyOperation, _ url: URL) async throws -> Answered {
         let hooks = shared.hooks
         let budget = budget(operation)
         var attempts = budget.attempts
@@ -479,7 +479,7 @@ public final class HeyClient: Sendable {
 
     // MARK: - URLs
 
-    func urlFor(_ operation: Operation) -> URL {
+    func urlFor(_ operation: HeyOperation) -> URL {
         var components: URLComponents
         if let url = operation.url, let parsed = URLComponents(url: url, resolvingAgainstBaseURL: true) {
             components = parsed
@@ -605,7 +605,7 @@ public final class HeyClient: Sendable {
 
     /// Builds the request for one attempt, and looks the response cache up the first time it is
     /// asked for a key.
-    private func prepare(_ operation: Operation, _ url: URL, _ previous: (key: String, entry: CachedResponse)?) async throws -> Prepared {
+    private func prepare(_ operation: HeyOperation, _ url: URL, _ previous: (key: String, entry: CachedResponse)?) async throws -> Prepared {
         var request = HTTPRequest(method: operation.method.rawValue, url: url)
         request.headers.set("User-Agent", shared.config.userAgent)
         request.headers.set("Accept", operation.accept)
@@ -646,7 +646,7 @@ public final class HeyClient: Sendable {
     }
 
     /// The cache the operation reads and writes, when there is one to use. Only a JSON GET is cached.
-    private func cacheFor(_ operation: Operation) -> (any ResponseCache)? {
+    private func cacheFor(_ operation: HeyOperation) -> (any ResponseCache)? {
         !operation.skipsCache && operation.method == .get && operation.accept == "application/json" ? shared.cache : nil
     }
 
@@ -661,7 +661,7 @@ public final class HeyClient: Sendable {
     ///
     /// The transport reads each body only as far as its bound, so a body is refused while it is
     /// still arriving rather than after all of it has been held.
-    private func transmit(_ operation: Operation, _ start: URL, _ prepared: Prepared) async throws -> Received {
+    private func transmit(_ operation: HeyOperation, _ start: URL, _ prepared: Prepared) async throws -> Received {
         var url = start
         var request = prepared.request
         var credentials = prepared.credentials
@@ -762,7 +762,7 @@ public final class HeyClient: Sendable {
 
     // MARK: - Finishing
 
-    private func finish(_ operation: Operation, _ answered: Answered) throws -> Response {
+    private func finish(_ operation: HeyOperation, _ answered: Answered) throws -> Response {
         let received = answered.received
         let status = received.status
         let headers = received.headers

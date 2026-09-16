@@ -14,7 +14,7 @@ public struct RouteMatch: Sendable, Equatable, CustomStringConvertible {
     /// The part of HEY the pattern belongs to, as the model titles it.
     public let resource: String
     /// The operations the pattern serves, by HTTP method.
-    public let operations: [Method: String]
+    public let operations: [HTTPMethod: String]
     /// The path parameters, in the order they appear in the pattern.
     public let params: [Param]
 
@@ -80,7 +80,7 @@ public struct Router: Sendable {
         if raw.hasSuffix(".json") { raw.removeLast(5) }
         for candidate in candidates {
             guard let first = candidate.routes.first, let params = first.recognize(raw) else { continue }
-            var operations: [Method: String] = [:]
+            var operations: [HTTPMethod: String] = [:]
             for route in candidate.routes { operations[route.method] = route.id }
             return RouteMatch(
                 pattern: candidate.pattern,

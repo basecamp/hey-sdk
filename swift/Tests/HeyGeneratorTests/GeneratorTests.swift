@@ -326,17 +326,21 @@ final class ModelTests: XCTestCase {
 
     func testNoGeneratedTypeTakesANameSwiftOrThePackageAlreadyUses() throws {
         // A type in an imported module shadows the standard library's, so a model named like one
-        // would take its place in every file that imports the package; and a model named like one
-        // of the package's own types would not compile beside it. Settle a new collision in
+        // would take its place in every file that imports the package; one named like a Foundation
+        // or Objective-C runtime type would be ambiguous in any file that imports both; and one named
+        // like the package's own types would not compile beside it. Settle a new collision in
         // [type_names].
         let taken: Set<String> = [
             "Any", "Array", "Bool", "Calendar", "Character", "Clock", "Codable", "Collection", "Data", "Date", "Decoder",
             "Dictionary", "Double", "Duration", "Encoder", "Equatable", "Error", "Float", "Hashable", "Identifiable", "Int",
             "Locale", "Never", "Optional", "Range", "Result", "Sendable", "Sequence", "Set", "String", "Task", "TimeZone",
             "URL", "UUID", "Void",
+            "Bundle", "Class", "Decimal", "Expression", "FileManager", "Formatter", "Host", "Measurement", "Method",
+            "Notification", "Operation", "OperationQueue", "Port", "Predicate", "Process", "Progress", "Protocol",
+            "Scanner", "Selector", "Stream", "Thread", "Timer", "Unit",
             "AuthStrategy", "BaseService", "BearerAuth", "Body", "CachedResponse", "ChainHooks", "ConsoleHooks", "ErrorDetail",
             "FormResponse", "HTTPHeaders", "HTTPRequest", "HTTPResponse", "HeyClient", "HeyConfig", "HeyError", "HeyHooks",
-            "InMemoryCache", "Indirect", "JSONValue", "Method", "NoopHooks", "Operation", "OperationInfo", "OperationResult",
+            "HTTPMethod", "HeyOperation", "InMemoryCache", "Indirect", "JSONValue", "NoopHooks", "OperationInfo", "OperationResult",
             "Page", "ParamKind", "ParamRole", "Pagination", "RequestInfo", "RequestResult", "Response", "ResponseCache",
             "RetryPolicy", "Route", "RouteMatch", "RouteParam", "Router", "Routes", "SensitiveString", "StaticTokenProvider",
             "TokenProvider", "Transport", "URLSessionTransport",

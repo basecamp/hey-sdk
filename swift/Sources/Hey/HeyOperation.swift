@@ -24,7 +24,7 @@ let browserAccept = "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q
 ///
 /// An operation prints what it is and where it goes, not what it carries: the query's names
 /// without their values, the body's shape without its bytes.
-public struct Operation: Sendable, CustomStringConvertible {
+public struct HeyOperation: Sendable, CustomStringConvertible {
     let id: String
     /// What the call means, as the hooks hear it.
     public var info: OperationInfo
@@ -32,7 +32,7 @@ public struct Operation: Sendable, CustomStringConvertible {
     /// wrote has none; a page after the first carries the first's.
     public internal(set) var route: Route?
     /// The HTTP method the operation is sent with.
-    public let method: Method
+    public let method: HTTPMethod
     /// The path the operation is sent to, parameters already filled in.
     public let path: String
     var url: URL?
@@ -52,7 +52,7 @@ public struct Operation: Sendable, CustomStringConvertible {
     var isQuiet = false
     var isUnsigned = false
 
-    init(id: String, info: OperationInfo, route: Route?, method: Method, path: String, url: URL?) {
+    init(id: String, info: OperationInfo, route: Route?, method: HTTPMethod, path: String, url: URL?) {
         self.id = id
         self.info = info
         self.route = route
@@ -158,11 +158,11 @@ public struct Operation: Sendable, CustomStringConvertible {
         let bareId = id.split(separator: "?", maxSplits: 1, omittingEmptySubsequences: false)[0]
         let barePath = path.split(separator: "?", maxSplits: 1, omittingEmptySubsequences: false)[0]
         let names = query.map(\.0)
-        return "Operation(id=\(bareId), method=\(method.rawValue), path=\(barePath), query=\(names), body=\(body.map(\.description) ?? "nil"))"
+        return "HeyOperation(id=\(bareId), method=\(method.rawValue), path=\(barePath), query=\(names), body=\(body.map(\.description) ?? "nil"))"
     }
 
-    static func forRoute(_ route: Route, _ params: [any CustomStringConvertible & Sendable]) throws -> Operation {
-        Operation(
+    static func forRoute(_ route: Route, _ params: [any CustomStringConvertible & Sendable]) throws -> HeyOperation {
+        HeyOperation(
             id: route.id,
             info: OperationInfo(service: route.service, operation: route.id, resourceType: route.resourceType, isMutation: !route.readonly),
             route: route,
@@ -172,9 +172,9 @@ public struct Operation: Sendable, CustomStringConvertible {
         )
     }
 
-    static func raw(_ method: Method, _ path: String) -> Operation {
+    static func raw(_ method: HTTPMethod, _ path: String) -> HeyOperation {
         let id = "\(method.rawValue) \(path)"
-        return Operation(
+        return HeyOperation(
             id: id,
             info: OperationInfo(service: "Raw", operation: id, resourceType: "raw", isMutation: method != .get),
             route: nil,
@@ -186,7 +186,7 @@ public struct Operation: Sendable, CustomStringConvertible {
 
     /// A read of a URL HEY handed out, sent under `route`'s policy when the read that got it had
     /// one.
-    static func at(_ method: Method, _ url: URL, route: Route? = nil) -> Operation {
+    static func at(_ method: HTTPMethod, _ url: URL, route: Route? = nil) -> HeyOperation {
         var operation = raw(method, url.path)
         operation.url = url
         operation.route = route

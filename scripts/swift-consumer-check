@@ -146,6 +146,19 @@ func configured() throws -> HeyClient {
     )
 }
 
+// Every core public type named beside `import Foundation`: a name Foundation or the Objective-C
+// runtime also has is ambiguous here, on whichever platform has it.
+func names(
+    _ a: HeyClient, _ b: HeyConfig, _ c: HeyError, _ d: ErrorDetail, _ e: any HeyHooks, _ f: OperationInfo,
+    _ g: OperationResult, _ h: RequestInfo, _ i: RequestResult, _ j: any Transport, _ k: HTTPRequest, _ l: HTTPResponse,
+    _ m: HTTPHeaders, _ n: HTTPMethod, _ o: HeyOperation, _ p: Response, _ q: Page<[Int]>, _ r: Route, _ s: RouteParam,
+    _ t: RetryPolicy, _ u: Pagination, _ v: any AuthStrategy, _ w: any TokenProvider, _ x: BearerAuth,
+    _ y: StaticTokenProvider, _ z: any ResponseCache, _ aa: CachedResponse, _ ab: InMemoryCache, _ ac: FormResponse,
+    _ ad: SensitiveString, _ ae: JSONValue, _ af: Router, _ ag: RouteMatch, _ ah: URLSessionTransport, _ ai: NoopHooks,
+    _ aj: ChainHooks, _ ak: ConsoleHooks, _ al: HeyCalendar, _ am: HeyCollection, _ an: Body, _ ao: ParamRole,
+    _ ap: ParamKind, _ aq: WorldService, _ ar: BaseService
+) {}
+
 print(HeyConfig.version, HeyConfig.apiVersion)
 SWIFT
 

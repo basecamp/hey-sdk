@@ -441,7 +441,7 @@ extension CalendarEventsService {
     /// Posts a calendar form to a `.json` path and reads the recording it answers, inside the
     /// operation the hooks hear. An older server answers a redirect instead, whose URL still names
     /// the recording's id; the type is not in it, so it stays empty as Go's and Rust's do.
-    private func calendarWrite(_ method: Method, _ path: String, _ info: OperationInfo, _ fields: [(String, String)]) async throws -> Recording {
+    private func calendarWrite(_ method: HTTPMethod, _ path: String, _ info: OperationInfo, _ fields: [(String, String)]) async throws -> Recording {
         var operation = client.form(method, path)
         operation.info = info
         operation.form(fields)

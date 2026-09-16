@@ -1,7 +1,7 @@
 import Foundation
 
 /// The HTTP methods the model's routes are sent with.
-public enum Method: String, Sendable, Equatable, Hashable, CaseIterable {
+public enum HTTPMethod: String, Sendable, Equatable, Hashable, CaseIterable {
     case get = "GET"
     case post = "POST"
     case put = "PUT"
@@ -76,7 +76,7 @@ public struct Route: Sendable, Equatable {
     /// `TimeTracks`.
     public var service: String
     /// The HTTP method the route is sent with.
-    public var method: Method
+    public var method: HTTPMethod
     /// The path as HEY serves it, `{param}` placeholders included.
     public var path: String
     /// The path without a `.json` suffix, for recognizing pasted URLs.
@@ -106,7 +106,7 @@ public struct Route: Sendable, Equatable {
     public var retry: RetryPolicy
 
     public init(
-        id: String, service: String, method: Method, path: String, pattern: String, resource: String,
+        id: String, service: String, method: HTTPMethod, path: String, pattern: String, resource: String,
         resourceType: String, params: [RouteParam], idempotent: Bool, readonly: Bool, html: Bool,
         emptyOn: [Int], pagination: Pagination, pageParameter: String?, retry: RetryPolicy
     ) {
