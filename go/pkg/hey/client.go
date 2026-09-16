@@ -313,13 +313,23 @@ func redirectPolicy(next func(req *http.Request, via []*http.Request) error) fun
 // the request's, carrying the state it was signed under; a send made without one is
 // taken as signed now.
 func (c *Client) refreshCredentials(ctx context.Context) bool {
+	renewed, _ := c.answer401(ctx)
+	return renewed
+}
+
+// answer401 is refreshCredentials with the reason a request got no answer: ctx.Err() when
+// its context ended while it waited on the refresh its 401 joined. The hand-written send
+// paths surface that error rather than an authentication failure, since the request was
+// cut off, not refused; the refresh goes on for the requests still waiting. The generated
+// client's refresher hook answers only whether to resend, so there the 401 is the answer.
+func (c *Client) answer401(ctx context.Context) (bool, error) {
 	state := redirectStateFromContext(ctx)
 	if state != nil && state.unauthenticated {
-		return false
+		return false, nil
 	}
 	refresher, ok := c.refresher()
 	if !ok {
-		return false
+		return false, nil
 	}
 	signedUnder := c.refresh.generation()
 	var signedWith string
@@ -334,12 +344,19 @@ func (c *Client) refreshCredentials(ctx context.Context) bool {
 // would sign with now, and a token other than the rejected one is a renewal the provider
 // has already made — AuthManager renews an expiring token as it hands it out — so the
 // refresher is not asked to renew it again. Only when the provider would still sign
-// with the rejected token is the refresher asked. A request signed by any other strategy
-// names no credential, and its refresh asks the refresher directly.
+// with the rejected token is the refresher asked. A provider that cannot hand over a
+// token at all is the refresh failing — its own renewal failing, as often as not — so
+// the refresh ends not renewed, shared like any other failure, and the refresher is not
+// asked on top. A request signed by any other strategy names no credential, and its
+// refresh asks the refresher directly.
 func (c *Client) renewal(refresher TokenRefresher, rejected string) func(context.Context) bool {
 	return func(ctx context.Context) bool {
 		if bearer, ok := c.authStrategy.(*BearerAuth); ok && rejected != "" {
-			if token, err := bearer.TokenProvider.AccessToken(ctx); err == nil && bearerCredential(token) != rejected {
+			token, err := bearer.TokenProvider.AccessToken(ctx)
+			if err != nil {
+				return false
+			}
+			if bearerCredential(token) != rejected {
 				return true
 			}
 		}
@@ -725,11 +742,17 @@ func (c *Client) sendBodyRequest(ctx context.Context, method, reqURL, contentTyp
 		return &FormResponse{StatusCode: resp.StatusCode, Body: string(responseBody)}, nil
 
 	case resp.StatusCode == http.StatusUnauthorized:
-		if attempt == 1 && c.refreshCredentials(ctx) {
-			return nil, &Error{
-				Code:      CodeAuth,
-				Message:   "Token refreshed",
-				Retryable: true,
+		if attempt == 1 {
+			renewed, err := c.answer401(ctx)
+			if err != nil {
+				return nil, err
+			}
+			if renewed {
+				return nil, &Error{
+					Code:      CodeAuth,
+					Message:   "Token refreshed",
+					Retryable: true,
+				}
 			}
 		}
 		return nil, ErrAuth("Authentication failed")
@@ -1076,11 +1099,17 @@ func (c *Client) singleRequest(ctx context.Context, method, url string, body any
 		return nil, &retryableError{err: rateErr, retryAfter: time.Duration(retryAfter) * time.Second}
 
 	case http.StatusUnauthorized:
-		if attempt == 1 && c.refreshCredentials(ctx) {
-			return nil, &Error{
-				Code:      CodeAuth,
-				Message:   "Token refreshed",
-				Retryable: true,
+		if attempt == 1 {
+			renewed, err := c.answer401(ctx)
+			if err != nil {
+				return nil, err
+			}
+			if renewed {
+				return nil, &Error{
+					Code:      CodeAuth,
+					Message:   "Token refreshed",
+					Retryable: true,
+				}
 			}
 		}
 		return nil, ErrAuth("Authentication failed")

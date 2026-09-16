@@ -286,9 +286,15 @@ func TestCoordinatorHandsAWaiterTheAnswerOfTheRefreshInFlight(t *testing.T) {
 	signedUnder := refresh.generation()
 
 	answers := make(chan bool, 2)
-	go func() { answers <- refresh.answer(context.Background(), signedUnder, auth.renew, time.Minute) }()
+	go func() {
+		renewed, _ := refresh.answer(context.Background(), signedUnder, auth.renew, time.Minute)
+		answers <- renewed
+	}()
 	waitFor(t, entered, "the refresh to start")
-	go func() { answers <- refresh.answer(context.Background(), signedUnder, auth.renew, time.Minute) }()
+	go func() {
+		renewed, _ := refresh.answer(context.Background(), signedUnder, auth.renew, time.Minute)
+		answers <- renewed
+	}()
 	select {
 	case answer := <-answers:
 		t.Fatalf("expected no answer before the refresh ended, got %v", answer)
@@ -663,11 +669,13 @@ func TestACancelledWaiterDoesNotAbandonTheRefreshItWaitedOn(t *testing.T) {
 	}()
 	waitFor(t, secondOut, "the second request to be answered 401")
 	cancel()
-	var apiErr *Error
-	if err := <-second; !errors.As(err, &apiErr) || apiErr.Code != CodeAuth {
-		t.Fatalf("expected the cancelled waiter to be answered with the 401 it drew, got %v", err)
-	}
+	// The waiter's request was cut off by its context, not refused, so it gets its
+	// context's error rather than an authentication failure.
+	err := <-second
 	close(gate)
+	if !errors.Is(err, context.Canceled) {
+		t.Errorf("expected the cancelled waiter to get its context's error, got %v", err)
+	}
 	if err := <-first; err != nil {
 		t.Fatalf("expected the request that started the refresh to be resent with its answer: %v", err)
 	}
@@ -697,12 +705,19 @@ func TestTheRefreshOutlivesTheRequestThatStartedIt(t *testing.T) {
 	signedUnder := refresh.generation()
 
 	ctx, cancel := context.WithCancel(context.Background())
-	answer := make(chan bool, 1)
-	go func() { answer <- refresh.answer(ctx, signedUnder, auth.renew, time.Minute) }()
+	type outcome struct {
+		renewed bool
+		err     error
+	}
+	answer := make(chan outcome, 1)
+	go func() {
+		renewed, err := refresh.answer(ctx, signedUnder, auth.renew, time.Minute)
+		answer <- outcome{renewed, err}
+	}()
 	waitFor(t, entered, "the refresh to start")
 	cancel()
-	if <-answer {
-		t.Error("expected the cancelled request to be answered false for itself")
+	if got := <-answer; got.renewed || !errors.Is(got.err, context.Canceled) {
+		t.Errorf("expected the cancelled request to get its context's error, got renewed=%v err=%v", got.renewed, got.err)
 	}
 	close(gate)
 	waitFor(t, waitForRun(&refresh), "the refresh to end")
@@ -1111,8 +1126,8 @@ func TestARefreshGivesUpWhenASigningDoesNotEndWithinTheBound(t *testing.T) {
 
 	auth := newSteeredAuth(func(context.Context) error { return nil })
 	started := time.Now()
-	if refresh.answer(context.Background(), refresh.generation(), auth.renew, 100*time.Millisecond) {
-		t.Error("expected the refresh that could not start to answer not renewed")
+	if renewed, err := refresh.answer(context.Background(), refresh.generation(), auth.renew, 100*time.Millisecond); renewed || err != nil {
+		t.Errorf("expected the refresh that could not start to answer not renewed, got renewed=%v err=%v", renewed, err)
 	}
 	if waited := time.Since(started); waited > 5*time.Second {
 		t.Errorf("expected the refresh to be given up at the bound, took %v", waited)
@@ -1129,8 +1144,8 @@ func TestARefreshGivesUpWhenASigningDoesNotEndWithinTheBound(t *testing.T) {
 	if err := <-signed; err != nil {
 		t.Fatalf("expected the signing to end normally once released: %v", err)
 	}
-	if !refresh.answer(context.Background(), refresh.generation(), auth.renew, time.Minute) {
-		t.Error("expected the refresh after the signing ended to run and renew")
+	if renewed, err := refresh.answer(context.Background(), refresh.generation(), auth.renew, time.Minute); !renewed || err != nil {
+		t.Errorf("expected the refresh after the signing ended to run and renew, got renewed=%v err=%v", renewed, err)
 	}
 	if refreshes := auth.refreshes.Load(); refreshes != 1 {
 		t.Errorf("expected one refresh once the signing had ended, got %d", refreshes)
@@ -1288,5 +1303,93 @@ func TestA401OnANewerGenerationDoesNotTakeAnOlderRunsAnswer(t *testing.T) {
 	}
 	if after := client.refresh.generation(); after.refreshes != 2 {
 		t.Errorf("expected the provider's renewal and the refresh to count once each, got %+v", after)
+	}
+}
+
+// A strategy that panics in the middle of a signing gives the turn back: the panic goes
+// on to the caller, and the next request on the same root is signed and sent as usual
+// rather than waiting on a turn nobody will give up.
+func TestAStrategyThatPanicsWhileSigningDoesNotKeepTheTurn(t *testing.T) {
+	var refresh credentialRefresh
+	func() {
+		defer func() {
+			if recover() == nil {
+				t.Fatal("expected the strategy's panic to reach the caller")
+			}
+		}()
+		_, _ = refresh.sign(context.Background(), func() (string, error) {
+			panic("strategy exploded")
+		})
+	}()
+
+	done := make(chan error, 1)
+	go func() {
+		_, err := refresh.sign(context.Background(), func() (string, error) { return "Bearer t0", nil })
+		done <- err
+	}()
+	select {
+	case err := <-done:
+		if err != nil {
+			t.Fatalf("expected the next signing to go ahead, got %v", err)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("the next signing waited on the turn the panicking strategy held")
+	}
+
+	auth := newSteeredAuth(func(context.Context) error { return nil })
+	if renewed, err := refresh.answer(context.Background(), refresh.generation(), auth.renew, time.Minute); !renewed || err != nil {
+		t.Errorf("expected a refresh to take the turn and renew, got renewed=%v err=%v", renewed, err)
+	}
+}
+
+// failingProvider hands over its first token and then cannot hand over any, as one whose
+// own renewal inside AccessToken has failed would, counting how often it is asked to
+// refresh.
+type failingProvider struct {
+	signings  atomic.Int32
+	refreshes atomic.Int32
+}
+
+func (p *failingProvider) AccessToken(context.Context) (string, error) {
+	if p.signings.Add(1) == 1 {
+		return "t0", nil
+	}
+	return "", errors.New("the token could not be renewed")
+}
+
+func (p *failingProvider) Refresh(context.Context) error {
+	p.refreshes.Add(1)
+	return nil
+}
+
+// Before a refresh is spent the provider is asked what it would sign with. A provider
+// that cannot hand over a token at all is the refresh failing: the request gets its 401
+// and the provider is not asked to refresh on top of the renewal it just failed to make.
+func TestAProviderThatCannotHandOverATokenFailsTheRefreshWithoutRefreshing(t *testing.T) {
+	var credentials []string
+	var mu sync.Mutex
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		credentials = append(credentials, r.Header.Get("Authorization"))
+		mu.Unlock()
+		w.WriteHeader(http.StatusUnauthorized)
+	}))
+	defer server.Close()
+
+	provider := &failingProvider{}
+	client := NewClient(&Config{BaseURL: server.URL}, provider)
+
+	_, err := client.Get(context.Background(), "/whatever.json")
+	var apiErr *Error
+	if !errors.As(err, &apiErr) || apiErr.Code != CodeAuth {
+		t.Fatalf("expected an authentication error, got %v", err)
+	}
+	if refreshes := provider.refreshes.Load(); refreshes != 0 {
+		t.Errorf("expected the failed renewal to be the refresh's answer, got %d refreshes", refreshes)
+	}
+	mu.Lock()
+	defer mu.Unlock()
+	if len(credentials) != 1 || credentials[0] != "Bearer t0" {
+		t.Errorf("expected one send with t0 and no resend, got %v", credentials)
 	}
 }
