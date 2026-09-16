@@ -165,7 +165,7 @@ jobs:
     # environment, so a token cannot be minted from anywhere else. No required reviewers:
     # release-github.yml polls this workflow for thirty minutes and a wait for approval
     # would time it out, and the tag is already a deliberate `make release` from a green
-    # gate — the same footing basecamp-sdk's release-pypi environment stands on.
+    # gate.
     environment: release-crates
     env:
       VERSION: ${{ needs.package.outputs.version }}
