@@ -8,7 +8,7 @@ use serde::de::DeserializeOwned;
 use tokio::sync::Mutex;
 use url::Url;
 
-use crate::auth::{AuthStrategy, BearerAuth, BearerSigned, TokenProvider};
+use crate::auth::{AuthStrategy, BearerAuth, TokenProvider};
 use crate::cache::{CachedResponse, FileCache, ResponseCache, cache_key};
 use crate::config::Config;
 use crate::error::{Error, ErrorCode, retry_after_seconds};
@@ -95,6 +95,13 @@ pub(crate) struct Shared {
     pub(crate) base_url: Url,
     pub(crate) http: Arc<dyn HttpClient>,
     pub(crate) auth: Arc<dyn AuthStrategy>,
+    /// Whether [`Shared::auth`] is the SDK's own bearer strategy over a token provider, as
+    /// [`ClientBuilder::token_provider`] builds it. Only then is the bearer a signing put on
+    /// read for a renewal. Known from how the client was built rather than from anything on
+    /// a request, since a strategy of the caller's may sign through [`BearerAuth`] and then
+    /// rewrite the header — a per-request signature, say — and would otherwise have every
+    /// signing taken for a renewal and its refresh never asked for.
+    pub(crate) bearer_auth: bool,
     pub(crate) user_agent: String,
     pub(crate) max_retries: u32,
     pub(crate) base_delay: Option<Duration>,
@@ -133,9 +140,9 @@ pub(crate) struct Shared {
     /// moves the counts as a refresh would. `None` until a signing, and again after a
     /// refresh, whose renewal is counted once, by the refresh: the first signing after it
     /// carries the new token and is not counted again. Only the SDK's own [`BearerAuth`]
-    /// is read this way, by the mark it leaves on the request; a strategy of the caller's
-    /// may sign every request differently, so it is never compared, though its signings
-    /// take the lock too, since which strategy signed is known only once one has.
+    /// is read this way, as [`Shared::bearer_auth`] says; a strategy of the caller's may sign
+    /// every request differently, so it is never compared, though its signings take the
+    /// lock too, which costs it nothing a single signer at a time does not.
     pub(crate) signing: Mutex<Option<HeaderValue>>,
 }
 
@@ -152,14 +159,14 @@ impl Shared {
 
     /// What the SDK's own bearer strategy would sign with now, asked by signing a request
     /// that goes nowhere: a refresh checks it against the bearer a 401 came back on before
-    /// spending the provider's refresh on a token it has already replaced. Asked only when
-    /// the rejected request carried that strategy's mark, so a strategy of the caller's is
-    /// never asked to sign for nothing. `None` when the strategy cannot sign, in which case
-    /// the refresh is asked for as usual.
-    async fn bearer_now(&self) -> Option<HeaderValue> {
+    /// spending the provider's refresh on a token it has already replaced. Asked only of
+    /// the SDK's own bearer strategy, so a strategy of the caller's is never asked to sign
+    /// for nothing. An error is the provider failing to hand over any token at all — often
+    /// its own renewal failing — and is the refresh's answer, not a reason to ask again.
+    async fn bearer_now(&self) -> Result<Option<HeaderValue>, Error> {
         let mut probe = Request::new(Bytes::new());
-        self.auth.authenticate(&mut probe).await.ok()?;
-        probe.headers().get(AUTHORIZATION).cloned()
+        self.auth.authenticate(&mut probe).await?;
+        Ok(probe.headers().get(AUTHORIZATION).cloned())
     }
 }
 
@@ -221,6 +228,7 @@ impl Response {
 pub struct ClientBuilder {
     config: Config,
     auth: Option<Arc<dyn AuthStrategy>>,
+    bearer_auth: bool,
     http: Option<Arc<dyn HttpClient>>,
     user_agent: String,
     timeout: Duration,
@@ -241,6 +249,7 @@ impl ClientBuilder {
         ClientBuilder {
             config,
             auth: None,
+            bearer_auth: false,
             http: None,
             user_agent: default_user_agent(),
             timeout: DEFAULT_TIMEOUT,
@@ -259,13 +268,16 @@ impl ClientBuilder {
     /// Authenticates with a bearer token drawn from `provider` for each request.
     #[must_use]
     pub fn token_provider(self, provider: impl TokenProvider + 'static) -> ClientBuilder {
-        self.auth_strategy(BearerAuth::new(provider))
+        let mut builder = self.auth_strategy(BearerAuth::new(provider));
+        builder.bearer_auth = true;
+        builder
     }
 
     /// Authenticates however `strategy` does: the way in for anything but a bearer token.
     #[must_use]
     pub fn auth_strategy(mut self, strategy: impl AuthStrategy + 'static) -> ClientBuilder {
         self.auth = Some(Arc::new(strategy));
+        self.bearer_auth = false;
         self
     }
 
@@ -423,6 +435,7 @@ impl ClientBuilder {
             base_url,
             http,
             auth,
+            bearer_auth: self.bearer_auth,
             user_agent: self.user_agent,
             max_retries: self.max_retries,
             base_delay: self.base_delay,
@@ -1007,8 +1020,10 @@ impl Client {
     /// already made: the counts move as for a refresh, the request is resent with it, and
     /// the provider is not asked, since a refresh token it was just issued would be spent
     /// again over the top of the token it issued. Only a token the provider would still sign
-    /// with is refreshed. A strategy of the caller's leaves no `rejected` bearer and is
-    /// asked outright.
+    /// with is refreshed. A provider that cannot hand over a token at all when asked is
+    /// taken as the refresh failing, shared like any other failure, and its refresh is not
+    /// asked for on top. A strategy of the caller's leaves no `rejected` bearer and is asked
+    /// outright.
     ///
     /// The refresh runs on a task of its own, which holds the turn, so a caller that gives
     /// up waiting — its [`ClientBuilder::operation_timeout`] running out, say — does not
@@ -1048,14 +1063,17 @@ impl Client {
                 false
             } else {
                 let renewed = match rejected {
-                    // The provider has replaced the rejected token already: that is the
-                    // renewal, and asking for another would spend it.
-                    Some(rejected)
-                        if shared.bearer_now().await.is_some_and(|now| now != rejected) =>
-                    {
-                        true
-                    }
-                    _ => shared.auth.refresh().await,
+                    Some(rejected) => match shared.bearer_now().await {
+                        // The provider has replaced the rejected token already: that is
+                        // the renewal, and asking for another would spend it.
+                        Ok(Some(now)) if now != rejected => true,
+                        Ok(_) => shared.auth.refresh().await,
+                        // The provider could not hand over a token at all — its own
+                        // renewal failing, as often as not — so that is this refresh's
+                        // answer, shared like any other, rather than a second attempt.
+                        Err(_) => false,
+                    },
+                    None => shared.auth.refresh().await,
                 };
                 if renewed {
                     shared.refreshes.fetch_add(1, Ordering::AcqRel);
@@ -1168,7 +1186,7 @@ impl Client {
     async fn sign(&self, request: &mut Request<Bytes>) -> Result<Signed, Error> {
         let mut last = self.shared.signing.lock().await;
         self.shared.auth.authenticate(request).await?;
-        let bearer = if request.extensions().get::<BearerSigned>().is_some() {
+        let bearer = if self.shared.bearer_auth {
             request.headers().get(AUTHORIZATION).cloned()
         } else {
             None

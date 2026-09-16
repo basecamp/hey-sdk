@@ -85,13 +85,6 @@ pub trait AuthStrategy: Send + Sync {
     }
 }
 
-/// Marks a request the SDK's own [`BearerAuth`] signed, so the client can read the bearer
-/// it put on for the token it is — and count one other than the last as a renewal the
-/// provider made on its own. A strategy of the caller's leaves no mark, since its headers
-/// may legitimately differ from one request to the next; they are never read this way.
-#[derive(Clone, Copy)]
-pub(crate) struct BearerSigned;
-
 /// Sends the token as `Authorization: Bearer`, which is how HEY takes one.
 pub struct BearerAuth<P: TokenProvider> {
     provider: P,
@@ -111,7 +104,6 @@ impl<P: TokenProvider> AuthStrategy for BearerAuth<P> {
         let value = HeaderValue::from_str(&format!("Bearer {token}"))
             .map_err(|_| Error::auth("access token is not a valid header value"))?;
         request.headers_mut().insert(AUTHORIZATION, value);
-        request.extensions_mut().insert(BearerSigned);
         Ok(())
     }
 
