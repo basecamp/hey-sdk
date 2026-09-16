@@ -13045,7 +13045,8 @@
             }
           },
           "contact": {
-            "$ref": "#/components/schemas/Contact"
+            "$ref": "#/components/schemas/Contact",
+            "x-go-type-skip-optional-pointer": false
           }
         },
         "required": [

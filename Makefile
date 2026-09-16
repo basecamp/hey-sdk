@@ -129,6 +129,16 @@ provenance-check:
 	@echo "==> Checking API provenance..."
 	@test -f spec/api-provenance.json || \
 		{ echo "ERROR: spec/api-provenance.json not found."; exit 1; }
+	@source=$$(jq -r '.source' spec/api-provenance.json); \
+		test "$$source" = "haystack" || \
+		{ echo "ERROR: API provenance source is '$$source', want 'haystack'."; exit 1; }
+	@sha=$$(jq -r '.sha' spec/api-provenance.json); \
+		echo "$$sha" | grep -Eq '^[0-9a-f]{40}$$' || \
+		{ echo "ERROR: API provenance SHA is not a full Git commit SHA."; exit 1; }
+	@api_version=$$(sed -n 's/^[[:space:]]*version: "\([^"]*\)"/\1/p' spec/hey.smithy | head -1); \
+		provenance_date=$$(jq -r '.date' spec/api-provenance.json); \
+		test "$$api_version" = "$$provenance_date" || \
+		{ echo "ERROR: API version $$api_version does not match provenance date $$provenance_date."; exit 1; }
 
 provenance-sync:
 	@echo "==> Syncing provenance from haystack..."

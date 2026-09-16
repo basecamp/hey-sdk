@@ -1123,8 +1123,8 @@ type MessagePostingContext struct {
 // MessageReceivedVia MessageReceivedVia — one delivery address HEY recorded for an inbound message
 type MessageReceivedVia struct {
 	// Contact Contact — the identity of someone in HEY
-	Contact      Contact `json:"contact,omitempty"`
-	EmailAddress string  `json:"email_address"`
+	Contact      *Contact `json:"contact,omitempty"`
+	EmailAddress string   `json:"email_address"`
 }
 
 // MovePostingsRequestContent defines model for MovePostingsRequestContent.
