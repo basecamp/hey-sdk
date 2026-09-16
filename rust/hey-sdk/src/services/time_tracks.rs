@@ -26,13 +26,26 @@ impl TimeTracks<'_> {
     ///
     /// This is [`TimeTracks::start`] with the one refusal it can meet named: a track already
     /// running answers 409, which arrives as [`crate::ErrorCode::Conflict`] carrying HEY's
-    /// own message, so a caller can branch on it rather than read a generic API error.
+    /// own message, so a caller can branch on it rather than read a generic API error. The
+    /// hooks hear `StartTimeTrack` end with that same conflict.
     pub async fn start_tracking(&self) -> Result<Recording, Error> {
-        match self.start().await {
-            Ok(track) => Ok(track),
-            Err(error) if error.http_status() == Some(409) => Err(already_running(&error)),
-            Err(error) => Err(error),
-        }
+        let mut operation = self.client().operation(&routes::START_TIME_TRACK, &[]);
+        operation.quiet();
+        let info = operation.info.clone();
+        self.client()
+            .as_operation(
+                &info,
+                Box::pin(async {
+                    match self.client().send(operation).await {
+                        Ok(track) => Ok(track),
+                        Err(error) if error.http_status() == Some(409) => {
+                            Err(already_running(&error))
+                        }
+                        Err(error) => Err(error),
+                    }
+                }),
+            )
+            .await
     }
 
     /// Stops the running time track by setting its end to now.

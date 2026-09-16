@@ -301,8 +301,9 @@ async fn a_cursor_the_recording_feed_has_left_behind_asks_for_a_full_sync() {
     assert!(one.added.is_empty() && one.updated.is_empty() && one.deleted.is_empty());
     assert!(all.full_sync_required);
     assert_eq!(server.received_requests().await.unwrap().len(), 2);
-    // The caller is told to sync in full; the hooks are told what HEY actually answered.
-    assert_eq!(outcomes.statuses(), [Some(409), Some(409)]);
+    // The caller is told to sync in full, and the operation ends the way the caller sees
+    // it; the request hooks are where the 409 is heard.
+    assert_eq!(outcomes.statuses(), [None, None]);
 }
 
 #[tokio::test]

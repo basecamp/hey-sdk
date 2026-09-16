@@ -221,7 +221,9 @@ URLs and names the operation and ids they refer to.
 
 An `Operation` marked `quiet` skips the operation hooks while still firing the request ones,
 for a read-back made inside another operation — which is how publishing a thread reports one
-operation rather than two.
+operation rather than two, and how a changes feed whose 409 comes back as `full_sync_required`
+reports an operation that ended the way the caller sees it, with the request hooks still
+hearing the 409.
 
 ### Pages
 
@@ -303,7 +305,8 @@ each one got. Spans are put on the futures with `Instrument`, so concurrent call
 own, and a call the caller drops closes its span with no status. Nothing the caller passed is
 recorded: no path, no query, no body — a request for a path the caller wrote is named by its
 method alone, and the hooks are where its URL goes. A quiet send — a read-back inside another operation —
-opens no span of its own and runs in whichever span its caller is in. Any `tracing-subscriber`
+opens no span of its own and runs in whichever span its caller is in; the one send of a changes
+feed read records its status on the feed operation's span. Any `tracing-subscriber`
 sees them; with `default-features = false` (plus `reqwest` if wanted) the crate depends on
 `tracing` for nothing and emits nothing. The hooks stay the place for a policy or a metric:
 they carry the whole `RequestResult`, and they run whether or not `tracing` is on.

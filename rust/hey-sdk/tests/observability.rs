@@ -9,6 +9,7 @@ use hey_sdk::cache::InMemoryCache;
 use hey_sdk::observability::{
     ChainHooks, Hooks, NoopHooks, OperationInfo, OperationState, RequestInfo, RequestResult,
 };
+use hey_sdk::services::{CalendarChangesCursor, ContactParams, PostingChangesCursor};
 use hey_sdk::{Client, Config, Error, ErrorCode, StaticTokenProvider, TokenProvider};
 
 use async_trait::async_trait;
@@ -361,6 +362,248 @@ async fn a_wrapper_can_announce_itself_as_something_other_than_the_route_it_send
     assert_eq!(started[0].resource_type, "time_track");
     assert_eq!(started[0].resource_id, Some(701));
     assert!(started[0].is_mutation);
+}
+
+const POSTING_FEED: &str = "/boxes/24088/postings/changes.json";
+const RECORDING_FEED: &str = "/calendars/512/recording/changes.json";
+
+fn posting_cursor() -> PostingChangesCursor {
+    PostingChangesCursor::from_url(
+        "https://app.hey.com/boxes/24088/postings/changes.json?since=2026-08-18T09%3A00%3A00.000Z&v=2",
+    )
+    .unwrap()
+}
+
+fn recording_cursor(server: &MockServer) -> CalendarChangesCursor {
+    CalendarChangesCursor::from_url(&format!(
+        "{}{RECORDING_FEED}?since=2026-08-18T09%3A00%3A00.000Z&v=1",
+        server.uri()
+    ))
+    .unwrap()
+}
+
+/// A changes feed answers 409 when the cursor is too far behind, and the caller gets a
+/// full-sync answer rather than a failure. The operation ends the way the caller sees it —
+/// as a success — while the request hooks still hear the 409 for what it was, as Go's do.
+#[tokio::test]
+async fn a_feed_that_asks_for_a_full_sync_ends_its_operation_as_the_success_the_caller_gets() {
+    let server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path(POSTING_FEED))
+        .respond_with(ResponseTemplate::new(409))
+        .mount(&server)
+        .await;
+    let recorder = Recorder::new();
+
+    let changes = builder(&server)
+        .hooks(recorder.clone())
+        .build()
+        .unwrap()
+        .postings()
+        .changes(24088, &posting_cursor())
+        .await
+        .unwrap();
+
+    assert!(changes.full_sync_required);
+    let started = recorder.operations();
+    assert_eq!(started.len(), 1);
+    assert_eq!(started[0].service, "Postings");
+    assert_eq!(started[0].operation, "GetBoxPostingChanges");
+    assert_eq!(started[0].resource_type, "posting");
+    assert!(!started[0].is_mutation);
+    assert_eq!(started[0].resource_id, Some(24088));
+    assert_eq!(recorder.endings(), [None]);
+    assert_eq!(recorder.attempts(), [format!("GET {POSTING_FEED} 1")]);
+    assert_eq!(recorder.answers(), ["1 409 retryable=false"]);
+}
+
+#[tokio::test]
+async fn the_recording_feed_asked_for_a_full_sync_ends_its_operation_the_same_way() {
+    let server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path(RECORDING_FEED))
+        .respond_with(ResponseTemplate::new(409))
+        .mount(&server)
+        .await;
+    let recorder = Recorder::new();
+
+    let changes = builder(&server)
+        .hooks(recorder.clone())
+        .build()
+        .unwrap()
+        .calendars()
+        .recording_changes(512, &recording_cursor(&server))
+        .await
+        .unwrap();
+
+    assert!(changes.full_sync_required);
+    let started = recorder.operations();
+    assert_eq!(started.len(), 1);
+    assert_eq!(started[0].service, "Calendars");
+    assert_eq!(started[0].operation, "GetCalendarRecordingChanges");
+    assert_eq!(started[0].resource_type, "recording");
+    assert_eq!(started[0].resource_id, Some(512));
+    assert_eq!(recorder.endings(), [None]);
+    assert_eq!(recorder.attempts(), [format!("GET {RECORDING_FEED} 1")]);
+    assert_eq!(recorder.answers(), ["1 409 retryable=false"]);
+}
+
+/// Only the 409 is an answer. Anything else the feed fails with still ends the operation
+/// with that failure, the one the caller gets.
+#[tokio::test]
+async fn a_feed_that_fails_for_any_other_reason_ends_its_operation_with_that_failure() {
+    let server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path(POSTING_FEED))
+        .respond_with(ResponseTemplate::new(404))
+        .mount(&server)
+        .await;
+    Mock::given(method("GET"))
+        .and(path(RECORDING_FEED))
+        .respond_with(ResponseTemplate::new(404))
+        .mount(&server)
+        .await;
+    let recorder = Recorder::new();
+    let client = builder(&server).hooks(recorder.clone()).build().unwrap();
+
+    let postings = client
+        .postings()
+        .changes(24088, &posting_cursor())
+        .await
+        .unwrap_err();
+    let recordings = client
+        .calendars()
+        .recording_changes(512, &recording_cursor(&server))
+        .await
+        .unwrap_err();
+
+    assert_eq!(postings.http_status(), Some(404));
+    assert_eq!(recordings.http_status(), Some(404));
+    assert_eq!(recorder.operations().len(), 2);
+    assert_eq!(
+        recorder.endings(),
+        [
+            Some(postings.message().to_string()),
+            Some(recordings.message().to_string())
+        ]
+    );
+    assert_eq!(
+        recorder.answers(),
+        ["1 404 retryable=false", "1 404 retryable=false"]
+    );
+}
+
+/// A refusal a convenience rewords for the caller — a running track's 409 carrying HEY's
+/// own message, a contact write's clash — ends the operation with the rewording, not with
+/// the error as the client first read it.
+#[tokio::test]
+async fn a_refusal_reworded_for_the_caller_ends_the_operation_with_the_rewording() {
+    let server = MockServer::start().await;
+    Mock::given(method("POST"))
+        .and(path("/calendar/ongoing_time_track.json"))
+        .respond_with(
+            ResponseTemplate::new(409)
+                .set_body_json(json!({ "error": "Ongoing time track already in progress" })),
+        )
+        .mount(&server)
+        .await;
+    Mock::given(method("POST"))
+        .and(path("/contacts.json"))
+        .respond_with(ResponseTemplate::new(409).set_body_json(json!({
+            "errors": ["Some email addresses are already in use for other contacts"],
+            "contact_id": 9,
+            "conflicting_contact_ids": [4, 5]
+        })))
+        .mount(&server)
+        .await;
+    let recorder = Recorder::new();
+    let client = builder(&server).hooks(recorder.clone()).build().unwrap();
+
+    let track = client.time_tracks().start_tracking().await.unwrap_err();
+    let contact = client
+        .contacts()
+        .create_contact(&ContactParams {
+            name: "Jane Dawson".to_string(),
+            email_address: "jane.dawson@example.com".to_string(),
+            ..ContactParams::default()
+        })
+        .await
+        .unwrap_err();
+
+    assert_eq!(track.code(), ErrorCode::Conflict);
+    assert_eq!(track.message(), "Ongoing time track already in progress");
+    assert_eq!(contact.code(), ErrorCode::Conflict);
+    assert_eq!(
+        contact.message(),
+        "Some email addresses are already in use for other contacts"
+    );
+    let started = recorder.operations();
+    assert_eq!(started.len(), 2);
+    assert_eq!(started[0].operation, "StartTimeTrack");
+    assert_eq!(started[1].operation, "CreateContact");
+    assert_eq!(
+        recorder.endings(),
+        [
+            Some(track.message().to_string()),
+            Some(contact.message().to_string())
+        ]
+    );
+    assert_eq!(
+        recorder.answers(),
+        ["1 409 retryable=false", "1 409 retryable=false"]
+    );
+}
+
+/// The operation a convenience runs its send inside is gated like any other: a gate that
+/// refuses it stops it before the send.
+#[tokio::test]
+async fn a_gate_that_refuses_a_feed_read_stops_it_before_anything_is_sent() {
+    let server = MockServer::start().await;
+    let recorder = Recorder::new();
+    let hooks = ChainHooks::of(vec![Arc::new(Refusing), recorder.clone()]);
+
+    let error = builder(&server)
+        .hooks(hooks)
+        .build()
+        .unwrap()
+        .postings()
+        .changes(24088, &posting_cursor())
+        .await
+        .unwrap_err();
+
+    assert_eq!(error.code(), ErrorCode::Usage);
+    assert_eq!(error.message(), "blocked");
+    assert!(server.received_requests().await.unwrap().is_empty());
+    assert!(recorder.operations().is_empty());
+    assert!(recorder.endings().is_empty());
+}
+
+/// The operation limit is one deadline over the send inside, not a second one beside it:
+/// a feed read that runs out of time ends with the same timeout the caller gets.
+#[tokio::test]
+async fn a_feed_read_that_runs_out_of_time_ends_with_the_timeout_the_caller_gets() {
+    let server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path(POSTING_FEED))
+        .respond_with(ResponseTemplate::new(409).set_delay(Duration::from_secs(5)))
+        .mount(&server)
+        .await;
+    let recorder = Recorder::new();
+
+    let error = builder(&server)
+        .operation_timeout(Duration::from_millis(100))
+        .hooks(recorder.clone())
+        .build()
+        .unwrap()
+        .postings()
+        .changes(24088, &posting_cursor())
+        .await
+        .unwrap_err();
+
+    assert_eq!(error.code(), ErrorCode::Network);
+    assert!(error.message().contains("timed out"), "{error}");
+    assert_eq!(recorder.operations().len(), 1);
+    assert_eq!(recorder.endings(), [Some(error.message().to_string())]);
 }
 
 /// Everything the hooks were told, kept so a test can assert on it afterwards.

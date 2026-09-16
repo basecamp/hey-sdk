@@ -72,6 +72,11 @@ tokio::task_local! {
     /// request a convenience or a walk makes inside it is held to the same one rather
     /// than each starting a limit of its own.
     static DEADLINE: Option<Instant>;
+
+    /// The span of the operation a convenience is running its requests inside with
+    /// [`Client::as_operation`], so that a quiet send made there records its answer on
+    /// that span rather than on none.
+    static ENCLOSING: OperationSpan;
 }
 
 /// A HEY client: one authenticated identity, presenting mail from All Accounts unless
@@ -627,18 +632,36 @@ impl Client {
         }
     }
 
+    /// Runs some work as one operation: the gate, the span, the start, and the end with
+    /// the work's outcome. For a hand-written convenience whose answer is not what HEY
+    /// answered — a changes feed's 409 that comes back as a full-sync answer, a refusal
+    /// reworded from the body it arrived in — so that the hooks hear the operation end the
+    /// way the caller sees it. The sends inside are marked [`Operation::quiet`], which
+    /// leaves the request hooks firing for each one and announces no operation of their
+    /// own; a quiet send made in here records its answer on this operation's span.
+    ///
+    /// The work is held to the one deadline [`Client::execute`] would hold it to, and
+    /// every send inside inherits that deadline rather than starting one of its own, so an
+    /// operation that runs out of time ends with the same [`Error::timed_out`] whichever
+    /// side notices first.
+    pub(crate) async fn as_operation<T>(
+        &self,
+        info: &OperationInfo,
+        work: impl Future<Output = Result<T, Error>>,
+    ) -> Result<T, Error> {
+        let deadline = self.deadline();
+        let span = OperationSpan::announced(info);
+        span.wrap(ENCLOSING.scope(
+            span.clone(),
+            DEADLINE.scope(deadline, self.announced(info, deadline, work)),
+        ))
+        .await
+    }
+
     /// Runs one operation inside the hook lifecycle every call shares. A quiet operation is
     /// one request inside another and skips that lifecycle — see [`Operation::quiet`].
     /// The `tracing` span around all of this is the caller's to put on, so that the gate and
     /// the end hook are inside it too.
-    ///
-    /// The deadline is applied in here, to the gate and to the work, so that the hooks hear
-    /// an operation that ran out of time end with the same [`Error::timed_out`] the caller
-    /// gets. The end is reported from a drop guard rather than after the await all the
-    /// same, because the await may never return: a caller's own `tokio::time::timeout` or
-    /// `select!` can drop the future mid-flight, and a start with no end leaves the
-    /// bulkhead a permit short and the circuit breaker a call short for the life of the
-    /// client. Dropped that way, the operation ends as [`Error::cancelled`].
     async fn instrument<T>(
         &self,
         operation: &Operation,
@@ -648,20 +671,39 @@ impl Client {
         if operation.quiet {
             self.within_deadline(deadline, work).await
         } else {
-            let hooks = &self.shared.hooks;
-            self.within_deadline(deadline, hooks.on_operation_gate(&operation.info))
-                .await?;
-
-            let mut running = Running {
-                hooks,
-                info: &operation.info,
-                state: Some(hooks.on_operation_start(&operation.info)),
-                started: Instant::now(),
-            };
-            let outcome = self.within_deadline(deadline, work).await;
-            running.finished(outcome.as_ref().map(|_| ()));
-            outcome
+            self.announced(&operation.info, deadline, work).await
         }
+    }
+
+    /// The hook lifecycle itself: the gate, the start, the work, and the end with how the
+    /// work went.
+    ///
+    /// The deadline is applied in here, to the gate and to the work, so that the hooks hear
+    /// an operation that ran out of time end with the same [`Error::timed_out`] the caller
+    /// gets. The end is reported from a drop guard rather than after the await all the
+    /// same, because the await may never return: a caller's own `tokio::time::timeout` or
+    /// `select!` can drop the future mid-flight, and a start with no end leaves the
+    /// bulkhead a permit short and the circuit breaker a call short for the life of the
+    /// client. Dropped that way, the operation ends as [`Error::cancelled`].
+    async fn announced<T>(
+        &self,
+        info: &OperationInfo,
+        deadline: Option<Instant>,
+        work: impl Future<Output = Result<T, Error>>,
+    ) -> Result<T, Error> {
+        let hooks = &self.shared.hooks;
+        self.within_deadline(deadline, hooks.on_operation_gate(info))
+            .await?;
+
+        let mut running = Running {
+            hooks,
+            info,
+            state: Some(hooks.on_operation_start(info)),
+            started: Instant::now(),
+        };
+        let outcome = self.within_deadline(deadline, work).await;
+        running.finished(outcome.as_ref().map(|_| ()));
+        outcome
     }
 
     /// Reads the answer the retry loop settled on, and tells the hooks how it turned out
@@ -1495,11 +1537,14 @@ pub(crate) fn with_json_extension(path: &str) -> String {
     }
 }
 
-/// The span an operation runs in: one of its own, or none for a quiet send, which is one
-/// request inside another operation and runs in that operation's span.
+/// The span an operation runs in: one of its own, or for a quiet send — one request inside
+/// another operation — that operation's own span when it is running inside
+/// [`Client::as_operation`], and otherwise none, so it runs in whatever span its caller is in.
 fn span_for(operation: &Operation) -> OperationSpan {
     if operation.quiet {
-        OperationSpan::none()
+        ENCLOSING
+            .try_with(Clone::clone)
+            .unwrap_or_else(|_| OperationSpan::none())
     } else {
         OperationSpan::new(operation)
     }

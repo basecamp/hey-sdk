@@ -10,7 +10,6 @@
 //! query it carries are the caller's; the hooks are where the URL goes.
 
 use crate::http::StatusCode;
-#[cfg(feature = "tracing")]
 use crate::observability::OperationInfo;
 use crate::operation::Operation;
 
@@ -45,15 +44,33 @@ pub(crate) struct OperationSpan {
 }
 
 impl OperationSpan {
+    #[cfg(feature = "tracing")]
     pub(crate) fn new(operation: &Operation) -> OperationSpan {
-        #[cfg(not(feature = "tracing"))]
+        OperationSpan::named(label(operation), &operation.info.service)
+    }
+
+    #[cfg(not(feature = "tracing"))]
+    pub(crate) fn new(operation: &Operation) -> OperationSpan {
         let _ = operation;
+        OperationSpan {}
+    }
+
+    /// The span of an operation announced by its info alone — a convenience running its
+    /// requests as one operation with [`crate::Client::as_operation`] — named the way the
+    /// hooks hear it.
+    pub(crate) fn announced(info: &OperationInfo) -> OperationSpan {
+        OperationSpan::named(&info.operation, &info.service)
+    }
+
+    fn named(operation: &str, service: &str) -> OperationSpan {
+        #[cfg(not(feature = "tracing"))]
+        let _ = (operation, service);
         OperationSpan {
             #[cfg(feature = "tracing")]
             span: tracing::info_span!(
                 "hey.operation",
-                operation = label(operation),
-                service = %operation.info.service,
+                operation,
+                service,
                 http.status = tracing::field::Empty,
                 request_id = tracing::field::Empty,
             ),

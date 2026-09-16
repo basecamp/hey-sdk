@@ -288,7 +288,11 @@ impl Operation {
 
     /// Sends this without announcing an operation: no gate, no start, no end. For a request
     /// made inside another operation — the read-back a write needs to answer with the record
-    /// it wrote — so the hooks hear about that operation once rather than twice.
+    /// it wrote — so the hooks hear about that operation once rather than twice. The
+    /// conveniences whose answer is not what HEY answered send the same way, inside an
+    /// operation of their own that ends the way the caller sees it: a changes feed's 409
+    /// ends as the full-sync answer it becomes, and a refusal reworded for the caller ends
+    /// as the rewording.
     ///
     /// The request hooks still fire, so every send the SDK makes is still reported. So is
     /// every layer the announced operation went through: a quiet send is inside its

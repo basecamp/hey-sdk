@@ -17,8 +17,7 @@ impl Publications<'_> {
     /// The redirect lands on the sharing panel rather than carrying the link, so the
     /// publication is read back. That read is a [quiet](crate::Operation::quiet) one, so the
     /// hooks hear `Publications.CreateTopicPublication` once and see both requests under it,
-    /// as they do in Go. The operation's own end still lands after the first of the two, the
-    /// SDK having no seam for wrapping a block of them.
+    /// as they do in Go. The operation's own end still lands after the first of the two.
     ///
     /// HEY answers a forbidden error on accounts that are not eligible to publish.
     pub async fn publish(&self, topic_id: i64) -> Result<TopicPublication, Error> {

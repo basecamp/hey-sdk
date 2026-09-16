@@ -520,8 +520,9 @@ async fn a_cursor_the_feed_has_left_behind_asks_for_a_full_sync_rather_than_fail
 
     assert!(changes.full_sync_required);
     assert!(changes.added.is_empty());
-    // The caller is told to sync in full; the hooks are told what HEY actually answered.
-    assert_eq!(outcomes.statuses(), [Some(409)]);
+    // The caller is told to sync in full, and the operation ends the way the caller sees
+    // it; the request hooks are where the 409 is heard.
+    assert_eq!(outcomes.statuses(), [None]);
 }
 
 #[tokio::test]

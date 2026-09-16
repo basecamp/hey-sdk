@@ -144,14 +144,24 @@ impl Contacts<'_> {
     /// Sends a contact write, reading the two refusals it can answer with out of the body
     /// they arrive in: an address that belongs to someone else, and a contact the model
     /// itself rejected. Both are failures, and the hooks are told so; all that happens here
-    /// is that the failure is reworded from what the model said about it.
-    async fn write<T: DeserializeOwned>(&self, operation: Operation) -> Result<T, Error> {
-        match self.client().execute(operation).await {
-            Ok(response) => response.json(),
-            Err(error) if error.http_status() == Some(409) => Err(clash(&error)),
-            Err(error) if error.http_status() == Some(422) => Err(rejection(&error)),
-            Err(error) => Err(error),
-        }
+    /// is that the failure is reworded from what the model said about it. The rewording is
+    /// done inside the operation, so the hooks hear it end with the error the caller gets.
+    async fn write<T: DeserializeOwned>(&self, mut operation: Operation) -> Result<T, Error> {
+        operation.quiet();
+        let info = operation.info.clone();
+        self.client()
+            .as_operation(
+                &info,
+                Box::pin(async {
+                    match self.client().execute(operation).await {
+                        Ok(response) => response.json(),
+                        Err(error) if error.http_status() == Some(409) => Err(clash(&error)),
+                        Err(error) if error.http_status() == Some(422) => Err(rejection(&error)),
+                        Err(error) => Err(error),
+                    }
+                }),
+            )
+            .await
     }
 }
 
