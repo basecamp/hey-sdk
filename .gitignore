@@ -70,3 +70,9 @@ typescript/coverage/
 
 # Packed npm artifacts
 *.tgz
+
+# Swift Package Manager
+swift/.build/
+swift/.swiftpm/
+.build/
+.swiftpm/

@@ -1,11 +1,11 @@
 # HEY SDK -- Agent Instructions
 
-Go, Rust, TypeScript and Kotlin clients for the HEY API, generated from the Smithy spec in `spec/`.
+Go, Rust, TypeScript, Kotlin and Swift clients for the HEY API, generated from the Smithy spec in `spec/`.
 
-**Shipped SDKs: Go, Rust, TypeScript and Kotlin.** Run `make ts-install` once (`npm ci`),
-have a JDK 17 on hand (`.mise.toml` pins one), then `make check` for all four languages.
-Ruby/Swift Makefile targets remain inherited placeholders; do not enable `make check-full`,
-which invokes missing SDKs. TypeScript
+**Shipped SDKs: Go, Rust, TypeScript, Kotlin and Swift.** Run `make ts-install` once (`npm ci`),
+have a JDK 17 (`.mise.toml` pins one) and Swift 6.0 or newer on hand, then `make check` for all
+five languages. Ruby Makefile targets remain inherited placeholders; do not enable
+`make check-full`, which invokes the missing SDK. TypeScript
 operations, types, routes and metadata are generated; do not hand-edit
 `typescript/src/generated`. See `typescript/README.md` and `TYPESCRIPT_RELEASE.md`.
 
@@ -14,7 +14,7 @@ operations, types, routes and metadata are generated; do not hand-edit
 1. **Never hand-write API methods.** Operations are generated from the Smithy spec.
 2. **Never construct URL paths manually.** Use the generated route table -- no
    `fmt.Sprintf` or `format!` for paths.
-3. **Every new operation needs tests.** Go, Rust, TypeScript and Kotlin unit/operation-coverage
+3. **Every new operation needs tests.** Go, Rust, TypeScript, Kotlin and Swift unit/operation-coverage
    tests, plus a conformance test when the change is behavioral.
 4. **Run `make check` before committing.**
 
@@ -181,9 +181,8 @@ openapi.json + behavior-model.json -> kotlin/generator -> kotlin/sdk/src/commonM
                           hand-written subclasses in kotlin/sdk/src/commonMain/kotlin/com/basecamp/hey/services
 ```
 
-The Kotlin library follows the conventions of the company-wide
-[basecamp-sdk](https://github.com/basecamp/basecamp-sdk) Kotlin SDK rather than the Rust
-crate's, so a reader of one is a reader of the other: a Kotlin Multiplatform build with a JVM
+The Kotlin library follows idiomatic Kotlin conventions rather than the Rust crate's: a
+Kotlin Multiplatform build with a JVM
 target (`commonMain`/`jvmMain`, `expect`/`actual` for the platform bits in `Platform.kt`),
 `HeyConfig` carrying `VERSION` and `API_VERSION`, a builder DSL (`HeyClient { accessToken(..) }`)
 with `enableCache`/`enableRetry`/`maxRetries`/`maxPages`/`timeout`/`hooks`, generated models
@@ -196,10 +195,10 @@ conveniences (`com.basecamp.hey.services.MessagesService` extends
 `code`s and `exitCode`, `HeyHooks` with `onRetry(info, attempt, error, delayMs)`, and
 `consoleHooks()`/`chainHooks()`.
 
-Two deliberate departures from basecamp-sdk's builder: there is no `httpClient` option, only
+The builder has no `httpClient` option, only
 `engine`, since a plugin on a caller's client (a retry, a default request, redirect following,
 response validation) would run ahead of the retry policy, the credential handling on
-redirects, the error mapping and the timeout the client is responsible for; and the operation
+redirects, the error mapping and the timeout the client is responsible for. The operation
 the hooks hear runs until the answer is decoded or parsed, so an answer that will not read
 ends the operation with the error the caller gets rather than as a success. The hooks
 agree with the caller the other way too: a change feed's 409, which the convenience hands
@@ -227,23 +226,22 @@ placement), `[operation_methods]` (a method name the derivation gets wrong), `[t
 subclass the client's accessor constructs, which makes the generated class `open`). Method
 names are camelCase of the Rust ones: `ListBoxes` is `client.boxes.list()`,
 `GetBoxPostingChanges` is `client.postings.getBoxChanges(..)`. Service classes take a
-`Service` suffix (`BoxesService`), as basecamp-sdk's do, and are reached as camelCase
+`Service` suffix (`BoxesService`) and are reached as camelCase
 properties of the client (`client.timeTracks`).
 
-Models follow basecamp-sdk's strictness: a required member has no default, so a body that
+Models are strict: a required member has no default, so a body that
 leaves one out fails to decode as a non-retryable `api_error` rather than reading as a
 fabricated zero (Go and Rust read the zero); an optional member is nullable and null. That
 makes Kotlin the strictest reader of a conformance mock body, which is why several fixtures
 that Go and Rust accepted had to be brought to the model's shape. Request bodies are the
-model's own `@Serializable` types (basecamp-sdk flattens its bodies into generated `Body`
-classes, which HEY's nested payloads do not suit). `x-hey-sensitive` strings are
+model's own `@Serializable` types, since HEY's payloads are nested. `x-hey-sensitive` strings are
 `SensitiveString`s that print as `[REDACTED]`; dates and timestamps stay strings. An
 operation whose 2xx body is `text/html` becomes a method that asks for the page as HEY
 serves it and answers a `String`; any other representation, two on one status, or a schema
 that is not a `$ref` fails generation naming the operation. A paginated read answers a `Page`
 with the cursor and `X-Total-Count`, walked with `nextPage`/`eachPage`/`pages`, rather than
-basecamp-sdk's auto-aggregated `ListResult`: HEY's paginated responses are objects with
-geared cursors, so there is nothing generic to aggregate.
+aggregated into one list: HEY's paginated responses are objects with geared cursors, so there
+is nothing generic to aggregate.
 
 `kt-check-drift` runs the generator in `--check` mode, so stale generated code fails the
 gate. `kt-check` is what CI's `test-kotlin` job runs: the library's build and tests with
@@ -266,6 +264,79 @@ already holds it -- `markPostingsSeen(ids)` alongside the generated `markSeen(bo
 form-backed write goes through `HeyClient.form`/`sendForm` with `writeInfo` saying what it
 means; a page HEY serves as HTML is read by `WorkflowStageView.parse`, with the rules Go and
 Rust read it by.
+
+### Swift
+
+```
+openapi.json + behavior-model.json + swift/names.toml -> swift/Sources/HeyGenerator -> swift/Sources/Hey/Generated/
+                                                                                              |
+                                 hand-written extensions of the generated services in swift/Sources/Hey/Services
+```
+
+The Swift package follows idiomatic Swift and takes its behaviour from the Kotlin client, which
+it ports decision for decision: a client is built with a throwing
+initializer (`try HeyClient(accessToken:config:hooks:transport:cache:)`, or `tokenProvider:` or
+`auth:`), configured by a `HeyConfig` struct carrying `version` and `apiVersion`; failures are
+the `HeyError` enum with string `code`s and `exitCode`; hooks are the `HeyHooks` protocol with
+default methods, `ChainHooks` and `ConsoleHooks`; the network is a `Transport` protocol, with
+`URLSessionTransport` the one the package ships; generated services extend `BaseService` and
+are reached as properties of the client (`client.boxes`); a paginated read answers a `Page`
+walked with `nextPage`/`eachPage`/`pages(from:)`.
+
+The package builds and tests on Linux as well as Apple platforms, so the library uses
+Foundation's portable surface only: `FoundationNetworking` is imported where it exists, the
+transport reads bodies through a `URLSessionDataDelegate` (Linux has no `bytes(for:)`), and
+SHA-256 and MD5 are written out in `Digest.swift`, since CryptoKit is Apple's alone. CI builds
+and tests on both Linux and macOS.
+
+Where Swift makes Kotlin's approach unworkable, the package does the nearest thing that keeps
+the behaviour:
+
+- A request is a `HeyOperation` struct built with mutating methods (`var operation = try
+  client.operation(Routes.getBox, [boxId])`), not a builder chain. It and the verb enum,
+  `HTTPMethod`, carry names Kotlin's `Operation` and `Method` cannot keep: Foundation has an
+  `Operation`, and on Apple platforms the Objective-C runtime a `Method`, so either would be
+  ambiguous in an app that imports Foundation beside `Hey`. `swift-consumer-check` names every
+  core public type beside `import Foundation`, on Linux and macOS, so a new collision fails there.
+- Refresh coordination runs on `AsyncMutex` (a lock a task can hold across `await`, since actors
+  are re-entrant) and a detached `Task` shared by every stale request. A task cancelled while it
+  waits to sign, or waits on a refresh another request started, stops waiting at once, as Go's
+  context-aware gate does; the refresh goes on for the rest.
+- A model member whose type is the model itself (`Recording.parent`) is held through
+  `Indirect<T>`, since a struct cannot contain itself; it reads and writes as the plain member.
+- Model fields are in the model's own order, required before optional, so a memberwise
+  initializer lists what must be given first. A keyword wire name (`default`) is backticked.
+- Durations the hooks hear come from `ContinuousClock`; the client takes a clock and a sleeper
+  internally so tests can drive time without waiting it out.
+
+`swift/Sources/HeyGenerator` is the Swift twin of `kotlin/generator`, reading the model through
+a small order-preserving JSON reader (`JSON.swift`) and `swift/names.toml`, which carries the
+same tables as Kotlin's but for `[hand_written_services]`: Swift adds conveniences as
+extensions, so no generated class has to be opened for them. `make swift-check-drift` fails
+on a stale tree, and `GeneratorTests` runs the same check inside `swift test`.
+
+Conveniences live in `swift/Sources/Hey/Services/<Service>+Conveniences.swift` as extensions
+of the generated service class, ported method for method from `kotlin/sdk/.../services`, with
+the same wire fields and the same naming rule (a plain name where the generated service leaves
+it free, the model's operation name where it does not). Each has its tests in
+`swift/Tests/HeyTests/<Service>Tests.swift`, ported from Kotlin's. A convenience made of
+several requests, or one that turns an answer into a refusal or a refusal into an answer,
+sends each request `quiet()` inside `client.asOperation(info)` so the hooks hear one
+operation that ends the way the caller sees it end.
+
+`swift-check` is what CI's `test-swift` job runs before the conformance suite: the package's
+build and tests with warnings as errors, then the conformance runner's own tests, which cover
+its assertions and drive `URLSessionTransport` over a real loopback connection (bounded bodies,
+redirects handed back, timeouts, cancellation). The job runs on Linux with the oldest Swift the
+README promises and on macOS, where it also builds the library for iOS. The runner in
+`conformance/runner/swift` serves each case from a plain-socket loopback server, so it runs on
+Linux too, and depends on the library through the root `Package.swift`: the distribution
+manifest an app resolves from a version tag, which builds the `Hey` library alone.
+`make swift-consumer-check` proves that path end to end by tagging a clone, resolving the
+package from it by URL and version, and compiling `swift/README.md`'s examples against it.
+Swift has no registry and no publication switch: a `vX.Y.Z` tag is the release, and
+`release-swift.yml` runs the same gate on the tag before `release-github.yml` creates the
+GitHub release.
 
 ## Adding an operation
 
@@ -291,20 +362,24 @@ Rust read it by.
 7. Run `make ts-generate` to refresh all TypeScript generated artifacts.
 8. `make kt-generate` -- regenerates the Kotlin generated tree. If the generator refuses a
    method name, add an override to `kotlin/generator/names.toml`.
-9. Add Go and TypeScript unit tests, Rust and Kotlin tests where the change touches
+9. `make swift-generate` -- regenerates `swift/Sources/Hey/Generated`. If the generator
+   refuses a method name, add an override to `swift/names.toml`.
+10. Add Go and TypeScript unit tests, Rust, Kotlin and Swift tests where the change touches
    hand-written code in those SDKs, and a conformance case under `conformance/tests/` for
    behavioral changes. A conformance case also needs a dispatch arm in
-   `conformance/runner/go/main.go`, `conformance/runner/rust/src/operations.rs` and
-   `conformance/runner/kotlin/src/main/kotlin/com/basecamp/hey/conformance/Operations.kt`.
+   `conformance/runner/go/main.go`, `conformance/runner/rust/src/operations.rs`,
+   `conformance/runner/kotlin/src/main/kotlin/com/basecamp/hey/conformance/Operations.kt` and
+   `conformance/runner/swift/Sources/ConformanceRunner/Operations.swift`.
    Kotlin is the strictest reader of a mock body -- a required member left out, or an
    object-typed response mocked as an array, fails there and nowhere else -- so a mock body
    has to be the shape the model says.
-10. `make check`
+11. `make check`
 
 `make check` resolves to `check-mvp`: `smithy-check`, `behavior-model-check`,
 `drift-check-mvp`, `url-routes-check`, `go-check`, `go-check-drift`, `rs-check`,
-`rs-check-drift`, `ts-check`, `kt-check`, `kt-check-drift`, `sync-api-version-check` and
-`conformance-mvp` (Go, Rust, TypeScript and Kotlin). `drift-check-mvp` is coverage freshness + forward (every modelled
+`rs-check-drift`, `ts-check`, `kt-check`, `kt-check-drift`, `swift-check`,
+`swift-check-drift`, `sync-api-version-check` and `conformance-mvp` (Go, Rust, TypeScript,
+Kotlin and Swift). `drift-check-mvp` is coverage freshness + forward (every modelled
 route exists in `spec/route-snapshot.json`) + reverse (every JSON-capable snapshot
 route is modelled or listed in `spec/excluded-routes.json` with a reason) + shape
 fingerprint. Adding an operation for a route that haystack does not serve, or
@@ -320,4 +395,5 @@ the API the SDK was built against, and it goes out in the User-Agent alongside t
 own version — that string is how HEY sees which contract a client is working from, so a
 stale date misreports it. The Rust crate's `API_VERSION` is generated into
 `rust/hey-sdk/src/generated/mod.rs`, so `make rs-generate` is what moves it. The Kotlin
-library's `HeyConfig.API_VERSION` moves with Go's, through `./scripts/sync-api-version.sh`.
+library's `HeyConfig.API_VERSION` and the Swift package's `HeyConfig.apiVersion` move with Go's,
+through `./scripts/sync-api-version.sh`.

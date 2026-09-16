@@ -248,6 +248,61 @@ jobs:
       - name: Compile a consumer with the oldest supported Kotlin
         run: make kt-consumer-check
 
+  # Linux on the oldest Swift the README promises, in the toolchain's own image, and macOS on the
+  # runner's Xcode. The library, its generator and the conformance runner build on both, and an
+  # app resolving the package from a tag is compiled on both.
+  test-swift:
+    name: Swift Tests (${{ matrix.name }})
+    runs-on: ${{ matrix.os }}
+    container: ${{ matrix.container }}
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Linux, Swift 6.0
+            os: ubuntu-latest
+            container: swift:6.0-noble@sha256:cc93f1594d63122eff78133f799f7d45a441fa4c5193e164ecea6065fd448fdd
+          - name: macOS
+            os: macos-15
+            container: ''
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # The toolchain image carries git but not make, and runs as a user other than the one that
+      # owns the checkout, which git refuses to clone from unless told otherwise.
+      - name: Prepare the Linux image
+        if: runner.os == 'Linux'
+        run: |
+          apt-get update -q
+          apt-get install -y -q --no-install-recommends make
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+      - name: Show the toolchain
+        run: swift --version
+
+      # The library's and the generator's build and tests with warnings as errors, and the
+      # conformance runner's own tests: the same target a developer runs.
+      - name: Build and test
+        run: make swift-check
+
+      - name: Check generated code is up to date
+        run: make swift-check-drift
+
+      - name: Run the conformance fixtures
+        run: make conformance-swift
+
+      - name: Resolve the package from a tag and compile a consumer
+        run: make swift-consumer-check
+
+      # The root manifest promises iOS; build the library for it the way Xcode would.
+      - name: Build the library for iOS
+        if: runner.os == 'macOS'
+        run: xcodebuild build -quiet -scheme Hey -destination 'generic/platform=iOS Simulator'
+
   lint-go:
     name: Go Lint
     runs-on: ubuntu-latest

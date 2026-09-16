@@ -12,6 +12,7 @@
 - Node 22.12+, 24 or 26 and npm; `make ts-install` uses the frozen lockfile
 - JDK 17 for the Kotlin library (`.mise.toml` pins a Temurin 17 for mise users); Gradle comes
   with the wrapper under `kotlin/`
+- Swift 6.0 or newer for the Swift package, on Linux or macOS (Xcode on macOS for the iOS build)
 - Make
 - jq
 
@@ -31,18 +32,18 @@
    (`make url-routes`, `./scripts/generate-shape-fingerprint`, `./scripts/generate-route-coverage`)
 3. Run `make go-generate` to regenerate the Go client, then add or update the hand-written
    service in `go/pkg/hey`
-4. Run `make rs-generate`, `make ts-generate` and `make kt-generate` to regenerate Rust,
-   TypeScript and Kotlin
-5. Add Go, Rust, TypeScript and Kotlin tests
+4. Run `make rs-generate`, `make ts-generate`, `make kt-generate` and `make swift-generate` to
+   regenerate Rust, TypeScript, Kotlin and Swift
+5. Add Go, Rust, TypeScript, Kotlin and Swift tests
 6. Add conformance tests if the operation has behavioral requirements, with dispatch arms in
-   the Go, Rust and Kotlin runners
+   the Go, Rust, Kotlin and Swift runners
 7. Run `make check`
 
 The full step-by-step, including how the drift gates work, is in [AGENTS.md](AGENTS.md).
 
 ## Versioning
 
-The Go module, the Rust crate and the Kotlin library share one version and one `vX.Y.Z` tag. Pre-1.0, a breaking
+The Go module, the Rust crate, the Kotlin library and the Swift package share one version and one `vX.Y.Z` tag. Pre-1.0, a breaking
 change bumps the minor version and an additive one the patch. For Rust, what counts as
 breaking is decided once, by the type policy in
 [rust/hey-sdk/README.md](rust/hey-sdk/README.md#versioning): request-side types are literal
@@ -55,7 +56,9 @@ versions (recompile against each release), and source compatibility kept append-
 the model allows. A generated model is a data class whose required members come first
 without defaults and whose optional members follow with `null` defaults, so a member the
 model adds is an addition for a caller that names its arguments; a member the model makes
-required is a source break, called out in the release notes.
+required is a source break, called out in the release notes. The Swift package follows the
+same policy: generated models list required members first and optional ones with `nil`
+defaults in their memberwise initializers.
 
 The crate's minimum supported Rust version is 1.88 (`rust-version` in `rust/Cargo.toml`). It
 moves only when a dependency or a language feature the crate needs requires it, as a minor
@@ -66,21 +69,22 @@ release with a line in the release notes.
 Two steps, in this order.
 
 ```bash
-make bump VERSION=x.y.z     # rewrites Go, Rust, TypeScript and Kotlin versions and lockfiles
+make bump VERSION=x.y.z     # rewrites Go, Rust, TypeScript, Kotlin and Swift versions and lockfiles
 # commit that, open a PR, merge it
 make release VERSION=x.y.z  # runs the gate, then tags vx.y.z and go/vx.y.z
 ```
 
 The bump has to land on main *before* the tag, because the release workflows check that
-`version.go`, `Cargo.toml` and `build.gradle.kts` match the tag they were pushed for and
+`version.go`, `Cargo.toml`, `build.gradle.kts` and `HeyConfig.swift` match the tag they were pushed for and
 refuse to publish otherwise. `make release` checks the same thing up front, so a forgotten bump fails
 locally in a second rather than on GitHub after the tags are already pushed; its gate
 includes `cargo publish --dry-run`, so a crate that would not package fails there too.
 
-The `vx.y.z` tag runs four workflows: `release-go.yml` tags the module, `release-rust.yml`
+The `vx.y.z` tag runs five workflows: `release-go.yml` tags the module, `release-rust.yml`
 publishes the crate to crates.io, `release-kotlin.yml` publishes the library to GitHub
 Packages when `.github/kotlin-publish-enabled` says `true` (see [Publishing
 Kotlin](#publishing-kotlin); it says `false` today, so the tag only rehearses the build),
+`release-swift.yml` verifies the tagged Swift package (see [Releasing Swift](#releasing-swift)),
 and `release-github.yml` waits and then creates the GitHub release. Both git tags matter: the plain one triggers the release and is what a
 git-dependency on the crate pins (there is no `rust/vx.y.z` tag; Cargo does not resolve tags
 by path), and the `go/` one is what `go get github.com/basecamp/hey-sdk/go` resolves, since
@@ -146,8 +150,8 @@ Kotlin publishing is switched off until GitHub Packages publishing is sorted out
 `.github/kotlin-publish-enabled` holds exactly `true` or `false`, read from the tagged
 commit by both `release-kotlin.yml` and `release-github.yml` so the two agree; `false`
 means a tag still runs the Kotlin gate and rehearses the publication in a job without
-`packages: write`, nothing goes to GitHub Packages, and the GitHub release waits only for
-Go and Rust. Manual Kotlin release dispatch is always a dry run. Flip the file to `true` in
+`packages: write`, nothing goes to GitHub Packages, and the GitHub release does not wait
+for Kotlin. Manual Kotlin release dispatch is always a dry run. Flip the file to `true` in
 a reviewed commit and merge it before the first tag that should publish.
 
 When it does publish, it is with the workflow's own `GITHUB_TOKEN` (no secret to
@@ -157,6 +161,19 @@ file with the remote: none there and it publishes, all there byte for byte (a re
 finished release) and it does nothing, anything else and it fails naming the files — delete
 the version from the `com.basecamp.hey-sdk` and `com.basecamp.hey-sdk-jvm` packages, then
 re-run.
+
+### Releasing Swift
+
+Swift has nothing to publish and nothing to switch on. Swift Package Manager resolves the
+package straight from the `vX.Y.Z` tag on this repository and reads the root `Package.swift`,
+which builds the `Hey` library alone, so the tag is the release. `release-swift.yml` checks the
+tag is on main and that `swift/Sources/Hey/HeyConfig.swift` names its version, then runs the
+Swift gate on macOS — the package's tests, the drift check, the conformance fixtures, a
+consumer that resolves the package from a tag, and an iOS build — and `release-github.yml`
+waits for it whenever the tagged commit has the workflow. Manual Swift release dispatch is a
+dry run that runs the same gate and reports the tag that would release. A tag whose Swift run
+fails is still resolvable by anyone who names it, so fix forward with the next patch rather than
+moving the tag.
 
 ### Publishing TypeScript
 

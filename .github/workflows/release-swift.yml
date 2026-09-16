@@ -1,0 +1,79 @@
+name: Release Swift SDK
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:  # Manual trigger is always a dry run
+
+permissions: {}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  smithy:
+    permissions:
+      contents: read
+    uses: $/.github/workflows/smithy-verify.yml
+
+  # Swift has no registry upload: Swift Package Manager resolves the package straight from the
+  # v<version> tag on this repository and reads the root Package.swift. The tag is the release,
+  # so this workflow is what says the tag is one an app can depend on, and release-github.yml
+  # waits for it before creating the GitHub Release.
+  release:
+    name: Verify the tagged package
+    runs-on: macos-15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Verify tag is on main
+        if: github.event_name == 'push'
+        run: |
+          git fetch origin main
+          git merge-base --is-ancestor "$GITHUB_SHA" origin/main
+
+      # The version the library reports in its User-Agent has to be the one the tag names, or an
+      # app resolving the tag would say it is running another release.
+      - name: Check the version matches the tag
+        if: github.event_name == 'push'
+        run: |
+          VERSION="${GITHUB_REF#refs/tags/v}"
+          if ! grep -Fq "public static let version = \"$VERSION\"" swift/Sources/Hey/HeyConfig.swift; then
+            echo "::error::swift/Sources/Hey/HeyConfig.swift does not say $VERSION; run make bump first"
+            grep 'static let version' swift/Sources/Hey/HeyConfig.swift
+            exit 1
+          fi
+
+      - name: Show the toolchain
+        run: swift --version
+
+      # The same gate a pull request passes. A tag is not the place to find out.
+      - name: Run the Swift gate
+        run: make swift-check swift-check-drift conformance-swift swift-consumer-check
+
+      - name: Build the library for iOS
+        run: xcodebuild build -quiet -scheme Hey -destination 'generic/platform=iOS Simulator'
+
+      - name: Report the release
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          VERSION=$(sed -n 's/.*public static let version = "\(.*\)".*/\1/p' swift/Sources/Hey/HeyConfig.swift)
+          TAG="v${VERSION}"
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            if git ls-remote --exit-code --tags --refs origin "$TAG" > /dev/null; then
+              echo "Tag $TAG already exists."
+            else
+              echo "Tag $TAG does not exist yet; pushing it is what releases the package."
+            fi
+            echo "::notice::Dry run: Swift package Hey ${VERSION} would be released by tag ${TAG} (resolved by Swift Package Manager from this repository; nothing is uploaded)"
+          else
+            echo "::notice::Swift package Hey ${VERSION} is released by tag ${TAG}"
+          fi
