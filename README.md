@@ -347,8 +347,7 @@ resource — `client.boxes`, `client.messages`, `client.timeTracks` — and ever
 describes is generated, named for the operation with the service's noun dropped (`ListBoxes`
 is `client.boxes.list()`). The hand-written conveniences are subclasses in
 `com.basecamp.hey.services`, which the accessors hand out. Every route is data in
-`com.basecamp.hey.generated.Routes`. The library is laid out and behaves the way the
-[basecamp-sdk](https://github.com/basecamp/basecamp-sdk) Kotlin SDK does.
+`com.basecamp.hey.generated.Routes`.
 
 ### Linked accounts
 

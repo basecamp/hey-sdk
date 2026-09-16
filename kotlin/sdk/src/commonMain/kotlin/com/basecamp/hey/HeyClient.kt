@@ -130,7 +130,7 @@ class HeyClientBuilder {
 
     /**
      * Custom Ktor [HttpClientEngine] (e.g., for testing with MockEngine). The client built
-     * on it is the SDK's own: unlike basecamp-sdk there is no way to hand over a configured
+     * on it is the SDK's own: there is no way to hand over a configured
      * [HttpClient], since a plugin on one — a retry, a default request, redirect following,
      * response validation — would run ahead of the retry policy, the credential handling on
      * redirects, the error mapping and the timeout this client is responsible for.

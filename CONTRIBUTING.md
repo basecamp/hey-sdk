@@ -50,7 +50,7 @@ and exhaustive, so a new field there is a minor; response-side types and open en
 `#[non_exhaustive]`, so a new field or variant there is a patch. Say which in the PR when a
 change touches a public type.
 
-The Kotlin library follows basecamp-sdk's policy: no binary-compatibility promise across
+The Kotlin library makes no binary-compatibility promise across
 versions (recompile against each release), and source compatibility kept append-only where
 the model allows. A generated model is a data class whose required members come first
 without defaults and whose optional members follow with `null` defaults, so a member the

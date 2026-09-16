@@ -31,7 +31,8 @@ sdk/common's `pagination.json` conformance tests apply as-is. No custom `paginat
 
 ## Consequences
 
-- Pagination implementation in all 5 SDKs follows the identical pattern as basecamp-sdk.
+- Every SDK reads the `Link` header and `X-Total-Count` the same way; whether a call answers
+  one page or walks them is each SDK's public contract, described in its README.
 - Sync bookmark URLs are opaque strings — the SDK passes them through to the caller.
 - No `PageIterator` is needed for window-style calendar queries (they return full result sets within the date range).
 

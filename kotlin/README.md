@@ -3,8 +3,7 @@
 The Kotlin client for the [HEY](https://www.hey.com) API. Models, routes and service methods
 are generated from the Smithy model in the repository's `spec/` directory, so what the library
 offers is what HEY serves. It is a Kotlin Multiplatform library with a JVM target, on Ktor and
-kotlinx.serialization, laid out and behaving the way the
-[basecamp-sdk](https://github.com/basecamp/basecamp-sdk) Kotlin SDK does.
+kotlinx.serialization.
 
 ```kotlin
 dependencies {
@@ -284,7 +283,7 @@ does not, and the root jar it would resolve holds no classes. Declare a `<reposi
 ## Versioning
 
 The library shares one version and one `vX.Y.Z` tag with the Go module and the Rust crate,
-and follows basecamp-sdk's pre-1.0 policy: a breaking change bumps the minor version and an
+and follows a pre-1.0 policy: a breaking change bumps the minor version and an
 additive one the patch; the default is append-only, but a minor may break source
 compatibility to correct the model, and says so in the release notes. Binary compatibility
 across versions is not promised — recompile against each release. `HeyConfig.VERSION` and
