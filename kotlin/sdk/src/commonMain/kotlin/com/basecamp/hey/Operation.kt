@@ -162,10 +162,11 @@ class Operation internal constructor(
     }
 
     /**
-     * Sends the request without the client's credentials, and takes a 401 as the answer it
-     * is rather than a reason to refresh them: for a URL that authenticates itself, on an
-     * origin that is not HEY's. The hooks hear the URL cut back to its origin, since such a
-     * URL carries its signature in the open.
+     * Sends the request without the client's credentials or account scope, and takes a 401
+     * as the answer it is rather than a reason to refresh them: for a URL that authenticates
+     * itself, which the storage service's may do on HEY's own origin. The URL and its hops go
+     * exactly as named, and the hooks hear the URL cut back to its origin, since such a URL
+     * carries its signature in the open.
      */
     internal fun unsigned(): Operation {
         unsigned = true

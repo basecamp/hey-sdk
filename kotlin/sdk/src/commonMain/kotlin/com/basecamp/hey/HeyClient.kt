@@ -786,7 +786,8 @@ class HeyClient internal constructor(
      * hops, unless the operation is one that takes the redirect for its answer. Credentials
      * stay on the origin they were meant for: a hop to another origin goes out without the
      * headers the auth strategy set, whatever it called them, and without the usual suspects.
-     * A hop that stays on HEY keeps the client's account scope.
+     * A hop that stays on HEY keeps the client's account scope, unless the request went out
+     * unsigned: that URL is the storage service's, wherever it lives, and its hops go as named.
      *
      * Each response is read through Ktor's streaming form, so the body is bounded while it
      * is still arriving rather than after the transport has held all of it.

@@ -2,9 +2,13 @@ package com.basecamp.hey.services
 
 import com.basecamp.hey.HeyClient
 import com.basecamp.hey.HeyException
+import com.basecamp.hey.generated.Routes
 import com.basecamp.hey.generated.models.FirstWeekDayParams
 import com.basecamp.hey.generated.models.UpdateFirstWeekDayRequestContent
+import com.basecamp.hey.generated.models.UpdateFirstWeekDayResponseContent
 import com.basecamp.hey.generated.models.UpdateTimeFormatRequestContent
+import com.basecamp.hey.generated.models.UpdateTimeFormatResponseContent
+import com.basecamp.hey.json
 import com.basecamp.hey.generated.services.IdentityService as GeneratedIdentityService
 
 /**
@@ -58,17 +62,33 @@ class IdentityService(client: HeyClient) : GeneratedIdentityService(client) {
     /**
      * Sets which day the identity's calendar weeks start on, and answers the day HEY stored.
      * The write reaches every HEY client — web, mobile and this SDK read the same identity
-     * preference.
+     * preference. A stored day that is not one is read inside the operation, so the hooks
+     * hear the failure the caller gets.
      */
     suspend fun setFirstWeekDay(day: Weekday): Weekday {
-        val stored = updateFirstWeekDay(UpdateFirstWeekDayRequestContent(FirstWeekDayParams(firstWeekDay = day.wire)))
-        return Weekday.fromIndex(stored.firstWeekDay)
-            ?: throw HeyException.Api("first week day ${stored.firstWeekDay} is not a day of the week", httpStatus = null, retryable = false)
+        val operation = client.operation(Routes.UPDATE_FIRST_WEEK_DAY, emptyList())
+        operation.json(UpdateFirstWeekDayRequestContent(FirstWeekDayParams(firstWeekDay = day.wire)))
+        operation.quiet()
+        return client.asOperation(operation.info) {
+            val stored = client.send<UpdateFirstWeekDayResponseContent>(operation)
+            Weekday.fromIndex(stored.firstWeekDay)
+                ?: throw HeyException.Api("first week day ${stored.firstWeekDay} is not a day of the week", httpStatus = null, retryable = false)
+        }
     }
 
-    /** Sets whether HEY renders times on a 12-hour or a 24-hour clock, and answers the format HEY stored. */
+    /**
+     * Sets whether HEY renders times on a 12-hour or a 24-hour clock, and answers the format
+     * HEY stored. A stored format that is neither is HEY's answer failing to read, not a
+     * mistake of the caller's, so it is an API error, heard by the hooks as the caller gets it.
+     */
     suspend fun setTimeFormat(format: TimeFormat): TimeFormat {
-        val stored = updateTimeFormat(UpdateTimeFormatRequestContent(twentyFourHourTimeFormat = format == TimeFormat.TWENTY_FOUR_HOUR))
-        return TimeFormat.parse(stored.timeFormat)
+        val operation = client.operation(Routes.UPDATE_TIME_FORMAT, emptyList())
+        operation.json(UpdateTimeFormatRequestContent(twentyFourHourTimeFormat = format == TimeFormat.TWENTY_FOUR_HOUR))
+        operation.quiet()
+        return client.asOperation(operation.info) {
+            val stored = client.send<UpdateTimeFormatResponseContent>(operation)
+            TimeFormat.entries.firstOrNull { it.wire == stored.timeFormat }
+                ?: throw HeyException.Api("time format \"${stored.timeFormat}\" is neither \"twelve_hour\" nor \"twenty_four_hour\"", httpStatus = null, retryable = false)
+        }
     }
 }

@@ -163,8 +163,10 @@ did not read in `nextPage`, which a complete answer never carries.
 
 A root client presents mail from All Accounts. Derive one for a linked account to present that
 account's mail and act as its user and default sender; it adds HEY's `filtered_account_id` to
-every request on the HEY origin, the next pages of a walk included, and checks the account
-against the identity first so a stale id fails on derivation rather than on the first read.
+every request on the HEY origin, the next pages of a walk included, except an attachment's
+upload, whose URL authenticates itself and goes exactly as storage named it. It checks the
+account against the identity first so a stale id fails on derivation rather than on the first
+read.
 
 ```kotlin
 val work = client.forAccount(42)

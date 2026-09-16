@@ -454,6 +454,7 @@ private fun formFields(body: String): Map<String, String> = body.split('&').asso
         }
         assertEquals("/storage/blobs/abc-moved", hey.requests[3].path)
         assertEquals("secret2", hey.requests[3].query("signature"), "the hop goes exactly where storage said")
+        assertEquals("application/pdf", hey.requests[3].header("Content-Type"), "with the headers storage named")
     }
 
     @Test
