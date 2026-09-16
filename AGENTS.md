@@ -203,8 +203,8 @@ redirects, the error mapping and the timeout the client is responsible for; and 
 the hooks hear runs until the answer is decoded or parsed, so an answer that will not read
 ends the operation with the error the caller gets rather than as a success. The hooks
 agree with the caller the other way too: a change feed's 409, which the convenience hands
-back as a full-sync answer, ends its operation as a success, as Go's hooks do (Rust's hear
-the Conflict), and a convenience that rewords a refusal does so inside the operation.
+back as a full-sync answer, ends its operation as a success, as Go's and Rust's do, and a
+convenience that rewords a refusal does so inside the operation.
 Durations are measured on a monotonic clock, so a wall clock stepped while a request is out
 does not show up in them.
 
