@@ -87,5 +87,18 @@ internal fun redactLocation(location: String): String {
 
 private val SENSITIVE_HEADERS = setOf("authorization", "proxy-authorization", "cookie", "set-cookie", "x-csrf-token")
 
+/**
+ * The headers that describe a request's body rather than the request: what RFC 9110 has a
+ * client drop when a redirect turns the request into a GET, since they would describe a body
+ * that is no longer sent, with the checksums storage services take alongside them.
+ */
+private val CONTENT_HEADERS = setOf(
+    "content-type", "content-length", "content-encoding", "content-language", "content-location", "content-range",
+    "content-md5", "content-digest", "repr-digest", "digest", "last-modified",
+)
+
+/** Whether [name] describes the body a request carries, and so goes with it when a hop drops the body. */
+internal fun isContentHeader(name: String): Boolean = name.lowercase() in CONTENT_HEADERS
+
 /** Whether a header carries credentials and must be neither logged nor sent to another origin. */
 internal fun isSensitiveHeader(name: String): Boolean = name.lowercase() in SENSITIVE_HEADERS

@@ -437,7 +437,7 @@ private fun formFields(body: String): Map<String, String> = body.split('&').asso
         // HEY's credentials, and the bytes go again as they went the first time.
         val hey = mockHey(
             ok(IDENTITY),
-            ok(directUpload("https://app.hey.com/storage/blobs/abc?signature=secret", """{"Content-Type":"application/pdf"}""")),
+            ok(directUpload("https://app.hey.com/storage/blobs/abc?signature=secret")),
             status(307, headers = mapOf("Location" to "/storage/blobs/abc-moved?signature=secret2")),
             ok(""),
         )
@@ -455,6 +455,35 @@ private fun formFields(body: String): Map<String, String> = body.split('&').asso
         assertEquals("/storage/blobs/abc-moved", hey.requests[3].path)
         assertEquals("secret2", hey.requests[3].query("signature"), "the hop goes exactly where storage said")
         assertEquals("application/pdf", hey.requests[3].header("Content-Type"), "with the headers storage named")
+        assertEquals("XUFAKrxLKna5cZ2REBfFkg==", hey.requests[3].header("Content-MD5"), "the checksum included, since the bytes go again")
+    }
+
+    @Test
+    fun aStorageHopThatDropsTheBytesDropsWhatDescribedThem() = runTest {
+        // A 303 says fetch the answer: the PUT becomes a bodyless GET, and the type, length
+        // and checksum that described the bytes go with them, or the destination would be
+        // asked to check a checksum against nothing. The hop is still unsigned and unscoped.
+        val hey = mockHey(
+            ok(IDENTITY),
+            ok(directUpload("https://app.hey.com/storage/blobs/abc?signature=secret")),
+            status(303, headers = mapOf("Location" to "/storage/blobs/abc/status?signature=secret3")),
+            ok(""),
+        )
+        hey.client().forAccount(42).attachments.upload("report.pdf", "application/pdf", "hello".encodeToByteArray())
+        assertEquals(4, hey.requests.size)
+        val put = hey.requests[2]
+        assertEquals("PUT", put.method)
+        assertEquals("XUFAKrxLKna5cZ2REBfFkg==", put.header("Content-MD5"))
+        val fetched = hey.requests[3]
+        assertEquals("GET", fetched.method)
+        assertEquals("", fetched.body)
+        assertEquals("/storage/blobs/abc/status", fetched.path)
+        assertEquals("secret3", fetched.query("signature"), "exactly the URL storage signed")
+        assertNull(fetched.query("filtered_account_id"))
+        assertNull(fetched.header("Authorization"))
+        for (name in listOf("Content-Type", "Content-Length", "Content-MD5")) {
+            assertNull(fetched.header(name), "$name described bytes the hop no longer carries")
+        }
     }
 
     @Test

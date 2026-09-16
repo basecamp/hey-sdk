@@ -885,7 +885,10 @@ class HeyClient internal constructor(
             if (name.equals(HttpHeaders.IfNoneMatch, true)) return@forEach
             if (name.lowercase() in credentialHeaders) return@forEach
             if (!sameOrigin && isSensitiveHeader(name)) return@forEach
-            if (!keepBody && (name.equals(HttpHeaders.ContentType, true) || name.equals(HttpHeaders.ContentLength, true))) return@forEach
+            // A hop that drops the body drops everything that described it — the type, the
+            // length, the checksum storage wanted — since a GET with a Content-MD5 and nothing
+            // to check it against is a request the destination may well refuse.
+            if (!keepBody && isContentHeader(name)) return@forEach
             values.forEach { request.headers.append(name, it) }
         }
         if (keepBody) request.setBody(outgoing.body)
