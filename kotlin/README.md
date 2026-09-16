@@ -28,7 +28,9 @@ val client = HeyClient { accessToken(System.getenv("HEY_TOKEN")) }
 An application that keeps OAuth tokens hands the client a `TokenProvider` over them: the
 client asks it for the token on every request and asks it to `refresh()` once when HEY answers
 401, then sends the request again. One refresh serves every request that was signed with the
-stale credentials, whether it renews them or fails. Anything that wants the request headers
+stale credentials, whether it renews them or fails, and a provider that renews of its own
+accord — handing over a new token ahead of expiry — is not asked to refresh for a 401 on the
+old one; the request is simply resent. Anything that wants the request headers
 outright implements `AuthStrategy` and passes it with `auth(strategy)`.
 
 ```kotlin

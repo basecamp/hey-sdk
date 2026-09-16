@@ -257,6 +257,9 @@ internal class Shared(
     /** How the last refresh ended: renewed, not renewed, or with what it threw. */
     var lastRefresh: Result<Boolean>? = null
 
+    /** The bearer the SDK's own strategy last put on a request, so a token the provider rotates of its own accord is seen for the renewal it is. Null until a signing, and again after a refresh. */
+    var lastBearer: String? = null
+
     /** The credentials a request is signed under: the state of the counters at its signing, read under [refreshing]. */
     fun generation(): Generation = Generation(refreshes, refreshRuns)
 
@@ -687,7 +690,11 @@ class HeyClient internal constructor(
             // one every request signed under these credentials gets, as an SDK failure.
             Result.failure(refreshFailed(error))
         }
-        if (outcome.getOrNull() == true) shared.refreshes += 1
+        if (outcome.getOrNull() == true) {
+            shared.refreshes += 1
+            // The next signing carries the renewed token; that is this refresh, not another.
+            shared.lastBearer = null
+        }
         shared.refreshGate.withLock {
             shared.refreshRuns += 1
             shared.lastRefresh = outcome
@@ -782,6 +789,16 @@ class HeyClient internal constructor(
                 // The transport's refusal of a header value quotes the value; a credential is
                 // exactly what a strategy sets, so the refusal is passed on without it.
                 throw HeyException.Auth("auth strategy set a header that is not a valid header value")
+            }
+            if (shared.auth is BearerAuth) {
+                // A provider that hands over a new token of its own accord — renewing ahead of
+                // expiry, as OAuth libraries do — has refreshed the credentials as surely as a
+                // refresh would: a 401 on the token before it is answered by resending, not
+                // by refreshing the new one over the top. Only the SDK's own strategy is read
+                // this way; a strategy of the caller's may sign every request differently.
+                val bearer = request.headers[HttpHeaders.Authorization]
+                if (shared.lastBearer != null && bearer != shared.lastBearer) shared.refreshes += 1
+                shared.lastBearer = bearer
             }
             shared.generation()
         }

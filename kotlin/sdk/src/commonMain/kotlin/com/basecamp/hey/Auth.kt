@@ -34,7 +34,9 @@ interface TokenProvider {
      * refresh that answers `false` or throws is not repeated for the requests already signed
      * with the credentials it could not renew: each of them fails with that answer, what was
      * thrown reaching them as the cause of a [HeyException.Auth]. Only a request signed after
-     * the failure asks again.
+     * the failure asks again. A provider that renews of its own accord — [accessToken] handing
+     * over a new token ahead of the old one's expiry — has refreshed as surely as this would:
+     * a 401 on the old token is answered by resending with the new one, and this is not asked.
      */
     suspend fun refresh(): Boolean = false
 }
