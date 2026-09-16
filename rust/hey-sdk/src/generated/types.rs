@@ -1479,6 +1479,9 @@ pub struct Message {
     pub posting: Option<MessagePostingContext>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub addressed_sender: Option<AddressedSender>,
+    /// The account addresses HEY recorded this inbound message arriving through.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub received_via: Option<Vec<MessageReceivedVia>>,
 }
 
 /// Recipients per kind, each a list of email addresses.
@@ -1604,6 +1607,19 @@ pub struct MessagePayload {
 pub struct MessagePostingContext {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub r#box: Option<String>,
+}
+
+/// MessageReceivedVia — one delivery address HEY recorded for an inbound message
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[non_exhaustive]
+pub struct MessageReceivedVia {
+    #[serde(
+        default,
+        deserialize_with = "crate::types::null_as_default::deserialize"
+    )]
+    pub email_address: SensitiveString,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub contact: Option<Contact>,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]

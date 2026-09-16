@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "HEY",
-    "version": "2026-08-21",
+    "version": "2026-09-16",
     "description": "HEY API",
     "contact": {
       "name": "Basecamp",
@@ -12839,6 +12839,13 @@
           },
           "addressed_sender": {
             "$ref": "#/components/schemas/AddressedSender"
+          },
+          "received_via": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MessageReceivedVia"
+            },
+            "description": "The account addresses HEY recorded this inbound message arriving through."
           }
         },
         "required": [
@@ -13026,6 +13033,24 @@
             "type": "string"
           }
         }
+      },
+      "MessageReceivedVia": {
+        "type": "object",
+        "description": "MessageReceivedVia — one delivery address HEY recorded for an inbound message",
+        "properties": {
+          "email_address": {
+            "type": "string",
+            "x-hey-sensitive": {
+              "category": "pii"
+            }
+          },
+          "contact": {
+            "$ref": "#/components/schemas/Contact"
+          }
+        },
+        "required": [
+          "email_address"
+        ]
       },
       "MovePostingsRequestContent": {
         "type": "object",

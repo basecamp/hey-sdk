@@ -2815,6 +2815,8 @@ export interface components {
             scheduled_delivery_at?: string;
             posting?: components["schemas"]["MessagePostingContext"];
             addressed_sender?: components["schemas"]["AddressedSender"];
+            /** @description The account addresses HEY recorded this inbound message arriving through. */
+            received_via?: components["schemas"]["MessageReceivedVia"][];
         };
         /**
          * @description Recipients per kind, each a list of email addresses.
@@ -2903,6 +2905,11 @@ export interface components {
         /** @description MessagePostingContext — posting context for a message */
         MessagePostingContext: {
             box?: string;
+        };
+        /** @description MessageReceivedVia — one delivery address HEY recorded for an inbound message */
+        MessageReceivedVia: {
+            email_address: string;
+            contact?: components["schemas"]["Contact"];
         };
         MovePostingsRequestContent: {
             posting_ids: (number | bigint)[];

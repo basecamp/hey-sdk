@@ -39,4 +39,9 @@ data class Message(
     val posting: MessagePostingContext? = null,
     @SerialName("addressed_sender")
     val addressedSender: AddressedSender? = null,
+    /**
+     * The account addresses HEY recorded this inbound message arriving through.
+     */
+    @SerialName("received_via")
+    val receivedVia: List<MessageReceivedVia>? = null,
 )
