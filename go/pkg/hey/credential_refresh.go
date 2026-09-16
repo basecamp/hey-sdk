@@ -124,7 +124,19 @@ func (r *credentialRefresh) sign(ctx context.Context, authenticate func() (crede
 	}
 	r.mu.Unlock()
 
+	// A strategy that panics must not keep the turn: it is shared by every client on the
+	// root, and every later signing and refresh would wait on it for good. The turn is
+	// given back on the way out and the panic goes on as it was.
+	signed := false
+	defer func() {
+		if !signed {
+			r.mu.Lock()
+			r.give()
+			r.mu.Unlock()
+		}
+	}()
 	credential, err := authenticate()
+	signed = true
 
 	r.mu.Lock()
 	if err == nil && credential != "" && credential != r.credential {
@@ -156,21 +168,21 @@ func (r *credentialRefresh) sign(ctx context.Context, authenticate func() (crede
 // request that started it: a refresh half done is a rotated token nobody holds, and
 // every other stale request is waiting on the same one. It is bound by timeout, the
 // client's own limit on a request, since the refresher's own client may carry none. A
-// waiter whose ctx ends first is answered false for itself and leaves the refresh
-// running for the rest.
-func (r *credentialRefresh) answer(ctx context.Context, signedUnder generation, renew func(context.Context) bool, timeout time.Duration) bool {
+// waiter whose ctx ends first gets ctx.Err(), as a send cut off by its context does —
+// its request ended, and was not refused — and leaves the refresh running for the rest.
+func (r *credentialRefresh) answer(ctx context.Context, signedUnder generation, renew func(context.Context) bool, timeout time.Duration) (bool, error) {
 	for {
 		r.mu.Lock()
 		if r.refreshes != signedUnder.refreshes {
 			r.mu.Unlock()
-			return true
+			return true, nil
 		}
 		run := r.inFlight
 		if run == nil {
 			if r.runs != signedUnder.runs {
 				renewed := r.renewed
 				r.mu.Unlock()
-				return renewed
+				return renewed, nil
 			}
 			run = &refreshRun{from: signedUnder, done: make(chan struct{})}
 			r.inFlight = run
@@ -181,10 +193,10 @@ func (r *credentialRefresh) answer(ctx context.Context, signedUnder generation, 
 		select {
 		case <-run.done:
 			if run.from == signedUnder {
-				return run.renewed
+				return run.renewed, nil
 			}
 		case <-ctx.Done():
-			return false
+			return false, ctx.Err()
 		}
 	}
 }

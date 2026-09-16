@@ -25,7 +25,11 @@ type AuthStrategy interface {
 // included, so a refresh token is rotated once and an outage at the issuer costs one
 // call. A request signed after a failed refresh asks again. No request is signed while
 // Refresh runs, and Refresh runs on a context that outlives the request that drew the
-// 401, bound by the client's request timeout rather than the request's own cancellation.
+// 401, bound by the client's request timeout rather than the request's own cancellation;
+// a request whose context ends while it waits returns its context's error. With the SDK's
+// own BearerAuth, the provider is asked what it would sign with before Refresh is: a token
+// other than the rejected one is a renewal already made, and a provider that cannot hand
+// over a token at all ends the refresh not renewed without Refresh being asked.
 type TokenRefresher interface {
 	Refresh(ctx context.Context) error
 }
