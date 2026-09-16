@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Bumps the SDK version across the Go, Rust, TypeScript and Kotlin implementations.
+# Bumps the SDK version across the Go, Rust, TypeScript, Kotlin and Swift implementations.
 # Usage: scripts/bump-version.sh <version>
 # Example: scripts/bump-version.sh 0.3.0
 set -euo pipefail
@@ -30,7 +30,7 @@ if ! command -v cargo >/dev/null 2>&1; then
   exit 1
 fi
 
-# The synchronizer validates and stages every Go, TypeScript and Kotlin replacement before
+# The synchronizer validates and stages every Go, TypeScript, Kotlin and Swift replacement before
 # atomically installing any of them, so a late malformed target leaves no drift.
 node "$REPO_ROOT/scripts/sync-typescript-versions.mjs" --sdk-version "$VERSION"
 
@@ -49,6 +49,12 @@ fi
 KOTLIN_VERSION_FILE="$REPO_ROOT/kotlin/sdk/src/commonMain/kotlin/com/basecamp/hey/HeyConfig.kt"
 if ! grep -Fq "const val VERSION = \"$VERSION\"" "$KOTLIN_VERSION_FILE"; then
   echo "ERROR: Version synchronization did not update $KOTLIN_VERSION_FILE" >&2
+  exit 1
+fi
+
+SWIFT_VERSION_FILE="$REPO_ROOT/swift/Sources/Hey/HeyConfig.swift"
+if ! grep -Fq "public static let version = \"$VERSION\"" "$SWIFT_VERSION_FILE"; then
+  echo "ERROR: Version synchronization did not update $SWIFT_VERSION_FILE" >&2
   exit 1
 fi
 
@@ -81,4 +87,4 @@ done
 (cd "$REPO_ROOT/rust" && cargo update -q -w --offline)
 (cd "$REPO_ROOT/conformance/runner/rust" && cargo update -q -w --offline)
 
-echo "Done. Bumped Go, Rust, TypeScript and Kotlin versions and release documentation to $VERSION."
+echo "Done. Bumped Go, Rust, TypeScript, Kotlin and Swift versions and release documentation to $VERSION."

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Atomically update explicit versions across Go, TypeScript and Kotlin; --check verifies every one.
+// Atomically update explicit versions across Go, TypeScript, Kotlin and Swift; --check verifies every one.
 import {
   existsSync,
   readFileSync,
@@ -97,6 +97,33 @@ plan("kotlin/sdk/src/commonMain/kotlin/com/basecamp/hey/HeyConfig.kt", (text) =>
   }
   return text;
 });
+plan("swift/Sources/Hey/HeyConfig.swift", (text) => {
+  for (const [key, value] of [
+    ["version", sdk],
+    ["apiVersion", api],
+  ]) {
+    if (value === undefined) continue;
+    text = replaceLine(
+      text,
+      new RegExp(`^(\\s*)public static let ${key} = "[^"]+"$`, "m"),
+      `$1public static let ${key} = "${value}"`,
+      `Missing Swift ${key}`,
+    );
+  }
+  return text;
+});
+if (sdk !== undefined) {
+  // The READMEs name the whole version in the Swift Package Manager dependency line.
+  for (const readme of ["README.md", "swift/README.md"])
+    plan(readme, (text) =>
+      replaceLine(
+        text,
+        /\.package\(url: "https:\/\/github\.com\/basecamp\/hey-sdk", from: "[^"]+"\)/g,
+        `.package(url: "https://github.com/basecamp/hey-sdk", from: "${sdk}")`,
+        `Missing Swift dependency line in ${readme}`,
+      ),
+    );
+}
 if (sdk !== undefined) {
   plan("kotlin/sdk/build.gradle.kts", (text) =>
     replaceLine(

@@ -183,6 +183,8 @@ endif
 		  exit 1; }
 	@grep -Fq 'const val VERSION = "$(VERSION)"' kotlin/sdk/src/commonMain/kotlin/com/basecamp/hey/HeyConfig.kt || \
 		{ echo "ERROR: kotlin HeyConfig.kt does not say $(VERSION). Run: make bump VERSION=$(VERSION)"; exit 1; }
+	@grep -Fq 'public static let version = "$(VERSION)"' swift/Sources/Hey/HeyConfig.swift || \
+		{ echo "ERROR: swift HeyConfig.swift does not say $(VERSION). Run: make bump VERSION=$(VERSION)"; exit 1; }
 	@$(MAKE) check-mvp
 	git tag "v$(VERSION)"
 	git tag "go/v$(VERSION)"
@@ -304,8 +306,10 @@ rb-check: rb-build rb-test
 # Swift SDK
 #------------------------------------------------------------------------------
 
-.PHONY: swift-generate swift-build swift-test swift-check
+.PHONY: swift-generate swift-build swift-test swift-check swift-check-drift swift-consumer-check
 
+# Regenerate swift/Sources/Hey/Generated from openapi.json and behavior-model.json. The
+# generator reads swift/names.toml for its naming overrides.
 swift-generate:
 	$(MAKE) -C swift generate
 
@@ -315,8 +319,20 @@ swift-build:
 swift-test:
 	$(MAKE) -C swift test
 
+# Every step CI's test-swift job runs before the conformance suite: the library's and the
+# generator's build and tests with warnings as errors, and the conformance runner's own tests.
 swift-check:
 	$(MAKE) -C swift check
+	$(MAKE) -C conformance/runner/swift check
+
+# Regenerate into memory and compare with the checked-in tree; stale generated code fails.
+swift-check-drift:
+	$(MAKE) -C swift check-drift
+
+# Resolve the package from a git tag the way an app does and compile a consumer against it,
+# so the root Package.swift ships what the README promises.
+swift-consumer-check:
+	./scripts/swift-consumer-check
 
 #------------------------------------------------------------------------------
 # Kotlin SDK
@@ -383,7 +399,7 @@ conformance-kt:
 	$(GRADLE) :conformance:run
 
 # Shipped SDKs: behavioral tests (conformance/tests/*.json)
-conformance-mvp: conformance-go conformance-rs conformance-ts conformance-kt
+conformance-mvp: conformance-go conformance-rs conformance-ts conformance-kt conformance-swift
 
 # Full: MVP + full-surface tests (conformance/tests/ + conformance/tests/full/)
 conformance-full: conformance-go conformance-rs conformance-ts conformance-kt conformance-rb conformance-swift
@@ -400,16 +416,17 @@ audit-check:
 # Progressive gates
 #------------------------------------------------------------------------------
 
-# Supported gate: Smithy + shipped Go, Rust, TypeScript and Kotlin SDKs
+# Supported gate: Smithy + shipped Go, Rust, TypeScript, Kotlin and Swift SDKs
 check-mvp: smithy-check behavior-model-check drift-check-mvp \
            url-routes-check go-check go-check-drift rs-check rs-check-drift \
-           ts-check kt-check kt-check-drift sync-api-version-check conformance-mvp
+           ts-check kt-check kt-check-drift swift-check swift-check-drift \
+           sync-api-version-check conformance-mvp
 	@echo "==> MVP gate passed"
 
 # Phase 3: Full surface, all languages
 check-full: smithy-check behavior-model-check drift-check-full \
             sync-api-version-check provenance-check \
-            go-check-drift rs-check-drift kt-check-drift \
+            go-check-drift rs-check-drift kt-check-drift swift-check-drift \
             go-check rs-check ts-check rb-check swift-check kt-check \
             conformance-full audit-check
 	@echo "==> Full gate passed"
@@ -426,7 +443,7 @@ clean: smithy-clean
 help:
 	@echo "HEY SDK Makefile"
 	@echo ""
-	@echo "  check-mvp   Run MVP gate (Smithy + Go + Rust + TypeScript + Kotlin + conformance)"
+	@echo "  check-mvp   Run MVP gate (Smithy + Go + Rust + TypeScript + Kotlin + Swift + conformance)"
 	@echo "  check-full  Run full gate (all languages + conformance + audit)"
 	@echo "  check       Alias for check-mvp"
 	@echo "  smithy-build   Regenerate OpenAPI from Smithy"
@@ -445,5 +462,11 @@ help:
 	@echo "  kt-consumer-check Compile a consumer of the published library with the oldest Kotlin the README promises"
 	@echo "  kt-generate    Regenerate the Kotlin generated tree from openapi.json"
 	@echo "  conformance-kt Run the shared conformance fixtures against the Kotlin library"
+	@echo "  swift-check    What CI runs: the Swift library's and generator's build and tests with"
+	@echo "                 warnings as errors, and the conformance runner's own tests"
+	@echo "  swift-check-drift Fail if swift/Sources/Hey/Generated is stale"
+	@echo "  swift-consumer-check Resolve the package from a git tag and compile a consumer against it"
+	@echo "  swift-generate Regenerate the Swift generated tree from openapi.json"
+	@echo "  conformance-swift Run the shared conformance fixtures against the Swift library"
 	@echo "  clean          Remove build artifacts"
 	@echo "  help           Show this help"

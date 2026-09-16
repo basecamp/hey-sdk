@@ -28,11 +28,18 @@ elif [[ -e "$kotlin_state_file" || -e "$kotlin_state_helper" ]]; then
   exit 1
 fi
 
+# Swift has no registry and no switch: a tag is the release, so the Swift workflow is waited
+# for whenever the target has one. A target from before it existed has none to wait for.
+swift=""
+if [[ -f "$repo_root/.github/workflows/release-swift.yml" ]]; then
+  swift=",swift"
+fi
+
 if [[ -f "$state_file" && -f "$state_helper" ]]; then
   state=$(bash "$state_helper" "$state_file")
   case "$state" in
-    true) printf '%s\n' "go,rust,typescript$kotlin" ;;
-    false) printf '%s\n' "go,rust$kotlin" ;;
+    true) printf '%s\n' "go,rust,typescript$kotlin$swift" ;;
+    false) printf '%s\n' "go,rust$kotlin$swift" ;;
     *)
       echo "TypeScript publish helper must print exactly true or false" >&2
       exit 1

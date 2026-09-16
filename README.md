@@ -1,19 +1,20 @@
 # HEY SDK
 
-Go, Rust, TypeScript and Kotlin SDKs for the [HEY](https://www.hey.com) API, generated from
+Go, Rust, TypeScript, Kotlin and Swift SDKs for the [HEY](https://www.hey.com) API, generated from
 a Smithy model of the API in `spec/`, so what an SDK offers is what HEY actually serves.
 
 The repository ships a Go module, `github.com/basecamp/hey-sdk/go`, which is the library behind
 [hey-cli](https://github.com/basecamp/hey-cli), a Rust crate, `hey-sdk` in `rust/`, the
-proposed TypeScript package `@37signals/hey`, and a Kotlin library, `com.basecamp:hey-sdk`
-in `kotlin/`. The Go walkthrough is first; [the Rust one](#rust) and [the Kotlin
-one](#kotlin) follow it, and each library's own README ([Rust](rust/hey-sdk/README.md),
-[Kotlin](kotlin/README.md)) goes further.
+proposed TypeScript package `@37signals/hey`, a Kotlin library, `com.basecamp:hey-sdk`
+in `kotlin/`, and a Swift package, `Hey`, in `swift/`. The Go walkthrough is first; [the
+Rust one](#rust), [the Kotlin one](#kotlin) and [the Swift one](#swift) follow it, and each
+library's own README ([Rust](rust/hey-sdk/README.md), [Kotlin](kotlin/README.md),
+[Swift](swift/README.md)) goes further.
 See the [TypeScript guide](typescript/README.md) for installation, Node support, all modeled
 operations, pagination and examples. TypeScript registry provisioning is pending;
 [maintainer activation](TYPESCRIPT_RELEASE.md) is required before npm publication.
 
-Ruby and Swift remain unimplemented; their inherited Makefile targets are not gates.
+Ruby remains unimplemented; its inherited Makefile targets are not gates.
 The Go usage guide follows; a [per-language entry point](go/README.md) is also available.
 
 ## Install
@@ -372,6 +373,86 @@ one refresh and one resend. Hooks report every operation, request and resend, an
 `ResponseCache` revalidates JSON reads by `ETag`, secrets are `SensitiveString`s that print as
 `[REDACTED]`, response bodies are capped, and HTTPS is enforced off localhost.
 
+## Swift
+
+The package is `Hey`, at `swift/`, with the same generated surface as the other libraries and
+the same hand-written conveniences on top. It is an `async`/`await` client on `URLSession` with
+strict Swift 6 concurrency, for macOS, iOS and Linux.
+
+### Install
+
+```swift
+dependencies: [
+    .package(url: "https://github.com/basecamp/hey-sdk", from: "0.31.0"),
+]
+```
+
+Add the `Hey` product to your target. There is no registry: Swift Package Manager resolves the
+package from this repository's version tag and reads the `Package.swift` at its root. In Xcode,
+**File > Add Package Dependencies** takes the same URL. Requires Swift 6.0 or newer, on
+macOS 13, iOS 16, or Linux.
+
+### Authenticate
+
+```swift
+import Hey
+
+let client = try HeyClient(accessToken: ProcessInfo.processInfo.environment["HEY_TOKEN"] ?? "")
+```
+
+An application that keeps OAuth tokens hands the client a `TokenProvider` over them; the client
+asks it to `refresh()` once when HEY answers 401 and sends the request again. Anything that
+wants the request headers outright conforms to `AuthStrategy` instead.
+
+### Use it
+
+```swift
+let boxes = try await client.boxes.list()             // a Page: .value is what HEY answered
+let imbox = try await client.boxes.getImbox()
+
+// Sending: recipients are required — HEY saves an unaddressed message as a draft.
+try await client.messages.send(MessageContent(
+    subject: "Subject",
+    content: "<div>Body</div>",
+    to: ["someone@example.com"]
+))
+
+// Replying: start from the prefill — the subject, the acting sender, the recipients HEY resolved.
+let prefill = try await client.entries.newReply(entryId: entryId)
+
+// Postings are bulk operations, as they are in HEY.
+try await client.postings.moveToSetAside(postingIds: [postingId])
+try await client.postings.markPostingsSeen(postingIds: [a, b])
+
+// Calendar
+let track = try await client.timeTracks.startTracking()
+try await client.timeTracks.stop(timeTrackId: track.id)
+```
+
+Services are properties of the client, one per resource — `client.boxes`, `client.messages`,
+`client.timeTracks` — and every method the model describes is generated, named for the
+operation with the service's noun dropped (`ListBoxes` is `client.boxes.list()`). The
+hand-written conveniences are extensions of the same services. Every route is data in
+`Routes`. The package is laid out and behaves the way the
+[basecamp-sdk](https://github.com/basecamp/basecamp-sdk) Swift SDK does.
+
+### Linked accounts
+
+`try await client.forAccount(42)` derives a client for one linked account, checks the account
+against the identity, and adds `filtered_account_id` to every request on the HEY origin, the
+next pages of a walk included. `defaultSenderId()` and `accountUserId()` answer what that
+account acts as.
+
+### Beyond the Go module
+
+Every failure is a `HeyError`, an enum over the shared error vocabulary, with the status, the
+request id, HEY's own message and the failure body on it. Each route carries the retry policy
+the model gives it, and the client's settings only lower it; a 401 is answered by one refresh
+and one resend. Hooks report every operation, request and resend, an opt-in `ResponseCache`
+revalidates JSON reads by `ETag`, secrets are `SensitiveString`s that print as `[REDACTED]`,
+response bodies are capped, HTTPS is enforced off localhost, and cancelling a task cancels the
+call it is making.
+
 ## How the SDK is built
 
 ```
@@ -383,9 +464,13 @@ spec/hey.smithy ──► openapi.json ──► oapi-codegen ──► go/pkg/g
                         │                                       │
                         │                 hand-written conveniences in rust/hey-sdk/src/services
                         │
-                        └─────────► kotlin/generator ──► kotlin/sdk/src/commonMain/kotlin/com/basecamp/hey/generated/
+                        ├─────────► kotlin/generator ──► kotlin/sdk/src/commonMain/kotlin/com/basecamp/hey/generated/
+                        │                                       │
+                        │   hand-written subclasses in kotlin/sdk/src/commonMain/kotlin/com/basecamp/hey/services
+                        │
+                        └─────────► swift/Sources/HeyGenerator ──► swift/Sources/Hey/Generated/
                                                                 │
-                            hand-written subclasses in kotlin/sdk/src/commonMain/kotlin/com/basecamp/hey/services
+                                  hand-written extensions in swift/Sources/Hey/Services
 ```
 
 TypeScript generates types, operation methods, route/behavior metadata and guards from
@@ -393,8 +478,8 @@ TypeScript generates types, operation methods, route/behavior metadata and guard
 
 The Smithy model is the source of truth for routes and payloads. `openapi.json`,
 `behavior-model.json`, `client.gen.go`, `go/pkg/hey/url-routes.json`, everything under
-`rust/hey-sdk/src/generated/`, `kotlin/sdk/src/commonMain/kotlin/com/basecamp/hey/generated/`
-and the files under `spec/` that describe coverage are all regenerated from it — editing them by hand is lost on the next build. The services in
+`rust/hey-sdk/src/generated/`, `kotlin/sdk/src/commonMain/kotlin/com/basecamp/hey/generated/`,
+`swift/Sources/Hey/Generated/` and the files under `spec/` that describe coverage are all regenerated from it — editing them by hand is lost on the next build. The services in
 `go/pkg/hey` are written by hand and add the things a generated client cannot know: which
 recipients a reply needs, that HEY answers a shared topic's trash request with a confirmation
 page, that starting a time track takes no body. The Rust crate generates its service methods
@@ -410,15 +495,15 @@ A handful of services (`Clips`, `Snippets`, `Workflows`, `Publications`, `World`
 `Extenzions`, `CalendarEvents`, and parts of `Contacts` and `Search`) still talk to HEY the
 way the web UI does — form posts, and for a few reads, the HTML page — because those
 endpoints have no JSON yet. Go covers them through `PostForm` and its neighbours, Rust
-through `Client::form`/`Client::send_form` and Kotlin through `client.form`/`client.sendForm`,
-each with the same hand-written services. They are
+through `Client::form`/`Client::send_form`, and Kotlin and Swift through
+`client.form`/`client.sendForm`, each with the same hand-written services. They are
 marked as such in the code and are being replaced as HEY grows JSON for them.
 
 ## Develop
 
 ```bash
 make ts-install # frozen TypeScript dependency install (npm ci)
-make check      # Smithy/drift, Go + Rust + TypeScript + Kotlin checks and conformance runners
+make check      # Smithy/drift, Go + Rust + TypeScript + Kotlin + Swift checks and conformance runners
 ```
 
 `make check` is the gate; see [AGENTS.md](AGENTS.md) for the pipeline, the exact steps for

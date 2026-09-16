@@ -1,0 +1,152 @@
+#!/usr/bin/env bash
+# Builds a consumer of the Swift package the way an app would: the repository is cloned, the
+# commit is tagged with the SDK's version, and a throwaway package that depends on the clone
+# by URL and version is compiled. Swift Package Manager reads the root Package.swift at the
+# tag, so what this catches is a distribution manifest that does not build the library on its
+# own, a source the tagged tree leaves out, and a README example that no longer compiles
+# against the public API. It checks the committed tree: uncommitted changes are not in the clone.
+set -euo pipefail
+
+root="$(cd "$(dirname "$0")/.." && pwd)"
+version="$(sed -n 's/.*public static let version = "\(.*\)".*/\1/p' "$root/swift/Sources/Hey/HeyConfig.swift")"
+[ -n "$version" ] || { echo "swift/Sources/Hey/HeyConfig.swift carries no version" >&2; exit 1; }
+
+readme="$root/swift/README.md"
+if ! grep -Fq ".package(url: \"https://github.com/basecamp/hey-sdk\", from: \"$version\")" "$readme"; then
+  echo "swift/README.md does not name $version in its dependency line; run make bump" >&2
+  exit 1
+fi
+
+work="$(mktemp -d "${TMPDIR:-/tmp}/hey-sdk-swift-consumer.XXXXXX")"
+trap 'rm -rf "$work"' EXIT
+
+git clone --quiet --no-hardlinks "$root" "$work/hey-sdk"
+git -C "$work/hey-sdk" -c advice.detachedHead=false checkout --quiet "$(git -C "$root" rev-parse HEAD)"
+git -C "$work/hey-sdk" tag "v$version"
+git -C "$work/hey-sdk" tag "$version"
+echo "consumer: resolving hey-sdk $version from a clone of $(git -C "$root" rev-parse --short HEAD)"
+
+mkdir -p "$work/consumer/Sources/Consumer"
+cat > "$work/consumer/Package.swift" <<MANIFEST
+// swift-tools-version: 6.0
+import PackageDescription
+
+let package = Package(
+    name: "Consumer",
+    platforms: [.macOS(.v13)],
+    dependencies: [
+        .package(url: "file://$work/hey-sdk", from: "$version"),
+    ],
+    targets: [
+        .executableTarget(
+            name: "Consumer",
+            dependencies: [.product(name: "Hey", package: "hey-sdk")]
+        ),
+    ]
+)
+MANIFEST
+
+# The README's examples, whole. Nothing runs: compiling is the check.
+cat > "$work/consumer/Sources/Consumer/main.swift" <<'SWIFT'
+import Foundation
+import Hey
+
+struct Store: Sendable {
+    func accessToken() async throws -> String { "token" }
+    func renew() async throws -> Bool { false }
+}
+
+struct StoredTokens: TokenProvider {
+    let store: Store
+    func accessToken() async throws -> String { try await store.accessToken() }
+    func refresh() async throws -> Bool { try await store.renew() }
+}
+
+func authenticate() throws -> [HeyClient] {
+    let client = try HeyClient(accessToken: ProcessInfo.processInfo.environment["HEY_TOKEN"] ?? "")
+    let refreshing = try HeyClient(tokenProvider: StoredTokens(store: Store()))
+    return [client, refreshing]
+}
+
+func useIt(client: HeyClient, entryId: Int, a: Int, b: Int) async throws {
+    let boxes = try await client.boxes.list()
+    for box in boxes.value { print("\(box.name) (\(box.kind))") }
+    let imbox = try await client.boxes.getImbox()
+    print("\(imbox.postings?.count ?? 0) postings")
+
+    try await client.messages.send(MessageContent(
+        subject: "Subject",
+        content: "<div>Body</div>",
+        to: ["someone@example.com"]
+    ))
+
+    let prefill = try await client.entries.newReply(entryId: entryId)
+    try await client.entries.reply(entryId: entryId, reply: ReplyContent(
+        actingSenderId: prefill.sender?.id ?? 0,
+        subject: prefill.subject ?? "",
+        content: "<div>Reply</div>",
+        to: (prefill.addressed?.directly ?? []).compactMap { $0.emailAddress?.expose() }
+    ))
+
+    try await client.postings.markPostingsSeen(postingIds: [a, b])
+    try await client.postings.moveToSetAside(postingIds: [a])
+    let trail = try await client.boxes.idByKind(.paperTrail)
+    print(trail)
+
+    let track = try await client.timeTracks.startTracking()
+    try await client.timeTracks.stop(timeTrackId: track.id)
+    let ongoing = try await client.timeTracks.getOngoing()
+    print(ongoing as Any)
+}
+
+func forms(client: HeyClient) async throws -> Int {
+    var operation = client.form(.post, "/workflows")
+    operation.info = writeInfo(service: "Workflows", operation: "CreateWorkflow", resourceType: "workflow")
+    operation.form([("workflow[name]", "Launch")])
+    let answer = try await client.sendForm(operation)
+    return try answer.extractId()
+}
+
+func pagination(client: HeyClient) async throws {
+    let first = try await client.contacts.list()
+    try await client.eachPage(first) { page in
+        page.value.forEach { print($0.name ?? "") }
+        return true
+    }
+    for try await page in client.pages(from: first) { print(page.value.count) }
+    let second = try await client.nextPage(first)
+    print(second?.value.count ?? 0)
+}
+
+func linkedAccounts(client: HeyClient) async throws {
+    let work = try await client.forAccount(42)
+    let boxes = try await work.boxes.list()
+    let sender = try await work.defaultSenderId()
+    print(boxes.value.count, sender)
+}
+
+func errors(client: HeyClient, id: Int) async {
+    do {
+        _ = try await client.boxes.get(boxId: id)
+    } catch let HeyError.notFound(_, detail) {
+        print("no such box: \(detail.requestId ?? "")")
+    } catch let error as HeyError {
+        exit(Int32(error.exitCode))
+    } catch {
+        print(error)
+    }
+}
+
+func configured() throws -> HeyClient {
+    try HeyClient(
+        accessToken: "token",
+        config: HeyConfig(enableCache: true, maxRetries: 2),
+        hooks: ChainHooks(ConsoleHooks(), NoopHooks())
+    )
+}
+
+print(HeyConfig.version, HeyConfig.apiVersion)
+SWIFT
+
+(cd "$work/consumer" && swift build -Xswiftc -warnings-as-errors)
+echo "consumer: built against hey-sdk $version resolved from its tag"
