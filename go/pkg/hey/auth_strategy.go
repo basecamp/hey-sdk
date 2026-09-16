@@ -42,6 +42,6 @@ func (b *BearerAuth) Authenticate(ctx context.Context, req *http.Request) error 
 	if err != nil {
 		return err
 	}
-	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("Authorization", bearerCredential(token))
 	return nil
 }

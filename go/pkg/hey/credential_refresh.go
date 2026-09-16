@@ -43,6 +43,10 @@ type credentialRefresh struct {
 	// drained is closed when signers reaches zero while a refresh is waiting for it, and
 	// nil when none is.
 	drained chan struct{}
+	// credential is the last credential a request was signed with, when the strategy
+	// names one: a signing that yields a different one has found the credentials
+	// renewed on the provider's own account, and is counted as a refresh.
+	credential string
 }
 
 // refreshRun is one refresh, for the requests that share its answer to wait on.
@@ -64,7 +68,14 @@ func (r *credentialRefresh) generation() generation {
 // ends first is not signed at all and gets ctx.Err(), as a send cut off by its context
 // does, so a cancelled or expired request returns promptly rather than waiting out a
 // refresh it will not use.
-func (r *credentialRefresh) sign(ctx context.Context, authenticate func() error) (generation, error) {
+//
+// authenticate names the credential it signed with when it can — the SDK's own bearer
+// strategy does — and a credential other than the last one signed with is a renewal the
+// provider made on its own, as AuthManager renews an expiring token as it hands it out:
+// it moves the counts as a refresh would, so a 401 on the credential it replaced is
+// resent rather than refreshed again. The generation is read after the signing, so it
+// says what the request truly went out with.
+func (r *credentialRefresh) sign(ctx context.Context, authenticate func() (credential string, err error)) (generation, error) {
 	r.mu.Lock()
 	for r.inFlight != nil {
 		done := r.inFlight.done
@@ -77,13 +88,20 @@ func (r *credentialRefresh) sign(ctx context.Context, authenticate func() error)
 		r.mu.Lock()
 	}
 	r.signers++
-	signedUnder := generation{refreshes: r.refreshes, runs: r.runs}
 	r.mu.Unlock()
 
-	err := authenticate()
+	credential, err := authenticate()
 
 	r.mu.Lock()
 	r.signers--
+	if err == nil && credential != "" && credential != r.credential {
+		if r.credential != "" {
+			r.refreshes++
+			r.runs++
+		}
+		r.credential = credential
+	}
+	signedUnder := generation{refreshes: r.refreshes, runs: r.runs}
 	if r.signers == 0 && r.drained != nil {
 		close(r.drained)
 		r.drained = nil
@@ -102,12 +120,13 @@ func (r *credentialRefresh) sign(ctx context.Context, authenticate func() error)
 // of credentials, not one per request. A request signed after that failure runs a
 // refresh, since its 401 is news.
 //
-// The refresh runs on its own goroutine, on a context that outlives the request that
-// started it: a refresh half done is a rotated token nobody holds, and every other stale
-// request is waiting on the same one. It is bound by timeout, the client's own limit on a
-// request, since the refresher's own client may carry none. A waiter whose ctx ends
-// first is answered false for itself and leaves the refresh running for the rest.
-func (r *credentialRefresh) answer(ctx context.Context, signedUnder generation, refresher TokenRefresher, timeout time.Duration) bool {
+// The refresh is renew, run on its own goroutine, on a context that outlives the
+// request that started it: a refresh half done is a rotated token nobody holds, and
+// every other stale request is waiting on the same one. It is bound by timeout, the
+// client's own limit on a request, since the refresher's own client may carry none. A
+// waiter whose ctx ends first is answered false for itself and leaves the refresh
+// running for the rest.
+func (r *credentialRefresh) answer(ctx context.Context, signedUnder generation, renew func(context.Context) bool, timeout time.Duration) bool {
 	r.mu.Lock()
 	if r.refreshes != signedUnder.refreshes {
 		r.mu.Unlock()
@@ -122,7 +141,7 @@ func (r *credentialRefresh) answer(ctx context.Context, signedUnder generation, 
 		}
 		run = &refreshRun{done: make(chan struct{})}
 		r.inFlight = run
-		go r.refresh(context.WithoutCancel(ctx), run, refresher, timeout)
+		go r.refresh(context.WithoutCancel(ctx), run, renew, timeout)
 	}
 	r.mu.Unlock()
 
@@ -135,9 +154,15 @@ func (r *credentialRefresh) answer(ctx context.Context, signedUnder generation, 
 }
 
 // refresh is one refresh: it waits for every signing under way to end — no new one
-// starts while it is in flight — runs the refresher, and moves the counts with its
-// answer before the waiters are released.
-func (r *credentialRefresh) refresh(ctx context.Context, run *refreshRun, refresher TokenRefresher, timeout time.Duration) {
+// starts while it is in flight — runs renew, and moves the counts with its answer before
+// the waiters are released. The bound covers the wait as well as the renewal: a signing
+// that has not ended within it — a strategy hung in Authenticate — gives the refresh up
+// rather than wedging every request after it. The waiters are then answered not
+// renewed, and nothing is counted, so the next 401 on these credentials asks again.
+func (r *credentialRefresh) refresh(ctx context.Context, run *refreshRun, renew func(context.Context) bool, timeout time.Duration) {
+	ctx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+
 	r.mu.Lock()
 	for r.signers > 0 {
 		if r.drained == nil {
@@ -145,18 +170,27 @@ func (r *credentialRefresh) refresh(ctx context.Context, run *refreshRun, refres
 		}
 		drained := r.drained
 		r.mu.Unlock()
-		<-drained
+		select {
+		case <-drained:
+		case <-ctx.Done():
+			r.mu.Lock()
+			r.inFlight = nil
+			r.mu.Unlock()
+			close(run.done)
+			return
+		}
 		r.mu.Lock()
 	}
 	r.mu.Unlock()
 
-	ctx, cancel := context.WithTimeout(ctx, timeout)
-	defer cancel()
-	renewed := refresher.Refresh(ctx) == nil
+	renewed := renew(ctx)
 
 	r.mu.Lock()
 	if renewed {
 		r.refreshes++
+		// The next signing picks up what the refresh produced: that is this renewal,
+		// already counted, not another.
+		r.credential = ""
 	}
 	r.runs++
 	r.renewed = renewed

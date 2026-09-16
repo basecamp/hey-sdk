@@ -51,6 +51,11 @@ func (a *steeredAuth) Refresh(ctx context.Context) error {
 	return a.refresh(ctx)
 }
 
+// renew is Refresh as the coordinator runs it.
+func (a *steeredAuth) renew(ctx context.Context) bool {
+	return a.Refresh(ctx) == nil
+}
+
 // tokenRecorder keeps the Authorization header of every request a server saw.
 type tokenRecorder struct {
 	mu   sync.Mutex
@@ -281,9 +286,9 @@ func TestCoordinatorHandsAWaiterTheAnswerOfTheRefreshInFlight(t *testing.T) {
 	signedUnder := refresh.generation()
 
 	answers := make(chan bool, 2)
-	go func() { answers <- refresh.answer(context.Background(), signedUnder, auth, time.Minute) }()
+	go func() { answers <- refresh.answer(context.Background(), signedUnder, auth.renew, time.Minute) }()
 	waitFor(t, entered, "the refresh to start")
-	go func() { answers <- refresh.answer(context.Background(), signedUnder, auth, time.Minute) }()
+	go func() { answers <- refresh.answer(context.Background(), signedUnder, auth.renew, time.Minute) }()
 	select {
 	case answer := <-answers:
 		t.Fatalf("expected no answer before the refresh ended, got %v", answer)
@@ -693,7 +698,7 @@ func TestTheRefreshOutlivesTheRequestThatStartedIt(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	answer := make(chan bool, 1)
-	go func() { answer <- refresh.answer(ctx, signedUnder, auth, time.Minute) }()
+	go func() { answer <- refresh.answer(ctx, signedUnder, auth.renew, time.Minute) }()
 	waitFor(t, entered, "the refresh to start")
 	cancel()
 	if <-answer {
@@ -913,5 +918,186 @@ func TestTheRefreshIsBoundByTheSuppliedClientsTimeout(t *testing.T) {
 				t.Errorf("expected the refresh to be bound by %v, got %v left", tc.want, got)
 			}
 		})
+	}
+}
+
+// rotatingProvider is a token provider that, like AuthManager with an expiring token,
+// renews the token as it hands it out: every AccessToken call after the first answers
+// a new token, and counts itself. Refresh renews it too, and counts itself apart.
+type rotatingProvider struct {
+	mu        sync.Mutex
+	tokens    []string
+	handed    int
+	refreshes atomic.Int64
+}
+
+func (p *rotatingProvider) AccessToken(context.Context) (string, error) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.handed++
+	return p.tokens[min(p.handed, len(p.tokens))-1], nil
+}
+
+// current is the token the provider hands out now, without counting a hand-out.
+func (p *rotatingProvider) current() string {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return p.tokens[min(max(p.handed, 1), len(p.tokens))-1]
+}
+
+func (p *rotatingProvider) Refresh(context.Context) error {
+	p.refreshes.Add(1)
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.tokens = append(p.tokens, "refreshed")
+	p.handed = len(p.tokens)
+	return nil
+}
+
+// A token the provider replaced on its own account while handing out the next one is a
+// renewal the coordinator counts: a 401 on the old token, arriving after a request was
+// signed with the new one, is resent with the new one and refreshes nothing.
+func TestA401OnATokenTheProviderAlreadyRotatedIsResentWithoutARefresh(t *testing.T) {
+	recorder := &tokenRecorder{}
+	provider := &rotatingProvider{tokens: []string{"t0", "t1", "t1"}}
+	firstArrived := make(chan struct{})
+	secondArrived := make(chan struct{})
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch recorder.record(r) {
+		case "Bearer t0":
+			// The 401 goes out only once the second request, signed with the token
+			// that replaced this one, has arrived.
+			close(firstArrived)
+			await(t, secondArrived, "the second request to reach the server")
+			http.Error(w, "unauthorized", http.StatusUnauthorized)
+		case "Bearer t1":
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = io.WriteString(w, `{"ok":true}`)
+		default:
+			http.Error(w, "unexpected token", http.StatusTeapot)
+		}
+	}))
+	t.Cleanup(server.Close)
+
+	client := NewClient(&Config{BaseURL: server.URL}, provider, WithMaxRetries(1))
+
+	first := make(chan error, 1)
+	go func() {
+		_, err := client.Get(context.Background(), "/first.json")
+		first <- err
+	}()
+	waitFor(t, firstArrived, "the first request to reach the server")
+	if _, err := client.Get(context.Background(), "/second.json"); err != nil {
+		t.Fatalf("expected the request signed with the rotated token to succeed: %v", err)
+	}
+	close(secondArrived)
+	if err := <-first; err != nil {
+		t.Fatalf("expected the first request to be resent with the rotated token: %v", err)
+	}
+	if refreshes := provider.refreshes.Load(); refreshes != 0 {
+		t.Errorf("expected no refresh of a token the provider had already replaced, got %d", refreshes)
+	}
+	want := []string{"Bearer t0", "Bearer t1", "Bearer t1"}
+	recorder.mu.Lock()
+	seen := append([]string(nil), recorder.seen...)
+	recorder.mu.Unlock()
+	if len(seen) != len(want) || seen[0] != want[0] || seen[1] != want[1] || seen[2] != want[2] {
+		t.Errorf("requests = %v, want %v", seen, want)
+	}
+	if handed := provider.handed; handed != 3 {
+		t.Errorf("expected the provider to be asked once per signing and never probed, got %d", handed)
+	}
+}
+
+// A refresh asks the provider what it would sign with before renewing: a token the
+// provider has replaced since the request was signed is the renewal, and the refresher
+// is not asked to spend the new token's refresh token again; a token it would still
+// sign with is renewed, once, and a 401 on the renewed token refreshes once more.
+func TestARefreshAsksTheProviderBeforeRenewingATokenItMayHaveReplaced(t *testing.T) {
+	recorder := &tokenRecorder{}
+	provider := &rotatingProvider{tokens: []string{"t0", "t1"}}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch recorder.record(r) {
+		case "Bearer t0", "Bearer t1":
+			http.Error(w, "unauthorized", http.StatusUnauthorized)
+		default:
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = io.WriteString(w, `{"ok":true}`)
+		}
+	}))
+	t.Cleanup(server.Close)
+
+	client := NewClient(&Config{BaseURL: server.URL}, provider, WithMaxRetries(1))
+
+	// Signed with t0; the provider hands out t1 when the refresh asks, so t0 was
+	// already replaced and no Refresh is made. The resend, signed with t1, is refused
+	// too and surfaced: one refresh per request.
+	var apiErr *Error
+	if _, err := client.Get(context.Background(), "/whatever.json"); !errors.As(err, &apiErr) || apiErr.Code != CodeAuth {
+		t.Fatalf("expected the resend's 401 to be surfaced, got %v", err)
+	}
+	if refreshes := provider.refreshes.Load(); refreshes != 0 {
+		t.Errorf("expected no refresh of a token the provider had already replaced, got %d", refreshes)
+	}
+	// Signed with t1, which the provider would still sign with: refreshed, once, and
+	// resent with what the refresh produced.
+	if _, err := client.Get(context.Background(), "/whatever.json"); err != nil {
+		t.Fatalf("expected the request to be refreshed and resent: %v", err)
+	}
+	if refreshes := provider.refreshes.Load(); refreshes != 1 {
+		t.Errorf("expected one refresh of the token the provider would still sign with, got %d", refreshes)
+	}
+	if got := recorder.count("Bearer refreshed"); got != 1 {
+		t.Errorf("expected one send with the refreshed token, got %v", recorder.seen)
+	}
+	if provider.current() != "refreshed" {
+		t.Errorf("expected the provider to hand out the refreshed token now, got %q", provider.current())
+	}
+}
+
+// A refresh that cannot start because a signing under way has not ended within the
+// bound — a strategy hung in Authenticate — is given up rather than left to wedge every
+// request after it: the waiters are answered not renewed, nothing is counted, and once
+// the signing ends the next 401 asks again.
+func TestARefreshGivesUpWhenASigningDoesNotEndWithinTheBound(t *testing.T) {
+	var refresh credentialRefresh
+	release := make(chan struct{})
+	signing := make(chan struct{})
+	signed := make(chan error, 1)
+	go func() {
+		_, err := refresh.sign(context.Background(), func() (string, error) {
+			close(signing)
+			await(t, release, "the test to release the signing")
+			return "", nil
+		})
+		signed <- err
+	}()
+	waitFor(t, signing, "the signing to start")
+
+	auth := newSteeredAuth(func(context.Context) error { return nil })
+	started := time.Now()
+	if refresh.answer(context.Background(), refresh.generation(), auth.renew, 100*time.Millisecond) {
+		t.Error("expected the refresh that could not start to answer not renewed")
+	}
+	if waited := time.Since(started); waited > 5*time.Second {
+		t.Errorf("expected the refresh to be given up at the bound, took %v", waited)
+	}
+	if refreshes := auth.refreshes.Load(); refreshes != 0 {
+		t.Errorf("expected the refresher not to be asked while a signing was under way, got %d", refreshes)
+	}
+	if after := refresh.generation(); after != (generation{}) {
+		t.Errorf("expected a refresh that never ran to count for nothing, got %+v", after)
+	}
+	waitFor(t, waitForRun(&refresh), "the coordinator to have nothing in flight")
+
+	close(release)
+	if err := <-signed; err != nil {
+		t.Fatalf("expected the signing to end normally once released: %v", err)
+	}
+	if !refresh.answer(context.Background(), refresh.generation(), auth.renew, time.Minute) {
+		t.Error("expected the refresh after the signing ended to run and renew")
+	}
+	if refreshes := auth.refreshes.Load(); refreshes != 1 {
+		t.Errorf("expected one refresh once the signing had ended, got %d", refreshes)
 	}
 }

@@ -213,6 +213,10 @@ type redirectState struct {
 	// with, so a 401 can tell whether they have since been refreshed, are being
 	// refreshed, or were already refreshed without success.
 	signedUnder generation
+	// signedWith is the credential the request went out with, when the strategy names
+	// one — the SDK's own bearer strategy does — so a refresh can tell a token the
+	// provider has already replaced from one it must renew. Empty for any other strategy.
+	signedWith string
 	// credentialHeaders names every header the auth strategy set on the request, whatever
 	// it called them: what a hop that leaves the origin goes out without.
 	credentialHeaders []string
@@ -273,11 +277,13 @@ func noteCredentialHeaders(req *http.Request, before http.Header) {
 }
 
 // noteSigning records on the request's state the generation of the credentials the
-// strategy signed it with, read from the request as noteCredentialHeaders reads it. A
-// send without a state records nothing, and its 401 is read as one signed now.
-func noteSigning(req *http.Request, signedUnder generation) {
+// strategy signed it with, and the credential itself when the strategy names one, read
+// from the request as noteCredentialHeaders reads it. A send without a state records
+// nothing, and its 401 is read as one signed now.
+func noteSigning(req *http.Request, signedUnder generation, signedWith string) {
 	if state := redirectStateFromContext(req.Context()); state != nil {
 		state.signedUnder = signedUnder
+		state.signedWith = signedWith
 	}
 }
 

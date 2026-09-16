@@ -322,10 +322,44 @@ func (c *Client) refreshCredentials(ctx context.Context) bool {
 		return false
 	}
 	signedUnder := c.refresh.generation()
+	var signedWith string
 	if state != nil {
-		signedUnder = state.signedUnder
+		signedUnder, signedWith = state.signedUnder, state.signedWith
 	}
-	return c.refresh.answer(ctx, signedUnder, refresher, c.refreshTimeout())
+	return c.refresh.answer(ctx, signedUnder, c.renewal(refresher, signedWith), c.refreshTimeout())
+}
+
+// renewal is what the coordinated refresh runs for a request whose credential, when the
+// SDK's own bearer strategy signed it, was rejected: it first asks the provider what it
+// would sign with now, and a token other than the rejected one is a renewal the provider
+// has already made — AuthManager renews an expiring token as it hands it out — so the
+// refresher is not asked to renew it again. Only when the provider would still sign
+// with the rejected token is the refresher asked. A request signed by any other strategy
+// names no credential, and its refresh asks the refresher directly.
+func (c *Client) renewal(refresher TokenRefresher, rejected string) func(context.Context) bool {
+	return func(ctx context.Context) bool {
+		if bearer, ok := c.authStrategy.(*BearerAuth); ok && rejected != "" {
+			if token, err := bearer.TokenProvider.AccessToken(ctx); err == nil && bearerCredential(token) != rejected {
+				return true
+			}
+		}
+		return refresher.Refresh(ctx) == nil
+	}
+}
+
+// bearerCredential is the credential req was signed with when the SDK's own bearer
+// strategy signed it — the Authorization header as set — and empty for any other
+// strategy, whose headers may legitimately differ from one request to the next.
+func (c *Client) bearerCredential(req *http.Request) string {
+	if _, ok := c.authStrategy.(*BearerAuth); !ok {
+		return ""
+	}
+	return req.Header.Get("Authorization")
+}
+
+// bearerCredential is the Authorization value BearerAuth sets for token.
+func bearerCredential(token string) string {
+	return "Bearer " + token
 }
 
 // refreshTimeout is the bound on a refresh: the timeout of the client every send goes

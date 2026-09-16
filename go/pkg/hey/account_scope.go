@@ -135,14 +135,19 @@ func (c *Client) prepareAPIRequest(ctx context.Context, req *http.Request) error
 	// Signed through the refresh gate, so no request is signed while the credentials are
 	// changing hands, the generation read with them is the one they belong to, and a
 	// request whose context ends while a refresh runs is refused rather than signed.
-	signedUnder, err := c.refresh.sign(ctx, func() error {
-		return c.authStrategy.Authenticate(ctx, req)
+	var signedWith string
+	signedUnder, err := c.refresh.sign(ctx, func() (string, error) {
+		if err := c.authStrategy.Authenticate(ctx, req); err != nil {
+			return "", err
+		}
+		signedWith = c.bearerCredential(req)
+		return signedWith, nil
 	})
 	if err != nil {
 		return err
 	}
 	noteCredentialHeaders(req, before)
-	noteSigning(req, signedUnder)
+	noteSigning(req, signedUnder, signedWith)
 	req.Header.Set("User-Agent", c.userAgent)
 	return nil
 }
