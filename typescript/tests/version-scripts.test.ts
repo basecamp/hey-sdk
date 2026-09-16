@@ -32,6 +32,8 @@ it("bumps SDK manifests/constants/lock roots and syncs/checks API versions witho
       "kotlin/sdk/build.gradle.kts",
       "kotlin/sdk/src/commonMain/kotlin/com/basecamp/hey/HeyConfig.kt",
       "kotlin/README.md",
+      "swift/Sources/Hey/HeyConfig.swift",
+      "swift/README.md",
       "openapi.json",
     ]) {
       const target = join(temp, file);
@@ -61,6 +63,8 @@ it("bumps SDK manifests/constants/lock roots and syncs/checks API versions witho
       "kotlin/sdk/build.gradle.kts",
       "kotlin/sdk/src/commonMain/kotlin/com/basecamp/hey/HeyConfig.kt",
       "kotlin/README.md",
+      "swift/Sources/Hey/HeyConfig.swift",
+      "swift/README.md",
     ];
     const snapshot = () =>
       versionFiles.map((file) => readFileSync(join(temp, file), "utf8"));
@@ -138,6 +142,38 @@ it("bumps SDK manifests/constants/lock roots and syncs/checks API versions witho
       }),
     ).toThrow();
     writeFileSync(kotlinConfig, validKotlinConfig);
+
+    // Swift's targets are staged with the rest too: a README that lost its dependency line
+    // fails the bump before any file moves, and a config that lost its API version fails the sync.
+    const swiftReadme = join(temp, "swift/README.md");
+    const validSwiftReadme = readFileSync(swiftReadme, "utf8");
+    writeFileSync(swiftReadme, validSwiftReadme.replaceAll(".package(url:", ".package(path:"));
+    const beforeMalformedSwift = snapshot();
+    expect(() =>
+      execFileSync("bash", ["scripts/bump-version.sh", "2.3.4"], {
+        cwd: temp,
+        env: bumpEnvironment,
+        stdio: "pipe",
+      }),
+    ).toThrow();
+    expect(snapshot()).toEqual(beforeMalformedSwift);
+    writeFileSync(swiftReadme, validSwiftReadme);
+
+    const swiftConfig = join(temp, "swift/Sources/Hey/HeyConfig.swift");
+    const validSwiftConfig = readFileSync(swiftConfig, "utf8");
+    writeFileSync(
+      swiftConfig,
+      validSwiftConfig.replace("public static let apiVersion =", "public static let missingAPIVersion ="),
+    );
+    const beforeMalformedSwiftAPI = snapshot();
+    expect(() =>
+      execFileSync("bash", ["scripts/sync-api-version.sh"], {
+        cwd: temp,
+        stdio: "pipe",
+      }),
+    ).toThrow();
+    expect(snapshot()).toEqual(beforeMalformedSwiftAPI);
+    writeFileSync(swiftConfig, validSwiftConfig);
 
     const openapiPath = join(temp, "openapi.json");
     const validOpenAPI = readFileSync(openapiPath, "utf8");
@@ -223,6 +259,11 @@ it("bumps SDK manifests/constants/lock roots and syncs/checks API versions witho
       expect(readFileSync(join(temp, readme), "utf8")).toContain(
         'implementation("com.basecamp:hey-sdk:1.2.3")',
       );
+    expect(readFileSync(swiftConfig, "utf8")).toContain('public static let version = "1.2.3"');
+    for (const readme of ["README.md", "swift/README.md"])
+      expect(readFileSync(join(temp, readme), "utf8")).toContain(
+        '.package(url: "https://github.com/basecamp/hey-sdk", from: "1.2.3")',
+      );
     const spec = JSON.parse(readFileSync(join(temp, "openapi.json"), "utf8"));
     spec.info.version = "2027-01-02";
     writeFileSync(join(temp, "openapi.json"), JSON.stringify(spec));
@@ -234,6 +275,7 @@ it("bumps SDK manifests/constants/lock roots and syncs/checks API versions witho
       readFileSync(join(temp, "typescript/src/version.ts"), "utf8"),
     ).toContain('const API_VERSION = "2027-01-02"');
     expect(readFileSync(heyConfig, "utf8")).toContain('const val API_VERSION = "2027-01-02"');
+    expect(readFileSync(swiftConfig, "utf8")).toContain('public static let apiVersion = "2027-01-02"');
     const manifest = join(temp, "typescript/package-lock.json"),
       before = readFileSync(manifest, "utf8");
     writeFileSync(

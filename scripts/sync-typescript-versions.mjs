@@ -51,8 +51,15 @@ if (api !== undefined && !/^\d{4}-\d{2}-\d{2}$/.test(api))
   throw new Error("Invalid API version");
 
 const plans = [];
+// A file several languages write into (the root README names more than one dependency line)
+// gets one plan with every transform applied in turn, so it is staged and moved once.
 function plan(path, transform) {
   const file = fileURLToPath(new URL(path, root));
+  const existing = plans.find((item) => item.file === file);
+  if (existing) {
+    existing.after = transform(existing.after);
+    return;
+  }
   const before = readFileSync(file, "utf8");
   plans.push({ file, before, after: transform(before), mode: statSync(file).mode });
 }

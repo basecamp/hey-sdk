@@ -1,11 +1,11 @@
 # HEY SDK -- Agent Instructions
 
-Go, Rust, TypeScript and Kotlin clients for the HEY API, generated from the Smithy spec in `spec/`.
+Go, Rust, TypeScript, Kotlin and Swift clients for the HEY API, generated from the Smithy spec in `spec/`.
 
-**Shipped SDKs: Go, Rust, TypeScript and Kotlin.** Run `make ts-install` once (`npm ci`),
-have a JDK 17 on hand (`.mise.toml` pins one), then `make check` for all four languages.
-Ruby/Swift Makefile targets remain inherited placeholders; do not enable `make check-full`,
-which invokes missing SDKs. TypeScript
+**Shipped SDKs: Go, Rust, TypeScript, Kotlin and Swift.** Run `make ts-install` once (`npm ci`),
+have a JDK 17 (`.mise.toml` pins one) and Swift 6.0 or newer on hand, then `make check` for all
+five languages. Ruby Makefile targets remain inherited placeholders; do not enable
+`make check-full`, which invokes the missing SDK. TypeScript
 operations, types, routes and metadata are generated; do not hand-edit
 `typescript/src/generated`. See `typescript/README.md` and `TYPESCRIPT_RELEASE.md`.
 
@@ -14,7 +14,7 @@ operations, types, routes and metadata are generated; do not hand-edit
 1. **Never hand-write API methods.** Operations are generated from the Smithy spec.
 2. **Never construct URL paths manually.** Use the generated route table -- no
    `fmt.Sprintf` or `format!` for paths.
-3. **Every new operation needs tests.** Go, Rust, TypeScript and Kotlin unit/operation-coverage
+3. **Every new operation needs tests.** Go, Rust, TypeScript, Kotlin and Swift unit/operation-coverage
    tests, plus a conformance test when the change is behavioral.
 4. **Run `make check` before committing.**
 
@@ -323,6 +323,20 @@ several requests, or one that turns an answer into a refusal or a refusal into a
 sends each request `quiet()` inside `client.asOperation(info)` so the hooks hear one
 operation that ends the way the caller sees it end.
 
+`swift-check` is what CI's `test-swift` job runs before the conformance suite: the package's
+build and tests with warnings as errors, then the conformance runner's own tests, which cover
+its assertions and drive `URLSessionTransport` over a real loopback connection (bounded bodies,
+redirects handed back, timeouts, cancellation). The job runs on Linux with the oldest Swift the
+README promises and on macOS, where it also builds the library for iOS. The runner in
+`conformance/runner/swift` serves each case from a plain-socket loopback server, so it runs on
+Linux too, and depends on the library through the root `Package.swift`: the distribution
+manifest an app resolves from a version tag, which builds the `Hey` library alone.
+`make swift-consumer-check` proves that path end to end by tagging a clone, resolving the
+package from it by URL and version, and compiling `swift/README.md`'s examples against it.
+Swift has no registry and no publication switch: a `vX.Y.Z` tag is the release, and
+`release-swift.yml` runs the same gate on the tag before `release-github.yml` creates the
+GitHub release.
+
 ## Adding an operation
 
 1. Edit `spec/hey.smithy`
@@ -347,20 +361,24 @@ operation that ends the way the caller sees it end.
 7. Run `make ts-generate` to refresh all TypeScript generated artifacts.
 8. `make kt-generate` -- regenerates the Kotlin generated tree. If the generator refuses a
    method name, add an override to `kotlin/generator/names.toml`.
-9. Add Go and TypeScript unit tests, Rust and Kotlin tests where the change touches
+9. `make swift-generate` -- regenerates `swift/Sources/Hey/Generated`. If the generator
+   refuses a method name, add an override to `swift/names.toml`.
+10. Add Go and TypeScript unit tests, Rust, Kotlin and Swift tests where the change touches
    hand-written code in those SDKs, and a conformance case under `conformance/tests/` for
    behavioral changes. A conformance case also needs a dispatch arm in
-   `conformance/runner/go/main.go`, `conformance/runner/rust/src/operations.rs` and
-   `conformance/runner/kotlin/src/main/kotlin/com/basecamp/hey/conformance/Operations.kt`.
+   `conformance/runner/go/main.go`, `conformance/runner/rust/src/operations.rs`,
+   `conformance/runner/kotlin/src/main/kotlin/com/basecamp/hey/conformance/Operations.kt` and
+   `conformance/runner/swift/Sources/ConformanceRunner/Operations.swift`.
    Kotlin is the strictest reader of a mock body -- a required member left out, or an
    object-typed response mocked as an array, fails there and nowhere else -- so a mock body
    has to be the shape the model says.
-10. `make check`
+11. `make check`
 
 `make check` resolves to `check-mvp`: `smithy-check`, `behavior-model-check`,
 `drift-check-mvp`, `url-routes-check`, `go-check`, `go-check-drift`, `rs-check`,
-`rs-check-drift`, `ts-check`, `kt-check`, `kt-check-drift`, `sync-api-version-check` and
-`conformance-mvp` (Go, Rust, TypeScript and Kotlin). `drift-check-mvp` is coverage freshness + forward (every modelled
+`rs-check-drift`, `ts-check`, `kt-check`, `kt-check-drift`, `swift-check`,
+`swift-check-drift`, `sync-api-version-check` and `conformance-mvp` (Go, Rust, TypeScript,
+Kotlin and Swift). `drift-check-mvp` is coverage freshness + forward (every modelled
 route exists in `spec/route-snapshot.json`) + reverse (every JSON-capable snapshot
 route is modelled or listed in `spec/excluded-routes.json` with a reason) + shape
 fingerprint. Adding an operation for a route that haystack does not serve, or
@@ -376,4 +394,5 @@ the API the SDK was built against, and it goes out in the User-Agent alongside t
 own version — that string is how HEY sees which contract a client is working from, so a
 stale date misreports it. The Rust crate's `API_VERSION` is generated into
 `rust/hey-sdk/src/generated/mod.rs`, so `make rs-generate` is what moves it. The Kotlin
-library's `HeyConfig.API_VERSION` moves with Go's, through `./scripts/sync-api-version.sh`.
+library's `HeyConfig.API_VERSION` and the Swift package's `HeyConfig.apiVersion` move with Go's,
+through `./scripts/sync-api-version.sh`.

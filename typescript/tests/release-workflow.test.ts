@@ -99,6 +99,25 @@ it("selects current and historical release languages without weakening state val
     expect(withKotlin("false\n", "true\n")()).toBe("go,rust,kotlin");
     expect(withKotlin("true\n", "true\n")()).toBe("go,rust,typescript,kotlin");
     expect(withKotlin("false\n", "enabled\n")).toThrow();
+    // Swift has no switch: a target with its release workflow waits for it, whatever else is on.
+    const withSwift = (setup: (root: string) => void) => target(root => {
+      setup(root);
+      writeFileSync(join(root, ".github", "workflows", "release-swift.yml"), "name: Swift\n");
+    });
+    expect(withSwift(root => {
+      writeFileSync(join(root, ".github", "typescript-publish-enabled"), "false\n");
+      copyFileSync(stateHelper, join(root, "scripts", "typescript-publish-state.sh"));
+    })()).toBe("go,rust,swift");
+    expect(withSwift(root => {
+      writeFileSync(join(root, ".github", "typescript-publish-enabled"), "true\n");
+      copyFileSync(stateHelper, join(root, "scripts", "typescript-publish-state.sh"));
+      writeFileSync(join(root, ".github", "kotlin-publish-enabled"), "true\n");
+      copyFileSync(kotlinHelper, join(root, "scripts", "kotlin-publish-state.sh"));
+    })()).toBe("go,rust,typescript,kotlin,swift");
+    expect(withSwift(root => {
+      writeFileSync(join(root, ".github", "typescript-publish-enabled"), "enabled\n");
+      copyFileSync(stateHelper, join(root, "scripts", "typescript-publish-state.sh"));
+    })).toThrow();
     expect(target(root => {
       writeFileSync(join(root, ".github", "typescript-publish-enabled"), "false\n");
       copyFileSync(stateHelper, join(root, "scripts", "typescript-publish-state.sh"));
@@ -143,6 +162,7 @@ it("rejects malformed publication state before release tags or pushes", () => {
       join("go", "pkg", "hey"),
       join("rust", "hey-sdk"),
       join("kotlin", "sdk", "src", "commonMain", "kotlin", "com", "basecamp", "hey"),
+      join("swift", "Sources", "Hey"),
       "bin",
     ])
       mkdirSync(join(temp, directory), { recursive: true });
@@ -171,6 +191,8 @@ it("rejects malformed publication state before release tags or pushes", () => {
       join(temp, "kotlin", "sdk", "src", "commonMain", "kotlin", "com", "basecamp", "hey", "HeyConfig.kt"),
       `        const val VERSION = "${version}"\n`,
     );
+    const swiftConfig = join(temp, "swift", "Sources", "Hey", "HeyConfig.swift");
+    writeFileSync(swiftConfig, `    public static let version = "${version}"\n`);
     const calls = join(temp, "git-calls");
     const git = join(temp, "bin", "git");
     const node = join(temp, "bin", "node");
@@ -208,6 +230,12 @@ it("rejects malformed publication state before release tags or pushes", () => {
     const kotlinMalformed = release("false\n", "enabled\n");
     expect(kotlinMalformed.error).toBeDefined();
     expect(kotlinMalformed.calls).not.toMatch(/(^|\n)(tag|push) /);
+
+    writeFileSync(swiftConfig, `    public static let version = "0.0.1"\n`);
+    const swiftStale = release("false\n");
+    expect(swiftStale.error).toBeDefined();
+    expect(swiftStale.calls).not.toMatch(/(^|\n)(tag|push) /);
+    writeFileSync(swiftConfig, `    public static let version = "${version}"\n`);
 
     const valid = release("false\n");
     expect(valid.error).toBeUndefined();
