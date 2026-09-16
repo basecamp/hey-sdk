@@ -3,8 +3,7 @@
 The Swift client for the [HEY](https://www.hey.com) API. Models, routes and service methods are
 generated from the Smithy model in the repository's `spec/` directory, so what the library
 offers is what HEY serves. It is an `async`/`await` client on Foundation's `URLSession` with
-strict Swift 6 concurrency, laid out and behaving the way the
-[basecamp-sdk](https://github.com/basecamp/basecamp-sdk) Swift SDK does.
+strict Swift 6 concurrency.
 
 ```swift
 dependencies: [
@@ -257,7 +256,7 @@ against it.
 ## Versioning
 
 The library shares one version and one `vX.Y.Z` tag with the Go module, the Rust crate and the
-Kotlin library, and follows basecamp-sdk's pre-1.0 policy: a breaking change bumps the minor
+Kotlin library, and follows a pre-1.0 policy: a breaking change bumps the minor
 version and an additive one the patch; the default is append-only, but a minor may break source
 compatibility to correct the model, and says so in the release notes. `from:` in a
 `Package.swift` accepts every later version below the next major, so pin with

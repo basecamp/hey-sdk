@@ -433,8 +433,7 @@ Services are properties of the client, one per resource — `client.boxes`, `cli
 `client.timeTracks` — and every method the model describes is generated, named for the
 operation with the service's noun dropped (`ListBoxes` is `client.boxes.list()`). The
 hand-written conveniences are extensions of the same services. Every route is data in
-`Routes`. The package is laid out and behaves the way the
-[basecamp-sdk](https://github.com/basecamp/basecamp-sdk) Swift SDK does.
+`Routes`.
 
 ### Linked accounts
 
