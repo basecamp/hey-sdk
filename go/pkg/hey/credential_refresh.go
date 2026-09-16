@@ -20,24 +20,29 @@ type generation struct {
 // credentials is refreshed once however many requests were signed with it. It is shared
 // by every client derived from the same root, as the credentials are.
 //
-// Signing and refreshing go one at a time, and never together: a request is signed under
-// a read lock, and a refresh holds the write lock for its whole run, so no request is
-// signed while the credentials are changing hands and the counts move with them.
+// Signing and refreshing go one at a time, and never together: a request is signed with
+// no refresh in flight, and a refresh runs once every signing under way has ended, so no
+// request is signed while the credentials are changing hands and the counts move with
+// them. The gate is the coordinator's own rather than a lock, so a request that arrives
+// while a refresh runs waits on the refresh or on its own context, whichever ends first.
 type credentialRefresh struct {
-	signing sync.RWMutex
-
-	// mu guards the fields below and is held only for a moment, so a stale request can
-	// find the refresh in flight while it runs.
+	// mu guards every field and is held only for a moment, so a stale request can find
+	// the refresh in flight while it runs.
 	mu sync.Mutex
 	// refreshes counts the refreshes that renewed the credentials.
 	refreshes uint64
 	// runs counts the refreshes that ran to an answer, renewed or not.
 	runs uint64
-	// inFlight is the refresh running now, for every stale request to wait on; nil
-	// between refreshes.
+	// inFlight is the refresh running now, for every stale request to wait on and for
+	// every new one to be signed after; nil between refreshes.
 	inFlight *refreshRun
 	// renewed is how the last refresh ended.
 	renewed bool
+	// signers counts the requests being signed now; a refresh waits for it to reach zero.
+	signers int
+	// drained is closed when signers reaches zero while a refresh is waiting for it, and
+	// nil when none is.
+	drained chan struct{}
 }
 
 // refreshRun is one refresh, for the requests that share its answer to wait on.
@@ -46,12 +51,45 @@ type refreshRun struct {
 	renewed bool
 }
 
-// generation is the state of the counts now. Read at signing, under the signing lock, it
-// is the credentials the request goes out with.
+// generation is the state of the counts now.
 func (r *credentialRefresh) generation() generation {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	return generation{refreshes: r.refreshes, runs: r.runs}
+}
+
+// sign runs authenticate with no refresh in flight and reports the generation of the
+// credentials it signed with, which cannot move while the signing is under way. A
+// request that arrives while a refresh runs is signed once it has ended; one whose ctx
+// ends first is not signed at all and gets ctx.Err(), as a send cut off by its context
+// does, so a cancelled or expired request returns promptly rather than waiting out a
+// refresh it will not use.
+func (r *credentialRefresh) sign(ctx context.Context, authenticate func() error) (generation, error) {
+	r.mu.Lock()
+	for r.inFlight != nil {
+		done := r.inFlight.done
+		r.mu.Unlock()
+		select {
+		case <-done:
+		case <-ctx.Done():
+			return generation{}, ctx.Err()
+		}
+		r.mu.Lock()
+	}
+	r.signers++
+	signedUnder := generation{refreshes: r.refreshes, runs: r.runs}
+	r.mu.Unlock()
+
+	err := authenticate()
+
+	r.mu.Lock()
+	r.signers--
+	if r.signers == 0 && r.drained != nil {
+		close(r.drained)
+		r.drained = nil
+	}
+	r.mu.Unlock()
+	return signedUnder, err
 }
 
 // answer is what a 401 on a request signed under signedUnder is told: whether the
@@ -96,11 +134,21 @@ func (r *credentialRefresh) answer(ctx context.Context, signedUnder generation, 
 	}
 }
 
-// refresh is one refresh, under the signing lock for its whole run, and the counts moved
-// with its answer before the waiters are released.
+// refresh is one refresh: it waits for every signing under way to end — no new one
+// starts while it is in flight — runs the refresher, and moves the counts with its
+// answer before the waiters are released.
 func (r *credentialRefresh) refresh(ctx context.Context, run *refreshRun, refresher TokenRefresher, timeout time.Duration) {
-	r.signing.Lock()
-	defer r.signing.Unlock()
+	r.mu.Lock()
+	for r.signers > 0 {
+		if r.drained == nil {
+			r.drained = make(chan struct{})
+		}
+		drained := r.drained
+		r.mu.Unlock()
+		<-drained
+		r.mu.Lock()
+	}
+	r.mu.Unlock()
 
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()

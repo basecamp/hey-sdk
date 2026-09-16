@@ -29,6 +29,7 @@ func (h *requestEndHooks) OnRequestEnd(_ context.Context, info RequestInfo, resu
 // itself, which may block on a gate or fail.
 type steeredAuth struct {
 	token     atomic.Value
+	signings  atomic.Int64
 	refreshes atomic.Int64
 	refresh   func(ctx context.Context) error
 }
@@ -40,6 +41,7 @@ func newSteeredAuth(refresh func(ctx context.Context) error) *steeredAuth {
 }
 
 func (a *steeredAuth) Authenticate(_ context.Context, req *http.Request) error {
+	a.signings.Add(1)
 	req.Header.Set("Authorization", "Bearer "+a.token.Load().(string))
 	return nil
 }
@@ -762,6 +764,85 @@ func TestNoRequestIsSignedWhileARefreshRuns(t *testing.T) {
 		if err := <-errs; err != nil {
 			t.Errorf("expected both requests to succeed: %v", err)
 		}
+	}
+	if refreshes := auth.refreshes.Load(); refreshes != 1 {
+		t.Errorf("expected one refresh, got %d", refreshes)
+	}
+	if stale, fresh := recorder.count("Bearer stale"), recorder.count("Bearer fresh"); stale != 1 || fresh != 2 {
+		t.Errorf("expected one stale send then two fresh ones, got %v", recorder.seen)
+	}
+}
+
+// A request whose context has ended, or ends, while a refresh runs is not made to wait
+// the refresh out: it is refused before it is signed, with its context's error, and it
+// neither abandons nor duplicates the refresh, which the requests that need it get to
+// the end of.
+func TestARequestWhoseContextEndsDuringARefreshIsRefusedWithoutBeingSigned(t *testing.T) {
+	recorder := &tokenRecorder{}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if recorder.record(r) != "Bearer fresh" {
+			http.Error(w, "unauthorized", http.StatusUnauthorized)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = io.WriteString(w, `{"ok":true}`)
+	}))
+	t.Cleanup(server.Close)
+
+	entered := make(chan struct{})
+	gate := make(chan struct{})
+	auth := newSteeredAuth(nil)
+	auth.refresh = func(context.Context) error {
+		close(entered)
+		<-gate
+		auth.token.Store("fresh")
+		return nil
+	}
+	client := NewClient(&Config{BaseURL: server.URL}, nil, WithAuthStrategy(auth), WithMaxRetries(1))
+
+	first := make(chan error, 1)
+	go func() {
+		_, err := client.Get(context.Background(), "/whatever.json")
+		first <- err
+	}()
+	waitFor(t, entered, "the first request's refresh to start")
+	signings, sent := auth.signings.Load(), recorder.total()
+
+	cancelled, cancel := context.WithCancel(context.Background())
+	cancel()
+	expiring, expire := context.WithTimeout(context.Background(), 50*time.Millisecond)
+	defer expire()
+	for _, request := range []struct {
+		ctx  context.Context
+		want error
+	}{{cancelled, context.Canceled}, {expiring, context.DeadlineExceeded}} {
+		started := time.Now()
+		_, err := client.Get(request.ctx, "/whatever.json")
+		if !errors.Is(err, request.want) {
+			t.Errorf("expected the request to be refused with %v, got %v", request.want, err)
+		}
+		if waited := time.Since(started); waited > 5*time.Second {
+			t.Errorf("expected the request to return promptly, took %v", waited)
+		}
+	}
+	if auth.signings.Load() != signings {
+		t.Errorf("expected neither request to be signed, got %d signings", auth.signings.Load()-signings)
+	}
+	if recorder.total() != sent {
+		t.Errorf("expected neither request to be sent, got %v", recorder.seen)
+	}
+	select {
+	case err := <-first:
+		t.Fatalf("expected the refresh to still be running, but the first request ended with %v", err)
+	default:
+	}
+
+	close(gate)
+	if err := <-first; err != nil {
+		t.Fatalf("expected the request that started the refresh to be resent with its answer: %v", err)
+	}
+	if _, err := client.Get(context.Background(), "/whatever.json"); err != nil {
+		t.Fatalf("expected a request after the refresh to go out signed with its answer: %v", err)
 	}
 	if refreshes := auth.refreshes.Load(); refreshes != 1 {
 		t.Errorf("expected one refresh, got %d", refreshes)
