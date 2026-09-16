@@ -95,6 +95,14 @@ final class MessagesTests: XCTestCase {
         }
     }
 
+    func testAnEmptyLocationNamesNoEntryId() async throws {
+        let hey = mockHey(status(204, nil, [("Location", "")]))
+        let client = try hey.client()
+        let error = await assertThrows(
+            HeyError.codeAPI, try await client.messages.createDraft(DraftContent(subject: "s", content: "c", actingSenderId: 100)))
+        XCTAssertTrue(error?.message.contains("names no entry id") == true, error?.message ?? "")
+    }
+
     func testALocationWithoutAnIdIsNeverQuotedWhole() async throws {
         let hey = mockHey(status(204, nil, [("Location", "/messages/new?sig=distinctive-secret")]))
         final class Seen: HeyHooks, @unchecked Sendable {

@@ -39,7 +39,7 @@ final class CalendarsTests: XCTestCase {
                 [("Link", #"</calendar/changes.json?since=2026-09-15T10:05:00.000Z>; rel="next""#)]),
             ok(#"{"added":[],"updated":[],"deleted":[]}"#))
         let store = InMemoryCache()
-        let transcript = GroupAHooksLog()
+        let transcript = AnnouncementLog()
         let client = try hey.client(hooks: transcript, cache: store) { $0.enableCache = true }
         await assertThrows(HeyError.codeUsage, try await client.calendars.calendarChanges(cursor: CalendarChangesCursor()))
         let all = try await client.calendars.allCalendarChanges(cursor: CalendarChangesCursor(since: "2026-09-15T10:00:00.000Z"))
@@ -72,7 +72,7 @@ final class CalendarsTests: XCTestCase {
                 #"{"added":{"Calendar::Event":[{"id":13,"type":"Calendar::Event"}],"Calendar::Habit":[{"id":14,"type":"Calendar::Habit"}]}}"#,
                 [("Link", #"</calendars/3/recording/changes.json?since=2026-09-15T10:05:00.000Z&v=1>; rel="next""#)]),
             status(409, #"{"error":"too far behind"}"#))
-        let transcript = GroupAHooksLog()
+        let transcript = AnnouncementLog()
         let client = try hey.client(hooks: transcript)
         await assertThrows(HeyError.codeUsage, try await client.calendars.recordingChanges(calendarId: 3, cursor: CalendarChangesCursor(version: "1")))
         await assertThrows(

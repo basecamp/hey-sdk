@@ -27,22 +27,29 @@ public struct HabitParams: Sendable, Equatable {
 extension HabitsService {
     /// Starts a new habit and answers it as a recording.
     public func createHabit(params: HabitParams) async throws -> Recording {
-        try await create(body: habitBody(params))
+        try await create(body: try habitBody(params))
     }
 
     /// Edits a habit and answers it as a recording. `habitId` is the recording's id, and fields
     /// left empty are kept.
     public func updateHabit(habitId: Int, params: HabitParams) async throws -> Recording {
-        try await update(habitId: habitId, body: habitBody(params))
+        try await update(habitId: habitId, body: try habitBody(params))
     }
 }
 
-/// An empty field is left off the wire, so HEY keeps what the habit had.
-func habitBody(_ params: HabitParams) -> HabitRequestContent {
-    HabitRequestContent(
+/// An empty field is left off the wire, so HEY keeps what the habit had. The model holds days as
+/// 32-bit integers, so a day past that range is refused rather than sent as some other number.
+func habitBody(_ params: HabitParams) throws -> HabitRequestContent {
+    let days = try params.days.map { day in
+        guard let exact = Int32(exactly: day) else {
+            throw HeyError.usage(message: "habit day \(day) is out of range")
+        }
+        return exact
+    }
+    return HabitRequestContent(
         calendarHabit: HabitPayload(
             name: params.name.isEmpty ? nil : params.name,
             icon: params.icon.isEmpty ? nil : params.icon,
             color: params.color.isEmpty ? nil : params.color,
-            days: params.days.isEmpty ? nil : params.days.map { Int32(truncatingIfNeeded: $0) }))
+            days: days.isEmpty ? nil : days))
 }

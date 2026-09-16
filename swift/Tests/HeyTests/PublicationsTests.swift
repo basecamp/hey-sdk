@@ -9,7 +9,7 @@ final class PublicationsTests: XCTestCase {
             status(302, nil, [("Location", "/topics/5/sharing")]),
             ok(#"{"published":true,"url":"https://app.hey.com/p/abc"}"#),
             status(302, nil, [("Location", "/topics/5")]))
-        let transcript = GroupAHooksLog()
+        let transcript = AnnouncementLog()
         let client = try hey.client(hooks: transcript)
         let publication = try await client.publications.publish(topicId: 5)
         XCTAssertTrue(publication.published)

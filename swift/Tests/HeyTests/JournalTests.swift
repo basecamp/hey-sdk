@@ -11,7 +11,7 @@ final class JournalTests: XCTestCase {
             ok(#"{"id":1,"type":"Calendar::JournalEntry","content":"plain","content_html":""}"#),
             ok(#"{"id":1,"type":"Calendar::JournalEntry","content":"written"}"#),
             status(204))
-        let transcript = GroupAHooksLog()
+        let transcript = AnnouncementLog()
         let client = try hey.client(hooks: transcript)
         let missing = try await client.journal.entry(day: "2026-09-15")
         XCTAssertNil(missing, "a day without an entry answers nothing, which is nil rather than a body that will not decode")
@@ -23,7 +23,7 @@ final class JournalTests: XCTestCase {
         let written = try await client.journal.updateContent(day: "2026-09-15", content: "written")
         XCTAssertEqual(written?.content, "written")
         XCTAssertEqual(hey.requests[3].method, "PATCH")
-        XCTAssertEqual(try groupAMember(hey.requests[3].body, "calendar_journal_entry")["content"] as? String, "written")
+        XCTAssertEqual(try jsonMember(hey.requests[3].body, "calendar_journal_entry")["content"] as? String, "written")
         let removed = try await client.journal.updateContent(day: "2026-09-15", content: "")
         XCTAssertNil(removed, "empty content removes the entry, which HEY answers with nothing")
         XCTAssertEqual(

@@ -13,7 +13,7 @@ final class AttachmentsTests: XCTestCase {
 
     func testAnUploadReservesABlobAndPutsTheBytesWhereHEYSaid() async throws {
         let hey = mockHey(ok(directUpload("https://storage.example.com/blobs/abc?signature=secret")), ok(""))
-        let transcript = GroupAHooksLog()
+        let transcript = AnnouncementLog()
         let client = try hey.client(hooks: transcript)
         let upload = try await client.attachments.upload(filename: "report.pdf", contentType: "application/pdf", content: Data("hello".utf8))
         XCTAssertEqual(upload.signedId, "signed-123")
@@ -22,7 +22,7 @@ final class AttachmentsTests: XCTestCase {
         let reservation = hey.requests[0]
         XCTAssertEqual(reservation.method, "POST")
         XCTAssertEqual(reservation.path, "/rails/active_storage/direct_uploads.json")
-        let blob = try groupAMember(reservation.body, "blob")
+        let blob = try jsonMember(reservation.body, "blob")
         XCTAssertEqual(blob["filename"] as? String, "report.pdf")
         XCTAssertEqual(blob["byte_size"] as? Int, 5)
         XCTAssertEqual(blob["checksum"] as? String, "XUFAKrxLKna5cZ2REBfFkg==", "the MD5 of the bytes, base64 as Active Storage wants it")
@@ -133,7 +133,7 @@ final class AttachmentsTests: XCTestCase {
         let hey = mockHey(ok(directUpload("https://storage.example.com/blobs/abc", headers: #"{"Content-Type":"application/octet-stream"}"#)), ok(""))
         let client = try hey.client()
         _ = try await client.attachments.upload(filename: "notes.bin", content: Data())
-        XCTAssertEqual(try groupAMember(hey.requests[0].body, "blob")["content_type"] as? String, "application/octet-stream")
+        XCTAssertEqual(try jsonMember(hey.requests[0].body, "blob")["content_type"] as? String, "application/octet-stream")
         XCTAssertEqual(hey.requests[1].body, "", "empty content is an empty attachment, not a mistake")
         await assertThrows(HeyError.codeUsage, try await client.attachments.upload(filename: "", contentType: "text/plain", content: Data("x".utf8)))
         XCTAssertEqual(hey.requests.count, 2)

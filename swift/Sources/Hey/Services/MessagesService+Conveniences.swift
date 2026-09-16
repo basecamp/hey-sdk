@@ -194,6 +194,12 @@ func draftEntryIdFromLocation(_ response: Response) throws -> Int {
             message: "draft saved but the response named no Location; cannot report the draft's id", httpStatus: response.status,
             retryable: false, detail: ErrorDetail())
     }
+    // An empty Location resolves to the request's own path, which names no entry, as Kotlin reads it.
+    if location.trimmingCharacters(in: .whitespaces).isEmpty {
+        throw HeyError.api(
+            message: "draft saved but its Location \"\" names no entry id", httpStatus: response.status,
+            retryable: false, detail: ErrorDetail())
+    }
     guard let target = resolveReference(response.url, location),
           let path = URLComponents(url: target, resolvingAgainstBaseURL: true)?.percentEncodedPath
     else {

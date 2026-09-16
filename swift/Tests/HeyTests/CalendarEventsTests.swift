@@ -159,7 +159,7 @@ final class CalendarEventsTests: XCTestCase {
 
     func testACalendarEventIsCreatedFromAFormPostedToTheJSONPath() async throws {
         let hey = mockHey(ok(#"{"id":7,"type":"Calendar::Event","summary":"Standup"}"#), status(302, nil, [("Location", "/calendar/events/8")]))
-        let transcript = GroupAHooksLog()
+        let transcript = AnnouncementLog()
         let client = try hey.client(hooks: transcript)
         let timed = CreateCalendarEventParams(
             calendarId: 3,
