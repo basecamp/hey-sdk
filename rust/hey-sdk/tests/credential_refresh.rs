@@ -672,10 +672,14 @@ async fn signings_are_recorded_in_the_order_the_provider_issued_in() {
         1,
         "the 401 on t1, the token the provider issued last, was refreshed"
     );
+    // The signings are serialised; the sends after them are not, so which of t0 and t1
+    // reaches the server first is the scheduler's to decide.
+    let mut credentials = server.credentials();
+    credentials.sort();
     assert_eq!(
-        server.credentials(),
+        credentials,
         ["Bearer t0", "Bearer t1", "Bearer t2"],
-        "t0 went out first, for all it took longer to sign with"
+        "each token went out once, and t1 was refreshed to t2 rather than resent"
     );
 }
 
