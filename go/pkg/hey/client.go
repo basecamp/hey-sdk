@@ -34,6 +34,10 @@ type clientShared struct {
 	logger         *slog.Logger
 	httpOpts       HTTPOptions
 	hooks          Hooks
+	// refresh coordinates the credential refreshes the clients' 401s ask for: one per
+	// set of credentials, shared by every client derived from the root, as the
+	// credentials are.
+	refresh credentialRefresh
 }
 
 // Client is an HTTP client for the HEY API. A root client represents the
@@ -299,17 +303,88 @@ func redirectPolicy(next func(req *http.Request, via []*http.Request) error) fun
 // client given both is authenticated by the strategy, so the strategy is what holds the
 // credentials a 401 was about. A 401 from a hop that carried no credentials rejected none
 // of HEY's: there is nothing to refresh, and nothing a resend would change.
+//
+// The refresh is one per set of credentials, not one per request: every request signed
+// with the same stale credentials shares the one refresh their 401s earn, whether it is
+// the request that ran it, one that found it in flight and waited, or one whose 401
+// arrived after it had ended. A refresh that could not renew them is shared the same way,
+// so an outage at the token's issuer costs one call rather than one per request in
+// flight; a request signed after that failure asks again, since its 401 is news. ctx is
+// the request's, carrying the state it was signed under; a send made without one is
+// taken as signed now.
 func (c *Client) refreshCredentials(ctx context.Context) bool {
-	if state := redirectStateFromContext(ctx); state != nil && state.unauthenticated {
+	state := redirectStateFromContext(ctx)
+	if state != nil && state.unauthenticated {
 		return false
 	}
-	if refresher, ok := c.authStrategy.(TokenRefresher); ok {
+	refresher, ok := c.refresher()
+	if !ok {
+		return false
+	}
+	signedUnder := c.refresh.generation()
+	var signedWith string
+	if state != nil {
+		signedUnder, signedWith = state.signedUnder, state.signedWith
+	}
+	return c.refresh.answer(ctx, signedUnder, c.renewal(refresher, signedWith), c.refreshTimeout())
+}
+
+// renewal is what the coordinated refresh runs for a request whose credential, when the
+// SDK's own bearer strategy signed it, was rejected: it first asks the provider what it
+// would sign with now, and a token other than the rejected one is a renewal the provider
+// has already made — AuthManager renews an expiring token as it hands it out — so the
+// refresher is not asked to renew it again. Only when the provider would still sign
+// with the rejected token is the refresher asked. A request signed by any other strategy
+// names no credential, and its refresh asks the refresher directly.
+func (c *Client) renewal(refresher TokenRefresher, rejected string) func(context.Context) bool {
+	return func(ctx context.Context) bool {
+		if bearer, ok := c.authStrategy.(*BearerAuth); ok && rejected != "" {
+			if token, err := bearer.TokenProvider.AccessToken(ctx); err == nil && bearerCredential(token) != rejected {
+				return true
+			}
+		}
 		return refresher.Refresh(ctx) == nil
+	}
+}
+
+// bearerCredential is the credential req was signed with when the SDK's own bearer
+// strategy signed it — the Authorization header as set — and empty for any other
+// strategy, whose headers may legitimately differ from one request to the next.
+func (c *Client) bearerCredential(req *http.Request) string {
+	if _, ok := c.authStrategy.(*BearerAuth); !ok {
+		return ""
+	}
+	return req.Header.Get("Authorization")
+}
+
+// bearerCredential is the Authorization value BearerAuth sets for token.
+func bearerCredential(token string) string {
+	return "Bearer " + token
+}
+
+// refreshTimeout is the bound on a refresh: the timeout of the client every send goes
+// through, so a refresh is given what a request is given. A client supplied with
+// WithHTTPClient carries its own, or none; with none, the SDK's configured timeout
+// bounds the refresh instead, since NewClient requires that to be positive and an
+// unbounded refresh would hold every waiter, and every signing after it, for as long as
+// the refresher took.
+func (c *Client) refreshTimeout() time.Duration {
+	if c.httpClient.Timeout > 0 {
+		return c.httpClient.Timeout
+	}
+	return c.httpOpts.Timeout
+}
+
+// refresher is what renews the client's credentials, the strategy before the provider,
+// or nothing when neither can.
+func (c *Client) refresher() (TokenRefresher, bool) {
+	if refresher, ok := c.authStrategy.(TokenRefresher); ok {
+		return refresher, true
 	}
 	if refresher, ok := c.tokenProvider.(TokenRefresher); ok {
-		return refresher.Refresh(ctx) == nil
+		return refresher, true
 	}
-	return false
+	return nil, false
 }
 
 // initGeneratedClient initializes the generated OpenAPI client for this account scope.
@@ -590,6 +665,9 @@ func (c *Client) doBodyRequest(ctx context.Context, method, path, contentType st
 // it, so the caller decides whether to resend; any other 401 is surfaced as the failure.
 func (c *Client) sendBodyRequest(ctx context.Context, method, reqURL, contentType string, body []byte, attempt int) (*FormResponse, error) {
 	ctx = contextWithAttempt(ctx, attempt)
+	// The redirect is captured rather than followed, so the state records nothing of a
+	// chain; it carries what the send was signed under, for a 401 to be read in its light.
+	ctx, _ = contextWithRedirectState(ctx)
 
 	var bodyReader io.Reader
 	if body != nil {

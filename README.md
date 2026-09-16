@@ -128,7 +128,11 @@ with two sends gets two whatever the cap, and a cap of one resend holds an opera
 modelled with three to two), `WithBaseDelay` is the least the client waits before the first
 resend, and a status the policy does not name is the operation's answer. An operation that
 is not idempotent is sent once, and so is one the contract gives no policy. Whatever the
-count, a 401 that a credential refresh answered earns one more send. A GET on a path
+count, a 401 that a credential refresh answered earns one more send. The refresh is one
+per set of credentials, not one per request: every request signed with the same stale
+token shares the one refresh their 401s earn, and a refresh that could not renew them is
+shared the same way, so a rotating refresh token is spent once and an outage at the
+issuer costs one call; a request signed after that failure asks again. A GET on a path
 the caller wrote (`Get`, `GetAll`) has no policy to bring and runs on the client's settings
 alone, resent on 429, 502, 503 and 504.
 
