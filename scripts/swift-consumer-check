@@ -22,8 +22,9 @@ trap 'rm -rf "$work"' EXIT
 
 git clone --quiet --no-hardlinks "$root" "$work/hey-sdk"
 git -C "$work/hey-sdk" -c advice.detachedHead=false checkout --quiet "$(git -C "$root" rev-parse HEAD)"
+# Only the tag under test: a later release's tag would satisfy the requirement ahead of it.
+git -C "$work/hey-sdk" tag -l | xargs -r git -C "$work/hey-sdk" tag -d >/dev/null
 git -C "$work/hey-sdk" tag "v$version"
-git -C "$work/hey-sdk" tag "$version"
 echo "consumer: resolving hey-sdk $version from a clone of $(git -C "$root" rev-parse --short HEAD)"
 
 mkdir -p "$work/consumer/Sources/Consumer"
