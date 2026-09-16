@@ -325,7 +325,20 @@ func (c *Client) refreshCredentials(ctx context.Context) bool {
 	if state != nil {
 		signedUnder = state.signedUnder
 	}
-	return c.refresh.answer(ctx, signedUnder, refresher, c.httpOpts.Timeout)
+	return c.refresh.answer(ctx, signedUnder, refresher, c.refreshTimeout())
+}
+
+// refreshTimeout is the bound on a refresh: the timeout of the client every send goes
+// through, so a refresh is given what a request is given. A client supplied with
+// WithHTTPClient carries its own, or none; with none, the SDK's configured timeout
+// bounds the refresh instead, since NewClient requires that to be positive and an
+// unbounded refresh would hold every waiter, and every signing after it, for as long as
+// the refresher took.
+func (c *Client) refreshTimeout() time.Duration {
+	if c.httpClient.Timeout > 0 {
+		return c.httpClient.Timeout
+	}
+	return c.httpOpts.Timeout
 }
 
 // refresher is what renews the client's credentials, the strategy before the provider,

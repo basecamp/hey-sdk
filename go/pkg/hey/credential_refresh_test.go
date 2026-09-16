@@ -851,3 +851,49 @@ func TestARequestWhoseContextEndsDuringARefreshIsRefusedWithoutBeingSigned(t *te
 		t.Errorf("expected one stale send then two fresh ones, got %v", recorder.seen)
 	}
 }
+
+// The refresh is bound by the timeout of the client every send goes through: a client
+// supplied with WithHTTPClient sets its own, and one supplied without any leaves the
+// SDK's configured timeout as the bound.
+func TestTheRefreshIsBoundByTheSuppliedClientsTimeout(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		supplied *http.Client
+		want     time.Duration
+	}{
+		{name: "a supplied client's own timeout", supplied: &http.Client{Timeout: 3 * time.Second}, want: 3 * time.Second},
+		{name: "the configured timeout when the supplied client has none", supplied: &http.Client{}, want: 7 * time.Second},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.Header.Get("Authorization") != "Bearer fresh" {
+					http.Error(w, "unauthorized", http.StatusUnauthorized)
+					return
+				}
+				w.Header().Set("Content-Type", "application/json")
+				_, _ = io.WriteString(w, `{"ok":true}`)
+			}))
+			t.Cleanup(server.Close)
+
+			var remaining atomic.Int64
+			auth := newSteeredAuth(nil)
+			auth.refresh = func(ctx context.Context) error {
+				deadline, ok := ctx.Deadline()
+				if !ok {
+					t.Error("expected the refresh to carry a deadline")
+				}
+				remaining.Store(int64(time.Until(deadline)))
+				auth.token.Store("fresh")
+				return nil
+			}
+			client := NewClient(&Config{BaseURL: server.URL}, nil, WithAuthStrategy(auth), WithHTTPClient(tc.supplied), WithTimeout(7*time.Second))
+
+			if _, err := client.Get(context.Background(), "/whatever.json"); err != nil {
+				t.Fatalf("expected the resend after the refresh to succeed: %v", err)
+			}
+			if got := time.Duration(remaining.Load()); got <= tc.want-time.Second || got > tc.want {
+				t.Errorf("expected the refresh to be bound by %v, got %v left", tc.want, got)
+			}
+		})
+	}
+}
