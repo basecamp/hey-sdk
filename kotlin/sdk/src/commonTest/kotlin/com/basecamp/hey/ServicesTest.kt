@@ -427,7 +427,7 @@ private fun formFields(body: String): Map<String, String> = body.split('&').asso
         assertEquals(1, hey.requests.size)
     }
 
-    private fun directUpload(url: String, headers: String = """{"Content-Type":"application/pdf","Content-MD5":"XUFAKrxLKna5cZ2REBfFkg==","Authorization":"stale"}""") =
+    private fun directUpload(url: String, headers: String = """{"Content-Type":"application/pdf","Content-MD5":"XUFAKrxLKna5cZ2REBfFkg==","Content-Disposition":"inline; filename=\"report.pdf\"","Authorization":"stale"}""") =
         """{"signed_id":"signed-123","attachable_sgid":"sgid-456","direct_upload":{"url":"$url","headers":$headers}}"""
 
     @Test
@@ -456,6 +456,7 @@ private fun formFields(body: String): Map<String, String> = body.split('&').asso
         assertEquals("secret2", hey.requests[3].query("signature"), "the hop goes exactly where storage said")
         assertEquals("application/pdf", hey.requests[3].header("Content-Type"), "with the headers storage named")
         assertEquals("XUFAKrxLKna5cZ2REBfFkg==", hey.requests[3].header("Content-MD5"), "the checksum included, since the bytes go again")
+        assertEquals("inline; filename=\"report.pdf\"", hey.requests[3].header("Content-Disposition"), "and the disposition HEY named")
     }
 
     @Test
@@ -481,7 +482,7 @@ private fun formFields(body: String): Map<String, String> = body.split('&').asso
         assertEquals("secret3", fetched.query("signature"), "exactly the URL storage signed")
         assertNull(fetched.query("filtered_account_id"))
         assertNull(fetched.header("Authorization"))
-        for (name in listOf("Content-Type", "Content-Length", "Content-MD5")) {
+        for (name in listOf("Content-Type", "Content-Length", "Content-MD5", "Content-Disposition")) {
             assertNull(fetched.header(name), "$name described bytes the hop no longer carries")
         }
     }

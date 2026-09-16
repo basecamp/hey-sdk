@@ -28,12 +28,14 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.DeserializationStrategy
 import kotlinx.serialization.serializer
 import kotlin.concurrent.Volatile
@@ -237,11 +239,24 @@ internal class Shared(
     @Volatile
     var refreshes: Long = 0
 
-    /** One refresh at a time. */
+    /** How many refreshes have run to an answer, renewed or not, so a 401 on credentials a refresh already failed to renew shares that answer. */
+    @Volatile
+    var refreshRuns: Long = 0
+
+    /** Signing and refreshing go one at a time, and never together. Held for a refresh's whole run. */
     val refreshing = Mutex()
+
+    /** Guards [refresh], [lastRefresh] and [refreshRuns]: held only for a moment, so a stale request can find the refresh in flight while it runs. */
+    val refreshGate = Mutex()
 
     /** The refresh in flight, for every stale request to wait on; null between refreshes. */
     var refresh: Deferred<Boolean>? = null
+
+    /** How the last refresh ended: renewed, not renewed, or with what it threw. */
+    var lastRefresh: Result<Boolean>? = null
+
+    /** The credentials a request is signed under: the state of the counters at its signing, read under [refreshing]. */
+    fun generation(): Generation = Generation(refreshes, refreshRuns)
 
     /** Set once the root client closes: a request after that is a mistake the caller is told about, not a cancellation. */
     @Volatile
@@ -508,8 +523,8 @@ class HeyClient internal constructor(
         val redirected: Boolean,
         /** Whether the request this answers went out with the credentials: a hop to another origin drops them, and they do not come back. */
         val authenticated: Boolean,
-        /** How many refreshes had happened when the request this answers was signed — the last signing, when a hop was signed again. */
-        val signedUnder: Long,
+        /** The credentials the request this answers was signed under — the last signing, when a hop was signed again. */
+        val signedUnder: Generation,
     )
 
     /** The auth strategy failed to sign a hop; the failure is passed on as the strategy threw it. */
@@ -629,30 +644,48 @@ class HeyClient internal constructor(
      * Answers a 401 with fresh credentials, once for all the requests the stale ones earned
      * it on. Refreshes go one at a time, and a request that was signed before the last
      * refresh is simply resent: the credentials it will pick up are already the new ones.
+     * A refresh that did not renew them is shared the same way: every request signed with
+     * the credentials it failed to renew gets its answer — not renewed, or what it threw —
+     * rather than a refresh of its own, so an outage at the token's issuer costs one call
+     * per set of credentials, not one per request. A request signed after that failure
+     * earns a fresh attempt, since its 401 is news.
      *
      * The refresh runs in the client's own scope rather than the request's, so a request
      * cancelled while waiting for it leaves it running: a refresh half done is a rotated
      * token nobody holds, and every other stale request is waiting on the same one.
      */
-    private suspend fun refreshCredentials(signedUnder: Long): Boolean {
+    private suspend fun refreshCredentials(signedUnder: Generation): Boolean {
         if (shared.closed) throw HeyException.Usage("client is closed")
-        val refresh = shared.refreshing.withLock {
-            if (shared.refreshes != signedUnder) return true
-            shared.refresh ?: shared.scope.async {
-                // Under the lock for its whole run, so no request is signed while the
-                // credentials are changing hands, and the count moves with them.
-                shared.refreshing.withLock {
-                    try {
-                        val renewed = shared.auth.refresh()
-                        if (renewed) shared.refreshes += 1
-                        renewed
-                    } finally {
-                        shared.refresh = null
-                    }
-                }
-            }.also { shared.refresh = it }
+        val refresh = shared.refreshGate.withLock {
+            if (shared.refreshes != signedUnder.refreshes) return true
+            shared.refresh?.let { return@withLock it }
+            if (shared.refreshRuns != signedUnder.runs) return shared.lastRefresh?.getOrThrow() ?: false
+            shared.scope.async { runRefresh() }.also { shared.refresh = it }
         }
         return refresh.await()
+    }
+
+    /**
+     * One refresh, under the signing lock for its whole run so no request is signed while
+     * the credentials are changing hands, and the counts move with them.
+     */
+    private suspend fun runRefresh(): Boolean = shared.refreshing.withLock {
+        val outcome = try {
+            Result.success(shared.auth.refresh())
+        } catch (cancelled: CancellationException) {
+            // The client closed: no answer to share, and nothing left in flight.
+            withContext(NonCancellable) { shared.refreshGate.withLock { shared.refresh = null } }
+            throw cancelled
+        } catch (error: Throwable) {
+            Result.failure(error)
+        }
+        if (outcome.getOrNull() == true) shared.refreshes += 1
+        shared.refreshGate.withLock {
+            shared.refreshRuns += 1
+            shared.lastRefresh = outcome
+            shared.refresh = null
+        }
+        outcome.getOrThrow()
     }
 
     internal fun urlFor(operation: Operation): Url {
@@ -690,8 +723,8 @@ class HeyClient internal constructor(
         val cached: Pair<String, CachedResponse>?,
         /** What the auth strategy put on the request: the headers a hop to another origin must not carry, and what partitions the cache. */
         val credentials: Credentials,
-        /** How many refreshes had happened when the request was signed, so a 401 knows whether its credentials are already stale. */
-        val signedUnder: Long,
+        /** The credentials the request was signed under, so a 401 knows whether they are already stale, or already known not to renew. */
+        val signedUnder: Generation,
     )
 
     /** The headers an auth strategy added or changed on a request, by lowercased name, with their values. */
@@ -718,7 +751,7 @@ class HeyClient internal constructor(
      * own URL and method, since a strategy may sign those, once the previous signature is
      * off; a hop to another origin is never signed.
      */
-    private suspend fun sign(request: HttpRequestBuilder): Pair<Credentials, Long> {
+    private suspend fun sign(request: HttpRequestBuilder): Pair<Credentials, Generation> {
         val before = request.headers.build()
         val signedUnder = shared.refreshing.withLock {
             try {
@@ -728,7 +761,7 @@ class HeyClient internal constructor(
                 // exactly what a strategy sets, so the refusal is passed on without it.
                 throw HeyException.Auth("auth strategy set a header that is not a valid header value")
             }
-            shared.refreshes
+            shared.generation()
         }
         val added = request.headers.names()
             .filter { name -> request.headers.getAll(name) != before.getAll(name) }
@@ -750,7 +783,7 @@ class HeyClient internal constructor(
         }
         // An unsigned request goes out as built: no strategy touches it, so nothing partitions
         // a cache for it and a 401 it earns is about the credentials it carried of its own.
-        val (credentials, signedUnder) = if (operation.unsigned) Credentials(emptyMap()) to shared.refreshes else sign(request)
+        val (credentials, signedUnder) = if (operation.unsigned) Credentials(emptyMap()) to shared.generation() else sign(request)
 
         val cache = cacheFor(operation)
         val partition = credentials.partition
@@ -839,7 +872,7 @@ class HeyClient internal constructor(
     }
 
     /** Reads what the SDK keeps of a response while the connection is live: a 304 has no body to read, and a body past its bound is refused there and then. */
-    private suspend fun receive(operation: Operation, url: Url, response: HttpResponse, redirected: Boolean, authenticated: Boolean, signedUnder: Long): Received {
+    private suspend fun receive(operation: Operation, url: Url, response: HttpResponse, redirected: Boolean, authenticated: Boolean, signedUnder: Generation): Received {
         val status = response.status.value
         val headers = response.headers
         // A 304, a status the operation takes for "nothing there", and the redirect a form
@@ -1105,3 +1138,11 @@ internal fun isParsed(accept: String): Boolean =
         val mediaType = part.substringBefore(';').trim()
         mediaType == "application/json" || mediaType.endsWith("+json") || mediaType == "text/html"
     }
+
+/**
+ * The credentials a request went out with, by the counts at its signing: how many refreshes
+ * had renewed them, and how many refreshes had run at all. The first says whether a 401 is
+ * already answered by someone else's refresh; the second whether a refresh of these very
+ * credentials already ran and failed, in which case its answer is this request's too.
+ */
+internal class Generation(val refreshes: Long, val runs: Long)

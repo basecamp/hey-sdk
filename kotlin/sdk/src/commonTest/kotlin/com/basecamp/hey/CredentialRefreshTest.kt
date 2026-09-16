@@ -6,6 +6,7 @@ import com.basecamp.hey.services.CalendarEventUpdate
 import com.basecamp.hey.generated.*
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runCurrent
 import io.ktor.client.engine.mock.MockEngine
@@ -22,6 +23,7 @@ import io.ktor.client.request.header
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertIs
 
 class CredentialRefreshTest {
     private class Credentials(private val refreshable: Boolean) : TokenProvider {
@@ -90,6 +92,67 @@ class CredentialRefreshTest {
         val failing = mockHey(status(503))
         assertFailsWith<HeyException.Api> { failing.client().calendarEvents.update(99, CalendarEventUpdate(title = "After")) }
         assertEquals(1, failing.requests.size)
+    }
+
+    /**
+     * A refresh that fails is one refresh: every request signed with the credentials it
+     * could not renew gets its answer, rather than asking the issuer again for the same
+     * credentials during the same outage.
+     */
+    @Test
+    fun aFailedRefreshIsSharedByEveryRequestSignedWithTheCredentialsItWasFor() = runTest {
+        for (throwing in listOf(false, true)) {
+            val outage = IllegalStateException("issuer down")
+            var refreshes = 0
+            val credentials = object : TokenProvider {
+                override suspend fun accessToken(): String = "stale"
+                override suspend fun refresh(): Boolean {
+                    refreshes += 1
+                    if (throwing) throw outage
+                    return false
+                }
+            }
+            // Neither 401 is answered until both requests are out, so both were signed
+            // with the credentials the one refresh fails to renew.
+            val bothOut = CompletableDeferred<Unit>()
+            var arrived = 0
+            val engine = MockEngine {
+                arrived += 1
+                if (arrived == 2) bothOut.complete(Unit)
+                bothOut.await()
+                respond("", HttpStatusCode.Unauthorized)
+            }
+            val client = HeyClient {
+                accessToken(credentials)
+                this.engine = engine
+                timeout = Duration.INFINITE
+            }
+            val a = async { runCatching { client.boxes.list() } }
+            val b = async { runCatching { client.boxes.list() } }
+            val outcomes = listOf(a.await(), b.await())
+            assertEquals(1, refreshes, "one refresh for the one set of credentials, throwing=$throwing")
+            assertEquals(2, arrived, "and no resend, throwing=$throwing")
+            for (outcome in outcomes) {
+                val error = outcome.exceptionOrNull()
+                // A joined await hands back a copy of what was thrown, so it is matched by kind and message.
+                if (throwing) assertEquals("issuer down", assertIs<IllegalStateException>(error, "what the refresh threw is what each request gets").message) else assertIs<HeyException.Auth>(error)
+            }
+
+            // A request signed after the failure earns a refresh of its own: its 401 is news.
+            var again = 0
+            val late = MockEngine { respond("", HttpStatusCode.Unauthorized) }
+            val fresh = HeyClient {
+                accessToken(object : TokenProvider {
+                    override suspend fun accessToken(): String = "stale"
+                    override suspend fun refresh(): Boolean { again += 1; return false }
+                })
+                this.engine = late
+                timeout = Duration.INFINITE
+            }
+            assertFailsWith<HeyException.Auth> { fresh.boxes.list() }
+            assertFailsWith<HeyException.Auth> { fresh.boxes.list() }
+            assertEquals(2, again, "each 401 on credentials no refresh has failed since they were signed is refreshed")
+        }
     }
 
     /** A request is signed under the refresh lock, so a refresh cannot land between the signing and the count that says which credentials went out. */
