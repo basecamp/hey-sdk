@@ -267,6 +267,62 @@ form-backed write goes through `HeyClient.form`/`sendForm` with `writeInfo` sayi
 means; a page HEY serves as HTML is read by `WorkflowStageView.parse`, with the rules Go and
 Rust read it by.
 
+### Swift
+
+```
+openapi.json + behavior-model.json + swift/names.toml -> swift/Sources/HeyGenerator -> swift/Sources/Hey/Generated/
+                                                                                              |
+                                 hand-written extensions of the generated services in swift/Sources/Hey/Services
+```
+
+The Swift package takes its public shape from the company-wide
+[basecamp-sdk](https://github.com/basecamp/basecamp-sdk) Swift SDK and its behaviour from the
+Kotlin client, which it ports decision for decision: a client is built with a throwing
+initializer (`try HeyClient(accessToken:config:hooks:transport:cache:)`, or `tokenProvider:` or
+`auth:`), configured by a `HeyConfig` struct carrying `version` and `apiVersion`; failures are
+the `HeyError` enum with string `code`s and `exitCode`; hooks are the `HeyHooks` protocol with
+default methods, `ChainHooks` and `ConsoleHooks`; the network is a `Transport` protocol, with
+`URLSessionTransport` the one the package ships; generated services extend `BaseService` and
+are reached as properties of the client (`client.boxes`); a paginated read answers a `Page`
+walked with `nextPage`/`eachPage`/`pages(from:)`.
+
+The package builds and tests on Linux as well as Apple platforms, so the library uses
+Foundation's portable surface only: `FoundationNetworking` is imported where it exists, the
+transport reads bodies through a `URLSessionDataDelegate` (Linux has no `bytes(for:)`), and
+SHA-256 and MD5 are written out in `Digest.swift`, since CryptoKit is Apple's alone. CI builds
+and tests on both Linux and macOS.
+
+Where Swift makes Kotlin's approach unworkable, the package does the nearest thing that keeps
+the behaviour:
+
+- A request is an `Operation` struct built with mutating methods (`var operation = try
+  client.operation(Routes.getBox, [boxId])`), not a builder chain.
+- Refresh coordination runs on `AsyncMutex` (a lock a task can hold across `await`, since actors
+  are re-entrant) and a detached `Task` shared by every stale request. A task cancelled while it
+  waits to sign, or waits on a refresh another request started, stops waiting at once, as Go's
+  context-aware gate does; the refresh goes on for the rest.
+- A model member whose type is the model itself (`Recording.parent`) is held through
+  `Indirect<T>`, since a struct cannot contain itself; it reads and writes as the plain member.
+- Model fields are in the model's own order, required before optional, so a memberwise
+  initializer lists what must be given first. A keyword wire name (`default`) is backticked.
+- Durations the hooks hear come from `ContinuousClock`; the client takes a clock and a sleeper
+  internally so tests can drive time without waiting it out.
+
+`swift/Sources/HeyGenerator` is the Swift twin of `kotlin/generator`, reading the model through
+a small order-preserving JSON reader (`JSON.swift`) and `swift/names.toml`, which carries the
+same tables as Kotlin's but for `[hand_written_services]`: Swift adds conveniences as
+extensions, so no generated class has to be opened for them. `make swift-check-drift` fails
+on a stale tree, and `GeneratorTests` runs the same check inside `swift test`.
+
+Conveniences live in `swift/Sources/Hey/Services/<Service>+Conveniences.swift` as extensions
+of the generated service class, ported method for method from `kotlin/sdk/.../services`, with
+the same wire fields and the same naming rule (a plain name where the generated service leaves
+it free, the model's operation name where it does not). Each has its tests in
+`swift/Tests/HeyTests/<Service>Tests.swift`, ported from Kotlin's. A convenience made of
+several requests, or one that turns an answer into a refusal or a refusal into an answer,
+sends each request `quiet()` inside `client.asOperation(info)` so the hooks hear one
+operation that ends the way the caller sees it end.
+
 ## Adding an operation
 
 1. Edit `spec/hey.smithy`
