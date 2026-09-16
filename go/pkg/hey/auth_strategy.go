@@ -18,6 +18,14 @@ type AuthStrategy interface {
 // AuthStrategy or TokenProvider a caller brings that can renew what it hands out — a
 // client that keeps its credentials somewhere else is exactly the case that needs this,
 // since it has no AuthManager for the client to recognise.
+//
+// The client asks for one refresh per set of credentials, however many requests were
+// signed with them: the requests whose 401s arrive while it runs wait for its answer,
+// and the ones whose 401s arrive after it has ended take that answer, a failure
+// included, so a refresh token is rotated once and an outage at the issuer costs one
+// call. A request signed after a failed refresh asks again. No request is signed while
+// Refresh runs, and Refresh runs on a context that outlives the request that drew the
+// 401, bound by the client's request timeout rather than the request's own cancellation.
 type TokenRefresher interface {
 	Refresh(ctx context.Context) error
 }

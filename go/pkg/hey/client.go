@@ -34,6 +34,10 @@ type clientShared struct {
 	logger         *slog.Logger
 	httpOpts       HTTPOptions
 	hooks          Hooks
+	// refresh coordinates the credential refreshes the clients' 401s ask for: one per
+	// set of credentials, shared by every client derived from the root, as the
+	// credentials are.
+	refresh credentialRefresh
 }
 
 // Client is an HTTP client for the HEY API. A root client represents the
@@ -299,17 +303,41 @@ func redirectPolicy(next func(req *http.Request, via []*http.Request) error) fun
 // client given both is authenticated by the strategy, so the strategy is what holds the
 // credentials a 401 was about. A 401 from a hop that carried no credentials rejected none
 // of HEY's: there is nothing to refresh, and nothing a resend would change.
+//
+// The refresh is one per set of credentials, not one per request: every request signed
+// with the same stale credentials shares the one refresh their 401s earn, whether it is
+// the request that ran it, one that found it in flight and waited, or one whose 401
+// arrived after it had ended. A refresh that could not renew them is shared the same way,
+// so an outage at the token's issuer costs one call rather than one per request in
+// flight; a request signed after that failure asks again, since its 401 is news. ctx is
+// the request's, carrying the state it was signed under; a send made without one is
+// taken as signed now.
 func (c *Client) refreshCredentials(ctx context.Context) bool {
-	if state := redirectStateFromContext(ctx); state != nil && state.unauthenticated {
+	state := redirectStateFromContext(ctx)
+	if state != nil && state.unauthenticated {
 		return false
 	}
+	refresher, ok := c.refresher()
+	if !ok {
+		return false
+	}
+	signedUnder := c.refresh.generation()
+	if state != nil {
+		signedUnder = state.signedUnder
+	}
+	return c.refresh.answer(ctx, signedUnder, refresher, c.httpOpts.Timeout)
+}
+
+// refresher is what renews the client's credentials, the strategy before the provider,
+// or nothing when neither can.
+func (c *Client) refresher() (TokenRefresher, bool) {
 	if refresher, ok := c.authStrategy.(TokenRefresher); ok {
-		return refresher.Refresh(ctx) == nil
+		return refresher, true
 	}
 	if refresher, ok := c.tokenProvider.(TokenRefresher); ok {
-		return refresher.Refresh(ctx) == nil
+		return refresher, true
 	}
-	return false
+	return nil, false
 }
 
 // initGeneratedClient initializes the generated OpenAPI client for this account scope.
@@ -590,6 +618,9 @@ func (c *Client) doBodyRequest(ctx context.Context, method, path, contentType st
 // it, so the caller decides whether to resend; any other 401 is surfaced as the failure.
 func (c *Client) sendBodyRequest(ctx context.Context, method, reqURL, contentType string, body []byte, attempt int) (*FormResponse, error) {
 	ctx = contextWithAttempt(ctx, attempt)
+	// The redirect is captured rather than followed, so the state records nothing of a
+	// chain; it carries what the send was signed under, for a 401 to be read in its light.
+	ctx, _ = contextWithRedirectState(ctx)
 
 	var bodyReader io.Reader
 	if body != nil {

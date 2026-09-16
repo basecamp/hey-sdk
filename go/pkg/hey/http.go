@@ -204,10 +204,15 @@ func isProjectedRequest(ctx context.Context) bool {
 	return v
 }
 
-// redirectState is what the redirect policy records about one send, for the answer to
-// be read in its light. net/http builds every hop on the context of the request it was
-// handed, so the state travels with the chain and outlives it.
+// redirectState is what one send records for its answer to be read in its light: what
+// the strategy signed it under, and what the redirect policy saw of the chain. net/http
+// builds every hop on the context of the request it was handed, so the state travels with
+// the chain and outlives it.
 type redirectState struct {
+	// signedUnder is the generation of the credentials the strategy signed the request
+	// with, so a 401 can tell whether they have since been refreshed, are being
+	// refreshed, or were already refreshed without success.
+	signedUnder generation
 	// credentialHeaders names every header the auth strategy set on the request, whatever
 	// it called them: what a hop that leaves the origin goes out without.
 	credentialHeaders []string
@@ -264,6 +269,15 @@ func noteCredentialHeaders(req *http.Request, before http.Header) {
 		if !slices.Equal(before.Values(name), values) {
 			state.credentialHeaders = append(state.credentialHeaders, name)
 		}
+	}
+}
+
+// noteSigning records on the request's state the generation of the credentials the
+// strategy signed it with, read from the request as noteCredentialHeaders reads it. A
+// send without a state records nothing, and its 401 is read as one signed now.
+func noteSigning(req *http.Request, signedUnder generation) {
+	if state := redirectStateFromContext(req.Context()); state != nil {
+		state.signedUnder = signedUnder
 	}
 }
 

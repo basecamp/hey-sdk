@@ -132,10 +132,18 @@ func (c *Client) seedAccountIdentity(identity *generated.Identity) {
 func (c *Client) prepareAPIRequest(ctx context.Context, req *http.Request) error {
 	c.applyAccountScope(req.URL)
 	before := req.Header.Clone()
-	if err := c.authStrategy.Authenticate(ctx, req); err != nil {
+	// Signed under the read side of the refresh lock, so no request is signed while the
+	// credentials are changing hands, and the generation read with them is the one they
+	// belong to.
+	c.refresh.signing.RLock()
+	err := c.authStrategy.Authenticate(ctx, req)
+	signedUnder := c.refresh.generation()
+	c.refresh.signing.RUnlock()
+	if err != nil {
 		return err
 	}
 	noteCredentialHeaders(req, before)
+	noteSigning(req, signedUnder)
 	req.Header.Set("User-Agent", c.userAgent)
 	return nil
 }
