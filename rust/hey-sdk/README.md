@@ -338,7 +338,14 @@ the last refresh is resent on the new credentials rather than refreshing again, 
 refresh token is spent once. A refresh that fails is shared the same way: every call signed
 with the credentials it could not renew gets its 401 rather than a refresh of its own, so an
 outage at the token's issuer costs one call per set of credentials, and only a call signed
-after the failure asks again. With a `ResponseCache` (`InMemoryCache`, `FileCache`, or
+after the failure asks again. A provider that renews of its own accord — handing
+`access_token` a new token ahead of the old one's expiry, as OAuth libraries do — is not
+asked to refresh for a 401 on the old token, whether or not the new one has signed anything
+yet: the call is simply resent with the new one. A provider that cannot hand over a token
+at all when asked is taken as the refresh failing, and its `refresh` is not asked on top.
+Only a client built with `token_provider` is read this way; an `AuthStrategy` of your own —
+even one that signs through `BearerAuth` — may sign every call differently, and is asked to
+refresh as it always was. With a `ResponseCache` (`InMemoryCache`, `FileCache`, or
 `config.cache_enabled`), JSON reads revalidate with `If-None-Match` and a 304 is answered from
 the cache. Response bodies are capped at `max_response_body_bytes` (16 MiB by default).
 

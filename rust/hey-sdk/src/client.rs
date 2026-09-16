@@ -95,6 +95,13 @@ pub(crate) struct Shared {
     pub(crate) base_url: Url,
     pub(crate) http: Arc<dyn HttpClient>,
     pub(crate) auth: Arc<dyn AuthStrategy>,
+    /// Whether [`Shared::auth`] is the SDK's own bearer strategy over a token provider, as
+    /// [`ClientBuilder::token_provider`] builds it. Only then is the bearer a signing put on
+    /// read for a renewal. Known from how the client was built rather than from anything on
+    /// a request, since a strategy of the caller's may sign through [`BearerAuth`] and then
+    /// rewrite the header — a per-request signature, say — and would otherwise have every
+    /// signing taken for a renewal and its refresh never asked for.
+    pub(crate) bearer_auth: bool,
     pub(crate) user_agent: String,
     pub(crate) max_retries: u32,
     pub(crate) base_delay: Option<Duration>,
@@ -115,20 +122,51 @@ pub(crate) struct Shared {
     pub(crate) refresh_runs: AtomicU64,
     /// One refresh at a time, and none while a request is being signed: the 401s a stale
     /// credential earns all arrive together, and only the first of them should cost a
-    /// round trip to the token endpoint. Signing takes this for reading, so requests sign
-    /// concurrently; a refresh takes it for writing, so the counts a request is signed
-    /// under are those of the credentials it carries.
+    /// round trip to the token endpoint. Signing takes this for reading, so a signing
+    /// never waits on a refresh's turn being queued behind it; a refresh takes it for
+    /// writing, so the counts a request is signed under are those of the credentials it
+    /// carries. Taken before [`Shared::signing`], always: a signing holds the read half
+    /// and then the mutex, a refresh holds the write half — which no signer holds a read
+    /// under — and then the mutex, so the two locks can never be waited for in the other
+    /// order.
     pub(crate) refreshing: tokio::sync::RwLock<()>,
+    /// The bearer the SDK's own strategy last signed with, and the lock every signing runs
+    /// under: the token is taken from the provider, compared with this, and the counts read
+    /// in one critical section, so the order the counts record is the order the provider
+    /// issued in. Concurrent signers otherwise let a token issued first be recorded second
+    /// — a request that came out with the newer token reads the counts of the older, and a
+    /// genuine 401 on the newer is taken for one already answered and merely resent. A
+    /// token other than the one here is a renewal the provider made of its own accord, and
+    /// moves the counts as a refresh would. `None` until a signing, and again after a
+    /// refresh, whose renewal is counted once, by the refresh: the first signing after it
+    /// carries the new token and is not counted again. Only the SDK's own [`BearerAuth`]
+    /// is read this way, as [`Shared::bearer_auth`] says; a strategy of the caller's may sign
+    /// every request differently, so it is never compared, though its signings take the
+    /// lock too, which costs it nothing a single signer at a time does not.
+    pub(crate) signing: Mutex<Option<HeaderValue>>,
 }
 
 impl Shared {
     /// The credentials a request is signed under, as the counts at its signing. Read under
-    /// [`Shared::refreshing`], so no refresh moves either between the two.
+    /// [`Shared::refreshing`] and [`Shared::signing`], so no refresh and no other signing
+    /// moves either between the two.
     fn generation(&self) -> Generation {
         Generation {
             refreshes: self.refreshes.load(Ordering::Acquire),
             runs: self.refresh_runs.load(Ordering::Acquire),
         }
+    }
+
+    /// What the SDK's own bearer strategy would sign with now, asked by signing a request
+    /// that goes nowhere: a refresh checks it against the bearer a 401 came back on before
+    /// spending the provider's refresh on a token it has already replaced. Asked only of
+    /// the SDK's own bearer strategy, so a strategy of the caller's is never asked to sign
+    /// for nothing. An error is the provider failing to hand over any token at all — often
+    /// its own renewal failing — and is the refresh's answer, not a reason to ask again.
+    async fn bearer_now(&self) -> Result<Option<HeaderValue>, Error> {
+        let mut probe = Request::new(Bytes::new());
+        self.auth.authenticate(&mut probe).await?;
+        Ok(probe.headers().get(AUTHORIZATION).cloned())
     }
 }
 
@@ -190,6 +228,7 @@ impl Response {
 pub struct ClientBuilder {
     config: Config,
     auth: Option<Arc<dyn AuthStrategy>>,
+    bearer_auth: bool,
     http: Option<Arc<dyn HttpClient>>,
     user_agent: String,
     timeout: Duration,
@@ -210,6 +249,7 @@ impl ClientBuilder {
         ClientBuilder {
             config,
             auth: None,
+            bearer_auth: false,
             http: None,
             user_agent: default_user_agent(),
             timeout: DEFAULT_TIMEOUT,
@@ -228,13 +268,16 @@ impl ClientBuilder {
     /// Authenticates with a bearer token drawn from `provider` for each request.
     #[must_use]
     pub fn token_provider(self, provider: impl TokenProvider + 'static) -> ClientBuilder {
-        self.auth_strategy(BearerAuth::new(provider))
+        let mut builder = self.auth_strategy(BearerAuth::new(provider));
+        builder.bearer_auth = true;
+        builder
     }
 
     /// Authenticates however `strategy` does: the way in for anything but a bearer token.
     #[must_use]
     pub fn auth_strategy(mut self, strategy: impl AuthStrategy + 'static) -> ClientBuilder {
         self.auth = Some(Arc::new(strategy));
+        self.bearer_auth = false;
         self
     }
 
@@ -392,6 +435,7 @@ impl ClientBuilder {
             base_url,
             http,
             auth,
+            bearer_auth: self.bearer_auth,
             user_agent: self.user_agent,
             max_retries: self.max_retries,
             base_delay: self.base_delay,
@@ -405,6 +449,7 @@ impl ClientBuilder {
             refreshes: AtomicU64::new(0),
             refresh_runs: AtomicU64::new(0),
             refreshing: tokio::sync::RwLock::new(()),
+            signing: Mutex::new(None),
         };
         Ok(Client {
             shared: Arc::new(shared),
@@ -829,10 +874,9 @@ impl Client {
         loop {
             // Signed and counted under the read half of the refresh lock, so no refresh
             // lands between the two: the counts say exactly which credentials went out.
-            let (request, signed_under) = {
-                let _signing = self.shared.refreshing.read().await;
-                let request = self.prepare(operation, url, &mut cached).await?;
-                (request, self.shared.generation())
+            let (request, signed) = {
+                let _no_refresh = self.shared.refreshing.read().await;
+                self.prepare(operation, url, &mut cached).await?
             };
             let mut sending = Sending::start(
                 hooks.clone(),
@@ -885,7 +929,9 @@ impl Client {
                     if status == StatusCode::UNAUTHORIZED
                         && received.authenticated
                         && !refreshed
-                        && self.refresh_credentials(signed_under).await
+                        && self
+                            .refresh_credentials(signed.under, signed.bearer.clone())
+                            .await
                     {
                         let cause = Error::auth("Token refreshed").retryable();
                         sending.end(&RequestResult {
@@ -968,6 +1014,17 @@ impl Client {
     /// one call per set of credentials rather than one per request. Only a request signed
     /// after the failure asks again: its 401 is news.
     ///
+    /// A renewal the provider made of its own accord is a refresh too. Before the SDK's own
+    /// bearer strategy is asked to refresh, it is asked what it would sign with now, and a
+    /// token other than the `rejected` one — the bearer the 401 came back on — is a renewal
+    /// already made: the counts move as for a refresh, the request is resent with it, and
+    /// the provider is not asked, since a refresh token it was just issued would be spent
+    /// again over the top of the token it issued. Only a token the provider would still sign
+    /// with is refreshed. A provider that cannot hand over a token at all when asked is
+    /// taken as the refresh failing, shared like any other failure, and its refresh is not
+    /// asked for on top. A strategy of the caller's leaves no `rejected` bearer and is asked
+    /// outright.
+    ///
     /// The refresh runs on a task of its own, which holds the turn, so a caller that gives
     /// up waiting — its [`ClientBuilder::operation_timeout`] running out, say — does not
     /// abandon a refresh the token endpoint may already have honoured: the provider still
@@ -976,14 +1033,26 @@ impl Client {
     /// A caller gone before its refresh got the turn does not have one started on its
     /// behalf: a queue of stale requests whose limits ran out while an earlier refresh
     /// held the turn would otherwise each refresh in turn, for nobody.
-    async fn refresh_credentials(&self, signed_under: Generation) -> bool {
+    async fn refresh_credentials(
+        &self,
+        signed_under: Generation,
+        rejected: Option<HeaderValue>,
+    ) -> bool {
         let shared = self.shared.clone();
         let interest = Interest::new();
         let wanted = interest.wanted.clone();
         let refresh = tokio::spawn(async move {
+            // Every 401 gets a task and a turn of its own, and each reads the counts
+            // against the generation its own request was signed under only once it holds
+            // the turn — there is no refresh in flight to join, and no answer to take but
+            // the one worked out here, now. So a request that came out of its signing
+            // under a newer generation than a refresh running for an older one cannot be
+            // handed that refresh's answer: its turn comes after, and finds the counts the
+            // older refresh left, which say whether its own credentials were renewed.
             let _turn = shared.refreshing.write().await;
             if shared.refreshes.load(Ordering::Acquire) != signed_under.refreshes {
-                // Renewed since the signing, by someone else's refresh: resend on them.
+                // Renewed since the signing, by someone else's refresh or by the provider
+                // on its own: resend on them.
                 true
             } else if shared.refresh_runs.load(Ordering::Acquire) != signed_under.runs
                 || !wanted.load(Ordering::Acquire)
@@ -993,9 +1062,25 @@ impl Client {
                 // started now would be for nobody.
                 false
             } else {
-                let renewed = shared.auth.refresh().await;
+                let renewed = match rejected {
+                    Some(rejected) => match shared.bearer_now().await {
+                        // The provider has replaced the rejected token already: that is
+                        // the renewal, and asking for another would spend it.
+                        Ok(Some(now)) if now != rejected => true,
+                        Ok(_) => shared.auth.refresh().await,
+                        // The provider could not hand over a token at all — its own
+                        // renewal failing, as often as not — so that is this refresh's
+                        // answer, shared like any other, rather than a second attempt.
+                        Err(_) => false,
+                    },
+                    None => shared.auth.refresh().await,
+                };
                 if renewed {
                     shared.refreshes.fetch_add(1, Ordering::AcqRel);
+                    // The next signing carries the renewed token; that is this refresh,
+                    // already counted, not another. No signer holds the mutex, since the
+                    // write half is held here.
+                    *shared.signing.lock().await = None;
                 }
                 shared.refresh_runs.fetch_add(1, Ordering::AcqRel);
                 renewed
@@ -1035,15 +1120,17 @@ impl Client {
         Ok(url)
     }
 
-    /// Builds the request for one attempt, and looks the response cache up the first time
-    /// it is asked for a key. `cached` carries the entry — or the empty stand-in that says
-    /// "cacheable, nothing stored" — from one attempt to the next.
+    /// Builds the request for one attempt, signs it, and looks the response cache up the
+    /// first time it is asked for a key. `cached` carries the entry — or the empty stand-in
+    /// that says "cacheable, nothing stored" — from one attempt to the next. Called under
+    /// the read half of [`Shared::refreshing`], so the counts the signing reads are those
+    /// of the credentials it put on.
     async fn prepare(
         &self,
         operation: &Operation,
         url: &Url,
         cached: &mut Option<(String, CachedResponse)>,
-    ) -> Result<Request<Bytes>, Error> {
+    ) -> Result<(Request<Bytes>, Signed), Error> {
         let mut request = Request::builder()
             .method(operation.method.clone())
             .uri(url.as_str())
@@ -1056,7 +1143,7 @@ impl Client {
             headers.insert(CONTENT_TYPE, header_value(&body.content_type)?);
             *request.body_mut() = body.bytes.clone();
         }
-        self.shared.auth.authenticate(&mut request).await?;
+        let signed = self.sign(&mut request).await?;
 
         let key = match self.cacheable(operation) {
             None => None,
@@ -1086,7 +1173,36 @@ impl Client {
             let validator = header_value(&entry.etag)?;
             request.headers_mut().insert(IF_NONE_MATCH, validator);
         }
-        Ok(request)
+        Ok((request, signed))
+    }
+
+    /// Puts the credentials on a request and says what it went out under: the strategy is
+    /// asked, its answer compared with the last, and the counts read, all under
+    /// [`Shared::signing`], so no other signing comes between the taking of the token and
+    /// the counts it is recorded against. A bearer the SDK's own strategy put on that is
+    /// not the one it last put on is a renewal the provider made on its own, and moves the
+    /// counts before they are read: the request goes out under the renewed credentials, and
+    /// every request signed with the old bearer is resent rather than refreshed.
+    async fn sign(&self, request: &mut Request<Bytes>) -> Result<Signed, Error> {
+        let mut last = self.shared.signing.lock().await;
+        self.shared.auth.authenticate(request).await?;
+        let bearer = if self.shared.bearer_auth {
+            request.headers().get(AUTHORIZATION).cloned()
+        } else {
+            None
+        };
+        if let Some(now) = &bearer {
+            if last.as_ref().is_some_and(|before| before != now) {
+                // A renewal that ran to an answer, as much as a refresh that did.
+                self.shared.refreshes.fetch_add(1, Ordering::AcqRel);
+                self.shared.refresh_runs.fetch_add(1, Ordering::AcqRel);
+            }
+            *last = Some(now.clone());
+        }
+        Ok(Signed {
+            under: self.shared.generation(),
+            bearer,
+        })
     }
 
     /// What the cache holds for a key, as the attempt should carry it: the stored entry, an
@@ -1364,6 +1480,14 @@ struct Budget {
 struct Generation {
     refreshes: u64,
     runs: u64,
+}
+
+/// How a request went out: the counts at its signing, and the bearer the SDK's own
+/// strategy put on it — `None` under a strategy of the caller's, whose headers are not
+/// read — for a 401 to be checked against what the provider would sign with now.
+struct Signed {
+    under: Generation,
+    bearer: Option<HeaderValue>,
 }
 
 /// Whether the caller that asked for a refresh is still there to want it. Dropped when

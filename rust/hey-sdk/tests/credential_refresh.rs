@@ -10,7 +10,9 @@ use async_trait::async_trait;
 use bytes::Bytes;
 use hey_sdk::http::{Body, HttpClient, Request, Response, StatusCode};
 use hey_sdk::observability::{Hooks, OperationInfo, OperationState};
-use hey_sdk::{Client, Config, Error, ErrorCode, TokenProvider};
+use hey_sdk::{
+    AuthStrategy, BearerAuth, Client, Config, Error, ErrorCode, StaticTokenProvider, TokenProvider,
+};
 use tokio::sync::Notify;
 
 /// A provider whose refresh takes a moment and hands out a new token each time, counting
@@ -453,4 +455,415 @@ async fn a_request_whose_401_arrives_during_the_failing_refresh_shares_its_failu
 
     assert_eq!(provider.refreshes(), 1);
     assert_eq!(server.tokens().len(), 2);
+}
+
+/// A provider that renews ahead of expiry, as OAuth libraries do: it hands out `t0` once
+/// and `t1` from then on without being asked to refresh, and `t2` once it has been. The
+/// first token can be made slow to arrive, so that a signer asking for it after another
+/// would — unserialised — be recorded after it.
+struct Renewing {
+    signings: AtomicUsize,
+    refreshes: AtomicUsize,
+    first_takes: Duration,
+}
+
+impl Renewing {
+    fn new() -> Arc<Renewing> {
+        Renewing::slow_to_start(Duration::ZERO)
+    }
+
+    fn slow_to_start(first_takes: Duration) -> Arc<Renewing> {
+        Arc::new(Renewing {
+            signings: AtomicUsize::new(0),
+            refreshes: AtomicUsize::new(0),
+            first_takes,
+        })
+    }
+
+    fn refreshes(&self) -> usize {
+        self.refreshes.load(Ordering::SeqCst)
+    }
+}
+
+#[async_trait]
+impl TokenProvider for Renewing {
+    async fn access_token(&self) -> Result<String, Error> {
+        let signing = self.signings.fetch_add(1, Ordering::SeqCst) + 1;
+        if signing == 1 {
+            tokio::time::sleep(self.first_takes).await;
+            Ok("t0".to_string())
+        } else if self.refreshes() == 0 {
+            Ok("t1".to_string())
+        } else {
+            Ok("t2".to_string())
+        }
+    }
+
+    async fn refresh(&self) -> bool {
+        self.refreshes.fetch_add(1, Ordering::SeqCst);
+        true
+    }
+}
+
+/// A server that answers 401 to whichever credentials the test says it rejects now and an
+/// empty list to any other, holding the first `together` arrivals at a barrier so every
+/// one of them is signed before any is answered.
+struct Rejecting {
+    credentials: Mutex<Vec<String>>,
+    rejects: Mutex<Vec<String>>,
+    arrivals: AtomicUsize,
+    together: usize,
+    arrived: tokio::sync::Barrier,
+}
+
+impl Rejecting {
+    fn new(together: usize, rejects: &[&str]) -> Arc<Rejecting> {
+        Arc::new(Rejecting {
+            credentials: Mutex::new(Vec::new()),
+            rejects: Mutex::new(rejects.iter().map(ToString::to_string).collect()),
+            arrivals: AtomicUsize::new(0),
+            together,
+            arrived: tokio::sync::Barrier::new(together.max(1)),
+        })
+    }
+
+    /// The credentials, as the `Authorization` values, every request so far went out with.
+    fn credentials(&self) -> Vec<String> {
+        self.credentials.lock().unwrap().clone()
+    }
+
+    fn reject(&self, tokens: &[&str]) {
+        *self.rejects.lock().unwrap() = tokens.iter().map(ToString::to_string).collect();
+    }
+}
+
+#[derive(Clone)]
+struct RejectingTransport(Arc<Rejecting>);
+
+#[async_trait]
+impl HttpClient for RejectingTransport {
+    async fn send(&self, request: Request<Bytes>) -> Result<Response<Body>, Error> {
+        let credential = request.headers()["authorization"]
+            .to_str()
+            .unwrap()
+            .to_string();
+        self.0.credentials.lock().unwrap().push(credential.clone());
+        let token = credential.trim_start_matches("Bearer ").to_string();
+        if self.0.arrivals.fetch_add(1, Ordering::SeqCst) < self.0.together {
+            self.0.arrived.wait().await;
+        }
+        let mut response = Response::new(Body::from("[]"));
+        if self.0.rejects.lock().unwrap().contains(&token) {
+            *response.status_mut() = StatusCode::UNAUTHORIZED;
+        }
+        Ok(response)
+    }
+}
+
+/// A provider that renews ahead of expiry hands `access_token` a new token without being
+/// asked to refresh. A 401 on the old token, arriving after the new one has signed a
+/// request, is resent with the new one; refreshing would spend the refresh token the
+/// provider was just issued. A 401 on the new token itself is refreshed once, as ever.
+#[tokio::test]
+async fn a_token_the_provider_renews_on_its_own_is_a_renewal_and_a_401_on_the_old_one_is_resent() {
+    // The first two requests are signed t0 and t1 in turn, and neither is answered until
+    // both are at the server; the t0 one is answered 401, the t1 one 200.
+    let server = Rejecting::new(2, &["t0"]);
+    let provider = Renewing::new();
+    let client = Client::builder(Config::default().with_base_url("https://hey.test"))
+        .token_provider(provider.clone())
+        .http_client(RejectingTransport(server.clone()))
+        .max_jitter(Duration::ZERO)
+        .build()
+        .unwrap();
+
+    let boxes = client.boxes();
+    let (first, second) = tokio::join!(boxes.list(), boxes.list());
+    first.unwrap();
+    second.unwrap();
+    assert_eq!(
+        provider.refreshes(),
+        0,
+        "the 401 on t0 was answered by t1, which the provider had already handed over"
+    );
+    let credentials = server.credentials();
+    let mut signed_together = credentials[..2].to_vec();
+    signed_together.sort();
+    assert_eq!(
+        signed_together,
+        ["Bearer t0", "Bearer t1"],
+        "{credentials:?}"
+    );
+    assert_eq!(credentials[2..], ["Bearer t1"], "{credentials:?}");
+
+    // A 401 on t1 itself is news: the provider would still sign with it, so it is refreshed.
+    server.reject(&["t1"]);
+    boxes.list().await.unwrap();
+    assert_eq!(
+        provider.refreshes(),
+        1,
+        "a 401 on t1 itself is refreshed, once"
+    );
+    assert_eq!(server.credentials()[3..], ["Bearer t1", "Bearer t2"]);
+}
+
+/// The renewal need not have signed anything yet: before the provider is asked to
+/// refresh, it is asked what it would sign with now, and a token other than the rejected
+/// one is a renewal already made. The request is resent with it and the refresh is not
+/// spent. A 401 on the token the provider would still sign with is refreshed.
+#[tokio::test]
+async fn a_provider_asked_what_it_would_sign_with_is_not_asked_to_refresh_when_it_has_renewed() {
+    let server = Rejecting::new(0, &["t0"]);
+    let provider = Renewing::new();
+    let client = Client::builder(Config::default().with_base_url("https://hey.test"))
+        .token_provider(provider.clone())
+        .http_client(RejectingTransport(server.clone()))
+        .max_jitter(Duration::ZERO)
+        .build()
+        .unwrap();
+
+    client.boxes().list().await.unwrap();
+    assert_eq!(
+        provider.refreshes(),
+        0,
+        "the provider had renewed on its own by the time the 401 came back"
+    );
+    assert_eq!(server.credentials(), ["Bearer t0", "Bearer t1"]);
+
+    server.reject(&["t1"]);
+    client.boxes().list().await.unwrap();
+    assert_eq!(
+        provider.refreshes(),
+        1,
+        "a 401 on the token the provider would still sign with is refreshed"
+    );
+    assert_eq!(
+        server.credentials(),
+        ["Bearer t0", "Bearer t1", "Bearer t1", "Bearer t2"]
+    );
+}
+
+/// Two requests are signed at once, and the provider is slow to hand the first its t0 and
+/// quick to hand the second its t1: recorded in the order the signings ended, t1 would be
+/// the earlier token and t0 the renewal, and a genuine 401 on t1 would be taken for one
+/// already answered and merely resent. Signings are serialised, so the counts record the
+/// order the provider issued in, and the 401 on t1 is refreshed, once.
+///
+/// With the serialisation this passes whatever the scheduler does. Without it, it fails
+/// only when the second signer reaches the provider inside the first one's delay, which the
+/// delay makes all but certain but cannot promise: whether a signer is waiting on the lock
+/// is not something a test outside the client can see.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn signings_are_recorded_in_the_order_the_provider_issued_in() {
+    let server = Rejecting::new(0, &["t1"]);
+    let provider = Renewing::slow_to_start(Duration::from_millis(100));
+    let client = Client::builder(Config::default().with_base_url("https://hey.test"))
+        .token_provider(provider.clone())
+        .http_client(RejectingTransport(server.clone()))
+        .max_jitter(Duration::ZERO)
+        .build()
+        .unwrap();
+
+    let calls: Vec<_> = (0..2)
+        .map(|_| {
+            let client = client.clone();
+            tokio::spawn(async move { client.boxes().list().await })
+        })
+        .collect();
+    for call in calls {
+        call.await.unwrap().unwrap();
+    }
+
+    assert_eq!(
+        provider.refreshes(),
+        1,
+        "the 401 on t1, the token the provider issued last, was refreshed"
+    );
+    // The signings are serialised; the sends after them are not, so which of t0 and t1
+    // reaches the server first is the scheduler's to decide.
+    let mut credentials = server.credentials();
+    credentials.sort();
+    assert_eq!(
+        credentials,
+        ["Bearer t0", "Bearer t1", "Bearer t2"],
+        "each token went out once, and t1 was refreshed to t2 rather than resent"
+    );
+}
+
+/// A strategy of the caller's that signs every request differently, counting how often
+/// it was asked to refresh and signing acceptably from then on. The test keeps the
+/// counters behind the handle the client takes.
+#[derive(Default)]
+struct Distinct {
+    signings: AtomicUsize,
+    refreshes: AtomicUsize,
+}
+
+struct DistinctAuth(Arc<Distinct>);
+
+#[async_trait]
+impl AuthStrategy for DistinctAuth {
+    async fn authenticate(&self, request: &mut Request<Bytes>) -> Result<(), Error> {
+        let signing = self.0.signings.fetch_add(1, Ordering::SeqCst) + 1;
+        let prefix = if self.0.refreshes.load(Ordering::SeqCst) == 0 {
+            "signature"
+        } else {
+            "renewed"
+        };
+        let value = format!("Bearer {prefix}-{signing}").parse().unwrap();
+        request.headers_mut().insert("authorization", value);
+        Ok(())
+    }
+
+    async fn refresh(&self) -> bool {
+        self.0.refreshes.fetch_add(1, Ordering::SeqCst);
+        true
+    }
+}
+
+/// Only the SDK's own bearer strategy is read for a renewal: a strategy of the caller's
+/// may legitimately sign every request differently, and a 401 on one of its requests
+/// asks it to refresh, once, however many other requests it has signed since.
+#[tokio::test]
+async fn a_strategy_of_the_callers_that_signs_every_request_differently_is_not_taken_for_renewing()
+{
+    // Both requests are at the server before either is answered; the first is rejected,
+    // the second, signed differently, is not.
+    let server = Rejecting::new(2, &["signature-1"]);
+    let strategy = Arc::new(Distinct::default());
+    let client = Client::builder(Config::default().with_base_url("https://hey.test"))
+        .auth_strategy(DistinctAuth(strategy.clone()))
+        .http_client(RejectingTransport(server.clone()))
+        .max_jitter(Duration::ZERO)
+        .build()
+        .unwrap();
+
+    let boxes = client.boxes();
+    let (first, second) = tokio::join!(boxes.list(), boxes.list());
+    first.unwrap();
+    second.unwrap();
+
+    assert_eq!(
+        strategy.refreshes.load(Ordering::SeqCst),
+        1,
+        "the differing signature was not taken for a renewal: the 401 was refreshed"
+    );
+    assert_eq!(
+        server.credentials(),
+        [
+            "Bearer signature-1",
+            "Bearer signature-2",
+            "Bearer renewed-3"
+        ]
+    );
+}
+
+/// A provider that cannot hand over any token once it has handed over its first, as one
+/// whose own renewal inside `access_token` has failed would, counting how often it is asked
+/// to refresh.
+#[derive(Default)]
+struct Failing {
+    signings: AtomicUsize,
+    refreshes: AtomicUsize,
+}
+
+#[async_trait]
+impl TokenProvider for Failing {
+    async fn access_token(&self) -> Result<String, Error> {
+        if self.signings.fetch_add(1, Ordering::SeqCst) == 0 {
+            Ok("t0".to_string())
+        } else {
+            Err(Error::auth("the token could not be renewed"))
+        }
+    }
+
+    async fn refresh(&self) -> bool {
+        self.refreshes.fetch_add(1, Ordering::SeqCst);
+        true
+    }
+}
+
+/// Before a refresh is spent, the provider is asked what it would sign with. A provider that
+/// cannot hand over a token at all is the refresh failing: the request gets its 401, and the
+/// provider is not asked to refresh on top of the renewal it has just failed to make.
+#[tokio::test]
+async fn a_provider_that_cannot_hand_over_a_token_fails_the_refresh_without_refreshing() {
+    let server = Rejecting::new(0, &["t0"]);
+    let provider = Arc::new(Failing::default());
+    let client = Client::builder(Config::default().with_base_url("https://hey.test"))
+        .token_provider(provider.clone())
+        .http_client(RejectingTransport(server.clone()))
+        .max_jitter(Duration::ZERO)
+        .build()
+        .unwrap();
+
+    let error = client.boxes().list().await.unwrap_err();
+    assert_eq!(error.code(), ErrorCode::Auth, "{error}");
+    assert_eq!(
+        provider.refreshes.load(Ordering::SeqCst),
+        0,
+        "the failed renewal is the refresh's answer"
+    );
+    assert_eq!(server.credentials(), ["Bearer t0"], "and nothing is resent");
+}
+
+/// A strategy of the caller's that signs through the SDK's own bearer strategy and then
+/// rewrites the header with a per-request signature, counting how often it is asked to
+/// refresh.
+struct Wrapping {
+    inner: BearerAuth<StaticTokenProvider>,
+    signings: AtomicUsize,
+    refreshes: AtomicUsize,
+}
+
+struct WrappingAuth(Arc<Wrapping>);
+
+#[async_trait]
+impl AuthStrategy for WrappingAuth {
+    async fn authenticate(&self, request: &mut Request<Bytes>) -> Result<(), Error> {
+        self.0.inner.authenticate(request).await?;
+        let signing = self.0.signings.fetch_add(1, Ordering::SeqCst) + 1;
+        let signed = format!("Bearer signed-{signing}").parse().unwrap();
+        request.headers_mut().insert("authorization", signed);
+        Ok(())
+    }
+
+    async fn refresh(&self) -> bool {
+        self.0.refreshes.fetch_add(1, Ordering::SeqCst);
+        true
+    }
+}
+
+/// Signing through `BearerAuth` does not make a caller's strategy the SDK's own: its
+/// differing headers are not taken for renewals, and a 401 on one of its requests asks it
+/// to refresh, once, however many other requests it signed since.
+#[tokio::test]
+async fn a_strategy_of_the_callers_that_signs_through_bearer_auth_is_not_taken_for_renewing() {
+    let server = Rejecting::new(2, &["signed-1"]);
+    let strategy = Arc::new(Wrapping {
+        inner: BearerAuth::new(StaticTokenProvider::new("static")),
+        signings: AtomicUsize::new(0),
+        refreshes: AtomicUsize::new(0),
+    });
+    let client = Client::builder(Config::default().with_base_url("https://hey.test"))
+        .auth_strategy(WrappingAuth(strategy.clone()))
+        .http_client(RejectingTransport(server.clone()))
+        .max_jitter(Duration::ZERO)
+        .build()
+        .unwrap();
+
+    let boxes = client.boxes();
+    let (first, second) = tokio::join!(boxes.list(), boxes.list());
+    first.unwrap();
+    second.unwrap();
+
+    assert_eq!(
+        strategy.refreshes.load(Ordering::SeqCst),
+        1,
+        "the second request's differing signature was not taken for a renewal"
+    );
+    assert_eq!(
+        server.credentials(),
+        ["Bearer signed-1", "Bearer signed-2", "Bearer signed-3"]
+    );
 }

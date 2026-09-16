@@ -9,7 +9,11 @@ use crate::types::SensitiveString;
 /// Supplies the access token each request goes out with.
 #[async_trait]
 pub trait TokenProvider: Send + Sync {
-    /// The token to send, asked for on every request.
+    /// The token to send, asked for on every request. A provider that renews of its own
+    /// accord — handing over a new token ahead of the old one's expiry, as OAuth libraries
+    /// do — need do nothing more: the client takes a token other than the one it last
+    /// signed with for the renewal it is, so a 401 on the old token is answered by resending
+    /// with the new one, and [`refresh`](TokenProvider::refresh) is not asked.
     async fn access_token(&self) -> Result<String, Error>;
 
     /// Asked once when a request is answered with 401. Answer `true` when the next
@@ -17,7 +21,11 @@ pub trait TokenProvider: Send + Sync {
     /// Either answer is for every request signed with the credentials that earned the 401,
     /// not only the one that asked: a `true` resends them all on the new credentials, and
     /// a `false` fails them all, so an outage at the token's issuer costs one call per set
-    /// of credentials. A request signed after a `false` asks again.
+    /// of credentials. A request signed after a `false` asks again. Not asked for a 401 on
+    /// a token this provider has already replaced — one `access_token` no longer hands out,
+    /// whether or not the replacement has signed anything yet — since that is a renewal
+    /// already made: the request is resent with the replacement, and a rotating refresh
+    /// token the provider was just issued is not spent again over the top of it.
     async fn refresh(&self) -> bool {
         false
     }
