@@ -14,7 +14,7 @@ if [ ! -d "$HAYSTACK_DIR/.git" ] && [ ! -f "$HAYSTACK_DIR/.git" ]; then
 fi
 
 SHA=$(git -C "$HAYSTACK_DIR" rev-parse HEAD)
-DATE=$(date -u +%Y-%m-%d)
+DATE=$(git -C "$HAYSTACK_DIR" show -s --format=%cs "$SHA")
 
 cat > "$REPO_ROOT/spec/api-provenance.json" <<EOF
 {

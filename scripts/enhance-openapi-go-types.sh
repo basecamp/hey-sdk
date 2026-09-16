@@ -43,6 +43,22 @@ jq '
   )
 ' "$OPENAPI_FILE" > "${OPENAPI_FILE}.tmp" && mv "${OPENAPI_FILE}.tmp" "$OPENAPI_FILE"
 
+# MessageReceivedVia.contact is conditionally absent on the wire. Go's global
+# prefer-skip-optional-pointer setting would otherwise turn that absence into a zero Contact,
+# which re-encodes as {"id":0}. Preserve this response member as a pointer without changing
+# the established value types of every optional response object.
+jq '
+  (.components.schemas.MessageReceivedVia // error("MessageReceivedVia schema is missing")) as $delivery
+  | if ($delivery.properties.contact // null) == null then
+      error("MessageReceivedVia.contact is missing")
+    elif (($delivery.required // []) | index("contact")) != null then
+      error("MessageReceivedVia.contact must remain optional")
+    else
+      .components.schemas.MessageReceivedVia.properties.contact +=
+        {"x-go-type-skip-optional-pointer": false}
+    end
+' "$OPENAPI_FILE" > "${OPENAPI_FILE}.tmp" && mv "${OPENAPI_FILE}.tmp" "$OPENAPI_FILE"
+
 # Pass 2: Optional booleans and timestamps in request schemas → pointers
 # Without this, Go's JSON encoder sends zero-valued time.Time as "0001-01-01T00:00:00Z"
 # and false booleans even when the caller didn't set them — `omitempty` does not omit a

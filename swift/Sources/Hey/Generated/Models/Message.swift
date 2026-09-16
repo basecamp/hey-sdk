@@ -19,6 +19,8 @@ public struct Message: Codable, Sendable, Equatable {
     public var scheduledDeliveryAt: String?
     public var posting: MessagePostingContext?
     public var addressedSender: AddressedSender?
+    /// The account addresses HEY recorded this inbound message arriving through.
+    public var receivedVia: [MessageReceivedVia]?
 
     public init(
         id: Int,
@@ -34,7 +36,8 @@ public struct Message: Codable, Sendable, Equatable {
         showAddressedSelector: Bool? = nil,
         scheduledDeliveryAt: String? = nil,
         posting: MessagePostingContext? = nil,
-        addressedSender: AddressedSender? = nil
+        addressedSender: AddressedSender? = nil,
+        receivedVia: [MessageReceivedVia]? = nil
     ) {
         self.id = id
         self.createdAt = createdAt
@@ -50,6 +53,7 @@ public struct Message: Codable, Sendable, Equatable {
         self.scheduledDeliveryAt = scheduledDeliveryAt
         self.posting = posting
         self.addressedSender = addressedSender
+        self.receivedVia = receivedVia
     }
 
     enum CodingKeys: String, CodingKey {
@@ -67,5 +71,6 @@ public struct Message: Codable, Sendable, Equatable {
         case scheduledDeliveryAt = "scheduled_delivery_at"
         case posting
         case addressedSender = "addressed_sender"
+        case receivedVia = "received_via"
     }
 }

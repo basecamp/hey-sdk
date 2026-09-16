@@ -585,7 +585,7 @@
   },
   {
     "name": "GetMessage uses /messages/{messageId} path",
-    "description": "Verifies that GetMessage constructs the URL path /messages/{messageId}",
+    "description": "Verifies that GetMessage constructs the URL path /messages/{messageId} and retains the addresses HEY received the message through",
     "operation": "GetMessage",
     "method": "GET",
     "path": "/messages/{messageId}",
@@ -597,7 +597,17 @@
         "status": 200,
         "body": {
           "id": 456,
-          "subject": "Hello"
+          "subject": "Hello",
+          "received_via": [
+            {
+              "email_address": "david+receipts@example.com",
+              "contact": {
+                "id": 789,
+                "name": "David Heinemeier Hansson",
+                "email_address": "david@example.com"
+              }
+            }
+          ]
         }
       }
     ],
@@ -608,6 +618,21 @@
       },
       {
         "type": "noError"
+      },
+      {
+        "type": "responseBody",
+        "path": "received_via.0.email_address",
+        "expected": "david+receipts@example.com"
+      },
+      {
+        "type": "responseBody",
+        "path": "received_via.0.contact.id",
+        "expected": 789
+      },
+      {
+        "type": "responseBody",
+        "path": "received_via.0.contact.email_address",
+        "expected": "david@example.com"
       }
     ],
     "tags": [

@@ -60,7 +60,7 @@ timestamp DateTime
 /// HEY API
 @restJson1
 service HEY {
-    version: "2026-08-21"
+    version: "2026-09-16"
     operations: [
         // Identity (4 MVP)
         GetIdentity
@@ -386,6 +386,19 @@ list ContactIdList {
 
 list ContactList {
     member: Contact
+}
+
+/// MessageReceivedVia — one delivery address HEY recorded for an inbound message
+structure MessageReceivedVia {
+    @required
+    @heySensitive(category: "pii")
+    email_address: String
+
+    contact: Contact
+}
+
+list MessageReceivedViaList {
+    member: MessageReceivedVia
 }
 
 /// Extenzion — external account extension
@@ -789,6 +802,9 @@ structure Message {
     scheduled_delivery_at: DateTime
     posting: MessagePostingContext
     addressed_sender: AddressedSender
+
+    /// The account addresses HEY recorded this inbound message arriving through.
+    received_via: MessageReceivedViaList
 }
 
 /// DraftMessage — a draft entry

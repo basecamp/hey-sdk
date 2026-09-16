@@ -1002,6 +1002,9 @@ type Message struct {
 	// Posting MessagePostingContext — posting context for a message
 	Posting MessagePostingContext `json:"posting,omitempty"`
 
+	// ReceivedVia The account addresses HEY recorded this inbound message arriving through.
+	ReceivedVia []MessageReceivedVia `json:"received_via,omitempty"`
+
 	// ScheduledDeliveryAt ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)
 	ScheduledDeliveryAt time.Time `json:"scheduled_delivery_at,omitempty,omitzero"`
 
@@ -1115,6 +1118,13 @@ type MessagePayload struct {
 // MessagePostingContext MessagePostingContext — posting context for a message
 type MessagePostingContext struct {
 	Box string `json:"box,omitempty"`
+}
+
+// MessageReceivedVia MessageReceivedVia — one delivery address HEY recorded for an inbound message
+type MessageReceivedVia struct {
+	// Contact Contact — the identity of someone in HEY
+	Contact      *Contact `json:"contact,omitempty"`
+	EmailAddress string   `json:"email_address"`
 }
 
 // MovePostingsRequestContent defines model for MovePostingsRequestContent.
