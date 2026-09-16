@@ -14,6 +14,10 @@ pub trait TokenProvider: Send + Sync {
 
     /// Asked once when a request is answered with 401. Answer `true` when the next
     /// `access_token` will hand out renewed credentials, and the request is sent again.
+    /// Either answer is for every request signed with the credentials that earned the 401,
+    /// not only the one that asked: a `true` resends them all on the new credentials, and
+    /// a `false` fails them all, so an outage at the token's issuer costs one call per set
+    /// of credentials. A request signed after a `false` asks again.
     async fn refresh(&self) -> bool {
         false
     }

@@ -83,7 +83,7 @@ required-features = ["reqwest"]
 # are off so this resolves to the same build as the dependency above rather than a second
 # one.
 reqwest = { version = "0.13", default-features = false }
-tokio = { version = "1", features = ["macros", "net", "rt-multi-thread", "time", "sync"] }
+tokio = { version = "1", features = ["macros", "net", "rt-multi-thread", "sync", "test-util", "time"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", default-features = false, features = ["registry"] }
 wiremock = "0.6"

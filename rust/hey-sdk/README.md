@@ -335,7 +335,10 @@ client's settings alone and is resent on 429, 500, 502, 503 and 504; `get_all` a
 the token provider's `refresh` could answer, even with its sends spent — and once for all the
 calls a stale credential earned a 401 on: refreshes go one at a time, and a call signed before
 the last refresh is resent on the new credentials rather than refreshing again, so a rotating
-refresh token is spent once. With a `ResponseCache` (`InMemoryCache`, `FileCache`, or
+refresh token is spent once. A refresh that fails is shared the same way: every call signed
+with the credentials it could not renew gets its 401 rather than a refresh of its own, so an
+outage at the token's issuer costs one call per set of credentials, and only a call signed
+after the failure asks again. With a `ResponseCache` (`InMemoryCache`, `FileCache`, or
 `config.cache_enabled`), JSON reads revalidate with `If-None-Match` and a 304 is answered from
 the cache. Response bodies are capped at `max_response_body_bytes` (16 MiB by default).
 

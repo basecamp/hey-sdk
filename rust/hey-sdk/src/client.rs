@@ -109,12 +109,27 @@ pub(crate) struct Shared {
     /// was signed under, so a 401 answered after someone else refreshed is resent on the
     /// new credentials rather than refreshing again.
     pub(crate) refreshes: AtomicU64,
+    /// How many refreshes have run to an answer, renewed or not. A request remembers this
+    /// count too, so a 401 on credentials a refresh already failed to renew shares that
+    /// failure rather than asking the token endpoint again for the same credentials.
+    pub(crate) refresh_runs: AtomicU64,
     /// One refresh at a time, and none while a request is being signed: the 401s a stale
     /// credential earns all arrive together, and only the first of them should cost a
     /// round trip to the token endpoint. Signing takes this for reading, so requests sign
-    /// concurrently; a refresh takes it for writing, so the count a request is signed
-    /// under is the count of the credentials it carries.
+    /// concurrently; a refresh takes it for writing, so the counts a request is signed
+    /// under are those of the credentials it carries.
     pub(crate) refreshing: tokio::sync::RwLock<()>,
+}
+
+impl Shared {
+    /// The credentials a request is signed under, as the counts at its signing. Read under
+    /// [`Shared::refreshing`], so no refresh moves either between the two.
+    fn generation(&self) -> Generation {
+        Generation {
+            refreshes: self.refreshes.load(Ordering::Acquire),
+            runs: self.refresh_runs.load(Ordering::Acquire),
+        }
+    }
 }
 
 /// What a client works out about the identity it presents and keeps for as long as it
@@ -388,6 +403,7 @@ impl ClientBuilder {
             hooks: self.hooks,
             operation_timeout: self.operation_timeout,
             refreshes: AtomicU64::new(0),
+            refresh_runs: AtomicU64::new(0),
             refreshing: tokio::sync::RwLock::new(()),
         };
         Ok(Client {
@@ -812,11 +828,11 @@ impl Client {
 
         loop {
             // Signed and counted under the read half of the refresh lock, so no refresh
-            // lands between the two: the count says exactly which credentials went out.
+            // lands between the two: the counts say exactly which credentials went out.
             let (request, signed_under) = {
                 let _signing = self.shared.refreshing.read().await;
                 let request = self.prepare(operation, url, &mut cached).await?;
-                (request, self.shared.refreshes.load(Ordering::Acquire))
+                (request, self.shared.generation())
             };
             let mut sending = Sending::start(
                 hooks.clone(),
@@ -945,8 +961,12 @@ impl Client {
     /// earned it on. Refreshes go one at a time, and a request that was signed before the
     /// last refresh is simply resent: the credentials it will pick up are already the new
     /// ones, and asking the token endpoint again would only spend a round trip — or, with
-    /// a rotating refresh token, burn the one just issued. A refresh that fails leaves the
-    /// count where it was, so the next 401 asks again rather than trusting a failure.
+    /// a rotating refresh token, burn the one just issued. A refresh that fails is shared
+    /// the same way: every request signed with the credentials it could not renew takes
+    /// the failure as its answer rather than refreshing again, since its credentials are
+    /// the very ones the token endpoint just declined to renew, so an outage there costs
+    /// one call per set of credentials rather than one per request. Only a request signed
+    /// after the failure asks again: its 401 is news.
     ///
     /// The refresh runs on a task of its own, which holds the turn, so a caller that gives
     /// up waiting — its [`ClientBuilder::operation_timeout`] running out, say — does not
@@ -956,21 +976,29 @@ impl Client {
     /// A caller gone before its refresh got the turn does not have one started on its
     /// behalf: a queue of stale requests whose limits ran out while an earlier refresh
     /// held the turn would otherwise each refresh in turn, for nobody.
-    async fn refresh_credentials(&self, signed_under: u64) -> bool {
+    async fn refresh_credentials(&self, signed_under: Generation) -> bool {
         let shared = self.shared.clone();
         let interest = Interest::new();
         let wanted = interest.wanted.clone();
         let refresh = tokio::spawn(async move {
             let _turn = shared.refreshing.write().await;
-            if shared.refreshes.load(Ordering::Acquire) != signed_under {
+            if shared.refreshes.load(Ordering::Acquire) != signed_under.refreshes {
+                // Renewed since the signing, by someone else's refresh: resend on them.
                 true
-            } else if !wanted.load(Ordering::Acquire) {
+            } else if shared.refresh_runs.load(Ordering::Acquire) != signed_under.runs
+                || !wanted.load(Ordering::Acquire)
+            {
+                // A refresh of these very credentials already ran and failed, so its
+                // answer is this request's too — or the caller is gone, and a refresh
+                // started now would be for nobody.
                 false
-            } else if shared.auth.refresh().await {
-                shared.refreshes.fetch_add(1, Ordering::AcqRel);
-                true
             } else {
-                false
+                let renewed = shared.auth.refresh().await;
+                if renewed {
+                    shared.refreshes.fetch_add(1, Ordering::AcqRel);
+                }
+                shared.refresh_runs.fetch_add(1, Ordering::AcqRel);
+                renewed
             }
         });
         let refreshed = refresh.await.unwrap_or(false);
@@ -1326,6 +1354,16 @@ struct Budget {
     attempts: u32,
     retry_on: &'static [u16],
     delay: Duration,
+}
+
+/// The credentials a request went out with, as the counts at its signing: how many
+/// refreshes had renewed them, and how many had run at all. The first says whether a 401
+/// is already answered by someone else's refresh; the second whether a refresh of these
+/// very credentials already ran and failed, in which case its answer is this request's too.
+#[derive(Clone, Copy)]
+struct Generation {
+    refreshes: u64,
+    runs: u64,
 }
 
 /// Whether the caller that asked for a refresh is still there to want it. Dropped when
