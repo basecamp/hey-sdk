@@ -83,13 +83,26 @@ func (r *tokenRecorder) total() int {
 	return len(r.seen)
 }
 
-// waitFor fails the test unless ch is closed within a bound generous enough for the CI.
-func waitFor(t *testing.T, ch <-chan struct{}, what string) {
+// await waits for ch to be closed, within a bound generous enough for the CI, and fails
+// the test rather than hanging it when that never happens: a handler or a refresh
+// waiting on the test's own choreography carries on with the test already failed, so
+// the request it would have held forever is answered and the test ends with the message.
+func await(t *testing.T, ch <-chan struct{}, what string) bool {
 	t.Helper()
 	select {
 	case <-ch:
+		return true
 	case <-time.After(10 * time.Second):
-		t.Fatalf("timed out waiting for %s", what)
+		t.Errorf("timed out waiting for %s", what)
+		return false
+	}
+}
+
+// waitFor is await on the test's own goroutine, where a timeout can end the test at once.
+func waitFor(t *testing.T, ch <-chan struct{}, what string) {
+	t.Helper()
+	if !await(t, ch, what) {
+		t.FailNow()
 	}
 }
 
@@ -104,7 +117,7 @@ func TestRequestsSignedWithTheSameStaleTokenShareOneRefresh(t *testing.T) {
 			if staleOut.Add(1) == 2 {
 				close(bothOut)
 			}
-			<-bothOut
+			await(t, bothOut, "both stale requests to reach the server")
 			http.Error(w, "unauthorized", http.StatusUnauthorized)
 			return
 		}
@@ -146,26 +159,27 @@ func TestRequestsSignedWithTheSameStaleTokenShareOneRefresh(t *testing.T) {
 func TestAFailedRefreshIsSharedByARequestWhose401ArrivesAfterIt(t *testing.T) {
 	recorder := &tokenRecorder{}
 	var staleOut atomic.Int32
-	secondOut := make(chan struct{})
+	bothOut := make(chan struct{})
 	firstDone := make(chan struct{})
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		recorder.record(r)
-		if staleOut.Add(1) == 2 {
-			// The second 401 is answered only once the first request has been failed,
-			// so it is read against a refresh that has already run.
-			close(secondOut)
-			<-firstDone
+		// Neither 401 goes out until both requests are at the server, and so signed
+		// under the credentials the refresh fails to renew; the second is then answered
+		// only once the first request has been failed, so it is read against a refresh
+		// that has already run.
+		arrival := staleOut.Add(1)
+		if arrival == 2 {
+			close(bothOut)
+		}
+		await(t, bothOut, "both stale requests to reach the server")
+		if arrival == 2 {
+			await(t, firstDone, "the first request to finish")
 		}
 		http.Error(w, "unauthorized", http.StatusUnauthorized)
 	}))
 	t.Cleanup(server.Close)
 
-	auth := newSteeredAuth(func(context.Context) error {
-		// The refresh waits until the second request is out, so both were signed
-		// under the credentials it fails to renew.
-		<-secondOut
-		return errors.New("issuer down")
-	})
+	auth := newSteeredAuth(func(context.Context) error { return errors.New("issuer down") })
 	client := NewClient(&Config{BaseURL: server.URL}, nil, WithAuthStrategy(auth), WithMaxRetries(1))
 
 	errs := make(chan error, 2)
@@ -206,10 +220,10 @@ func TestARequestWhose401ArrivesDuringARefreshWaitsForItsAnswer(t *testing.T) {
 		// refresh the first's earns is running.
 		switch r.URL.Path {
 		case "/first.json":
-			<-secondArrived
+			await(t, secondArrived, "the second request to reach the server")
 		case "/second.json":
 			close(secondArrived)
-			<-entered
+			await(t, entered, "the refresh to start")
 			defer close(secondOut)
 		}
 		http.Error(w, "unauthorized", http.StatusUnauthorized)
@@ -218,7 +232,7 @@ func TestARequestWhose401ArrivesDuringARefreshWaitsForItsAnswer(t *testing.T) {
 
 	auth := newSteeredAuth(func(context.Context) error {
 		close(entered)
-		<-gate
+		await(t, gate, "the test to release the refresh")
 		return errors.New("issuer down")
 	})
 	client := NewClient(&Config{BaseURL: server.URL}, nil, WithAuthStrategy(auth), WithMaxRetries(1))
@@ -260,7 +274,7 @@ func TestCoordinatorHandsAWaiterTheAnswerOfTheRefreshInFlight(t *testing.T) {
 	gate := make(chan struct{})
 	auth := newSteeredAuth(func(context.Context) error {
 		close(entered)
-		<-gate
+		await(t, gate, "the test to release the refresh")
 		return errors.New("issuer down")
 	})
 	var refresh credentialRefresh
@@ -337,16 +351,21 @@ func TestARequestSignedAfterAFailedRefreshRefreshesAgain(t *testing.T) {
 func TestA401OnCredentialsAnotherRequestAlreadyRefreshedIsResentWithoutARefresh(t *testing.T) {
 	recorder := &tokenRecorder{}
 	var staleOut atomic.Int32
-	secondOut := make(chan struct{})
+	bothOut := make(chan struct{})
 	firstDone := make(chan struct{})
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if recorder.record(r) != "Bearer fresh" {
-			if staleOut.Add(1) == 2 {
-				// The second 401 is answered only once the first request has been
-				// resent and answered, so it is read against a refresh that has renewed
-				// the credentials.
-				close(secondOut)
-				<-firstDone
+			// Neither 401 goes out until both requests are at the server, and so signed
+			// with the stale token; the second is then answered only once the first
+			// request has been resent and answered, so it is read against a refresh
+			// that has renewed the credentials.
+			arrival := staleOut.Add(1)
+			if arrival == 2 {
+				close(bothOut)
+			}
+			await(t, bothOut, "both stale requests to reach the server")
+			if arrival == 2 {
+				await(t, firstDone, "the first request to finish")
 			}
 			http.Error(w, "unauthorized", http.StatusUnauthorized)
 			return
@@ -358,7 +377,6 @@ func TestA401OnCredentialsAnotherRequestAlreadyRefreshedIsResentWithoutARefresh(
 
 	auth := newSteeredAuth(nil)
 	auth.refresh = func(context.Context) error {
-		<-secondOut
 		auth.token.Store("fresh")
 		return nil
 	}
@@ -447,7 +465,7 @@ func TestGeneratedOperationsSignedWithTheSameStaleTokenShareOneRefresh(t *testin
 			if staleOut.Add(1) == 2 {
 				close(bothOut)
 			}
-			<-bothOut
+			await(t, bothOut, "both stale requests to reach the server")
 			http.Error(w, "unauthorized", http.StatusUnauthorized)
 			return
 		}
@@ -494,7 +512,7 @@ func TestFormAndGeneratedRequestsShareOneRefresh(t *testing.T) {
 			if staleOut.Add(1) == 2 {
 				close(bothOut)
 			}
-			<-bothOut
+			await(t, bothOut, "both stale requests to reach the server")
 			http.Error(w, "unauthorized", http.StatusUnauthorized)
 			return
 		}
@@ -547,7 +565,7 @@ func TestAnAccountScopedClientSharesTheRootClientsRefresh(t *testing.T) {
 			if staleOut.Add(1) == 2 {
 				close(bothOut)
 			}
-			<-bothOut
+			await(t, bothOut, "both stale requests to reach the server")
 			http.Error(w, "unauthorized", http.StatusUnauthorized)
 			return
 		}
@@ -596,10 +614,10 @@ func TestACancelledWaiterDoesNotAbandonTheRefreshItWaitedOn(t *testing.T) {
 			// the refresh the first's earns is running.
 			switch r.URL.Path {
 			case "/first.json":
-				<-secondArrived
+				await(t, secondArrived, "the second request to reach the server")
 			case "/second.json":
 				close(secondArrived)
-				<-entered
+				await(t, entered, "the refresh to start")
 			}
 			http.Error(w, "unauthorized", http.StatusUnauthorized)
 			return
@@ -620,7 +638,7 @@ func TestACancelledWaiterDoesNotAbandonTheRefreshItWaitedOn(t *testing.T) {
 	auth := newSteeredAuth(nil)
 	auth.refresh = func(ctx context.Context) error {
 		close(entered)
-		<-gate
+		await(t, gate, "the test to release the refresh")
 		sawCancel.Store(ctx.Err() != nil)
 		auth.token.Store("fresh")
 		return nil
@@ -666,7 +684,7 @@ func TestTheRefreshOutlivesTheRequestThatStartedIt(t *testing.T) {
 		_, hasDeadline := ctx.Deadline()
 		deadlineSet.Store(hasDeadline)
 		close(entered)
-		<-gate
+		await(t, gate, "the test to release the refresh")
 		cancelled.Store(ctx.Err() != nil)
 		return nil
 	})
@@ -731,7 +749,7 @@ func TestNoRequestIsSignedWhileARefreshRuns(t *testing.T) {
 	auth := newSteeredAuth(nil)
 	auth.refresh = func(context.Context) error {
 		close(entered)
-		<-gate
+		await(t, gate, "the test to release the refresh")
 		auth.token.Store("fresh")
 		return nil
 	}
@@ -794,7 +812,7 @@ func TestARequestWhoseContextEndsDuringARefreshIsRefusedWithoutBeingSigned(t *te
 	auth := newSteeredAuth(nil)
 	auth.refresh = func(context.Context) error {
 		close(entered)
-		<-gate
+		await(t, gate, "the test to release the refresh")
 		auth.token.Store("fresh")
 		return nil
 	}
