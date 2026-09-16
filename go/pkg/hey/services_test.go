@@ -511,8 +511,8 @@ func TestMessagesService_Create(t *testing.T) {
 	client := newMutationTestClientWithValidation(t, "POST", "/messages.json",
 		func(t *testing.T, body map[string]any) {
 			t.Helper()
-			if _, ok := body["acting_sender_id"]; !ok {
-				t.Error("missing acting_sender_id")
+			if got := body["acting_sender_id"]; got != float64(42) {
+				t.Errorf("acting_sender_id = %v, want the account default 42", got)
 			}
 			msg, ok := body["message"].(map[string]any)
 			if !ok {
@@ -548,6 +548,35 @@ func TestMessagesService_Create(t *testing.T) {
 	)
 
 	err := client.Messages().Create(context.Background(), "Test", "Hello", []string{"test@example.com"}, []string{"cc@example.com"}, nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestMessagesService_SendUsesSelectedSender(t *testing.T) {
+	client := newMutationTestClientWithValidation(t, "POST", "/messages.json",
+		func(t *testing.T, body map[string]any) {
+			t.Helper()
+			if got := body["acting_sender_id"]; got != float64(314) {
+				t.Errorf("acting_sender_id = %v, want selected sender 314", got)
+			}
+			msg, ok := body["message"].(map[string]any)
+			if !ok {
+				t.Fatal("missing message wrapper")
+			}
+			if msg["subject"] != "From support" || msg["content"] != "How can we help?" {
+				t.Errorf("message = %v", msg)
+			}
+		},
+		`{"notice":"sent"}`,
+	)
+
+	err := client.Messages().Send(context.Background(), MessageContent{
+		Subject:        "From support",
+		Content:        "How can we help?",
+		To:             []string{"jane@example.com"},
+		ActingSenderID: 314,
+	})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
