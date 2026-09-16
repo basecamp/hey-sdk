@@ -2,11 +2,11 @@
 
 /// CalendarWithRecordingChangesUrl — wraps calendar with sync URL
 public struct CalendarWithRecordingChangesUrl: Codable, Sendable, Equatable {
-    public var calendar: Calendar?
+    public var calendar: HeyCalendar?
     public var recordingChangesUrl: String?
 
     public init(
-        calendar: Calendar? = nil,
+        calendar: HeyCalendar? = nil,
         recordingChangesUrl: String? = nil
     ) {
         self.calendar = calendar

@@ -27,10 +27,14 @@ PuntClearances = "clearances"
 UpdateClearance = "clearances"
 UpdateMyClearance = "clearances"
 
-# Schemas whose Smithy name collides with something Swift or Foundation already has. The rename reaches
-# every place the generator writes the type and nowhere else: a type name never goes on the
-# wire. Nothing collides today; the table is here for the day something does.
+# Schemas whose Smithy name collides with something Swift or Foundation already has. The rename
+# reaches every place the generator writes the type and nowhere else: a type name never goes on
+# the wire. A type in an imported module shadows the standard library's, so a model called
+# Collection would take the protocol's place in every file that imports the package, and one
+# called Calendar Foundation's.
 [type_names]
+Calendar = "HeyCalendar"
+Collection = "HeyCollection"
 
 # Method names the derivation would get wrong: a collision within a service, or a name
 # that reads badly on its own. These follow the Rust and Kotlin generators' settlements so every

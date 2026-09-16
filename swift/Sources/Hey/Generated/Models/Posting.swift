@@ -35,7 +35,7 @@ public struct Posting: Codable, Sendable, Equatable {
     public var contacts: [Contact]?
     public var extenzions: [Extenzion]?
     public var folders: [Folder]?
-    public var collections: [Collection]?
+    public var collections: [HeyCollection]?
     public var workflows: [Workflow]?
     public var visibleEntryCount: Int32?
     public var entryKind: String?
@@ -71,7 +71,7 @@ public struct Posting: Codable, Sendable, Equatable {
         contacts: [Contact]? = nil,
         extenzions: [Extenzion]? = nil,
         folders: [Folder]? = nil,
-        collections: [Collection]? = nil,
+        collections: [HeyCollection]? = nil,
         workflows: [Workflow]? = nil,
         visibleEntryCount: Int32? = nil,
         entryKind: String? = nil,

@@ -324,6 +324,31 @@ final class ModelTests: XCTestCase {
         XCTAssertTrue(accessors.contains("public var workflows: WorkflowsService { WorkflowsService(client: self) }"), accessors)
     }
 
+    func testNoGeneratedTypeTakesANameSwiftOrThePackageAlreadyUses() throws {
+        // A type in an imported module shadows the standard library's, so a model named like one
+        // would take its place in every file that imports the package; and a model named like one
+        // of the package's own types would not compile beside it. Settle a new collision in
+        // [type_names].
+        let taken: Set<String> = [
+            "Any", "Array", "Bool", "Calendar", "Character", "Clock", "Codable", "Collection", "Data", "Date", "Decoder",
+            "Dictionary", "Double", "Duration", "Encoder", "Equatable", "Error", "Float", "Hashable", "Identifiable", "Int",
+            "Locale", "Never", "Optional", "Range", "Result", "Sendable", "Sequence", "Set", "String", "Task", "TimeZone",
+            "URL", "UUID", "Void",
+            "AuthStrategy", "BaseService", "BearerAuth", "Body", "CachedResponse", "ChainHooks", "ConsoleHooks", "ErrorDetail",
+            "FormResponse", "HTTPHeaders", "HTTPRequest", "HTTPResponse", "HeyClient", "HeyConfig", "HeyError", "HeyHooks",
+            "InMemoryCache", "Indirect", "JSONValue", "Method", "NoopHooks", "Operation", "OperationInfo", "OperationResult",
+            "Page", "ParamKind", "ParamRole", "Pagination", "RequestInfo", "RequestResult", "Response", "ResponseCache",
+            "RetryPolicy", "Route", "RouteMatch", "RouteParam", "Router", "Routes", "SensitiveString", "StaticTokenProvider",
+            "TokenProvider", "Transport", "URLSessionTransport",
+        ]
+        let root = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+        let names = try generate(root: root).map(\.0).filter { $0.hasPrefix("Models/") }
+            .map { String($0.dropFirst("Models/".count).dropLast(".swift".count)) }
+        XCTAssertFalse(names.isEmpty)
+        XCTAssertEqual(names.filter(taken.contains), [])
+    }
+
     func testTheCheckedInTreeIsWhatTheGeneratorWrites() throws {
         // The drift check, run against the repository this test is built from.
         let root = URL(fileURLWithPath: #filePath)

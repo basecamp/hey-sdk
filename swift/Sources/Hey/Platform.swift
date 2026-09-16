@@ -12,7 +12,8 @@ func nowISO8601() -> String {
 func todayLocalDate() -> String {
     let formatter = DateFormatter()
     formatter.locale = Locale(identifier: "en_US_POSIX")
-    formatter.calendar = Calendar(identifier: .gregorian)
+    // HEY has a model called Calendar, so Foundation's is named in full.
+    formatter.calendar = Foundation.Calendar(identifier: .gregorian)
     formatter.timeZone = .current
     formatter.dateFormat = "yyyy-MM-dd"
     return formatter.string(from: Date())

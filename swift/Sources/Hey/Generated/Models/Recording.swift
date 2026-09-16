@@ -31,7 +31,7 @@ public struct Recording: Codable, Sendable, Equatable {
     public var recurrenceSchedule: RecurrenceSchedule?
     public var occurrencesUrl: String?
     public var occurrenceId: String?
-    public var calendar: Calendar?
+    public var calendar: HeyCalendar?
     public var editUrl: String?
     public var summary: String?
     public var url: String?
@@ -83,7 +83,7 @@ public struct Recording: Codable, Sendable, Equatable {
         recurrenceSchedule: RecurrenceSchedule? = nil,
         occurrencesUrl: String? = nil,
         occurrenceId: String? = nil,
-        calendar: Calendar? = nil,
+        calendar: HeyCalendar? = nil,
         editUrl: String? = nil,
         summary: String? = nil,
         url: String? = nil,

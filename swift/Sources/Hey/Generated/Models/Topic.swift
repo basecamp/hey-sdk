@@ -16,7 +16,7 @@ public struct Topic: Codable, Sendable, Equatable {
     public var creator: Contact?
     public var contacts: [Contact]?
     public var extenzions: [Extenzion]?
-    public var collections: [Collection]?
+    public var collections: [HeyCollection]?
     public var isForgedSender: Bool?
     public var latestEntry: Entry?
     /// The topic's first page of entries (summaries, no bodies). Present on GetTopic; use
@@ -35,7 +35,7 @@ public struct Topic: Codable, Sendable, Equatable {
         creator: Contact? = nil,
         contacts: [Contact]? = nil,
         extenzions: [Extenzion]? = nil,
-        collections: [Collection]? = nil,
+        collections: [HeyCollection]? = nil,
         isForgedSender: Bool? = nil,
         latestEntry: Entry? = nil,
         entries: [Entry]? = nil
