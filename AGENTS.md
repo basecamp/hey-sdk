@@ -163,7 +163,14 @@ retried only after a refreshed 401), and `Client::send_form`. Say what such a ca
 `Operation::info` and `services::write_info`, since the model describes none of those
 paths. `Operation::quiet` skips the operation hooks while still firing the request ones,
 for a read-back made inside another operation — `Publications::publish` and
-`Workflows::stage_topic` use it so the hooks see one operation, as Go's do.
+`Workflows::stage_topic` use it so the hooks see one operation, as Go's do. A convenience
+whose answer is not what HEY answered — the changes feeds turning a 409 into
+`full_sync_required`, `TimeTracks::start_tracking` and the contact writes rewording a
+refusal — sends quietly inside `Client::as_operation`, which runs the send and the
+conversion as one operation under the operation's own info: the gate, the span, the
+start, and an end that carries what the caller gets rather than what HEY answered. A
+catch after `execute` returns is too late for the hooks, which have already heard the
+operation fail.
 
 ## Adding an operation
 

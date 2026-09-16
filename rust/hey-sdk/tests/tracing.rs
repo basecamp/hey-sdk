@@ -420,6 +420,54 @@ async fn a_quiet_send_runs_in_the_span_its_caller_is_in() {
     assert_eq!(parents, [Some(operation), Some(caller)]);
 }
 
+/// A changes feed runs its send quietly inside an operation of its own, so that the
+/// operation can end as the full-sync answer the caller gets. The span is that operation's
+/// — named the way the hooks hear it — and the quiet send records what HEY answered on
+/// it, so the trace still shows the 409 the answer came from.
+#[tokio::test]
+async fn a_feed_answered_with_a_full_sync_records_the_409_on_its_own_span() {
+    let server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path("/boxes/24088/postings/changes.json"))
+        .respond_with(ResponseTemplate::new(409).insert_header("x-request-id", "req-409"))
+        .mount(&server)
+        .await;
+    let capture = Capture::default();
+    let _guard = capture.install();
+
+    let changes = client(&server)
+        .postings()
+        .changes(
+            24088,
+            &hey_sdk::services::PostingChangesCursor::from_url(
+                "https://app.hey.com/boxes/24088/postings/changes.json?since=2026-08-18T09%3A00%3A00.000Z&v=2",
+            )
+            .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert!(changes.full_sync_required);
+    let operations = capture.operations();
+    assert_eq!(operations.len(), 1);
+    assert_eq!(
+        fields(&operations[0]),
+        [
+            ("http.status", "409"),
+            ("operation", "GetBoxPostingChanges"),
+            ("request_id", "req-409"),
+            ("service", "Postings"),
+        ]
+    );
+    assert!(operations[0].closed);
+    let attempts = capture.attempts();
+    assert_eq!(attempts.len(), 1);
+    assert_eq!(
+        attempts[0].parent,
+        Some(capture.id_of("hey.operation", "GetBoxPostingChanges"))
+    );
+}
+
 /// Nothing the caller passed in reaches a span or an event: a request for a path the
 /// caller wrote is named by its method alone, and a resend is logged by the operation's
 /// name and the failure's code, not by anything that could carry the URL.

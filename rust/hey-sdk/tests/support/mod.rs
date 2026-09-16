@@ -119,7 +119,8 @@ impl Hooks for Operations {
 }
 
 /// How each operation ended, as its status: `None` where it succeeded. For the reads whose
-/// answer to the caller is not the answer the hooks are told about.
+/// answer to the caller is not the answer HEY gave, to prove the operation ends the way
+/// the caller sees it.
 #[derive(Default)]
 pub(crate) struct Outcomes {
     statuses: Mutex<Vec<Option<u16>>>,

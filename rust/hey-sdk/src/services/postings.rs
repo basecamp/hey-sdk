@@ -351,7 +351,8 @@ impl Postings<'_> {
     /// This is the incremental sync feed the mail clients follow rather than re-reading a
     /// box. HEY answers 409 when the cursor is too far behind for an increment to carry the
     /// difference, which comes back as a `full_sync_required` answer rather than a failure:
-    /// read the box in full instead. The hooks still see the 409 for what it was.
+    /// read the box in full instead. The request hooks see the 409 for what it was; the
+    /// operation ends the way the caller sees it, as a success.
     pub async fn changes(
         &self,
         box_id: i64,
@@ -374,35 +375,46 @@ impl Postings<'_> {
         // A cursor URL never repeats, so a cached answer would never be revalidated and a
         // long-running watch would grow the cache one dead entry per read.
         operation.no_cache();
+        // The 409 is answered, not failed, so the send is quiet and the operation is the
+        // whole of this: it ends with what the caller gets.
+        operation.quiet();
+        let info = operation.info.clone();
 
-        let response = match self.client().execute(operation).await {
-            Ok(response) => response,
-            Err(error) if error.http_status() == Some(TOO_FAR_BEHIND) => {
-                return Ok(PostingChanges {
-                    full_sync_required: true,
-                    ..PostingChanges::default()
-                });
-            }
-            Err(error) => return Err(error),
-        };
+        self.client()
+            .as_operation(
+                &info,
+                Box::pin(async {
+                    let response = match self.client().execute(operation).await {
+                        Ok(response) => response,
+                        Err(error) if error.http_status() == Some(TOO_FAR_BEHIND) => {
+                            return Ok(PostingChanges {
+                                full_sync_required: true,
+                                ..PostingChanges::default()
+                            });
+                        }
+                        Err(error) => return Err(error),
+                    };
 
-        let body: GetBoxPostingChangesResponseContent = response.json()?;
-        let mut changes = PostingChanges {
-            added: body.added.unwrap_or_default(),
-            updated: body.updated.unwrap_or_default(),
-            deleted: body.deleted.unwrap_or_default(),
-            ..PostingChanges::default()
-        };
-        if let Some(next) = self.next_cursor(&response)? {
-            // The feed names a page while an increment has more of them to read, and a
-            // fresh since cursor on the last one.
-            if next.page.is_some() {
-                changes.next_page = Some(next);
-            } else {
-                changes.next_cursor = Some(next);
-            }
-        }
-        Ok(changes)
+                    let body: GetBoxPostingChangesResponseContent = response.json()?;
+                    let mut changes = PostingChanges {
+                        added: body.added.unwrap_or_default(),
+                        updated: body.updated.unwrap_or_default(),
+                        deleted: body.deleted.unwrap_or_default(),
+                        ..PostingChanges::default()
+                    };
+                    if let Some(next) = self.next_cursor(&response)? {
+                        // The feed names a page while an increment has more of them to read,
+                        // and a fresh since cursor on the last one.
+                        if next.page.is_some() {
+                            changes.next_page = Some(next);
+                        } else {
+                            changes.next_cursor = Some(next);
+                        }
+                    }
+                    Ok(changes)
+                }),
+            )
+            .await
     }
 
     async fn mark(&self, route: &'static Route, posting_ids: &[i64]) -> Result<(), Error> {

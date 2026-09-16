@@ -256,6 +256,11 @@ impl Calendars<'_> {
     }
 
     /// Reads one page of a calendar's recording changes feed.
+    ///
+    /// HEY answers 409 when the cursor is too far behind for an increment to carry the
+    /// difference, or speaks a version the feed no longer does, which comes back as a
+    /// `full_sync_required` answer rather than a failure. The request hooks see the 409
+    /// for what it was; the operation ends the way the caller sees it, as a success.
     pub async fn recording_changes(
         &self,
         calendar_id: i64,
@@ -280,28 +285,40 @@ impl Calendars<'_> {
         operation.resource_id(calendar_id);
         cursor.apply(&mut operation);
         operation.no_cache();
+        // The 409 is answered, not failed, so the send is quiet and the operation is the
+        // whole of this: it ends with what the caller gets.
+        operation.quiet();
+        let info = operation.info.clone();
 
-        let response = match self.client().execute(operation).await {
-            Ok(response) => response,
-            Err(error) if error.http_status() == Some(TOO_FAR_BEHIND) => {
-                return Ok(RecordingChanges {
-                    full_sync_required: true,
-                    ..RecordingChanges::default()
-                });
-            }
-            Err(error) => return Err(error),
-        };
+        self.client()
+            .as_operation(
+                &info,
+                Box::pin(async {
+                    let response = match self.client().execute(operation).await {
+                        Ok(response) => response,
+                        Err(error) if error.http_status() == Some(TOO_FAR_BEHIND) => {
+                            return Ok(RecordingChanges {
+                                full_sync_required: true,
+                                ..RecordingChanges::default()
+                            });
+                        }
+                        Err(error) => return Err(error),
+                    };
 
-        let payload: RecordingChangesPayload = response.json()?;
-        let (next_page, next_cursor) = next_cursors(&response, self.client().base_url())?;
-        Ok(RecordingChanges {
-            added: payload.added,
-            updated: payload.updated,
-            deleted: flatten_deleted_recordings(payload.deleted),
-            next_page,
-            next_cursor,
-            full_sync_required: false,
-        })
+                    let payload: RecordingChangesPayload = response.json()?;
+                    let (next_page, next_cursor) =
+                        next_cursors(&response, self.client().base_url())?;
+                    Ok(RecordingChanges {
+                        added: payload.added,
+                        updated: payload.updated,
+                        deleted: flatten_deleted_recordings(payload.deleted),
+                        next_page,
+                        next_cursor,
+                        full_sync_required: false,
+                    })
+                }),
+            )
+            .await
     }
 }
 

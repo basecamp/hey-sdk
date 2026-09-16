@@ -20,6 +20,15 @@
 //! The parts of HEY with no JSON surface go out as browser forms, built with
 //! [`crate::Client::form`] and sent with [`crate::Client::send_form`]. The model describes
 //! none of those paths, so such a call says what it means with [`write_info`].
+//!
+//! A convenience whose answer is not what HEY answered — a changes feed's 409 that comes
+//! back as `full_sync_required`, a refusal reworded from the body it arrived in — marks its
+//! send [`quiet`](crate::Operation::quiet) and runs the send and the conversion together
+//! with `Client::as_operation`, under the operation's own info. The hooks then hear one
+//! operation that ends the way the caller sees it, and the request hooks still hear what
+//! HEY answered, as they do in Go. [`postings::Postings::changes`],
+//! [`calendars::Calendars::recording_changes`],
+//! [`time_tracks::TimeTracks::start_tracking`] and the contact writes do this.
 
 pub mod attachments;
 pub mod boxes;
