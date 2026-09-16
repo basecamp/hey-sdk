@@ -48,14 +48,31 @@ func (s *MessagesService) Get(ctx context.Context, messageID int64) (result *gen
 	return resp.JSON200, nil
 }
 
-// Create creates a new message (starts a new thread) and delivers it.
-// The acting sender ID is automatically resolved.
+// MessageContent is a message to deliver: the subject, the Trix HTML body and the
+// recipients per kind. ActingSenderID selects the identity the message goes out as;
+// zero resolves the client's default sender.
+type MessageContent struct {
+	Subject string
+	Content string
+	To      []string
+	CC      []string
+	BCC     []string
+
+	ActingSenderID int64
+}
+
+// Create creates and delivers a new message using the client's default sender.
+func (s *MessagesService) Create(ctx context.Context, subject, content string, to, cc, bcc []string) error {
+	return s.Send(ctx, MessageContent{Subject: subject, Content: content, To: to, CC: cc, BCC: bcc})
+}
+
+// Send creates and delivers a new message using its selected sender.
 //
 // Wire format (MessagesController#create): {acting_sender_id, message: {subject, content},
 // entry: {addressed: {directly: [...], copied: [...], blindcopied: [...]}}}.
 // Recipient lists are JSON arrays; haystack applies Array() to each kind.
-func (s *MessagesService) Create(ctx context.Context, subject, content string, to, cc, bcc []string) (err error) {
-	if len(to)+len(cc)+len(bcc) == 0 {
+func (s *MessagesService) Send(ctx context.Context, message MessageContent) (err error) {
+	if len(message.To)+len(message.CC)+len(message.BCC) == 0 {
 		return ErrUsage("a message needs at least one recipient (to, cc or bcc)")
 	}
 	op := OperationInfo{
@@ -71,15 +88,15 @@ func (s *MessagesService) Create(ctx context.Context, subject, content string, t
 	ctx = s.client.hooks.OnOperationStart(ctx, op)
 	defer func() { s.client.hooks.OnOperationEnd(ctx, op, err, time.Since(start)) }()
 
-	senderID, err := s.client.DefaultSenderID(ctx)
+	senderID, err := s.client.resolveActingSenderID(ctx, message.ActingSenderID)
 	if err != nil {
 		return err
 	}
 
 	body := generated.CreateMessageRequestContent{
 		ActingSenderId: senderID,
-		Message:        generated.MessagePayload{Subject: subject, Content: content},
-		Entry:          entryPayload(to, cc, bcc),
+		Message:        generated.MessagePayload{Subject: message.Subject, Content: message.Content},
+		Entry:          entryPayload(message.To, message.CC, message.BCC),
 	}
 
 	resp, err := s.client.genClient().CreateMessageWithResponse(ctx, body)

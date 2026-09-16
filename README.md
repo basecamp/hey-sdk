@@ -51,6 +51,14 @@ imbox, _ := client.Boxes().GetImbox(ctx, nil)   // postings in the Imbox
 // Sending: recipients are required — HEY saves an unaddressed reply as a draft.
 _ = client.Messages().Create(ctx, "Subject", "Body", []string{"someone@example.com"}, nil, nil)
 
+// Select one of the identity's configured senders when the message needs a specific From address.
+_ = client.Messages().Send(ctx, hey.MessageContent{
+    Subject:        "Support follow-up",
+    Content:        "Here are the details we discussed.",
+    To:             []string{"jane@example.com"},
+    ActingSenderID: supportSenderID,
+})
+
 // Replying: start from the NewReply prefill — it carries the reply's subject, its
 // acting sender (0 = the account default) and the recipients HEY resolved.
 prefill, err := client.Entries().NewReply(ctx, entryID)
