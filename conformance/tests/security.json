@@ -12,7 +12,7 @@
           "Link": "<https://evil.example.com/boxes.json?page=2>; rel=\"next\"",
           "X-Total-Count": "100"
         },
-        "body": [{"id": 1}]
+        "body": [{"id": 1, "kind": "imbox", "name": "Imbox"}]
       }
     ],
     "assertions": [
@@ -64,7 +64,7 @@
           "Link": "</boxes.json?page=2>; rel=\"next\"",
           "X-Total-Count": "50"
         },
-        "body": [{"id": 1}]
+        "body": [{"id": 1, "kind": "imbox", "name": "Imbox"}]
       }
     ],
     "assertions": [
@@ -86,7 +86,7 @@
           "Link": "<http://api.hey.com/boxes.json?page=2>; rel=\"next\"",
           "X-Total-Count": "100"
         },
-        "body": [{"id": 1}]
+        "body": [{"id": 1, "kind": "imbox", "name": "Imbox"}]
       }
     ],
     "assertions": [

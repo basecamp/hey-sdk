@@ -11,7 +11,7 @@
     "mockResponses": [
       {
         "status": 200,
-        "body": {}
+        "body": {"id": 456, "type": "Calendar::Todo"}
       }
     ],
     "assertions": [
@@ -41,7 +41,7 @@
     "mockResponses": [
       {
         "status": 200,
-        "body": {}
+        "body": {"id": 789, "type": "Calendar::Habit"}
       }
     ],
     "assertions": [
@@ -72,6 +72,7 @@
         "status": 200,
         "body": {
           "id": 123,
+          "type": "Calendar::Todo",
           "title": "New todo"
         }
       }
@@ -280,7 +281,7 @@
     "mockResponses": [
       {
         "status": 200,
-        "body": {}
+        "body": {"id": 1, "kind": "asidebox", "name": "Set Aside"}
       }
     ],
     "assertions": [
@@ -310,7 +311,9 @@
       {
         "status": 200,
         "body": {
-          "id": 123
+          "id": 123,
+          "kind": "imbox",
+          "name": "Imbox"
         }
       }
     ],
@@ -337,7 +340,7 @@
     "mockResponses": [
       {
         "status": 200,
-        "body": {}
+        "body": {"id": 1, "kind": "bubblebox", "name": "Bubble Up"}
       }
     ],
     "assertions": [
@@ -423,7 +426,7 @@
     "mockResponses": [
       {
         "status": 200,
-        "body": []
+        "body": {}
       }
     ],
     "assertions": [
@@ -449,7 +452,7 @@
     "mockResponses": [
       {
         "status": 200,
-        "body": {}
+        "body": {"id": 1, "kind": "feedbox", "name": "The Feed"}
       }
     ],
     "assertions": [
@@ -504,7 +507,7 @@
     "mockResponses": [
       {
         "status": 200,
-        "body": {}
+        "body": {"id": 1, "kind": "imbox", "name": "Imbox"}
       }
     ],
     "assertions": [
@@ -534,6 +537,8 @@
       {
         "status": 200,
         "body": {
+          "id": 1,
+          "type": "Calendar::JournalEntry",
           "body": "Today's entry"
         }
       }
@@ -561,7 +566,7 @@
     "mockResponses": [
       {
         "status": 200,
-        "body": {}
+        "body": {"id": 1, "kind": "laterbox", "name": "Reply Later"}
       }
     ],
     "assertions": [
@@ -647,6 +652,7 @@
         "status": 200,
         "body": {
           "id": 123,
+          "type": "Calendar::TimeTrack",
           "started_at": "2026-03-04T10:00:00Z"
         }
       }
@@ -674,7 +680,7 @@
     "mockResponses": [
       {
         "status": 200,
-        "body": []
+        "body": {}
       }
     ],
     "assertions": [
@@ -700,7 +706,7 @@
     "mockResponses": [
       {
         "status": 200,
-        "body": []
+        "body": {}
       }
     ],
     "assertions": [
@@ -786,7 +792,7 @@
     "mockResponses": [
       {
         "status": 200,
-        "body": {}
+        "body": {"id": 1, "kind": "trailbox", "name": "Paper Trail"}
       }
     ],
     "assertions": [
@@ -812,7 +818,7 @@
     "mockResponses": [
       {
         "status": 200,
-        "body": []
+        "body": {}
       }
     ],
     "assertions": [
@@ -896,7 +902,7 @@
     "mockResponses": [
       {
         "status": 200,
-        "body": []
+        "body": {}
       }
     ],
     "assertions": [
@@ -1002,6 +1008,7 @@
         "status": 200,
         "body": {
           "id": 123,
+          "type": "Calendar::TimeTrack",
           "started_at": "2026-03-04T10:00:00Z"
         }
       }
@@ -1036,7 +1043,7 @@
     "mockResponses": [
       {
         "status": 200,
-        "body": {}
+        "body": {"id": 456, "type": "Calendar::Todo"}
       }
     ],
     "assertions": [
@@ -1070,7 +1077,7 @@
     "mockResponses": [
       {
         "status": 200,
-        "body": {}
+        "body": {"id": 789, "type": "Calendar::Habit"}
       }
     ],
     "assertions": [
@@ -1107,6 +1114,8 @@
       {
         "status": 200,
         "body": {
+          "id": 1,
+          "type": "Calendar::JournalEntry",
           "body": "Updated content"
         }
       }
@@ -1152,6 +1161,7 @@
         "status": 200,
         "body": {
           "id": 789,
+          "type": "Calendar::TimeTrack",
           "stopped": true
         }
       }
@@ -3148,7 +3158,8 @@
       {
         "status": 200,
         "body": {
-          "id": 123
+          "id": 123,
+          "type": "Calendar::TimeTrack"
         }
       }
     ],
@@ -3220,6 +3231,7 @@
         "status": 201,
         "body": {
           "id": 789,
+          "type": "Calendar::Habit",
           "title": "Morning run"
         }
       }
