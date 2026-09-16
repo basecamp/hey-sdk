@@ -431,6 +431,32 @@ private fun formFields(body: String): Map<String, String> = body.split('&').asso
         """{"signed_id":"signed-123","attachable_sgid":"sgid-456","direct_upload":{"url":"$url","headers":$headers}}"""
 
     @Test
+    fun aStorageHopOnHeysOwnOriginStaysUnscopedAndUnsigned() = runTest {
+        // Storage can live on HEY's origin, and a 307 there is still the storage service's:
+        // the URL it names authenticates itself, so neither hop gets the account scope or
+        // HEY's credentials, and the bytes go again as they went the first time.
+        val hey = mockHey(
+            ok(IDENTITY),
+            ok(directUpload("https://app.hey.com/storage/blobs/abc?signature=secret", """{"Content-Type":"application/pdf"}""")),
+            status(307, headers = mapOf("Location" to "/storage/blobs/abc-moved?signature=secret2")),
+            ok(""),
+        )
+        val client = hey.client().forAccount(42)
+        client.attachments.upload("report.pdf", "application/pdf", "hello".encodeToByteArray())
+        assertEquals(4, hey.requests.size)
+        assertEquals("42", hey.requests[1].query("filtered_account_id"), "the reservation is HEY's, and scoped")
+        for (index in 2..3) {
+            val put = hey.requests[index]
+            assertEquals("PUT", put.method, "hop $index")
+            assertEquals("hello", put.body, "hop $index keeps the bytes")
+            assertNull(put.query("filtered_account_id"), "hop $index carries no account scope")
+            assertNull(put.header("Authorization"), "hop $index carries no HEY credentials")
+        }
+        assertEquals("/storage/blobs/abc-moved", hey.requests[3].path)
+        assertEquals("secret2", hey.requests[3].query("signature"), "the hop goes exactly where storage said")
+    }
+
+    @Test
     fun anUploadReservesABlobAndPutsTheBytesWhereHeySaid() = runTest {
         val hey = mockHey(ok(directUpload("https://storage.example.com/blobs/abc?signature=secret")), ok(""))
         val transcript = Transcript()

@@ -809,7 +809,9 @@ class HeyClient internal constructor(
                     if (hops == MAX_REDIRECTS) {
                         throw HeyException.Network("${operation.label()} redirected more than $MAX_REDIRECTS times", retryable = false)
                     }
-                    val next = scoped(outcome.next)
+                    // A hop of an unsigned request goes where it was sent, as the first request
+                    // did: the storage URL authenticates itself, and the account scope is not its.
+                    val next = if (operation.unsigned) outcome.next else scoped(outcome.next)
                     requireSecureEndpoint(next)
                     val sameOrigin = isSameOrigin(url, next)
                     if (!sameOrigin) authenticated = false

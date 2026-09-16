@@ -1,5 +1,6 @@
 package com.basecamp.hey.services
 
+import com.basecamp.hey.FormResponse
 import com.basecamp.hey.HeyClient
 import com.basecamp.hey.HeyException
 import com.basecamp.hey.Method
@@ -46,13 +47,17 @@ class WorldService(client: HeyClient) : BaseService(client) {
                 "entry[status]" to "active",
             ),
         )
-        val location = client.sendForm(operation).location.orEmpty()
-        return postToken(location)
-            ?: throw HeyException.Api(
-                "the message was sent but did not become a HEY World post (landed on \"${redactLocation(location)}\")",
-                httpStatus = null,
-                retryable = false,
-            )
+        // Where HEY sent the caller is read inside the operation, so a message that became
+        // something other than a post ends the operation the hooks hear with that failure.
+        return client.execute(operation) { response ->
+            val location = FormResponse.of(response).location.orEmpty()
+            postToken(location)
+                ?: throw HeyException.Api(
+                    "the message was sent but did not become a HEY World post (landed on \"${redactLocation(location)}\")",
+                    httpStatus = null,
+                    retryable = false,
+                )
+        }
     }
 
     /** Edits a published post. An empty subject or body is left off the wire, and HEY leaves what a request does not name alone. */

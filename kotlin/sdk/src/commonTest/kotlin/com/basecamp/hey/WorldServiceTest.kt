@@ -41,8 +41,10 @@ class WorldServiceTest {
     @Test
     fun aMessageThatDidNotBecomeAPostSaysWhereItLanded() = runTest {
         val hey = mockHey(ok(IDENTITY), status(302, headers = mapOf("Location" to "/topics/4471829")))
-        val refused = assertFailsWith<HeyException.Api> { hey.client().world.publish("On writing less", "<div>Fewer words.</div>") }
+        val log = OperationLog()
+        val refused = assertFailsWith<HeyException.Api> { hey.client { hooks = log }.world.publish("On writing less", "<div>Fewer words.</div>") }
         assertEquals("the message was sent but did not become a HEY World post (landed on \"/topics/4471829\")", refused.message)
+        assertEquals("World.PublishWorldPost:api_error", log.ended.last(), "the hooks hear the failure the caller gets")
     }
 
     @Test

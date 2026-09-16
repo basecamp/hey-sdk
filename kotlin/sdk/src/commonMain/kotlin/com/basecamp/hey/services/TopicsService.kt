@@ -34,12 +34,14 @@ class TopicsService(client: HeyClient) : GeneratedTopicsService(client) {
         // so it is sent only when it is asked for.
         if (confirmDestroy) operation.query("confirm_destroy", 1)
         operation.captureRedirects()
-        val response = client.execute(operation)
-        if (awaitingConfirmation(response, topicId)) {
-            throw HeyException.Usage(
-                "topic $topicId is shared; HEY wants confirmation before trashing it",
-                hint = "Call trashTopic with confirmDestroy = true to trash it and remove your access",
-            )
+        // The answer is read inside the operation, so the hooks hear the refusal the caller gets.
+        client.execute(operation) { response ->
+            if (awaitingConfirmation(response, topicId)) {
+                throw HeyException.Usage(
+                    "topic $topicId is shared; HEY wants confirmation before trashing it",
+                    hint = "Call trashTopic with confirmDestroy = true to trash it and remove your access",
+                )
+            }
         }
     }
 

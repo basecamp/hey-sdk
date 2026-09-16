@@ -43,7 +43,7 @@ class TopicsServiceTest {
         assertEquals("topic 9 is shared; HEY wants confirmation before trashing it", error.message)
         assertEquals("Call trashTopic with confirmDestroy = true to trash it and remove your access", error.hint)
         assertEquals(1, hey.requests.size, "the confirmation page is read rather than followed")
-        assertEquals(listOf<String?>(null), ended, "HEY answered as it does; the refusal is the wrapper's reading of it")
+        assertEquals(listOf<String?>("usage"), ended, "the hooks hear the refusal the caller gets, not the redirect HEY answered")
     }
 
     @Test
