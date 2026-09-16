@@ -85,6 +85,8 @@ final class MockHey: Transport, @unchecked Sendable {
             body: request.body.map { String(decoding: $0, as: UTF8.self) } ?? "")
         let index = record(seen)
         if let hold { await hold(index, seen) }
+        // A request cancelled while it was held fails as a real transport's would.
+        try Task.checkCancellation()
         let answer = index < answers.count ? answers[index] : Answer(status: 500, body: #"{"error":"No more mock responses"}"#)
         if let failure = answer.failure { throw failure }
         var headers = HTTPHeaders()
