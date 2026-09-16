@@ -717,6 +717,24 @@ func TestTheRefreshOutlivesTheRequestThatStartedIt(t *testing.T) {
 	}
 }
 
+// inFlightOn is closed once the coordinator has a refresh in flight.
+func inFlightOn(refresh *credentialRefresh) <-chan struct{} {
+	done := make(chan struct{})
+	go func() {
+		for {
+			refresh.mu.Lock()
+			inFlight := refresh.inFlight
+			refresh.mu.Unlock()
+			if inFlight != nil {
+				close(done)
+				return
+			}
+			time.Sleep(time.Millisecond)
+		}
+	}()
+	return done
+}
+
 // waitForRun is closed once the coordinator has no refresh in flight.
 func waitForRun(refresh *credentialRefresh) <-chan struct{} {
 	done := make(chan struct{})
@@ -929,13 +947,30 @@ type rotatingProvider struct {
 	tokens    []string
 	handed    int
 	refreshes atomic.Int64
+	// inside counts the AccessToken calls under way, and overlapped is set if two
+	// ever were: the coordinator signs one request at a time.
+	inside     atomic.Int32
+	overlapped atomic.Bool
+	// handingOut, when set, is told the number of each hand-out before it is made, and
+	// may hold it.
+	handingOut func(n int)
 }
 
 func (p *rotatingProvider) AccessToken(context.Context) (string, error) {
+	if p.inside.Add(1) > 1 {
+		p.overlapped.Store(true)
+	}
+	defer p.inside.Add(-1)
+	p.mu.Lock()
+	p.handed++
+	n := p.handed
+	p.mu.Unlock()
+	if p.handingOut != nil {
+		p.handingOut(n)
+	}
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	p.handed++
-	return p.tokens[min(p.handed, len(p.tokens))-1], nil
+	return p.tokens[min(n, len(p.tokens))-1], nil
 }
 
 // current is the token the provider hands out now, without counting a hand-out.
@@ -1099,5 +1134,159 @@ func TestARefreshGivesUpWhenASigningDoesNotEndWithinTheBound(t *testing.T) {
 	}
 	if refreshes := auth.refreshes.Load(); refreshes != 1 {
 		t.Errorf("expected one refresh once the signing had ended, got %d", refreshes)
+	}
+}
+
+// Two requests signed at once are signed one at a time, in the order the provider
+// issues the tokens: the provider is never asked by two signings together, the request
+// that drew the earlier token is resent with the later one when its 401 comes, and a
+// genuine 401 on the later token is answered by one refresh of its own.
+func TestConcurrentSigningsAreSerialisedInTheOrderTheProviderIssuesTokens(t *testing.T) {
+	recorder := &tokenRecorder{}
+	provider := &rotatingProvider{tokens: []string{"t0", "t1", "t1"}}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch recorder.record(r) {
+		case "Bearer t0", "Bearer t1":
+			http.Error(w, "unauthorized", http.StatusUnauthorized)
+		case "Bearer refreshed":
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = io.WriteString(w, `{"ok":true}`)
+		default:
+			http.Error(w, "unexpected token", http.StatusTeapot)
+		}
+	}))
+	t.Cleanup(server.Close)
+
+	client := NewClient(&Config{BaseURL: server.URL}, provider, WithMaxRetries(1))
+
+	errs := make(chan error, 2)
+	for range 2 {
+		go func() {
+			_, err := client.Get(context.Background(), "/whatever.json")
+			errs <- err
+		}()
+	}
+	// The request signed with t1 is refreshed and resent with what the refresh
+	// produced; the one signed with t0 is resent with whatever the provider hands out
+	// by then — t1, whose 401 is surfaced, or the refreshed token, which succeeds — and
+	// either way asks for no refresh of its own.
+	var succeeded int
+	for range 2 {
+		err := <-errs
+		var apiErr *Error
+		switch {
+		case err == nil:
+			succeeded++
+		case errors.As(err, &apiErr) && apiErr.Code == CodeAuth:
+		default:
+			t.Errorf("expected success or an authentication error, got %v", err)
+		}
+	}
+	if succeeded == 0 {
+		t.Error("expected the request signed with the later token to be refreshed and resent")
+	}
+	if provider.overlapped.Load() {
+		t.Error("expected the provider never to be asked by two signings at once")
+	}
+	if refreshes := provider.refreshes.Load(); refreshes != 1 {
+		t.Errorf("expected one refresh, of the token the provider would still sign with, got %d", refreshes)
+	}
+	if got := recorder.count("Bearer refreshed"); got == 0 {
+		t.Errorf("expected the refreshed token to be sent, got %v", recorder.seen)
+	}
+	if after := client.refresh.generation(); after.refreshes != 2 {
+		t.Errorf("expected the provider's renewal and the refresh to count once each, got %+v", after)
+	}
+}
+
+// A refresh started by a 401 on t0 while another request is inside the provider, and
+// comes out with a token the provider renewed on its own, is answered for t0 by that
+// renewal: it neither asks the refresher nor counts the renewal twice. The later
+// request's own 401, on the renewed token, does not take that run's answer — it is a
+// newer generation's — and is refreshed once.
+func TestA401OnANewerGenerationDoesNotTakeAnOlderRunsAnswer(t *testing.T) {
+	recorder := &tokenRecorder{}
+	release401 := make(chan struct{})
+	secondInside := make(chan struct{})
+	secondGate := make(chan struct{})
+	var t1Arrivals atomic.Int32
+	bothT1Out := make(chan struct{})
+	provider := &rotatingProvider{tokens: []string{"t0", "t1", "t1"}}
+	provider.handingOut = func(n int) {
+		if n == 2 {
+			close(secondInside)
+			await(t, secondGate, "the test to release the second signing")
+		}
+	}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch recorder.record(r) {
+		case "Bearer t0":
+			await(t, release401, "the test to release the first 401")
+			http.Error(w, "unauthorized", http.StatusUnauthorized)
+		case "Bearer t1":
+			// The first t1 to arrive is the later-signed request's own send; its 401
+			// waits for the second, the earlier request's resend, so that resend
+			// carries t1 rather than what the later request's refresh will produce.
+			if t1Arrivals.Add(1) == 2 {
+				close(bothT1Out)
+			}
+			await(t, bothT1Out, "both t1 sends to reach the server")
+			http.Error(w, "unauthorized", http.StatusUnauthorized)
+		case "Bearer refreshed":
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = io.WriteString(w, `{"ok":true}`)
+		default:
+			http.Error(w, "unexpected token", http.StatusTeapot)
+		}
+	}))
+	t.Cleanup(server.Close)
+
+	client := NewClient(&Config{BaseURL: server.URL}, provider, WithMaxRetries(1))
+
+	// Whichever goroutine signs first is the request signed with t0; the other is
+	// inside the provider, about to come out with t1, when the t0 401 starts a refresh.
+	errs := make(chan error, 2)
+	for range 2 {
+		go func() {
+			_, err := client.Get(context.Background(), "/whatever.json")
+			errs <- err
+		}()
+	}
+	waitFor(t, secondInside, "the later request to be inside the provider")
+	close(release401)
+	// The refresh the t0 401 starts is in flight, waiting for the later signing to end,
+	// before that signing is let out of the provider.
+	waitFor(t, inFlightOn(&client.refresh), "the t0 request's refresh to be in flight")
+	close(secondGate)
+
+	// The t0 request is resent with t1, and that resend's 401 is surfaced; the t1
+	// request is refreshed and resent with what the refresh produced.
+	var failed, succeeded int
+	for range 2 {
+		err := <-errs
+		var apiErr *Error
+		switch {
+		case err == nil:
+			succeeded++
+		case errors.As(err, &apiErr) && apiErr.Code == CodeAuth:
+			failed++
+		default:
+			t.Errorf("expected success or an authentication error, got %v", err)
+		}
+	}
+	if failed != 1 || succeeded != 1 {
+		t.Errorf("expected the t0 request to fail after its resend and the t1 request to succeed, got %d failed, %d succeeded", failed, succeeded)
+	}
+	if refreshes := provider.refreshes.Load(); refreshes != 1 {
+		t.Errorf("expected one refresh, of t1 alone, got %d", refreshes)
+	}
+	if got := recorder.count("Bearer refreshed"); got != 1 {
+		t.Errorf("expected one send with the refreshed token, got %v", recorder.seen)
+	}
+	if got := recorder.count("Bearer t1"); got != 2 {
+		t.Errorf("expected t1 sent by the later request and by the t0 request's resend, got %v", recorder.seen)
+	}
+	if after := client.refresh.generation(); after.refreshes != 2 {
+		t.Errorf("expected the provider's renewal and the refresh to count once each, got %+v", after)
 	}
 }
