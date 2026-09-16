@@ -119,6 +119,7 @@ class CredentialRefreshTest {
             // the first has failed, so its 401 finds the failure already recorded.
             val firstFailed = CompletableDeferred<Unit>()
             val hey = Gated { arrival -> if (arrival == 2) firstFailed.await() }
+            hey.bothOutFirst()
             val client = HeyClient {
                 accessToken(credentials)
                 engine = hey.engine
@@ -165,6 +166,7 @@ class CredentialRefreshTest {
         // Both go out before either is answered; the second is answered once the refresh
         // the first earned is running, and the refresh is let go only after that.
         val hey = Gated { arrival -> if (arrival == 2) started.await() }
+        hey.bothOutFirst()
         val client = HeyClient {
             accessToken(credentials)
             engine = hey.engine
@@ -180,6 +182,57 @@ class CredentialRefreshTest {
         assertEquals(2, hey.arrivals)
     }
 
+    /**
+     * A failed refresh leaves the credentials as they were, so a later refresh of them is a
+     * refresh of every request's still signed under them: a 401 that arrives after it has
+     * renewed them is resent with the new credentials rather than handed the old failure.
+     */
+    @Test
+    fun aLateRequestSignedBeforeAFailedRefreshIsResentOnceALaterRefreshRenewsTheCredentials() = runTest {
+        var refreshes = 0
+        val credentials = object : TokenProvider {
+            @Volatile var token = "stale"
+            override suspend fun accessToken(): String = token
+            override suspend fun refresh(): Boolean {
+                refreshes += 1
+                if (refreshes == 1) return false
+                token = "renewed"
+                return true
+            }
+        }
+        val bothOut = CompletableDeferred<Unit>()
+        val renewed = CompletableDeferred<Unit>()
+        val lock = Any()
+        var arrivals = 0
+        val tokens = mutableListOf<String>()
+        val engine = MockEngine { request ->
+            val arrival = synchronized(lock) { arrivals += 1; tokens += request.headers["Authorization"].orEmpty(); arrivals }
+            when (arrival) {
+                // a and b are both out before either is answered; b's 401 waits until c
+                // has been through a refresh that renews the credentials b was signed with.
+                1 -> { bothOut.await(); respond("", HttpStatusCode.Unauthorized) }
+                2 -> { bothOut.complete(Unit); renewed.await(); respond("", HttpStatusCode.Unauthorized) }
+                3 -> respond("", HttpStatusCode.Unauthorized)
+                else -> respond("[]", HttpStatusCode.OK, headersOf(HttpHeaders.ContentType, "application/json"))
+            }
+        }
+        val client = HeyClient {
+            accessToken(credentials)
+            this.engine = engine
+            timeout = Duration.INFINITE
+        }
+        val a = async { runCatching { client.boxes.list() } }
+        val b = async { runCatching { client.boxes.list() } }
+        assertIs<HeyException.Auth>(a.await().exceptionOrNull(), "a's refresh fails")
+        assertEquals(1, refreshes)
+        client.boxes.list()
+        assertEquals(2, refreshes, "c, signed after the failure, refreshes again and is resent")
+        renewed.complete(Unit)
+        assertEquals(true, b.await().isSuccess, "b's 401 is on credentials the second refresh has since renewed, so it is resent")
+        assertEquals(2, refreshes, "without a refresh of its own")
+        assertEquals(listOf("Bearer stale", "Bearer stale", "Bearer stale", "Bearer renewed", "Bearer renewed"), tokens)
+    }
+
     /** A timeout the provider puts on its own refresh is the refresh's answer, not the client's cancellation. */
     @Test
     fun aProviderThatTimesItselfOutFailsTheRefreshRatherThanCancellingTheRequest() = runTest {
@@ -193,6 +246,7 @@ class CredentialRefreshTest {
         }
         val firstFailed = CompletableDeferred<Unit>()
         val hey = Gated { arrival -> if (arrival == 2) firstFailed.await() }
+        hey.bothOutFirst()
         val client = HeyClient {
             accessToken(credentials)
             engine = hey.engine
@@ -211,14 +265,30 @@ class CredentialRefreshTest {
         assertEquals(2, hey.arrivals)
     }
 
-    /** A HEY that answers every request 401, holding each answer until [hold] lets it go; handlers run on the engine's threads, so arrivals are counted under a lock. */
+    /**
+     * A HEY that answers every request 401, holding each answer until [hold] lets it go;
+     * handlers run on the engine's threads, so arrivals are counted under a lock. With
+     * [bothOutFirst], neither of the first two requests is answered until both have arrived,
+     * so both were signed before either 401 could start a refresh — the handler may run
+     * inside the request's own coroutine, in which case an answer given at once would let
+     * the first request refresh before the second was signed.
+     */
     private class Gated(private val hold: suspend (arrival: Int) -> Unit) {
         private val lock = Any()
+        private var barrier: CompletableDeferred<Unit>? = null
         var arrivals = 0
             private set
 
+        fun bothOutFirst() {
+            barrier = CompletableDeferred()
+        }
+
         val engine = MockEngine {
             val arrival = synchronized(lock) { arrivals += 1; arrivals }
+            barrier?.let { bothOut ->
+                if (arrival == 2) bothOut.complete(Unit)
+                if (arrival <= 2) bothOut.await()
+            }
             hold(arrival)
             respond("", HttpStatusCode.Unauthorized)
         }
@@ -247,8 +317,27 @@ class CredentialRefreshTest {
                 return true
             }
         }
-        val hey = mockHey(status(401), status(401), ok("[]"), ok("[]"))
-        val client = hey.client { accessToken(credentials) }
+        // Neither 401 goes back until both requests are out, so both are signed with the
+        // stale credentials and the one refresh answers both.
+        val bothOut = CompletableDeferred<Unit>()
+        val lock = Any()
+        var arrivals = 0
+        val tokens = mutableListOf<String>()
+        val engine = MockEngine { request ->
+            val arrival = synchronized(lock) { arrivals += 1; tokens += request.headers["Authorization"].orEmpty(); arrivals }
+            if (arrival == 2) bothOut.complete(Unit)
+            if (arrival <= 2) {
+                bothOut.await()
+                respond("", HttpStatusCode.Unauthorized)
+            } else {
+                respond("[]", HttpStatusCode.OK, headersOf(HttpHeaders.ContentType, "application/json"))
+            }
+        }
+        val client = HeyClient {
+            accessToken(credentials)
+            this.engine = engine
+            timeout = Duration.INFINITE
+        }
         val a = launch { client.boxes.list() }
         val b = launch { client.boxes.list() }
         runCurrent()
@@ -257,8 +346,8 @@ class CredentialRefreshTest {
         a.join()
         b.join()
         assertEquals(1, mostInside, "one request is signed at a time")
-        assertEquals(4, hey.requests.size)
-        assertEquals(listOf("Bearer stale", "Bearer stale", "Bearer refreshed", "Bearer refreshed"), hey.requests.map { it.header("Authorization") })
+        assertEquals(4, arrivals)
+        assertEquals(listOf("Bearer stale", "Bearer stale", "Bearer refreshed", "Bearer refreshed"), tokens)
     }
 
     /**

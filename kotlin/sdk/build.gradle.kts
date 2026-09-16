@@ -43,6 +43,13 @@ kotlin {
 
 tasks.withType<Test> {
     useJUnitPlatform()
+    // CI runs Gradle quietly; a failing test is still named, with what it failed on.
+    testLogging {
+        quiet {
+            events("failed")
+            exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
+        }
+    }
 }
 
 // The same commit and toolchain build the same bytes, so the release workflow can tell a

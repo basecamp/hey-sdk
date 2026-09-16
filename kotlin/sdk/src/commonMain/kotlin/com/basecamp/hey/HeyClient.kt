@@ -650,7 +650,9 @@ class HeyClient internal constructor(
      * the credentials it failed to renew gets its answer — not renewed, or what it threw —
      * rather than a refresh of its own, so an outage at the token's issuer costs one call
      * per set of credentials, not one per request. A request signed after that failure
-     * earns a fresh attempt, since its 401 is news.
+     * earns a fresh attempt, since its 401 is news. A failed refresh leaves the credentials
+     * as they were, so a later refresh of them is a refresh of every request's still signed
+     * under them: a 401 arriving while it runs joins it, and is resent if it renews them.
      *
      * The refresh runs in the client's own scope rather than the request's, so a request
      * cancelled while waiting for it leaves it running: a refresh half done is a rotated
