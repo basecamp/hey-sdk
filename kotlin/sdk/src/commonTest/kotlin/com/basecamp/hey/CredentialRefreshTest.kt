@@ -200,6 +200,7 @@ class CredentialRefreshTest {
                 return true
             }
         }
+        val aIn = CompletableDeferred<Unit>()
         val bothOut = CompletableDeferred<Unit>()
         val renewed = CompletableDeferred<Unit>()
         val lock = Any()
@@ -208,9 +209,10 @@ class CredentialRefreshTest {
         val engine = MockEngine { request ->
             val arrival = synchronized(lock) { arrivals += 1; tokens += request.headers["Authorization"].orEmpty(); arrivals }
             when (arrival) {
-                // a and b are both out before either is answered; b's 401 waits until c
-                // has been through a refresh that renews the credentials b was signed with.
-                1 -> { bothOut.await(); respond("", HttpStatusCode.Unauthorized) }
+                // a is in before b is sent, so the first arrival is a's whichever thread the
+                // handlers run on; both are out before either is answered; and b's 401 waits
+                // until c has been through a refresh that renews the credentials b was signed with.
+                1 -> { aIn.complete(Unit); bothOut.await(); respond("", HttpStatusCode.Unauthorized) }
                 2 -> { bothOut.complete(Unit); renewed.await(); respond("", HttpStatusCode.Unauthorized) }
                 3 -> respond("", HttpStatusCode.Unauthorized)
                 else -> respond("[]", HttpStatusCode.OK, headersOf(HttpHeaders.ContentType, "application/json"))
@@ -222,6 +224,7 @@ class CredentialRefreshTest {
             timeout = Duration.INFINITE
         }
         val a = async { runCatching { client.boxes.list() } }
+        aIn.await()
         val b = async { runCatching { client.boxes.list() } }
         assertIs<HeyException.Auth>(a.await().exceptionOrNull(), "a's refresh fails")
         assertEquals(1, refreshes)
