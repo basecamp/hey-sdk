@@ -86,4 +86,7 @@ class BearerAuth(private val tokenProvider: TokenProvider) : AuthStrategy {
     }
 
     override suspend fun refresh(): Boolean = tokenProvider.refresh()
+
+    /** What this would sign with now, as the header value: asked before a refresh, so a token the provider has already renewed is not renewed again. */
+    internal suspend fun bearer(): String = "Bearer ${tokenProvider.accessToken()}"
 }

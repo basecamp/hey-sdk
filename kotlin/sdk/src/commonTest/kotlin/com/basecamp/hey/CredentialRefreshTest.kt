@@ -285,6 +285,32 @@ class CredentialRefreshTest {
         assertEquals(listOf("Bearer t0", "Bearer t1", "Bearer t1", "Bearer t1", "Bearer t2"), tokens)
     }
 
+    /**
+     * The rotation need not have signed anything yet: before the provider is asked to refresh,
+     * it is asked what it would sign with now, and a token other than the rejected one is a
+     * renewal already made. The request is resent with it and the refresh is not spent.
+     */
+    @Test
+    fun aProviderAskedForItsTokenBeforeARefreshIsNotAskedToRefreshWhenItHasAlreadyRenewed() = runTest {
+        var signings = 0
+        var refreshes = 0
+        val credentials = object : TokenProvider {
+            override suspend fun accessToken(): String {
+                signings += 1
+                return if (signings == 1) "t0" else if (refreshes == 0) "t1" else "t2"
+            }
+            override suspend fun refresh(): Boolean { refreshes += 1; return true }
+        }
+        val hey = mockHey(status(401), ok("[]"), status(401), ok("[]"))
+        val client = hey.client { accessToken(credentials) }
+        client.boxes.list()
+        assertEquals(0, refreshes, "the provider had renewed on its own by the time the 401 came back")
+        assertEquals(listOf("Bearer t0", "Bearer t1"), hey.requests.map { it.header("Authorization") })
+        client.boxes.list()
+        assertEquals(1, refreshes, "a 401 on the token the provider would still sign with is refreshed")
+        assertEquals(listOf("Bearer t0", "Bearer t1", "Bearer t1", "Bearer t2"), hey.requests.map { it.header("Authorization") })
+    }
+
     /** A timeout the provider puts on its own refresh is the refresh's answer, not the client's cancellation. */
     @Test
     fun aProviderThatTimesItselfOutFailsTheRefreshRatherThanCancellingTheRequest() = runTest {

@@ -530,6 +530,8 @@ class HeyClient internal constructor(
         val authenticated: Boolean,
         /** The credentials the request this answers was signed under — the last signing, when a hop was signed again. */
         val signedUnder: Generation,
+        /** The `Authorization` the request this answers carried, for a 401 to be checked against what the provider would sign with now. */
+        val bearer: String?,
     )
 
     /** The auth strategy failed to sign a hop; the failure is passed on as the strategy threw it. */
@@ -596,7 +598,7 @@ class HeyClient internal constructor(
             // A 401 from a hop that carried no credentials rejected none of HEY's: there is
             // nothing to refresh, and nothing a resend would change.
             val renewed = status == 401 && received.authenticated && !refreshed && try {
-                refreshCredentials(received.signedUnder)
+                refreshCredentials(received.signedUnder, received.bearer)
             } catch (error: Throwable) {
                 hooks.safeRequestEnd(info, RequestResult(status, duration, error = reported(error, "request cancelled")))
                 throw error
@@ -661,24 +663,28 @@ class HeyClient internal constructor(
      * cancelled while waiting for it leaves it running: a refresh half done is a rotated
      * token nobody holds, and every other stale request is waiting on the same one.
      */
-    private suspend fun refreshCredentials(signedUnder: Generation): Boolean {
+    private suspend fun refreshCredentials(signedUnder: Generation, rejected: String?): Boolean {
         if (shared.closed) throw HeyException.Usage("client is closed")
         val refresh = shared.refreshGate.withLock {
             if (shared.refreshes != signedUnder.refreshes) return true
             shared.refresh?.let { return@withLock it }
             if (shared.refreshRuns != signedUnder.runs) return shared.lastRefresh?.getOrThrow() ?: false
-            shared.scope.async { runRefresh() }.also { shared.refresh = it }
+            shared.scope.async { runRefresh(rejected) }.also { shared.refresh = it }
         }
         return refresh.await()
     }
 
     /**
      * One refresh, under the signing lock for its whole run so no request is signed while
-     * the credentials are changing hands, and the counts move with them.
+     * the credentials are changing hands, and the counts move with them. Before the SDK's
+     * own bearer strategy is asked to refresh, its provider is asked what it would sign with
+     * now: a token other than the [rejected] one is a renewal the provider already made, so
+     * the request is resent with it rather than the new token's refresh token being spent.
      */
-    private suspend fun runRefresh(): Boolean = shared.refreshing.withLock {
+    private suspend fun runRefresh(rejected: String?): Boolean = shared.refreshing.withLock {
+        val auth = shared.auth
         val outcome = try {
-            Result.success(shared.auth.refresh())
+            Result.success(if (auth is BearerAuth && rejected != null && auth.bearer() != rejected) true else auth.refresh())
         } catch (error: Throwable) {
             if (error is CancellationException && !currentCoroutineContext().isActive) {
                 // The refresh itself was cancelled — the client closed — so there is no
@@ -874,7 +880,7 @@ class HeyClient internal constructor(
         while (true) {
             val outcome = shared.http.prepareRequest(request).execute { response ->
                 val next = if (operation.captureRedirects) null else redirectTarget(url, response)
-                if (next != null) Outcome.Redirect(next, response.status.value) else Outcome.Answer(receive(operation, url, response, hops > 0, authenticated, signedUnder))
+                if (next != null) Outcome.Redirect(next, response.status.value) else Outcome.Answer(receive(operation, url, response, hops > 0, authenticated, signedUnder, credentials.headers["authorization"]?.firstOrNull()))
             }
             when (outcome) {
                 is Outcome.Answer -> return outcome.received
@@ -911,19 +917,19 @@ class HeyClient internal constructor(
     }
 
     /** Reads what the SDK keeps of a response while the connection is live: a 304 has no body to read, and a body past its bound is refused there and then. */
-    private suspend fun receive(operation: Operation, url: Url, response: HttpResponse, redirected: Boolean, authenticated: Boolean, signedUnder: Generation): Received {
+    private suspend fun receive(operation: Operation, url: Url, response: HttpResponse, redirected: Boolean, authenticated: Boolean, signedUnder: Generation, bearer: String?): Received {
         val status = response.status.value
         val headers = response.headers
         // A 304, a status the operation takes for "nothing there", and the redirect a form
         // takes for its answer carry nothing the SDK reads, so their bodies are not read at
         // all — and so cannot be refused for their size.
         val bodyless = status == 304 || status in operation.emptyOn || (operation.captureRedirects && status in FORM_ANSWER_STATUSES)
-        if (bodyless) return Received(url, status, headers, ByteArray(0), refusal = null, redirected, authenticated, signedUnder)
+        if (bodyless) return Received(url, status, headers, ByteArray(0), refusal = null, redirected, authenticated, signedUnder, bearer)
         val bound = if (isParsed(operation.accept)) shared.config.maxResponseBodyBytes else HeyConfig.MAX_RESPONSE_BODY_BYTES
         return try {
-            Received(url, status, headers, readBody(response, bound), refusal = null, redirected, authenticated, signedUnder)
+            Received(url, status, headers, readBody(response, bound), refusal = null, redirected, authenticated, signedUnder, bearer)
         } catch (refusal: HeyException) {
-            Received(url, status, headers, ByteArray(0), refusal, redirected, authenticated, signedUnder)
+            Received(url, status, headers, ByteArray(0), refusal, redirected, authenticated, signedUnder, bearer)
         }
     }
 
