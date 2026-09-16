@@ -430,7 +430,7 @@ audit-check:
 check-mvp: smithy-check behavior-model-check drift-check-mvp \
            url-routes-check go-check go-check-drift rs-check rs-check-drift \
            ts-check kt-check kt-check-drift swift-check swift-check-drift \
-           sync-api-version-check conformance-mvp
+           sync-api-version-check provenance-check conformance-mvp
 	@echo "==> MVP gate passed"
 
 # Phase 3: Full surface, all languages
