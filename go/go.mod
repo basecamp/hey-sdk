@@ -1,11 +1,11 @@
 module github.com/basecamp/hey-sdk/go
 
-go 1.26
+go 1.26.0
 
 require (
 	github.com/oapi-codegen/runtime v1.7.0
 	github.com/zalando/go-keyring v0.2.8
-	golang.org/x/net v0.58.0
+	golang.org/x/net v0.59.0
 )
 
 require (
@@ -25,10 +25,10 @@ require (
 	github.com/speakeasy-api/openapi v1.24.0 // indirect
 	github.com/vmware-labs/yaml-jsonpath v0.3.2 // indirect
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
-	golang.org/x/mod v0.40.0 // indirect
-	golang.org/x/sync v0.22.0 // indirect
-	golang.org/x/sys v0.47.0 // indirect
-	golang.org/x/text v0.41.0 // indirect
+	golang.org/x/mod v0.41.0 // indirect
+	golang.org/x/sync v0.23.0 // indirect
+	golang.org/x/sys v0.48.0 // indirect
+	golang.org/x/text v0.42.0 // indirect
 	golang.org/x/tools v0.49.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
