@@ -56,6 +56,7 @@ struct RecordedRequest: Sendable {
 /// answer at the index they were recorded at.
 final class MockHey: Transport, @unchecked Sendable {
     private let answers: [Answer]
+    private let respond: (@Sendable (_ index: Int, _ request: RecordedRequest) -> Answer)?
     private let lock = NSLock()
     private var recorded: [RecordedRequest] = []
     private var waits: [Duration] = []
@@ -64,6 +65,14 @@ final class MockHey: Transport, @unchecked Sendable {
 
     init(_ answers: [Answer]) {
         self.answers = answers
+        self.respond = nil
+    }
+
+    /// A mock that answers each request by what it carries rather than by the order it arrived in:
+    /// requests signed one at a time can still reach the server in either order.
+    init(respond: @escaping @Sendable (_ index: Int, _ request: RecordedRequest) -> Answer) {
+        self.answers = []
+        self.respond = respond
     }
 
     var requests: [RecordedRequest] {
@@ -87,7 +96,8 @@ final class MockHey: Transport, @unchecked Sendable {
         if let hold { await hold(index, seen) }
         // A request cancelled while it was held fails as a real transport's would.
         try Task.checkCancellation()
-        let answer = index < answers.count ? answers[index] : Answer(status: 500, body: #"{"error":"No more mock responses"}"#)
+        let answer = respond?(index, seen)
+            ?? (index < answers.count ? answers[index] : Answer(status: 500, body: #"{"error":"No more mock responses"}"#))
         if let failure = answer.failure { throw failure }
         var headers = HTTPHeaders()
         if !answer.headers.contains(where: { $0.0.caseInsensitiveCompare("Content-Type") == .orderedSame }) {

@@ -111,16 +111,12 @@ final class ErrorMappingTests: XCTestCase {
         struct Inner: Decodable { let id: Int }
         struct Outer: Decodable { let entries: [Inner] }
         func hint<T: Decodable>(_ type: T.Type, _ body: String) -> String? {
-            do {
-                _ = try Response(
-                    status: 200, headers: HTTPHeaders(), body: Data(body.utf8), url: URL(string: "https://app.hey.com")!,
-                    fromCache: false, empty: false
-                ).json(type)
-                return nil
-            } catch let error as HeyError {
-                return error.hint
-            } catch {
-                return "\(error)"
+            let response = Response(
+                status: 200, headers: HTTPHeaders(), body: Data(body.utf8), url: URL(string: "https://app.hey.com")!,
+                fromCache: false, empty: false)
+            switch Result(catching: { try response.json(type) }) {
+            case .success: return nil
+            case let .failure(error): return (error as? HeyError)?.hint ?? "\(error)"
             }
         }
         XCTAssertEqual(hint(Outer.self, #"{"entries":[{"id":"x"}]}"#), "body does not decode: at path $.entries[0].id")

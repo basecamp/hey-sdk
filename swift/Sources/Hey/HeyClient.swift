@@ -465,12 +465,16 @@ public final class HeyClient: Sendable {
             state.inFlight = task
             return .wait(task)
         }
+        let renewed: Bool
         switch decision {
         case let .answer(result):
-            return try result.get()
+            renewed = try result.get()
         case let .wait(task):
-            return try await task.value
+            // A request cancelled while it waits stops waiting; the refresh goes on for the rest.
+            renewed = try await awaitValue(of: task)
         }
+        try Task.checkCancellation()
+        return renewed
     }
 
     // MARK: - URLs
@@ -561,10 +565,19 @@ public final class HeyClient: Sendable {
     private func sign(_ request: inout HTTPRequest) async throws -> (Credentials, Generation) {
         let before = request.headers
         let shared = self.shared
-        await shared.refreshing.acquire()
+        // A request cancelled while a refresh or another signing holds the turn stops waiting
+        // here, unsigned and unsent.
+        try await shared.refreshing.acquire()
         let signedUnder: Generation
         do {
             try await shared.auth.authenticate(&request)
+            // A header value the wire cannot carry is refused here, without quoting it: a
+            // credential is exactly what a strategy sets.
+            for (name, value) in request.headers where !before.values(for: name).contains(value) {
+                if value.unicodeScalars.contains(where: { ($0.value < 0x20 && $0 != "\t") || $0.value == 0x7F }) {
+                    throw HeyError.auth(message: "auth strategy set a header that is not a valid header value", detail: ErrorDetail())
+                }
+            }
             let bearer = request.headers["Authorization"]
             signedUnder = shared.refreshState.withLock { state in
                 if shared.auth is BearerAuth {
@@ -963,7 +976,13 @@ final class Shared: Sendable {
     /// with it rather than the new token's refresh token being spent. A provider that cannot hand
     /// over a token at all is the refresh failing.
     func runRefresh(_ rejected: String?) async throws -> Bool {
-        await refreshing.acquire()
+        do {
+            try await refreshing.acquire()
+        } catch {
+            // Cancelled before it had the turn: the client closed.
+            refreshState.withLock { $0.inFlight = nil }
+            throw error
+        }
         defer { refreshing.release() }
         let outcome: Result<Bool, any Error>
         do {
