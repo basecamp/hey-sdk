@@ -7,7 +7,7 @@ kotlinx.serialization.
 
 ```kotlin
 dependencies {
-    implementation("com.basecamp:hey-sdk:0.31.0")
+    implementation("com.basecamp:hey-sdk:0.31.1")
 }
 ```
 
@@ -245,7 +245,7 @@ repositories {
 }
 
 dependencies {
-    implementation("com.basecamp:hey-sdk:0.31.0")
+    implementation("com.basecamp:hey-sdk:0.31.1")
 }
 ```
 
@@ -268,7 +268,7 @@ repositories {
 }
 
 dependencies {
-    implementation("com.basecamp:hey-sdk:0.31.0")
+    implementation("com.basecamp:hey-sdk:0.31.1")
 }
 ```
 

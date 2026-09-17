@@ -4,7 +4,7 @@ import Foundation
 /// client of HEY itself with retries on and no cache.
 public struct HeyConfig: Sendable, Equatable {
     /// The SDK's own version. `make bump VERSION=x.y.z` moves it with the other SDKs'.
-    public static let version = "0.31.0"
+    public static let version = "0.31.1"
 
     /// The HEY API version this SDK targets; `scripts/sync-api-version.sh` moves it with the spec.
     public static let apiVersion = "2026-09-16"

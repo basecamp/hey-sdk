@@ -1,6 +1,6 @@
 [package]
 name = "hey-sdk"
-version = "0.31.0"
+version = "0.31.1"
 description = "Official client for HEY - https://www.hey.com"
 homepage = "https://github.com/basecamp/hey-sdk"
 documentation = "https://docs.rs/hey-sdk"

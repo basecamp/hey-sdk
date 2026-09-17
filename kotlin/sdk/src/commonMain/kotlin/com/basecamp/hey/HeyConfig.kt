@@ -51,7 +51,7 @@ data class HeyConfig(
 
     companion object {
         /** The SDK's own version. `make bump VERSION=x.y.z` moves it with the other SDKs'. */
-        const val VERSION = "0.31.0"
+        const val VERSION = "0.31.1"
 
         /** The HEY API version this SDK targets; `scripts/sync-api-version.sh` moves it with the spec. */
         const val API_VERSION = "2026-09-16"
