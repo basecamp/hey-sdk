@@ -2,6 +2,7 @@ package hey
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"time"
@@ -334,6 +335,29 @@ func (s *TopicsService) EmptySpam(ctx context.Context) error {
 			return err
 		}
 		return CheckResponse(resp.HTTPResponse)
+	})
+}
+
+
+// Update renames a topic (the thread subject as HEY stores it in `name`).
+//
+// HEY's web UI PATCHes /topics/{id}.json with {"name":"…"}. Success is HTTP 302 to the
+// HTML topic URL; the redirect is captured and not followed (same as PatchForm mutations).
+// This is not in the OpenAPI model, so it goes through doBodyRequest rather than a
+// generated client method.
+func (s *TopicsService) Update(ctx context.Context, topicID int64, name string) error {
+	op := OperationInfo{
+		Service: "Topics", Operation: "UpdateTopic",
+		ResourceType: "topic", IsMutation: true, ResourceID: topicID,
+	}
+
+	return s.client.instrument(ctx, op, func(ctx context.Context) error {
+		body, err := json.Marshal(map[string]string{"name": name})
+		if err != nil {
+			return err
+		}
+		_, err = s.client.doBodyRequest(ctx, http.MethodPatch, fmt.Sprintf("/topics/%d.json", topicID), "application/json", body)
+		return err
 	})
 }
 
