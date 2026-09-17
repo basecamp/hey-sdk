@@ -92,10 +92,10 @@ func TestTopicsService_UpdateRenamesViaJSONPatch(t *testing.T) {
 		gotAccept = r.Header.Get("Accept")
 		body, _ := io.ReadAll(r.Body)
 		gotBody = string(body)
-		if r.URL.Path == "/topics/42" || r.URL.Path == "/topics/42.html" {
+		if requests > 1 {
 			t.Fatal("topic rename redirect was followed")
 		}
-		w.Header().Set("Location", "/topics/42")
+		w.Header().Set("Location", "/topics/42.html")
 		w.WriteHeader(http.StatusFound)
 	}))
 	t.Cleanup(srv.Close)
@@ -110,8 +110,8 @@ func TestTopicsService_UpdateRenamesViaJSONPatch(t *testing.T) {
 	if gotMethod != http.MethodPatch {
 		t.Errorf("method = %q, want PATCH", gotMethod)
 	}
-	if gotPath != "/topics/42.json" {
-		t.Errorf("path = %q, want /topics/42.json", gotPath)
+	if gotPath != "/topics/42" {
+		t.Errorf("path = %q, want /topics/42", gotPath)
 	}
 	if gotCT != "application/json" {
 		t.Errorf("content-type = %q", gotCT)

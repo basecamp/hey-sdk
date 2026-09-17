@@ -259,6 +259,10 @@ private func renderMethod(_ operation: Operation) -> String {
     if operation.body != nil {
         out += "        try operation.json(body)\n"
     }
+    // Redirect statuses in emptyOn mean the redirect IS the answer (e.g. UpdateTopic's 302).
+    if operation.emptyOn.contains(where: { $0 == 302 || $0 == 303 }) {
+        out += "        operation.captureRedirects()\n"
+    }
     out += "        return try await client.\(sendMethod(operation))(operation)\n"
     out += "    }\n"
     return out

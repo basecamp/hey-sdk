@@ -2658,6 +2658,27 @@ public enum Routes {
         retry: RetryPolicy(max: 3, baseDelayMs: 1000, retryOn: [429, 503])
     )
 
+    /// `PATCH /topics/{topicId}`
+    public static let updateTopic = Route(
+        id: "UpdateTopic",
+        service: "Topics",
+        method: .patch,
+        path: "/topics/{topicId}",
+        pattern: "/topics/{topicId}",
+        resource: "Topics",
+        resourceType: "topic",
+        params: [
+            RouteParam(name: "topicId", role: .recording, kind: .int64),
+        ],
+        idempotent: true,
+        readonly: false,
+        html: false,
+        emptyOn: [302, 303],
+        pagination: .unpaged,
+        pageParameter: nil,
+        retry: RetryPolicy(max: 2, baseDelayMs: 1000, retryOn: [429, 503])
+    )
+
     /// Every route, in operation id order.
     public static let all: [Route] = [
         addPostingsToBoxGroup,
@@ -2792,5 +2813,6 @@ public enum Routes {
         updateSticky,
         updateTimeFormat,
         updateTimeTrack,
+        updateTopic,
     ]
 }

@@ -178,4 +178,21 @@ public final class TopicsService: BaseService, @unchecked Sendable {
         operation.queryOptional("confirm_destroy", options?.confirmDestroy)
         return try await client.sendVoid(operation)
     }
+
+    /// Rename a topic (the thread subject HEY stores as `name`).
+    ///
+    /// Wire body is flat `{"name":"…"}` — not nested under `topic`, and not `subject`.
+    /// HEY answers HTTP 302 to the HTML topic URL; clients must treat 302 as success and
+    /// must not follow the redirect (the Location is HTML and often 403 if followed).
+    ///
+    /// - Parameters:
+    ///   - topicId: The topic ID
+    ///   - body: Request body
+    public func update(topicId: Int, body: UpdateTopicRequestContent) async throws {
+        var operation = try client.operation(Routes.updateTopic, [topicId])
+        operation.resourceId(topicId)
+        try operation.json(body)
+        operation.captureRedirects()
+        return try await client.sendVoid(operation)
+    }
 }
