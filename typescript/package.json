@@ -1,6 +1,6 @@
 {
   "name": "@37signals/hey",
-  "version": "0.31.0",
+  "version": "0.31.1",
   "description": "TypeScript SDK for the HEY API",
   "type": "module",
   "main": "dist/index.js",
