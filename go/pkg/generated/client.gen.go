@@ -1680,6 +1680,11 @@ type UpdateTimeTrackRequestContent struct {
 // UpdateTimeTrackResponseContent Recording — polymorphic by `type`, with direct and namespaced calendar wire values
 type UpdateTimeTrackResponseContent = Recording
 
+// UpdateTopicRequestContent Wire format: {"name":"…"}
+type UpdateTopicRequestContent struct {
+	Name string `json:"name"`
+}
+
 // UpdatesChannel UpdatesChannel — streaming channel for a box
 type UpdatesChannel struct {
 	SignedStreamName string `json:"signed_stream_name,omitempty"`
@@ -2089,6 +2094,9 @@ type MoveStickyJSONRequestBody = MoveStickyRequestContent
 // UpdateStickyJSONRequestBody defines body for UpdateSticky for application/json ContentType.
 type UpdateStickyJSONRequestBody = StickyRequestContent
 
+// UpdateTopicJSONRequestBody defines body for UpdateTopic for application/json ContentType.
+type UpdateTopicJSONRequestBody = UpdateTopicRequestContent
+
 // MoveTopicJSONRequestBody defines body for MoveTopic for application/json ContentType.
 type MoveTopicJSONRequestBody = MoveTopicRequestContent
 
@@ -2271,6 +2279,7 @@ var operationRetryPolicies = map[string]RetryPolicy{
 	"GetTrashTopics":                {MaxAttempts: 3, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
 	"EmptyTrash":                    {MaxAttempts: 2, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
 	"GetTopic":                      {MaxAttempts: 3, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
+	"UpdateTopic":                   {MaxAttempts: 2, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
 	"GetTopicEntries":               {MaxAttempts: 3, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
 	"MoveTopic":                     {MaxAttempts: 2, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
 	"GetTopicPublication":           {MaxAttempts: 3, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
@@ -3121,6 +3130,11 @@ type ClientInterface interface {
 
 	// GetTopic request
 	GetTopic(ctx context.Context, topicId int64, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// UpdateTopicWithBody request with any body
+	UpdateTopicWithBody(ctx context.Context, topicId int64, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	UpdateTopic(ctx context.Context, topicId int64, body UpdateTopicJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// GetTopicEntries request
 	GetTopicEntries(ctx context.Context, topicId int64, params *GetTopicEntriesParams, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -4541,6 +4555,25 @@ func (c *Client) GetTopic(ctx context.Context, topicId int64, reqEditors ...Requ
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
 		return NewGetTopicRequest(c.Server, topicId)
 	}, true, "GetTopic", reqEditors...)
+}
+
+// UpdateTopicWithBody is marked as idempotent and will be retried on transient failures.
+
+func (c *Client) UpdateTopicWithBody(ctx context.Context, topicId int64, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	body, rewind, finish := resendableBody(body)
+	defer finish()
+	return c.doWithRetry(ctx, func() (*http.Request, error) {
+		if err := rewind(); err != nil {
+			return nil, err
+		}
+		return NewUpdateTopicRequestWithBody(c.Server, topicId, contentType, body)
+	}, true, "UpdateTopic", reqEditors...)
+}
+
+func (c *Client) UpdateTopic(ctx context.Context, topicId int64, body UpdateTopicJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	return c.doWithRetry(ctx, func() (*http.Request, error) {
+		return NewUpdateTopicRequest(c.Server, topicId, body)
+	}, true, "UpdateTopic", reqEditors...)
 }
 
 // GetTopicEntries is marked as idempotent and will be retried on transient failures.
@@ -9997,6 +10030,53 @@ func NewGetTopicRequest(server string, topicId int64) (*http.Request, error) {
 	return req, nil
 }
 
+// NewUpdateTopicRequest calls the generic UpdateTopic builder with application/json body
+func NewUpdateTopicRequest(server string, topicId int64, body UpdateTopicJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewUpdateTopicRequestWithBody(server, topicId, "application/json", bodyReader)
+}
+
+// NewUpdateTopicRequestWithBody generates requests for UpdateTopic with any type of body
+func NewUpdateTopicRequestWithBody(server string, topicId int64, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "topicId", runtime.ParamLocationPath, topicId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/topics/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("PATCH", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
 // NewGetTopicEntriesRequest generates requests for GetTopicEntries
 func NewGetTopicEntriesRequest(server string, topicId int64, params *GetTopicEntriesParams) (*http.Request, error) {
 	var err error
@@ -10576,6 +10656,7 @@ var operationMetadata = map[string]OperationMetadata{
 	"GetTrashTopics":                {Idempotent: true, HasSensitiveParams: false},
 	"EmptyTrash":                    {Idempotent: true, HasSensitiveParams: false},
 	"GetTopic":                      {Idempotent: true, HasSensitiveParams: false},
+	"UpdateTopic":                   {Idempotent: true, HasSensitiveParams: false},
 	"GetTopicEntries":               {Idempotent: true, HasSensitiveParams: false},
 	"MoveTopic":                     {Idempotent: false, HasSensitiveParams: false},
 	"GetTopicPublication":           {Idempotent: true, HasSensitiveParams: false},
@@ -12472,6 +12553,28 @@ type ClientWithResponsesInterface interface {
 	//
 	// Returns a wrapper object for the known response body format(s).
 	GetTopicWithResponse(ctx context.Context, topicId int64, reqEditors ...RequestEditorFn) (*GetTopicResponse, error)
+
+	// UpdateTopicWithBodyWithResponse performs a PATCH /topics/{topicId} (the `UpdateTopic` operationId) request,
+	// with any type of body and a specified content type.
+	//
+	// Rename a topic (the thread subject HEY stores as `name`).
+	//
+	// Wire body is flat `{"name":"…"}` — not nested under `topic`, and not `subject`.
+	// HEY answers HTTP 302 to the HTML topic URL; clients must treat 302 as success and
+	// must not follow the redirect (the Location is HTML and often 403 if followed).
+	//
+	// Returns a wrapper object for the known response body format(s).
+	UpdateTopicWithBodyWithResponse(ctx context.Context, topicId int64, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateTopicResponse, error)
+
+	// UpdateTopicWithResponse performs a PATCH /topics/{topicId} (the `UpdateTopic` operationId) request.
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Rename a topic (the thread subject HEY stores as `name`).
+	//
+	// Wire body is flat `{"name":"…"}` — not nested under `topic`, and not `subject`.
+	// HEY answers HTTP 302 to the HTML topic URL; clients must treat 302 as success and
+	// must not follow the redirect (the Location is HTML and often 403 if followed).
+	UpdateTopicWithResponse(ctx context.Context, topicId int64, body UpdateTopicJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateTopicResponse, error)
 
 	// GetTopicEntriesWithResponse performs a GET /topics/{topicId}/entries (the `GetTopicEntries` operationId) request.
 	//
@@ -20515,6 +20618,75 @@ func (r GetTopicResponse) ContentType() string {
 	return ""
 }
 
+type UpdateTopicResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *UnauthorizedErrorResponseContent
+	// JSON404 the response for an HTTP 404 `application/json` response
+	JSON404 *NotFoundErrorResponseContent
+	// JSON422 the response for an HTTP 422 `application/json` response
+	JSON422 *UnprocessableEntityErrorResponseContent
+	// JSON500 the response for an HTTP 500 `application/json` response
+	JSON500 *InternalServerErrorResponseContent
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *ServiceUnavailableErrorResponseContent
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r UpdateTopicResponse) GetJSON401() *UnauthorizedErrorResponseContent {
+	return r.JSON401
+}
+
+// GetJSON404 returns the response for an HTTP 404 `application/json` response
+func (r UpdateTopicResponse) GetJSON404() *NotFoundErrorResponseContent {
+	return r.JSON404
+}
+
+// GetJSON422 returns the response for an HTTP 422 `application/json` response
+func (r UpdateTopicResponse) GetJSON422() *UnprocessableEntityErrorResponseContent {
+	return r.JSON422
+}
+
+// GetJSON500 returns the response for an HTTP 500 `application/json` response
+func (r UpdateTopicResponse) GetJSON500() *InternalServerErrorResponseContent {
+	return r.JSON500
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r UpdateTopicResponse) GetJSON503() *ServiceUnavailableErrorResponseContent {
+	return r.JSON503
+}
+
+// GetBody returns the raw response body bytes
+func (r UpdateTopicResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r UpdateTopicResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r UpdateTopicResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r UpdateTopicResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type GetTopicEntriesResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -23417,6 +23589,40 @@ func (c *ClientWithResponses) GetTopicWithResponse(ctx context.Context, topicId 
 		return nil, err
 	}
 	return ParseGetTopicResponse(rsp)
+}
+
+// UpdateTopicWithBodyWithResponse performs a PATCH /topics/{topicId} (the `UpdateTopic` operationId) request,
+// with any type of body and a specified content type.
+//
+// Rename a topic (the thread subject HEY stores as `name`).
+//
+// Wire body is flat `{"name":"…"}` — not nested under `topic`, and not `subject`.
+// HEY answers HTTP 302 to the HTML topic URL; clients must treat 302 as success and
+// must not follow the redirect (the Location is HTML and often 403 if followed).
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) UpdateTopicWithBodyWithResponse(ctx context.Context, topicId int64, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateTopicResponse, error) {
+	rsp, err := c.UpdateTopicWithBody(ctx, topicId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpdateTopicResponse(rsp)
+}
+
+// UpdateTopicWithResponse performs a PATCH /topics/{topicId} (the `UpdateTopic` operationId) request.
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Rename a topic (the thread subject HEY stores as `name`).
+//
+// Wire body is flat `{"name":"…"}` — not nested under `topic`, and not `subject`.
+// HEY answers HTTP 302 to the HTML topic URL; clients must treat 302 as success and
+// must not follow the redirect (the Location is HTML and often 403 if followed).
+func (c *ClientWithResponses) UpdateTopicWithResponse(ctx context.Context, topicId int64, body UpdateTopicJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateTopicResponse, error) {
+	rsp, err := c.UpdateTopic(ctx, topicId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpdateTopicResponse(rsp)
 }
 
 // GetTopicEntriesWithResponse performs a GET /topics/{topicId}/entries (the `GetTopicEntries` operationId) request.
@@ -29826,6 +30032,63 @@ func ParseGetTopicResponse(rsp *http.Response) (*GetTopicResponse, error) {
 			return nil, err
 		}
 		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest InternalServerErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+		var dest ServiceUnavailableErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON503 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseUpdateTopicResponse parses an HTTP response from a UpdateTopicWithResponse call
+func ParseUpdateTopicResponse(rsp *http.Response) (*UpdateTopicResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &UpdateTopicResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 200:
+		break // No content-type
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest UnauthorizedErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFoundErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 422:
+		var dest UnprocessableEntityErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON422 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
 		var dest InternalServerErrorResponseContent

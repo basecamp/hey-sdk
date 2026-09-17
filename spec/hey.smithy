@@ -178,6 +178,7 @@ service HEY {
         MarkTopicHam
         EmptyTrash
         EmptySpam
+        UpdateTopic
         MoveTopic
 
         // Entries
@@ -3436,6 +3437,38 @@ operation EmptyTrash {
 @heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
 operation EmptySpam {
     errors: [UnauthorizedError, InternalServerError, ServiceUnavailableError]
+}
+
+
+/// Rename a topic (the thread subject HEY stores as `name`).
+///
+/// Wire body is flat `{"name":"…"}` — not nested under `topic`, and not `subject`.
+/// HEY answers HTTP 302 to the HTML topic URL; clients must treat 302 as success and
+/// must not follow the redirect (the Location is HTML and often 403 if followed).
+@idempotent
+@http(method: "PATCH", uri: "/topics/{topicId}")
+@tags(["Topics"])
+@heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+@heyEmptyOn(statusCodes: [302, 303])
+operation UpdateTopic {
+    input: UpdateTopicInput
+    errors: [UnauthorizedError, NotFoundError, UnprocessableEntityError, InternalServerError, ServiceUnavailableError]
+}
+
+structure UpdateTopicInput {
+    @httpLabel
+    @required
+    topicId: Long
+
+    @httpPayload
+    @required
+    body: UpdateTopicRequestContent
+}
+
+/// Wire format: {"name":"…"}
+structure UpdateTopicRequestContent {
+    @required
+    name: String
 }
 
 /// Move a topic to another box.

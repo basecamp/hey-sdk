@@ -713,6 +713,16 @@ async fn execute_operation(client: &Client, case: &TestCase) -> Result<Outcome, 
                 .await?;
             Ok(Outcome::Unit)
         }
+        "UpdateTopic" => {
+            let request = models::UpdateTopicRequestContent {
+                name: string_param(body, "name"),
+            };
+            client
+                .topics()
+                .update(int64_param(path, "topicId"), &request)
+                .await?;
+            Ok(Outcome::Unit)
+        }
 
         "MarkEntrySpam" => {
             client

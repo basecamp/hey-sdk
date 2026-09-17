@@ -131,6 +131,7 @@
     "UpdateMyClearance",
     "UpdateSticky",
     "UpdateTimeFormat",
-    "UpdateTimeTrack"
+    "UpdateTimeTrack",
+    "UpdateTopic"
   ]
 }

@@ -653,5 +653,10 @@
     "method": "PUT",
     "operationId": "UpdateTimeTrack",
     "path": "/calendar/time_tracks/{timeTrackId}"
+  },
+  {
+    "method": "PATCH",
+    "operationId": "UpdateTopic",
+    "path": "/topics/{topicId}"
   }
 ]

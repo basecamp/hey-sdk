@@ -2487,6 +2487,16 @@ pub struct UpdateTimeTrackRequestContent {
 
 pub type UpdateTimeTrackResponseContent = Recording;
 
+/// Wire format: {"name":"…"}
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+pub struct UpdateTopicRequestContent {
+    #[serde(
+        default,
+        deserialize_with = "crate::types::null_as_default::deserialize"
+    )]
+    pub name: String,
+}
+
 /// UpdatesChannel — streaming channel for a box
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 #[non_exhaustive]

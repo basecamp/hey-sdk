@@ -341,10 +341,10 @@ func (s *TopicsService) EmptySpam(ctx context.Context) error {
 
 // Update renames a topic (the thread subject as HEY stores it in `name`).
 //
-// HEY's web UI PATCHes /topics/{id}.json with {"name":"…"}. Success is HTTP 302 to the
-// HTML topic URL; the redirect is captured and not followed (same as PatchForm mutations).
-// This is not in the OpenAPI model, so it goes through doBodyRequest rather than a
-// generated client method.
+// Modeled as UpdateTopic: PATCH /topics/{topicId} with flat {"name":"…"}. HEY answers
+// HTTP 302 to the HTML topic URL. The generated genClient follows redirects, so this
+// still sends through doBodyRequest (capture, don't follow) using the generated body
+// type — same pattern as other redirect mutations.
 func (s *TopicsService) Update(ctx context.Context, topicID int64, name string) error {
 	op := OperationInfo{
 		Service: "Topics", Operation: "UpdateTopic",
@@ -352,11 +352,11 @@ func (s *TopicsService) Update(ctx context.Context, topicID int64, name string) 
 	}
 
 	return s.client.instrument(ctx, op, func(ctx context.Context) error {
-		body, err := json.Marshal(map[string]string{"name": name})
+		body, err := json.Marshal(generated.UpdateTopicRequestContent{Name: name})
 		if err != nil {
 			return err
 		}
-		_, err = s.client.doBodyRequest(ctx, http.MethodPatch, fmt.Sprintf("/topics/%d.json", topicID), "application/json", body)
+		_, err = s.client.doBodyRequest(ctx, http.MethodPatch, fmt.Sprintf("/topics/%d", topicID), "application/json", body)
 		return err
 	})
 }
