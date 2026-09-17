@@ -2046,6 +2046,51 @@
     ]
   },
   {
+    "name": "UpdateTopic uses /topics/{topicId} path",
+    "description": "Verifies UpdateTopic PATCHes /topics/{topicId} with flat name body; 302 is success and must not be followed",
+    "operation": "UpdateTopic",
+    "method": "PATCH",
+    "path": "/topics/{topicId}",
+    "pathParams": {
+      "topicId": 456
+    },
+    "requestBody": {
+      "name": "Amex charge"
+    },
+    "mockResponses": [
+      {
+        "status": 302,
+        "headers": {
+          "Location": "/topics/456"
+        },
+        "body": {}
+      }
+    ],
+    "assertions": [
+      {
+        "type": "requestPath",
+        "expected": "/topics/456"
+      },
+      {
+        "type": "requestMethod",
+        "expected": "PATCH"
+      },
+      {
+        "type": "requestBody",
+        "expected": {
+          "name": "Amex charge"
+        }
+      },
+      {
+        "type": "noError"
+      }
+    ],
+    "tags": [
+      "path",
+      "topics"
+    ]
+  },
+  {
     "name": "MarkEntrySpam uses /entries/{entryId}/status/spam.json path",
     "description": "Verifies that MarkEntrySpam constructs the URL path /entries/{entryId}/status/spam.json",
     "operation": "MarkEntrySpam",

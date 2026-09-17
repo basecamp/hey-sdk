@@ -173,6 +173,10 @@ fn render_method(out: &mut String, operation: &Operation) {
     if operation.body.is_some() {
         out.push_str("        operation.json(body)?;\n");
     }
+    // Redirect statuses in empty_on mean the redirect IS the answer (e.g. UpdateTopic's 302).
+    if operation.empty_on.iter().any(|s| matches!(s, 302 | 303)) {
+        out.push_str("        operation.capture_redirects();\n");
+    }
     writeln!(
         out,
         "        self.client.{}(operation).await",

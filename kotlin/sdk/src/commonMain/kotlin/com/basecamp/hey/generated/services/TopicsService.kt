@@ -12,6 +12,7 @@ import com.basecamp.hey.generated.models.GetTopicEntriesResponseContent
 import com.basecamp.hey.generated.models.GetTopicResponseContent
 import com.basecamp.hey.generated.models.GetTrashTopicsResponseContent
 import com.basecamp.hey.generated.models.MoveTopicRequestContent
+import com.basecamp.hey.generated.models.UpdateTopicRequestContent
 import com.basecamp.hey.json
 import com.basecamp.hey.services.BaseService
 
@@ -175,6 +176,23 @@ open class TopicsService(client: HeyClient) : BaseService(client) {
         val operation = client.operation(Routes.TRASH_TOPIC, listOf(topicId))
         operation.resourceId(topicId)
         operation.queryOptional("confirm_destroy", options?.confirmDestroy)
+        return client.sendUnit(operation)
+    }
+
+    /**
+     * Rename a topic (the thread subject HEY stores as `name`).
+     *
+     * Wire body is flat `{"name":"…"}` — not nested under `topic`, and not `subject`.
+     * HEY answers HTTP 302 to the HTML topic URL; clients must treat 302 as success and
+     * must not follow the redirect (the Location is HTML and often 403 if followed).
+     * @param topicId The topic ID
+     * @param body Request body
+     */
+    suspend fun update(topicId: Long, body: UpdateTopicRequestContent): Unit {
+        val operation = client.operation(Routes.UPDATE_TOPIC, listOf(topicId))
+        operation.resourceId(topicId)
+        operation.json(body)
+        operation.captureRedirects()
         return client.sendUnit(operation)
     }
 }

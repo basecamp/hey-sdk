@@ -3098,6 +3098,31 @@ pub static UPDATE_TIME_TRACK: Route = Route {
     },
 };
 
+pub static UPDATE_TOPIC: Route = Route {
+    id: "UpdateTopic",
+    service: "Topics",
+    method: Method::PATCH,
+    path: "/topics/{topicId}",
+    pattern: "/topics/{topicId}",
+    resource: "Topics",
+    resource_type: "topic",
+    params: &[RouteParam {
+        name: "topicId",
+        role: ParamRole::Recording,
+        kind: ParamKind::Int64,
+    }],
+    idempotent: true,
+    readonly: false,
+    html: false,
+    empty_on: &[302, 303],
+    pagination: Pagination::None,
+    retry: Retry {
+        max: 2,
+        base_delay_ms: 1000,
+        retry_on: &[429, 503],
+    },
+};
+
 /// Every route the SDK knows, one per operation.
 pub static ROUTES: &[&Route] = &[
     &ADD_POSTINGS_TO_BOX_GROUP,
@@ -3231,4 +3256,5 @@ pub static ROUTES: &[&Route] = &[
     &UPDATE_STICKY,
     &UPDATE_TIME_FORMAT,
     &UPDATE_TIME_TRACK,
+    &UPDATE_TOPIC,
 ];

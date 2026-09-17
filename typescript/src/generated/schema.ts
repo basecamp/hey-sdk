@@ -1829,7 +1829,14 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
-        patch?: never;
+        /**
+         * @description Rename a topic (the thread subject HEY stores as `name`).
+         *
+         *     Wire body is flat `{"name":"…"}` — not nested under `topic`, and not `subject`.
+         *     HEY answers HTTP 302 to the HTML topic URL; clients must treat 302 as success and
+         *     must not follow the redirect (the Location is HTML and often 403 if followed).
+         */
+        patch: operations["UpdateTopic"];
         trace?: never;
     };
     "/topics/{topicId}/entries": {
@@ -3414,6 +3421,10 @@ export interface components {
             calendar_time_track: components["schemas"]["UpdateTimeTrackPayload"];
         };
         UpdateTimeTrackResponseContent: components["schemas"]["Recording"];
+        /** @description Wire format: {"name":"…"} */
+        UpdateTopicRequestContent: {
+            name: string;
+        };
         /** @description UpdatesChannel — streaming channel for a box */
         UpdatesChannel: {
             signed_stream_name?: string;
@@ -10397,6 +10408,75 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["NotFoundErrorResponseContent"];
+                };
+            };
+            /** @description InternalServerError 500 response */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InternalServerErrorResponseContent"];
+                };
+            };
+            /** @description ServiceUnavailableError 503 response */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ServiceUnavailableErrorResponseContent"];
+                };
+            };
+        };
+    };
+    UpdateTopic: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                topicId: number | bigint;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateTopicRequestContent"];
+            };
+        };
+        responses: {
+            /** @description UpdateTopic 200 response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description UnauthorizedError 401 response */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UnauthorizedErrorResponseContent"];
+                };
+            };
+            /** @description NotFoundError 404 response */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NotFoundErrorResponseContent"];
+                };
+            };
+            /** @description UnprocessableEntityError 422 response */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UnprocessableEntityErrorResponseContent"];
                 };
             };
             /** @description InternalServerError 500 response */

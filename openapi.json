@@ -9700,6 +9700,104 @@
             503
           ]
         }
+      },
+      "patch": {
+        "description": "Rename a topic (the thread subject HEY stores as `name`).\n\nWire body is flat `{\"name\":\"…\"}` — not nested under `topic`, and not `subject`.\nHEY answers HTTP 302 to the HTML topic URL; clients must treat 302 as success and\nmust not follow the redirect (the Location is HTML and often 403 if followed).",
+        "operationId": "UpdateTopic",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateTopicRequestContent"
+              }
+            }
+          },
+          "required": true
+        },
+        "parameters": [
+          {
+            "name": "topicId",
+            "in": "path",
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "UpdateTopic 200 response"
+          },
+          "401": {
+            "description": "UnauthorizedError 401 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnauthorizedErrorResponseContent"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError 404 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundErrorResponseContent"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "UnprocessableEntityError 422 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnprocessableEntityErrorResponseContent"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "InternalServerError 500 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorResponseContent"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ServiceUnavailableError 503 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceUnavailableErrorResponseContent"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Topics"
+        ],
+        "x-hey-empty-on": {
+          "statusCodes": [
+            302,
+            303
+          ]
+        },
+        "x-hey-retry": {
+          "maxAttempts": 2,
+          "baseDelayMs": 1000,
+          "backoff": "exponential",
+          "retryOn": [
+            429,
+            503
+          ]
+        }
       }
     },
     "/topics/{topicId}/entries": {
@@ -14471,6 +14569,18 @@
       },
       "UpdateTimeTrackResponseContent": {
         "$ref": "#/components/schemas/Recording"
+      },
+      "UpdateTopicRequestContent": {
+        "type": "object",
+        "description": "Wire format: {\"name\":\"…\"}",
+        "properties": {
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ]
       },
       "UpdatesChannel": {
         "type": "object",

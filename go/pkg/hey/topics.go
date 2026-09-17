@@ -2,6 +2,7 @@ package hey
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"time"
@@ -334,6 +335,29 @@ func (s *TopicsService) EmptySpam(ctx context.Context) error {
 			return err
 		}
 		return CheckResponse(resp.HTTPResponse)
+	})
+}
+
+
+// Update renames a topic (the thread subject as HEY stores it in `name`).
+//
+// Modeled as UpdateTopic: PATCH /topics/{topicId} with flat {"name":"…"}. HEY answers
+// HTTP 302 to the HTML topic URL. The generated genClient follows redirects, so this
+// still sends through doBodyRequest (capture, don't follow) using the generated body
+// type — same pattern as other redirect mutations.
+func (s *TopicsService) Update(ctx context.Context, topicID int64, name string) error {
+	op := OperationInfo{
+		Service: "Topics", Operation: "UpdateTopic",
+		ResourceType: "topic", IsMutation: true, ResourceID: topicID,
+	}
+
+	return s.client.instrument(ctx, op, func(ctx context.Context) error {
+		body, err := json.Marshal(generated.UpdateTopicRequestContent{Name: name})
+		if err != nil {
+			return err
+		}
+		_, err = s.client.doBodyRequest(ctx, http.MethodPatch, fmt.Sprintf("/topics/%d", topicID), "application/json", body)
+		return err
 	})
 }
 

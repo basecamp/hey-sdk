@@ -225,7 +225,13 @@ func runTest(tc TestCase) TestResult {
 
 	// Create generated client pointing to mock server with auth header
 	credentials := newConformanceCredentials(tc)
+	httpClient := &http.Client{
+		CheckRedirect: func(*http.Request, []*http.Request) error {
+			return http.ErrUseLastResponse
+		},
+	}
 	client, err := generated.NewClient(server.URL,
+		generated.WithHTTPClient(httpClient),
 		generated.WithAuthRefresher(credentials.refresh),
 		generated.WithRequestEditorFn(func(ctx context.Context, req *http.Request) error {
 			token, _ := credentials.AccessToken(ctx)
@@ -504,6 +510,7 @@ type checkState struct {
 // "empty" (no result) rather than error. See ADR-004.
 var emptyOnOperations = map[string][]int{
 	"GetOngoingTimeTrack": {404},
+	"UpdateTopic":         {302, 303},
 }
 
 func isEmptyOnStatus(operation string, statusCode int) bool {
@@ -1405,6 +1412,10 @@ func executeOperation(client *generated.Client, ctx context.Context, tc TestCase
 		topicId := getInt64Param(tc.PathParams, "topicId")
 		body := generated.MoveTopicJSONRequestBody{BoxId: getInt64Param(tc.RequestBody, "box_id")}
 		return client.MoveTopic(ctx, topicId, body)
+	case "UpdateTopic":
+		topicId := getInt64Param(tc.PathParams, "topicId")
+		body := generated.UpdateTopicJSONRequestBody{Name: getStringParam(tc.RequestBody, "name")}
+		return client.UpdateTopic(ctx, topicId, body)
 
 	// Entry status and forwards
 	case "MarkEntrySpam":
@@ -1656,6 +1667,8 @@ func executeHEYOperation(client *hey.Client, ctx context.Context, tc TestCase) (
 	case "SendDraft":
 		entryID := getInt64Param(tc.PathParams, "entryId")
 		return nil, client.Messages().SendDraft(ctx, entryID, draftContentParam(tc.RequestBody))
+	case "UpdateTopic":
+		return nil, client.Topics().Update(ctx, getInt64Param(tc.PathParams, "topicId"), getStringParam(tc.RequestBody, "name"))
 	default:
 		return nil, fmt.Errorf("HEY client conformance does not support operation: %s", tc.Operation)
 	}

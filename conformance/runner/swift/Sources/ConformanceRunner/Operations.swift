@@ -302,6 +302,10 @@ private func executeOperation(_ client: HeyClient, _ testCase: TestCase) async t
         try await client.topics.moveTopic(topicId: path.int("topicId"), body: MoveTopicRequestContent(boxId: body.int("box_id")))
         return .unit
 
+    case "UpdateTopic":
+        try await client.topics.update(topicId: path.int("topicId"), body: UpdateTopicRequestContent(name: body.string("name")))
+        return .unit
+
     case "MarkEntrySpam":
         try await client.entries.markSpam(entryId: path.int("entryId"))
         return .unit
