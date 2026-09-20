@@ -60,7 +60,7 @@ timestamp DateTime
 /// HEY API
 @restJson1
 service HEY {
-    version: "2026-09-16"
+    version: "2026-09-20"
     operations: [
         // Identity (4 MVP)
         GetIdentity
@@ -586,6 +586,9 @@ structure Entry {
     id: Long
     created_at: DateTime
     updated_at: DateTime
+
+    /// Delivery time. Present on the latest entry in Sent topics.
+    active_at: DateTime
     creator: Contact
     alternative_sender_name: String
     summary: String
@@ -593,6 +596,9 @@ structure Entry {
     app_url: String
     subject: String
     topic_id: Long
+
+    /// Exact recipients, grouped by delivery kind. Present on the latest entry in Sent topics.
+    addressed: Addressed
 }
 
 list EntryList {

@@ -21,6 +21,11 @@ data class Entry(
      */
     @SerialName("updated_at")
     val updatedAt: String? = null,
+    /**
+     * Delivery time. Present on the latest entry in Sent topics.
+     */
+    @SerialName("active_at")
+    val activeAt: String? = null,
     val creator: Contact? = null,
     @SerialName("alternative_sender_name")
     val alternativeSenderName: String? = null,
@@ -31,4 +36,5 @@ data class Entry(
     val subject: String? = null,
     @SerialName("topic_id")
     val topicId: Long? = null,
+    val addressed: Addressed? = null,
 )

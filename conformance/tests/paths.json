@@ -698,14 +698,29 @@
   },
   {
     "name": "GetSentTopics uses /topics/sent.json path",
-    "description": "Verifies that GetSentTopics constructs the URL path /topics/sent.json",
+    "description": "Verifies that GetSentTopics constructs the URL path /topics/sent.json and decodes delivery metadata",
     "operation": "GetSentTopics",
     "method": "GET",
     "path": "/topics/sent.json",
     "mockResponses": [
       {
         "status": 200,
-        "body": {}
+        "body": {
+          "topics": [
+            {
+              "id": 42,
+              "latest_entry": {
+                "id": 99,
+                "active_at": "2026-09-19T14:30:00Z",
+                "addressed": {
+                  "directly": [{"id": 1, "email_address": "sarah@example.com"}],
+                  "copied": [{"id": 2, "email_address": "jamal@example.org"}],
+                  "blindcopied": [{"id": 3, "email_address": "pat@example.com"}]
+                }
+              }
+            }
+          ]
+        }
       }
     ],
     "assertions": [
@@ -715,6 +730,26 @@
       },
       {
         "type": "noError"
+      },
+      {
+        "type": "responseBody",
+        "path": "topics.0.latest_entry.active_at",
+        "expected": "2026-09-19T14:30:00Z"
+      },
+      {
+        "type": "responseBody",
+        "path": "topics.0.latest_entry.addressed.directly.0.email_address",
+        "expected": "sarah@example.com"
+      },
+      {
+        "type": "responseBody",
+        "path": "topics.0.latest_entry.addressed.copied.0.email_address",
+        "expected": "jamal@example.org"
+      },
+      {
+        "type": "responseBody",
+        "path": "topics.0.latest_entry.addressed.blindcopied.0.email_address",
+        "expected": "pat@example.com"
       }
     ],
     "tags": [

@@ -123,8 +123,42 @@ func topicEntriesParams(page string) *generated.GetTopicEntriesParams {
 	return params
 }
 
+// SentPage is one page of sent topics and the opaque cursor for the next page.
+type SentPage struct {
+	Title       string
+	Description string
+	Topics      []generated.Topic
+	NextPage    string
+}
+
 // GetSent returns sent topics.
 func (s *TopicsService) GetSent(ctx context.Context, params *generated.GetSentTopicsParams) (result *generated.TopicListResponse, err error) {
+	result, _, err = s.getSent(ctx, params)
+	return result, err
+}
+
+// GetSentPage returns one page of sent topics and preserves the next-page cursor from
+// the Link header. An empty page argument reads the first page.
+func (s *TopicsService) GetSentPage(ctx context.Context, page string) (result *SentPage, err error) {
+	params := &generated.GetSentTopicsParams{}
+	if page != "" {
+		params.Page = &page
+	}
+
+	response, nextPage, err := s.getSent(ctx, params)
+	if err != nil {
+		return nil, err
+	}
+	result = &SentPage{NextPage: nextPage}
+	if response != nil {
+		result.Title = response.Title
+		result.Description = response.Description
+		result.Topics = response.Topics
+	}
+	return result, nil
+}
+
+func (s *TopicsService) getSent(ctx context.Context, params *generated.GetSentTopicsParams) (result *generated.TopicListResponse, nextPage string, err error) {
 	op := OperationInfo{
 		Service: "Topics", Operation: "GetSentTopics",
 		ResourceType: "topic", IsMutation: false,
@@ -141,12 +175,15 @@ func (s *TopicsService) GetSent(ctx context.Context, params *generated.GetSentTo
 	s.client.initGeneratedClient()
 	resp, err := s.client.gen.GetSentTopicsWithResponse(ctx, params)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 	if err = CheckResponse(resp.HTTPResponse); err != nil {
-		return nil, err
+		return nil, "", err
 	}
-	return resp.JSON200, nil
+	if resp.HTTPResponse != nil {
+		nextPage = gearedPageFromLink(resp.HTTPResponse.Header.Get("Link"))
+	}
+	return resp.JSON200, nextPage, nil
 }
 
 // GetSpam returns spam topics.

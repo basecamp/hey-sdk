@@ -437,7 +437,7 @@ func TestTopicsService_GetEntries(t *testing.T) {
 
 func TestTopicsService_GetSent(t *testing.T) {
 	client := newServiceTestClient(t, map[string]string{
-		"/topics/sent.json": `{"title":"Sent","topics":[{"id":1}]}`,
+		"/topics/sent.json": `{"title":"Sent","topics":[{"id":1,"latest_entry":{"id":2,"active_at":"2026-09-19T14:30:00Z","addressed":{"directly":[{"id":3,"email_address":"sarah@example.com"}],"copied":[{"id":4,"email_address":"jamal@example.com"}],"blindcopied":[{"id":5,"email_address":"pat@example.com"}]}}}]}`,
 	})
 
 	result, err := client.Topics().GetSent(context.Background(), nil)
@@ -446,6 +446,42 @@ func TestTopicsService_GetSent(t *testing.T) {
 	}
 	if result == nil {
 		t.Fatal("expected non-nil result")
+	}
+	if got := result.Topics[0].LatestEntry.ActiveAt.Format(time.RFC3339); got != "2026-09-19T14:30:00Z" {
+		t.Fatalf("active time = %q, want 2026-09-19T14:30:00Z", got)
+	}
+	if got := result.Topics[0].LatestEntry.Addressed.Directly[0].EmailAddress; got != "sarah@example.com" {
+		t.Fatalf("direct recipient = %q, want sarah@example.com", got)
+	}
+	if got := result.Topics[0].LatestEntry.Addressed.Copied[0].EmailAddress; got != "jamal@example.com" {
+		t.Fatalf("copied recipient = %q, want jamal@example.com", got)
+	}
+	if got := result.Topics[0].LatestEntry.Addressed.Blindcopied[0].EmailAddress; got != "pat@example.com" {
+		t.Fatalf("blind-copied recipient = %q, want pat@example.com", got)
+	}
+}
+
+func TestTopicsService_GetSentPage(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if got := r.URL.Query().Get("page"); got != "2" {
+			t.Errorf("page = %q, want 2", got)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Link", `</topics/sent.json?page=3>; rel="next"`)
+		fmt.Fprint(w, `{"title":"Sent","topics":[{"id":1}]}`)
+	}))
+	t.Cleanup(server.Close)
+
+	client := NewClient(&Config{BaseURL: server.URL}, &StaticTokenProvider{Token: "test-token"}, WithMaxRetries(0))
+	page, err := client.Topics().GetSentPage(context.Background(), "2")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(page.Topics) != 1 || page.Topics[0].Id != 1 {
+		t.Fatalf("topics = %#v, want topic 1", page.Topics)
+	}
+	if page.NextPage != "3" {
+		t.Fatalf("next page = %q, want 3", page.NextPage)
 	}
 }
 
