@@ -2605,6 +2605,11 @@ export interface components {
              * @description ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)
              */
             updated_at?: string;
+            /**
+             * Format: date-time
+             * @description Delivery time. Present on the latest entry in Sent topics.
+             */
+            active_at?: string;
             creator?: components["schemas"]["Contact"];
             alternative_sender_name?: string;
             summary?: string;
@@ -2613,6 +2618,7 @@ export interface components {
             subject?: string;
             /** Format: int64 */
             topic_id?: number | bigint;
+            addressed?: components["schemas"]["Addressed"];
         };
         /** @description Extenzion — external account extension */
         Extenzion: {

@@ -650,8 +650,13 @@ type DraftMessage struct {
 
 // Entry Entry — a message entry within a topic
 type Entry struct {
-	AlternativeSenderName string `json:"alternative_sender_name,omitempty"`
-	AppUrl                string `json:"app_url,omitempty"`
+	// ActiveAt Delivery time. Present on the latest entry in Sent topics.
+	ActiveAt time.Time `json:"active_at,omitempty,omitzero"`
+
+	// Addressed Addressed recipients
+	Addressed             Addressed `json:"addressed,omitempty"`
+	AlternativeSenderName string    `json:"alternative_sender_name,omitempty"`
+	AppUrl                string    `json:"app_url,omitempty"`
 
 	// CreatedAt ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)
 	CreatedAt time.Time `json:"created_at,omitempty,omitzero"`

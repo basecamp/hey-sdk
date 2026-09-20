@@ -7,6 +7,8 @@ public struct Entry: Codable, Sendable, Equatable {
     public var createdAt: String?
     /// ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)
     public var updatedAt: String?
+    /// Delivery time. Present on the latest entry in Sent topics.
+    public var activeAt: String?
     public var creator: Contact?
     public var alternativeSenderName: String?
     public var summary: String?
@@ -14,22 +16,26 @@ public struct Entry: Codable, Sendable, Equatable {
     public var appUrl: String?
     public var subject: String?
     public var topicId: Int?
+    public var addressed: Addressed?
 
     public init(
         id: Int,
         createdAt: String? = nil,
         updatedAt: String? = nil,
+        activeAt: String? = nil,
         creator: Contact? = nil,
         alternativeSenderName: String? = nil,
         summary: String? = nil,
         kind: String? = nil,
         appUrl: String? = nil,
         subject: String? = nil,
-        topicId: Int? = nil
+        topicId: Int? = nil,
+        addressed: Addressed? = nil
     ) {
         self.id = id
         self.createdAt = createdAt
         self.updatedAt = updatedAt
+        self.activeAt = activeAt
         self.creator = creator
         self.alternativeSenderName = alternativeSenderName
         self.summary = summary
@@ -37,12 +43,14 @@ public struct Entry: Codable, Sendable, Equatable {
         self.appUrl = appUrl
         self.subject = subject
         self.topicId = topicId
+        self.addressed = addressed
     }
 
     enum CodingKeys: String, CodingKey {
         case id
         case createdAt = "created_at"
         case updatedAt = "updated_at"
+        case activeAt = "active_at"
         case creator
         case alternativeSenderName = "alternative_sender_name"
         case summary
@@ -50,5 +58,6 @@ public struct Entry: Codable, Sendable, Equatable {
         case appUrl = "app_url"
         case subject
         case topicId = "topic_id"
+        case addressed
     }
 }
