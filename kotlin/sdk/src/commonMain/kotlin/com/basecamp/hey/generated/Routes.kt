@@ -2651,6 +2651,27 @@ object Routes {
         retry = RetryPolicy(max = 3, baseDelayMs = 1000L, retryOn = listOf(429, 503)),
     )
 
+    /** `PATCH /topics/{topicId}` */
+    val UPDATE_TOPIC: Route = Route(
+        id = "UpdateTopic",
+        service = "Topics",
+        method = Method.PATCH,
+        path = "/topics/{topicId}",
+        pattern = "/topics/{topicId}",
+        resource = "Topics",
+        resourceType = "topic",
+        params = listOf(
+            RouteParam("topicId", ParamRole.RECORDING, ParamKind.INT64),
+        ),
+        idempotent = true,
+        readonly = false,
+        html = false,
+        emptyOn = listOf(302, 303),
+        pagination = Pagination.NONE,
+        pageParameter = null,
+        retry = RetryPolicy(max = 2, baseDelayMs = 1000L, retryOn = listOf(429, 503)),
+    )
+
     /** Every route, in operation id order. */
     val ALL: List<Route> = listOf(
         ADD_POSTINGS_TO_BOX_GROUP,
@@ -2784,5 +2805,6 @@ object Routes {
         UPDATE_STICKY,
         UPDATE_TIME_FORMAT,
         UPDATE_TIME_TRACK,
+        UPDATE_TOPIC,
     )
 }

@@ -257,6 +257,10 @@ private fun renderMethod(out: StringBuilder, operation: Operation) {
     if (operation.body != null) {
         out.appendLine("        operation.json(body)")
     }
+    // Redirect statuses in emptyOn mean the redirect IS the answer (e.g. UpdateTopic's 302).
+    if (operation.emptyOn.any { it == 302 || it == 303 }) {
+        out.appendLine("        operation.captureRedirects()")
+    }
     out.appendLine("        return client.${sendMethod(operation)}(operation)")
     out.appendLine("    }")
 }

@@ -3075,6 +3075,35 @@ export const operationMetadata = {
     "actingSender": false,
     "actingUser": false
   },
+  "UpdateTopic": {
+    "method": "PATCH",
+    "path": "/topics/{topicId}",
+    "parameters": [
+      {
+        "name": "topicId",
+        "in": "path",
+        "required": true,
+        "type": "integer"
+      }
+    ],
+    "bodyRequired": true,
+    "safe": true,
+    "retry": {
+      "maxAttempts": 2,
+      "baseDelayMs": 1000,
+      "backoff": "exponential",
+      "retryOn": [
+        429,
+        503
+      ]
+    },
+    "emptyOn": [
+      302,
+      303
+    ],
+    "actingSender": false,
+    "actingUser": false
+  },
   "GetTopicEntries": {
     "method": "GET",
     "path": "/topics/{topicId}/entries",
@@ -4055,6 +4084,15 @@ export class GeneratedOperations {
   /** Get a topic */
   getTopic(input: OperationInput<"GetTopic">, options?: RequestOptions): Promise<OperationResponse<"GetTopic">> {
     return this.transport.execute("GetTopic", input, options);
+  }
+
+  /** Rename a topic (the thread subject HEY stores as `name`).
+   *
+   * Wire body is flat `{"name":"…"}` — not nested under `topic`, and not `subject`.
+   * HEY answers HTTP 302 to the HTML topic URL; clients must treat 302 as success and
+   * must not follow the redirect (the Location is HTML and often 403 if followed). */
+  updateTopic(input: OperationInput<"UpdateTopic">, options?: RequestOptions): Promise<OperationResponse<"UpdateTopic">> {
+    return this.transport.execute("UpdateTopic", input, options);
   }
 
   /** Get entries for a topic */

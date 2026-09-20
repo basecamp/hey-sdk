@@ -3285,11 +3285,6 @@
     "reason": "phase-2: topic management"
   },
   {
-    "method": "PATCH",
-    "path": "/topics/{id}",
-    "reason": "phase-2: topic management"
-  },
-  {
     "method": "PUT",
     "path": "/topics/{id}",
     "reason": "phase-2: topic management"

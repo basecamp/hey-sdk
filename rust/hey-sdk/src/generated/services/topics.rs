@@ -169,4 +169,21 @@ impl<'a> Topics<'a> {
         operation.query_optional("confirm_destroy", params.confirm_destroy.as_ref());
         self.client.send_unit(operation).await
     }
+
+    /// Rename a topic (the thread subject HEY stores as `name`).
+    ///
+    /// Wire body is flat `{"name":"…"}` — not nested under `topic`, and not `subject`.
+    /// HEY answers HTTP 302 to the HTML topic URL; clients must treat 302 as success and
+    /// must not follow the redirect (the Location is HTML and often 403 if followed).
+    pub async fn update(
+        &self,
+        topic_id: i64,
+        body: &UpdateTopicRequestContent,
+    ) -> Result<(), Error> {
+        let mut operation = self.client.operation(&routes::UPDATE_TOPIC, &[&topic_id]);
+        operation.resource_id(topic_id);
+        operation.json(body)?;
+        operation.capture_redirects();
+        self.client.send_unit(operation).await
+    }
 }

@@ -33,6 +33,7 @@ import com.basecamp.hey.generated.models.MarkPostingsRequestContent
 import com.basecamp.hey.generated.models.MessagePayload
 import com.basecamp.hey.generated.models.MoveStickyRequestContent
 import com.basecamp.hey.generated.models.MoveTopicRequestContent
+import com.basecamp.hey.generated.models.UpdateTopicRequestContent
 import com.basecamp.hey.generated.models.MoveWorkflowStagingRequestContent
 import com.basecamp.hey.generated.models.MovePostingsRequestContent
 import com.basecamp.hey.generated.models.ReplyMessagePayload
@@ -385,6 +386,11 @@ private suspend fun executeOperation(client: HeyClient, case: TestCase): Outcome
         }
         "MoveTopic" -> {
             client.topics.moveTopic(path.int64("topicId"), MoveTopicRequestContent(boxId = body.int64("box_id")))
+            Outcome.Unit
+        }
+
+        "UpdateTopic" -> {
+            client.topics.update(path.int64("topicId"), UpdateTopicRequestContent(name = body.string("name")))
             Outcome.Unit
         }
 

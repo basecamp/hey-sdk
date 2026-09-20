@@ -1012,7 +1012,8 @@
       "pattern": "/topics/{topicId}",
       "resource": "Topics",
       "operations": {
-        "GET": "GetTopic"
+        "GET": "GetTopic",
+        "PATCH": "UpdateTopic"
       },
       "params": {
         "topicId": {
