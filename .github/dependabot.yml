@@ -48,6 +48,12 @@ updates:
     groups:
       typescript-dev:
         dependency-type: development
+    ignore:
+      # openapi-typescript 7.x peers on typescript ^5.x, so a TypeScript major
+      # fails npm ci with ERESOLVE. Revisit when upstream supports it
+      # (openapi-ts/openapi-typescript#2841).
+      - dependency-name: typescript
+        update-types: ["version-update:semver-major"]
     cooldown:
       default-days: 7
   - package-ecosystem: gradle
