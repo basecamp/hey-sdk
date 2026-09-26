@@ -124,15 +124,20 @@ func (s *MessagesService) Send(ctx context.Context, message MessageContent) (sen
 // fails the call on a body it cannot decode.
 //
 // A HEY that predates the ids answers {} — or, while Undo Send holds the delivery back,
-// only notice, undo_action and undo_timeout. Delayed is set from undo_action there,
-// since an undo is only offered while the delivery is delayed.
+// only notice, undo_action and undo_timeout. Where HEY leaves delayed out, it is read
+// from undo_action, since an undo is only offered while the delivery is delayed; where
+// HEY does state it, its value stands. The generated field cannot tell false from absent,
+// so whether HEY stated it is read on its own.
 func readSentMessage(resp *http.Response) *generated.SentMessage {
 	sent := &generated.SentMessage{}
-	data, err := io.ReadAll(resp.Body)
-	if err != nil || json.Unmarshal(data, sent) != nil {
-		sent = &generated.SentMessage{}
+	var said struct {
+		Delayed *bool `json:"delayed"`
 	}
-	if sent.UndoAction != "" {
+	data, err := io.ReadAll(resp.Body)
+	if err != nil || json.Unmarshal(data, sent) != nil || json.Unmarshal(data, &said) != nil {
+		return &generated.SentMessage{}
+	}
+	if said.Delayed == nil && sent.UndoAction != "" {
 		sent.Delayed = true
 	}
 	return sent

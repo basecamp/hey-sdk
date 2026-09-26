@@ -127,6 +127,25 @@ func TestSendingWrappersReadDelayFromTheUndoOfAHEYThatServesNoIDs(t *testing.T) 
 	}
 }
 
+// When HEY states delayed its value stands; the undo only stands in for a delayed HEY leaves out.
+func TestSendingWrappersKeepTheDelayHEYStates(t *testing.T) {
+	for _, wrapper := range sendingWrappers() {
+		t.Run(wrapper.name, func(t *testing.T) {
+			client := newDraftTestClient(t, map[string]draftTestRoute{
+				wrapper.path: {method: wrapper.method, body: `{"id":2201,"topic_id":880,"delayed":false,"undo_action":"https://app.hey.com/topics/880/undo_send"}`},
+			})
+
+			sent, err := wrapper.send(client)
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if sent.Delayed {
+				t.Errorf("delayed = true, want the false HEY stated")
+			}
+		})
+	}
+}
+
 // The message has gone out by the time its answer is read, so an answer the SDK cannot
 // read must not turn into an error: a caller told the send failed would send it again.
 func TestSendingWrappersDoNotFailADeliveryOverAnUnreadableAnswer(t *testing.T) {
