@@ -6467,7 +6467,7 @@
     },
     "/entries/{entryId}/replies.json": {
       "post": {
-        "description": "Reply to an entry. A delivered reply answers the sent message; one saved as a draft\n(entry.status \"drafted\") answers 204 with no body and a Location header naming\n/messages/{entry_id} — which is not this shape, so save a reply draft through the\nSDK's own draft wrapper rather than here.",
+        "description": "Reply to an entry. A delivered reply answers the sent message; one saved as a draft\n(entry.status \"drafted\") answers 204 with no body: the draft's id is in the Location\nheader, which names /messages/{entry_id}. The Go, Rust, Kotlin and Swift reply-draft\nconveniences read it from there; a direct caller reads that header rather than a body.",
         "operationId": "CreateReply",
         "requestBody": {
           "content": {
@@ -7181,7 +7181,7 @@
     },
     "/messages.json": {
       "post": {
-        "description": "Create a new message (start a new topic).\nThe acting sender ID must be included; the Go SDK resolves this automatically.\nEvery message is created drafted on HEY's side; without entry.status the server\ndelivers it and answers the sent message, while entry.status \"drafted\" leaves it as a\ndraft and answers 204 with no body and a Location header naming /messages/{entry_id} —\nwhich is not this shape, so save a draft through the SDK's own draft wrapper rather\nthan here.",
+        "description": "Create a new message (start a new topic).\nThe acting sender ID must be included; the Go SDK resolves this automatically.\nEvery message is created drafted on HEY's side; without entry.status the server\ndelivers it and answers the sent message, while entry.status \"drafted\" leaves it as a\ndraft and answers 204 with no body: the draft's id is in the Location header, which\nnames /messages/{entry_id}. The Go, Rust, Kotlin and Swift draft conveniences read it\nfrom there; a direct caller reads that header rather than a body.",
         "operationId": "CreateMessage",
         "requestBody": {
           "content": {

@@ -44,9 +44,12 @@ out.
 The generated operations change with them: `CreateMessage`, `UpdateMessage` and
 `CreateReply` now decode their 200 answer as `SentMessage` (`CreateMessageResponseContent`,
 `UpdateMessageResponseContent`, `CreateReplyResponseContent`) in every SDK. Saving a draft
-through them answers 204 with no body, which is not that shape — save a draft through the
-draft conveniences (`CreateDraft`, `UpdateDraft`, `CreateReplyDraft` and their
-equivalents), which read the `Location` instead.
+through them answers 204 with no body, and the draft's id is in the `Location` header. In
+Go, Rust, Kotlin and Swift, save a draft through the draft conveniences (`CreateDraft`,
+`UpdateDraft`, `CreateReplyDraft` and their equivalents), which read that header; a
+generated Rust, Kotlin or Swift operation decodes a body and fails on the 204. TypeScript has
+no draft conveniences, and its generated operation answers the 204 with `data` undefined:
+read the draft's id from the response's `Location` header.
 
 ## Rust: the first release after 0.30.0
 

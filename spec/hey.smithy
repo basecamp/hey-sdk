@@ -1747,9 +1747,9 @@ structure GetMessageOutput {
 /// The acting sender ID must be included; the Go SDK resolves this automatically.
 /// Every message is created drafted on HEY's side; without entry.status the server
 /// delivers it and answers the sent message, while entry.status "drafted" leaves it as a
-/// draft and answers 204 with no body and a Location header naming /messages/{entry_id} —
-/// which is not this shape, so save a draft through the SDK's own draft wrapper rather
-/// than here.
+/// draft and answers 204 with no body: the draft's id is in the Location header, which
+/// names /messages/{entry_id}. The Go, Rust, Kotlin and Swift draft conveniences read it
+/// from there; a direct caller reads that header rather than a body.
 @http(method: "POST", uri: "/messages.json")
 @tags(["Messages"])
 @heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
@@ -2061,9 +2061,9 @@ structure DeleteDraftInput {
 }
 
 /// Reply to an entry. A delivered reply answers the sent message; one saved as a draft
-/// (entry.status "drafted") answers 204 with no body and a Location header naming
-/// /messages/{entry_id} — which is not this shape, so save a reply draft through the
-/// SDK's own draft wrapper rather than here.
+/// (entry.status "drafted") answers 204 with no body: the draft's id is in the Location
+/// header, which names /messages/{entry_id}. The Go, Rust, Kotlin and Swift reply-draft
+/// conveniences read it from there; a direct caller reads that header rather than a body.
 @http(method: "POST", uri: "/entries/{entryId}/replies.json")
 @tags(["Entries"])
 @heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])

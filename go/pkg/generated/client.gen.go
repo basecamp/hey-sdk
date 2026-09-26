@@ -12380,9 +12380,9 @@ type ClientWithResponsesInterface interface {
 	// with any type of body and a specified content type.
 	//
 	// Reply to an entry. A delivered reply answers the sent message; one saved as a draft
-	// (entry.status "drafted") answers 204 with no body and a Location header naming
-	// /messages/{entry_id} — which is not this shape, so save a reply draft through the
-	// SDK's own draft wrapper rather than here.
+	// (entry.status "drafted") answers 204 with no body: the draft's id is in the Location
+	// header, which names /messages/{entry_id}. The Go, Rust, Kotlin and Swift reply-draft
+	// conveniences read it from there; a direct caller reads that header rather than a body.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	CreateReplyWithBodyWithResponse(ctx context.Context, entryId int64, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateReplyResponse, error)
@@ -12391,9 +12391,9 @@ type ClientWithResponsesInterface interface {
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
 	// Reply to an entry. A delivered reply answers the sent message; one saved as a draft
-	// (entry.status "drafted") answers 204 with no body and a Location header naming
-	// /messages/{entry_id} — which is not this shape, so save a reply draft through the
-	// SDK's own draft wrapper rather than here.
+	// (entry.status "drafted") answers 204 with no body: the draft's id is in the Location
+	// header, which names /messages/{entry_id}. The Go, Rust, Kotlin and Swift reply-draft
+	// conveniences read it from there; a direct caller reads that header rather than a body.
 	CreateReplyWithResponse(ctx context.Context, entryId int64, body CreateReplyJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateReplyResponse, error)
 
 	// NewEntryReplyWithResponse performs a GET /entries/{entryId}/replies/new.json (the `NewEntryReply` operationId) request.
@@ -12472,9 +12472,9 @@ type ClientWithResponsesInterface interface {
 	// The acting sender ID must be included; the Go SDK resolves this automatically.
 	// Every message is created drafted on HEY's side; without entry.status the server
 	// delivers it and answers the sent message, while entry.status "drafted" leaves it as a
-	// draft and answers 204 with no body and a Location header naming /messages/{entry_id} —
-	// which is not this shape, so save a draft through the SDK's own draft wrapper rather
-	// than here.
+	// draft and answers 204 with no body: the draft's id is in the Location header, which
+	// names /messages/{entry_id}. The Go, Rust, Kotlin and Swift draft conveniences read it
+	// from there; a direct caller reads that header rather than a body.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	CreateMessageWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateMessageResponse, error)
@@ -12486,9 +12486,9 @@ type ClientWithResponsesInterface interface {
 	// The acting sender ID must be included; the Go SDK resolves this automatically.
 	// Every message is created drafted on HEY's side; without entry.status the server
 	// delivers it and answers the sent message, while entry.status "drafted" leaves it as a
-	// draft and answers 204 with no body and a Location header naming /messages/{entry_id} —
-	// which is not this shape, so save a draft through the SDK's own draft wrapper rather
-	// than here.
+	// draft and answers 204 with no body: the draft's id is in the Location header, which
+	// names /messages/{entry_id}. The Go, Rust, Kotlin and Swift draft conveniences read it
+	// from there; a direct caller reads that header rather than a body.
 	CreateMessageWithResponse(ctx context.Context, body CreateMessageJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateMessageResponse, error)
 
 	// GetMessageWithResponse performs a GET /messages/{messageId} (the `GetMessage` operationId) request.
@@ -23391,9 +23391,9 @@ func (c *ClientWithResponses) NewEntryForwardWithResponse(ctx context.Context, e
 // with any type of body and a specified content type.
 //
 // Reply to an entry. A delivered reply answers the sent message; one saved as a draft
-// (entry.status "drafted") answers 204 with no body and a Location header naming
-// /messages/{entry_id} — which is not this shape, so save a reply draft through the
-// SDK's own draft wrapper rather than here.
+// (entry.status "drafted") answers 204 with no body: the draft's id is in the Location
+// header, which names /messages/{entry_id}. The Go, Rust, Kotlin and Swift reply-draft
+// conveniences read it from there; a direct caller reads that header rather than a body.
 //
 // Returns a wrapper object for the known response body format(s).
 func (c *ClientWithResponses) CreateReplyWithBodyWithResponse(ctx context.Context, entryId int64, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateReplyResponse, error) {
@@ -23408,9 +23408,9 @@ func (c *ClientWithResponses) CreateReplyWithBodyWithResponse(ctx context.Contex
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
 // Reply to an entry. A delivered reply answers the sent message; one saved as a draft
-// (entry.status "drafted") answers 204 with no body and a Location header naming
-// /messages/{entry_id} — which is not this shape, so save a reply draft through the
-// SDK's own draft wrapper rather than here.
+// (entry.status "drafted") answers 204 with no body: the draft's id is in the Location
+// header, which names /messages/{entry_id}. The Go, Rust, Kotlin and Swift reply-draft
+// conveniences read it from there; a direct caller reads that header rather than a body.
 func (c *ClientWithResponses) CreateReplyWithResponse(ctx context.Context, entryId int64, body CreateReplyJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateReplyResponse, error) {
 	rsp, err := c.CreateReply(ctx, entryId, body, reqEditors...)
 	if err != nil {
@@ -23549,9 +23549,9 @@ func (c *ClientWithResponses) GetImboxSeenWithResponse(ctx context.Context, para
 // The acting sender ID must be included; the Go SDK resolves this automatically.
 // Every message is created drafted on HEY's side; without entry.status the server
 // delivers it and answers the sent message, while entry.status "drafted" leaves it as a
-// draft and answers 204 with no body and a Location header naming /messages/{entry_id} —
-// which is not this shape, so save a draft through the SDK's own draft wrapper rather
-// than here.
+// draft and answers 204 with no body: the draft's id is in the Location header, which
+// names /messages/{entry_id}. The Go, Rust, Kotlin and Swift draft conveniences read it
+// from there; a direct caller reads that header rather than a body.
 //
 // Returns a wrapper object for the known response body format(s).
 func (c *ClientWithResponses) CreateMessageWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateMessageResponse, error) {
@@ -23569,9 +23569,9 @@ func (c *ClientWithResponses) CreateMessageWithBodyWithResponse(ctx context.Cont
 // The acting sender ID must be included; the Go SDK resolves this automatically.
 // Every message is created drafted on HEY's side; without entry.status the server
 // delivers it and answers the sent message, while entry.status "drafted" leaves it as a
-// draft and answers 204 with no body and a Location header naming /messages/{entry_id} —
-// which is not this shape, so save a draft through the SDK's own draft wrapper rather
-// than here.
+// draft and answers 204 with no body: the draft's id is in the Location header, which
+// names /messages/{entry_id}. The Go, Rust, Kotlin and Swift draft conveniences read it
+// from there; a direct caller reads that header rather than a body.
 func (c *ClientWithResponses) CreateMessageWithResponse(ctx context.Context, body CreateMessageJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateMessageResponse, error) {
 	rsp, err := c.CreateMessage(ctx, body, reqEditors...)
 	if err != nil {

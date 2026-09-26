@@ -12,9 +12,9 @@ public struct ListDraftsOptions: Sendable, Equatable {
 /// Service for Entries operations.
 public final class EntriesService: BaseService, @unchecked Sendable {
     /// Reply to an entry. A delivered reply answers the sent message; one saved as a draft
-    /// (entry.status "drafted") answers 204 with no body and a Location header naming
-    /// /messages/{entry_id} — which is not this shape, so save a reply draft through the
-    /// SDK's own draft wrapper rather than here.
+    /// (entry.status "drafted") answers 204 with no body: the draft's id is in the Location
+    /// header, which names /messages/{entry_id}. The Go, Rust, Kotlin and Swift reply-draft
+    /// conveniences read it from there; a direct caller reads that header rather than a body.
     ///
     /// - Parameters:
     ///   - entryId: The entry ID
