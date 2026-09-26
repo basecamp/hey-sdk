@@ -4315,7 +4315,13 @@
     },
     "mockResponses": [
       {
-        "status": 200
+        "status": 200,
+        "body": {
+          "id": 456,
+          "topic_id": 880,
+          "subject": "Quarterly planning",
+          "delayed": false
+        }
       }
     ],
     "assertions": [

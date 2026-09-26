@@ -1104,7 +1104,12 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** @description Reply to an entry */
+        /**
+         * @description Reply to an entry. A delivered reply answers the sent message; one saved as a draft
+         *     (entry.status "drafted") answers 204 with no body and a Location header naming
+         *     /messages/{entry_id} — which is not this shape, so save a reply draft through the
+         *     SDK's own draft wrapper rather than here.
+         */
         post: operations["CreateReply"];
         delete?: never;
         options?: never;
@@ -1269,8 +1274,10 @@ export interface paths {
          * @description Create a new message (start a new topic).
          *     The acting sender ID must be included; the Go SDK resolves this automatically.
          *     Every message is created drafted on HEY's side; without entry.status the server
-         *     delivers it, while entry.status "drafted" leaves it as a draft and answers
-         *     204 with a Location header naming /messages/{entry_id}.
+         *     delivers it and answers the sent message, while entry.status "drafted" leaves it as a
+         *     draft and answers 204 with no body and a Location header naming /messages/{entry_id} —
+         *     which is not this shape, so save a draft through the SDK's own draft wrapper rather
+         *     than here.
          */
         post: operations["CreateMessage"];
         delete?: never;
@@ -1290,8 +1297,9 @@ export interface paths {
         get: operations["GetMessage"];
         /**
          * @description Revise a message entry (MessagesController#update). With entry.status "drafted" the
-         *     entry is saved as a draft (204 + Location, like CreateMessage); without it a draft is
-         *     delivered through the undo-delay window. A trashed draft is silently restored first.
+         *     entry is saved as a draft (204 + Location, like CreateMessage, and no body); without
+         *     it a draft is delivered through the undo-delay window and HEY answers the sent
+         *     message. A trashed draft is silently restored first.
          *     The revision is not a patch: subject, content and any scheduled delivery are rewritten
          *     from this request (an omitted scheduled delivery clears one), while recipients are
          *     replaced only when entry.addressed is present.
@@ -2618,6 +2626,7 @@ export interface components {
             message: components["schemas"]["MessagePayload"];
             entry?: components["schemas"]["MessageEntryPayload"];
         };
+        CreateMessageResponseContent: components["schemas"]["SentMessage"];
         /**
          * @description Wire format: {acting_sender_id, message: {subject, content}, entry: {addressed: {directly: [...]}}}
          *     entry.addressed is optional on the wire but a reply posted without it is saved as a
@@ -2630,6 +2639,7 @@ export interface components {
             message: components["schemas"]["ReplyMessagePayload"];
             entry?: components["schemas"]["MessageEntryPayload"];
         };
+        CreateReplyResponseContent: components["schemas"]["SentMessage"];
         CreateStickyResponseContent: components["schemas"]["Sticky"];
         CreateTimeTrackResponseContent: components["schemas"]["Recording"];
         /** @description Wire format: {comment: {content: "<div>…</div>"}} */
@@ -3317,6 +3327,41 @@ export interface components {
             name_tag?: string;
             default?: boolean;
         };
+        /**
+         * @description SentMessage — what HEY answers for a message, a reply or a draft it has just
+         *     delivered (entries/_sent.jbuilder). Every member is optional: a HEY that predates
+         *     the ids answers {} — or only the undo members, while the delivery is delayed.
+         */
+        SentMessage: {
+            /**
+             * Format: int64
+             * @description The entry that went out. A reply that breaks out into a thread of its own on a
+             *     Domains account is a new entry.
+             */
+            id?: number | bigint;
+            /**
+             * Format: int64
+             * @description The thread the entry is on — for a reply that broke out, the new thread rather
+             *     than the one replied to.
+             */
+            topic_id?: number | bigint;
+            /** @description The subject the message went out with. */
+            subject?: string;
+            /**
+             * @description True while Undo Send holds the delivery back. The entry and its thread already
+             *     exist, visible to the sender.
+             */
+            delayed?: boolean;
+            /** @description "Message sent", present only while delayed. */
+            notice?: string;
+            /** @description Where to POST to call the message back, present only while delayed. */
+            undo_action?: string;
+            /**
+             * Format: int32
+             * @description Seconds the undo notice stays up, present only while delayed.
+             */
+            undo_timeout?: number;
+        };
         ServiceUnavailableErrorResponseContent: {
             message: string;
         };
@@ -3516,6 +3561,7 @@ export interface components {
             calendar_journal_entry: components["schemas"]["JournalEntryPayload"];
         };
         UpdateJournalEntryResponseContent: components["schemas"]["Recording"];
+        UpdateMessageResponseContent: components["schemas"]["SentMessage"];
         UpdateMyClearanceRequestContent: {
             status: string;
         };
@@ -8066,7 +8112,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["CreateReplyResponseContent"];
+                };
             };
             /** @description UnauthorizedError 401 response */
             401: {
@@ -8552,7 +8600,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["CreateMessageResponseContent"];
+                };
             };
             /** @description UnauthorizedError 401 response */
             401: {
@@ -8670,7 +8720,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["UpdateMessageResponseContent"];
+                };
             };
             /** @description UnauthorizedError 401 response */
             401: {

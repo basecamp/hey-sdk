@@ -942,6 +942,8 @@ pub struct CreateMessageRequestContent {
     pub entry: Option<MessageEntryPayload>,
 }
 
+pub type CreateMessageResponseContent = SentMessage;
+
 /// Wire format: {acting_sender_id, message: {subject, content}, entry: {addressed: {directly: [...]}}}
 /// entry.addressed is optional on the wire but a reply posted without it is saved as a
 /// draft rather than delivered — HEY does not reply-all for the caller. Resolve the
@@ -958,6 +960,8 @@ pub struct CreateReplyRequestContent {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub entry: Option<MessageEntryPayload>,
 }
+
+pub type CreateReplyResponseContent = SentMessage;
 
 pub type CreateStickyResponseContent = Sticky;
 
@@ -2175,6 +2179,38 @@ pub struct Sender {
     pub default: Option<bool>,
 }
 
+/// SentMessage — what HEY answers for a message, a reply or a draft it has just
+/// delivered (entries/_sent.jbuilder). Every member is optional: a HEY that predates
+/// the ids answers {} — or only the undo members, while the delivery is delayed.
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[non_exhaustive]
+pub struct SentMessage {
+    /// The entry that went out. A reply that breaks out into a thread of its own on a
+    /// Domains account is a new entry.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub id: Option<i64>,
+    /// The thread the entry is on — for a reply that broke out, the new thread rather
+    /// than the one replied to.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub topic_id: Option<i64>,
+    /// The subject the message went out with.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub subject: Option<String>,
+    /// True while Undo Send holds the delivery back. The entry and its thread already
+    /// exist, visible to the sender.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub delayed: Option<bool>,
+    /// "Message sent", present only while delayed.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub notice: Option<String>,
+    /// Where to POST to call the message back, present only while delayed.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub undo_action: Option<String>,
+    /// Seconds the undo notice stays up, present only while delayed.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub undo_timeout: Option<i32>,
+}
+
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 #[non_exhaustive]
 pub struct ServiceUnavailableErrorResponseContent {
@@ -2497,6 +2533,8 @@ pub struct UpdateJournalEntryRequestContent {
 }
 
 pub type UpdateJournalEntryResponseContent = Recording;
+
+pub type UpdateMessageResponseContent = SentMessage;
 
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct UpdateMyClearanceRequestContent {

@@ -49,11 +49,13 @@ ctx := context.Background()
 boxes, _ := client.Boxes().List(ctx)          // Imbox, The Feed, Paper Trail, ...
 imbox, _ := client.Boxes().GetImbox(ctx, nil)   // postings in the Imbox
 
-// Sending: recipients are required — HEY saves an unaddressed reply as a draft.
-_ = client.Messages().Create(ctx, "Subject", "Body", []string{"someone@example.com"}, nil, nil)
+// Sending: recipients are required — HEY saves an unaddressed reply as a draft. The answer
+// names the entry that went out and the thread it is on (zero from a HEY that predates them).
+sent, _ := client.Messages().Create(ctx, "Subject", "Body", []string{"someone@example.com"}, nil, nil)
+fmt.Println(sent.Id, sent.TopicId, sent.Delayed)
 
 // Select one of the identity's configured senders when the message needs a specific From address.
-_ = client.Messages().Send(ctx, hey.MessageContent{
+_, _ = client.Messages().Send(ctx, hey.MessageContent{
     Subject:        "Support follow-up",
     Content:        "Here are the details we discussed.",
     To:             []string{"jane@example.com"},
@@ -70,7 +72,7 @@ var to []string
 for _, contact := range prefill.Addressed.Directly {
 	to = append(to, contact.EmailAddress)
 }
-_ = client.Entries().CreateReply(ctx, entryID, prefill.Sender.Id, prefill.Subject, "Reply body", to, nil, nil)
+_, _ = client.Entries().CreateReply(ctx, entryID, prefill.Sender.Id, prefill.Subject, "Reply body", to, nil, nil)
 
 // Postings are bulk operations, as they are in HEY.
 _ = client.Postings().MoveToSetAside(ctx, postingID)
@@ -98,7 +100,7 @@ if err != nil {
     return err
 }
 postings, _ := work.Boxes().GetImbox(ctx, nil)
-_ = work.Messages().Create(ctx, "Subject", "Body", []string{"someone@example.com"}, nil, nil)
+_, _ = work.Messages().Create(ctx, "Subject", "Body", []string{"someone@example.com"}, nil, nil)
 ```
 
 `ForAccount` verifies that the account is accessible to the authenticated identity when the

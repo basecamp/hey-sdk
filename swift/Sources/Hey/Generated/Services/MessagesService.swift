@@ -5,15 +5,17 @@ public final class MessagesService: BaseService, @unchecked Sendable {
     /// Create a new message (start a new topic).
     /// The acting sender ID must be included; the Go SDK resolves this automatically.
     /// Every message is created drafted on HEY's side; without entry.status the server
-    /// delivers it, while entry.status "drafted" leaves it as a draft and answers
-    /// 204 with a Location header naming /messages/{entry_id}.
+    /// delivers it and answers the sent message, while entry.status "drafted" leaves it as a
+    /// draft and answers 204 with no body and a Location header naming /messages/{entry_id} —
+    /// which is not this shape, so save a draft through the SDK's own draft wrapper rather
+    /// than here.
     ///
     /// - Parameters:
     ///   - body: Request body
-    public func create(body: CreateMessageRequestContent) async throws {
+    public func create(body: CreateMessageRequestContent) async throws -> CreateMessageResponseContent {
         var operation = try client.operation(Routes.createMessage, [])
         try operation.json(body)
-        return try await client.sendVoid(operation)
+        return try await client.send(operation)
     }
 
     /// Get a message
@@ -38,8 +40,9 @@ public final class MessagesService: BaseService, @unchecked Sendable {
     }
 
     /// Revise a message entry (MessagesController#update). With entry.status "drafted" the
-    /// entry is saved as a draft (204 + Location, like CreateMessage); without it a draft is
-    /// delivered through the undo-delay window. A trashed draft is silently restored first.
+    /// entry is saved as a draft (204 + Location, like CreateMessage, and no body); without
+    /// it a draft is delivered through the undo-delay window and HEY answers the sent
+    /// message. A trashed draft is silently restored first.
     /// The revision is not a patch: subject, content and any scheduled delivery are rewritten
     /// from this request (an omitted scheduled delivery clears one), while recipients are
     /// replaced only when entry.addressed is present.
@@ -51,10 +54,10 @@ public final class MessagesService: BaseService, @unchecked Sendable {
     /// - Parameters:
     ///   - messageId: The message ID
     ///   - body: Request body
-    public func update(messageId: Int, body: CreateMessageRequestContent) async throws {
+    public func update(messageId: Int, body: CreateMessageRequestContent) async throws -> UpdateMessageResponseContent {
         var operation = try client.operation(Routes.updateMessage, [messageId])
         operation.resourceId(messageId)
         try operation.json(body)
-        return try await client.sendVoid(operation)
+        return try await client.send(operation)
     }
 }

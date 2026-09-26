@@ -59,7 +59,7 @@ Unqualified Rust names are conveniences; `gen` marks a generated method.
 | Clearances.Screen / ScreenMany / Punt | UpdateClearance / BulkUpdateClearances / PuntClearances | `screen` / `screen_many` / gen `punt` | |
 | Clearances.Screened / ScreenedPage / Rescreen | GetMyClearances / UpdateMyClearance | `screened` / `screened_page` / `rescreen` | |
 | Messages.Get / GetEdit | GetMessage / GetMessageEdit | gen | |
-| Messages.Create | CreateMessage | `send(&MessageContent)` | Rust adds an optional `acting_sender_id` |
+| Messages.Create | CreateMessage | `send(&MessageContent)` | Rust adds an optional `acting_sender_id`; both answer the `SentMessage`, and neither fails a delivery over an answer it cannot read |
 | Messages.CreateDraft / UpdateDraft / SendDraft | CreateMessage / UpdateMessage | `create_draft` / `update_draft` / `send_draft` | neither resends; Go parses 422 `errors[]` itself, Rust maps 422 to `Validation` with the server message |
 | Entries.ListDrafts / ListDraftsPage | ListDrafts | gen `list_drafts` → `Page` | |
 | Entries.CreateReply / CreateReplyDraft | CreateReply | `reply` / `reply_draft` | a reply refuses no recipients in both; a draft may have none |

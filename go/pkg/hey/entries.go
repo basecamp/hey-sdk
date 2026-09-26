@@ -58,9 +58,13 @@ func (s *EntriesService) ListDrafts(ctx context.Context, params *generated.ListD
 // posted without entry.addressed is saved as a draft (the server answers with a
 // redirect to the thread with the draft expanded) rather than delivered. Callers
 // resolve the thread's recipients first — hey-cli reads them from the topic page.
-func (s *EntriesService) CreateReply(ctx context.Context, entryID, actingSenderID int64, subject, content string, to, cc, bcc []string) (err error) {
+//
+// It answers what HEY said about the delivery, as MessagesService.Send does. TopicId is
+// the thread the reply landed on: the one replied to, or — for a reply that breaks out
+// into a thread of its own on a Domains account — the new one.
+func (s *EntriesService) CreateReply(ctx context.Context, entryID, actingSenderID int64, subject, content string, to, cc, bcc []string) (sent *generated.SentMessage, err error) {
 	if len(to)+len(cc)+len(bcc) == 0 {
-		return ErrUsage("a reply needs at least one recipient (to, cc or bcc); HEY saves an unaddressed reply as a draft")
+		return nil, ErrUsage("a reply needs at least one recipient (to, cc or bcc); HEY saves an unaddressed reply as a draft")
 	}
 	op := OperationInfo{
 		Service: "Entries", Operation: "CreateReply",
@@ -77,7 +81,7 @@ func (s *EntriesService) CreateReply(ctx context.Context, entryID, actingSenderI
 
 	senderID, err := s.client.resolveActingSenderID(ctx, actingSenderID)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	body := generated.CreateReplyRequestContent{
@@ -86,11 +90,15 @@ func (s *EntriesService) CreateReply(ctx context.Context, entryID, actingSenderI
 		Entry:          entryPayload(to, cc, bcc),
 	}
 
-	resp, err := s.client.genClient().CreateReplyWithResponse(ctx, entryID, body)
+	resp, err := s.client.genClient().CreateReply(ctx, entryID, body)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	return CheckResponse(resp.HTTPResponse)
+	defer resp.Body.Close()
+	if err := CheckResponse(resp); err != nil {
+		return nil, err
+	}
+	return readSentMessage(resp), nil
 }
 
 // MarkSpam marks an entry as spam. The server denies the sender outright when every thread

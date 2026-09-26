@@ -3,6 +3,48 @@
 Breaking changes to the SDKs' public surface, by release, with what to change. Wire behavior
 is not versioned here; the conformance fixtures under `conformance/tests/` hold that.
 
+## Every SDK: the first release after 0.31.1
+
+### Delivering a message answers what HEY delivered
+
+The calls that deliver a message used to answer nothing; they now answer a `SentMessage`,
+HEY's answer for the delivery: the entry that went out (`id`), the thread it is on
+(`topic_id`), its `subject`, and whether Undo Send is holding it back (`delayed`, with
+`notice`, `undo_action` and `undo_timeout` while it is). A reply that breaks out into a
+thread of its own on a Domains account names the new thread, not the one replied to.
+
+| SDK | calls | was | now |
+|---|---|---|---|
+| Go | `Messages().Create`, `Messages().Send`, `Messages().SendDraft`, `Entries().CreateReply` | `error` | `(*generated.SentMessage, error)` |
+| Rust | `messages().send`, `messages().send_draft`, `entries().reply` | `Result<(), Error>` | `Result<SentMessage, Error>` |
+| Kotlin | `messages.send`, `messages.sendDraft`, `entries.reply` | `Unit` | `SentMessage` |
+| Swift | `messages.send`, `messages.sendDraft`, `entries.reply` | `Void` | `SentMessage` (`@discardableResult`) |
+
+In Go, a caller that only checked the error takes the answer too:
+
+```go
+// before
+if err := client.Messages().Create(ctx, subject, body, to, nil, nil); err != nil {
+
+// after
+sent, err := client.Messages().Create(ctx, subject, body, to, nil, nil)
+if err != nil {
+```
+
+Kotlin and Swift callers that ignore the answer need no change; Rust callers that `?` the
+call need none either.
+
+Every member is optional, because a HEY that predates the ids answers `{}` — or only the
+undo members while the delivery is delayed. Check for a zero or absent `id` and `topic_id`
+before using one. `delayed` is read from `undo_action` when HEY does not say.
+
+The generated operations change with them: `CreateMessage`, `UpdateMessage` and
+`CreateReply` now decode their 200 answer as `SentMessage` (`CreateMessageResponseContent`,
+`UpdateMessageResponseContent`, `CreateReplyResponseContent`) in every SDK. Saving a draft
+through them answers 204 with no body, which is not that shape — save a draft through the
+draft conveniences (`CreateDraft`, `UpdateDraft`, `CreateReplyDraft` and their
+equivalents), which read the `Location` instead.
+
 ## Rust: the first release after 0.30.0
 
 ### Response-side types and open enums are `#[non_exhaustive]`

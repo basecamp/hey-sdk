@@ -4,7 +4,7 @@ use crate::client::Response;
 use crate::error::Error;
 use crate::generated::routes;
 use crate::generated::types::{
-    CreateMessageRequestContent, MessageAddressed, MessageEntryPayload, MessagePayload,
+    CreateMessageRequestContent, MessageAddressed, MessageEntryPayload, MessagePayload, SentMessage,
 };
 
 pub use crate::generated::services::messages::*;
@@ -64,9 +64,11 @@ pub struct DraftContent {
 }
 
 impl Messages<'_> {
-    /// Delivers a new message through HEY's undo-delay window. Delivery needs somebody to
-    /// deliver to, so at least one recipient is required.
-    pub async fn send(&self, message: &MessageContent) -> Result<(), Error> {
+    /// Delivers a new message through HEY's undo-delay window, and answers what HEY said
+    /// about it: the entry that went out, the thread it started, its subject and whether
+    /// Undo Send is holding it back. An answer that cannot be read costs the ids rather than
+    /// the send. Delivery needs somebody to deliver to, so at least one recipient is required.
+    pub async fn send(&self, message: &MessageContent) -> Result<SentMessage, Error> {
         if !has_recipients(&message.to, &message.cc, &message.bcc) {
             return Err(Error::usage(
                 "a message needs at least one recipient (to, cc or bcc)",
@@ -83,7 +85,8 @@ impl Messages<'_> {
         };
         let mut operation = self.client().operation(&routes::CREATE_MESSAGE, &[]);
         operation.json(&body)?;
-        self.client().send_unit(operation).await
+        let response = self.client().execute(operation).await?;
+        Ok(sent_message(&response))
     }
 
     /// Saves a new message as a draft instead of delivering it, and answers the draft's
@@ -116,7 +119,15 @@ impl Messages<'_> {
     /// The request is never retried, despite the PUT: it triggers a delivery, and a resend
     /// after an ambiguous first attempt could send the message twice. Reading the draft, or
     /// the thread, is the caller's way out of an ambiguous failure.
-    pub async fn send_draft(&self, entry_id: i64, draft: &DraftContent) -> Result<(), Error> {
+    ///
+    /// It answers what HEY said about the delivery, as [`Messages::send`] does. The entry
+    /// that went out is normally the draft itself; a draft that breaks out into a thread of
+    /// its own on a Domains account goes out as a new entry, and `id` names that one.
+    pub async fn send_draft(
+        &self,
+        entry_id: i64,
+        draft: &DraftContent,
+    ) -> Result<SentMessage, Error> {
         if !has_recipients(&draft.to, &draft.cc, &draft.bcc) {
             return Err(Error::usage(
                 "sending a draft needs at least one recipient (to, cc or bcc)",
@@ -136,7 +147,8 @@ impl Messages<'_> {
             .operation(&routes::UPDATE_MESSAGE, &[&entry_id]);
         operation.json(&body)?;
         operation.idempotent(false);
-        self.client().send_unit(operation).await
+        let response = self.client().execute(operation).await?;
+        Ok(sent_message(&response))
     }
 
     async fn sender_for(&self, chosen: Option<i64>) -> Result<i64, Error> {
@@ -207,6 +219,20 @@ pub(crate) fn drafted_entry(to: &[String], cc: &[String], bcc: &[String]) -> Mes
         status: Some(DRAFTED.to_string()),
         ..MessageEntryPayload::default()
     }
+}
+
+/// What HEY answered for a message it has just delivered — a new message, a reply or a
+/// sent draft. By the time it is read the message has gone out, so an answer that cannot
+/// be read costs the ids rather than the send: a caller told the send failed would send it
+/// again. A HEY that predates the ids answers `{}` — or, while Undo Send holds the delivery
+/// back, only the undo members, and `delayed` is read from `undo_action` there, since an
+/// undo is only offered while the delivery is delayed.
+pub(crate) fn sent_message(response: &Response) -> SentMessage {
+    let mut sent: SentMessage = response.json().unwrap_or_default();
+    if sent.delayed.is_none() && sent.undo_action.is_some() {
+        sent.delayed = Some(true);
+    }
+    sent
 }
 
 /// The entry id out of the `Location` a draft save answers with: the save serves no body,
@@ -464,6 +490,138 @@ mod tests {
             .unwrap_err();
 
         assert_eq!(error.code(), ErrorCode::Api);
+    }
+
+    #[tokio::test]
+    async fn send_answers_the_entry_hey_delivered() {
+        let server = MockServer::start().await;
+        Mock::given(method("POST"))
+            .and(path("/messages.json"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+                "id": 2201, "topic_id": 880, "subject": "Lunch on Friday", "delayed": false
+            })))
+            .mount(&server)
+            .await;
+
+        let sent = client(&server)
+            .messages()
+            .send(&deliverable_message())
+            .await
+            .unwrap();
+
+        assert_eq!(sent.id, Some(2201));
+        assert_eq!(sent.topic_id, Some(880));
+        assert_eq!(sent.subject.as_deref(), Some("Lunch on Friday"));
+        assert_eq!(sent.delayed, Some(false));
+        assert_eq!(sent.undo_action, None);
+    }
+
+    #[tokio::test]
+    async fn send_draft_answers_an_undoable_delivery() {
+        let server = MockServer::start().await;
+        Mock::given(method("PUT"))
+            .and(path("/messages/777.json"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+                "id": 777, "topic_id": 880, "subject": "From the support address", "delayed": true,
+                "notice": "Message sent",
+                "undo_action": "https://app.hey.com/topics/880/undo_send",
+                "undo_timeout": 12
+            })))
+            .mount(&server)
+            .await;
+
+        let sent = client(&server)
+            .messages()
+            .send_draft(777, &deliverable_draft())
+            .await
+            .unwrap();
+
+        assert_eq!(sent.id, Some(777));
+        assert_eq!(sent.topic_id, Some(880));
+        assert_eq!(sent.delayed, Some(true));
+        assert_eq!(
+            sent.undo_action.as_deref(),
+            Some("https://app.hey.com/topics/880/undo_send")
+        );
+        assert_eq!(sent.undo_timeout, Some(12));
+    }
+
+    #[tokio::test]
+    async fn send_answers_without_ids_from_a_hey_that_serves_none() {
+        let server = MockServer::start().await;
+        Mock::given(method("POST"))
+            .and(path("/messages.json"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(json!({})))
+            .mount(&server)
+            .await;
+
+        let sent = client(&server)
+            .messages()
+            .send(&deliverable_message())
+            .await
+            .unwrap();
+
+        assert_eq!(sent, SentMessage::default());
+    }
+
+    #[tokio::test]
+    async fn send_reads_the_delay_from_the_undo_of_a_hey_that_serves_no_ids() {
+        let server = MockServer::start().await;
+        Mock::given(method("POST"))
+            .and(path("/messages.json"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+                "notice": "Message sent",
+                "undo_action": "https://app.hey.com/topics/880/undo_send",
+                "undo_timeout": 12
+            })))
+            .mount(&server)
+            .await;
+
+        let sent = client(&server)
+            .messages()
+            .send(&deliverable_message())
+            .await
+            .unwrap();
+
+        assert_eq!(sent.id, None);
+        assert_eq!(sent.topic_id, None);
+        assert_eq!(sent.delayed, Some(true));
+    }
+
+    // The message has gone out by the time its answer is read, so an answer the SDK cannot
+    // read must not turn into an error: a caller told the send failed would send it again.
+    #[tokio::test]
+    async fn a_delivered_message_is_not_an_error_over_an_unreadable_answer() {
+        for answer in [
+            ResponseTemplate::new(204),
+            ResponseTemplate::new(200).set_body_string("<html>Message sent</html>"),
+            ResponseTemplate::new(200).set_body_json(json!({ "id": "2201" })),
+        ] {
+            let server = MockServer::start().await;
+            Mock::given(method("POST"))
+                .and(path("/messages.json"))
+                .respond_with(answer)
+                .mount(&server)
+                .await;
+
+            let sent = client(&server)
+                .messages()
+                .send(&deliverable_message())
+                .await
+                .unwrap();
+
+            assert_eq!(sent, SentMessage::default());
+        }
+    }
+
+    fn deliverable_message() -> MessageContent {
+        MessageContent {
+            subject: "Lunch on Friday".to_string(),
+            content: "Are you free at noon?".to_string(),
+            to: vec!["someone@example.com".to_string()],
+            acting_sender_id: Some(314),
+            ..MessageContent::default()
+        }
     }
 
     fn deliverable_draft() -> DraftContent {

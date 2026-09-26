@@ -2,7 +2,9 @@ package hey
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -61,19 +63,23 @@ type MessageContent struct {
 	ActingSenderID int64
 }
 
-// Create creates and delivers a new message using the client's default sender.
-func (s *MessagesService) Create(ctx context.Context, subject, content string, to, cc, bcc []string) error {
+// Create creates and delivers a new message using the client's default sender, and
+// answers what HEY said about it — see Send.
+func (s *MessagesService) Create(ctx context.Context, subject, content string, to, cc, bcc []string) (*generated.SentMessage, error) {
 	return s.Send(ctx, MessageContent{Subject: subject, Content: content, To: to, CC: cc, BCC: bcc})
 }
 
-// Send creates and delivers a new message using its selected sender.
+// Send creates and delivers a new message using its selected sender, and answers what
+// HEY said about it: the entry that went out and the thread it started, its subject, and
+// whether Undo Send is holding it back (readSentMessage). A HEY that predates the ids
+// answers without them, so a caller checks for a zero Id or TopicId before using one.
 //
 // Wire format (MessagesController#create): {acting_sender_id, message: {subject, content},
 // entry: {addressed: {directly: [...], copied: [...], blindcopied: [...]}}}.
 // Recipient lists are JSON arrays; haystack applies Array() to each kind.
-func (s *MessagesService) Send(ctx context.Context, message MessageContent) (err error) {
+func (s *MessagesService) Send(ctx context.Context, message MessageContent) (sent *generated.SentMessage, err error) {
 	if len(message.To)+len(message.CC)+len(message.BCC) == 0 {
-		return ErrUsage("a message needs at least one recipient (to, cc or bcc)")
+		return nil, ErrUsage("a message needs at least one recipient (to, cc or bcc)")
 	}
 	op := OperationInfo{
 		Service: "Messages", Operation: "CreateMessage",
@@ -90,7 +96,7 @@ func (s *MessagesService) Send(ctx context.Context, message MessageContent) (err
 
 	senderID, err := s.client.resolveActingSenderID(ctx, message.ActingSenderID)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	body := generated.CreateMessageRequestContent{
@@ -99,11 +105,37 @@ func (s *MessagesService) Send(ctx context.Context, message MessageContent) (err
 		Entry:          entryPayload(message.To, message.CC, message.BCC),
 	}
 
-	resp, err := s.client.genClient().CreateMessageWithResponse(ctx, body)
+	resp, err := s.client.genClient().CreateMessage(ctx, body)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	return CheckResponse(resp.HTTPResponse)
+	defer resp.Body.Close()
+	if err := CheckResponse(resp); err != nil {
+		return nil, err
+	}
+	return readSentMessage(resp), nil
+}
+
+// readSentMessage reads what HEY answered for a message it has just delivered — a new
+// message, a reply or a sent draft (entries/_sent.jbuilder). By the time it runs the
+// message has gone out, so an answer that cannot be read costs the ids rather than the
+// send: a caller told the send failed would send it again. That is why the delivering
+// wrappers read the raw response here instead of through the generated parser, which
+// fails the call on a body it cannot decode.
+//
+// A HEY that predates the ids answers {} — or, while Undo Send holds the delivery back,
+// only notice, undo_action and undo_timeout. Delayed is set from undo_action there,
+// since an undo is only offered while the delivery is delayed.
+func readSentMessage(resp *http.Response) *generated.SentMessage {
+	sent := &generated.SentMessage{}
+	data, err := io.ReadAll(resp.Body)
+	if err != nil || json.Unmarshal(data, sent) != nil {
+		sent = &generated.SentMessage{}
+	}
+	if sent.UndoAction != "" {
+		sent.Delayed = true
+	}
+	return sent
 }
 
 // entryPayload builds entry.addressed for a message or reply. Callers guarantee at
@@ -280,16 +312,20 @@ func (s *MessagesService) UpdateDraft(ctx context.Context, entryID int64, draft 
 // The request is never retried, despite the PUT: it triggers a delivery, and a retry
 // after an ambiguous first attempt could send the message twice. An ambiguous failure
 // is the caller's to resolve — read the draft (or the thread) before trying again.
-func (s *MessagesService) SendDraft(ctx context.Context, entryID int64, draft DraftContent) error {
+//
+// It answers what HEY said about the delivery, as Send does. The entry that went out is
+// normally the draft itself; a draft that breaks out into a thread of its own on a
+// Domains account goes out as a new entry, and Id names that one.
+func (s *MessagesService) SendDraft(ctx context.Context, entryID int64, draft DraftContent) (sent *generated.SentMessage, err error) {
 	if len(draft.To)+len(draft.CC)+len(draft.BCC) == 0 {
-		return ErrUsage("sending a draft needs at least one recipient (to, cc or bcc)")
+		return nil, ErrUsage("sending a draft needs at least one recipient (to, cc or bcc)")
 	}
 	op := OperationInfo{
 		Service: "Messages", Operation: "UpdateMessage",
 		ResourceType: "message", IsMutation: true, ResourceID: entryID,
 	}
 
-	return s.client.instrument(ctx, op, func(ctx context.Context) error {
+	err = s.client.instrument(ctx, op, func(ctx context.Context) error {
 		senderID, serr := s.client.resolveActingSenderID(ctx, draft.ActingSenderID)
 		if serr != nil {
 			return serr
@@ -301,12 +337,25 @@ func (s *MessagesService) SendDraft(ctx context.Context, entryID int64, draft Dr
 			Entry:          entryPayload(draft.To, draft.CC, draft.BCC),
 		}
 
-		resp, rerr := s.client.genClient().UpdateMessageWithResponse(ctx, entryID, body)
+		resp, rerr := s.client.genClient().UpdateMessage(ctx, entryID, body)
 		if rerr != nil {
 			return rerr
 		}
-		return draftWriteError(resp.JSON422, resp.HTTPResponse)
+		defer resp.Body.Close()
+		if resp.StatusCode == http.StatusUnprocessableEntity {
+			parsed, perr := generated.ParseUpdateMessageResponse(resp)
+			if perr != nil {
+				return CheckResponse(resp)
+			}
+			return draftWriteError(parsed.JSON422, resp)
+		}
+		if cerr := CheckResponse(resp); cerr != nil {
+			return cerr
+		}
+		sent = readSentMessage(resp)
+		return nil
 	})
+	return sent, err
 }
 
 // GetEdit answers a draft's editable state — the subject, the Trix HTML body, the

@@ -5,6 +5,7 @@ import com.basecamp.hey.HeyException
 import com.basecamp.hey.generated.Routes
 import com.basecamp.hey.generated.models.CreateReplyRequestContent
 import com.basecamp.hey.generated.models.ReplyMessagePayload
+import com.basecamp.hey.generated.models.SentMessage
 import com.basecamp.hey.json
 import com.basecamp.hey.generated.services.EntriesService as GeneratedEntriesService
 
@@ -31,8 +32,12 @@ class EntriesService(client: HeyClient) : GeneratedEntriesService(client) {
      * Delivers a reply to an entry. HEY does not reply-all on the caller's behalf, and saves
      * an unaddressed reply as a draft rather than delivering it, so the recipients are
      * required.
+     *
+     * It answers what HEY said about the delivery, as `MessagesService.send` does. `topicId` is
+     * the thread the reply landed on: the one replied to, or — for a reply that breaks out into
+     * a thread of its own on a Domains account — the new one.
      */
-    suspend fun reply(entryId: Long, reply: ReplyContent) {
+    suspend fun reply(entryId: Long, reply: ReplyContent): SentMessage {
         if (!hasRecipients(reply.to, reply.cc, reply.bcc)) {
             throw HeyException.Usage("a reply needs at least one recipient (to, cc or bcc); HEY saves an unaddressed reply as a draft")
         }
@@ -44,7 +49,7 @@ class EntriesService(client: HeyClient) : GeneratedEntriesService(client) {
         val operation = client.operation(Routes.CREATE_REPLY, listOf(entryId))
         operation.resourceId(entryId)
         operation.json(body)
-        client.sendUnit(operation)
+        return client.execute(operation) { sentMessageFrom(it) }
     }
 
     /** Saves a reply as a draft instead of delivering it, and answers the draft's entry id. It needs no recipients. */

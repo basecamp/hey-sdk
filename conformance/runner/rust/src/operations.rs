@@ -301,17 +301,13 @@ async fn execute_operation(client: &Client, case: &TestCase) -> Result<Outcome, 
                 .get(int64_param(path, "messageId"))
                 .await?,
         ),
-        "CreateMessage" => {
-            client.messages().create(&message_body(body)).await?;
-            Ok(Outcome::Unit)
-        }
-        "UpdateMessage" => {
+        "CreateMessage" => json(client.messages().create(&message_body(body)).await?),
+        "UpdateMessage" => json(
             client
                 .messages()
                 .update(int64_param(path, "messageId"), &message_body(body))
-                .await?;
-            Ok(Outcome::Unit)
-        }
+                .await?,
+        ),
         "GetMessageEdit" => json(
             client
                 .messages()
@@ -362,11 +358,12 @@ async fn execute_operation(client: &Client, case: &TestCase) -> Result<Outcome, 
                 },
                 entry: None,
             };
-            client
-                .entries()
-                .create_reply(int64_param(path, "entryId"), &request)
-                .await?;
-            Ok(Outcome::Unit)
+            json(
+                client
+                    .entries()
+                    .create_reply(int64_param(path, "entryId"), &request)
+                    .await?,
+            )
         }
 
         "ListContacts" => {
@@ -1158,13 +1155,12 @@ async fn execute_hey_operation(client: &Client, case: &TestCase) -> Result<Outco
                 .await?;
             Ok(Outcome::Unit)
         }
-        "CreateReply" => {
+        "CreateReply" => json(
             client
                 .entries()
                 .reply(int64_param(path, "entryId"), &reply_content(body))
-                .await?;
-            Ok(Outcome::Unit)
-        }
+                .await?,
+        ),
         "CreateReplyDraft" => {
             client
                 .entries()
@@ -1183,13 +1179,12 @@ async fn execute_hey_operation(client: &Client, case: &TestCase) -> Result<Outco
                 .await?;
             Ok(Outcome::Unit)
         }
-        "SendDraft" => {
+        "SendDraft" => json(
             client
                 .messages()
                 .send_draft(int64_param(path, "entryId"), &draft_content(body))
-                .await?;
-            Ok(Outcome::Unit)
-        }
+                .await?,
+        ),
         operation => Err(Error::usage(format!("unknown operation: {operation}"))),
     }
 }

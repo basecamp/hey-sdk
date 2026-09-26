@@ -207,7 +207,7 @@ func TestMessagesService_SendDraft(t *testing.T) {
 		},
 	})
 
-	err := client.Messages().SendDraft(context.Background(), 12345, DraftContent{
+	_, err := client.Messages().SendDraft(context.Background(), 12345, DraftContent{
 		Subject: "Quarterly planning",
 		Content: "<div>Final agenda attached.</div>",
 		To:      []string{"maria@example.com"},
@@ -256,12 +256,12 @@ func TestDraftLifecycleCarriesTheChosenActingSender(t *testing.T) {
 	}
 	chosen.ActingSenderID = 4242
 	chosen.To = []string{"maria@example.com"}
-	if err := client.Messages().SendDraft(context.Background(), 12345, chosen); err != nil {
+	if _, err := client.Messages().SendDraft(context.Background(), 12345, chosen); err != nil {
 		t.Fatalf("SendDraft: %v", err)
 	}
 
 	unchosen := DraftContent{Subject: "As myself", Content: "<div>…</div>", To: []string{"maria@example.com"}}
-	if err := client.Messages().SendDraft(context.Background(), 67890, unchosen); err != nil {
+	if _, err := client.Messages().SendDraft(context.Background(), 67890, unchosen); err != nil {
 		t.Fatalf("SendDraft (default sender): %v", err)
 	}
 }
@@ -292,7 +292,7 @@ func TestMessagesService_SendDraft_SurfacesTheReasonsFor422(t *testing.T) {
 		},
 	})
 
-	err := client.Messages().SendDraft(context.Background(), 12345, DraftContent{
+	_, err := client.Messages().SendDraft(context.Background(), 12345, DraftContent{
 		Subject: "Quarterly planning",
 		Content: "<div>Agenda.</div>",
 		To:      []string{"maria@example"},
@@ -305,7 +305,7 @@ func TestMessagesService_SendDraft_KeepsTheGenericMessageForABodyless422(t *test
 		"/messages/12345.json": {method: "PUT", status: 422, requestID: "req-draft-bare"},
 	})
 
-	err := client.Messages().SendDraft(context.Background(), 12345, DraftContent{
+	_, err := client.Messages().SendDraft(context.Background(), 12345, DraftContent{
 		Subject: "Quarterly planning",
 		Content: "<div>Agenda.</div>",
 		To:      []string{"maria@example.com"},
@@ -339,7 +339,7 @@ func assertDraftValidationError(t *testing.T, err error, message, requestID stri
 func TestMessagesService_SendDraft_RequiresRecipients(t *testing.T) {
 	client := newDraftTestClient(t, nil)
 
-	err := client.Messages().SendDraft(context.Background(), 12345, DraftContent{
+	_, err := client.Messages().SendDraft(context.Background(), 12345, DraftContent{
 		Subject: "Quarterly planning",
 		Content: "<div>Agenda.</div>",
 	})

@@ -5,8 +5,10 @@ package com.basecamp.hey.generated.services
 import com.basecamp.hey.HeyClient
 import com.basecamp.hey.generated.Routes
 import com.basecamp.hey.generated.models.CreateMessageRequestContent
+import com.basecamp.hey.generated.models.CreateMessageResponseContent
 import com.basecamp.hey.generated.models.GetMessageEditResponseContent
 import com.basecamp.hey.generated.models.GetMessageResponseContent
+import com.basecamp.hey.generated.models.UpdateMessageResponseContent
 import com.basecamp.hey.json
 import com.basecamp.hey.services.BaseService
 
@@ -20,14 +22,16 @@ open class MessagesService(client: HeyClient) : BaseService(client) {
      * Create a new message (start a new topic).
      * The acting sender ID must be included; the Go SDK resolves this automatically.
      * Every message is created drafted on HEY's side; without entry.status the server
-     * delivers it, while entry.status "drafted" leaves it as a draft and answers
-     * 204 with a Location header naming /messages/{entry_id}.
+     * delivers it and answers the sent message, while entry.status "drafted" leaves it as a
+     * draft and answers 204 with no body and a Location header naming /messages/{entry_id} —
+     * which is not this shape, so save a draft through the SDK's own draft wrapper rather
+     * than here.
      * @param body Request body
      */
-    suspend fun create(body: CreateMessageRequestContent): Unit {
+    suspend fun create(body: CreateMessageRequestContent): CreateMessageResponseContent {
         val operation = client.operation(Routes.CREATE_MESSAGE, listOf())
         operation.json(body)
-        return client.sendUnit(operation)
+        return client.send(operation)
     }
 
     /**
@@ -53,8 +57,9 @@ open class MessagesService(client: HeyClient) : BaseService(client) {
 
     /**
      * Revise a message entry (MessagesController#update). With entry.status "drafted" the
-     * entry is saved as a draft (204 + Location, like CreateMessage); without it a draft is
-     * delivered through the undo-delay window. A trashed draft is silently restored first.
+     * entry is saved as a draft (204 + Location, like CreateMessage, and no body); without
+     * it a draft is delivered through the undo-delay window and HEY answers the sent
+     * message. A trashed draft is silently restored first.
      * The revision is not a patch: subject, content and any scheduled delivery are rewritten
      * from this request (an omitted scheduled delivery clears one), while recipients are
      * replaced only when entry.addressed is present.
@@ -65,10 +70,10 @@ open class MessagesService(client: HeyClient) : BaseService(client) {
      * @param messageId The message ID
      * @param body Request body
      */
-    suspend fun update(messageId: Long, body: CreateMessageRequestContent): Unit {
+    suspend fun update(messageId: Long, body: CreateMessageRequestContent): UpdateMessageResponseContent {
         val operation = client.operation(Routes.UPDATE_MESSAGE, listOf(messageId))
         operation.resourceId(messageId)
         operation.json(body)
-        return client.sendUnit(operation)
+        return client.send(operation)
     }
 }

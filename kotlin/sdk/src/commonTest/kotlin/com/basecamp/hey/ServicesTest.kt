@@ -19,6 +19,7 @@ import com.basecamp.hey.services.OccurrenceId
 import com.basecamp.hey.services.OccurrenceScope
 import com.basecamp.hey.services.ReplyContent
 import com.basecamp.hey.generated.*
+import com.basecamp.hey.generated.models.SentMessage
 import io.ktor.http.decodeURLQueryComponent
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
@@ -108,6 +109,45 @@ private fun formFields(body: String): Map<String, String> = body.split('&').asso
         assertEquals(1, hey.requests.size)
         assertFailsWith<HeyException.Usage> { hey.client().messages.sendDraft(777, DraftContent("S", "B", actingSenderId = 1)) }
     }
+
+    @Test
+    fun deliveringAnswersTheEntryHEYDelivered() = runTest {
+        val sentNow = """{"id":2201,"topic_id":880,"subject":"Lunch on Friday","delayed":false}"""
+        val hey = mockHey(ok(sentNow), ok(sentNow), ok(sentNow))
+        val client = hey.client()
+        val expected = SentMessage(id = 2201, topicId = 880, subject = "Lunch on Friday", delayed = false)
+        assertEquals(expected, client.messages.send(lunchMessage))
+        assertEquals(expected, client.messages.sendDraft(2201, DraftContent("Lunch on Friday", "Are you free at noon?", to = listOf("maria@example.com"), actingSenderId = 314)))
+        assertEquals(expected, client.entries.reply(1990, ReplyContent(314, "Lunch on Friday", "Noon works.", to = listOf("maria@example.com"))))
+    }
+
+    @Test
+    fun deliveringAnswersAnUndoableDelivery() = runTest {
+        val hey = mockHey(ok("""{"id":2201,"topic_id":880,"subject":"Lunch on Friday","delayed":true,"notice":"Message sent","undo_action":"https://app.hey.com/topics/880/undo_send","undo_timeout":12}"""))
+        val sent = hey.client().messages.send(lunchMessage)
+        assertEquals(SentMessage(2201, 880, "Lunch on Friday", true, "Message sent", "https://app.hey.com/topics/880/undo_send", 12), sent)
+    }
+
+    @Test
+    fun aHEYThatServesNoIdsAnswersWithoutThemAndReadsTheDelayFromItsUndo() = runTest {
+        val hey = mockHey(ok("{}"), ok("""{"notice":"Message sent","undo_action":"https://app.hey.com/topics/880/undo_send","undo_timeout":12}"""))
+        val client = hey.client()
+        assertEquals(SentMessage(), client.messages.send(lunchMessage))
+        val delayed = client.messages.send(lunchMessage)
+        assertNull(delayed.id)
+        assertNull(delayed.topicId)
+        assertEquals(true, delayed.delayed)
+    }
+
+    /** The message has gone out by the time its answer is read, so an answer the SDK cannot read must not turn into an error: a caller told the send failed would send it again. */
+    @Test
+    fun anUnreadableAnswerDoesNotFailADelivery() = runTest {
+        val hey = mockHey(ok(""), ok("<html>Message sent</html>"), ok("""{"topic_id":[880]}"""), status(204))
+        val client = hey.client()
+        repeat(4) { assertEquals(SentMessage(), client.messages.send(lunchMessage)) }
+    }
+
+    private val lunchMessage = MessageContent("Lunch on Friday", "Are you free at noon?", to = listOf("maria@example.com"), actingSenderId = 314)
 
     @Test
     fun aReplyCarriesThePrefillsSenderUntouched() = runTest {

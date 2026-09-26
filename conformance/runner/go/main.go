@@ -1651,7 +1651,7 @@ func executeHEYOperation(client *hey.Client, ctx context.Context, tc TestCase) (
 		return nil, client.Extenzions().Delete(ctx, getInt64Param(tc.PathParams, "accountId"), getInt64Param(tc.PathParams, "extenzionId"))
 	case "CreateReply":
 		entryID := getInt64Param(tc.PathParams, "entryId")
-		return nil, client.Entries().CreateReply(ctx, entryID,
+		return client.Entries().CreateReply(ctx, entryID,
 			getInt64Param(tc.RequestBody, "acting_sender_id"),
 			getStringParam(tc.RequestBody, "subject"),
 			getStringParam(tc.RequestBody, "content"),
@@ -1676,7 +1676,7 @@ func executeHEYOperation(client *hey.Client, ctx context.Context, tc TestCase) (
 		return nil, client.Messages().UpdateDraft(ctx, entryID, draftContentParam(tc.RequestBody))
 	case "SendDraft":
 		entryID := getInt64Param(tc.PathParams, "entryId")
-		return nil, client.Messages().SendDraft(ctx, entryID, draftContentParam(tc.RequestBody))
+		return client.Messages().SendDraft(ctx, entryID, draftContentParam(tc.RequestBody))
 	default:
 		return nil, fmt.Errorf("HEY client conformance does not support operation: %s", tc.Operation)
 	}

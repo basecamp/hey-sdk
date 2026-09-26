@@ -154,7 +154,13 @@ async fn a_write_is_never_cached() {
     let server = MockServer::start().await;
     Mock::given(method("POST"))
         .and(path("/messages.json"))
-        .respond_with(ResponseTemplate::new(204).insert_header("ETag", "\"v1\""))
+        .respond_with(
+            ResponseTemplate::new(200)
+                .insert_header("ETag", "\"v1\"")
+                .set_body_json(json!({
+                    "id": 2201, "topic_id": 880, "subject": "Quarterly planning", "delayed": false
+                })),
+        )
         .mount(&server)
         .await;
 

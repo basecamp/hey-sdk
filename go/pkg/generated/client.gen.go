@@ -574,6 +574,11 @@ type CreateMessageRequestContent struct {
 	Message        MessagePayload       `json:"message"`
 }
 
+// CreateMessageResponseContent SentMessage — what HEY answers for a message, a reply or a draft it has just
+// delivered (entries/_sent.jbuilder). Every member is optional: a HEY that predates
+// the ids answers {} — or only the undo members, while the delivery is delayed.
+type CreateMessageResponseContent = SentMessage
+
 // CreateReplyRequestContent Wire format: {acting_sender_id, message: {subject, content}, entry: {addressed: {directly: [...]}}}
 // entry.addressed is optional on the wire but a reply posted without it is saved as a
 // draft rather than delivered — HEY does not reply-all for the caller. Resolve the
@@ -589,6 +594,11 @@ type CreateReplyRequestContent struct {
 	// not be echoed back.
 	Message ReplyMessagePayload `json:"message"`
 }
+
+// CreateReplyResponseContent SentMessage — what HEY answers for a message, a reply or a draft it has just
+// delivered (entries/_sent.jbuilder). Every member is optional: a HEY that predates
+// the ids answers {} — or only the undo members, while the delivery is delayed.
+type CreateReplyResponseContent = SentMessage
 
 // CreateStickyResponseContent Sticky — a note on the stickies board
 type CreateStickyResponseContent = Sticky
@@ -1451,6 +1461,35 @@ type Sender struct {
 	NameTag               string `json:"name_tag,omitempty"`
 }
 
+// SentMessage SentMessage — what HEY answers for a message, a reply or a draft it has just
+// delivered (entries/_sent.jbuilder). Every member is optional: a HEY that predates
+// the ids answers {} — or only the undo members, while the delivery is delayed.
+type SentMessage struct {
+	// Delayed True while Undo Send holds the delivery back. The entry and its thread already
+	// exist, visible to the sender.
+	Delayed bool `json:"delayed,omitempty"`
+
+	// Id The entry that went out. A reply that breaks out into a thread of its own on a
+	// Domains account is a new entry.
+	Id int64 `json:"id,omitempty"`
+
+	// Notice "Message sent", present only while delayed.
+	Notice string `json:"notice,omitempty"`
+
+	// Subject The subject the message went out with.
+	Subject string `json:"subject,omitempty"`
+
+	// TopicId The thread the entry is on — for a reply that broke out, the new thread rather
+	// than the one replied to.
+	TopicId int64 `json:"topic_id,omitempty"`
+
+	// UndoAction Where to POST to call the message back, present only while delayed.
+	UndoAction string `json:"undo_action,omitempty"`
+
+	// UndoTimeout Seconds the undo notice stays up, present only while delayed.
+	UndoTimeout int32 `json:"undo_timeout,omitempty"`
+}
+
 // ServiceUnavailableErrorResponseContent defines model for ServiceUnavailableErrorResponseContent.
 type ServiceUnavailableErrorResponseContent struct {
 	Message string `json:"message"`
@@ -1684,6 +1723,11 @@ type UpdateJournalEntryRequestContent struct {
 
 // UpdateJournalEntryResponseContent Recording — polymorphic by `type`, with direct and namespaced calendar wire values
 type UpdateJournalEntryResponseContent = Recording
+
+// UpdateMessageResponseContent SentMessage — what HEY answers for a message, a reply or a draft it has just
+// delivered (entries/_sent.jbuilder). Every member is optional: a HEY that predates
+// the ids answers {} — or only the undo members, while the delivery is delayed.
+type UpdateMessageResponseContent = SentMessage
 
 // UpdateMyClearanceRequestContent defines model for UpdateMyClearanceRequestContent.
 type UpdateMyClearanceRequestContent struct {
@@ -12335,7 +12379,10 @@ type ClientWithResponsesInterface interface {
 	// CreateReplyWithBodyWithResponse performs a POST /entries/{entryId}/replies.json (the `CreateReply` operationId) request,
 	// with any type of body and a specified content type.
 	//
-	// Reply to an entry.
+	// Reply to an entry. A delivered reply answers the sent message; one saved as a draft
+	// (entry.status "drafted") answers 204 with no body and a Location header naming
+	// /messages/{entry_id} — which is not this shape, so save a reply draft through the
+	// SDK's own draft wrapper rather than here.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	CreateReplyWithBodyWithResponse(ctx context.Context, entryId int64, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateReplyResponse, error)
@@ -12343,7 +12390,10 @@ type ClientWithResponsesInterface interface {
 	// CreateReplyWithResponse performs a POST /entries/{entryId}/replies.json (the `CreateReply` operationId) request.
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
-	// Reply to an entry.
+	// Reply to an entry. A delivered reply answers the sent message; one saved as a draft
+	// (entry.status "drafted") answers 204 with no body and a Location header naming
+	// /messages/{entry_id} — which is not this shape, so save a reply draft through the
+	// SDK's own draft wrapper rather than here.
 	CreateReplyWithResponse(ctx context.Context, entryId int64, body CreateReplyJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateReplyResponse, error)
 
 	// NewEntryReplyWithResponse performs a GET /entries/{entryId}/replies/new.json (the `NewEntryReply` operationId) request.
@@ -12421,8 +12471,10 @@ type ClientWithResponsesInterface interface {
 	// Create a new message (start a new topic).
 	// The acting sender ID must be included; the Go SDK resolves this automatically.
 	// Every message is created drafted on HEY's side; without entry.status the server
-	// delivers it, while entry.status "drafted" leaves it as a draft and answers
-	// 204 with a Location header naming /messages/{entry_id}.
+	// delivers it and answers the sent message, while entry.status "drafted" leaves it as a
+	// draft and answers 204 with no body and a Location header naming /messages/{entry_id} —
+	// which is not this shape, so save a draft through the SDK's own draft wrapper rather
+	// than here.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	CreateMessageWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateMessageResponse, error)
@@ -12433,8 +12485,10 @@ type ClientWithResponsesInterface interface {
 	// Create a new message (start a new topic).
 	// The acting sender ID must be included; the Go SDK resolves this automatically.
 	// Every message is created drafted on HEY's side; without entry.status the server
-	// delivers it, while entry.status "drafted" leaves it as a draft and answers
-	// 204 with a Location header naming /messages/{entry_id}.
+	// delivers it and answers the sent message, while entry.status "drafted" leaves it as a
+	// draft and answers 204 with no body and a Location header naming /messages/{entry_id} —
+	// which is not this shape, so save a draft through the SDK's own draft wrapper rather
+	// than here.
 	CreateMessageWithResponse(ctx context.Context, body CreateMessageJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateMessageResponse, error)
 
 	// GetMessageWithResponse performs a GET /messages/{messageId} (the `GetMessage` operationId) request.
@@ -12448,8 +12502,9 @@ type ClientWithResponsesInterface interface {
 	// with any type of body and a specified content type.
 	//
 	// Revise a message entry (MessagesController#update). With entry.status "drafted" the
-	// entry is saved as a draft (204 + Location, like CreateMessage); without it a draft is
-	// delivered through the undo-delay window. A trashed draft is silently restored first.
+	// entry is saved as a draft (204 + Location, like CreateMessage, and no body); without
+	// it a draft is delivered through the undo-delay window and HEY answers the sent
+	// message. A trashed draft is silently restored first.
 	// The revision is not a patch: subject, content and any scheduled delivery are rewritten
 	// from this request (an omitted scheduled delivery clears one), while recipients are
 	// replaced only when entry.addressed is present.
@@ -12465,8 +12520,9 @@ type ClientWithResponsesInterface interface {
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
 	// Revise a message entry (MessagesController#update). With entry.status "drafted" the
-	// entry is saved as a draft (204 + Location, like CreateMessage); without it a draft is
-	// delivered through the undo-delay window. A trashed draft is silently restored first.
+	// entry is saved as a draft (204 + Location, like CreateMessage, and no body); without
+	// it a draft is delivered through the undo-delay window and HEY answers the sent
+	// message. A trashed draft is silently restored first.
 	// The revision is not a patch: subject, content and any scheduled delivery are rewritten
 	// from this request (an omitted scheduled delivery clears one), while recipients are
 	// replaced only when entry.addressed is present.
@@ -18062,6 +18118,8 @@ func (r NewEntryForwardResponse) ContentType() string {
 type CreateReplyResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *CreateReplyResponseContent
 	// JSON401 the response for an HTTP 401 `application/json` response
 	JSON401 *UnauthorizedErrorResponseContent
 	// JSON404 the response for an HTTP 404 `application/json` response
@@ -18072,6 +18130,11 @@ type CreateReplyResponse struct {
 	JSON500 *InternalServerErrorResponseContent
 	// JSON503 the response for an HTTP 503 `application/json` response
 	JSON503 *ServiceUnavailableErrorResponseContent
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r CreateReplyResponse) GetJSON200() *CreateReplyResponseContent {
+	return r.JSON200
 }
 
 // GetJSON401 returns the response for an HTTP 401 `application/json` response
@@ -18641,6 +18704,8 @@ func (r GetImboxSeenResponse) ContentType() string {
 type CreateMessageResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *CreateMessageResponseContent
 	// JSON401 the response for an HTTP 401 `application/json` response
 	JSON401 *UnauthorizedErrorResponseContent
 	// JSON422 the response for an HTTP 422 `application/json` response
@@ -18649,6 +18714,11 @@ type CreateMessageResponse struct {
 	JSON500 *InternalServerErrorResponseContent
 	// JSON503 the response for an HTTP 503 `application/json` response
 	JSON503 *ServiceUnavailableErrorResponseContent
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r CreateMessageResponse) GetJSON200() *CreateMessageResponseContent {
+	return r.JSON200
 }
 
 // GetJSON401 returns the response for an HTTP 401 `application/json` response
@@ -18772,6 +18842,8 @@ func (r GetMessageResponse) ContentType() string {
 type UpdateMessageResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *UpdateMessageResponseContent
 	// JSON401 the response for an HTTP 401 `application/json` response
 	JSON401 *UnauthorizedErrorResponseContent
 	// JSON404 the response for an HTTP 404 `application/json` response
@@ -18782,6 +18854,11 @@ type UpdateMessageResponse struct {
 	JSON500 *InternalServerErrorResponseContent
 	// JSON503 the response for an HTTP 503 `application/json` response
 	JSON503 *ServiceUnavailableErrorResponseContent
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r UpdateMessageResponse) GetJSON200() *UpdateMessageResponseContent {
+	return r.JSON200
 }
 
 // GetJSON401 returns the response for an HTTP 401 `application/json` response
@@ -23313,7 +23390,10 @@ func (c *ClientWithResponses) NewEntryForwardWithResponse(ctx context.Context, e
 // CreateReplyWithBodyWithResponse performs a POST /entries/{entryId}/replies.json (the `CreateReply` operationId) request,
 // with any type of body and a specified content type.
 //
-// Reply to an entry.
+// Reply to an entry. A delivered reply answers the sent message; one saved as a draft
+// (entry.status "drafted") answers 204 with no body and a Location header naming
+// /messages/{entry_id} — which is not this shape, so save a reply draft through the
+// SDK's own draft wrapper rather than here.
 //
 // Returns a wrapper object for the known response body format(s).
 func (c *ClientWithResponses) CreateReplyWithBodyWithResponse(ctx context.Context, entryId int64, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateReplyResponse, error) {
@@ -23327,7 +23407,10 @@ func (c *ClientWithResponses) CreateReplyWithBodyWithResponse(ctx context.Contex
 // CreateReplyWithResponse performs a POST /entries/{entryId}/replies.json (the `CreateReply` operationId) request.
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
-// Reply to an entry.
+// Reply to an entry. A delivered reply answers the sent message; one saved as a draft
+// (entry.status "drafted") answers 204 with no body and a Location header naming
+// /messages/{entry_id} — which is not this shape, so save a reply draft through the
+// SDK's own draft wrapper rather than here.
 func (c *ClientWithResponses) CreateReplyWithResponse(ctx context.Context, entryId int64, body CreateReplyJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateReplyResponse, error) {
 	rsp, err := c.CreateReply(ctx, entryId, body, reqEditors...)
 	if err != nil {
@@ -23465,8 +23548,10 @@ func (c *ClientWithResponses) GetImboxSeenWithResponse(ctx context.Context, para
 // Create a new message (start a new topic).
 // The acting sender ID must be included; the Go SDK resolves this automatically.
 // Every message is created drafted on HEY's side; without entry.status the server
-// delivers it, while entry.status "drafted" leaves it as a draft and answers
-// 204 with a Location header naming /messages/{entry_id}.
+// delivers it and answers the sent message, while entry.status "drafted" leaves it as a
+// draft and answers 204 with no body and a Location header naming /messages/{entry_id} —
+// which is not this shape, so save a draft through the SDK's own draft wrapper rather
+// than here.
 //
 // Returns a wrapper object for the known response body format(s).
 func (c *ClientWithResponses) CreateMessageWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateMessageResponse, error) {
@@ -23483,8 +23568,10 @@ func (c *ClientWithResponses) CreateMessageWithBodyWithResponse(ctx context.Cont
 // Create a new message (start a new topic).
 // The acting sender ID must be included; the Go SDK resolves this automatically.
 // Every message is created drafted on HEY's side; without entry.status the server
-// delivers it, while entry.status "drafted" leaves it as a draft and answers
-// 204 with a Location header naming /messages/{entry_id}.
+// delivers it and answers the sent message, while entry.status "drafted" leaves it as a
+// draft and answers 204 with no body and a Location header naming /messages/{entry_id} —
+// which is not this shape, so save a draft through the SDK's own draft wrapper rather
+// than here.
 func (c *ClientWithResponses) CreateMessageWithResponse(ctx context.Context, body CreateMessageJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateMessageResponse, error) {
 	rsp, err := c.CreateMessage(ctx, body, reqEditors...)
 	if err != nil {
@@ -23510,8 +23597,9 @@ func (c *ClientWithResponses) GetMessageWithResponse(ctx context.Context, messag
 // with any type of body and a specified content type.
 //
 // Revise a message entry (MessagesController#update). With entry.status "drafted" the
-// entry is saved as a draft (204 + Location, like CreateMessage); without it a draft is
-// delivered through the undo-delay window. A trashed draft is silently restored first.
+// entry is saved as a draft (204 + Location, like CreateMessage, and no body); without
+// it a draft is delivered through the undo-delay window and HEY answers the sent
+// message. A trashed draft is silently restored first.
 // The revision is not a patch: subject, content and any scheduled delivery are rewritten
 // from this request (an omitted scheduled delivery clears one), while recipients are
 // replaced only when entry.addressed is present.
@@ -23533,8 +23621,9 @@ func (c *ClientWithResponses) UpdateMessageWithBodyWithResponse(ctx context.Cont
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
 // Revise a message entry (MessagesController#update). With entry.status "drafted" the
-// entry is saved as a draft (204 + Location, like CreateMessage); without it a draft is
-// delivered through the undo-delay window. A trashed draft is silently restored first.
+// entry is saved as a draft (204 + Location, like CreateMessage, and no body); without
+// it a draft is delivered through the undo-delay window and HEY answers the sent
+// message. A trashed draft is silently restored first.
 // The revision is not a patch: subject, content and any scheduled delivery are rewritten
 // from this request (an omitted scheduled delivery clears one), while recipients are
 // replaced only when entry.addressed is present.
@@ -29019,8 +29108,12 @@ func ParseCreateReplyResponse(rsp *http.Response) (*CreateReplyResponse, error) 
 	// An undecodable body fails only a 2xx; an error status answers on its own, body or not.
 	if _, err := func() (*CreateReplyResponse, error) {
 		switch {
-		case rsp.StatusCode == 200:
-			break // No content-type
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+			var dest CreateReplyResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON200 = &dest
 
 		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
 			var dest UnauthorizedErrorResponseContent
@@ -29532,8 +29625,12 @@ func ParseCreateMessageResponse(rsp *http.Response) (*CreateMessageResponse, err
 	// An undecodable body fails only a 2xx; an error status answers on its own, body or not.
 	if _, err := func() (*CreateMessageResponse, error) {
 		switch {
-		case rsp.StatusCode == 200:
-			break // No content-type
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+			var dest CreateMessageResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON200 = &dest
 
 		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
 			var dest UnauthorizedErrorResponseContent
@@ -29650,8 +29747,12 @@ func ParseUpdateMessageResponse(rsp *http.Response) (*UpdateMessageResponse, err
 	// An undecodable body fails only a 2xx; an error status answers on its own, body or not.
 	if _, err := func() (*UpdateMessageResponse, error) {
 		switch {
-		case rsp.StatusCode == 200:
-			break // No content-type
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+			var dest UpdateMessageResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON200 = &dest
 
 		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
 			var dest UnauthorizedErrorResponseContent

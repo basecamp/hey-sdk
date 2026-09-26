@@ -28,16 +28,19 @@ impl<'a> Entries<'a> {
         self.client
     }
 
-    /// Reply to an entry
+    /// Reply to an entry. A delivered reply answers the sent message; one saved as a draft
+    /// (entry.status "drafted") answers 204 with no body and a Location header naming
+    /// /messages/{entry_id} — which is not this shape, so save a reply draft through the
+    /// SDK's own draft wrapper rather than here.
     pub async fn create_reply(
         &self,
         entry_id: i64,
         body: &CreateReplyRequestContent,
-    ) -> Result<(), Error> {
+    ) -> Result<CreateReplyResponseContent, Error> {
         let mut operation = self.client.operation(&routes::CREATE_REPLY, &[&entry_id]);
         operation.resource_id(entry_id);
         operation.json(body)?;
-        self.client.send_unit(operation).await
+        self.client.send(operation).await
     }
 
     /// Trash a draft (Entries::DraftsController#destroy). The id is the draft's entry id,

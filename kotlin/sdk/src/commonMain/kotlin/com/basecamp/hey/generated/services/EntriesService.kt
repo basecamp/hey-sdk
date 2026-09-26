@@ -6,6 +6,7 @@ import com.basecamp.hey.HeyClient
 import com.basecamp.hey.Page
 import com.basecamp.hey.generated.Routes
 import com.basecamp.hey.generated.models.CreateReplyRequestContent
+import com.basecamp.hey.generated.models.CreateReplyResponseContent
 import com.basecamp.hey.generated.models.ListDraftsResponseContent
 import com.basecamp.hey.generated.models.NewEntryForwardResponseContent
 import com.basecamp.hey.generated.models.NewEntryReplyResponseContent
@@ -24,15 +25,18 @@ data class ListDraftsOptions(
  */
 open class EntriesService(client: HeyClient) : BaseService(client) {
     /**
-     * Reply to an entry
+     * Reply to an entry. A delivered reply answers the sent message; one saved as a draft
+     * (entry.status "drafted") answers 204 with no body and a Location header naming
+     * /messages/{entry_id} — which is not this shape, so save a reply draft through the
+     * SDK's own draft wrapper rather than here.
      * @param entryId The entry ID
      * @param body Request body
      */
-    suspend fun createReply(entryId: Long, body: CreateReplyRequestContent): Unit {
+    suspend fun createReply(entryId: Long, body: CreateReplyRequestContent): CreateReplyResponseContent {
         val operation = client.operation(Routes.CREATE_REPLY, listOf(entryId))
         operation.resourceId(entryId)
         operation.json(body)
-        return client.sendUnit(operation)
+        return client.send(operation)
     }
 
     /**

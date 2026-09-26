@@ -53,11 +53,15 @@ async fn a_json_body_goes_out_as_json() {
     let server = MockServer::start().await;
     Mock::given(method("POST"))
         .and(path("/messages.json"))
-        .respond_with(ResponseTemplate::new(204))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+            "id": 2201, "topic_id": 880, "subject": "Quarterly planning", "delayed": false
+        })))
         .mount(&server)
         .await;
 
-    client(&server).messages().create(&message()).await.unwrap();
+    let sent = client(&server).messages().create(&message()).await.unwrap();
+
+    assert_eq!(sent.topic_id, Some(880));
 
     let requests = server.received_requests().await.unwrap();
     assert_eq!(requests.len(), 1);

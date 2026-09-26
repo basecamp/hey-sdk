@@ -11,16 +11,19 @@ public struct ListDraftsOptions: Sendable, Equatable {
 
 /// Service for Entries operations.
 public final class EntriesService: BaseService, @unchecked Sendable {
-    /// Reply to an entry
+    /// Reply to an entry. A delivered reply answers the sent message; one saved as a draft
+    /// (entry.status "drafted") answers 204 with no body and a Location header naming
+    /// /messages/{entry_id} — which is not this shape, so save a reply draft through the
+    /// SDK's own draft wrapper rather than here.
     ///
     /// - Parameters:
     ///   - entryId: The entry ID
     ///   - body: Request body
-    public func createReply(entryId: Int, body: CreateReplyRequestContent) async throws {
+    public func createReply(entryId: Int, body: CreateReplyRequestContent) async throws -> CreateReplyResponseContent {
         var operation = try client.operation(Routes.createReply, [entryId])
         operation.resourceId(entryId)
         try operation.json(body)
-        return try await client.sendVoid(operation)
+        return try await client.send(operation)
     }
 
     /// Trash a draft (Entries::DraftsController#destroy). The id is the draft's entry id,

@@ -1,0 +1,177 @@
+[
+  {
+    "name": "CreateMessage answers the entry it delivered and the thread it started",
+    "description": "Verifies the answer HEY gives for a delivered message (entries/_sent.jbuilder) reaches the caller: the entry's id, its topic_id and its subject",
+    "operation": "CreateMessage",
+    "method": "POST",
+    "path": "/messages.json",
+    "requestBody": {
+      "acting_sender_id": 314,
+      "subject": "Lunch on Friday",
+      "content": "<div>Are you free at noon?</div>",
+      "to": ["maria@example.com"]
+    },
+    "mockResponses": [
+      {
+        "status": 200,
+        "body": {
+          "id": 2201,
+          "topic_id": 880,
+          "subject": "Lunch on Friday",
+          "delayed": false
+        }
+      }
+    ],
+    "assertions": [
+      {"type": "noError"},
+      {"type": "responseBody", "path": "id", "expected": 2201},
+      {"type": "responseBody", "path": "topic_id", "expected": 880},
+      {"type": "responseBody", "path": "subject", "expected": "Lunch on Friday"}
+    ],
+    "tags": ["messages", "sent-message"]
+  },
+  {
+    "name": "CreateReply wrapper answers the thread the reply landed on",
+    "description": "Verifies the hand-written reply wrapper hands back HEY's answer for the delivered reply: the entry that went out and the thread it is on",
+    "operation": "CreateReply",
+    "method": "POST",
+    "path": "/entries/{entryId}/replies.json",
+    "pathParams": {
+      "entryId": 1990
+    },
+    "requestBody": {
+      "acting_sender_id": 314,
+      "subject": "Re: Lunch on Friday",
+      "content": "Noon works.",
+      "to": ["maria@example.com"]
+    },
+    "mockResponses": [
+      {
+        "status": 200,
+        "body": {
+          "id": 2202,
+          "topic_id": 881,
+          "subject": "Re: Lunch on Friday",
+          "delayed": false
+        }
+      }
+    ],
+    "assertions": [
+      {"type": "noError"},
+      {"type": "responseBody", "path": "id", "expected": 2202},
+      {"type": "responseBody", "path": "topic_id", "expected": 881},
+      {"type": "responseBody", "path": "subject", "expected": "Re: Lunch on Friday"}
+    ],
+    "configOverrides": {
+      "clientLayer": "hey"
+    },
+    "tags": ["replies", "sent-message"]
+  },
+  {
+    "name": "SendDraft wrapper answers a delivery Undo Send is holding back",
+    "description": "Verifies the hand-written draft send hands back HEY's answer for a delayed delivery: the ids beside the undo members",
+    "operation": "SendDraft",
+    "method": "PUT",
+    "path": "/messages/{entryId}.json",
+    "pathParams": {
+      "entryId": 2201
+    },
+    "requestBody": {
+      "acting_sender_id": 314,
+      "subject": "Lunch on Friday",
+      "content": "<div>Are you free at noon?</div>",
+      "to": ["maria@example.com"]
+    },
+    "mockResponses": [
+      {
+        "status": 200,
+        "body": {
+          "id": 2201,
+          "topic_id": 880,
+          "subject": "Lunch on Friday",
+          "delayed": true,
+          "notice": "Message sent",
+          "undo_action": "https://app.hey.com/topics/880/undo_send",
+          "undo_timeout": 12
+        }
+      }
+    ],
+    "assertions": [
+      {"type": "noError"},
+      {"type": "responseBody", "path": "id", "expected": 2201},
+      {"type": "responseBody", "path": "topic_id", "expected": 880},
+      {"type": "responseBody", "path": "delayed", "expected": true},
+      {"type": "responseBody", "path": "undo_action", "expected": "https://app.hey.com/topics/880/undo_send"},
+      {"type": "responseBody", "path": "undo_timeout", "expected": 12}
+    ],
+    "configOverrides": {
+      "clientLayer": "hey"
+    },
+    "tags": ["drafts", "sent-message"]
+  },
+  {
+    "name": "CreateReply wrapper succeeds against a HEY that names no entry",
+    "description": "Verifies a delivered reply is not an error when HEY answers without ids, as it did before it named the entry it delivered",
+    "operation": "CreateReply",
+    "method": "POST",
+    "path": "/entries/{entryId}/replies.json",
+    "pathParams": {
+      "entryId": 1990
+    },
+    "requestBody": {
+      "acting_sender_id": 314,
+      "subject": "Re: Lunch on Friday",
+      "content": "Noon works.",
+      "to": ["maria@example.com"]
+    },
+    "mockResponses": [
+      {
+        "status": 200,
+        "body": {}
+      }
+    ],
+    "assertions": [
+      {"type": "requestCount", "expected": 1},
+      {"type": "noError"}
+    ],
+    "configOverrides": {
+      "clientLayer": "hey"
+    },
+    "tags": ["replies", "sent-message"]
+  },
+  {
+    "name": "SendDraft wrapper succeeds against a HEY that answers only its undo",
+    "description": "Verifies a delayed delivery is not an error when HEY answers only the undo members, as it did before it named the entry it delivered",
+    "operation": "SendDraft",
+    "method": "PUT",
+    "path": "/messages/{entryId}.json",
+    "pathParams": {
+      "entryId": 2201
+    },
+    "requestBody": {
+      "acting_sender_id": 314,
+      "subject": "Lunch on Friday",
+      "content": "<div>Are you free at noon?</div>",
+      "to": ["maria@example.com"]
+    },
+    "mockResponses": [
+      {
+        "status": 200,
+        "body": {
+          "notice": "Message sent",
+          "undo_action": "https://app.hey.com/topics/880/undo_send",
+          "undo_timeout": 12
+        }
+      }
+    ],
+    "assertions": [
+      {"type": "requestCount", "expected": 1},
+      {"type": "noError"},
+      {"type": "responseBody", "path": "undo_timeout", "expected": 12}
+    ],
+    "configOverrides": {
+      "clientLayer": "hey"
+    },
+    "tags": ["drafts", "sent-message"]
+  }
+]
