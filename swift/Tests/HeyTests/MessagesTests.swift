@@ -58,6 +58,26 @@ final class MessagesTests: XCTestCase {
         } catch {}
     }
 
+    /// A delivery whose 2xx body is cut off mid-stream, or runs past the client's size limit, is no
+    /// body rather than a failure; the same cut on an ordinary read is still the failure it was.
+    func testADeliveryWhoseSuccessIsCutShortIsNotAnError() async throws {
+        let body = CreateMessageRequestContent(
+            actingSenderId: 314, message: MessagePayload(subject: "Lunch on Friday", content: "Are you free at noon?"))
+        let lost = URLError(.networkConnectionLost)
+        let hey = mockHey(interrupted(200, #"{"id":2201"#, lost), interrupted(200, #"{"id":9"#, lost))
+        let client = try hey.client()
+        let sent = try await client.messages.create(body: body)
+        XCTAssertEqual(sent, SentMessage())
+        do {
+            _ = try await client.messages.get(messageId: 9)
+            XCTFail("a read cut short must still fail")
+        } catch {}
+
+        let capped = mockHey(ok(String(repeating: " ", count: 4096)))
+        let cappedSent = try await capped.client(configure: { $0.maxResponseBodyBytes = 1024 }).messages.create(body: body)
+        XCTAssertEqual(cappedSent, SentMessage())
+    }
+
     private let lunchMessage = MessageContent(
         subject: "Lunch on Friday", content: "Are you free at noon?", to: ["maria@example.com"], actingSenderId: 314)
 

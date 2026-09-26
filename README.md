@@ -53,7 +53,7 @@ imbox, _ := client.Boxes().GetImbox(ctx, nil)   // postings in the Imbox
 // names the entry that went out and the thread it is on (zero from a HEY that predates them).
 sent, err := client.Messages().Create(ctx, "Subject", "Body", []string{"someone@example.com"}, nil, nil)
 if err != nil {
-	return err // not delivered
+	return err // refused, or the outcome is unknown: check the thread before sending again
 }
 fmt.Println(sent.Id, sent.TopicId, sent.Delayed)
 

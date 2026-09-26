@@ -729,6 +729,17 @@ public final class HeyClient: Sendable {
                 hops += 1
                 continue
             }
+            if let interruption = response.interruption {
+                // A body cut short is the failure it was — unless the route's work is done once HEY
+                // answers a success and this is one, in which case it is no body. The caller's own
+                // cancellation is never absorbed.
+                let lenient = operation.route?.lenientSuccess == true && (200...299).contains(response.status)
+                if !lenient || Task.isCancelled || isCancellation(interruption) { throw interruption }
+                return Received(
+                    url: url, status: response.status, headers: response.headers, body: Data(), refusal: nil,
+                    redirected: hops > 0, authenticated: authenticated, signedUnder: signedUnder,
+                    bearer: credentials.headers["authorization"]?.first)
+            }
             let refusal: HeyError? = response.bodyExceeded
                 ? .api(
                     message: "response body exceeds \(bound) bytes", httpStatus: nil, retryable: false,

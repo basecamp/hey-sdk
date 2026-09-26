@@ -98,7 +98,7 @@ func (s *EntriesService) CreateReply(ctx context.Context, entryID, actingSenderI
 	if err := CheckResponse(resp); err != nil {
 		return nil, err
 	}
-	return readSentMessage(resp), nil
+	return readSentMessage(resp)
 }
 
 // MarkSpam marks an entry as spam. The server denies the sender outright when every thread

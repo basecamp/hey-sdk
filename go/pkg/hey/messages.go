@@ -3,6 +3,7 @@ package hey
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -113,7 +114,7 @@ func (s *MessagesService) Send(ctx context.Context, message MessageContent) (sen
 	if err := CheckResponse(resp); err != nil {
 		return nil, err
 	}
-	return readSentMessage(resp), nil
+	return readSentMessage(resp)
 }
 
 // readSentMessage reads what HEY answered for a message it has just delivered — a new
@@ -129,19 +130,39 @@ func (s *MessagesService) Send(ctx context.Context, message MessageContent) (sen
 // from undo_action, since an undo is only offered while the delivery is delayed; where
 // HEY does state it, its value stands. The generated field cannot tell false from absent,
 // so whether HEY stated it is read on its own.
-func readSentMessage(resp *http.Response) *generated.SentMessage {
+//
+// The one read error it does not absorb is the caller's own: a cancellation or a deadline
+// that ends the read is returned as it is, so a cancelled send is not reported delivered.
+func readSentMessage(resp *http.Response) (*generated.SentMessage, error) {
 	sent := &generated.SentMessage{}
 	var said struct {
 		Delayed *bool `json:"delayed"`
 	}
 	data, err := io.ReadAll(resp.Body)
-	if err != nil || json.Unmarshal(data, sent) != nil || json.Unmarshal(data, &said) != nil {
-		return &generated.SentMessage{}
+	switch {
+	case errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded):
+		return nil, err
+	case err != nil:
+		// A body past the size limit or lost mid-stream is no body.
+		data = nil
+	}
+	if !decodesInto(data, sent, &said) {
+		return &generated.SentMessage{}, nil
 	}
 	if said.Delayed == nil && sent.UndoAction != "" {
 		sent.Delayed = true
 	}
-	return sent
+	return sent, nil
+}
+
+// decodesInto reports whether data decodes as JSON into every one of targets.
+func decodesInto(data []byte, targets ...any) bool {
+	for _, target := range targets {
+		if json.Unmarshal(data, target) != nil {
+			return false
+		}
+	}
+	return true
 }
 
 // entryPayload builds entry.addressed for a message or reply. Callers guarantee at
@@ -358,8 +379,8 @@ func (s *MessagesService) SendDraft(ctx context.Context, entryID int64, draft Dr
 		if cerr := CheckResponse(resp); cerr != nil {
 			return cerr
 		}
-		sent = readSentMessage(resp)
-		return nil
+		sent, rerr = readSentMessage(resp)
+		return rerr
 	})
 	return sent, err
 }

@@ -194,7 +194,14 @@ public final class URLSessionTransport: Transport, @unchecked Sendable {
                 return
             }
             if let error {
-                continuation.resume(throwing: error)
+                // Once the status and headers are in, a body that ends early is reported with them,
+                // so the client can tell what HEY answered; before that, it is the failure itself.
+                if state.status != 0, state.readBody {
+                    continuation.resume(returning: HTTPResponse(
+                        status: state.status, headers: state.headers, body: state.body, interruption: error))
+                } else {
+                    continuation.resume(throwing: error)
+                }
                 return
             }
             continuation.resume(returning: HTTPResponse(

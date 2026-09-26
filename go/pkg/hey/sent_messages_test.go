@@ -2,6 +2,10 @@ package hey
 
 import (
 	"context"
+	"errors"
+	"io"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 
 	"github.com/basecamp/hey-sdk/go/pkg/generated"
@@ -194,6 +198,35 @@ func TestSendingWrappersDoNotFailADeliveryOverAnAnswerPastTheBodyLimit(t *testin
 				t.Errorf("sent = %+v, want an empty answer", sent)
 			}
 		})
+	}
+}
+
+// The caller's own cancellation is not absorbed: a send whose answer it cuts short is still
+// its error, so a cancelled send is never reported delivered.
+func TestSendingWrappersKeepTheCallersCancellation(t *testing.T) {
+	headersSent := make(chan struct{})
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Content-Length", "1000")
+		w.WriteHeader(http.StatusOK)
+		_, _ = io.WriteString(w, `{"id":2201`)
+		w.(http.Flusher).Flush()
+		close(headersSent)
+		<-r.Context().Done()
+	}))
+	t.Cleanup(server.Close)
+	client := NewClient(&Config{BaseURL: server.URL}, &StaticTokenProvider{Token: "test-token"}, WithMaxRetries(0))
+
+	ctx, cancel := context.WithCancel(context.Background())
+	go func() {
+		<-headersSent
+		cancel()
+	}()
+	sent, err := client.Messages().Send(ctx, MessageContent{
+		Subject: "Lunch on Friday", Content: "<div>Are you free at noon?</div>", To: []string{"maria@example.com"}, ActingSenderID: 314,
+	})
+	if sent != nil || !errors.Is(err, context.Canceled) {
+		t.Fatalf("sent = %+v, err = %v; want the caller's cancellation", sent, err)
 	}
 }
 

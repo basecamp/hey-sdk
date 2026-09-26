@@ -2,6 +2,7 @@ package generated
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -102,5 +103,34 @@ func TestLenientSuccessStopsAtSuccessAndAtTheOperationsThatDeliver(t *testing.T)
 	}
 	if _, err := answering(t, 200, "application/json", "not json", false).GetMessageWithResponse(ctx, 9); err == nil {
 		t.Error("GetMessage with an unreadable body parsed without an error")
+	}
+}
+
+// The caller's own cancellation is not absorbed: a read it cuts short after a 2xx arrived
+// is still its error, so a cancelled call is never reported as done.
+func TestDeliveringOperationsKeepTheCallersCancellation(t *testing.T) {
+	headersSent := make(chan struct{})
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Content-Length", "1000")
+		w.WriteHeader(http.StatusOK)
+		_, _ = io.WriteString(w, `{"id":2201`)
+		w.(http.Flusher).Flush()
+		close(headersSent)
+		<-r.Context().Done()
+	}))
+	t.Cleanup(server.Close)
+	client, err := NewClientWithResponses(server.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	go func() {
+		<-headersSent
+		cancel()
+	}()
+	if _, err := client.CreateMessageWithResponse(ctx, lunchMessage); !errors.Is(err, context.Canceled) {
+		t.Fatalf("err = %v, want the caller's cancellation", err)
 	}
 }

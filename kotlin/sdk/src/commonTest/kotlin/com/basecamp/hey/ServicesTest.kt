@@ -163,6 +163,11 @@ private fun formFields(body: String): Map<String, String> = body.split('&').asso
         repeat(3) { assertEquals(SentMessage(), client.messages.create(body)) }
         assertFailsWith<HeyException> { client.messages.create(body) }
         assertFailsWith<HeyException> { client.messages.get(9) }
+
+        // A success past the client's size limit is refused as it is read; for a delivery that
+        // refusal is no body, not an error.
+        val capped = mockHey(ok(" ".repeat(4096)))
+        assertEquals(SentMessage(), capped.client { maxResponseBodyBytes = 1024 }.messages.create(body))
     }
 
     private val lunchMessage = MessageContent("Lunch on Friday", "Are you free at noon?", to = listOf("maria@example.com"), actingSenderId = 314)

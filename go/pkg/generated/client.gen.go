@@ -29117,7 +29117,9 @@ func ParseCreateReplyResponse(rsp *http.Response) (*CreateReplyResponse, error) 
 	bodyBytes, err := io.ReadAll(rsp.Body)
 	defer func() { _ = rsp.Body.Close() }()
 	if err != nil {
-		if rsp.StatusCode >= 200 && rsp.StatusCode < 300 {
+		// A body past the size limit or lost mid-stream is no body; the caller's own
+		// cancellation or deadline is still the caller's error.
+		if rsp.StatusCode >= 200 && rsp.StatusCode < 300 && !errors.Is(err, context.Canceled) && !errors.Is(err, context.DeadlineExceeded) {
 			return &CreateReplyResponse{HTTPResponse: rsp}, nil
 		}
 		return nil, err
@@ -29636,7 +29638,9 @@ func ParseCreateMessageResponse(rsp *http.Response) (*CreateMessageResponse, err
 	bodyBytes, err := io.ReadAll(rsp.Body)
 	defer func() { _ = rsp.Body.Close() }()
 	if err != nil {
-		if rsp.StatusCode >= 200 && rsp.StatusCode < 300 {
+		// A body past the size limit or lost mid-stream is no body; the caller's own
+		// cancellation or deadline is still the caller's error.
+		if rsp.StatusCode >= 200 && rsp.StatusCode < 300 && !errors.Is(err, context.Canceled) && !errors.Is(err, context.DeadlineExceeded) {
 			return &CreateMessageResponse{HTTPResponse: rsp}, nil
 		}
 		return nil, err
@@ -29760,7 +29764,9 @@ func ParseUpdateMessageResponse(rsp *http.Response) (*UpdateMessageResponse, err
 	bodyBytes, err := io.ReadAll(rsp.Body)
 	defer func() { _ = rsp.Body.Close() }()
 	if err != nil {
-		if rsp.StatusCode >= 200 && rsp.StatusCode < 300 {
+		// A body past the size limit or lost mid-stream is no body; the caller's own
+		// cancellation or deadline is still the caller's error.
+		if rsp.StatusCode >= 200 && rsp.StatusCode < 300 && !errors.Is(err, context.Canceled) && !errors.Is(err, context.DeadlineExceeded) {
 			return &UpdateMessageResponse{HTTPResponse: rsp}, nil
 		}
 		return nil, err
