@@ -141,7 +141,7 @@
   },
   {
     "name": "SendDraft wrapper succeeds against a HEY that answers only its undo",
-    "description": "Verifies a delayed delivery is not an error when HEY answers only the undo members, as it did before it named the entry it delivered",
+    "description": "Verifies a delayed delivery is not an error when HEY answers only the undo members, as it did before it named the entry it delivered. Reading delayed from the undo is a hand-written convenience TypeScript does not have, so each SDK's own unit tests hold it rather than this fixture",
     "operation": "SendDraft",
     "method": "PUT",
     "path": "/messages/{entryId}.json",

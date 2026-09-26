@@ -51,7 +51,10 @@ imbox, _ := client.Boxes().GetImbox(ctx, nil)   // postings in the Imbox
 
 // Sending: recipients are required — HEY saves an unaddressed reply as a draft. The answer
 // names the entry that went out and the thread it is on (zero from a HEY that predates them).
-sent, _ := client.Messages().Create(ctx, "Subject", "Body", []string{"someone@example.com"}, nil, nil)
+sent, err := client.Messages().Create(ctx, "Subject", "Body", []string{"someone@example.com"}, nil, nil)
+if err != nil {
+	return err // not delivered
+}
 fmt.Println(sent.Id, sent.TopicId, sent.Delayed)
 
 // Select one of the identity's configured senders when the message needs a specific From address.

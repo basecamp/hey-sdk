@@ -36,7 +36,10 @@ call need none either.
 
 Every member is optional, because a HEY that predates the ids answers `{}` — or only the
 undo members while the delivery is delayed. Check for a zero or absent `id` and `topic_id`
-before using one. `delayed` is read from `undo_action` when HEY does not say.
+before using one. The conveniences above read `delayed` from `undo_action` when HEY does not
+say. TypeScript has no delivery conveniences: its generated operations answer the
+`SentMessage` exactly as HEY served it, so there `delayed` is absent wherever HEY leaves it
+out.
 
 The generated operations change with them: `CreateMessage`, `UpdateMessage` and
 `CreateReply` now decode their 200 answer as `SentMessage` (`CreateMessageResponseContent`,
