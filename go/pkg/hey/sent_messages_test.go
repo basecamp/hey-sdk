@@ -177,6 +177,26 @@ func TestSendingWrappersDoNotFailADeliveryOverAnUnreadableAnswer(t *testing.T) {
 	}
 }
 
+// Go reads a delivery's answer itself, so a body past the client's limit is refused here,
+// after the status said the message went out, and costs the ids rather than the send.
+func TestSendingWrappersDoNotFailADeliveryOverAnAnswerPastTheBodyLimit(t *testing.T) {
+	for _, wrapper := range sendingWrappers() {
+		t.Run(wrapper.name, func(t *testing.T) {
+			client := newDraftTestClient(t, map[string]draftTestRoute{
+				wrapper.path: {method: wrapper.method, body: sentDelayedJSON},
+			}, WithMaxResponseBodyBytes(150)) // past the identity the sender is read from, short of the answer
+
+			sent, err := wrapper.send(client)
+			if err != nil {
+				t.Fatalf("a delivered message must not answer an error, got %v", err)
+			}
+			if sent == nil || *sent != (generated.SentMessage{}) {
+				t.Errorf("sent = %+v, want an empty answer", sent)
+			}
+		})
+	}
+}
+
 func TestSendingWrappersKeepTheErrorOfARefusedDelivery(t *testing.T) {
 	for _, wrapper := range sendingWrappers() {
 		t.Run(wrapper.name, func(t *testing.T) {

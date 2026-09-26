@@ -118,10 +118,11 @@ func (s *MessagesService) Send(ctx context.Context, message MessageContent) (sen
 
 // readSentMessage reads what HEY answered for a message it has just delivered — a new
 // message, a reply or a sent draft (entries/_sent.jbuilder). By the time it runs the
-// message has gone out, so an answer that cannot be read costs the ids rather than the
-// send: a caller told the send failed would send it again. That is why the delivering
-// wrappers read the raw response here instead of through the generated parser, which
-// fails the call on a body it cannot decode.
+// message has gone out, so an answer that cannot be read — one that does not decode, or
+// one past the client's response body limit, which is refused as it is read here — costs
+// the ids rather than the send: a caller told the send failed would send it again. That
+// is why the delivering wrappers read the raw response here instead of through the
+// generated parser, which fails the call on a body it cannot decode.
 //
 // A HEY that predates the ids answers {} — or, while Undo Send holds the delivery back,
 // only notice, undo_action and undo_timeout. Where HEY leaves delayed out, it is read

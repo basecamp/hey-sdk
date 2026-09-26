@@ -24,7 +24,7 @@ type draftTestRoute struct {
 
 // newDraftTestClient serves /identity.json for the sender lookup and the given routes,
 // keyed by path pattern (pathMatch), and fails the test on anything else.
-func newDraftTestClient(t *testing.T, routes map[string]draftTestRoute) *Client {
+func newDraftTestClient(t *testing.T, routes map[string]draftTestRoute, opts ...ClientOption) *Client {
 	t.Helper()
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/identity.json" {
@@ -72,11 +72,11 @@ func newDraftTestClient(t *testing.T, routes map[string]draftTestRoute) *Client 
 	t.Cleanup(server.Close)
 
 	cfg := &Config{BaseURL: server.URL}
-	return NewClient(cfg, &StaticTokenProvider{Token: "test-token"},
+	return NewClient(cfg, &StaticTokenProvider{Token: "test-token"}, append([]ClientOption{
 		WithMaxRetries(0),
-		WithBaseDelay(1*time.Millisecond),
-		WithMaxJitter(1*time.Millisecond),
-	)
+		WithBaseDelay(1 * time.Millisecond),
+		WithMaxJitter(1 * time.Millisecond),
+	}, opts...)...)
 }
 
 func TestMessagesService_CreateDraft(t *testing.T) {
