@@ -267,3 +267,12 @@ structure HeyBodyCondition {
 @trait(selector: "operation")
 @specificationExtension(as: "x-hey-untrusted-content")
 boolean heyUntrustedContent
+
+/// Marks an operation whose work is done once HEY answers a success, whatever the answer
+/// says: a message HEY has delivered. A 2xx whose body is empty, cannot be read or does not
+/// decode is an empty result rather than an error, since a caller told such a write failed
+/// would do it again. A status outside 2xx is an error as usual.
+/// Emits x-hey-lenient-success extension to OpenAPI for SDK code generators.
+@trait(selector: "operation")
+@specificationExtension(as: "x-hey-lenient-success")
+structure heyLenientSuccess {}

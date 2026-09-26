@@ -56,6 +56,7 @@ use hey.traits#heyDestructive
 use hey.traits#heyOpenWorld
 use hey.traits#heyDraftWhen
 use hey.traits#heyUntrustedContent
+use hey.traits#heyLenientSuccess
 
 /// ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)
 @timestampFormat("date-time")
@@ -1749,7 +1750,9 @@ structure GetMessageOutput {
 /// delivers it and answers the sent message, while entry.status "drafted" leaves it as a
 /// draft and answers 204 with no body: the draft's id is in the Location header, which
 /// names /messages/{entry_id}. The Go, Rust, Kotlin and Swift draft conveniences read it
-/// from there; a direct caller reads that header rather than a body.
+/// from there; a direct caller reads that header rather than a body. A success whose body
+/// is empty or does not decode — that 204, or a delivery whose answer is unreadable — is an
+/// empty result, not an error (heyLenientSuccess).
 @http(method: "POST", uri: "/messages.json")
 @tags(["Messages"])
 @heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
@@ -1760,6 +1763,7 @@ structure GetMessageOutput {
     { pointer: "/entry/scheduled_delivery", notEquals: "true" }
 ])
 @heyUntrustedContent(false)
+@heyLenientSuccess
 operation CreateMessage {
     input: CreateMessageInput
     output: CreateMessageOutput
@@ -1828,7 +1832,8 @@ structure MessagePayload {
 /// Revise a message entry (MessagesController#update). With entry.status "drafted" the
 /// entry is saved as a draft (204 + Location, like CreateMessage, and no body); without
 /// it a draft is delivered through the undo-delay window and HEY answers the sent
-/// message. A trashed draft is silently restored first.
+/// message; a success whose body is empty or does not decode is an empty result, not an
+/// error (heyLenientSuccess). A trashed draft is silently restored first.
 /// The revision is not a patch: subject, content and any scheduled delivery are rewritten
 /// from this request (an omitted scheduled delivery clears one), while recipients are
 /// replaced only when entry.addressed is present.
@@ -1847,6 +1852,7 @@ structure MessagePayload {
     { pointer: "/entry/scheduled_delivery", notEquals: "true" }
 ])
 @heyUntrustedContent(false)
+@heyLenientSuccess
 operation UpdateMessage {
     input: UpdateMessageInput
     output: UpdateMessageOutput
@@ -2064,6 +2070,8 @@ structure DeleteDraftInput {
 /// (entry.status "drafted") answers 204 with no body: the draft's id is in the Location
 /// header, which names /messages/{entry_id}. The Go, Rust, Kotlin and Swift reply-draft
 /// conveniences read it from there; a direct caller reads that header rather than a body.
+/// A success whose body is empty or does not decode is an empty result, not an error
+/// (heyLenientSuccess).
 @http(method: "POST", uri: "/entries/{entryId}/replies.json")
 @tags(["Entries"])
 @heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
@@ -2074,6 +2082,7 @@ structure DeleteDraftInput {
     { pointer: "/entry/scheduled_delivery", notEquals: "true" }
 ])
 @heyUntrustedContent(false)
+@heyLenientSuccess
 operation CreateReply {
     input: CreateReplyInput
     output: CreateReplyOutput

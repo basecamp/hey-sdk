@@ -147,6 +147,24 @@ private fun formFields(body: String): Map<String, String> = body.split('&').asso
         repeat(4) { assertEquals(SentMessage(), client.messages.send(lunchMessage)) }
     }
 
+    /**
+     * The generated operation that delivers a message reads an unreadable success as an empty
+     * answer too ([Route.lenientSuccess]), while an error status stays an error and an
+     * ordinary read still fails on an unreadable body.
+     */
+    @Test
+    fun aDeliveryWhoseSuccessCannotBeReadIsNotAnError() = runTest {
+        val hey = mockHey(ok("<html>Message sent</html>"), ok("""{"id":2201,"topic_"""), status(204), status(422, "not json"), ok("not json"))
+        val client = hey.client()
+        val body = com.basecamp.hey.generated.models.CreateMessageRequestContent(
+            actingSenderId = 314,
+            message = com.basecamp.hey.generated.models.MessagePayload(subject = "Lunch on Friday", content = "Are you free at noon?"),
+        )
+        repeat(3) { assertEquals(SentMessage(), client.messages.create(body)) }
+        assertFailsWith<HeyException> { client.messages.create(body) }
+        assertFailsWith<HeyException> { client.messages.get(9) }
+    }
+
     private val lunchMessage = MessageContent("Lunch on Friday", "Are you free at noon?", to = listOf("maria@example.com"), actingSenderId = 314)
 
     @Test

@@ -116,6 +116,9 @@ pub(crate) struct Operation {
     pub idempotent: bool,
     pub readonly: bool,
     pub empty_on: Vec<u16>,
+    /// A 2xx whose body cannot be read or does not decode is an empty result
+    /// (`x-hey-lenient-success`): the operation's work is done once HEY answers a success.
+    pub lenient_success: bool,
     pub pagination: Pagination,
     pub retry: Retry,
 }
@@ -438,6 +441,7 @@ fn build_services(
                 idempotent: idempotent(http_method, operation, semantics),
                 readonly: readonly(semantics, id)?,
                 empty_on: empty_on(operation),
+                lenient_success: operation.get("x-hey-lenient-success").is_some(),
                 pagination: pagination(semantics)?,
                 retry: retry(semantics),
             };

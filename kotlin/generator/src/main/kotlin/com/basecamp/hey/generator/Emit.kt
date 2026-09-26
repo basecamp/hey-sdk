@@ -159,6 +159,7 @@ fun renderRoutes(model: Model): String = buildString {
         appendLine("        pagination = Pagination.${operation.pagination.name},")
         appendLine("        pageParameter = ${operation.pageParameter?.let(::literal) ?: "null"},")
         appendLine("        retry = RetryPolicy(max = ${operation.retry.max}, baseDelayMs = ${operation.retry.baseDelayMs}L, retryOn = ${intList(operation.retry.on)}),")
+        if (operation.lenientSuccess) appendLine("        lenientSuccess = true,")
         appendLine("    )")
         appendLine()
     }

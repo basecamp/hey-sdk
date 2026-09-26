@@ -37,6 +37,27 @@ final class MessagesTests: XCTestCase {
         XCTAssertEqual(try jsonObject(hey.requests[1].body)["acting_sender_id"] as? Int, 100)
     }
 
+    /// The generated operation that delivers a message reads an unreadable success as an empty
+    /// answer too (``Route/lenientSuccess``), while an error status stays an error and an ordinary
+    /// read still fails on an unreadable body.
+    func testADeliveryWhoseSuccessCannotBeReadIsNotAnError() async throws {
+        let hey = mockHey(
+            ok("<html>Message sent</html>"), ok(#"{"id":2201,"topic_"#), status(204, nil, []),
+            status(422, "not json", []), ok("not json"))
+        let client = try hey.client()
+        let body = CreateMessageRequestContent(
+            actingSenderId: 314, message: MessagePayload(subject: "Lunch on Friday", content: "Are you free at noon?"))
+        for _ in 0..<3 {
+            let sent = try await client.messages.create(body: body)
+            XCTAssertEqual(sent, SentMessage())
+        }
+        await assertThrows(HeyError.codeValidation, try await client.messages.create(body: body))
+        do {
+            _ = try await client.messages.get(messageId: 9)
+            XCTFail("an unreadable read must still fail")
+        } catch {}
+    }
+
     private let lunchMessage = MessageContent(
         subject: "Lunch on Friday", content: "Are you free at noon?", to: ["maria@example.com"], actingSenderId: 314)
 

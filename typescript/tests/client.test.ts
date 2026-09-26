@@ -344,6 +344,50 @@ describe("HEY transport", () => {
       message: "HEY returned HTTP 403",
     });
   });
+  it("does not fail a delivery whose successful answer cannot be read", async () => {
+    // A message HEY answers a success for has gone out, so the operations that deliver one
+    // answer no data for an unreadable 2xx: a caller told the send failed would send again.
+    const send = {
+      body: {
+        acting_sender_id: 314,
+        message: { subject: "Lunch on Friday", content: "Are you free at noon?" },
+      },
+    };
+    const m = mock([
+      new Response("<html>Message sent</html>"),
+      new Response('{"id":2201,"topic_'),
+      new Response(" ".repeat(4096)),
+      new Response(null, { status: 204 }),
+    ]);
+    const c = new HeyClient({
+      token: "secret",
+      fetch: m.fetch,
+      maxResponseBodyBytes: 1024,
+    });
+    for (let i = 0; i < 4; i++) {
+      const sent = await c.createMessage(send);
+      expect(sent.data).toBeUndefined();
+      expect(sent.status).toBeLessThan(300);
+    }
+  });
+  it("reads only a delivery's success leniently", async () => {
+    const m = mock([
+      new Response("not json", { status: 422 }),
+      new Response("not json"),
+    ]);
+    const c = new HeyClient({ token: "secret", fetch: m.fetch });
+    await expect(
+      c.createMessage({
+        body: {
+          acting_sender_id: 314,
+          message: { subject: "Lunch on Friday", content: "Are you free at noon?" },
+        },
+      }),
+    ).rejects.toMatchObject({ httpStatus: 422 });
+    await expect(c.getMessage({ path: { messageId: 9 } })).rejects.toMatchObject({
+      message: "Invalid JSON response",
+    });
+  });
   it("does not replay non-idempotent POST or explicitly unsafe PUT on 429/503", async () => {
     for (const status of [429, 503]) {
       const m = mock([json({}, status), json({}, status)]);

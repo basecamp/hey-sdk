@@ -12383,6 +12383,8 @@ type ClientWithResponsesInterface interface {
 	// (entry.status "drafted") answers 204 with no body: the draft's id is in the Location
 	// header, which names /messages/{entry_id}. The Go, Rust, Kotlin and Swift reply-draft
 	// conveniences read it from there; a direct caller reads that header rather than a body.
+	// A success whose body is empty or does not decode is an empty result, not an error
+	// (heyLenientSuccess).
 	//
 	// Returns a wrapper object for the known response body format(s).
 	CreateReplyWithBodyWithResponse(ctx context.Context, entryId int64, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateReplyResponse, error)
@@ -12394,6 +12396,8 @@ type ClientWithResponsesInterface interface {
 	// (entry.status "drafted") answers 204 with no body: the draft's id is in the Location
 	// header, which names /messages/{entry_id}. The Go, Rust, Kotlin and Swift reply-draft
 	// conveniences read it from there; a direct caller reads that header rather than a body.
+	// A success whose body is empty or does not decode is an empty result, not an error
+	// (heyLenientSuccess).
 	CreateReplyWithResponse(ctx context.Context, entryId int64, body CreateReplyJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateReplyResponse, error)
 
 	// NewEntryReplyWithResponse performs a GET /entries/{entryId}/replies/new.json (the `NewEntryReply` operationId) request.
@@ -12474,7 +12478,9 @@ type ClientWithResponsesInterface interface {
 	// delivers it and answers the sent message, while entry.status "drafted" leaves it as a
 	// draft and answers 204 with no body: the draft's id is in the Location header, which
 	// names /messages/{entry_id}. The Go, Rust, Kotlin and Swift draft conveniences read it
-	// from there; a direct caller reads that header rather than a body.
+	// from there; a direct caller reads that header rather than a body. A success whose body
+	// is empty or does not decode — that 204, or a delivery whose answer is unreadable — is an
+	// empty result, not an error (heyLenientSuccess).
 	//
 	// Returns a wrapper object for the known response body format(s).
 	CreateMessageWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateMessageResponse, error)
@@ -12488,7 +12494,9 @@ type ClientWithResponsesInterface interface {
 	// delivers it and answers the sent message, while entry.status "drafted" leaves it as a
 	// draft and answers 204 with no body: the draft's id is in the Location header, which
 	// names /messages/{entry_id}. The Go, Rust, Kotlin and Swift draft conveniences read it
-	// from there; a direct caller reads that header rather than a body.
+	// from there; a direct caller reads that header rather than a body. A success whose body
+	// is empty or does not decode — that 204, or a delivery whose answer is unreadable — is an
+	// empty result, not an error (heyLenientSuccess).
 	CreateMessageWithResponse(ctx context.Context, body CreateMessageJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateMessageResponse, error)
 
 	// GetMessageWithResponse performs a GET /messages/{messageId} (the `GetMessage` operationId) request.
@@ -12504,7 +12512,8 @@ type ClientWithResponsesInterface interface {
 	// Revise a message entry (MessagesController#update). With entry.status "drafted" the
 	// entry is saved as a draft (204 + Location, like CreateMessage, and no body); without
 	// it a draft is delivered through the undo-delay window and HEY answers the sent
-	// message. A trashed draft is silently restored first.
+	// message; a success whose body is empty or does not decode is an empty result, not an
+	// error (heyLenientSuccess). A trashed draft is silently restored first.
 	// The revision is not a patch: subject, content and any scheduled delivery are rewritten
 	// from this request (an omitted scheduled delivery clears one), while recipients are
 	// replaced only when entry.addressed is present.
@@ -12522,7 +12531,8 @@ type ClientWithResponsesInterface interface {
 	// Revise a message entry (MessagesController#update). With entry.status "drafted" the
 	// entry is saved as a draft (204 + Location, like CreateMessage, and no body); without
 	// it a draft is delivered through the undo-delay window and HEY answers the sent
-	// message. A trashed draft is silently restored first.
+	// message; a success whose body is empty or does not decode is an empty result, not an
+	// error (heyLenientSuccess). A trashed draft is silently restored first.
 	// The revision is not a patch: subject, content and any scheduled delivery are rewritten
 	// from this request (an omitted scheduled delivery clears one), while recipients are
 	// replaced only when entry.addressed is present.
@@ -23394,6 +23404,8 @@ func (c *ClientWithResponses) NewEntryForwardWithResponse(ctx context.Context, e
 // (entry.status "drafted") answers 204 with no body: the draft's id is in the Location
 // header, which names /messages/{entry_id}. The Go, Rust, Kotlin and Swift reply-draft
 // conveniences read it from there; a direct caller reads that header rather than a body.
+// A success whose body is empty or does not decode is an empty result, not an error
+// (heyLenientSuccess).
 //
 // Returns a wrapper object for the known response body format(s).
 func (c *ClientWithResponses) CreateReplyWithBodyWithResponse(ctx context.Context, entryId int64, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateReplyResponse, error) {
@@ -23411,6 +23423,8 @@ func (c *ClientWithResponses) CreateReplyWithBodyWithResponse(ctx context.Contex
 // (entry.status "drafted") answers 204 with no body: the draft's id is in the Location
 // header, which names /messages/{entry_id}. The Go, Rust, Kotlin and Swift reply-draft
 // conveniences read it from there; a direct caller reads that header rather than a body.
+// A success whose body is empty or does not decode is an empty result, not an error
+// (heyLenientSuccess).
 func (c *ClientWithResponses) CreateReplyWithResponse(ctx context.Context, entryId int64, body CreateReplyJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateReplyResponse, error) {
 	rsp, err := c.CreateReply(ctx, entryId, body, reqEditors...)
 	if err != nil {
@@ -23551,7 +23565,9 @@ func (c *ClientWithResponses) GetImboxSeenWithResponse(ctx context.Context, para
 // delivers it and answers the sent message, while entry.status "drafted" leaves it as a
 // draft and answers 204 with no body: the draft's id is in the Location header, which
 // names /messages/{entry_id}. The Go, Rust, Kotlin and Swift draft conveniences read it
-// from there; a direct caller reads that header rather than a body.
+// from there; a direct caller reads that header rather than a body. A success whose body
+// is empty or does not decode — that 204, or a delivery whose answer is unreadable — is an
+// empty result, not an error (heyLenientSuccess).
 //
 // Returns a wrapper object for the known response body format(s).
 func (c *ClientWithResponses) CreateMessageWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateMessageResponse, error) {
@@ -23571,7 +23587,9 @@ func (c *ClientWithResponses) CreateMessageWithBodyWithResponse(ctx context.Cont
 // delivers it and answers the sent message, while entry.status "drafted" leaves it as a
 // draft and answers 204 with no body: the draft's id is in the Location header, which
 // names /messages/{entry_id}. The Go, Rust, Kotlin and Swift draft conveniences read it
-// from there; a direct caller reads that header rather than a body.
+// from there; a direct caller reads that header rather than a body. A success whose body
+// is empty or does not decode — that 204, or a delivery whose answer is unreadable — is an
+// empty result, not an error (heyLenientSuccess).
 func (c *ClientWithResponses) CreateMessageWithResponse(ctx context.Context, body CreateMessageJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateMessageResponse, error) {
 	rsp, err := c.CreateMessage(ctx, body, reqEditors...)
 	if err != nil {
@@ -23599,7 +23617,8 @@ func (c *ClientWithResponses) GetMessageWithResponse(ctx context.Context, messag
 // Revise a message entry (MessagesController#update). With entry.status "drafted" the
 // entry is saved as a draft (204 + Location, like CreateMessage, and no body); without
 // it a draft is delivered through the undo-delay window and HEY answers the sent
-// message. A trashed draft is silently restored first.
+// message; a success whose body is empty or does not decode is an empty result, not an
+// error (heyLenientSuccess). A trashed draft is silently restored first.
 // The revision is not a patch: subject, content and any scheduled delivery are rewritten
 // from this request (an omitted scheduled delivery clears one), while recipients are
 // replaced only when entry.addressed is present.
@@ -23623,7 +23642,8 @@ func (c *ClientWithResponses) UpdateMessageWithBodyWithResponse(ctx context.Cont
 // Revise a message entry (MessagesController#update). With entry.status "drafted" the
 // entry is saved as a draft (204 + Location, like CreateMessage, and no body); without
 // it a draft is delivered through the undo-delay window and HEY answers the sent
-// message. A trashed draft is silently restored first.
+// message; a success whose body is empty or does not decode is an empty result, not an
+// error (heyLenientSuccess). A trashed draft is silently restored first.
 // The revision is not a patch: subject, content and any scheduled delivery are rewritten
 // from this request (an omitted scheduled delivery clears one), while recipients are
 // replaced only when entry.addressed is present.
@@ -29097,6 +29117,9 @@ func ParseCreateReplyResponse(rsp *http.Response) (*CreateReplyResponse, error) 
 	bodyBytes, err := io.ReadAll(rsp.Body)
 	defer func() { _ = rsp.Body.Close() }()
 	if err != nil {
+		if rsp.StatusCode >= 200 && rsp.StatusCode < 300 {
+			return &CreateReplyResponse{HTTPResponse: rsp}, nil
+		}
 		return nil, err
 	}
 
@@ -29105,8 +29128,9 @@ func ParseCreateReplyResponse(rsp *http.Response) (*CreateReplyResponse, error) 
 		HTTPResponse: rsp,
 	}
 
-	// An undecodable body fails only a 2xx; an error status answers on its own, body or not.
-	if _, err := func() (*CreateReplyResponse, error) {
+	// A lenient success has done its work once HEY answers a 2xx, and an error status answers
+	// on its own, so an undecodable body fails neither: its payload is left nil.
+	_, _ = func() (*CreateReplyResponse, error) {
 		switch {
 		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 			var dest CreateReplyResponseContent
@@ -29153,9 +29177,7 @@ func ParseCreateReplyResponse(rsp *http.Response) (*CreateReplyResponse, error) 
 		}
 
 		return response, nil
-	}(); err != nil && rsp.StatusCode/100 == 2 {
-		return nil, err
-	}
+	}()
 
 	return response, nil
 }
@@ -29614,6 +29636,9 @@ func ParseCreateMessageResponse(rsp *http.Response) (*CreateMessageResponse, err
 	bodyBytes, err := io.ReadAll(rsp.Body)
 	defer func() { _ = rsp.Body.Close() }()
 	if err != nil {
+		if rsp.StatusCode >= 200 && rsp.StatusCode < 300 {
+			return &CreateMessageResponse{HTTPResponse: rsp}, nil
+		}
 		return nil, err
 	}
 
@@ -29622,8 +29647,9 @@ func ParseCreateMessageResponse(rsp *http.Response) (*CreateMessageResponse, err
 		HTTPResponse: rsp,
 	}
 
-	// An undecodable body fails only a 2xx; an error status answers on its own, body or not.
-	if _, err := func() (*CreateMessageResponse, error) {
+	// A lenient success has done its work once HEY answers a 2xx, and an error status answers
+	// on its own, so an undecodable body fails neither: its payload is left nil.
+	_, _ = func() (*CreateMessageResponse, error) {
 		switch {
 		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 			var dest CreateMessageResponseContent
@@ -29663,9 +29689,7 @@ func ParseCreateMessageResponse(rsp *http.Response) (*CreateMessageResponse, err
 		}
 
 		return response, nil
-	}(); err != nil && rsp.StatusCode/100 == 2 {
-		return nil, err
-	}
+	}()
 
 	return response, nil
 }
@@ -29736,6 +29760,9 @@ func ParseUpdateMessageResponse(rsp *http.Response) (*UpdateMessageResponse, err
 	bodyBytes, err := io.ReadAll(rsp.Body)
 	defer func() { _ = rsp.Body.Close() }()
 	if err != nil {
+		if rsp.StatusCode >= 200 && rsp.StatusCode < 300 {
+			return &UpdateMessageResponse{HTTPResponse: rsp}, nil
+		}
 		return nil, err
 	}
 
@@ -29744,8 +29771,9 @@ func ParseUpdateMessageResponse(rsp *http.Response) (*UpdateMessageResponse, err
 		HTTPResponse: rsp,
 	}
 
-	// An undecodable body fails only a 2xx; an error status answers on its own, body or not.
-	if _, err := func() (*UpdateMessageResponse, error) {
+	// A lenient success has done its work once HEY answers a 2xx, and an error status answers
+	// on its own, so an undecodable body fails neither: its payload is left nil.
+	_, _ = func() (*UpdateMessageResponse, error) {
 		switch {
 		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 			var dest UpdateMessageResponseContent
@@ -29792,9 +29820,7 @@ func ParseUpdateMessageResponse(rsp *http.Response) (*UpdateMessageResponse, err
 		}
 
 		return response, nil
-	}(); err != nil && rsp.StatusCode/100 == 2 {
-		return nil, err
-	}
+	}()
 
 	return response, nil
 }

@@ -100,6 +100,8 @@ class Operation(
     val idempotent: Boolean,
     val readonly: Boolean,
     val emptyOn: List<Int>,
+    /** A 2xx whose body cannot be read or does not decode is an empty result (`x-hey-lenient-success`). */
+    val lenientSuccess: Boolean,
     val pagination: Pagination,
     val pageParameter: String?,
     val retry: Retry,
@@ -245,6 +247,7 @@ private fun buildServices(openapi: JsonObject, behavior: JsonObject, naming: Nam
                 readonly = semantics["readonly"]?.let { (it as? JsonPrimitive)?.booleanOrNull }
                     ?: throw GeneratorException("$id has no readonly in behavior-model.json"),
                 emptyOn = statusCodes(operationObject.obj("x-hey-empty-on")?.get("statusCodes")),
+                lenientSuccess = "x-hey-lenient-success" in operationObject,
                 pagination = pagination(semantics),
                 pageParameter = semantics.obj("pagination")?.string("pageParameter"),
                 retry = retry(semantics),

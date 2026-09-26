@@ -173,5 +173,92 @@
       "clientLayer": "hey"
     },
     "tags": ["drafts", "sent-message"]
+  },
+  {
+    "name": "CreateMessage answers a delivery whose answer is not JSON without an error",
+    "description": "Verifies the generated operation that delivers a message reads a 2xx it cannot decode as an empty result: the message went out, and a caller told it failed would send it again (heyLenientSuccess)",
+    "operation": "CreateMessage",
+    "method": "POST",
+    "path": "/messages.json",
+    "requestBody": {
+      "acting_sender_id": 314,
+      "subject": "Lunch on Friday",
+      "content": "<div>Are you free at noon?</div>",
+      "to": ["maria@example.com"]
+    },
+    "mockResponses": [
+      {
+        "status": 200,
+        "headers": {
+          "Content-Type": "text/html; charset=utf-8"
+        },
+        "body": "<html><body>Message sent</body></html>"
+      }
+    ],
+    "assertions": [
+      {"type": "requestCount", "expected": 1},
+      {"type": "noError"}
+    ],
+    "tags": ["messages", "sent-message", "lenient-success"]
+  },
+  {
+    "name": "SendDraft wrapper answers a delivery whose answer is not JSON without an error",
+    "description": "Verifies the hand-written draft send reads a 2xx it cannot decode as an empty result, since the draft went out",
+    "operation": "SendDraft",
+    "method": "PUT",
+    "path": "/messages/{entryId}.json",
+    "pathParams": {
+      "entryId": 2201
+    },
+    "requestBody": {
+      "acting_sender_id": 314,
+      "subject": "Lunch on Friday",
+      "content": "<div>Are you free at noon?</div>",
+      "to": ["maria@example.com"]
+    },
+    "mockResponses": [
+      {
+        "status": 200,
+        "headers": {
+          "Content-Type": "text/html; charset=utf-8"
+        },
+        "body": "<html><body>Message sent</body></html>"
+      }
+    ],
+    "assertions": [
+      {"type": "requestCount", "expected": 1},
+      {"type": "noError"}
+    ],
+    "configOverrides": {
+      "clientLayer": "hey"
+    },
+    "tags": ["drafts", "sent-message", "lenient-success"]
+  },
+  {
+    "name": "CreateMessage refused with an answer that is not JSON is still an error",
+    "description": "Verifies only a success is read leniently: a refused delivery whose body does not decode keeps the error its status maps to",
+    "operation": "CreateMessage",
+    "method": "POST",
+    "path": "/messages.json",
+    "requestBody": {
+      "acting_sender_id": 314,
+      "subject": "Lunch on Friday",
+      "content": "<div>Are you free at noon?</div>",
+      "to": ["maria@example"]
+    },
+    "mockResponses": [
+      {
+        "status": 422,
+        "headers": {
+          "Content-Type": "text/html; charset=utf-8"
+        },
+        "body": "<html><body>Unprocessable</body></html>"
+      }
+    ],
+    "assertions": [
+      {"type": "errorCode", "expected": "validation"},
+      {"type": "errorField", "path": "httpStatus", "expected": 422}
+    ],
+    "tags": ["messages", "sent-message", "lenient-success"]
   }
 ]

@@ -43,13 +43,19 @@ out.
 
 The generated operations change with them: `CreateMessage`, `UpdateMessage` and
 `CreateReply` now decode their 200 answer as `SentMessage` (`CreateMessageResponseContent`,
-`UpdateMessageResponseContent`, `CreateReplyResponseContent`) in every SDK. Saving a draft
-through them answers 204 with no body, and the draft's id is in the `Location` header. In
-Go, Rust, Kotlin and Swift, save a draft through the draft conveniences (`CreateDraft`,
-`UpdateDraft`, `CreateReplyDraft` and their equivalents), which read that header; a
-generated Rust, Kotlin or Swift operation decodes a body and fails on the 204. TypeScript has
-no draft conveniences, and its generated operation answers the 204 with `data` undefined:
-read the draft's id from the response's `Location` header.
+`UpdateMessageResponseContent`, `CreateReplyResponseContent`) in every SDK. They are
+marked `@heyLenientSuccess` (ADR-005): a 2xx whose body is empty, cannot be read or does not
+decode is an empty result rather than an error, since the message has gone out — Go's
+`Parse*Response` leaves `JSON200` nil, TypeScript's `data` is `undefined`, and Rust, Kotlin and
+Swift answer what `{}` decodes to. A refused delivery is still an error. Saving a draft
+through them answers 204 with no body, which reads as that empty result; the draft's id is in
+the `Location` header. In Go, Rust, Kotlin and Swift, save a draft through the draft
+conveniences (`CreateDraft`, `UpdateDraft`, `CreateReplyDraft` and their equivalents), which
+read that header. TypeScript has no draft conveniences: read the draft's id from the
+response's `Location` header.
+
+`Route` gains `lenient_success` in Rust (a struct literal needs it), and `lenientSuccess` in
+Kotlin and Swift (defaulted to `false`).
 
 ## Rust: the first release after 0.30.0
 

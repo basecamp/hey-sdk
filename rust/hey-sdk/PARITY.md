@@ -17,6 +17,7 @@ suite.
 |---|---|---|
 | idempotency | per-operation literal in the generated client; a form post is sent once, plus the one resend after a refreshed 401 | `Route::idempotent` → `Operation` → the retry budget; `Client::form` sends once, plus that same resend |
 | empty-on statuses | by hand at the one call site (`GetOngoing`) | `Route::empty_on` → `send_optional` → `Option` |
+| lenient success (ADR-005) | the generated `Parse*Response` template leaves the payload nil; the delivery wrappers read the body themselves | `Route::lenient_success` → `send` answers what `{}` decodes to |
 | pagination style | by hand per `*Page` method | `Route::pagination` → generated methods answer `Page<T>`; `next_page`/`each_page` keep the route's policy |
 | retry policy | model policy under the client ceiling (#164) | model policy under the client ceiling (#154) |
 | HTML representation | by hand (`GetStage` strips `.json`, asks `text/html`) | `Route::html` → `Operation` asks as written |

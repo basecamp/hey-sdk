@@ -335,7 +335,8 @@ public enum Routes {
         emptyOn: [],
         pagination: .unpaged,
         pageParameter: nil,
-        retry: RetryPolicy(max: 2, baseDelayMs: 1000, retryOn: [429, 503])
+        retry: RetryPolicy(max: 2, baseDelayMs: 1000, retryOn: [429, 503]),
+        lenientSuccess: true
     )
 
     /// `POST /entries/{entryId}/replies.json`
@@ -356,7 +357,8 @@ public enum Routes {
         emptyOn: [],
         pagination: .unpaged,
         pageParameter: nil,
-        retry: RetryPolicy(max: 2, baseDelayMs: 1000, retryOn: [429, 503])
+        retry: RetryPolicy(max: 2, baseDelayMs: 1000, retryOn: [429, 503]),
+        lenientSuccess: true
     )
 
     /// `POST /stickies.json`
@@ -2657,7 +2659,8 @@ public enum Routes {
         emptyOn: [],
         pagination: .unpaged,
         pageParameter: nil,
-        retry: RetryPolicy(max: 2, baseDelayMs: 1000, retryOn: [429, 503])
+        retry: RetryPolicy(max: 2, baseDelayMs: 1000, retryOn: [429, 503]),
+        lenientSuccess: true
     )
 
     /// `PATCH /my/clearances/{clearanceId}`

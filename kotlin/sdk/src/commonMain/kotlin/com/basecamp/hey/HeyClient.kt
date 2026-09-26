@@ -351,10 +351,22 @@ class HeyClient internal constructor(
     fun form(method: Method, path: String): Operation =
         request(method, path).formRepresentation().captureRedirects().idempotent(false)
 
-    /** Sends an operation and decodes its JSON body. */
+    /**
+     * Sends an operation and decodes its JSON body. A route whose work is done once HEY answers
+     * a success ([Route.lenientSuccess]) — a message HEY has delivered — answers what an empty
+     * JSON object decodes to when a 2xx body is empty, cannot be read or does not decode.
+     */
     suspend fun <T> send(operation: Operation, deserializer: DeserializationStrategy<T>): T {
         val label = operation.label()
-        return execute(operation) { response -> decode(response, deserializer, label) }
+        val lenient = operation.route?.lenientSuccess == true
+        return execute(operation) { response ->
+            try {
+                decode(response, deserializer, label)
+            } catch (error: HeyException.Api) {
+                if (!lenient || response.status !in 200..299) throw error
+                runCatching { heyJson.decodeFromString(deserializer, "{}") }.getOrElse { throw error }
+            }
+        }
     }
 
     /** Sends an operation and decodes its JSON body as [T]. */
@@ -930,6 +942,16 @@ class HeyClient internal constructor(
             Received(url, status, headers, readBody(response, bound), refusal = null, redirected, authenticated, signedUnder, bearer)
         } catch (refusal: HeyException) {
             Received(url, status, headers, ByteArray(0), refusal, redirected, authenticated, signedUnder, bearer)
+        } catch (error: CancellationException) {
+            throw error
+        } catch (error: Exception) {
+            // A route whose work is done once HEY answers a success reads a 2xx body lost
+            // mid-read as no body at all: the write went through either way.
+            if (status in 200..299 && operation.route?.lenientSuccess == true) {
+                Received(url, status, headers, ByteArray(0), refusal = null, redirected, authenticated, signedUnder, bearer)
+            } else {
+                throw error
+            }
         }
     }
 
@@ -997,7 +1019,7 @@ class HeyClient internal constructor(
             // The caller gets a copy: the entry's bytes are the cache's, and a Response's body is the caller's to do with as it likes.
             return Response(200, merged, entry.body.copyOf(), received.url, fromCache = true, empty = false)
         }
-        received.refusal?.let { refusal ->
+        received.refusal?.takeUnless { status in 200..299 && operation.route?.lenientSuccess == true }?.let { refusal ->
             if (status in 200..299) throw refusal
             // The status is what matters about a failure, and a body the client would not
             // hold is no reason to lose it: the error is the one the status maps to, told why

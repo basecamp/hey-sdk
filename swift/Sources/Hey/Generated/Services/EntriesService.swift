@@ -15,6 +15,8 @@ public final class EntriesService: BaseService, @unchecked Sendable {
     /// (entry.status "drafted") answers 204 with no body: the draft's id is in the Location
     /// header, which names /messages/{entry_id}. The Go, Rust, Kotlin and Swift reply-draft
     /// conveniences read it from there; a direct caller reads that header rather than a body.
+    /// A success whose body is empty or does not decode is an empty result, not an error
+    /// (heyLenientSuccess).
     ///
     /// - Parameters:
     ///   - entryId: The entry ID

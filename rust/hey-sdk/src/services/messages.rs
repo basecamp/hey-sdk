@@ -66,7 +66,7 @@ pub struct DraftContent {
 impl Messages<'_> {
     /// Delivers a new message through HEY's undo-delay window, and answers what HEY said
     /// about it: the entry that went out, the thread it started, its subject and whether
-    /// Undo Send is holding it back. An answer that does not decode costs the ids rather than
+    /// Undo Send is holding it back. An answer that cannot be read costs the ids rather than
     /// the send. Delivery needs somebody to deliver to, so at least one recipient is required.
     pub async fn send(&self, message: &MessageContent) -> Result<SentMessage, Error> {
         if !has_recipients(&message.to, &message.cc, &message.bcc) {
@@ -222,10 +222,10 @@ pub(crate) fn drafted_entry(to: &[String], cc: &[String], bcc: &[String]) -> Mes
 }
 
 /// What HEY answered for a message it has just delivered — a new message, a reply or a
-/// sent draft. By the time it is read the message has gone out, so an answer that arrives but
-/// does not decode costs the ids rather than the send: a caller told the send failed would
-/// send it again. A body the client will not hold — past `max_response_body_bytes` — or loses
-/// mid-read is still the error it is for any call; HEY's answer is a couple of hundred bytes.
+/// sent draft. By the time it is read the message has gone out, so an answer that cannot be
+/// read costs the ids rather than the send: a caller told the send failed would send it
+/// again. The routes are `lenient_success` (ADR-005), so a body the client would not hold or
+/// lost mid-read arrives here as no body, and one that does not decode is read as `{}`.
 /// A HEY that predates the ids answers `{}` — or, while Undo Send holds the delivery
 /// back, only the undo members, and `delayed` is read from `undo_action` there, since an
 /// undo is only offered while the delivery is delayed.

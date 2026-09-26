@@ -375,6 +375,30 @@ fn idempotency_is_read_from_the_model_before_the_verb() {
     assert!(route(routes, "REPLACE_BOX").contains("    idempotent: false,\n"));
 }
 
+/// `x-hey-lenient-success` marks a write whose work is done once HEY answers a success; the
+/// route carries it so the client reads an unreadable 2xx as no body, and a route without it
+/// says so too.
+#[test]
+fn a_lenient_success_is_carried_onto_the_route() {
+    let mut delivering = write("post", "DeliverBox", "Boxes", Value::Null);
+    delivering["post"]["x-hey-lenient-success"] = json!({});
+    let files = generate_under(
+        json!({
+            "/boxes/{id}/deliver": delivering,
+            "/boxes/{id}/name": write("patch", "RenameBox", "Boxes", Value::Null),
+        }),
+        box_schema(),
+        &json!({ "operations": {
+            "DeliverBox": write_semantics(None),
+            "RenameBox": write_semantics(None),
+        } }),
+    );
+
+    let routes = file(&files, "routes.rs");
+    assert!(route(routes, "DELIVER_BOX").contains("    lenient_success: true,\n"));
+    assert!(route(routes, "RENAME_BOX").contains("    lenient_success: false,\n"));
+}
+
 #[test]
 fn two_operations_collapsing_to_one_method_fail_generation() {
     let error = build(
