@@ -204,11 +204,13 @@ service HEY {
         GetMyClearances
         UpdateMyClearance
 
-        // Contacts — writing and notes
+        // Contacts — writing, avatars and notes
         CreateContact
         UpdateContact
         HideContact
         RevealContact
+        UpdateContactAvatar
+        DeleteContactAvatar
         GetContactNote
         UpdateContactNote
         DeleteContactNote
@@ -2226,6 +2228,55 @@ structure ContactPayload {
 structure ContactWriteOutput {
     @required
     contact: Contact
+}
+
+/// Set a contact's avatar to an already uploaded JPEG or PNG Active Storage blob.
+/// CreateDirectUpload returns the signed blob ID this operation accepts.
+@idempotent
+@http(method: "PUT", uri: "/contacts/{contactId}/uploaded_avatar.json")
+@tags(["Contacts"])
+@heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+@heyDestructive(false)
+@heyOpenWorld(false)
+@heyUntrustedContent(true)
+operation UpdateContactAvatar {
+    input: UpdateContactAvatarInput
+    output: ContactWriteOutput
+    errors: [UnauthorizedError, NotFoundError, UnprocessableEntityError, InternalServerError, ServiceUnavailableError]
+}
+
+structure UpdateContactAvatarInput {
+    @httpLabel
+    @required
+    contactId: Long
+
+    @httpPayload
+    @required
+    body: ContactAvatarRequestContent
+}
+
+/// Wire format: {contact: {uploaded_avatar: "signed-blob-id"}}
+structure ContactAvatarRequestContent {
+    @required
+    contact: ContactAvatarPayload
+}
+
+structure ContactAvatarPayload {
+    @required
+    uploaded_avatar: String
+}
+
+/// Remove a contact's uploaded avatar and return to their default avatar.
+@idempotent
+@http(method: "DELETE", uri: "/contacts/{contactId}/uploaded_avatar.json")
+@tags(["Contacts"])
+@heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+@heyDestructive(true)
+@heyOpenWorld(false)
+@heyUntrustedContent(false)
+operation DeleteContactAvatar {
+    input: ContactActionInput
+    errors: [UnauthorizedError, NotFoundError, InternalServerError, ServiceUnavailableError]
 }
 
 /// Read the private note kept on a contact

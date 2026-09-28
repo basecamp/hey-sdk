@@ -863,6 +863,26 @@ async fn execute_operation(client: &Client, case: &TestCase) -> Result<Outcome, 
                 .reveal(int64_param(path, "contactId"))
                 .await?,
         ),
+        "UpdateContactAvatar" => {
+            let request = models::ContactAvatarRequestContent {
+                contact: models::ContactAvatarPayload {
+                    uploaded_avatar: string_param(body, "uploaded_avatar"),
+                },
+            };
+            json(
+                client
+                    .contacts()
+                    .update_avatar(int64_param(path, "contactId"), &request)
+                    .await?,
+            )
+        }
+        "DeleteContactAvatar" => {
+            client
+                .contacts()
+                .delete_avatar(int64_param(path, "contactId"))
+                .await?;
+            Ok(Outcome::Unit)
+        }
         "GetContactNote" => json(
             client
                 .contacts()

@@ -11,6 +11,8 @@ import com.basecamp.hey.generated.models.BulkReplyRequestContent
 import com.basecamp.hey.generated.models.BulkUpdateClearancesRequestContent
 import com.basecamp.hey.generated.models.CalendarTodoPayload
 import com.basecamp.hey.generated.models.CollectionPayload
+import com.basecamp.hey.generated.models.ContactAvatarPayload
+import com.basecamp.hey.generated.models.ContactAvatarRequestContent
 import com.basecamp.hey.generated.models.ContactNotePayload
 import com.basecamp.hey.generated.models.ContactNoteRequestContent
 import com.basecamp.hey.generated.models.ContactPayload
@@ -430,6 +432,11 @@ private suspend fun executeOperation(client: HeyClient, case: TestCase): Outcome
             Outcome.Unit
         }
         "RevealContact" -> asJson(client.contacts.reveal(path.int64("contactId")))
+        "UpdateContactAvatar" -> asJson(client.contacts.updateAvatar(path.int64("contactId"), ContactAvatarRequestContent(contact = ContactAvatarPayload(uploadedAvatar = body.string("uploaded_avatar")))))
+        "DeleteContactAvatar" -> {
+            client.contacts.deleteAvatar(path.int64("contactId"))
+            Outcome.Unit
+        }
         "GetContactNote" -> asJson(client.contacts.getNote(path.int64("contactId")))
         "UpdateContactNote" -> asJson(client.contacts.updateNote(path.int64("contactId"), ContactNoteRequestContent(contact = ContactNotePayload(note = body.string("note")))))
         "DeleteContactNote" -> {

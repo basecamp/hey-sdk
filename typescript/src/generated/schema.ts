@@ -1017,6 +1017,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/contacts/{contactId}/uploaded_avatar.json": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * @description Set a contact's avatar to an already uploaded JPEG or PNG Active Storage blob.
+         *     CreateDirectUpload returns the signed blob ID this operation accepts.
+         */
+        put: operations["UpdateContactAvatar"];
+        post?: never;
+        /** @description Remove a contact's uploaded avatar and return to their default avatar. */
+        delete: operations["DeleteContactAvatar"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/entries/drafts.json": {
         parameters: {
             query?: never;
@@ -2448,6 +2469,13 @@ export interface components {
             contactable_type?: string;
             name_tag?: string;
         };
+        ContactAvatarPayload: {
+            uploaded_avatar: string;
+        };
+        /** @description Wire format: {contact: {uploaded_avatar: "signed-blob-id"}} */
+        ContactAvatarRequestContent: {
+            contact: components["schemas"]["ContactAvatarPayload"];
+        };
         /** @description ContactDetail — extended contact with additional show fields */
         ContactDetail: {
             /** Format: int64 */
@@ -3390,6 +3418,7 @@ export interface components {
         UpdateCollectionRequestContent: {
             collection: components["schemas"]["CollectionPayload"];
         };
+        UpdateContactAvatarResponseContent: components["schemas"]["Contact"];
         /** @description Wire format: {status: "approved"|"denied"} — top level, not nested under a clearance key. */
         UpdateContactClearanceRequestContent: {
             status: string;
@@ -7608,6 +7637,133 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["RevealContactResponseContent"];
                 };
+            };
+            /** @description UnauthorizedError 401 response */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UnauthorizedErrorResponseContent"];
+                };
+            };
+            /** @description NotFoundError 404 response */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NotFoundErrorResponseContent"];
+                };
+            };
+            /** @description InternalServerError 500 response */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InternalServerErrorResponseContent"];
+                };
+            };
+            /** @description ServiceUnavailableError 503 response */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ServiceUnavailableErrorResponseContent"];
+                };
+            };
+        };
+    };
+    UpdateContactAvatar: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                contactId: number | bigint;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ContactAvatarRequestContent"];
+            };
+        };
+        responses: {
+            /** @description UpdateContactAvatar 200 response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UpdateContactAvatarResponseContent"];
+                };
+            };
+            /** @description UnauthorizedError 401 response */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UnauthorizedErrorResponseContent"];
+                };
+            };
+            /** @description NotFoundError 404 response */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NotFoundErrorResponseContent"];
+                };
+            };
+            /** @description UnprocessableEntityError 422 response */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UnprocessableEntityErrorResponseContent"];
+                };
+            };
+            /** @description InternalServerError 500 response */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InternalServerErrorResponseContent"];
+                };
+            };
+            /** @description ServiceUnavailableError 503 response */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ServiceUnavailableErrorResponseContent"];
+                };
+            };
+        };
+    };
+    DeleteContactAvatar: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                contactId: number | bigint;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description DeleteContactAvatar 200 response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description UnauthorizedError 401 response */
             401: {

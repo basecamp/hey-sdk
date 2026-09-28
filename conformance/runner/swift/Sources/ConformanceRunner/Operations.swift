@@ -356,6 +356,14 @@ private func executeOperation(_ client: HeyClient, _ testCase: TestCase) async t
         try await client.contacts.hide(contactId: path.int("contactId"))
         return .unit
     case "RevealContact": return try asJSON(try await client.contacts.reveal(contactId: path.int("contactId")))
+    case "UpdateContactAvatar":
+        return try asJSON(
+            try await client.contacts.updateAvatar(
+                contactId: path.int("contactId"),
+                body: ContactAvatarRequestContent(contact: ContactAvatarPayload(uploadedAvatar: body.string("uploaded_avatar")))))
+    case "DeleteContactAvatar":
+        try await client.contacts.deleteAvatar(contactId: path.int("contactId"))
+        return .unit
     case "GetContactNote": return try asJSON(try await client.contacts.getNote(contactId: path.int("contactId")))
     case "UpdateContactNote":
         return try asJSON(

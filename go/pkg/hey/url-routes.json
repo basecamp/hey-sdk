@@ -603,6 +603,20 @@
       }
     },
     {
+      "pattern": "/contacts/{contactId}/uploaded_avatar",
+      "resource": "Contacts",
+      "operations": {
+        "DELETE": "DeleteContactAvatar",
+        "PUT": "UpdateContactAvatar"
+      },
+      "params": {
+        "contactId": {
+          "role": "parent",
+          "type": "int64"
+        }
+      }
+    },
+    {
       "pattern": "/entries/drafts",
       "resource": "Entries",
       "operations": {

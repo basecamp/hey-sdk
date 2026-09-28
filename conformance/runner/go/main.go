@@ -1477,6 +1477,15 @@ func executeOperation(client *generated.Client, ctx context.Context, tc TestCase
 	case "RevealContact":
 		contactId := getInt64Param(tc.PathParams, "contactId")
 		return client.RevealContact(ctx, contactId)
+	case "UpdateContactAvatar":
+		contactId := getInt64Param(tc.PathParams, "contactId")
+		body := generated.UpdateContactAvatarJSONRequestBody{
+			Contact: generated.ContactAvatarPayload{UploadedAvatar: getStringParam(tc.RequestBody, "uploaded_avatar")},
+		}
+		return client.UpdateContactAvatar(ctx, contactId, body)
+	case "DeleteContactAvatar":
+		contactId := getInt64Param(tc.PathParams, "contactId")
+		return client.DeleteContactAvatar(ctx, contactId)
 	case "GetContactNote":
 		contactId := getInt64Param(tc.PathParams, "contactId")
 		return client.GetContactNote(ctx, contactId)

@@ -744,6 +744,22 @@ pub struct Contact {
     pub name_tag: Option<String>,
 }
 
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+pub struct ContactAvatarPayload {
+    #[serde(
+        default,
+        deserialize_with = "crate::types::null_as_default::deserialize"
+    )]
+    pub uploaded_avatar: String,
+}
+
+/// Wire format: {contact: {uploaded_avatar: "signed-blob-id"}}
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+pub struct ContactAvatarRequestContent {
+    #[serde(default)]
+    pub contact: ContactAvatarPayload,
+}
+
 /// ContactDetail — extended contact with additional show fields
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 #[non_exhaustive]
@@ -2400,6 +2416,8 @@ pub struct UpdateCollectionRequestContent {
     #[serde(default)]
     pub collection: CollectionPayload,
 }
+
+pub type UpdateContactAvatarResponseContent = Contact;
 
 /// Wire format: {status: "approved"|"denied"} — top level, not nested under a clearance key.
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]

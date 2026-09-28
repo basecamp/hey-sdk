@@ -91,6 +91,23 @@ final class ContactsTests: XCTestCase {
         XCTAssertEqual(error?.message, "Name can't be blank; Email address is invalid")
     }
 
+    func testAnAvatarIsUpdatedFromASignedBlobAndDeleted() async throws {
+        let hey = mockHey(ok(#"{"id":77,"avatar_url":"https://example.com/avatar.png"}"#), status(204))
+        let client = try hey.client()
+
+        let updated = try await client.contacts.updateAvatar(
+            contactId: 77,
+            body: ContactAvatarRequestContent(contact: ContactAvatarPayload(uploadedAvatar: "signed-blob-id")))
+        try await client.contacts.deleteAvatar(contactId: 77)
+
+        XCTAssertEqual(updated.id, 77)
+        XCTAssertEqual(hey.requests[0].method, "PUT")
+        XCTAssertEqual(hey.requests[0].path, "/contacts/77/uploaded_avatar.json")
+        XCTAssertEqual(try contact(hey.requests[0])["uploaded_avatar"] as? String, "signed-blob-id")
+        XCTAssertEqual(hey.requests[1].method, "DELETE")
+        XCTAssertEqual(hey.requests[1].path, "/contacts/77/uploaded_avatar.json")
+    }
+
     func testARewordedRefusalIsWhatTheHooksHearTheWriteEndWith() async throws {
         let hey = mockHey(status(409, #"{"errors":["Email address has already been taken"],"contact_id":80}"#))
         final class Ends: HeyHooks, @unchecked Sendable {

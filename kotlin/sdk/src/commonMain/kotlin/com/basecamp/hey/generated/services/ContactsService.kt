@@ -5,6 +5,7 @@ package com.basecamp.hey.generated.services
 import com.basecamp.hey.HeyClient
 import com.basecamp.hey.Page
 import com.basecamp.hey.generated.Routes
+import com.basecamp.hey.generated.models.ContactAvatarRequestContent
 import com.basecamp.hey.generated.models.ContactNoteRequestContent
 import com.basecamp.hey.generated.models.ContactRequestContent
 import com.basecamp.hey.generated.models.CreateContactRequestContent
@@ -14,6 +15,7 @@ import com.basecamp.hey.generated.models.GetContactResponseContent
 import com.basecamp.hey.generated.models.ListAddressableContactsResponseContent
 import com.basecamp.hey.generated.models.ListContactsResponseContent
 import com.basecamp.hey.generated.models.RevealContactResponseContent
+import com.basecamp.hey.generated.models.UpdateContactAvatarResponseContent
 import com.basecamp.hey.generated.models.UpdateContactClearanceRequestContent
 import com.basecamp.hey.generated.models.UpdateContactNoteResponseContent
 import com.basecamp.hey.generated.models.UpdateContactResponseContent
@@ -60,6 +62,16 @@ open class ContactsService(client: HeyClient) : BaseService(client) {
         val operation = client.operation(Routes.CREATE_CONTACT, listOf())
         operation.json(body)
         return client.send(operation)
+    }
+
+    /**
+     * Remove a contact's uploaded avatar and return to their default avatar.
+     * @param contactId The contact ID
+     */
+    suspend fun deleteAvatar(contactId: Long): Unit {
+        val operation = client.operation(Routes.DELETE_CONTACT_AVATAR, listOf(contactId))
+        operation.resourceId(contactId)
+        return client.sendUnit(operation)
     }
 
     /**
@@ -165,6 +177,19 @@ open class ContactsService(client: HeyClient) : BaseService(client) {
      */
     suspend fun update(contactId: Long, body: ContactRequestContent): UpdateContactResponseContent {
         val operation = client.operation(Routes.UPDATE_CONTACT, listOf(contactId))
+        operation.resourceId(contactId)
+        operation.json(body)
+        return client.send(operation)
+    }
+
+    /**
+     * Set a contact's avatar to an already uploaded JPEG or PNG Active Storage blob.
+     * CreateDirectUpload returns the signed blob ID this operation accepts.
+     * @param contactId The contact ID
+     * @param body Request body
+     */
+    suspend fun updateAvatar(contactId: Long, body: ContactAvatarRequestContent): UpdateContactAvatarResponseContent {
+        val operation = client.operation(Routes.UPDATE_CONTACT_AVATAR, listOf(contactId))
         operation.resourceId(contactId)
         operation.json(body)
         return client.send(operation)

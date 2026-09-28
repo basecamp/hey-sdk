@@ -6052,6 +6052,185 @@
         "x-hey-untrusted-content": true
       }
     },
+    "/contacts/{contactId}/uploaded_avatar.json": {
+      "delete": {
+        "description": "Remove a contact's uploaded avatar and return to their default avatar.",
+        "operationId": "DeleteContactAvatar",
+        "parameters": [
+          {
+            "name": "contactId",
+            "in": "path",
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "DeleteContactAvatar 200 response"
+          },
+          "401": {
+            "description": "UnauthorizedError 401 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnauthorizedErrorResponseContent"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError 404 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundErrorResponseContent"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "InternalServerError 500 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorResponseContent"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ServiceUnavailableError 503 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceUnavailableErrorResponseContent"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Contacts"
+        ],
+        "x-hey-destructive": true,
+        "x-hey-open-world": false,
+        "x-hey-retry": {
+          "maxAttempts": 2,
+          "baseDelayMs": 1000,
+          "backoff": "exponential",
+          "retryOn": [
+            429,
+            503
+          ]
+        },
+        "x-hey-untrusted-content": false
+      },
+      "put": {
+        "description": "Set a contact's avatar to an already uploaded JPEG or PNG Active Storage blob.\nCreateDirectUpload returns the signed blob ID this operation accepts.",
+        "operationId": "UpdateContactAvatar",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ContactAvatarRequestContent"
+              }
+            }
+          },
+          "required": true
+        },
+        "parameters": [
+          {
+            "name": "contactId",
+            "in": "path",
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "UpdateContactAvatar 200 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UpdateContactAvatarResponseContent"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UnauthorizedError 401 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnauthorizedErrorResponseContent"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError 404 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundErrorResponseContent"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "UnprocessableEntityError 422 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnprocessableEntityErrorResponseContent"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "InternalServerError 500 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorResponseContent"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ServiceUnavailableError 503 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceUnavailableErrorResponseContent"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Contacts"
+        ],
+        "x-hey-destructive": false,
+        "x-hey-open-world": false,
+        "x-hey-retry": {
+          "maxAttempts": 2,
+          "baseDelayMs": 1000,
+          "backoff": "exponential",
+          "retryOn": [
+            429,
+            503
+          ]
+        },
+        "x-hey-untrusted-content": true
+      }
+    },
     "/entries/drafts.json": {
       "get": {
         "description": "List draft messages",
@@ -12067,6 +12246,29 @@
           "id"
         ]
       },
+      "ContactAvatarPayload": {
+        "type": "object",
+        "properties": {
+          "uploaded_avatar": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "uploaded_avatar"
+        ]
+      },
+      "ContactAvatarRequestContent": {
+        "type": "object",
+        "description": "Wire format: {contact: {uploaded_avatar: \"signed-blob-id\"}}",
+        "properties": {
+          "contact": {
+            "$ref": "#/components/schemas/ContactAvatarPayload"
+          }
+        },
+        "required": [
+          "contact"
+        ]
+      },
       "ContactDetail": {
         "type": "object",
         "description": "ContactDetail — extended contact with additional show fields",
@@ -14740,6 +14942,9 @@
         "required": [
           "collection"
         ]
+      },
+      "UpdateContactAvatarResponseContent": {
+        "$ref": "#/components/schemas/Contact"
       },
       "UpdateContactClearanceRequestContent": {
         "type": "object",

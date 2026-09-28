@@ -60,6 +60,15 @@ impl<'a> Contacts<'a> {
         self.client.send(operation).await
     }
 
+    /// Remove a contact's uploaded avatar and return to their default avatar.
+    pub async fn delete_avatar(&self, contact_id: i64) -> Result<(), Error> {
+        let mut operation = self
+            .client
+            .operation(&routes::DELETE_CONTACT_AVATAR, &[&contact_id]);
+        operation.resource_id(contact_id);
+        self.client.send_unit(operation).await
+    }
+
     /// Clear the private note on a contact
     pub async fn delete_note(&self, contact_id: i64) -> Result<(), Error> {
         let mut operation = self
@@ -160,6 +169,21 @@ impl<'a> Contacts<'a> {
         let mut operation = self
             .client
             .operation(&routes::UPDATE_CONTACT, &[&contact_id]);
+        operation.resource_id(contact_id);
+        operation.json(body)?;
+        self.client.send(operation).await
+    }
+
+    /// Set a contact's avatar to an already uploaded JPEG or PNG Active Storage blob.
+    /// CreateDirectUpload returns the signed blob ID this operation accepts.
+    pub async fn update_avatar(
+        &self,
+        contact_id: i64,
+        body: &ContactAvatarRequestContent,
+    ) -> Result<UpdateContactAvatarResponseContent, Error> {
+        let mut operation = self
+            .client
+            .operation(&routes::UPDATE_CONTACT_AVATAR, &[&contact_id]);
         operation.resource_id(contact_id);
         operation.json(body)?;
         self.client.send(operation).await
