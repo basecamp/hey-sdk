@@ -28326,7 +28326,7 @@ func ParseDeleteContactAvatarResponse(rsp *http.Response) (*DeleteContactAvatarR
 	// An undecodable body fails only a 2xx; an error status answers on its own, body or not.
 	if _, err := func() (*DeleteContactAvatarResponse, error) {
 		switch {
-		case rsp.StatusCode == 200:
+		case rsp.StatusCode == 204:
 			break // No content-type
 
 		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:

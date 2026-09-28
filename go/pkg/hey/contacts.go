@@ -374,7 +374,8 @@ func (s *ContactsService) Update(ctx context.Context, contactID int64, params Co
 	return contact, err
 }
 
-// UpdateAvatar sets a contact's avatar to the JPEG or PNG returned by Attachments.Upload.
+// UpdateAvatar sets a contact's avatar from an uploaded blob's signed ID.
+// Pass DirectUpload.SignedId returned by Attachments.Upload or CreateDirectUpload.
 func (s *ContactsService) UpdateAvatar(ctx context.Context, contactID int64, signedBlobID string) (contact *generated.Contact, err error) {
 	op := OperationInfo{
 		Service: "Contacts", Operation: "UpdateContactAvatar",

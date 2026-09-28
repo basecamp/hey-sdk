@@ -6068,8 +6068,8 @@
           }
         ],
         "responses": {
-          "200": {
-            "description": "DeleteContactAvatar 200 response"
+          "204": {
+            "description": "DeleteContactAvatar 204 response"
           },
           "401": {
             "description": "UnauthorizedError 401 response",

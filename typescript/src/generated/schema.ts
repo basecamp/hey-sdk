@@ -7758,8 +7758,8 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description DeleteContactAvatar 200 response */
-            200: {
+            /** @description DeleteContactAvatar 204 response */
+            204: {
                 headers: {
                     [name: string]: unknown;
                 };

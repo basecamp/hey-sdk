@@ -2268,7 +2268,7 @@ structure ContactAvatarPayload {
 
 /// Remove a contact's uploaded avatar and return to their default avatar.
 @idempotent
-@http(method: "DELETE", uri: "/contacts/{contactId}/uploaded_avatar.json")
+@http(method: "DELETE", uri: "/contacts/{contactId}/uploaded_avatar.json", code: 204)
 @tags(["Contacts"])
 @heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
 @heyDestructive(true)
