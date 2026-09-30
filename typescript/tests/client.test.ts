@@ -88,6 +88,24 @@ describe("HEY transport", () => {
       `hey-sdk-typescript/${VERSION} (API ${API_VERSION})`,
     );
   });
+  it("reads the addressable recipients as HEY's bare rows, in order", async () => {
+    const rows = [
+      ["jason@example.com", "Jason Fried"],
+      ["jason@example.com,david@example.com", "Everyone at Example Co", "@example.com"],
+      ["troy@example.org,abed@example.org", "Study group", "Contact group with 2 people"],
+    ];
+    const m = mock([json(rows)]);
+    const result = await new HeyClient({
+      token: "secret",
+      fetch: m.fetch,
+    }).listAddressableContacts({ query: { include_self: true } });
+    const url = new URL(m.requests[0]!.url);
+    expect(m.requests[0]!.method).toBe("GET");
+    expect(url.pathname).toBe("/autocompletable/contacts/addressable.json");
+    expect(url.searchParams.get("include_self")).toBe("true");
+    expectTypeOf(result.data).toEqualTypeOf<string[][] | undefined>();
+    expect(result.data).toEqual(rows);
+  });
   it("requests and returns modeled HTML without inventing a JSON representation", async () => {
     const html = '<section id="container_workflow_stage_5512">Applied</section>';
     const m = mock([

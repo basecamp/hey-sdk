@@ -21,6 +21,12 @@ pub struct ListContactsParams {
     pub q: Option<String>,
 }
 
+/// Optional query parameters for `ListAddressableContacts`.
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct ListAddressableContactsParams {
+    pub include_self: Option<bool>,
+}
+
 pub struct Contacts<'a> {
     client: &'a Client,
 }
@@ -100,6 +106,29 @@ impl<'a> Contacts<'a> {
         operation.query_optional("page", params.page.as_ref());
         operation.query_optional("q", params.q.as_ref());
         self.client.send_page(operation).await
+    }
+
+    /// The recipients HEY suggests in a composer's To, Cc and Bcc fields: the
+    /// contacts the identity recently addressed, then every other contact by name,
+    /// then "Everyone at …" for each active account with a domain, then the
+    /// identity's contact groups. Order is HEY's and is meaningful.
+    ///
+    /// Each row is a bare array of strings, `[value, label]` or
+    /// `[value, label, detail]`: `value` is one address for a contact, or the
+    /// comma-joined addresses of an account's people or a group's members; `label`
+    /// is the name to show (the address itself when there is no name); `detail` is
+    /// "@domain" for an account and "Contact group with N people" for a group.
+    /// An account with nobody but the identity on it (unless `include_self` is
+    /// true) and a group with no members still get a row, with an empty `value`.
+    pub async fn list_addressable(
+        &self,
+        params: &ListAddressableContactsParams,
+    ) -> Result<ListAddressableContactsResponseContent, Error> {
+        let mut operation = self
+            .client
+            .operation(&routes::LIST_ADDRESSABLE_CONTACTS, &[]);
+        operation.query_optional("include_self", params.include_self.as_ref());
+        self.client.send(operation).await
     }
 
     /// Put a hidden contact back in the contact list

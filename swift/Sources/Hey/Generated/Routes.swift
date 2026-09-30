@@ -1477,6 +1477,25 @@ public enum Routes {
         retry: RetryPolicy(max: 2, baseDelayMs: 1000, retryOn: [429, 503])
     )
 
+    /// `GET /autocompletable/contacts/addressable.json`
+    public static let listAddressableContacts = Route(
+        id: "ListAddressableContacts",
+        service: "Contacts",
+        method: .get,
+        path: "/autocompletable/contacts/addressable.json",
+        pattern: "/autocompletable/contacts/addressable",
+        resource: "Contacts",
+        resourceType: "contact",
+        params: [],
+        idempotent: true,
+        readonly: true,
+        html: false,
+        emptyOn: [],
+        pagination: .unpaged,
+        pageParameter: nil,
+        retry: RetryPolicy(max: 3, baseDelayMs: 1000, retryOn: [429, 503])
+    )
+
     /// `GET /boxes/{boxId}/groups.json`
     public static let listBoxGroups = Route(
         id: "ListBoxGroups",
@@ -2714,6 +2733,7 @@ public enum Routes {
         getWorkflow,
         getWorkflowStage,
         hideContact,
+        listAddressableContacts,
         listBoxGroups,
         listBoxes,
         listCalendarDays,

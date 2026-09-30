@@ -78,7 +78,7 @@ pub use calendar_todos::TodoChanges;
 pub use calendars::{CalendarList, ListedCalendar};
 pub use clearances::{ClearanceStatus, ScreenOptions};
 pub use collections::{CreateCollectionParams, UpdateCollectionParams};
-pub use contacts::{ContactConflict, ContactParams};
+pub use contacts::{AddressableRecipient, ContactConflict, ContactParams};
 pub use entries::ReplyContent;
 pub use extenzions::{CreateExtenzionParams, Extenzion, UpdateExtenzionParams};
 pub use habits::HabitParams;

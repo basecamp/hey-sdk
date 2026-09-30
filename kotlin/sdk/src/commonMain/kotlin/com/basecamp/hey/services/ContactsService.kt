@@ -15,6 +15,7 @@ import com.basecamp.hey.generated.models.ContactPayload
 import com.basecamp.hey.generated.models.ContactRequestContent
 import com.basecamp.hey.generated.models.CreateContactRequestContent
 import com.basecamp.hey.generated.models.UpdateContactClearanceRequestContent
+import com.basecamp.hey.generated.services.ListAddressableContactsOptions
 import com.basecamp.hey.heyJson
 import com.basecamp.hey.json
 import kotlinx.serialization.DeserializationStrategy
@@ -78,10 +79,29 @@ data class ContactConflict(
     }
 }
 
+/** One suggestion from HEY's recipient autocomplete list, as [ContactsService.addressable] reads it. */
+data class AddressableRecipient(
+    /**
+     * One address, or a comma-separated list for a contact group or "Everyone at …". It prints
+     * as `[REDACTED]`, as a contact's address does; [SensitiveString.expose] reads it. The
+     * redaction is this field's alone: [label] is the address again for a contact with no
+     * name, and prints as it is.
+     */
+    val value: SensitiveString,
+    /** The name to show; the address itself when the contact has no name. */
+    val label: String,
+    /**
+     * What else HEY says about the row — "@example.com" for an account, "Contact group with 3
+     * people" for a group — and empty for a person.
+     */
+    val detail: String = "",
+)
+
 /**
  * Contacts service with the writes on top of the generated surface (`list`, `get`, `hide`,
- * `reveal`, `bundle`, `getNote`, ...), and the two refusals a contact write answers with
- * named: an address that belongs to someone else, and a contact the model itself rejected.
+ * `reveal`, `bundle`, `getNote`, ...), the two refusals a contact write answers with named
+ * — an address that belongs to someone else, and a contact the model itself rejected — and
+ * the recipients HEY suggests in a composer.
  */
 class ContactsService(client: HeyClient) : GeneratedContactsService(client) {
     /**
@@ -130,6 +150,23 @@ class ContactsService(client: HeyClient) : GeneratedContactsService(client) {
         return write(operation, serializer())
     }
 
+    /**
+     * The recipients HEY suggests in a composer's To, Cc and Bcc fields, in HEY's order: the
+     * contacts the identity recently addressed, then every other contact by name, then
+     * "Everyone at …" for each active account with a domain, then the identity's contact
+     * groups. [includeSelf] asks for the identity's own addresses too, as the web composer
+     * does.
+     *
+     * HEY answers bare `[value, label]` and `[value, label, detail]` rows — what the
+     * generated [listAddressable] answers as they are. A row with fewer than two strings is
+     * skipped rather than failing the read, and so is one with no address in it: "Everyone
+     * at …" for an account nobody else is on, or a contact group with no members.
+     */
+    suspend fun addressable(includeSelf: Boolean = false): List<AddressableRecipient> {
+        val options = ListAddressableContactsOptions(includeSelf = if (includeSelf) true else null)
+        return listAddressable(options).mapNotNull(::addressableRecipient)
+    }
+
     private suspend fun actingUserId(chosen: Long?): Long? {
         val accountId = client.accountId ?: return chosen
         val accountUserId = client.accountUserId()
@@ -157,6 +194,16 @@ class ContactsService(client: HeyClient) : GeneratedContactsService(client) {
             }
         }
     }
+}
+
+/**
+ * The suggestion a row names. A row too short to carry both a value and a label is one the
+ * autocomplete list has nothing to say about, and a row whose value is empty names nobody to
+ * address.
+ */
+private fun addressableRecipient(row: List<String>): AddressableRecipient? {
+    if (row.size < 2 || row[0].isEmpty()) return null
+    return AddressableRecipient(value = SensitiveString(row[0]), label = row[1], detail = row.getOrElse(2) { "" })
 }
 
 private fun contactPayload(params: ContactParams): ContactPayload =

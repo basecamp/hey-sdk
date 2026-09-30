@@ -366,6 +366,11 @@
   },
   {
     "method": "GET",
+    "operationId": "ListAddressableContacts",
+    "path": "/autocompletable/contacts/addressable.json"
+  },
+  {
+    "method": "GET",
     "operationId": "ListBoxGroups",
     "path": "/boxes/{boxId}/groups.json"
   },

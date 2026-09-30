@@ -7,12 +7,12 @@ GitHub Actions remains the authority for the exact pull-request head and support
 
 | Capability | Evidence |
 |---|---|
-| Generated API coverage | `npm run generate:check` verifies 131 modeled operations, generated routes, schemas, guards and coverage metadata against `openapi.json` and `behavior-model.json`. |
-| Runtime behavior | `npm test` runs 518 tests across transport, retries, cancellation, credentials, OAuth, pagination, account scope, response limits, package installation, generation and release integration. |
+| Generated API coverage | `npm run generate:check` verifies 132 modeled operations, generated routes, schemas, guards and coverage metadata against `openapi.json` and `behavior-model.json`. |
+| Runtime behavior | `npm test` runs 521 tests across transport, retries, cancellation, credentials, OAuth, pagination, account scope, response limits, package installation, generation and release integration. |
 | Type safety | `npm run typecheck`, `npm run typecheck:tests` and the conformance-runner typecheck cover the public SDK, tests, examples and fixture adapter. |
 | Package artifact | `npm run package:smoke` packs the package, installs the tarball in an isolated project and validates its exports without resolving repository source files. |
-| Shared conformance | `make conformance-ts` executes 191 applicable fixtures through generated methods. Four named convenience-layer fixtures remain explicitly excluded in `conformance/runner/typescript/not-applicable.json`; stale exclusions and unknown fixture shapes fail closed. |
-| Existing SDKs | `make check` runs the complete Smithy, drift, Go, Rust, TypeScript and conformance gate. Go and Rust each execute all 195 fixtures. |
+| Shared conformance | `make conformance-ts` executes 192 applicable fixtures through generated methods. Four named convenience-layer fixtures remain explicitly excluded in `conformance/runner/typescript/not-applicable.json`; stale exclusions and unknown fixture shapes fail closed. |
+| Existing SDKs | `make check` runs the complete Smithy, drift, Go, Rust, TypeScript and conformance gate. Go and Rust each execute all 196 fixtures. |
 | Release safety | Release tests validate inactive-by-default npm publication, tagged-state parsing, exact-artifact publication and transactional version synchronization across Go, Rust and TypeScript. |
 
 ## Current local result
@@ -27,10 +27,10 @@ rustc --version  # rustc 1.98.1
 
 make check
 # PASS
-# TypeScript tests: 518/518
-# Go conformance: 195/195
-# Rust conformance: 195/195
-# TypeScript conformance: 191/191 applicable; 4 declared exclusions
+# TypeScript tests: 521/521
+# Go conformance: 196/196
+# Rust conformance: 196/196
+# TypeScript conformance: 192/192 applicable; 4 declared exclusions
 ```
 
 Focused TypeScript verification is available with:

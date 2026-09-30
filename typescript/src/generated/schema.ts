@@ -61,6 +61,36 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/autocompletable/contacts/addressable.json": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * @description The recipients HEY suggests in a composer's To, Cc and Bcc fields: the
+         *     contacts the identity recently addressed, then every other contact by name,
+         *     then "Everyone at …" for each active account with a domain, then the
+         *     identity's contact groups. Order is HEY's and is meaningful.
+         *
+         *     Each row is a bare array of strings, `[value, label]` or
+         *     `[value, label, detail]`: `value` is one address for a contact, or the
+         *     comma-joined addresses of an account's people or a group's members; `label`
+         *     is the name to show (the address itself when there is no name); `detail` is
+         *     "@domain" for an account and "Contact group with N people" for a group.
+         *     An account with nobody but the identity on it (unless `include_self` is
+         *     true) and a group with no members still get a row, with an empty `value`.
+         */
+        get: operations["ListAddressableContacts"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/boxes.json": {
         parameters: {
             query?: never;
@@ -2775,6 +2805,7 @@ export interface components {
         JournalEntryPayload: {
             content: string;
         };
+        ListAddressableContactsResponseContent: string[][];
         ListBoxGroupsResponseContent: components["schemas"]["BoxGroupsResponse"];
         ListBoxesResponseContent: components["schemas"]["Box"][];
         ListCalendarDaysResponseContent: components["schemas"]["CalendarDayListPayload"];
@@ -3621,6 +3652,60 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["GetAdvancedSearchFiltersResponseContent"];
+                };
+            };
+            /** @description UnauthorizedError 401 response */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UnauthorizedErrorResponseContent"];
+                };
+            };
+            /** @description InternalServerError 500 response */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InternalServerErrorResponseContent"];
+                };
+            };
+            /** @description ServiceUnavailableError 503 response */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ServiceUnavailableErrorResponseContent"];
+                };
+            };
+        };
+    };
+    ListAddressableContacts: {
+        parameters: {
+            query?: {
+                /**
+                 * @description true includes the identity's own addresses, as the web composer asks.
+                 *     Anything else leaves them out, except an address of its own the
+                 *     identity recently wrote to, which the recent contacts still carry.
+                 */
+                include_self?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description ListAddressableContacts 200 response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListAddressableContactsResponseContent"];
                 };
             };
             /** @description UnauthorizedError 401 response */

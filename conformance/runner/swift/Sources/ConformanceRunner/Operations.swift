@@ -156,6 +156,9 @@ private func executeOperation(_ client: HeyClient, _ testCase: TestCase) async t
             client,
             try await client.contacts.get(contactId: path.int("contactId"), options: GetContactOptions(page: query.stringOrNil("page"))),
             follow)
+    case "ListAddressableContacts":
+        return try asJSON(
+            try await client.contacts.listAddressable(options: ListAddressableContactsOptions(includeSelf: query.boolOrNil("include_self"))))
 
     case "ListCalendars": return try asJSON(try await client.calendars.list())
     case "GetCalendarRecordings":

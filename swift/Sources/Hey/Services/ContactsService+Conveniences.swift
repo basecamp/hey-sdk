@@ -61,9 +61,32 @@ public struct ContactConflict: Sendable, Equatable, CustomStringConvertible {
     }
 }
 
+/// One suggestion from HEY's recipient autocomplete list, as
+/// ``ContactsService/addressable(includeSelf:)`` reads it.
+public struct AddressableRecipient: Sendable, Equatable {
+    /// One address, or a comma-separated list for a contact group or "Everyone at …". It prints
+    /// as `[REDACTED]`, as a contact's address does; ``SensitiveString/expose()`` reads it. The
+    /// redaction is this field's alone: ``label`` is the address again for a contact with no
+    /// name, and prints as it is.
+    public var value: SensitiveString
+    /// The name to show; the address itself when the contact has no name.
+    public var label: String
+    /// What else HEY says about the row — "@example.com" for an account, "Contact group with 3
+    /// people" for a group — and empty for a person.
+    public var detail: String
+
+    /// A suggestion from its parts.
+    public init(value: SensitiveString, label: String, detail: String = "") {
+        self.value = value
+        self.label = label
+        self.detail = detail
+    }
+}
+
 /// The writes on top of the generated surface (`list`, `get`, `hide`, `reveal`, `bundle`,
-/// `getNote`, ...), and the two refusals a contact write answers with named: an address that
-/// belongs to someone else, and a contact the model itself rejected.
+/// `getNote`, ...), the two refusals a contact write answers with named — an address that
+/// belongs to someone else, and a contact the model itself rejected — and the recipients HEY
+/// suggests in a composer.
 extension ContactsService {
     /// Adds a contact and answers it. On a client scoped to an account the contact is filed under
     /// that account, and a ``ContactParams/accountUserId`` naming another one is refused rather
@@ -110,6 +133,21 @@ extension ContactsService {
         operation.resourceId(contactId)
         try operation.json(ContactNoteRequestContent(contact: ContactNotePayload(note: note)))
         return try await write(operation, as: UpdateContactNoteResponseContent.self)
+    }
+
+    /// The recipients HEY suggests in a composer's To, Cc and Bcc fields, in HEY's order: the
+    /// contacts the identity recently addressed, then every other contact by name, then
+    /// "Everyone at …" for each active account with a domain, then the identity's contact
+    /// groups. `includeSelf` asks for the identity's own addresses too, as the web composer
+    /// does.
+    ///
+    /// HEY answers bare `[value, label]` and `[value, label, detail]` rows — what the generated
+    /// ``listAddressable(options:)`` answers as they are. A row with fewer than two strings is
+    /// skipped rather than failing the read, and so is one with no address in it: "Everyone
+    /// at …" for an account nobody else is on, or a contact group with no members.
+    public func addressable(includeSelf: Bool = false) async throws -> [AddressableRecipient] {
+        let options = ListAddressableContactsOptions(includeSelf: includeSelf ? true : nil)
+        return try await listAddressable(options: options).compactMap(addressableRecipient)
     }
 
     private func actingUserId(_ chosen: Int?) async throws -> Int? {
@@ -161,6 +199,14 @@ extension ContactsService {
         }
         return payload
     }
+}
+
+/// The suggestion a row names. A row too short to carry both a value and a label is one the
+/// autocomplete list has nothing to say about, and a row whose value is empty names nobody to
+/// address.
+private func addressableRecipient(_ row: [String]) -> AddressableRecipient? {
+    guard row.count >= 2, !row[0].isEmpty else { return nil }
+    return AddressableRecipient(value: SensitiveString(row[0]), label: row[1], detail: row.count > 2 ? row[2] : "")
 }
 
 /// The server's own words out of a 409. Contact writes answer the `errors` list the other

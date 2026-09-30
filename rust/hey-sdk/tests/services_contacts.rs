@@ -2,13 +2,15 @@
 
 mod support;
 
+use std::sync::Arc;
+
 use hey_sdk::ErrorCode;
 use hey_sdk::services::{ClearanceStatus, ContactConflict, ContactParams};
 use serde_json::{Value, json};
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
-use support::client;
+use support::{Operations, builder, client};
 
 #[tokio::test]
 async fn a_scoped_client_files_a_new_contact_under_its_own_account() {
@@ -253,6 +255,94 @@ async fn screening_a_contact_sends_the_decision_alone() {
         .unwrap();
 
     assert_eq!(sent_json(&server, 0).await, json!({ "status": "denied" }));
+}
+
+/// The autocomplete list answers bare rows in an order that matters — recently addressed
+/// first, then by name, then accounts, then groups — and a row too short to name a value
+/// and a label, or one with no address in it, says nothing and is skipped.
+#[tokio::test]
+async fn the_addressable_recipients_are_read_off_the_rows_in_order() {
+    let server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path("/autocompletable/contacts/addressable.json"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!([
+            ["jason@example.com", "Jason Fried"],
+            ["annie.edison@example.org", "Annie Edison"],
+            ["broken@example.com"],
+            [],
+            ["", "Everyone at Solo Co", "@solo.example"],
+            [
+                "jason@example.com,david@example.com",
+                "Everyone at Example Co",
+                "@example.com"
+            ],
+            ["", "Nobody yet", "Contact group with 0 people"],
+            [
+                "troy@example.org,abed@example.org,britta@example.org",
+                "Study group",
+                "Contact group with 3 people"
+            ]
+        ])))
+        .mount(&server)
+        .await;
+    let operations = Arc::new(Operations::default());
+    let client = builder(&server).hooks(operations.clone()).build().unwrap();
+
+    let recipients = client.contacts().addressable(true).await.unwrap();
+
+    let listed: Vec<(&str, &str, &str)> = recipients
+        .iter()
+        .map(|recipient| {
+            (
+                recipient.value.expose(),
+                recipient.label.as_str(),
+                recipient.detail.as_str(),
+            )
+        })
+        .collect();
+    assert_eq!(
+        listed,
+        [
+            ("jason@example.com", "Jason Fried", ""),
+            ("annie.edison@example.org", "Annie Edison", ""),
+            (
+                "jason@example.com,david@example.com",
+                "Everyone at Example Co",
+                "@example.com"
+            ),
+            (
+                "troy@example.org,abed@example.org,britta@example.org",
+                "Study group",
+                "Contact group with 3 people"
+            ),
+        ]
+    );
+    let printed = format!("{recipients:?}");
+    assert!(
+        printed.contains("[REDACTED]")
+            && !printed.contains("jason@example.com")
+            && !printed.contains("troy@example.org"),
+        "the addresses stay out of a Debug of the recipients: {printed}"
+    );
+    let requests = server.received_requests().await.unwrap();
+    assert_eq!(requests[0].url.query(), Some("include_self=true"));
+    assert_eq!(operations.started(), ["Contacts.ListAddressableContacts"]);
+}
+
+#[tokio::test]
+async fn leaving_yourself_out_of_the_addressable_recipients_sends_no_include_self() {
+    let server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path("/autocompletable/contacts/addressable.json"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!([])))
+        .mount(&server)
+        .await;
+
+    let recipients = client(&server).contacts().addressable(false).await.unwrap();
+
+    assert!(recipients.is_empty());
+    let requests = server.received_requests().await.unwrap();
+    assert_eq!(requests[0].url.query(), None);
 }
 
 fn jane() -> ContactParams {

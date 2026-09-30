@@ -105,6 +105,7 @@ service HEY {
         // Contacts (2 MVP)
         ListContacts
         GetContact
+        ListAddressableContacts
 
         // Calendars (2 MVP)
         ListCalendars
@@ -2015,6 +2016,50 @@ structure ContactDetail {
 structure GetContactOutput {
     @required
     contact: ContactDetail
+}
+
+/// The recipients HEY suggests in a composer's To, Cc and Bcc fields: the
+/// contacts the identity recently addressed, then every other contact by name,
+/// then "Everyone at …" for each active account with a domain, then the
+/// identity's contact groups. Order is HEY's and is meaningful.
+///
+/// Each row is a bare array of strings, `[value, label]` or
+/// `[value, label, detail]`: `value` is one address for a contact, or the
+/// comma-joined addresses of an account's people or a group's members; `label`
+/// is the name to show (the address itself when there is no name); `detail` is
+/// "@domain" for an account and "Contact group with N people" for a group.
+/// An account with nobody but the identity on it (unless `include_self` is
+/// true) and a group with no members still get a row, with an empty `value`.
+@readonly
+@http(method: "GET", uri: "/autocompletable/contacts/addressable.json")
+@tags(["Contacts"])
+@heyRetry(maxAttempts: 3, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+operation ListAddressableContacts {
+    input: ListAddressableContactsInput
+    output: ListAddressableContactsOutput
+    errors: [UnauthorizedError, InternalServerError, ServiceUnavailableError]
+}
+
+structure ListAddressableContactsInput {
+    /// true includes the identity's own addresses, as the web composer asks.
+    /// Anything else leaves them out, except an address of its own the
+    /// identity recently wrote to, which the recent contacts still carry.
+    @httpQuery("include_self")
+    include_self: Boolean
+}
+
+structure ListAddressableContactsOutput {
+    @required
+    recipients: AddressableContactRowList
+}
+
+/// One suggestion: `[value, label]` or `[value, label, detail]`.
+list AddressableContactRow {
+    member: String
+}
+
+list AddressableContactRowList {
+    member: AddressableContactRow
 }
 
 /// Add a contact. Answers the contact that was created.

@@ -1409,6 +1409,8 @@ pub struct JournalEntryPayload {
     pub content: String,
 }
 
+pub type ListAddressableContactsResponseContent = Vec<Vec<String>>;
+
 pub type ListBoxGroupsResponseContent = BoxGroupsResponse;
 
 pub type ListBoxesResponseContent = Vec<Mailbox>;

@@ -74,6 +74,7 @@
     "GetWorkflow",
     "GetWorkflowStage",
     "HideContact",
+    "ListAddressableContacts",
     "ListBoxGroups",
     "ListBoxes",
     "ListCalendarDays",

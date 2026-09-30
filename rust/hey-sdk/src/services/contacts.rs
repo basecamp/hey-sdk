@@ -1,4 +1,5 @@
-//! Writing contacts, and the two refusals a contact write answers with.
+//! Writing contacts, the two refusals a contact write answers with, and the recipients
+//! HEY suggests in a composer.
 
 use std::fmt;
 
@@ -57,6 +58,23 @@ impl ContactConflict {
     pub fn from_error(error: &Error) -> Option<&ContactConflict> {
         std::error::Error::source(error)?.downcast_ref::<ContactConflict>()
     }
+}
+
+/// One suggestion from HEY's recipient autocomplete list, as
+/// [`Contacts::addressable`] reads it.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+#[non_exhaustive]
+pub struct AddressableRecipient {
+    /// One address, or a comma-separated list for a contact group or "Everyone at …". It
+    /// prints as `[REDACTED]`, as a contact's address does; [`SensitiveString::expose`]
+    /// reads it. The redaction is this field's alone: `label` is the address again for a
+    /// contact with no name, and prints as it is.
+    pub value: SensitiveString,
+    /// The name to show; the address itself when the contact has no name.
+    pub label: String,
+    /// What else HEY says about the row — "@example.com" for an account, "Contact group
+    /// with 3 people" for a group — and empty for a person.
+    pub detail: String,
 }
 
 impl Contacts<'_> {
@@ -126,6 +144,31 @@ impl Contacts<'_> {
         self.write(operation).await
     }
 
+    /// The recipients HEY suggests in a composer's To, Cc and Bcc fields, in HEY's order:
+    /// the contacts the identity recently addressed, then every other contact by name, then
+    /// "Everyone at …" for each active account with a domain, then the identity's contact
+    /// groups. `include_self` asks for the identity's own addresses too, as the web
+    /// composer does.
+    ///
+    /// HEY answers bare `[value, label]` and `[value, label, detail]` rows — what
+    /// [`Contacts::list_addressable`] answers as they are. A row with fewer than two
+    /// strings is skipped rather than failing the read, and so is one with no address in
+    /// it: "Everyone at …" for an account nobody else is on, or a contact group with no
+    /// members.
+    pub async fn addressable(
+        &self,
+        include_self: bool,
+    ) -> Result<Vec<AddressableRecipient>, Error> {
+        let params = ListAddressableContactsParams {
+            include_self: include_self.then_some(true),
+        };
+        let rows = self.list_addressable(&params).await?;
+        Ok(rows
+            .iter()
+            .filter_map(|row| addressable_recipient(row))
+            .collect())
+    }
+
     async fn acting_user_id(&self, chosen: Option<i64>) -> Result<Option<i64>, Error> {
         match self.client().account_id() {
             None => Ok(chosen),
@@ -162,6 +205,20 @@ impl Contacts<'_> {
                 }),
             )
             .await
+    }
+}
+
+/// The suggestion a row names. A row too short to carry both a value and a label is one
+/// the autocomplete list has nothing to say about, and a row whose value is empty names
+/// nobody to address.
+fn addressable_recipient(row: &[String]) -> Option<AddressableRecipient> {
+    match row {
+        [value, label, rest @ ..] if !value.is_empty() => Some(AddressableRecipient {
+            value: SensitiveString::new(value.as_str()),
+            label: label.clone(),
+            detail: rest.first().cloned().unwrap_or_default(),
+        }),
+        _ => None,
     }
 }
 
