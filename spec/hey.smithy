@@ -52,6 +52,10 @@ use hey.traits#heySensitive
 use hey.traits#heyNullable
 use hey.traits#heyPolymorphic
 use hey.traits#heyEmptyOn
+use hey.traits#heyDestructive
+use hey.traits#heyOpenWorld
+use hey.traits#heyDraftWhen
+use hey.traits#heyUntrustedContent
 
 /// ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)
 @timestampFormat("date-time")
@@ -1188,6 +1192,7 @@ structure AdvancedSearchFilters {
 @http(method: "GET", uri: "/identity.json")
 @tags(["Identity"])
 @heyRetry(maxAttempts: 3, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+@heyUntrustedContent(false)
 operation GetIdentity {
     output: GetIdentityOutput
     errors: [UnauthorizedError, InternalServerError, ServiceUnavailableError]
@@ -1222,6 +1227,7 @@ structure Identity {
 @http(method: "GET", uri: "/my/navigation.json")
 @tags(["Identity"])
 @heyRetry(maxAttempts: 3, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+@heyUntrustedContent(false)
 operation GetNavigation {
     output: GetNavigationOutput
     errors: [UnauthorizedError, InternalServerError, ServiceUnavailableError]
@@ -1239,6 +1245,9 @@ structure GetNavigationOutput {
 @http(method: "PUT", uri: "/calendar/identity/first_week_day")
 @tags(["Identity"])
 @heyRetry(maxAttempts: 3, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+@heyDestructive(false)
+@heyOpenWorld(false)
+@heyUntrustedContent(false)
 operation UpdateFirstWeekDay {
     input: UpdateFirstWeekDayInput
     output: UpdateFirstWeekDayOutput
@@ -1281,6 +1290,9 @@ structure FirstWeekDayPreference {
 @http(method: "PUT", uri: "/identity/time_format")
 @tags(["Identity"])
 @heyRetry(maxAttempts: 3, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+@heyDestructive(false)
+@heyOpenWorld(false)
+@heyUntrustedContent(false)
 operation UpdateTimeFormat {
     input: UpdateTimeFormatInput
     output: UpdateTimeFormatOutput
@@ -1319,6 +1331,7 @@ structure TimeFormatPreference {
 @tags(["Boxes"])
 @heyRetry(maxAttempts: 3, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
 @heyPagination(style: "link", totalCountHeader: "X-Total-Count")
+@heyUntrustedContent(false)
 operation ListBoxes {
     output: ListBoxesOutput
     errors: [UnauthorizedError, InternalServerError, ServiceUnavailableError]
@@ -1335,6 +1348,7 @@ structure ListBoxesOutput {
 @tags(["Boxes"])
 @heyRetry(maxAttempts: 3, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
 @heyPagination(style: "link", totalCountHeader: "X-Total-Count")
+@heyUntrustedContent(true)
 operation GetBox {
     input: GetBoxInput
     output: GetBoxOutput
@@ -1360,6 +1374,7 @@ structure GetBoxOutput {
 @http(method: "GET", uri: "/imbox.json")
 @tags(["Boxes"])
 @heyRetry(maxAttempts: 3, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+@heyUntrustedContent(true)
 operation GetImbox {
     input: GetNamedBoxInput
     output: GetNamedBoxOutput
@@ -1381,6 +1396,7 @@ structure GetNamedBoxOutput {
 @http(method: "GET", uri: "/imbox/seen.json")
 @tags(["Boxes"])
 @heyRetry(maxAttempts: 3, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+@heyUntrustedContent(true)
 operation GetImboxSeen {
     input: GetNamedBoxInput
     output: GetImboxSeenOutput
@@ -1397,6 +1413,7 @@ structure GetImboxSeenOutput {
 @http(method: "GET", uri: "/feedbox.json")
 @tags(["Boxes"])
 @heyRetry(maxAttempts: 3, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+@heyUntrustedContent(true)
 operation GetFeedbox {
     input: GetNamedBoxInput
     output: GetFeedboxOutput
@@ -1413,6 +1430,7 @@ structure GetFeedboxOutput {
 @http(method: "GET", uri: "/paper_trail.json")
 @tags(["Boxes"])
 @heyRetry(maxAttempts: 3, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+@heyUntrustedContent(true)
 operation GetTrailbox {
     input: GetNamedBoxInput
     output: GetTrailboxOutput
@@ -1429,6 +1447,7 @@ structure GetTrailboxOutput {
 @http(method: "GET", uri: "/set_aside.json")
 @tags(["Boxes"])
 @heyRetry(maxAttempts: 3, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+@heyUntrustedContent(true)
 operation GetAsidebox {
     input: GetNamedBoxInput
     output: GetAsideboxOutput
@@ -1445,6 +1464,7 @@ structure GetAsideboxOutput {
 @http(method: "GET", uri: "/reply_later.json")
 @tags(["Boxes"])
 @heyRetry(maxAttempts: 3, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+@heyUntrustedContent(true)
 operation GetLaterbox {
     input: GetNamedBoxInput
     output: GetLaterboxOutput
@@ -1461,6 +1481,7 @@ structure GetLaterboxOutput {
 @http(method: "GET", uri: "/bubble_up.json")
 @tags(["Boxes"])
 @heyRetry(maxAttempts: 3, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+@heyUntrustedContent(true)
 operation GetBubblebox {
     input: GetNamedBoxInput
     output: GetBubbleboxOutput
@@ -1481,6 +1502,7 @@ structure GetBubbleboxOutput {
 @http(method: "GET", uri: "/topics/{topicId}")
 @tags(["Topics"])
 @heyRetry(maxAttempts: 3, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+@heyUntrustedContent(true)
 operation GetTopic {
     input: GetTopicInput
     output: GetTopicOutput
@@ -1504,6 +1526,7 @@ structure GetTopicOutput {
 @tags(["Topics"])
 @heyRetry(maxAttempts: 3, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
 @heyPagination(style: "link", totalCountHeader: "X-Total-Count")
+@heyUntrustedContent(true)
 operation GetTopicEntries {
     input: GetTopicEntriesInput
     output: GetTopicEntriesOutput
@@ -1530,6 +1553,7 @@ structure GetTopicEntriesOutput {
 @tags(["Topics"])
 @heyRetry(maxAttempts: 3, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
 @heyPagination(style: "link", totalCountHeader: "X-Total-Count")
+@heyUntrustedContent(true)
 operation GetSentTopics {
     input: PagedInput
     output: GetSentTopicsOutput
@@ -1552,6 +1576,7 @@ structure GetSentTopicsOutput {
 @tags(["Topics"])
 @heyRetry(maxAttempts: 3, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
 @heyPagination(style: "link", totalCountHeader: "X-Total-Count")
+@heyUntrustedContent(true)
 operation GetSpamTopics {
     input: PagedInput
     output: GetSpamTopicsOutput
@@ -1569,6 +1594,7 @@ structure GetSpamTopicsOutput {
 @tags(["Topics"])
 @heyRetry(maxAttempts: 3, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
 @heyPagination(style: "link", totalCountHeader: "X-Total-Count")
+@heyUntrustedContent(true)
 operation GetTrashTopics {
     input: PagedInput
     output: GetTrashTopicsOutput
@@ -1586,6 +1612,7 @@ structure GetTrashTopicsOutput {
 @tags(["Topics"])
 @heyRetry(maxAttempts: 3, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
 @heyPagination(style: "link", totalCountHeader: "X-Total-Count")
+@heyUntrustedContent(true)
 operation GetEverythingTopics {
     input: PagedInput
     output: GetEverythingTopicsOutput
@@ -1606,6 +1633,7 @@ structure GetEverythingTopicsOutput {
 @http(method: "GET", uri: "/messages/{messageId}")
 @tags(["Messages"])
 @heyRetry(maxAttempts: 3, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+@heyUntrustedContent(true)
 operation GetMessage {
     input: GetMessageInput
     output: GetMessageOutput
@@ -1631,6 +1659,13 @@ structure GetMessageOutput {
 @http(method: "POST", uri: "/messages.json")
 @tags(["Messages"])
 @heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+@heyDestructive(false)
+@heyOpenWorld(true)
+@heyDraftWhen([
+    { pointer: "/entry/status", equals: "drafted" }
+    { pointer: "/entry/scheduled_delivery", notEquals: "true" }
+])
+@heyUntrustedContent(false)
 operation CreateMessage {
     input: CreateMessageInput
     errors: [UnauthorizedError, UnprocessableEntityError, InternalServerError, ServiceUnavailableError]
@@ -1675,6 +1710,13 @@ structure MessagePayload {
 @tags(["Messages"])
 @heyIdempotent(natural: false)
 @heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+@heyDestructive(false)
+@heyOpenWorld(true)
+@heyDraftWhen([
+    { pointer: "/entry/status", equals: "drafted" }
+    { pointer: "/entry/scheduled_delivery", notEquals: "true" }
+])
+@heyUntrustedContent(false)
 operation UpdateMessage {
     input: UpdateMessageInput
     errors: [UnauthorizedError, NotFoundError, UnprocessableEntityError, InternalServerError, ServiceUnavailableError]
@@ -1696,6 +1738,7 @@ structure UpdateMessageInput {
 @http(method: "GET", uri: "/messages/{messageId}/edit.json")
 @tags(["Messages"])
 @heyRetry(maxAttempts: 3, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+@heyUntrustedContent(true)
 operation GetMessageEdit {
     input: GetMessageEditInput
     output: GetMessageEditOutput
@@ -1742,6 +1785,9 @@ structure MessageEditState {
 /// The returned URL is self-authenticating and accepts the raw file bytes via PUT.
 @http(method: "POST", uri: "/rails/active_storage/direct_uploads.json")
 @tags(["Attachments"])
+@heyDestructive(false)
+@heyOpenWorld(false)
+@heyUntrustedContent(false)
 operation CreateDirectUpload {
     input: CreateDirectUploadInput
     output: CreateDirectUploadOutput
@@ -1846,6 +1892,7 @@ list EmailAddressList {
 @tags(["Entries"])
 @heyRetry(maxAttempts: 3, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
 @heyPagination(style: "link", totalCountHeader: "X-Total-Count")
+@heyUntrustedContent(true)
 operation ListDrafts {
     input: PagedInput
     output: ListDraftsOutput
@@ -1863,6 +1910,9 @@ structure ListDraftsOutput {
 @http(method: "DELETE", uri: "/entries/drafts/{entryId}")
 @tags(["Entries"])
 @heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+@heyDestructive(false)
+@heyOpenWorld(false)
+@heyUntrustedContent(false)
 operation DeleteDraft {
     input: DeleteDraftInput
     errors: [UnauthorizedError, NotFoundError, InternalServerError, ServiceUnavailableError]
@@ -1878,6 +1928,13 @@ structure DeleteDraftInput {
 @http(method: "POST", uri: "/entries/{entryId}/replies.json")
 @tags(["Entries"])
 @heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+@heyDestructive(false)
+@heyOpenWorld(true)
+@heyDraftWhen([
+    { pointer: "/entry/status", equals: "drafted" }
+    { pointer: "/entry/scheduled_delivery", notEquals: "true" }
+])
+@heyUntrustedContent(false)
 operation CreateReply {
     input: CreateReplyInput
     errors: [UnauthorizedError, NotFoundError, UnprocessableEntityError, InternalServerError, ServiceUnavailableError]
@@ -1890,6 +1947,7 @@ operation CreateReply {
 @http(method: "GET", uri: "/entries/{entryId}/replies/new.json")
 @tags(["Entries"])
 @heyRetry(maxAttempts: 3, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+@heyUntrustedContent(true)
 operation NewEntryReply {
     input: EntryStatusInput
     output: NewEntryReplyOutput
@@ -1947,6 +2005,7 @@ structure ReplyMessagePayload {
 @tags(["Contacts"])
 @heyRetry(maxAttempts: 3, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
 @heyPagination(style: "link", totalCountHeader: "X-Total-Count")
+@heyUntrustedContent(true)
 operation ListContacts {
     input: ListContactsInput
     output: ListContactsOutput
@@ -1972,6 +2031,7 @@ structure ListContactsOutput {
 @tags(["Contacts"])
 @heyRetry(maxAttempts: 3, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
 @heyPagination(style: "link", totalCountHeader: "X-Total-Count")
+@heyUntrustedContent(true)
 operation GetContact {
     input: GetContactInput
     output: GetContactOutput
@@ -2066,6 +2126,9 @@ list AddressableContactRowList {
 @http(method: "POST", uri: "/contacts.json", code: 201)
 @tags(["Contacts"])
 @heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+@heyDestructive(false)
+@heyOpenWorld(false)
+@heyUntrustedContent(true)
 operation CreateContact {
     input: CreateContactInput
     output: ContactWriteOutput
@@ -2085,6 +2148,9 @@ structure CreateContactInput {
 @http(method: "PATCH", uri: "/contacts/{contactId}")
 @tags(["Contacts"])
 @heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+@heyDestructive(false)
+@heyOpenWorld(false)
+@heyUntrustedContent(true)
 operation UpdateContact {
     input: UpdateContactInput
     output: ContactWriteOutput
@@ -2106,6 +2172,9 @@ structure UpdateContactInput {
 @http(method: "DELETE", uri: "/contacts/{contactId}")
 @tags(["Contacts"])
 @heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+@heyDestructive(false)
+@heyOpenWorld(false)
+@heyUntrustedContent(false)
 operation HideContact {
     input: ContactActionInput
     errors: [UnauthorizedError, NotFoundError, InternalServerError, ServiceUnavailableError]
@@ -2115,6 +2184,9 @@ operation HideContact {
 @http(method: "POST", uri: "/contacts/{contactId}/reveal.json")
 @tags(["Contacts"])
 @heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+@heyDestructive(false)
+@heyOpenWorld(false)
+@heyUntrustedContent(true)
 operation RevealContact {
     input: ContactActionInput
     output: ContactWriteOutput
@@ -2160,6 +2232,7 @@ structure ContactWriteOutput {
 @http(method: "GET", uri: "/contacts/{contactId}/note.json")
 @tags(["Contacts"])
 @heyRetry(maxAttempts: 3, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+@heyUntrustedContent(false)
 operation GetContactNote {
     input: ContactActionInput
     output: GetContactNoteOutput
@@ -2189,6 +2262,9 @@ structure ContactNote {
 @http(method: "PATCH", uri: "/contacts/{contactId}/note.json")
 @tags(["Contacts"])
 @heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+@heyDestructive(false)
+@heyOpenWorld(false)
+@heyUntrustedContent(false)
 operation UpdateContactNote {
     input: UpdateContactNoteInput
     output: GetContactNoteOutput
@@ -2221,6 +2297,9 @@ structure ContactNotePayload {
 @http(method: "DELETE", uri: "/contacts/{contactId}/note.json")
 @tags(["Contacts"])
 @heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+@heyDestructive(true)
+@heyOpenWorld(false)
+@heyUntrustedContent(false)
 operation DeleteContactNote {
     input: ContactActionInput
     errors: [UnauthorizedError, NotFoundError, InternalServerError, ServiceUnavailableError]
@@ -2236,6 +2315,9 @@ operation DeleteContactNote {
 @http(method: "DELETE", uri: "/accounts/{accountId}/domains/extenzions/{extenzionId}")
 @tags(["Extenzions"])
 @heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+@heyDestructive(true)
+@heyOpenWorld(false)
+@heyUntrustedContent(false)
 operation DeleteExtenzion {
     input: DeleteExtenzionInput
     errors: [UnauthorizedError, ForbiddenError, NotFoundError, InternalServerError, ServiceUnavailableError]
@@ -2260,6 +2342,7 @@ structure DeleteExtenzionInput {
 @http(method: "GET", uri: "/calendars.json")
 @tags(["Calendars"])
 @heyRetry(maxAttempts: 3, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+@heyUntrustedContent(true)
 operation ListCalendars {
     output: ListCalendarsOutput
     errors: [UnauthorizedError, InternalServerError, ServiceUnavailableError]
@@ -2276,6 +2359,7 @@ structure ListCalendarsOutput {
 @tags(["Calendars"])
 @heyRetry(maxAttempts: 3, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
 @heyPagination(style: "window")
+@heyUntrustedContent(true)
 operation GetCalendarRecordings {
     input: GetCalendarRecordingsInput
     output: GetCalendarRecordingsOutput
@@ -2308,6 +2392,9 @@ structure GetCalendarRecordingsOutput {
 @http(method: "POST", uri: "/calendars/{calendarId}/toggle")
 @tags(["Calendars"])
 @heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+@heyDestructive(false)
+@heyOpenWorld(false)
+@heyUntrustedContent(false)
 operation ToggleCalendar {
     input: ToggleCalendarInput
     output: ToggleCalendarOutput
@@ -2334,6 +2421,9 @@ structure ToggleCalendarOutput {
 @http(method: "DELETE", uri: "/calendar/events/{eventId}")
 @tags(["Calendar Events"])
 @heyRetry(maxAttempts: 3, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+@heyDestructive(true)
+@heyOpenWorld(true)
+@heyUntrustedContent(false)
 operation DeleteCalendarEvent {
     input: DeleteCalendarEventInput
     errors: [UnauthorizedError, NotFoundError, InternalServerError, ServiceUnavailableError]
@@ -2353,6 +2443,9 @@ structure DeleteCalendarEventInput {
 @http(method: "DELETE", uri: "/calendar/events/{eventId}/occurrences/{occurrence}")
 @tags(["Calendar Events"])
 @heyRetry(maxAttempts: 3, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+@heyDestructive(true)
+@heyOpenWorld(true)
+@heyUntrustedContent(false)
 operation DeleteCalendarEventOccurrence {
     input: DeleteCalendarEventOccurrenceInput
     errors: [UnauthorizedError, NotFoundError, InternalServerError, ServiceUnavailableError]
@@ -2385,6 +2478,7 @@ structure DeleteCalendarEventOccurrenceInput {
 @http(method: "GET", uri: "/calendar/days/{day}")
 @tags(["Calendar Periods"])
 @heyRetry(maxAttempts: 3, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+@heyUntrustedContent(true)
 operation GetCalendarDay {
     input: GetCalendarDayInput
     output: GetCalendarDayOutput
@@ -2408,6 +2502,7 @@ structure GetCalendarDayOutput {
 @http(method: "GET", uri: "/calendar/days.json")
 @tags(["Calendar Periods"])
 @heyRetry(maxAttempts: 3, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+@heyUntrustedContent(true)
 operation ListCalendarDays {
     input: ListCalendarDaysInput
     output: ListCalendarDaysOutput
@@ -2430,6 +2525,7 @@ structure ListCalendarDaysOutput {
 @http(method: "GET", uri: "/calendar/weeks/{week}")
 @tags(["Calendar Periods"])
 @heyRetry(maxAttempts: 3, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+@heyUntrustedContent(true)
 operation GetCalendarWeek {
     input: GetCalendarWeekInput
     output: GetCalendarWeekOutput
@@ -2453,6 +2549,7 @@ structure GetCalendarWeekOutput {
 @http(method: "GET", uri: "/calendar/weeks.json")
 @tags(["Calendar Periods"])
 @heyRetry(maxAttempts: 3, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+@heyUntrustedContent(true)
 operation ListCalendarWeeks {
     input: ListCalendarWeeksInput
     output: ListCalendarWeeksOutput
@@ -2479,6 +2576,7 @@ structure ListCalendarWeeksOutput {
 @http(method: "GET", uri: "/calendar/years/{year}")
 @tags(["Calendar Periods"])
 @heyRetry(maxAttempts: 3, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+@heyUntrustedContent(true)
 operation GetCalendarYear {
     input: GetCalendarYearInput
     output: GetCalendarYearOutput
@@ -2505,6 +2603,9 @@ structure GetCalendarYearOutput {
 @http(method: "POST", uri: "/calendar/todos.json")
 @tags(["Calendar Todos"])
 @heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+@heyDestructive(false)
+@heyOpenWorld(false)
+@heyUntrustedContent(false)
 operation CreateCalendarTodo {
     input: CreateCalendarTodoInput
     output: CreateCalendarTodoOutput
@@ -2543,6 +2644,9 @@ structure CreateCalendarTodoOutput {
 @http(method: "PATCH", uri: "/calendar/todos/{todoId}")
 @tags(["Calendar Todos"])
 @heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+@heyDestructive(false)
+@heyOpenWorld(false)
+@heyUntrustedContent(false)
 operation UpdateCalendarTodo {
     input: UpdateCalendarTodoInput
     output: UpdateCalendarTodoOutput
@@ -2586,6 +2690,9 @@ structure UpdateCalendarTodoOutput {
 @tags(["Calendar Todos"])
 @heyIdempotent(natural: true)
 @heyRetry(maxAttempts: 3, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+@heyDestructive(false)
+@heyOpenWorld(false)
+@heyUntrustedContent(false)
 operation CompleteCalendarTodo {
     input: CalendarTodoCompletionInput
     output: CalendarTodoCompletionOutput
@@ -2608,6 +2715,9 @@ structure CalendarTodoCompletionOutput {
 @http(method: "DELETE", uri: "/calendar/todos/{todoId}/completions")
 @tags(["Calendar Todos"])
 @heyRetry(maxAttempts: 3, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+@heyDestructive(false)
+@heyOpenWorld(false)
+@heyUntrustedContent(false)
 operation UncompleteCalendarTodo {
     input: CalendarTodoCompletionInput
     output: CalendarTodoCompletionOutput
@@ -2619,6 +2729,9 @@ operation UncompleteCalendarTodo {
 @http(method: "DELETE", uri: "/calendar/todos/{todoId}")
 @tags(["Calendar Todos"])
 @heyRetry(maxAttempts: 3, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+@heyDestructive(true)
+@heyOpenWorld(false)
+@heyUntrustedContent(false)
 operation DeleteCalendarTodo {
     input: DeleteCalendarTodoInput
     errors: [UnauthorizedError, NotFoundError, InternalServerError, ServiceUnavailableError]
@@ -2639,6 +2752,9 @@ structure DeleteCalendarTodoInput {
 @tags(["Calendar Habits"])
 @heyIdempotent(natural: true)
 @heyRetry(maxAttempts: 3, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+@heyDestructive(false)
+@heyOpenWorld(false)
+@heyUntrustedContent(false)
 operation CompleteHabit {
     input: HabitCompletionInput
     output: HabitCompletionOutput
@@ -2665,6 +2781,9 @@ structure HabitCompletionOutput {
 @http(method: "DELETE", uri: "/calendar/days/{day}/habits/{habitId}/completions")
 @tags(["Calendar Habits"])
 @heyRetry(maxAttempts: 3, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+@heyDestructive(false)
+@heyOpenWorld(false)
+@heyUntrustedContent(false)
 operation UncompleteHabit {
     input: HabitCompletionInput
     output: HabitCompletionOutput
@@ -2691,6 +2810,7 @@ operation UncompleteHabit {
 @tags(["Calendar Time Tracks"])
 @heyRetry(maxAttempts: 3, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
 @heyPagination(style: "link")
+@heyUntrustedContent(false)
 operation ListTimeTracks {
     input: ListTimeTracksInput
     output: ListTimeTracksOutput
@@ -2723,6 +2843,7 @@ structure TrackedTime {
 @tags(["Calendar Time Tracks"])
 @heyRetry(maxAttempts: 3, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
 @heyEmptyOn(statusCodes: [404])
+@heyUntrustedContent(false)
 operation GetOngoingTimeTrack {
     output: GetOngoingTimeTrackOutput
     errors: [UnauthorizedError, InternalServerError, ServiceUnavailableError]
@@ -2740,6 +2861,9 @@ structure GetOngoingTimeTrackOutput {
 @http(method: "POST", uri: "/calendar/ongoing_time_track.json")
 @tags(["Calendar Time Tracks"])
 @heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+@heyDestructive(false)
+@heyOpenWorld(false)
+@heyUntrustedContent(false)
 operation StartTimeTrack {
     output: StartTimeTrackOutput
     errors: [UnauthorizedError, ConflictError, UnprocessableEntityError, InternalServerError, ServiceUnavailableError]
@@ -2765,6 +2889,9 @@ structure StartTimeTrackOutput {
 @http(method: "PUT", uri: "/calendar/time_tracks/{timeTrackId}")
 @tags(["Calendar Time Tracks"])
 @heyRetry(maxAttempts: 3, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+@heyDestructive(false)
+@heyOpenWorld(false)
+@heyUntrustedContent(false)
 operation UpdateTimeTrack {
     input: UpdateTimeTrackInput
     output: UpdateTimeTrackOutput
@@ -2824,6 +2951,7 @@ structure UpdateTimeTrackOutput {
 @tags(["Calendar Journal"])
 @heyRetry(maxAttempts: 3, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
 @heyPagination(style: "link")
+@heyUntrustedContent(false)
 operation ListJournalEntries {
     input: ListJournalEntriesInput
     output: ListJournalEntriesOutput
@@ -2848,6 +2976,7 @@ structure ListJournalEntriesOutput {
 @http(method: "GET", uri: "/calendar/days/{day}/journal_entry")
 @tags(["Calendar Journal"])
 @heyRetry(maxAttempts: 3, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+@heyUntrustedContent(false)
 operation GetJournalEntry {
     input: JournalEntryInput
     output: GetJournalEntryOutput
@@ -2872,6 +3001,9 @@ structure GetJournalEntryOutput {
 @http(method: "PATCH", uri: "/calendar/days/{day}/journal_entry")
 @tags(["Calendar Journal"])
 @heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+@heyDestructive(false)
+@heyOpenWorld(false)
+@heyUntrustedContent(false)
 operation UpdateJournalEntry {
     input: UpdateJournalEntryInput
     output: UpdateJournalEntryOutput
@@ -2919,6 +3051,7 @@ structure JournalEntryPayload {
 @tags(["Search"])
 @heyRetry(maxAttempts: 3, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
 @heyPagination(style: "link")
+@heyUntrustedContent(true)
 operation AdvancedSearch {
     input: AdvancedSearchInput
     output: AdvancedSearchOutput
@@ -2997,6 +3130,7 @@ list SearchMatchList {
 @http(method: "GET", uri: "/advanced_search_filters.json")
 @tags(["Search"])
 @heyRetry(maxAttempts: 3, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+@heyUntrustedContent(false)
 operation GetAdvancedSearchFilters {
     output: GetAdvancedSearchFiltersOutput
     errors: [UnauthorizedError, InternalServerError, ServiceUnavailableError]
@@ -3015,6 +3149,9 @@ structure GetAdvancedSearchFiltersOutput {
 @http(method: "POST", uri: "/postings/seen.json")
 @tags(["Postings"])
 @heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+@heyDestructive(false)
+@heyOpenWorld(false)
+@heyUntrustedContent(false)
 operation MarkPostingsSeen {
     input: MarkPostingsInput
     errors: [UnauthorizedError, InternalServerError, ServiceUnavailableError]
@@ -3024,6 +3161,9 @@ operation MarkPostingsSeen {
 @http(method: "POST", uri: "/postings/unseen.json")
 @tags(["Postings"])
 @heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+@heyDestructive(false)
+@heyOpenWorld(false)
+@heyUntrustedContent(false)
 operation MarkPostingsUnseen {
     input: MarkPostingsInput
     errors: [UnauthorizedError, InternalServerError, ServiceUnavailableError]
@@ -3047,6 +3187,9 @@ structure MarkPostingsRequestContent {
 @http(method: "POST", uri: "/postings/moves.json")
 @tags(["Postings"])
 @heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+@heyDestructive(false)
+@heyOpenWorld(false)
+@heyUntrustedContent(false)
 operation MovePostings {
     input: MovePostingsInput
     errors: [UnauthorizedError, NotFoundError, InternalServerError, ServiceUnavailableError]
@@ -3073,6 +3216,9 @@ structure MovePostingsRequestContent {
 @http(method: "POST", uri: "/postings/trash.json")
 @tags(["Postings"])
 @heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+@heyDestructive(true)
+@heyOpenWorld(false)
+@heyUntrustedContent(false)
 operation TrashPostings {
     input: TrashPostingsInput
     errors: [UnauthorizedError, NotFoundError, InternalServerError, ServiceUnavailableError]
@@ -3098,6 +3244,9 @@ structure TrashPostingsRequestContent {
 @http(method: "POST", uri: "/postings/mutings.json")
 @tags(["Postings"])
 @heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+@heyDestructive(false)
+@heyOpenWorld(false)
+@heyUntrustedContent(false)
 operation MutePostings {
     input: MarkPostingsInput
     errors: [UnauthorizedError, NotFoundError, InternalServerError, ServiceUnavailableError]
@@ -3110,6 +3259,9 @@ operation MutePostings {
 @http(method: "DELETE", uri: "/postings/mutings.json")
 @tags(["Postings"])
 @heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+@heyDestructive(false)
+@heyOpenWorld(false)
+@heyUntrustedContent(false)
 operation UnmutePostings {
     input: UnmutePostingsInput
     errors: [UnauthorizedError, NotFoundError, InternalServerError, ServiceUnavailableError]
@@ -3213,6 +3365,7 @@ string PostingIdsParam
 @tags(["Postings"])
 @heyRetry(maxAttempts: 3, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
 @heyPagination(style: "link", totalCountHeader: "X-Total-Count")
+@heyUntrustedContent(true)
 operation GetBundleUnseenPostings {
     input: GetBundleUnseenPostingsInput
     output: GetBundleUnseenPostingsOutput
@@ -3247,6 +3400,9 @@ structure GetBundleUnseenPostingsOutput {
 @http(method: "POST", uri: "/postings/spam.json")
 @tags(["Postings"])
 @heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+@heyDestructive(false)
+@heyOpenWorld(false)
+@heyUntrustedContent(false)
 operation MarkPostingsSpam {
     input: MarkPostingsInput
     errors: [UnauthorizedError, NotFoundError, InternalServerError, ServiceUnavailableError]
@@ -3263,6 +3419,9 @@ structure PostingSelectionInput {
 @http(method: "POST", uri: "/postings/box_groups.json")
 @tags(["Postings"])
 @heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+@heyDestructive(false)
+@heyOpenWorld(false)
+@heyUntrustedContent(false)
 operation AddPostingsToBoxGroup {
     input: AddPostingsToBoxGroupInput
     errors: [UnauthorizedError, NotFoundError, InternalServerError, ServiceUnavailableError]
@@ -3290,6 +3449,9 @@ structure AddPostingsToBoxGroupRequestContent {
 @http(method: "DELETE", uri: "/postings/box_groups.json")
 @tags(["Postings"])
 @heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+@heyDestructive(false)
+@heyOpenWorld(false)
+@heyUntrustedContent(false)
 operation RemovePostingsFromBoxGroup {
     input: PostingSelectionInput
     errors: [UnauthorizedError, InternalServerError, ServiceUnavailableError]
@@ -3299,6 +3461,9 @@ operation RemovePostingsFromBoxGroup {
 @http(method: "POST", uri: "/postings/filings.json")
 @tags(["Postings"])
 @heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+@heyDestructive(false)
+@heyOpenWorld(false)
+@heyUntrustedContent(false)
 operation FilePostings {
     input: FilePostingsInput
     errors: [UnauthorizedError, NotFoundError, InternalServerError, ServiceUnavailableError]
@@ -3323,6 +3488,9 @@ structure FilePostingsRequestContent {
 @http(method: "DELETE", uri: "/postings/filings.json")
 @tags(["Postings"])
 @heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+@heyDestructive(false)
+@heyOpenWorld(false)
+@heyUntrustedContent(false)
 operation UnfilePostings {
     input: UnfilePostingsInput
     errors: [UnauthorizedError, NotFoundError, InternalServerError, ServiceUnavailableError]
@@ -3341,6 +3509,9 @@ structure UnfilePostingsInput {
 @http(method: "POST", uri: "/postings/folders.json")
 @tags(["Postings"])
 @heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+@heyDestructive(false)
+@heyOpenWorld(false)
+@heyUntrustedContent(false)
 operation CreateFolderForPostings {
     input: CreateFolderForPostingsInput
     errors: [UnauthorizedError, NotFoundError, UnprocessableEntityError, InternalServerError, ServiceUnavailableError]
@@ -3373,6 +3544,9 @@ structure FolderPayload {
 @http(method: "DELETE", uri: "/postings/bubble_up.json")
 @tags(["Postings"])
 @heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+@heyDestructive(false)
+@heyOpenWorld(false)
+@heyUntrustedContent(false)
 operation CancelPostingsBubbleUp {
     input: PostingSelectionInput
     errors: [UnauthorizedError, NotFoundError, InternalServerError, ServiceUnavailableError]
@@ -3382,6 +3556,9 @@ operation CancelPostingsBubbleUp {
 @http(method: "POST", uri: "/postings/bulk_bubble_up_now.json")
 @tags(["Postings"])
 @heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+@heyDestructive(false)
+@heyOpenWorld(false)
+@heyUntrustedContent(false)
 operation BubbleUpPostingsNow {
     input: MarkPostingsInput
     errors: [UnauthorizedError, NotFoundError, InternalServerError, ServiceUnavailableError]
@@ -3398,6 +3575,9 @@ operation BubbleUpPostingsNow {
 @http(method: "POST", uri: "/postings/bubble_up.json")
 @tags(["Postings"])
 @heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+@heyDestructive(false)
+@heyOpenWorld(false)
+@heyUntrustedContent(false)
 operation SchedulePostingsBubbleUp {
     input: SchedulePostingsBubbleUpInput
     errors: [UnauthorizedError, NotFoundError, InternalServerError, ServiceUnavailableError]
@@ -3431,6 +3611,9 @@ structure SchedulePostingsBubbleUpRequestContent {
 @http(method: "PUT", uri: "/topics/{topicId}/status/trashed.json")
 @tags(["Topics"])
 @heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+@heyDestructive(false)
+@heyOpenWorld(false)
+@heyUntrustedContent(false)
 operation TrashTopic {
     input: TrashTopicInput
     errors: [UnauthorizedError, NotFoundError, InternalServerError, ServiceUnavailableError]
@@ -3450,6 +3633,9 @@ structure TrashTopicInput {
 @http(method: "PUT", uri: "/topics/{topicId}/status/active.json")
 @tags(["Topics"])
 @heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+@heyDestructive(false)
+@heyOpenWorld(false)
+@heyUntrustedContent(false)
 operation RestoreTopic {
     input: TopicStatusInput
     errors: [UnauthorizedError, NotFoundError, InternalServerError, ServiceUnavailableError]
@@ -3460,6 +3646,9 @@ operation RestoreTopic {
 @http(method: "PUT", uri: "/topics/{topicId}/status/ham.json")
 @tags(["Topics"])
 @heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+@heyDestructive(false)
+@heyOpenWorld(false)
+@heyUntrustedContent(false)
 operation MarkTopicHam {
     input: TopicStatusInput
     errors: [UnauthorizedError, NotFoundError, InternalServerError, ServiceUnavailableError]
@@ -3476,6 +3665,9 @@ structure TopicStatusInput {
 @http(method: "DELETE", uri: "/topics/trash/all.json")
 @tags(["Topics"])
 @heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+@heyDestructive(true)
+@heyOpenWorld(false)
+@heyUntrustedContent(false)
 operation EmptyTrash {
     errors: [UnauthorizedError, InternalServerError, ServiceUnavailableError]
 }
@@ -3485,6 +3677,9 @@ operation EmptyTrash {
 @http(method: "DELETE", uri: "/topics/spam/all.json")
 @tags(["Topics"])
 @heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+@heyDestructive(true)
+@heyOpenWorld(false)
+@heyUntrustedContent(false)
 operation EmptySpam {
     errors: [UnauthorizedError, InternalServerError, ServiceUnavailableError]
 }
@@ -3495,6 +3690,9 @@ operation EmptySpam {
 @http(method: "POST", uri: "/topics/{topicId}/moves.json")
 @tags(["Topics"])
 @heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+@heyDestructive(false)
+@heyOpenWorld(false)
+@heyUntrustedContent(false)
 operation MoveTopic {
     input: MoveTopicInput
     errors: [UnauthorizedError, NotFoundError, InternalServerError, ServiceUnavailableError]
@@ -3524,6 +3722,9 @@ structure MoveTopicRequestContent {
 @http(method: "PUT", uri: "/entries/{entryId}/status/spam.json")
 @tags(["Entries"])
 @heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+@heyDestructive(false)
+@heyOpenWorld(false)
+@heyUntrustedContent(false)
 operation MarkEntrySpam {
     input: EntryStatusInput
     errors: [UnauthorizedError, NotFoundError, InternalServerError, ServiceUnavailableError]
@@ -3541,6 +3742,7 @@ structure EntryStatusInput {
 @http(method: "GET", uri: "/entries/{entryId}/forwards/new.json")
 @tags(["Entries"])
 @heyRetry(maxAttempts: 3, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+@heyUntrustedContent(true)
 operation NewEntryForward {
     input: EntryStatusInput
     output: NewEntryForwardOutput
@@ -3563,6 +3765,7 @@ structure NewEntryForwardOutput {
 @http(method: "GET", uri: "/bulk_replies/new.json")
 @tags(["Bulk Reply"])
 @heyRetry(maxAttempts: 3, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+@heyUntrustedContent(true)
 operation NewBulkReply {
     input: NewBulkReplyInput
     output: NewBulkReplyOutput
@@ -3614,6 +3817,9 @@ structure BulkReplyEntry {
 /// delivery is queued, and delayed while undo is still possible.
 @http(method: "POST", uri: "/bulk_replies.json", code: 201)
 @tags(["Bulk Reply"])
+@heyDestructive(false)
+@heyOpenWorld(true)
+@heyUntrustedContent(false)
 operation CreateBulkReply {
     input: CreateBulkReplyInput
     output: CreateBulkReplyOutput
@@ -3668,6 +3874,9 @@ structure BulkReplyDelivery {
 @http(method: "POST", uri: "/contacts/{contactId}/bundle.json")
 @tags(["Contacts"])
 @heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+@heyDestructive(false)
+@heyOpenWorld(false)
+@heyUntrustedContent(false)
 operation BundleContact {
     input: ContactActionInput
     errors: [UnauthorizedError, ForbiddenError, NotFoundError, InternalServerError, ServiceUnavailableError]
@@ -3678,6 +3887,9 @@ operation BundleContact {
 @http(method: "DELETE", uri: "/contacts/{contactId}/bundle.json")
 @tags(["Contacts"])
 @heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+@heyDestructive(false)
+@heyOpenWorld(false)
+@heyUntrustedContent(false)
 operation UnbundleContact {
     input: ContactActionInput
     errors: [UnauthorizedError, NotFoundError, InternalServerError, ServiceUnavailableError]
@@ -3694,6 +3906,9 @@ structure ContactActionInput {
 @http(method: "PATCH", uri: "/contacts/{contactId}/clearance.json")
 @tags(["Contacts"])
 @heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+@heyDestructive(false)
+@heyOpenWorld(false)
+@heyUntrustedContent(false)
 operation UpdateContactClearance {
     input: UpdateContactClearanceInput
     errors: [UnauthorizedError, NotFoundError, UnprocessableEntityError, InternalServerError, ServiceUnavailableError]
@@ -3721,6 +3936,7 @@ structure UpdateContactClearanceRequestContent {
 @tags(["Contacts"])
 @heyRetry(maxAttempts: 3, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
 @heyPagination(style: "link", totalCountHeader: "X-Total-Count")
+@heyUntrustedContent(true)
 operation GetClearances {
     input: GetClearancesInput
     output: GetClearancesOutput
@@ -3748,6 +3964,9 @@ structure GetClearancesOutput {
 @http(method: "PATCH", uri: "/clearances/{clearanceId}")
 @tags(["Contacts"])
 @heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+@heyDestructive(false)
+@heyOpenWorld(false)
+@heyUntrustedContent(true)
 operation UpdateClearance {
     input: UpdateClearanceInput
     output: UpdateClearanceOutput
@@ -3784,6 +4003,9 @@ structure UpdateClearanceOutput {
 @http(method: "PATCH", uri: "/clearances/bulk.json")
 @tags(["Contacts"])
 @heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+@heyDestructive(false)
+@heyOpenWorld(false)
+@heyUntrustedContent(true)
 operation BulkUpdateClearances {
     input: BulkUpdateClearancesInput
     output: BulkUpdateClearancesOutput
@@ -3815,6 +4037,9 @@ structure BulkUpdateClearancesOutput {
 @http(method: "POST", uri: "/clearances/punt.json")
 @tags(["Contacts"])
 @heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+@heyDestructive(true)
+@heyOpenWorld(false)
+@heyUntrustedContent(false)
 operation PuntClearances {
     errors: [UnauthorizedError, InternalServerError, ServiceUnavailableError]
 }
@@ -3825,6 +4050,7 @@ operation PuntClearances {
 @tags(["Contacts"])
 @heyRetry(maxAttempts: 3, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
 @heyPagination(style: "link", totalCountHeader: "X-Total-Count")
+@heyUntrustedContent(true)
 operation GetMyClearances {
     input: PagedInput
     output: GetMyClearancesOutput
@@ -3841,6 +4067,9 @@ structure GetMyClearancesOutput {
 @http(method: "PATCH", uri: "/my/clearances/{clearanceId}")
 @tags(["Contacts"])
 @heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+@heyDestructive(false)
+@heyOpenWorld(false)
+@heyUntrustedContent(true)
 operation UpdateMyClearance {
     input: UpdateMyClearanceInput
     output: UpdateMyClearanceOutput
@@ -3875,6 +4104,9 @@ structure UpdateMyClearanceOutput {
 @http(method: "POST", uri: "/boxes/{boxId}/designations.json")
 @tags(["Boxes"])
 @heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+@heyDestructive(false)
+@heyOpenWorld(false)
+@heyUntrustedContent(false)
 operation CreateBoxDesignation {
     input: CreateBoxDesignationInput
     errors: [UnauthorizedError, ForbiddenError, NotFoundError, InternalServerError, ServiceUnavailableError]
@@ -3900,6 +4132,9 @@ structure CreateBoxDesignationRequestContent {
 @http(method: "DELETE", uri: "/boxes/{boxId}/designations/{designationId}")
 @tags(["Boxes"])
 @heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+@heyDestructive(false)
+@heyOpenWorld(false)
+@heyUntrustedContent(false)
 operation DeleteBoxDesignation {
     input: DeleteBoxDesignationInput
     errors: [UnauthorizedError, NotFoundError, InternalServerError, ServiceUnavailableError]
@@ -3929,6 +4164,7 @@ structure DeleteBoxDesignationInput {
 @tags(["Boxes"])
 @heyRetry(maxAttempts: 3, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
 @heyPagination(style: "link", totalCountHeader: "X-Total-Count", pageParameter: "page")
+@heyUntrustedContent(true)
 operation GetBoxPostingChanges {
     input: GetBoxPostingChangesInput
     output: GetBoxPostingChangesOutput
@@ -3980,6 +4216,7 @@ list DeletedPostingList {
 @http(method: "GET", uri: "/boxes/{boxId}/groups.json")
 @tags(["Boxes"])
 @heyRetry(maxAttempts: 3, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+@heyUntrustedContent(false)
 operation ListBoxGroups {
     input: BoxGroupsInput
     output: ListBoxGroupsOutput
@@ -4006,6 +4243,7 @@ structure ListBoxGroupsOutput {
 @tags(["Boxes"])
 @heyRetry(maxAttempts: 3, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
 @heyPagination(style: "link", totalCountHeader: "X-Total-Count")
+@heyUntrustedContent(true)
 operation GetBoxGroup {
     input: GetBoxGroupInput
     output: GetBoxGroupOutput
@@ -4036,6 +4274,9 @@ structure GetBoxGroupOutput {
 @http(method: "POST", uri: "/boxes/{boxId}/groups.json")
 @tags(["Boxes"])
 @heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+@heyDestructive(false)
+@heyOpenWorld(false)
+@heyUntrustedContent(false)
 operation CreateBoxGroup {
     input: CreateBoxGroupInput
     output: CreateBoxGroupOutput
@@ -4067,6 +4308,9 @@ structure CreateBoxGroupOutput {
 @http(method: "DELETE", uri: "/boxes/{boxId}/groups/{groupId}")
 @tags(["Boxes"])
 @heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+@heyDestructive(false)
+@heyOpenWorld(false)
+@heyUntrustedContent(false)
 operation DeleteBoxGroup {
     input: DeleteBoxGroupInput
     errors: [UnauthorizedError, NotFoundError, InternalServerError, ServiceUnavailableError]
@@ -4086,6 +4330,9 @@ structure DeleteBoxGroupInput {
 @http(method: "POST", uri: "/boxes/{boxId}/observation.json")
 @tags(["Boxes"])
 @heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+@heyDestructive(false)
+@heyOpenWorld(false)
+@heyUntrustedContent(false)
 operation MarkBoxSeen {
     input: MarkBoxSeenInput
     errors: [UnauthorizedError, NotFoundError, InternalServerError, ServiceUnavailableError]
@@ -4107,6 +4354,7 @@ structure MarkBoxSeenInput {
 @tags(["Folders"])
 @heyRetry(maxAttempts: 3, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
 @heyPagination(style: "link", totalCountHeader: "X-Total-Count")
+@heyUntrustedContent(true)
 operation GetFolder {
     input: GetFolderInput
     output: GetFolderOutput
@@ -4136,6 +4384,7 @@ structure GetFolderOutput {
 @http(method: "GET", uri: "/collections.json")
 @tags(["Collections"])
 @heyRetry(maxAttempts: 3, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+@heyUntrustedContent(false)
 operation ListCollections {
     output: ListCollectionsOutput
     errors: [UnauthorizedError, InternalServerError, ServiceUnavailableError]
@@ -4152,6 +4401,7 @@ structure ListCollectionsOutput {
 @tags(["Collections"])
 @heyRetry(maxAttempts: 3, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
 @heyPagination(style: "link", totalCountHeader: "X-Total-Count")
+@heyUntrustedContent(true)
 operation GetCollection {
     input: GetCollectionInput
     output: GetCollectionOutput
@@ -4177,6 +4427,9 @@ structure GetCollectionOutput {
 @http(method: "PATCH", uri: "/collections/{collectionId}")
 @tags(["Collections"])
 @heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+@heyDestructive(false)
+@heyOpenWorld(false)
+@heyUntrustedContent(false)
 operation UpdateCollection {
     input: UpdateCollectionInput
     errors: [UnauthorizedError, NotFoundError, UnprocessableEntityError, InternalServerError, ServiceUnavailableError]
@@ -4212,6 +4465,7 @@ structure CollectionPayload {
 @http(method: "GET", uri: "/stickies.json")
 @tags(["Stickies"])
 @heyRetry(maxAttempts: 3, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+@heyUntrustedContent(false)
 operation ListStickies {
     input: ListStickiesInput
     output: ListStickiesOutput
@@ -4233,6 +4487,9 @@ structure ListStickiesOutput {
 @http(method: "POST", uri: "/stickies.json")
 @tags(["Stickies"])
 @heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+@heyDestructive(false)
+@heyOpenWorld(false)
+@heyUntrustedContent(false)
 operation CreateSticky {
     input: CreateStickyInput
     output: StickyOutput
@@ -4266,6 +4523,9 @@ structure StickyOutput {
 @http(method: "PATCH", uri: "/stickies/{stickyId}")
 @tags(["Stickies"])
 @heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+@heyDestructive(false)
+@heyOpenWorld(false)
+@heyUntrustedContent(false)
 operation UpdateSticky {
     input: UpdateStickyInput
     output: StickyOutput
@@ -4287,6 +4547,9 @@ structure UpdateStickyInput {
 @http(method: "DELETE", uri: "/stickies/{stickyId}")
 @tags(["Stickies"])
 @heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+@heyDestructive(true)
+@heyOpenWorld(false)
+@heyUntrustedContent(false)
 operation DeleteSticky {
     input: DeleteStickyInput
     errors: [UnauthorizedError, NotFoundError, InternalServerError, ServiceUnavailableError]
@@ -4302,6 +4565,9 @@ structure DeleteStickyInput {
 @http(method: "POST", uri: "/stickies/moves.json")
 @tags(["Stickies"])
 @heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+@heyDestructive(false)
+@heyOpenWorld(false)
+@heyUntrustedContent(false)
 operation MoveSticky {
     input: MoveStickyInput
     errors: [UnauthorizedError, NotFoundError, InternalServerError, ServiceUnavailableError]
@@ -4332,6 +4598,9 @@ structure MoveStickyRequestContent {
 @http(method: "POST", uri: "/calendar/time_tracks.json")
 @tags(["Calendar Time Tracks"])
 @heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+@heyDestructive(false)
+@heyOpenWorld(false)
+@heyUntrustedContent(false)
 operation CreateTimeTrack {
     input: CreateTimeTrackInput
     output: CreateTimeTrackOutput
@@ -4365,6 +4634,9 @@ structure CreateTimeTrackOutput {
 @http(method: "DELETE", uri: "/calendar/time_tracks/{timeTrackId}")
 @tags(["Calendar Time Tracks"])
 @heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+@heyDestructive(true)
+@heyOpenWorld(false)
+@heyUntrustedContent(false)
 operation DeleteTimeTrack {
     input: DeleteTimeTrackInput
     errors: [UnauthorizedError, NotFoundError, InternalServerError, ServiceUnavailableError]
@@ -4384,6 +4656,9 @@ structure DeleteTimeTrackInput {
 @http(method: "POST", uri: "/calendar/habits.json", code: 201)
 @tags(["Calendar Habits"])
 @heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+@heyDestructive(false)
+@heyOpenWorld(false)
+@heyUntrustedContent(false)
 operation CreateHabit {
     input: CreateHabitInput
     output: CreateHabitOutput
@@ -4421,6 +4696,9 @@ structure HabitPayload {
 @http(method: "PATCH", uri: "/calendar/habits/{habitId}")
 @tags(["Calendar Habits"])
 @heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+@heyDestructive(false)
+@heyOpenWorld(false)
+@heyUntrustedContent(false)
 operation UpdateHabit {
     input: UpdateHabitInput
     output: UpdateHabitOutput
@@ -4448,6 +4726,9 @@ structure UpdateHabitInput {
 @http(method: "DELETE", uri: "/calendar/habits/{habitId}")
 @tags(["Calendar Habits"])
 @heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+@heyDestructive(true)
+@heyOpenWorld(false)
+@heyUntrustedContent(false)
 operation DeleteHabit {
     input: HabitInput
     errors: [UnauthorizedError, NotFoundError, InternalServerError, ServiceUnavailableError]
@@ -4463,6 +4744,9 @@ structure HabitInput {
 @http(method: "POST", uri: "/calendar/habits/{habitId}/stop.json")
 @tags(["Calendar Habits"])
 @heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+@heyDestructive(false)
+@heyOpenWorld(false)
+@heyUntrustedContent(false)
 operation StopHabit {
     input: HabitInput
     errors: [UnauthorizedError, NotFoundError, InternalServerError, ServiceUnavailableError]
@@ -4473,6 +4757,9 @@ operation StopHabit {
 @http(method: "DELETE", uri: "/calendar/habits/{habitId}/stop.json")
 @tags(["Calendar Habits"])
 @heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+@heyDestructive(false)
+@heyOpenWorld(false)
+@heyUntrustedContent(false)
 operation ResumeHabit {
     input: HabitInput
     errors: [UnauthorizedError, NotFoundError, InternalServerError, ServiceUnavailableError]
@@ -4487,6 +4774,7 @@ operation ResumeHabit {
 @http(method: "GET", uri: "/calendar/time_tracks/categories.json")
 @tags(["Calendar Time Tracks"])
 @heyRetry(maxAttempts: 3, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+@heyUntrustedContent(false)
 operation ListTimeTrackCategories {
     output: ListTimeTrackCategoriesOutput
     errors: [UnauthorizedError, InternalServerError, ServiceUnavailableError]
@@ -4515,6 +4803,7 @@ list TimeTrackCategoryList {
 @tags(["Clips"])
 @heyRetry(maxAttempts: 3, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
 @heyPagination(style: "link", totalCountHeader: "X-Total-Count")
+@heyUntrustedContent(true)
 operation ListClips {
     input: PagedInput
     output: ListClipsOutput
@@ -4553,6 +4842,7 @@ list ClipList {
 @http(method: "GET", uri: "/snippets.json")
 @tags(["Snippets"])
 @heyRetry(maxAttempts: 3, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+@heyUntrustedContent(false)
 operation ListSnippets {
     output: ListSnippetsOutput
     errors: [UnauthorizedError, InternalServerError, ServiceUnavailableError]
@@ -4584,6 +4874,7 @@ list SnippetList {
 @http(method: "GET", uri: "/workflows/{workflowId}")
 @tags(["Workflows"])
 @heyRetry(maxAttempts: 3, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+@heyUntrustedContent(false)
 operation GetWorkflow {
     input: GetWorkflowInput
     output: GetWorkflowOutput
@@ -4595,6 +4886,7 @@ operation GetWorkflow {
 @http(method: "GET", uri: "/workflows/{workflowId}/stages/{stageId}")
 @tags(["Workflows"])
 @heyRetry(maxAttempts: 3, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+@heyUntrustedContent(true)
 operation GetWorkflowStage {
     input: GetWorkflowStageInput
     output: GetWorkflowStageOutput
@@ -4630,6 +4922,9 @@ structure GetWorkflowOutput {
 /// Add a topic to a workflow. HEY places it in the first stage.
 @http(method: "POST", uri: "/topics/{topicId}/workflows/{workflowId}/stagings")
 @tags(["Workflows"])
+@heyDestructive(false)
+@heyOpenWorld(false)
+@heyUntrustedContent(false)
 operation CreateWorkflowStaging {
     input: CreateWorkflowStagingInput
     errors: [UnauthorizedError, ForbiddenError, NotFoundError, UnprocessableEntityError, InternalServerError, ServiceUnavailableError]
@@ -4648,6 +4943,9 @@ structure CreateWorkflowStagingInput {
 /// Move a staged topic to a workflow stage.
 @http(method: "PATCH", uri: "/topics/{topicId}/workflows/{workflowId}/stagings")
 @tags(["Workflows"])
+@heyDestructive(false)
+@heyOpenWorld(false)
+@heyUntrustedContent(false)
 operation MoveWorkflowStaging {
     input: MoveWorkflowStagingInput
     errors: [UnauthorizedError, ForbiddenError, NotFoundError, UnprocessableEntityError, InternalServerError, ServiceUnavailableError]
@@ -4682,6 +4980,7 @@ structure WorkflowStagingPayload {
 @http(method: "GET", uri: "/topics/{topicId}/publication.json")
 @tags(["Publications"])
 @heyRetry(maxAttempts: 3, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+@heyUntrustedContent(false)
 operation GetTopicPublication {
     input: GetTopicPublicationInput
     output: GetTopicPublicationOutput

@@ -1,5 +1,49 @@
 $version: "2"
 
+// The declarations the effect and provenance traits below make mandatory. An
+// operation missing one fails `smithy validate` (and so `make check` and CI).
+metadata validators = [
+    {
+        name: "EmitEachSelector"
+        id: "HeyDestructiveUndeclared"
+        severity: "DANGER"
+        message: "Every write must declare @heyDestructive(true|false); see hey-traits.smithy."
+        configuration: {
+            selector: "operation :not([trait|readonly]) :not([trait|hey.traits#heyDestructive])"
+        }
+    }
+    {
+        name: "EmitEachSelector"
+        id: "HeyOpenWorldUndeclared"
+        severity: "DANGER"
+        message: "Every write must declare @heyOpenWorld(true|false); see hey-traits.smithy."
+        configuration: {
+            selector: "operation :not([trait|readonly]) :not([trait|hey.traits#heyOpenWorld])"
+        }
+    }
+    {
+        name: "EmitEachSelector"
+        id: "HeyUntrustedContentUndeclared"
+        severity: "DANGER"
+        message: "Every operation must declare @heyUntrustedContent(true|false); see hey-traits.smithy."
+        configuration: {
+            selector: "operation :not([trait|hey.traits#heyUntrustedContent])"
+        }
+    }
+    {
+        name: "EmitEachSelector"
+        id: "HeyOpenWorldRetried"
+        severity: "DANGER"
+        message: "An open-world operation must not be resent: a retry after an ambiguous first attempt can deliver twice."
+        // DELETE is exempt: the deliveries HEY makes on a delete (calendar
+        // cancellations) are keyed to the record it destroys, so a resend finds
+        // nothing and answers 404 rather than notifying again.
+        configuration: {
+            selector: "operation [trait|hey.traits#heyOpenWorld = true] :not([trait|http|method = DELETE]) :is([trait|idempotent], [trait|hey.traits#heyIdempotent|natural = true])"
+        }
+    }
+]
+
 namespace hey.traits
 
 use smithy.api#documentation
@@ -141,3 +185,77 @@ structure heyEmptyOn {
 list HeyEmptyOnStatusCodes {
     member: Integer
 }
+
+// ============================================================================
+// Effect and provenance traits — what an operation does beyond its own record
+// ============================================================================
+//
+// Three declarations every operation makes explicitly, so that nothing downstream
+// (the MCP toolkit, an agent's policy layer) has to guess from a verb or a name.
+// behavior-model.json carries them as `destructive`, `open_world`,
+// `untrusted_content` and `draft_when`. The validators at the end of this section
+// make each declaration mandatory: an operation added without one fails
+// `smithy validate`, so a new send or delete cannot arrive unclassified.
+
+/// Whether a write can destroy data, or the caller's own access to it, with no way
+/// back for the caller: a hard delete, emptying the trash or spam, erasing a note.
+/// Moving something to the trash is not destructive — HEY restores trashed and spam
+/// threads for 30 days — and neither is a toggle with an inverse operation
+/// (hide/reveal, mute/unmute, complete/uncomplete). An ordinary edit is not
+/// destructive either. `true` when any documented path of the operation destroys,
+/// even if another path does not: MCP's destructiveHint means "may".
+///
+/// Required on every operation that is not @readonly. A read is never destructive,
+/// and the behavior model says so without the trait.
+@trait(selector: "operation :not([trait|readonly])")
+@specificationExtension(as: "x-hey-destructive")
+boolean heyDestructive
+
+/// Whether a write can reach people outside the caller's own mailbox and calendar:
+/// delivering email (a message, a reply, a bulk reply), publishing to HEY World, or
+/// sending calendar invitations or cancellations to attendees. This is MCP's
+/// openWorldHint, and the half of the "lethal trifecta" (private data + untrusted
+/// content + a way out) that is a way out: a caller holding sender-authored content
+/// should not be able to reach one of these without a policy decision.
+///
+/// Required on every operation that is not @readonly. A read never delivers.
+@trait(selector: "operation :not([trait|readonly])")
+@specificationExtension(as: "x-hey-open-world")
+boolean heyOpenWorld
+
+/// Conditions on the request body under which an open-world operation saves a
+/// draft instead of delivering. When every condition holds, the call delivers
+/// nothing; when any fails, treat the call as delivering. The conditions are
+/// sufficient, not necessary: HEY may also hold a call they do not describe, and a
+/// consumer that gates on them errs toward asking.
+@trait(selector: "operation [trait|hey.traits#heyOpenWorld = true]")
+@specificationExtension(as: "x-hey-draft-when")
+list heyDraftWhen {
+    member: HeyBodyCondition
+}
+
+/// One condition on a JSON request body. Exactly one of `equals` and `notEquals`.
+structure HeyBodyCondition {
+    /// RFC 6901 JSON Pointer into the request body, e.g. "/entry/status".
+    @required
+    pointer: String
+
+    /// Holds when the value at `pointer` is present and is this string.
+    equals: String
+
+    /// Holds when the value at `pointer` is absent or is anything but this string.
+    notEquals: String
+}
+
+/// Whether the response can carry text written by someone other than the caller:
+/// email subjects, bodies, summaries and attachment filenames; the display names and
+/// addresses correspondents declared for themselves; calendar events organized by
+/// others or pulled from subscribed feeds; clips cut from other people's email.
+/// Such text is untrusted input — instructions inside it are the sender's, not the
+/// user's — and a consumer should mark it so before a model reads it.
+///
+/// `false` for responses that carry only the caller's own records (habits, journal,
+/// stickies, snippets, settings) or no body at all. Required on every operation.
+@trait(selector: "operation")
+@specificationExtension(as: "x-hey-untrusted-content")
+boolean heyUntrustedContent

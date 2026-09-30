@@ -42,7 +42,7 @@ smithy-clean:
 # Behavior model
 #------------------------------------------------------------------------------
 
-.PHONY: behavior-model behavior-model-check
+.PHONY: behavior-model behavior-model-check behavior-traits-test
 
 behavior-model:
 	@echo "==> Generating behavior model..."
@@ -51,6 +51,12 @@ behavior-model:
 behavior-model-check:
 	@echo "==> Checking behavior model freshness..."
 	@./scripts/generate-behavior-model --check
+
+# Break the model one declaration at a time and require smithy validate to refuse
+# each break: proves the effect/provenance tripwires in spec/hey-traits.smithy fire.
+behavior-traits-test:
+	@echo "==> Testing behavior-trait tripwires..."
+	@./scripts/test-behavior-traits
 
 #------------------------------------------------------------------------------
 # URL routes
@@ -427,14 +433,14 @@ audit-check:
 #------------------------------------------------------------------------------
 
 # Supported gate: Smithy + shipped Go, Rust, TypeScript, Kotlin and Swift SDKs
-check-mvp: smithy-check behavior-model-check drift-check-mvp \
+check-mvp: smithy-check behavior-model-check behavior-traits-test drift-check-mvp \
            url-routes-check go-check go-check-drift rs-check rs-check-drift \
            ts-check kt-check kt-check-drift swift-check swift-check-drift \
            sync-api-version-check provenance-check conformance-mvp
 	@echo "==> MVP gate passed"
 
 # Phase 3: Full surface, all languages
-check-full: smithy-check behavior-model-check drift-check-full \
+check-full: smithy-check behavior-model-check behavior-traits-test drift-check-full \
             sync-api-version-check provenance-check \
             go-check-drift rs-check-drift kt-check-drift swift-check-drift \
             go-check rs-check ts-check rb-check swift-check kt-check \

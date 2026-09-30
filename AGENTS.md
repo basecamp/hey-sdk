@@ -338,9 +338,37 @@ Swift has no registry and no publication switch: a `vX.Y.Z` tag is the release, 
 `release-swift.yml` runs the same gate on the tag before `release-github.yml` creates the
 GitHub release.
 
+## Effect and provenance traits
+
+Every operation declares what it does beyond its own record, in `spec/hey-traits.smithy`'s
+vocabulary, and `behavior-model.json` carries the answers for consumers such as the MCP
+toolkit (`github.com/basecamp/mcp`):
+
+- `@heyDestructive(true|false)` on every write → `destructive`. True when some path destroys
+  data, or the caller's own access to it, with no way back for the caller: a hard delete,
+  emptying the trash or spam, erasing a note, `TrashPostings` on a shared thread (the default
+  JSON path revokes your access). Trashing is not destructive (HEY restores for 30 days), nor
+  is a toggle with an inverse or an ordinary edit.
+- `@heyOpenWorld(true|false)` on every write → `open_world`. True when the call can reach
+  people outside the mailbox: delivering mail, publishing to HEY World, calendar
+  invitations or cancellations. An open-world operation may not be `@idempotent` or
+  `@heyIdempotent(natural: true)` unless it is a DELETE.
+- `@heyDraftWhen([...])` on an open-world operation that can save instead of send →
+  `draft_when`: request-body conditions under which the call delivers nothing.
+- `@heyUntrustedContent(true|false)` on every operation → `untrusted_content`. True when the
+  response can carry text someone other than the caller wrote (subjects, bodies, summaries,
+  filenames, correspondents' names, others' calendar events, clips).
+
+A read is never destructive or open-world, and the model says `false` for it without the
+trait. EmitEachSelector validators make each declaration mandatory, so an operation added
+without one fails `smithy validate`; `make behavior-traits-test` breaks the model on
+purpose to prove those validators still fire. Decide from haystack's controller, not the
+verb or the name: `HideContact` is a DELETE and reversible, `TrashPostings` is a POST and
+can be irreversible, `DeleteCalendarEvent` emails cancellations.
+
 ## Adding an operation
 
-1. Edit `spec/hey.smithy`
+1. Edit `spec/hey.smithy`, declaring the operation's effect and provenance traits (above)
 2. `make smithy-build` -- regenerates `openapi.json`
 3. Refresh the three artifacts `smithy-build` leaves behind:
 
@@ -375,7 +403,7 @@ GitHub release.
    has to be the shape the model says.
 11. `make check`
 
-`make check` resolves to `check-mvp`: `smithy-check`, `behavior-model-check`,
+`make check` resolves to `check-mvp`: `smithy-check`, `behavior-model-check`, `behavior-traits-test`,
 `drift-check-mvp`, `url-routes-check`, `go-check`, `go-check-drift`, `rs-check`,
 `rs-check-drift`, `ts-check`, `kt-check`, `kt-check-drift`, `swift-check`,
 `swift-check-drift`, `sync-api-version-check` and `conformance-mvp` (Go, Rust, TypeScript,
