@@ -346,13 +346,14 @@ toolkit (`github.com/basecamp/mcp`):
 
 - `@heyDestructive(true|false)` on every write → `destructive`. True when some path destroys
   data, or the caller's own access to it, with no way back for the caller: a hard delete,
-  emptying the trash or spam, erasing a note, `TrashPostings` on a shared thread (the default
+  emptying the trash or spam, erasing a note or a journal entry, `TrashPostings` on a shared thread (the default
   JSON path revokes your access). Trashing is not destructive (HEY restores for 30 days), nor
   is a toggle with an inverse or an ordinary edit.
 - `@heyOpenWorld(true|false)` on every write → `open_world`. True when the call can reach
   people outside the mailbox: delivering mail, publishing to HEY World, calendar
-  invitations or cancellations. An open-world operation may not be `@idempotent` or
-  `@heyIdempotent(natural: true)` unless it is a DELETE.
+  invitations or cancellations. An open-world operation other than a DELETE must never be
+  resent: not `@idempotent`, not `@heyIdempotent(natural: true)`, and a PUT must say
+  `@heyIdempotent(natural: false)` to opt out of the verb's retries.
 - `@heyDraftWhen([...])` on an open-world operation that can save instead of send →
   `draft_when`: request-body conditions under which the call delivers nothing.
 - `@heyUntrustedContent(true|false)` on every operation → `untrusted_content`. True when the

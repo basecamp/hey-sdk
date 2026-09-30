@@ -2061,7 +2061,7 @@
         "tags": [
           "Calendar Journal"
         ],
-        "x-hey-destructive": false,
+        "x-hey-destructive": true,
         "x-hey-open-world": false,
         "x-hey-retry": {
           "maxAttempts": 2,

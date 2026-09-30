@@ -2100,7 +2100,7 @@
       "untrusted_content": false
     },
     "UpdateJournalEntry": {
-      "destructive": false,
+      "destructive": true,
       "idempotent": false,
       "open_world": false,
       "readonly": false,
@@ -2127,7 +2127,7 @@
           "pointer": "/entry/scheduled_delivery"
         }
       ],
-      "idempotent": true,
+      "idempotent": false,
       "open_world": true,
       "readonly": false,
       "retry": {

@@ -45,8 +45,12 @@ def condition:
       value: (
         {
           readonly: (if .value.traits["smithy.api#readonly"] != null then true else false end),
-          idempotent: (if .value.traits["smithy.api#idempotent"] != null
-                       or .value.traits["hey.traits#heyIdempotent"] != null
+          # @heyIdempotent counts only for what its natural member says: natural: false
+          # is an opt-out (UpdateMessage delivers), and a trait carrying only
+          # keySupported says nothing about resending.
+          idempotent: (if .value.traits["hey.traits#heyIdempotent"].natural == false then false
+                       elif .value.traits["smithy.api#idempotent"] != null
+                         or .value.traits["hey.traits#heyIdempotent"].natural == true
                        then true else false end)
         } +
         # Pagination

@@ -34,12 +34,17 @@ metadata validators = [
         name: "EmitEachSelector"
         id: "HeyOpenWorldRetried"
         severity: "DANGER"
-        message: "An open-world operation must not be resent: a retry after an ambiguous first attempt can deliver twice."
+        message: "An open-world operation must not be resent: a retry after an ambiguous first attempt can deliver twice. Declare @heyIdempotent(natural: false) to opt a PUT out of the verb's retries."
+        // Every generator decides a resend the same way: x-hey-idempotent's natural
+        // when it is a boolean, otherwise @readonly or @idempotent, otherwise the
+        // verb (GET, HEAD, PUT, DELETE). So refuse any open-world operation that
+        // does not say natural: false and would be resent by one of the other two.
+        //
         // DELETE is exempt: the deliveries HEY makes on a delete (calendar
         // cancellations) are keyed to the record it destroys, so a resend finds
         // nothing and answers 404 rather than notifying again.
         configuration: {
-            selector: "operation [trait|hey.traits#heyOpenWorld = true] :not([trait|http|method = DELETE]) :is([trait|idempotent], [trait|hey.traits#heyIdempotent|natural = true])"
+            selector: "operation [trait|hey.traits#heyOpenWorld = true] :not([trait|http|method = DELETE]) :not([trait|hey.traits#heyIdempotent|natural = false]) :is([trait|idempotent], [trait|hey.traits#heyIdempotent|natural = true], [trait|http|method = GET, HEAD, PUT])"
         }
     }
 ]
@@ -47,6 +52,7 @@ metadata validators = [
 namespace hey.traits
 
 use smithy.api#documentation
+use smithy.api#length
 use smithy.api#trait
 use smithy.openapi#specificationExtension
 
@@ -227,9 +233,11 @@ boolean heyOpenWorld
 /// draft instead of delivering. When every condition holds, the call delivers
 /// nothing; when any fails, treat the call as delivering. The conditions are
 /// sufficient, not necessary: HEY may also hold a call they do not describe, and a
-/// consumer that gates on them errs toward asking.
+/// consumer that gates on them errs toward asking. At least one condition: an empty
+/// list would hold vacuously and wave every send through as a draft.
 @trait(selector: "operation [trait|hey.traits#heyOpenWorld = true]")
 @specificationExtension(as: "x-hey-draft-when")
+@length(min: 1)
 list heyDraftWhen {
     member: HeyBodyCondition
 }

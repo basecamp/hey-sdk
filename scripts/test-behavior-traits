@@ -104,6 +104,14 @@ reset_model
 edit_operation UpdateMessage sub 'natural: false' 'natural: true'
 expect_refusal "a send opted into resends" HeyOpenWorldRetried hey#UpdateMessage
 
+reset_model
+edit_operation UpdateMessage drop '@heyIdempotent('
+expect_refusal "a PUT send left to the verb's retries" HeyOpenWorldRetried hey#UpdateMessage
+
+reset_model
+edit_operation CreateBulkReply sub '@heyOpenWorld(true)' '@heyOpenWorld(true)\n@heyDraftWhen([])'
+expect_refusal "a send whose draft conditions are empty" TraitValue hey#CreateBulkReply
+
 if [[ $failures -gt 0 ]]; then
     echo "$failures tripwire check(s) failed"
     exit 1

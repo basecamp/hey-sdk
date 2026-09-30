@@ -3001,7 +3001,7 @@ structure GetJournalEntryOutput {
 @http(method: "PATCH", uri: "/calendar/days/{day}/journal_entry")
 @tags(["Calendar Journal"])
 @heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
-@heyDestructive(false)
+@heyDestructive(true)
 @heyOpenWorld(false)
 @heyUntrustedContent(false)
 operation UpdateJournalEntry {
