@@ -12,7 +12,7 @@ GitHub Actions remains the authority for the exact pull-request head and support
 | Type safety | `npm run typecheck`, `npm run typecheck:tests` and the conformance-runner typecheck cover the public SDK, tests, examples and fixture adapter. |
 | Package artifact | `npm run package:smoke` packs the package, installs the tarball in an isolated project and validates its exports without resolving repository source files. |
 | Shared conformance | `make conformance-ts` executes 192 applicable fixtures through generated methods. Four named convenience-layer fixtures remain explicitly excluded in `conformance/runner/typescript/not-applicable.json`; stale exclusions and unknown fixture shapes fail closed. |
-| Existing SDKs | `make check` runs the complete Smithy, drift, Go, Rust, TypeScript and conformance gate. Go and Rust each execute all 196 fixtures. |
+| Existing SDKs | `make check` runs the complete Smithy, drift, Go, Rust, TypeScript, Kotlin, Swift and conformance gate. Go, Rust, Kotlin and Swift each execute all 196 fixtures. |
 | Release safety | Release tests validate inactive-by-default npm publication, tagged-state parsing, exact-artifact publication and transactional version synchronization across Go, Rust and TypeScript. |
 
 ## Current local result
@@ -31,6 +31,8 @@ make check
 # Go conformance: 196/196
 # Rust conformance: 196/196
 # TypeScript conformance: 192/192 applicable; 4 declared exclusions
+# Kotlin conformance: 196/196
+# Swift conformance: 196/196
 ```
 
 Focused TypeScript verification is available with:
