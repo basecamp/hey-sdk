@@ -2808,6 +2808,25 @@ func TestTopicsService_CreateComment(t *testing.T) {
 	}
 }
 
+func TestTopicsService_CreateCommentWithoutTheNote(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		_, _ = w.Write([]byte("<html><body>Imbox</body></html>"))
+	}))
+	t.Cleanup(server.Close)
+	client := NewClient(&Config{BaseURL: server.URL}, &StaticTokenProvider{Token: "test-token"}, WithMaxRetries(0))
+
+	entry, err := client.Topics().CreateComment(context.Background(), 4471829, "<div>Following up</div>")
+
+	var heyErr *Error
+	if !errors.As(err, &heyErr) || heyErr.Code != CodeAPI || heyErr.HTTPStatus != http.StatusOK {
+		t.Fatalf("expected an API error for a success without the note, got %v", err)
+	}
+	if entry != nil {
+		t.Errorf("expected no entry, got %+v", entry)
+	}
+}
+
 func TestTopicsService_CreateCommentInvalid(t *testing.T) {
 	client := newJSONStatusTestClient(t, http.StatusUnprocessableEntity, `{"errors":["Content can't be blank"]}`)
 

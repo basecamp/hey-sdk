@@ -86,11 +86,13 @@ service HEY {
         // Topics (6 MVP)
         GetTopic
         GetTopicEntries
-        CreateTopicComment
         GetSentTopics
         GetSpamTopics
         GetTrashTopics
         GetEverythingTopics
+
+        // Topics — notes
+        CreateTopicComment
 
         // Messages (3 MVP)
         GetMessage

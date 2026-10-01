@@ -152,6 +152,13 @@ func (s *TopicsService) CreateComment(ctx context.Context, topicID int64, conten
 		if cerr := CheckResponse(resp.HTTPResponse); cerr != nil {
 			return cerr
 		}
+		if resp.JSON201 == nil {
+			// A HEY that predates the JSON answer redirects to the box after adding the
+			// note, so a success without the entry may still have written one.
+			return ErrAPI(resp.StatusCode(), fmt.Sprintf(
+				"HEY answered HTTP %d without the note it created; check topic %d before adding it again",
+				resp.StatusCode(), topicID))
+		}
 		entry = resp.JSON201
 		return nil
 	})

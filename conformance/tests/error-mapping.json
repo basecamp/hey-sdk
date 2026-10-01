@@ -135,7 +135,8 @@
     "assertions": [
       {"type": "requestCount", "expected": 1},
       {"type": "errorCode", "expected": "not_found"},
-      {"type": "errorField", "path": "httpStatus", "expected": 404}
+      {"type": "errorField", "path": "httpStatus", "expected": 404},
+      {"type": "errorField", "path": "retryable", "expected": false}
     ],
     "tags": ["error-mapping", "not-found", "structured-error", "topics"]
   },

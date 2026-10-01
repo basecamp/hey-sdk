@@ -7,7 +7,7 @@ GitHub Actions remains the authority for the exact pull-request head and support
 
 | Capability | Evidence |
 |---|---|
-| Generated API coverage | `npm run generate:check` verifies 135 modeled operations, generated routes, schemas, guards and coverage metadata against `openapi.json` and `behavior-model.json`. |
+| Generated API coverage | `npm run check:generated` verifies 135 modeled operations, generated routes, schemas, guards and coverage metadata against `openapi.json` and `behavior-model.json`. |
 | Runtime behavior | `npm test` runs 528 tests across transport, retries, cancellation, credentials, OAuth, pagination, account scope, response limits, package installation, generation and release integration. |
 | Type safety | `npm run typecheck`, `npm run typecheck:tests` and the conformance-runner typecheck cover the public SDK, tests, examples and fixture adapter. |
 | Package artifact | `npm run package:smoke` packs the package, installs the tarball in an isolated project and validates its exports without resolving repository source files. |
