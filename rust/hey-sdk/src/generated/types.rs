@@ -1083,6 +1083,9 @@ pub struct Entry {
     /// ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub updated_at: Option<DateTime>,
+    /// Delivery time. Present on the latest entry in Sent topics.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub active_at: Option<DateTime>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub creator: Option<Contact>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -1097,6 +1100,8 @@ pub struct Entry {
     pub subject: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub topic_id: Option<i64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub addressed: Option<Addressed>,
 }
 
 /// Extenzion — external account extension

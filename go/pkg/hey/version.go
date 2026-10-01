@@ -4,4 +4,4 @@ package hey
 const Version = "0.31.1"
 
 // APIVersion is the HEY API version this SDK targets.
-const APIVersion = "2026-09-16"
+const APIVersion = "2026-09-20"

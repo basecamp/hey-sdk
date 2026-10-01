@@ -7,4 +7,4 @@ pub mod services;
 pub mod types;
 
 /// The HEY API version this SDK was generated against.
-pub const API_VERSION: &str = "2026-09-16";
+pub const API_VERSION: &str = "2026-09-20";
