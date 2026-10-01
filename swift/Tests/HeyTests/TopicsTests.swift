@@ -98,7 +98,8 @@ final class TopicsTests: XCTestCase {
         XCTAssertEqual(shared.collectionOnly, false)
         XCTAssertEqual(privateNote.visibleTo?.count, 0)
         XCTAssertEqual(privateNote.collectionOnly, true)
-        XCTAssertEqual(hey.requests[0].method, "GET")
-        XCTAssertEqual(hey.requests[0].path, "/topics/9/comments/new.json")
+        XCTAssertEqual(hey.requests.count, 2)
+        XCTAssertEqual(hey.requests.map(\.method), ["GET", "GET"])
+        XCTAssertEqual(hey.requests.map(\.path), ["/topics/9/comments/new.json", "/topics/10/comments/new.json"])
     }
 }

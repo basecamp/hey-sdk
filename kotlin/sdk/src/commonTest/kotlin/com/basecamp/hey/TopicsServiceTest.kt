@@ -126,7 +126,7 @@ class TopicsServiceTest {
         assertEquals(false, shared.collectionOnly)
         assertEquals(emptyList(), private.visibleTo)
         assertEquals(true, private.collectionOnly)
-        assertEquals("GET", hey.requests[0].method)
-        assertEquals("/topics/9/comments/new.json", hey.requests[0].path)
+        assertEquals(listOf("GET", "GET"), hey.requests.map { it.method })
+        assertEquals(listOf("/topics/9/comments/new.json", "/topics/10/comments/new.json"), hey.requests.map { it.path })
     }
 }
