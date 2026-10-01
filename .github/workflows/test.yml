@@ -90,14 +90,14 @@ jobs:
       # exports MBX_GC_AUTO=0 for object-mode jobs on GitHub-hosted runners, so the restored
       # objects outlive the job's first cargo command.
       - name: Cache cargo
-        uses: jdx/mr-boxington-action@867fc530102eec5b756075d70d850dc8330d2272 # v1.4.0
+        uses: jdx/mr-boxington-action@9df1d4b18b2147788a7ee7a2c7b84ecf62fd89d3 # v1.5.0
         with:
           version: 1.12.0
           github-cache-mode: objects
           cache-generation: 68e48f140664c04682a7b33a1c7782b86484d21a
 
       - name: Install cargo-deny
-        uses: taiki-e/install-action@7623a79cdfecb99d681017af368ca353d9f49bb5 # v2.87.19
+        uses: taiki-e/install-action@9983c65e42da123ff25d1f78505eb6de315aa172 # v2.87.20
         with:
           tool: cargo-deny
 
