@@ -145,7 +145,7 @@ final class ContactsTests: XCTestCase {
             AddressableRecipient(
                 value: "troy@example.org,abed@example.org,britta@example.org", label: "Study group", detail: "Contact group with 3 people"),
         ], "a row shorter than a value and a label, or with no address in it, is skipped, and the rest keep HEY's order")
-        XCTAssertEqual(recipients[0].value.expose(), "jason@example.com")
+        XCTAssertEqual(recipients.first?.value.expose(), "jason@example.com")
         let printed = String(describing: recipients)
         XCTAssertTrue(printed.contains("[REDACTED]"))
         XCTAssertFalse(printed.contains("jason@example.com"), "the addresses stay out of a print of the recipients")
