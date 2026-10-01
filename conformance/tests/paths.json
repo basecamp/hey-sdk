@@ -916,7 +916,9 @@
           "kind": "comment",
           "app_url": "https://app.hey.com/topics/4471829#__entry_1019246358",
           "topic_id": 4471829,
-          "content": "<div>Can you take a look at the <strong>spine</strong>?</div>"
+          "content": "<div>Can you take a look at the <strong>spine</strong>?</div>",
+          "visible_to": [{"id": 140958377, "name": "Andrea LaRowe", "email_address": "andrea@example.com"}],
+          "collection_only": false
         }
       }
     ],
@@ -957,6 +959,65 @@
         "type": "responseBody",
         "path": "content",
         "expected": "<div>Can you take a look at the <strong>spine</strong>?</div>"
+      },
+      {
+        "type": "responseBody",
+        "path": "visible_to.0.id",
+        "expected": 140958377
+      },
+      {
+        "type": "responseBody",
+        "path": "collection_only",
+        "expected": false
+      }
+    ],
+    "tags": [
+      "path",
+      "topics"
+    ]
+  },
+  {
+    "name": "GetTopicCommentAudience uses /topics/{topicId}/comments/new.json path",
+    "description": "Verifies that GetTopicCommentAudience reads who a note would reach from the composer's JSON, without posting one",
+    "operation": "GetTopicCommentAudience",
+    "method": "GET",
+    "path": "/topics/{topicId}/comments/new.json",
+    "pathParams": {
+      "topicId": 4471829
+    },
+    "mockResponses": [
+      {
+        "status": 200,
+        "body": {
+          "visible_to": [
+            {"id": 140958377, "name": "Andrea LaRowe", "email_address": "andrea@example.com"},
+            {"id": 197214974, "name": "Jason Fried", "email_address": "jason@example.com"}
+          ],
+          "collection_only": false
+        }
+      }
+    ],
+    "assertions": [
+      {
+        "type": "requestPath",
+        "expected": "/topics/4471829/comments/new.json"
+      },
+      {
+        "type": "requestMethod",
+        "expected": "GET"
+      },
+      {
+        "type": "noError"
+      },
+      {
+        "type": "responseBody",
+        "path": "visible_to.1.email_address",
+        "expected": "jason@example.com"
+      },
+      {
+        "type": "responseBody",
+        "path": "collection_only",
+        "expected": false
       }
     ],
     "tags": [

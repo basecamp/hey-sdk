@@ -337,6 +337,10 @@
       "operation": "CreateTopicComment"
     },
     {
+      "name": "GetTopicCommentAudience uses /topics/{topicId}/comments/new.json path",
+      "operation": "GetTopicCommentAudience"
+    },
+    {
       "name": "GetTrailbox uses /paper_trail.json path",
       "operation": "GetTrailbox"
     },

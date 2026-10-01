@@ -147,6 +147,8 @@ describe("HEY transport", () => {
             email_address: "jason@example.com",
           },
           content,
+          visible_to: [{ id: 140958377, name: "Andrea LaRowe" }],
+          collection_only: false,
         },
         201,
       ),
@@ -164,12 +166,28 @@ describe("HEY transport", () => {
       kind: "comment",
       topic_id: 4471829,
       content,
+      visible_to: [{ id: 140958377, name: "Andrea LaRowe" }],
+      collection_only: false,
     });
     expect(m.requests[0]!.method).toBe("POST");
     expect(new URL(m.requests[0]!.url).pathname).toBe(
       "/topics/4471829/comments.json",
     );
     expect(await m.requests[0]!.json()).toEqual({ comment: { content } });
+  });
+  it("reads who a note would reach without posting one", async () => {
+    const m = mock([json({ visible_to: [], collection_only: true })]);
+    const client = new HeyClient({ token: "secret", fetch: m.fetch });
+
+    const audience = await client.getTopicCommentAudience({
+      path: { topicId: 4471829 },
+    });
+
+    expect(audience.data).toEqual({ visible_to: [], collection_only: true });
+    expect(m.requests[0]!.method).toBe("GET");
+    expect(new URL(m.requests[0]!.url).pathname).toBe(
+      "/topics/4471829/comments/new.json",
+    );
   });
   it.each([
     [422, { errors: ["Content can't be blank"] }, "validation"],

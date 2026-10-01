@@ -200,6 +200,7 @@ private suspend fun executeOperation(client: HeyClient, case: TestCase): Outcome
 
         "GetTopic" -> asJson(client.topics.get(path.int64("topicId")))
         "GetTopicEntries" -> page(client, client.topics.getEntries(path.int64("topicId")), follow)
+        "GetTopicCommentAudience" -> asJson(client.topics.getCommentAudience(path.int64("topicId")))
         "CreateTopicComment" -> asJson(client.topics.createComment(path.int64("topicId"), CreateTopicCommentRequestContent(comment = TopicCommentPayload(content = body.string("content")))))
         "GetSentTopics" -> page(client, client.topics.getSent(), follow)
         "GetSpamTopics" -> page(client, client.topics.getSpam(), follow)

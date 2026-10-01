@@ -1387,6 +1387,27 @@ object Routes {
         retry = RetryPolicy(max = 3, baseDelayMs = 1000L, retryOn = listOf(429, 503)),
     )
 
+    /** `GET /topics/{topicId}/comments/new.json` */
+    val GET_TOPIC_COMMENT_AUDIENCE: Route = Route(
+        id = "GetTopicCommentAudience",
+        service = "Topics",
+        method = Method.GET,
+        path = "/topics/{topicId}/comments/new.json",
+        pattern = "/topics/{topicId}/comments/new",
+        resource = "Topics",
+        resourceType = "comment",
+        params = listOf(
+            RouteParam("topicId", ParamRole.PARENT, ParamKind.INT64),
+        ),
+        idempotent = true,
+        readonly = true,
+        html = false,
+        emptyOn = emptyList(),
+        pagination = Pagination.NONE,
+        pageParameter = null,
+        retry = RetryPolicy(max = 3, baseDelayMs = 1000L, retryOn = listOf(429, 503)),
+    )
+
     /** `GET /topics/{topicId}/entries` */
     val GET_TOPIC_ENTRIES: Route = Route(
         id = "GetTopicEntries",
@@ -2803,6 +2824,7 @@ object Routes {
         GET_SENT_TOPICS,
         GET_SPAM_TOPICS,
         GET_TOPIC,
+        GET_TOPIC_COMMENT_AUDIENCE,
         GET_TOPIC_ENTRIES,
         GET_TOPIC_PUBLICATION,
         GET_TRAILBOX,

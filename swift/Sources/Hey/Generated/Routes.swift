@@ -1375,6 +1375,27 @@ public enum Routes {
         retry: RetryPolicy(max: 3, baseDelayMs: 1000, retryOn: [429, 503])
     )
 
+    /// `GET /topics/{topicId}/comments/new.json`
+    public static let getTopicCommentAudience = Route(
+        id: "GetTopicCommentAudience",
+        service: "Topics",
+        method: .get,
+        path: "/topics/{topicId}/comments/new.json",
+        pattern: "/topics/{topicId}/comments/new",
+        resource: "Topics",
+        resourceType: "comment",
+        params: [
+            RouteParam(name: "topicId", role: .parent, kind: .int64),
+        ],
+        idempotent: true,
+        readonly: true,
+        html: false,
+        emptyOn: [],
+        pagination: .unpaged,
+        pageParameter: nil,
+        retry: RetryPolicy(max: 3, baseDelayMs: 1000, retryOn: [429, 503])
+    )
+
     /// `GET /topics/{topicId}/entries`
     public static let getTopicEntries = Route(
         id: "GetTopicEntries",
@@ -2791,6 +2812,7 @@ public enum Routes {
         getSentTopics,
         getSpamTopics,
         getTopic,
+        getTopicCommentAudience,
         getTopicEntries,
         getTopicPublication,
         getTrailbox,

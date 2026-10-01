@@ -2791,7 +2791,8 @@ func TestTopicsService_CreateComment(t *testing.T) {
 		`{"id":1019246358,"kind":"comment","topic_id":4471829,"summary":"Can you take a look at the spine?",`+
 			`"creator":{"id":197214974,"name":"Jason Fried","email_address":"jason@example.com"},`+
 			`"app_url":"https://app.hey.com/topics/4471829#__entry_1019246358",`+
-			`"created_at":"2026-10-01T16:59:04.735Z","content":"<div>Can you take a look at the <strong>spine</strong>?</div>"}`)
+			`"created_at":"2026-10-01T16:59:04.735Z","content":"<div>Can you take a look at the <strong>spine</strong>?</div>",`+
+			`"visible_to":[{"id":140958377,"name":"Andrea LaRowe","email_address":"andrea@example.com"}],"collection_only":false}`)
 
 	entry, err := client.Topics().CreateComment(context.Background(), 4471829, "<div>Can you take a look at the <strong>spine</strong>?</div>")
 	if err != nil {
@@ -2805,6 +2806,46 @@ func TestTopicsService_CreateComment(t *testing.T) {
 	}
 	if entry.Creator.Name != "Jason Fried" || entry.Content == "" || entry.CreatedAt.IsZero() {
 		t.Errorf("expected the creator, content and timestamp decoded, got %+v", entry)
+	}
+	if len(entry.VisibleTo) != 1 || entry.VisibleTo[0].Name != "Andrea LaRowe" || entry.CollectionOnly {
+		t.Errorf("expected the note's audience decoded, got %+v / %v", entry.VisibleTo, entry.CollectionOnly)
+	}
+}
+
+func TestTopicsService_GetCommentAudience(t *testing.T) {
+	client := newJSONWriteTestClient(t, http.MethodGet, "/topics/4471829/comments/new.json", nil, http.StatusOK,
+		`{"visible_to":[{"id":140958377,"name":"Andrea LaRowe","email_address":"andrea@example.com"},`+
+			`{"id":197214974,"name":"Jason Fried","email_address":"jason@example.com"}],"collection_only":false}`)
+
+	audience, err := client.Topics().GetCommentAudience(context.Background(), 4471829)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(audience.VisibleTo) != 2 || audience.VisibleTo[1].EmailAddress != "jason@example.com" || audience.CollectionOnly {
+		t.Errorf("expected two teammates on a thread outside a collection, got %+v", audience)
+	}
+}
+
+func TestTopicsService_GetCommentAudienceForANoteToSelf(t *testing.T) {
+	client := newJSONStatusTestClient(t, http.StatusOK, `{"visible_to":[],"collection_only":true}`)
+
+	audience, err := client.Topics().GetCommentAudience(context.Background(), 4471829)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if audience.VisibleTo == nil || len(audience.VisibleTo) != 0 || !audience.CollectionOnly {
+		t.Errorf("expected an empty, non-nil audience on a collection, got %+v", audience)
+	}
+}
+
+func TestTopicsService_GetCommentAudienceNotFound(t *testing.T) {
+	client := newJSONStatusTestClient(t, http.StatusNotFound, `{"error":"Not found"}`)
+
+	_, err := client.Topics().GetCommentAudience(context.Background(), 4471829)
+
+	var heyErr *Error
+	if !errors.As(err, &heyErr) || heyErr.Code != CodeNotFound {
+		t.Fatalf("expected a not found error, got %v", err)
 	}
 }
 

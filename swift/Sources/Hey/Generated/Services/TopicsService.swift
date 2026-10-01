@@ -59,7 +59,8 @@ public final class TopicsService: BaseService, @unchecked Sendable {
     /// Add a note to a topic: a comment entry everyone with access to the thread sees,
     /// and which HEY never emails to anyone. On a thread no one else can reach it is a
     /// note to self. Answers the note as an entry of kind "comment", with its id,
-    /// topic_id and content.
+    /// topic_id and content, and who it reaches (visible_to, collection_only), as
+    /// GetTopicCommentAudience answers before posting.
     ///
     /// The content is HTML, as HEY's composer writes it, so escape plain text before
     /// sending it. Blank content answers 422.
@@ -92,6 +93,17 @@ public final class TopicsService: BaseService, @unchecked Sendable {
     ///   - topicId: The topic ID
     public func get(topicId: Int) async throws -> GetTopicResponseContent {
         var operation = try client.operation(Routes.getTopic, [topicId])
+        operation.resourceId(topicId)
+        return try await client.send(operation)
+    }
+
+    /// Who a note on a topic would reach, as HEY's composer shows it before posting:
+    /// nothing is written. The same answer CreateTopicComment gives with the note.
+    ///
+    /// - Parameters:
+    ///   - topicId: The topic ID
+    public func getCommentAudience(topicId: Int) async throws -> GetTopicCommentAudienceResponseContent {
+        var operation = try client.operation(Routes.getTopicCommentAudience, [topicId])
         operation.resourceId(topicId)
         return try await client.send(operation)
     }

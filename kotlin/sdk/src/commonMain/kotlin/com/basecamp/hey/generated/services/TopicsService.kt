@@ -10,6 +10,7 @@ import com.basecamp.hey.generated.models.CreateTopicCommentResponseContent
 import com.basecamp.hey.generated.models.GetEverythingTopicsResponseContent
 import com.basecamp.hey.generated.models.GetSentTopicsResponseContent
 import com.basecamp.hey.generated.models.GetSpamTopicsResponseContent
+import com.basecamp.hey.generated.models.GetTopicCommentAudienceResponseContent
 import com.basecamp.hey.generated.models.GetTopicEntriesResponseContent
 import com.basecamp.hey.generated.models.GetTopicResponseContent
 import com.basecamp.hey.generated.models.GetTrashTopicsResponseContent
@@ -57,7 +58,8 @@ open class TopicsService(client: HeyClient) : BaseService(client) {
      * Add a note to a topic: a comment entry everyone with access to the thread sees,
      * and which HEY never emails to anyone. On a thread no one else can reach it is a
      * note to self. Answers the note as an entry of kind "comment", with its id,
-     * topic_id and content.
+     * topic_id and content, and who it reaches (visible_to, collection_only), as
+     * GetTopicCommentAudience answers before posting.
      *
      * The content is HTML, as HEY's composer writes it, so escape plain text before
      * sending it. Blank content answers 422.
@@ -93,6 +95,17 @@ open class TopicsService(client: HeyClient) : BaseService(client) {
      */
     suspend fun get(topicId: Long): GetTopicResponseContent {
         val operation = client.operation(Routes.GET_TOPIC, listOf(topicId))
+        operation.resourceId(topicId)
+        return client.send(operation)
+    }
+
+    /**
+     * Who a note on a topic would reach, as HEY's composer shows it before posting:
+     * nothing is written. The same answer CreateTopicComment gives with the note.
+     * @param topicId The topic ID
+     */
+    suspend fun getCommentAudience(topicId: Long): GetTopicCommentAudienceResponseContent {
+        val operation = client.operation(Routes.GET_TOPIC_COMMENT_AUDIENCE, listOf(topicId))
         operation.resourceId(topicId)
         return client.send(operation)
     }

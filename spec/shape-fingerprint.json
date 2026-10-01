@@ -43,6 +43,7 @@
   "GetSentTopics": "71c0d4f58d450b6b8d4b5a4654053e122103622fabf7e76929aab8c61ed5c2fb",
   "GetSpamTopics": "397fc7c57adfd21dc74e0dbd0f5bac9d223f927cd2ab1cb6f0ab4eac9e57ef4a",
   "GetTopic": "8d0c7ffe65fbcc8cd457aee3cec28c0e8a093873ee8f9bd742dca371c9271bec",
+  "GetTopicCommentAudience": "5c5b520eaaf527e77d80aee3e9bd20999fa5c6ed13edef06a383988457470577",
   "GetTopicEntries": "3d26c0ecc60bcc4e99ced086309ff67a68079f23416d73acbdef2b8b58ade73c",
   "GetTopicPublication": "4a532cfecc150a7434b710838b4e291c147e820557dba27a351b7ce78e3846b9",
   "GetTrailbox": "0761f1a793617f82d39dcf28ab10daa5905dd37332bb554cb5a7a73ff04e19e7",

@@ -69,6 +69,7 @@
     "GetSentTopics",
     "GetSpamTopics",
     "GetTopic",
+    "GetTopicCommentAudience",
     "GetTopicEntries",
     "GetTopicPublication",
     "GetTrailbox",

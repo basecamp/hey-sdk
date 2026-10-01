@@ -20,6 +20,12 @@ public struct Entry: Codable, Sendable, Equatable {
     /// The entry's body as HTML, as GetMessage serves it. Present on the note
     /// CreateTopicComment answers; the topic's entry index carries summaries only.
     public var content: String?
+    /// Who sees the note besides its author. Present on the note CreateTopicComment
+    /// answers; see TopicCommentAudience.
+    public var visibleTo: [Contact]?
+    /// Whether the note is seen only on a collection. Present on the note
+    /// CreateTopicComment answers; see TopicCommentAudience.
+    public var collectionOnly: Bool?
 
     public init(
         id: Int,
@@ -34,7 +40,9 @@ public struct Entry: Codable, Sendable, Equatable {
         subject: String? = nil,
         topicId: Int? = nil,
         addressed: Addressed? = nil,
-        content: String? = nil
+        content: String? = nil,
+        visibleTo: [Contact]? = nil,
+        collectionOnly: Bool? = nil
     ) {
         self.id = id
         self.createdAt = createdAt
@@ -49,6 +57,8 @@ public struct Entry: Codable, Sendable, Equatable {
         self.topicId = topicId
         self.addressed = addressed
         self.content = content
+        self.visibleTo = visibleTo
+        self.collectionOnly = collectionOnly
     }
 
     enum CodingKeys: String, CodingKey {
@@ -65,5 +75,7 @@ public struct Entry: Codable, Sendable, Equatable {
         case topicId = "topic_id"
         case addressed
         case content
+        case visibleTo = "visible_to"
+        case collectionOnly = "collection_only"
     }
 }

@@ -231,6 +231,12 @@ async fn execute_operation(client: &Client, case: &TestCase) -> Result<Outcome, 
                 .await?;
             page(client, result, follow).await
         }
+        "GetTopicCommentAudience" => json(
+            client
+                .topics()
+                .get_comment_audience(int64_param(path, "topicId"))
+                .await?,
+        ),
         "CreateTopicComment" => {
             let request = models::CreateTopicCommentRequestContent {
                 comment: models::TopicCommentPayload {

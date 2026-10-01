@@ -341,6 +341,11 @@
   },
   {
     "method": "GET",
+    "operationId": "GetTopicCommentAudience",
+    "path": "/topics/{topicId}/comments/new.json"
+  },
+  {
+    "method": "GET",
     "operationId": "GetTopicEntries",
     "path": "/topics/{topicId}/entries"
   },

@@ -71,7 +71,8 @@ class TopicsServiceTest {
                 201,
                 """{"id":1019246358,"kind":"comment","topic_id":9,"summary":"Can you take a look at the spine?",""" +
                     """"creator":{"id":197214974,"name":"Jason Fried","email_address":"jason@example.com"},""" +
-                    """"content":"<div>Can you take a look at the <strong>spine</strong>?</div>"}""",
+                    """"content":"<div>Can you take a look at the <strong>spine</strong>?</div>",""" +
+                    """"visible_to":[{"id":140958377,"name":"Andrea LaRowe","email_address":"andrea@example.com"}],"collection_only":false}""",
             ),
         )
 
@@ -85,6 +86,8 @@ class TopicsServiceTest {
         assertEquals(9L, entry.topicId)
         assertEquals("Jason Fried", entry.creator?.name)
         assertEquals("<div>Can you take a look at the <strong>spine</strong>?</div>", entry.content)
+        assertEquals(listOf(140958377L), entry.visibleTo?.map { it.id })
+        assertEquals(false, entry.collectionOnly)
         assertEquals("POST", hey.requests.single().method)
         assertEquals("/topics/9/comments.json", hey.requests.single().path)
         assertEquals("""{"comment":{"content":"<div>Can you take a look at the <strong>spine</strong>?</div>"}}""", hey.requests.single().body)
@@ -106,5 +109,24 @@ class TopicsServiceTest {
         assertFailsWith<HeyException.NotFound> {
             hey.client().topics.createComment(9, CreateTopicCommentRequestContent(TopicCommentPayload("<div>Following up</div>")))
         }
+    }
+
+    @Test
+    fun theAudienceOfANoteIsReadWithoutPostingOne() = runTest {
+        val hey = mockHey(
+            ok("""{"visible_to":[{"id":140958377,"name":"Andrea LaRowe"},{"id":197214974,"name":"Jason Fried"}],"collection_only":false}"""),
+            ok("""{"visible_to":[],"collection_only":true}"""),
+        )
+        val client = hey.client()
+
+        val shared = client.topics.getCommentAudience(9)
+        val private = client.topics.getCommentAudience(10)
+
+        assertEquals(listOf("Andrea LaRowe", "Jason Fried"), shared.visibleTo?.map { it.name })
+        assertEquals(false, shared.collectionOnly)
+        assertEquals(emptyList(), private.visibleTo)
+        assertEquals(true, private.collectionOnly)
+        assertEquals("GET", hey.requests[0].method)
+        assertEquals("/topics/9/comments/new.json", hey.requests[0].path)
     }
 }

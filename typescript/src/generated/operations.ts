@@ -3175,6 +3175,31 @@ export const operationMetadata = {
     "actingSender": false,
     "actingUser": false
   },
+  "GetTopicCommentAudience": {
+    "method": "GET",
+    "path": "/topics/{topicId}/comments/new.json",
+    "parameters": [
+      {
+        "name": "topicId",
+        "in": "path",
+        "required": true,
+        "type": "integer"
+      }
+    ],
+    "bodyRequired": false,
+    "safe": true,
+    "retry": {
+      "maxAttempts": 3,
+      "baseDelayMs": 1000,
+      "backoff": "exponential",
+      "retryOn": [
+        429,
+        503
+      ]
+    },
+    "actingSender": false,
+    "actingUser": false
+  },
   "GetTopicEntries": {
     "method": "GET",
     "path": "/topics/{topicId}/entries",
@@ -4187,12 +4212,19 @@ export class GeneratedOperations {
   /** Add a note to a topic: a comment entry everyone with access to the thread sees,
    * and which HEY never emails to anyone. On a thread no one else can reach it is a
    * note to self. Answers the note as an entry of kind "comment", with its id,
-   * topic_id and content.
+   * topic_id and content, and who it reaches (visible_to, collection_only), as
+   * GetTopicCommentAudience answers before posting.
    *
    * The content is HTML, as HEY's composer writes it, so escape plain text before
    * sending it. Blank content answers 422. */
   createTopicComment(input: OperationInput<"CreateTopicComment">, options?: RequestOptions): Promise<OperationResponse<"CreateTopicComment">> {
     return this.transport.execute("CreateTopicComment", input, options);
+  }
+
+  /** Who a note on a topic would reach, as HEY's composer shows it before posting:
+   * nothing is written. The same answer CreateTopicComment gives with the note. */
+  getTopicCommentAudience(input: OperationInput<"GetTopicCommentAudience">, options?: RequestOptions): Promise<OperationResponse<"GetTopicCommentAudience">> {
+    return this.transport.execute("GetTopicCommentAudience", input, options);
   }
 
   /** Get entries for a topic */

@@ -49,7 +49,7 @@ final class TopicsTests: XCTestCase {
     }
 
     func testANoteIsAddedToATopicAndComesBackAsItsEntry() async throws {
-        let hey = mockHey(status(201, #"{"id":1019246358,"kind":"comment","topic_id":9,"summary":"Can you take a look at the spine?","creator":{"id":197214974,"name":"Jason Fried","email_address":"jason@example.com"},"content":"<div>Can you take a look at the <strong>spine</strong>?</div>"}"#))
+        let hey = mockHey(status(201, #"{"id":1019246358,"kind":"comment","topic_id":9,"summary":"Can you take a look at the spine?","creator":{"id":197214974,"name":"Jason Fried","email_address":"jason@example.com"},"content":"<div>Can you take a look at the <strong>spine</strong>?</div>","visible_to":[{"id":140958377,"name":"Andrea LaRowe","email_address":"andrea@example.com"}],"collection_only":false}"#))
 
         let entry = try await hey.client().topics.createComment(
             topicId: 9,
@@ -60,6 +60,8 @@ final class TopicsTests: XCTestCase {
         XCTAssertEqual(entry.topicId, 9)
         XCTAssertEqual(entry.creator?.name, "Jason Fried")
         XCTAssertEqual(entry.content, "<div>Can you take a look at the <strong>spine</strong>?</div>")
+        XCTAssertEqual(entry.visibleTo?.map(\.id), [140958377])
+        XCTAssertEqual(entry.collectionOnly, false)
         XCTAssertEqual(hey.requests.count, 1)
         XCTAssertEqual(hey.requests[0].method, "POST")
         XCTAssertEqual(hey.requests[0].path, "/topics/9/comments.json")
@@ -81,5 +83,22 @@ final class TopicsTests: XCTestCase {
         await assertThrows(
             HeyError.codeNotFound,
             try await hey.client().topics.createComment(topicId: 9, body: CreateTopicCommentRequestContent(comment: TopicCommentPayload(content: "<div>Following up</div>"))))
+    }
+
+    func testTheAudienceOfANoteIsReadWithoutPostingOne() async throws {
+        let hey = mockHey(
+            ok(#"{"visible_to":[{"id":140958377,"name":"Andrea LaRowe"},{"id":197214974,"name":"Jason Fried"}],"collection_only":false}"#),
+            ok(#"{"visible_to":[],"collection_only":true}"#))
+        let client = try hey.client()
+
+        let shared = try await client.topics.getCommentAudience(topicId: 9)
+        let privateNote = try await client.topics.getCommentAudience(topicId: 10)
+
+        XCTAssertEqual(shared.visibleTo?.map(\.name), ["Andrea LaRowe", "Jason Fried"])
+        XCTAssertEqual(shared.collectionOnly, false)
+        XCTAssertEqual(privateNote.visibleTo?.count, 0)
+        XCTAssertEqual(privateNote.collectionOnly, true)
+        XCTAssertEqual(hey.requests[0].method, "GET")
+        XCTAssertEqual(hey.requests[0].path, "/topics/9/comments/new.json")
     }
 }

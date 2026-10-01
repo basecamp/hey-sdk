@@ -676,6 +676,10 @@ type Entry struct {
 	AlternativeSenderName string    `json:"alternative_sender_name,omitempty"`
 	AppUrl                string    `json:"app_url,omitempty"`
 
+	// CollectionOnly Whether the note is seen only on a collection. Present on the note
+	// CreateTopicComment answers; see TopicCommentAudience.
+	CollectionOnly bool `json:"collection_only,omitempty"`
+
 	// Content The entry's body as HTML, as GetMessage serves it. Present on the note
 	// CreateTopicComment answers; the topic's entry index carries summaries only.
 	Content string `json:"content,omitempty"`
@@ -693,6 +697,10 @@ type Entry struct {
 
 	// UpdatedAt ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)
 	UpdatedAt time.Time `json:"updated_at,omitempty,omitzero"`
+
+	// VisibleTo Who sees the note besides its author. Present on the note CreateTopicComment
+	// answers; see TopicCommentAudience.
+	VisibleTo []Contact `json:"visible_to,omitempty"`
 }
 
 // Extenzion Extenzion — external account extension
@@ -886,6 +894,9 @@ type GetSentTopicsResponseContent = TopicListResponse
 
 // GetSpamTopicsResponseContent TopicListResponse — wrapped topic list (sent, spam, trash, everything)
 type GetSpamTopicsResponseContent = TopicListResponse
+
+// GetTopicCommentAudienceResponseContent Who a note on a topic reaches.
+type GetTopicCommentAudienceResponseContent = TopicCommentAudience
 
 // GetTopicEntriesResponseContent defines model for GetTopicEntriesResponseContent.
 type GetTopicEntriesResponseContent = []Entry
@@ -1547,6 +1558,16 @@ type Topic struct {
 
 	// UpdatedAt ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)
 	UpdatedAt time.Time `json:"updated_at,omitempty,omitzero"`
+}
+
+// TopicCommentAudience Who a note on a topic reaches.
+type TopicCommentAudience struct {
+	// CollectionOnly True on a collection's own thread, where the note is seen only on the collection.
+	CollectionOnly bool `json:"collection_only,omitempty"`
+
+	// VisibleTo The other users with access to the thread, who see the note. Empty when the
+	// note is a private note for its author alone. Never includes the author.
+	VisibleTo []Contact `json:"visible_to,omitempty"`
 }
 
 // TopicCommentPayload defines model for TopicCommentPayload.
@@ -2327,6 +2348,7 @@ var operationRetryPolicies = map[string]RetryPolicy{
 	"EmptyTrash":                    {MaxAttempts: 2, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
 	"GetTopic":                      {MaxAttempts: 3, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
 	"CreateTopicComment":            {MaxAttempts: 2, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
+	"GetTopicCommentAudience":       {MaxAttempts: 3, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
 	"GetTopicEntries":               {MaxAttempts: 3, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
 	"MoveTopic":                     {MaxAttempts: 2, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
 	"GetTopicPublication":           {MaxAttempts: 3, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
@@ -3193,6 +3215,9 @@ type ClientInterface interface {
 	CreateTopicCommentWithBody(ctx context.Context, topicId int64, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	CreateTopicComment(ctx context.Context, topicId int64, body CreateTopicCommentJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetTopicCommentAudience request
+	GetTopicCommentAudience(ctx context.Context, topicId int64, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// GetTopicEntries request
 	GetTopicEntries(ctx context.Context, topicId int64, params *GetTopicEntriesParams, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -4667,6 +4692,14 @@ func (c *Client) CreateTopicComment(ctx context.Context, topicId int64, body Cre
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
 		return NewCreateTopicCommentRequest(c.Server, topicId, body)
 	}, false, "CreateTopicComment", reqEditors...)
+}
+
+// GetTopicCommentAudience is marked as idempotent and will be retried on transient failures.
+
+func (c *Client) GetTopicCommentAudience(ctx context.Context, topicId int64, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	return c.doWithRetry(ctx, func() (*http.Request, error) {
+		return NewGetTopicCommentAudienceRequest(c.Server, topicId)
+	}, true, "GetTopicCommentAudience", reqEditors...)
 }
 
 // GetTopicEntries is marked as idempotent and will be retried on transient failures.
@@ -10300,6 +10333,40 @@ func NewCreateTopicCommentRequestWithBody(server string, topicId int64, contentT
 	return req, nil
 }
 
+// NewGetTopicCommentAudienceRequest generates requests for GetTopicCommentAudience
+func NewGetTopicCommentAudienceRequest(server string, topicId int64) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "topicId", runtime.ParamLocationPath, topicId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/topics/%s/comments/new.json", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewGetTopicEntriesRequest generates requests for GetTopicEntries
 func NewGetTopicEntriesRequest(server string, topicId int64, params *GetTopicEntriesParams) (*http.Request, error) {
 	var err error
@@ -10883,6 +10950,7 @@ var operationMetadata = map[string]OperationMetadata{
 	"EmptyTrash":                    {Idempotent: true, HasSensitiveParams: false},
 	"GetTopic":                      {Idempotent: true, HasSensitiveParams: false},
 	"CreateTopicComment":            {Idempotent: false, HasSensitiveParams: false},
+	"GetTopicCommentAudience":       {Idempotent: true, HasSensitiveParams: false},
 	"GetTopicEntries":               {Idempotent: true, HasSensitiveParams: false},
 	"MoveTopic":                     {Idempotent: false, HasSensitiveParams: false},
 	"GetTopicPublication":           {Idempotent: true, HasSensitiveParams: false},
@@ -12827,7 +12895,8 @@ type ClientWithResponsesInterface interface {
 	// Add a note to a topic: a comment entry everyone with access to the thread sees,
 	// and which HEY never emails to anyone. On a thread no one else can reach it is a
 	// note to self. Answers the note as an entry of kind "comment", with its id,
-	// topic_id and content.
+	// topic_id and content, and who it reaches (visible_to, collection_only), as
+	// GetTopicCommentAudience answers before posting.
 	//
 	// The content is HTML, as HEY's composer writes it, so escape plain text before
 	// sending it. Blank content answers 422.
@@ -12841,11 +12910,20 @@ type ClientWithResponsesInterface interface {
 	// Add a note to a topic: a comment entry everyone with access to the thread sees,
 	// and which HEY never emails to anyone. On a thread no one else can reach it is a
 	// note to self. Answers the note as an entry of kind "comment", with its id,
-	// topic_id and content.
+	// topic_id and content, and who it reaches (visible_to, collection_only), as
+	// GetTopicCommentAudience answers before posting.
 	//
 	// The content is HTML, as HEY's composer writes it, so escape plain text before
 	// sending it. Blank content answers 422.
 	CreateTopicCommentWithResponse(ctx context.Context, topicId int64, body CreateTopicCommentJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateTopicCommentResponse, error)
+
+	// GetTopicCommentAudienceWithResponse performs a GET /topics/{topicId}/comments/new.json (the `GetTopicCommentAudience` operationId) request.
+	//
+	// Who a note on a topic would reach, as HEY's composer shows it before posting:
+	// nothing is written. The same answer CreateTopicComment gives with the note.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	GetTopicCommentAudienceWithResponse(ctx context.Context, topicId int64, reqEditors ...RequestEditorFn) (*GetTopicCommentAudienceResponse, error)
 
 	// GetTopicEntriesWithResponse performs a GET /topics/{topicId}/entries (the `GetTopicEntries` operationId) request.
 	//
@@ -21165,6 +21243,75 @@ func (r CreateTopicCommentResponse) ContentType() string {
 	return ""
 }
 
+type GetTopicCommentAudienceResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *GetTopicCommentAudienceResponseContent
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *UnauthorizedErrorResponseContent
+	// JSON404 the response for an HTTP 404 `application/json` response
+	JSON404 *NotFoundErrorResponseContent
+	// JSON500 the response for an HTTP 500 `application/json` response
+	JSON500 *InternalServerErrorResponseContent
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *ServiceUnavailableErrorResponseContent
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r GetTopicCommentAudienceResponse) GetJSON200() *GetTopicCommentAudienceResponseContent {
+	return r.JSON200
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r GetTopicCommentAudienceResponse) GetJSON401() *UnauthorizedErrorResponseContent {
+	return r.JSON401
+}
+
+// GetJSON404 returns the response for an HTTP 404 `application/json` response
+func (r GetTopicCommentAudienceResponse) GetJSON404() *NotFoundErrorResponseContent {
+	return r.JSON404
+}
+
+// GetJSON500 returns the response for an HTTP 500 `application/json` response
+func (r GetTopicCommentAudienceResponse) GetJSON500() *InternalServerErrorResponseContent {
+	return r.JSON500
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r GetTopicCommentAudienceResponse) GetJSON503() *ServiceUnavailableErrorResponseContent {
+	return r.JSON503
+}
+
+// GetBody returns the raw response body bytes
+func (r GetTopicCommentAudienceResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r GetTopicCommentAudienceResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetTopicCommentAudienceResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r GetTopicCommentAudienceResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type GetTopicEntriesResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -24140,7 +24287,8 @@ func (c *ClientWithResponses) GetTopicWithResponse(ctx context.Context, topicId 
 // Add a note to a topic: a comment entry everyone with access to the thread sees,
 // and which HEY never emails to anyone. On a thread no one else can reach it is a
 // note to self. Answers the note as an entry of kind "comment", with its id,
-// topic_id and content.
+// topic_id and content, and who it reaches (visible_to, collection_only), as
+// GetTopicCommentAudience answers before posting.
 //
 // The content is HTML, as HEY's composer writes it, so escape plain text before
 // sending it. Blank content answers 422.
@@ -24160,7 +24308,8 @@ func (c *ClientWithResponses) CreateTopicCommentWithBodyWithResponse(ctx context
 // Add a note to a topic: a comment entry everyone with access to the thread sees,
 // and which HEY never emails to anyone. On a thread no one else can reach it is a
 // note to self. Answers the note as an entry of kind "comment", with its id,
-// topic_id and content.
+// topic_id and content, and who it reaches (visible_to, collection_only), as
+// GetTopicCommentAudience answers before posting.
 //
 // The content is HTML, as HEY's composer writes it, so escape plain text before
 // sending it. Blank content answers 422.
@@ -24170,6 +24319,20 @@ func (c *ClientWithResponses) CreateTopicCommentWithResponse(ctx context.Context
 		return nil, err
 	}
 	return ParseCreateTopicCommentResponse(rsp)
+}
+
+// GetTopicCommentAudienceWithResponse performs a GET /topics/{topicId}/comments/new.json (the `GetTopicCommentAudience` operationId) request.
+//
+// Who a note on a topic would reach, as HEY's composer shows it before posting:
+// nothing is written. The same answer CreateTopicComment gives with the note.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) GetTopicCommentAudienceWithResponse(ctx context.Context, topicId int64, reqEditors ...RequestEditorFn) (*GetTopicCommentAudienceResponse, error) {
+	rsp, err := c.GetTopicCommentAudience(ctx, topicId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetTopicCommentAudienceResponse(rsp)
 }
 
 // GetTopicEntriesWithResponse performs a GET /topics/{topicId}/entries (the `GetTopicEntries` operationId) request.
@@ -31668,6 +31831,67 @@ func ParseCreateTopicCommentResponse(rsp *http.Response) (*CreateTopicCommentRes
 				return nil, err
 			}
 			response.JSON422 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+			var dest InternalServerErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON500 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+			var dest ServiceUnavailableErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON503 = &dest
+
+		}
+
+		return response, nil
+	}(); err != nil && rsp.StatusCode/100 == 2 {
+		return nil, err
+	}
+
+	return response, nil
+}
+
+// ParseGetTopicCommentAudienceResponse parses an HTTP response from a GetTopicCommentAudienceWithResponse call
+func ParseGetTopicCommentAudienceResponse(rsp *http.Response) (*GetTopicCommentAudienceResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetTopicCommentAudienceResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	// An undecodable body fails only a 2xx; an error status answers on its own, body or not.
+	if _, err := func() (*GetTopicCommentAudienceResponse, error) {
+		switch {
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+			var dest GetTopicCommentAudienceResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON200 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+			var dest UnauthorizedErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON401 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+			var dest NotFoundErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON404 = &dest
 
 		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
 			var dest InternalServerErrorResponseContent

@@ -10247,7 +10247,7 @@
     },
     "/topics/{topicId}/comments.json": {
       "post": {
-        "description": "Add a note to a topic: a comment entry everyone with access to the thread sees,\nand which HEY never emails to anyone. On a thread no one else can reach it is a\nnote to self. Answers the note as an entry of kind \"comment\", with its id,\ntopic_id and content.\n\nThe content is HTML, as HEY's composer writes it, so escape plain text before\nsending it. Blank content answers 422.",
+        "description": "Add a note to a topic: a comment entry everyone with access to the thread sees,\nand which HEY never emails to anyone. On a thread no one else can reach it is a\nnote to self. Answers the note as an entry of kind \"comment\", with its id,\ntopic_id and content, and who it reaches (visible_to, collection_only), as\nGetTopicCommentAudience answers before posting.\n\nThe content is HTML, as HEY's composer writes it, so escape plain text before\nsending it. Blank content answers 422.",
         "operationId": "CreateTopicComment",
         "requestBody": {
           "content": {
@@ -10339,6 +10339,88 @@
         "x-hey-open-world": false,
         "x-hey-retry": {
           "maxAttempts": 2,
+          "baseDelayMs": 1000,
+          "backoff": "exponential",
+          "retryOn": [
+            429,
+            503
+          ]
+        },
+        "x-hey-untrusted-content": true
+      }
+    },
+    "/topics/{topicId}/comments/new.json": {
+      "get": {
+        "description": "Who a note on a topic would reach, as HEY's composer shows it before posting:\nnothing is written. The same answer CreateTopicComment gives with the note.",
+        "operationId": "GetTopicCommentAudience",
+        "parameters": [
+          {
+            "name": "topicId",
+            "in": "path",
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "GetTopicCommentAudience 200 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetTopicCommentAudienceResponseContent"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UnauthorizedError 401 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnauthorizedErrorResponseContent"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError 404 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundErrorResponseContent"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "InternalServerError 500 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorResponseContent"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ServiceUnavailableError 503 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceUnavailableErrorResponseContent"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Topics"
+        ],
+        "x-hey-retry": {
+          "maxAttempts": 3,
           "baseDelayMs": 1000,
           "backoff": "exponential",
           "retryOn": [
@@ -12938,6 +13020,17 @@
           "content": {
             "type": "string",
             "description": "The entry's body as HTML, as GetMessage serves it. Present on the note\nCreateTopicComment answers; the topic's entry index carries summaries only."
+          },
+          "visible_to": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Contact"
+            },
+            "description": "Who sees the note besides its author. Present on the note CreateTopicComment\nanswers; see TopicCommentAudience."
+          },
+          "collection_only": {
+            "type": "boolean",
+            "description": "Whether the note is seen only on a collection. Present on the note\nCreateTopicComment answers; see TopicCommentAudience."
           }
         },
         "required": [
@@ -13256,6 +13349,9 @@
       },
       "GetSpamTopicsResponseContent": {
         "$ref": "#/components/schemas/TopicListResponse"
+      },
+      "GetTopicCommentAudienceResponseContent": {
+        "$ref": "#/components/schemas/TopicCommentAudience"
       },
       "GetTopicEntriesResponseContent": {
         "type": "array",
@@ -14909,6 +15005,23 @@
         "required": [
           "id"
         ]
+      },
+      "TopicCommentAudience": {
+        "type": "object",
+        "description": "Who a note on a topic reaches.",
+        "properties": {
+          "visible_to": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Contact"
+            },
+            "description": "The other users with access to the thread, who see the note. Empty when the\nnote is a private note for its author alone. Never includes the author."
+          },
+          "collection_only": {
+            "type": "boolean",
+            "description": "True on a collection's own thread, where the note is seen only on the collection."
+          }
+        }
       },
       "TopicCommentPayload": {
         "type": "object",

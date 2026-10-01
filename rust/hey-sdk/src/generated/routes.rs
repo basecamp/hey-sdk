@@ -1626,6 +1626,31 @@ pub static GET_TOPIC: Route = Route {
     },
 };
 
+pub static GET_TOPIC_COMMENT_AUDIENCE: Route = Route {
+    id: "GetTopicCommentAudience",
+    service: "Topics",
+    method: Method::GET,
+    path: "/topics/{topicId}/comments/new.json",
+    pattern: "/topics/{topicId}/comments/new",
+    resource: "Topics",
+    resource_type: "comment",
+    params: &[RouteParam {
+        name: "topicId",
+        role: ParamRole::Parent,
+        kind: ParamKind::Int64,
+    }],
+    idempotent: true,
+    readonly: true,
+    html: false,
+    empty_on: &[],
+    pagination: Pagination::None,
+    retry: Retry {
+        max: 3,
+        base_delay_ms: 1000,
+        retry_on: &[429, 503],
+    },
+};
+
 pub static GET_TOPIC_ENTRIES: Route = Route {
     id: "GetTopicEntries",
     service: "Topics",
@@ -3264,6 +3289,7 @@ pub static ROUTES: &[&Route] = &[
     &GET_SENT_TOPICS,
     &GET_SPAM_TOPICS,
     &GET_TOPIC,
+    &GET_TOPIC_COMMENT_AUDIENCE,
     &GET_TOPIC_ENTRIES,
     &GET_TOPIC_PUBLICATION,
     &GET_TRAILBOX,

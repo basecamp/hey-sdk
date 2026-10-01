@@ -61,7 +61,8 @@ impl<'a> Topics<'a> {
     /// Add a note to a topic: a comment entry everyone with access to the thread sees,
     /// and which HEY never emails to anyone. On a thread no one else can reach it is a
     /// note to self. Answers the note as an entry of kind "comment", with its id,
-    /// topic_id and content.
+    /// topic_id and content, and who it reaches (visible_to, collection_only), as
+    /// GetTopicCommentAudience answers before posting.
     ///
     /// The content is HTML, as HEY's composer writes it, so escape plain text before
     /// sending it. Blank content answers 422.
@@ -93,6 +94,19 @@ impl<'a> Topics<'a> {
     /// Get a topic
     pub async fn get(&self, topic_id: i64) -> Result<GetTopicResponseContent, Error> {
         let mut operation = self.client.operation(&routes::GET_TOPIC, &[&topic_id]);
+        operation.resource_id(topic_id);
+        self.client.send(operation).await
+    }
+
+    /// Who a note on a topic would reach, as HEY's composer shows it before posting:
+    /// nothing is written. The same answer CreateTopicComment gives with the note.
+    pub async fn get_comment_audience(
+        &self,
+        topic_id: i64,
+    ) -> Result<GetTopicCommentAudienceResponseContent, Error> {
+        let mut operation = self
+            .client
+            .operation(&routes::GET_TOPIC_COMMENT_AUDIENCE, &[&topic_id]);
         operation.resource_id(topic_id);
         self.client.send(operation).await
     }
