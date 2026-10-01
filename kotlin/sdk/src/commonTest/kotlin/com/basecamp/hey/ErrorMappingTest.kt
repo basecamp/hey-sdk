@@ -79,7 +79,9 @@ class ErrorMappingTest {
         assertNull(retryAfterSeconds(null))
         assertNull(retryAfterSeconds("soon"))
         val future = java.time.ZonedDateTime.now(java.time.ZoneOffset.UTC).plusSeconds(90)
-        val seconds = retryAfterSeconds(java.time.format.DateTimeFormatter.RFC_1123_DATE_TIME.format(future))!!
+        // An HTTP-date's day is two digits; RFC_1123_DATE_TIME writes one before the tenth.
+        val httpDate = java.time.format.DateTimeFormatter.ofPattern("EEE, dd MMM yyyy HH:mm:ss 'GMT'", java.util.Locale.US)
+        val seconds = retryAfterSeconds(httpDate.format(future))!!
         assertTrue(seconds in 85..91, "$seconds")
         assertEquals(0L, retryAfterSeconds("Sun, 06 Nov 1994 08:49:37 GMT"))
     }
