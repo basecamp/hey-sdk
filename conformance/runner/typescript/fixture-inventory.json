@@ -139,6 +139,14 @@
       "operation": "CreateMessage"
     },
     {
+      "name": "CreateTopicComment's 422 for a blank note maps to validation error code",
+      "operation": "CreateTopicComment"
+    },
+    {
+      "name": "CreateTopicComment's 404 for a topic out of reach maps to not_found error code",
+      "operation": "CreateTopicComment"
+    },
+    {
       "name": "429 maps to rate_limit error code",
       "operation": "ListBoxes"
     },
@@ -323,6 +331,10 @@
     {
       "name": "GetTopicEntries uses /topics/{topicId}/entries path",
       "operation": "GetTopicEntries"
+    },
+    {
+      "name": "CreateTopicComment uses /topics/{topicId}/comments.json path",
+      "operation": "CreateTopicComment"
     },
     {
       "name": "GetTrailbox uses /paper_trail.json path",

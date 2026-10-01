@@ -5,6 +5,8 @@ package com.basecamp.hey.generated.services
 import com.basecamp.hey.HeyClient
 import com.basecamp.hey.Page
 import com.basecamp.hey.generated.Routes
+import com.basecamp.hey.generated.models.CreateTopicCommentRequestContent
+import com.basecamp.hey.generated.models.CreateTopicCommentResponseContent
 import com.basecamp.hey.generated.models.GetEverythingTopicsResponseContent
 import com.basecamp.hey.generated.models.GetSentTopicsResponseContent
 import com.basecamp.hey.generated.models.GetSpamTopicsResponseContent
@@ -51,6 +53,24 @@ data class TrashTopicOptions(
  * @generated from OpenAPI spec — do not edit directly
  */
 open class TopicsService(client: HeyClient) : BaseService(client) {
+    /**
+     * Add a note to a topic: a comment entry everyone with access to the thread sees,
+     * and which HEY never emails to anyone. On a thread no one else can reach it is a
+     * note to self. Answers the note as an entry of kind "comment", with its id,
+     * topic_id and content.
+     *
+     * The content is HTML, as HEY's composer writes it, so escape plain text before
+     * sending it. Blank content answers 422.
+     * @param topicId The topic ID
+     * @param body Request body
+     */
+    suspend fun createComment(topicId: Long, body: CreateTopicCommentRequestContent): CreateTopicCommentResponseContent {
+        val operation = client.operation(Routes.CREATE_TOPIC_COMMENT, listOf(topicId))
+        operation.resourceId(topicId)
+        operation.json(body)
+        return client.send(operation)
+    }
+
     /**
      * Empty the spam box. Runs synchronously, so it can take a while on a large mailbox.
      */

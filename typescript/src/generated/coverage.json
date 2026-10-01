@@ -21,6 +21,7 @@
     "CreateReply",
     "CreateSticky",
     "CreateTimeTrack",
+    "CreateTopicComment",
     "CreateWorkflowStaging",
     "DeleteBoxDesignation",
     "DeleteBoxGroup",

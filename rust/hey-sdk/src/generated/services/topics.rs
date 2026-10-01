@@ -58,6 +58,26 @@ impl<'a> Topics<'a> {
         self.client
     }
 
+    /// Add a note to a topic: a comment entry everyone with access to the thread sees,
+    /// and which HEY never emails to anyone. On a thread no one else can reach it is a
+    /// note to self. Answers the note as an entry of kind "comment", with its id,
+    /// topic_id and content.
+    ///
+    /// The content is HTML, as HEY's composer writes it, so escape plain text before
+    /// sending it. Blank content answers 422.
+    pub async fn create_comment(
+        &self,
+        topic_id: i64,
+        body: &CreateTopicCommentRequestContent,
+    ) -> Result<CreateTopicCommentResponseContent, Error> {
+        let mut operation = self
+            .client
+            .operation(&routes::CREATE_TOPIC_COMMENT, &[&topic_id]);
+        operation.resource_id(topic_id);
+        operation.json(body)?;
+        self.client.send(operation).await
+    }
+
     /// Empty the spam box. Runs synchronously, so it can take a while on a large mailbox.
     pub async fn empty_spam(&self) -> Result<(), Error> {
         let operation = self.client.operation(&routes::EMPTY_SPAM, &[]);

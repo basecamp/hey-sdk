@@ -963,6 +963,15 @@ pub type CreateStickyResponseContent = Sticky;
 
 pub type CreateTimeTrackResponseContent = Recording;
 
+/// Wire format: {comment: {content: "<div>…</div>"}}
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+pub struct CreateTopicCommentRequestContent {
+    #[serde(default)]
+    pub comment: TopicCommentPayload,
+}
+
+pub type CreateTopicCommentResponseContent = Entry;
+
 /// DeletedPosting — the stub the changes feed answers with for a posting that is gone
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 #[non_exhaustive]
@@ -1118,6 +1127,10 @@ pub struct Entry {
     pub topic_id: Option<i64>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub addressed: Option<Addressed>,
+    /// The entry's body as HTML, as GetMessage serves it. Present on the note
+    /// CreateTopicComment answers; the topic's entry index carries summaries only.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub content: Option<String>,
 }
 
 /// Extenzion — external account extension
@@ -2307,6 +2320,15 @@ pub struct Topic {
     /// GetTopicEntries for the rest and GetMessage for a body.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub entries: Option<Vec<Entry>>,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+pub struct TopicCommentPayload {
+    #[serde(
+        default,
+        deserialize_with = "crate::types::null_as_default::deserialize"
+    )]
+    pub content: String,
 }
 
 /// TopicListResponse — wrapped topic list (sent, spam, trash, everything)

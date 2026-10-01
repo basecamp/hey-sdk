@@ -6,7 +6,7 @@ operation) or a hand-written convenience (`src/services/*.rs`). Parity is semant
 request with the same behaviour — not one method name per method name: Rust types what Go
 passes as strings and zero values, and answers `Page<T>` where Go unwraps the payload.
 
-Counts at the time of writing: 207 Go methods; 134 modelled operations, each a Rust route and
+Counts at the time of writing: 208 Go methods; 135 modelled operations, each a Rust route and
 a generated method; 123 Rust conveniences. Every Go method has a Rust route to the same
 request except the waivers at the end. Both runners dispatch the whole shared conformance
 suite.
@@ -47,6 +47,7 @@ Unqualified Rust names are conveniences; `gen` marks a generated method.
 | Topics.GetSent / GetSpam / GetTrash / GetEverything | same ids | gen → `Page` | |
 | Topics.Trash(id, confirm) | TrashTopic | `trash_topic` | both turn the removal redirect into a usage error |
 | Topics.Restore / MarkHam / EmptyTrash / EmptySpam | same ids | gen | |
+| Topics.CreateComment(topicID, content) | CreateTopicComment | gen `create_comment` | Go builds the `{comment: {content}}` body; Rust takes it |
 | Topics.Move(topicID, boxID) | MoveTopic | `move_to_box(topic_id, box_id)` | added with this file; gen `move_topic` takes the body |
 | Contacts.List / Get / ThreadsPage | ListContacts / GetContact | gen `list` / `get` → `Page` | |
 | Contacts.Bundle / Unbundle / Hide / Reveal / Note / DeleteNote | same ids | gen | |

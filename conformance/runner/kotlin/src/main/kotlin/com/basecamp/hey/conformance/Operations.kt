@@ -25,6 +25,7 @@ import com.basecamp.hey.generated.models.CreateDirectUploadRequestContent
 import com.basecamp.hey.generated.models.CreateFolderForPostingsRequestContent
 import com.basecamp.hey.generated.models.CreateMessageRequestContent
 import com.basecamp.hey.generated.models.CreateReplyRequestContent
+import com.basecamp.hey.generated.models.CreateTopicCommentRequestContent
 import com.basecamp.hey.generated.models.DirectUploadBlob
 import com.basecamp.hey.generated.models.FilePostingsRequestContent
 import com.basecamp.hey.generated.models.FolderPayload
@@ -42,6 +43,7 @@ import com.basecamp.hey.generated.models.SchedulePostingsBubbleUpRequestContent
 import com.basecamp.hey.generated.models.StickyPayload
 import com.basecamp.hey.generated.models.StickyRequestContent
 import com.basecamp.hey.generated.models.TimeTrackRequestContent
+import com.basecamp.hey.generated.models.TopicCommentPayload
 import com.basecamp.hey.generated.models.TrashPostingsRequestContent
 import com.basecamp.hey.generated.models.UpdateClearanceRequestContent
 import com.basecamp.hey.generated.models.UpdateCollectionRequestContent
@@ -198,6 +200,7 @@ private suspend fun executeOperation(client: HeyClient, case: TestCase): Outcome
 
         "GetTopic" -> asJson(client.topics.get(path.int64("topicId")))
         "GetTopicEntries" -> page(client, client.topics.getEntries(path.int64("topicId")), follow)
+        "CreateTopicComment" -> asJson(client.topics.createComment(path.int64("topicId"), CreateTopicCommentRequestContent(comment = TopicCommentPayload(content = body.string("content")))))
         "GetSentTopics" -> page(client, client.topics.getSent(), follow)
         "GetSpamTopics" -> page(client, client.topics.getSpam(), follow)
         "GetTrashTopics" -> page(client, client.topics.getTrash(), follow)

@@ -117,6 +117,11 @@ private func executeOperation(_ client: HeyClient, _ testCase: TestCase) async t
 
     case "GetTopic": return try asJSON(try await client.topics.get(topicId: path.int("topicId")))
     case "GetTopicEntries": return try await page(client, try await client.topics.getEntries(topicId: path.int("topicId")), follow)
+    case "CreateTopicComment":
+        return try asJSON(
+            try await client.topics.createComment(
+                topicId: path.int("topicId"),
+                body: CreateTopicCommentRequestContent(comment: TopicCommentPayload(content: body.string("content")))))
     case "GetSentTopics": return try await page(client, try await client.topics.getSent(), follow)
     case "GetSpamTopics": return try await page(client, try await client.topics.getSpam(), follow)
     case "GetTrashTopics": return try await page(client, try await client.topics.getTrash(), follow)

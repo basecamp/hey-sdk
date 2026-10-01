@@ -3150,6 +3150,31 @@ export const operationMetadata = {
     "actingSender": false,
     "actingUser": false
   },
+  "CreateTopicComment": {
+    "method": "POST",
+    "path": "/topics/{topicId}/comments.json",
+    "parameters": [
+      {
+        "name": "topicId",
+        "in": "path",
+        "required": true,
+        "type": "integer"
+      }
+    ],
+    "bodyRequired": true,
+    "safe": false,
+    "retry": {
+      "maxAttempts": 2,
+      "baseDelayMs": 1000,
+      "backoff": "exponential",
+      "retryOn": [
+        429,
+        503
+      ]
+    },
+    "actingSender": false,
+    "actingUser": false
+  },
   "GetTopicEntries": {
     "method": "GET",
     "path": "/topics/{topicId}/entries",
@@ -4157,6 +4182,17 @@ export class GeneratedOperations {
   /** Get a topic */
   getTopic(input: OperationInput<"GetTopic">, options?: RequestOptions): Promise<OperationResponse<"GetTopic">> {
     return this.transport.execute("GetTopic", input, options);
+  }
+
+  /** Add a note to a topic: a comment entry everyone with access to the thread sees,
+   * and which HEY never emails to anyone. On a thread no one else can reach it is a
+   * note to self. Answers the note as an entry of kind "comment", with its id,
+   * topic_id and content.
+   *
+   * The content is HTML, as HEY's composer writes it, so escape plain text before
+   * sending it. Blank content answers 422. */
+  createTopicComment(input: OperationInput<"CreateTopicComment">, options?: RequestOptions): Promise<OperationResponse<"CreateTopicComment">> {
+    return this.transport.execute("CreateTopicComment", input, options);
   }
 
   /** Get entries for a topic */

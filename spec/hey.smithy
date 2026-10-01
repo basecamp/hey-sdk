@@ -86,6 +86,7 @@ service HEY {
         // Topics (6 MVP)
         GetTopic
         GetTopicEntries
+        CreateTopicComment
         GetSentTopics
         GetSpamTopics
         GetTrashTopics
@@ -606,6 +607,10 @@ structure Entry {
 
     /// Exact recipients, grouped by delivery kind. Present on the latest entry in Sent topics.
     addressed: Addressed
+
+    /// The entry's body as HTML, as GetMessage serves it. Present on the note
+    /// CreateTopicComment answers; the topic's entry index carries summaries only.
+    content: String
 }
 
 list EntryList {
@@ -1547,6 +1552,51 @@ structure GetTopicEntriesInput {
 structure GetTopicEntriesOutput {
     @required
     entries: EntryList
+}
+
+/// Add a note to a topic: a comment entry everyone with access to the thread sees,
+/// and which HEY never emails to anyone. On a thread no one else can reach it is a
+/// note to self. Answers the note as an entry of kind "comment", with its id,
+/// topic_id and content.
+///
+/// The content is HTML, as HEY's composer writes it, so escape plain text before
+/// sending it. Blank content answers 422.
+@http(method: "POST", uri: "/topics/{topicId}/comments.json", code: 201)
+@tags(["Topics"])
+@heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+@heyDestructive(false)
+@heyOpenWorld(false)
+@heyUntrustedContent(true)
+operation CreateTopicComment {
+    input: CreateTopicCommentInput
+    output: CreateTopicCommentOutput
+    errors: [UnauthorizedError, NotFoundError, UnprocessableEntityError, InternalServerError, ServiceUnavailableError]
+}
+
+structure CreateTopicCommentInput {
+    @httpLabel
+    @required
+    topicId: Long
+
+    @httpPayload
+    @required
+    body: CreateTopicCommentRequestContent
+}
+
+/// Wire format: {comment: {content: "<div>…</div>"}}
+structure CreateTopicCommentRequestContent {
+    @required
+    comment: TopicCommentPayload
+}
+
+structure TopicCommentPayload {
+    @required
+    content: String
+}
+
+structure CreateTopicCommentOutput {
+    @required
+    entry: Entry
 }
 
 /// Get sent topics

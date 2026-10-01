@@ -1883,6 +1883,31 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/topics/{topicId}/comments.json": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * @description Add a note to a topic: a comment entry everyone with access to the thread sees,
+         *     and which HEY never emails to anyone. On a thread no one else can reach it is a
+         *     note to self. Answers the note as an entry of kind "comment", with its id,
+         *     topic_id and content.
+         *
+         *     The content is HTML, as HEY's composer writes it, so escape plain text before
+         *     sending it. Blank content answers 422.
+         */
+        post: operations["CreateTopicComment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/topics/{topicId}/entries": {
         parameters: {
             query?: never;
@@ -2586,6 +2611,11 @@ export interface components {
         };
         CreateStickyResponseContent: components["schemas"]["Sticky"];
         CreateTimeTrackResponseContent: components["schemas"]["Recording"];
+        /** @description Wire format: {comment: {content: "<div>…</div>"}} */
+        CreateTopicCommentRequestContent: {
+            comment: components["schemas"]["TopicCommentPayload"];
+        };
+        CreateTopicCommentResponseContent: components["schemas"]["Entry"];
         /** @description DeletedPosting — the stub the changes feed answers with for a posting that is gone */
         DeletedPosting: {
             /** Format: int64 */
@@ -2677,6 +2707,11 @@ export interface components {
             /** Format: int64 */
             topic_id?: number | bigint;
             addressed?: components["schemas"]["Addressed"];
+            /**
+             * @description The entry's body as HTML, as GetMessage serves it. Present on the note
+             *     CreateTopicComment answers; the topic's entry index carries summaries only.
+             */
+            content?: string;
         };
         /** @description Extenzion — external account extension */
         Extenzion: {
@@ -3359,6 +3394,9 @@ export interface components {
              *     GetTopicEntries for the rest and GetMessage for a body.
              */
             entries?: components["schemas"]["Entry"][];
+        };
+        TopicCommentPayload: {
+            content: string;
         };
         /** @description TopicListResponse — wrapped topic list (sent, spam, trash, everything) */
         TopicListResponse: {
@@ -10644,6 +10682,77 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["NotFoundErrorResponseContent"];
+                };
+            };
+            /** @description InternalServerError 500 response */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InternalServerErrorResponseContent"];
+                };
+            };
+            /** @description ServiceUnavailableError 503 response */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ServiceUnavailableErrorResponseContent"];
+                };
+            };
+        };
+    };
+    CreateTopicComment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                topicId: number | bigint;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateTopicCommentRequestContent"];
+            };
+        };
+        responses: {
+            /** @description CreateTopicComment 201 response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreateTopicCommentResponseContent"];
+                };
+            };
+            /** @description UnauthorizedError 401 response */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UnauthorizedErrorResponseContent"];
+                };
+            };
+            /** @description NotFoundError 404 response */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NotFoundErrorResponseContent"];
+                };
+            };
+            /** @description UnprocessableEntityError 422 response */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UnprocessableEntityErrorResponseContent"];
                 };
             };
             /** @description InternalServerError 500 response */

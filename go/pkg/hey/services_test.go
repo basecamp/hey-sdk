@@ -2785,6 +2785,57 @@ func TestTopicsService_TrashWithoutConfirmation(t *testing.T) {
 	}
 }
 
+func TestTopicsService_CreateComment(t *testing.T) {
+	var sent generated.CreateTopicCommentRequestContent
+	client := newJSONWriteTestClient(t, http.MethodPost, "/topics/4471829/comments.json", &sent, http.StatusCreated,
+		`{"id":1019246358,"kind":"comment","topic_id":4471829,"summary":"Can you take a look at the spine?",`+
+			`"creator":{"id":197214974,"name":"Jason Fried","email_address":"jason@example.com"},`+
+			`"app_url":"https://app.hey.com/topics/4471829#__entry_1019246358",`+
+			`"created_at":"2026-10-01T16:59:04.735Z","content":"<div>Can you take a look at the <strong>spine</strong>?</div>"}`)
+
+	entry, err := client.Topics().CreateComment(context.Background(), 4471829, "<div>Can you take a look at the <strong>spine</strong>?</div>")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if sent.Comment.Content != "<div>Can you take a look at the <strong>spine</strong>?</div>" {
+		t.Errorf("expected the content under comment, got %q", sent.Comment.Content)
+	}
+	if entry == nil || entry.Id != 1019246358 || entry.Kind != "comment" || entry.TopicId != 4471829 {
+		t.Fatalf("expected the created note, got %+v", entry)
+	}
+	if entry.Creator.Name != "Jason Fried" || entry.Content == "" || entry.CreatedAt.IsZero() {
+		t.Errorf("expected the creator, content and timestamp decoded, got %+v", entry)
+	}
+}
+
+func TestTopicsService_CreateCommentInvalid(t *testing.T) {
+	client := newJSONStatusTestClient(t, http.StatusUnprocessableEntity, `{"errors":["Content can't be blank"]}`)
+
+	entry, err := client.Topics().CreateComment(context.Background(), 4471829, "")
+
+	var heyErr *Error
+	if !errors.As(err, &heyErr) || heyErr.Code != CodeValidation {
+		t.Fatalf("expected a validation error, got %v", err)
+	}
+	if heyErr.Message != "Content can't be blank" {
+		t.Errorf("expected the server's own message, got %q", heyErr.Message)
+	}
+	if entry != nil {
+		t.Errorf("expected no entry, got %+v", entry)
+	}
+}
+
+func TestTopicsService_CreateCommentNotFound(t *testing.T) {
+	client := newJSONStatusTestClient(t, http.StatusNotFound, `{"error":"Not found"}`)
+
+	_, err := client.Topics().CreateComment(context.Background(), 4471829, "<div>Following up</div>")
+
+	var heyErr *Error
+	if !errors.As(err, &heyErr) || heyErr.Code != CodeNotFound || heyErr.HTTPStatus != http.StatusNotFound {
+		t.Fatalf("expected a not found error, got %v", err)
+	}
+}
+
 func TestTopicsService_RestoreAndHam(t *testing.T) {
 	restorer := newRequestTestClient(t, "PUT", "/topics/%s/status/active.json", nil, 204, "")
 	if err := restorer.Topics().Restore(context.Background(), 1); err != nil {

@@ -10245,6 +10245,110 @@
         "x-hey-untrusted-content": true
       }
     },
+    "/topics/{topicId}/comments.json": {
+      "post": {
+        "description": "Add a note to a topic: a comment entry everyone with access to the thread sees,\nand which HEY never emails to anyone. On a thread no one else can reach it is a\nnote to self. Answers the note as an entry of kind \"comment\", with its id,\ntopic_id and content.\n\nThe content is HTML, as HEY's composer writes it, so escape plain text before\nsending it. Blank content answers 422.",
+        "operationId": "CreateTopicComment",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateTopicCommentRequestContent"
+              }
+            }
+          },
+          "required": true
+        },
+        "parameters": [
+          {
+            "name": "topicId",
+            "in": "path",
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "CreateTopicComment 201 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateTopicCommentResponseContent"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UnauthorizedError 401 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnauthorizedErrorResponseContent"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFoundError 404 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundErrorResponseContent"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "UnprocessableEntityError 422 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnprocessableEntityErrorResponseContent"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "InternalServerError 500 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorResponseContent"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "ServiceUnavailableError 503 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceUnavailableErrorResponseContent"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Topics"
+        ],
+        "x-hey-destructive": false,
+        "x-hey-open-world": false,
+        "x-hey-retry": {
+          "maxAttempts": 2,
+          "baseDelayMs": 1000,
+          "backoff": "exponential",
+          "retryOn": [
+            429,
+            503
+          ]
+        },
+        "x-hey-untrusted-content": true
+      }
+    },
     "/topics/{topicId}/entries": {
       "get": {
         "description": "Get entries for a topic",
@@ -12577,6 +12681,21 @@
       "CreateTimeTrackResponseContent": {
         "$ref": "#/components/schemas/Recording"
       },
+      "CreateTopicCommentRequestContent": {
+        "type": "object",
+        "description": "Wire format: {comment: {content: \"<div>…</div>\"}}",
+        "properties": {
+          "comment": {
+            "$ref": "#/components/schemas/TopicCommentPayload"
+          }
+        },
+        "required": [
+          "comment"
+        ]
+      },
+      "CreateTopicCommentResponseContent": {
+        "$ref": "#/components/schemas/Entry"
+      },
       "DeletedPosting": {
         "type": "object",
         "description": "DeletedPosting — the stub the changes feed answers with for a posting that is gone",
@@ -12815,6 +12934,10 @@
           },
           "addressed": {
             "$ref": "#/components/schemas/Addressed"
+          },
+          "content": {
+            "type": "string",
+            "description": "The entry's body as HTML, as GetMessage serves it. Present on the note\nCreateTopicComment answers; the topic's entry index carries summaries only."
           }
         },
         "required": [
@@ -14785,6 +14908,17 @@
         },
         "required": [
           "id"
+        ]
+      },
+      "TopicCommentPayload": {
+        "type": "object",
+        "properties": {
+          "content": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "content"
         ]
       },
       "TopicListResponse": {

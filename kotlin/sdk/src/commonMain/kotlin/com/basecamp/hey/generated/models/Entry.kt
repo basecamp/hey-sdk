@@ -37,4 +37,9 @@ data class Entry(
     @SerialName("topic_id")
     val topicId: Long? = null,
     val addressed: Addressed? = null,
+    /**
+     * The entry's body as HTML, as GetMessage serves it. Present on the note
+     * CreateTopicComment answers; the topic's entry index carries summaries only.
+     */
+    val content: String? = null,
 )

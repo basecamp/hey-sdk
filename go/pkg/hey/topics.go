@@ -123,6 +123,41 @@ func topicEntriesParams(page string) *generated.GetTopicEntriesParams {
 	return params
 }
 
+// CreateComment adds a note to a topic and returns it as an entry of kind "comment", with
+// its ID, TopicId and Content.
+//
+// Everyone with access to the thread sees the note, so on a HEY for Domains thread
+// teammates do, and HEY never emails it to anyone. On a thread no one else can reach it
+// is a note to self. The content is HTML, as HEY's composer writes it, so escape plain
+// text (html.EscapeString) before passing it. HEY refuses blank content with a
+// validation error.
+func (s *TopicsService) CreateComment(ctx context.Context, topicID int64, content string) (entry *generated.Entry, err error) {
+	op := OperationInfo{
+		Service: "Topics", Operation: "CreateTopicComment",
+		ResourceType: "comment", IsMutation: true, ResourceID: topicID,
+	}
+
+	err = s.client.instrument(ctx, op, func(ctx context.Context) error {
+		body := generated.CreateTopicCommentRequestContent{
+			Comment: generated.TopicCommentPayload{Content: content},
+		}
+
+		resp, rerr := s.client.genClient().CreateTopicCommentWithResponse(ctx, topicID, body)
+		if rerr != nil {
+			return rerr
+		}
+		if resp.JSON422 != nil {
+			return ErrValidation(resp.JSON422.Errors...)
+		}
+		if cerr := CheckResponse(resp.HTTPResponse); cerr != nil {
+			return cerr
+		}
+		entry = resp.JSON201
+		return nil
+	})
+	return entry, err
+}
+
 // SentPage is one page of sent topics and the opaque cursor for the next page.
 type SentPage struct {
 	Title       string

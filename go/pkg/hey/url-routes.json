@@ -1044,6 +1044,19 @@
       }
     },
     {
+      "pattern": "/topics/{topicId}/comments",
+      "resource": "Topics",
+      "operations": {
+        "POST": "CreateTopicComment"
+      },
+      "params": {
+        "topicId": {
+          "role": "parent",
+          "type": "int64"
+        }
+      }
+    },
+    {
       "pattern": "/topics/{topicId}/entries",
       "resource": "Topics",
       "operations": {

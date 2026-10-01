@@ -1109,6 +1109,12 @@ func executeOperation(client *generated.Client, ctx context.Context, tc TestCase
 	case "GetTopicEntries":
 		topicId := getInt64Param(tc.PathParams, "topicId")
 		return client.GetTopicEntries(ctx, topicId, nil)
+	case "CreateTopicComment":
+		topicId := getInt64Param(tc.PathParams, "topicId")
+		body := generated.CreateTopicCommentJSONRequestBody{
+			Comment: generated.TopicCommentPayload{Content: getStringParam(tc.RequestBody, "content")},
+		}
+		return client.CreateTopicComment(ctx, topicId, body)
 	case "GetSentTopics":
 		return client.GetSentTopics(ctx, nil)
 	case "GetSpamTopics":

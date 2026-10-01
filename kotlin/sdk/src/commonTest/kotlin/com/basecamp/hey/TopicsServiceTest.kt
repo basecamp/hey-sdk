@@ -1,5 +1,7 @@
 package com.basecamp.hey
 
+import com.basecamp.hey.generated.models.CreateTopicCommentRequestContent
+import com.basecamp.hey.generated.models.TopicCommentPayload
 import com.basecamp.hey.generated.topics
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
@@ -60,5 +62,49 @@ class TopicsServiceTest {
         assertFailsWith<HeyException.NotFound> { client.topics.trashTopic(9, confirmDestroy = true) }
         val error = assertFailsWith<HeyException.Api> { client.topics.trashTopic(9, confirmDestroy = true) }
         assertEquals(406, error.httpStatus)
+    }
+
+    @Test
+    fun aNoteIsAddedToATopicAndComesBackAsItsEntry() = runTest {
+        val hey = mockHey(
+            status(
+                201,
+                """{"id":1019246358,"kind":"comment","topic_id":9,"summary":"Can you take a look at the spine?",""" +
+                    """"creator":{"id":197214974,"name":"Jason Fried","email_address":"jason@example.com"},""" +
+                    """"content":"<div>Can you take a look at the <strong>spine</strong>?</div>"}""",
+            ),
+        )
+
+        val entry = hey.client().topics.createComment(
+            9,
+            CreateTopicCommentRequestContent(TopicCommentPayload("<div>Can you take a look at the <strong>spine</strong>?</div>")),
+        )
+
+        assertEquals(1019246358L, entry.id)
+        assertEquals("comment", entry.kind)
+        assertEquals(9L, entry.topicId)
+        assertEquals("Jason Fried", entry.creator?.name)
+        assertEquals("<div>Can you take a look at the <strong>spine</strong>?</div>", entry.content)
+        assertEquals("POST", hey.requests.single().method)
+        assertEquals("/topics/9/comments.json", hey.requests.single().path)
+        assertEquals("""{"comment":{"content":"<div>Can you take a look at the <strong>spine</strong>?</div>"}}""", hey.requests.single().body)
+    }
+
+    @Test
+    fun aBlankNoteIsRefusedAsInvalid() = runTest {
+        val hey = mockHey(status(422, """{"errors":["Content can't be blank"]}"""))
+        val error = assertFailsWith<HeyException.Validation> {
+            hey.client().topics.createComment(9, CreateTopicCommentRequestContent(TopicCommentPayload("")))
+        }
+        assertEquals(422, error.httpStatus)
+        assertEquals("Content can't be blank", error.hint)
+    }
+
+    @Test
+    fun aNoteOnATopicOutOfReachIsNotFound() = runTest {
+        val hey = mockHey(status(404))
+        assertFailsWith<HeyException.NotFound> {
+            hey.client().topics.createComment(9, CreateTopicCommentRequestContent(TopicCommentPayload("<div>Following up</div>")))
+        }
     }
 }

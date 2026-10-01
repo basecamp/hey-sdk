@@ -409,6 +409,27 @@ object Routes {
         retry = RetryPolicy(max = 2, baseDelayMs = 1000L, retryOn = listOf(429, 503)),
     )
 
+    /** `POST /topics/{topicId}/comments.json` */
+    val CREATE_TOPIC_COMMENT: Route = Route(
+        id = "CreateTopicComment",
+        service = "Topics",
+        method = Method.POST,
+        path = "/topics/{topicId}/comments.json",
+        pattern = "/topics/{topicId}/comments",
+        resource = "Topics",
+        resourceType = "comment",
+        params = listOf(
+            RouteParam("topicId", ParamRole.PARENT, ParamKind.INT64),
+        ),
+        idempotent = false,
+        readonly = false,
+        html = false,
+        emptyOn = emptyList(),
+        pagination = Pagination.NONE,
+        pageParameter = null,
+        retry = RetryPolicy(max = 2, baseDelayMs = 1000L, retryOn = listOf(429, 503)),
+    )
+
     /** `POST /topics/{topicId}/workflows/{workflowId}/stagings` */
     val CREATE_WORKFLOW_STAGING: Route = Route(
         id = "CreateWorkflowStaging",
@@ -2734,6 +2755,7 @@ object Routes {
         CREATE_REPLY,
         CREATE_STICKY,
         CREATE_TIME_TRACK,
+        CREATE_TOPIC_COMMENT,
         CREATE_WORKFLOW_STAGING,
         DELETE_BOX_DESIGNATION,
         DELETE_BOX_GROUP,

@@ -103,6 +103,43 @@
     "tags": ["error-mapping", "validation", "structured-error"]
   },
   {
+    "name": "CreateTopicComment's 422 for a blank note maps to validation error code",
+    "description": "Verifies that HEY refusing a blank note with a reasons list maps to a validation error and is not resent",
+    "operation": "CreateTopicComment",
+    "method": "POST",
+    "path": "/topics/{topicId}/comments.json",
+    "pathParams": {"topicId": 4471829},
+    "requestBody": {"content": ""},
+    "mockResponses": [
+      {"status": 422, "body": {"errors": ["Content can't be blank"]}}
+    ],
+    "assertions": [
+      {"type": "requestCount", "expected": 1},
+      {"type": "errorCode", "expected": "validation"},
+      {"type": "errorField", "path": "httpStatus", "expected": 422},
+      {"type": "errorField", "path": "retryable", "expected": false}
+    ],
+    "tags": ["error-mapping", "validation", "structured-error", "topics"]
+  },
+  {
+    "name": "CreateTopicComment's 404 for a topic out of reach maps to not_found error code",
+    "description": "Verifies that a note posted to a topic the identity cannot reach maps to a not_found error",
+    "operation": "CreateTopicComment",
+    "method": "POST",
+    "path": "/topics/{topicId}/comments.json",
+    "pathParams": {"topicId": 4471829},
+    "requestBody": {"content": "<div>Following up</div>"},
+    "mockResponses": [
+      {"status": 404, "body": {"error": "Not found"}}
+    ],
+    "assertions": [
+      {"type": "requestCount", "expected": 1},
+      {"type": "errorCode", "expected": "not_found"},
+      {"type": "errorField", "path": "httpStatus", "expected": 404}
+    ],
+    "tags": ["error-mapping", "not-found", "structured-error", "topics"]
+  },
+  {
     "name": "429 maps to rate_limit error code",
     "description": "Verifies that 429 Too Many Requests maps to structured error with code 'rate_limit' and retryable=true",
     "operation": "ListBoxes",

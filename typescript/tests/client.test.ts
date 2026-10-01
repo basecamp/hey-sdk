@@ -131,6 +131,65 @@ describe("HEY transport", () => {
       "/contacts/91824/uploaded_avatar.json",
     );
   });
+  it("adds a note to a topic and answers the entry HEY created", async () => {
+    const content =
+      "<div>Can you take a look at the <strong>spine</strong>?</div>";
+    const m = mock([
+      json(
+        {
+          id: 1019246358,
+          kind: "comment",
+          topic_id: 4471829,
+          summary: "Can you take a look at the spine?",
+          creator: {
+            id: 197214974,
+            name: "Jason Fried",
+            email_address: "jason@example.com",
+          },
+          content,
+        },
+        201,
+      ),
+    ]);
+    const client = new HeyClient({ token: "secret", fetch: m.fetch });
+
+    const created = await client.createTopicComment({
+      path: { topicId: 4471829 },
+      body: { comment: { content } },
+    });
+
+    expect(created.status).toBe(201);
+    expect(created.data).toMatchObject({
+      id: 1019246358,
+      kind: "comment",
+      topic_id: 4471829,
+      content,
+    });
+    expect(m.requests[0]!.method).toBe("POST");
+    expect(new URL(m.requests[0]!.url).pathname).toBe(
+      "/topics/4471829/comments.json",
+    );
+    expect(await m.requests[0]!.json()).toEqual({ comment: { content } });
+  });
+  it.each([
+    [422, { errors: ["Content can't be blank"] }, "validation"],
+    [404, { error: "Not found" }, "not_found"],
+  ])("surfaces a %i from adding a note as %s", async (status, body, code) => {
+    const m = mock([json(body, status)]);
+    const client = new HeyClient({
+      token: "secret",
+      fetch: m.fetch,
+      maxRetries: 0,
+    });
+
+    await expect(
+      client.createTopicComment({
+        path: { topicId: 4471829 },
+        body: { comment: { content: "" } },
+      }),
+    ).rejects.toMatchObject({ code, httpStatus: status });
+    expect(m.requests).toHaveLength(1);
+  });
   it("requests and returns modeled HTML without inventing a JSON representation", async () => {
     const html = '<section id="container_workflow_stage_5512">Applied</section>';
     const m = mock([

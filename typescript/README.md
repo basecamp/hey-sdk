@@ -1,7 +1,7 @@
 # @37signals/hey
 
 TypeScript SDK for HEY, generated from the same Smithy/OpenAPI contract as the Go SDK.
-All **134 modeled operations** have typed lower-camel-case methods on `HeyClient`.
+All **135 modeled operations** have typed lower-camel-case methods on `HeyClient`.
 
 ## Install and runtimes
 

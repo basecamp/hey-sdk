@@ -47,4 +47,39 @@ final class TopicsTests: XCTestCase {
         let error = await assertThrows(HeyError.codeAPI, try await client.topics.trashTopic(topicId: 9, confirmDestroy: true))
         XCTAssertEqual(error?.httpStatus, 406)
     }
+
+    func testANoteIsAddedToATopicAndComesBackAsItsEntry() async throws {
+        let hey = mockHey(status(201, #"{"id":1019246358,"kind":"comment","topic_id":9,"summary":"Can you take a look at the spine?","creator":{"id":197214974,"name":"Jason Fried","email_address":"jason@example.com"},"content":"<div>Can you take a look at the <strong>spine</strong>?</div>"}"#))
+
+        let entry = try await hey.client().topics.createComment(
+            topicId: 9,
+            body: CreateTopicCommentRequestContent(comment: TopicCommentPayload(content: "<div>Can you take a look at the <strong>spine</strong>?</div>")))
+
+        XCTAssertEqual(entry.id, 1019246358)
+        XCTAssertEqual(entry.kind, "comment")
+        XCTAssertEqual(entry.topicId, 9)
+        XCTAssertEqual(entry.creator?.name, "Jason Fried")
+        XCTAssertEqual(entry.content, "<div>Can you take a look at the <strong>spine</strong>?</div>")
+        XCTAssertEqual(hey.requests.count, 1)
+        XCTAssertEqual(hey.requests[0].method, "POST")
+        XCTAssertEqual(hey.requests[0].path, "/topics/9/comments.json")
+        let sent = try JSONSerialization.jsonObject(with: Data(hey.requests[0].body.utf8)) as? [String: Any]
+        XCTAssertEqual((sent?["comment"] as? [String: Any])?["content"] as? String, "<div>Can you take a look at the <strong>spine</strong>?</div>")
+    }
+
+    func testABlankNoteIsRefusedAsInvalid() async throws {
+        let hey = mockHey(status(422, #"{"errors":["Content can't be blank"]}"#))
+        let error = await assertThrows(
+            HeyError.codeValidation,
+            try await hey.client().topics.createComment(topicId: 9, body: CreateTopicCommentRequestContent(comment: TopicCommentPayload(content: ""))))
+        XCTAssertEqual(error?.httpStatus, 422)
+        XCTAssertEqual(error?.hint, "Content can't be blank")
+    }
+
+    func testANoteOnATopicOutOfReachIsNotFound() async throws {
+        let hey = mockHey(status(404))
+        await assertThrows(
+            HeyError.codeNotFound,
+            try await hey.client().topics.createComment(topicId: 9, body: CreateTopicCommentRequestContent(comment: TopicCommentPayload(content: "<div>Following up</div>"))))
+    }
 }

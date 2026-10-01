@@ -456,6 +456,31 @@ pub static CREATE_TIME_TRACK: Route = Route {
     },
 };
 
+pub static CREATE_TOPIC_COMMENT: Route = Route {
+    id: "CreateTopicComment",
+    service: "Topics",
+    method: Method::POST,
+    path: "/topics/{topicId}/comments.json",
+    pattern: "/topics/{topicId}/comments",
+    resource: "Topics",
+    resource_type: "comment",
+    params: &[RouteParam {
+        name: "topicId",
+        role: ParamRole::Parent,
+        kind: ParamKind::Int64,
+    }],
+    idempotent: false,
+    readonly: false,
+    html: false,
+    empty_on: &[],
+    pagination: Pagination::None,
+    retry: Retry {
+        max: 2,
+        base_delay_ms: 1000,
+        retry_on: &[429, 503],
+    },
+};
+
 pub static CREATE_WORKFLOW_STAGING: Route = Route {
     id: "CreateWorkflowStaging",
     service: "Workflows",
@@ -3191,6 +3216,7 @@ pub static ROUTES: &[&Route] = &[
     &CREATE_REPLY,
     &CREATE_STICKY,
     &CREATE_TIME_TRACK,
+    &CREATE_TOPIC_COMMENT,
     &CREATE_WORKFLOW_STAGING,
     &DELETE_BOX_DESIGNATION,
     &DELETE_BOX_GROUP,

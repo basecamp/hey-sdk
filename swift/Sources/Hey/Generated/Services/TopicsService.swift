@@ -56,6 +56,24 @@ public struct TrashTopicOptions: Sendable, Equatable {
 
 /// Service for Topics operations.
 public final class TopicsService: BaseService, @unchecked Sendable {
+    /// Add a note to a topic: a comment entry everyone with access to the thread sees,
+    /// and which HEY never emails to anyone. On a thread no one else can reach it is a
+    /// note to self. Answers the note as an entry of kind "comment", with its id,
+    /// topic_id and content.
+    ///
+    /// The content is HTML, as HEY's composer writes it, so escape plain text before
+    /// sending it. Blank content answers 422.
+    ///
+    /// - Parameters:
+    ///   - topicId: The topic ID
+    ///   - body: Request body
+    public func createComment(topicId: Int, body: CreateTopicCommentRequestContent) async throws -> CreateTopicCommentResponseContent {
+        var operation = try client.operation(Routes.createTopicComment, [topicId])
+        operation.resourceId(topicId)
+        try operation.json(body)
+        return try await client.send(operation)
+    }
+
     /// Empty the spam box. Runs synchronously, so it can take a while on a large mailbox.
     public func emptySpam() async throws {
         let operation = try client.operation(Routes.emptySpam, [])

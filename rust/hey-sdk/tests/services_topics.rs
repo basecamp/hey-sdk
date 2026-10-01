@@ -3,6 +3,8 @@
 mod support;
 
 use hey_sdk::ErrorCode;
+use hey_sdk::models::{CreateTopicCommentRequestContent, TopicCommentPayload};
+use serde_json::{Value, json};
 use wiremock::matchers::{method, path, query_param, query_param_is_missing};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
@@ -133,4 +135,103 @@ async fn a_topic_is_moved_to_a_box_by_its_id() {
         requests[0].body_json::<serde_json::Value>().unwrap(),
         serde_json::json!({ "box_id": 5 })
     );
+}
+
+fn note(content: &str) -> CreateTopicCommentRequestContent {
+    CreateTopicCommentRequestContent {
+        comment: TopicCommentPayload {
+            content: content.to_string(),
+        },
+    }
+}
+
+#[tokio::test]
+async fn a_note_is_added_to_a_topic_and_comes_back_as_its_entry() {
+    let server = MockServer::start().await;
+    Mock::given(method("POST"))
+        .and(path("/topics/9/comments.json"))
+        .respond_with(ResponseTemplate::new(201).set_body_json(json!({
+            "id": 1_019_246_358,
+            "kind": "comment",
+            "topic_id": 9,
+            "summary": "Can you take a look at the spine?",
+            "created_at": "2026-10-01T16:59:04.735Z",
+            "creator": { "id": 197_214_974, "name": "Jason Fried", "email_address": "jason@example.com" },
+            "app_url": "https://app.hey.com/topics/9#__entry_1019246358",
+            "content": "<div>Can you take a look at the <strong>spine</strong>?</div>"
+        })))
+        .mount(&server)
+        .await;
+
+    let entry = client(&server)
+        .topics()
+        .create_comment(
+            9,
+            &note("<div>Can you take a look at the <strong>spine</strong>?</div>"),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(entry.id, 1_019_246_358);
+    assert_eq!(entry.kind.as_deref(), Some("comment"));
+    assert_eq!(entry.topic_id, Some(9));
+    assert_eq!(
+        entry.content.as_deref(),
+        Some("<div>Can you take a look at the <strong>spine</strong>?</div>")
+    );
+    assert_eq!(
+        entry.creator.and_then(|creator| creator.name).as_deref(),
+        Some("Jason Fried")
+    );
+    let requests = server.received_requests().await.unwrap();
+    let sent: Value = serde_json::from_slice(&requests[0].body).unwrap();
+    assert_eq!(
+        sent,
+        json!({ "comment": { "content": "<div>Can you take a look at the <strong>spine</strong>?</div>" } })
+    );
+}
+
+#[tokio::test]
+async fn a_blank_note_is_refused_as_invalid() {
+    let server = MockServer::start().await;
+    Mock::given(method("POST"))
+        .and(path("/topics/9/comments.json"))
+        .respond_with(
+            ResponseTemplate::new(422)
+                .set_body_json(json!({ "errors": ["Content can't be blank"] })),
+        )
+        .mount(&server)
+        .await;
+
+    let error = client(&server)
+        .topics()
+        .create_comment(9, &note(""))
+        .await
+        .unwrap_err();
+
+    assert_eq!(error.code(), ErrorCode::Validation);
+    assert_eq!(error.http_status(), Some(422));
+    assert_eq!(
+        error.body_json::<Value>(),
+        Some(json!({ "errors": ["Content can't be blank"] }))
+    );
+}
+
+#[tokio::test]
+async fn a_note_on_a_topic_out_of_reach_is_not_found() {
+    let server = MockServer::start().await;
+    Mock::given(method("POST"))
+        .and(path("/topics/9/comments.json"))
+        .respond_with(ResponseTemplate::new(404))
+        .mount(&server)
+        .await;
+
+    let error = client(&server)
+        .topics()
+        .create_comment(9, &note("<div>Following up</div>"))
+        .await
+        .unwrap_err();
+
+    assert_eq!(error.code(), ErrorCode::NotFound);
+    assert_eq!(error.http_status(), Some(404));
 }

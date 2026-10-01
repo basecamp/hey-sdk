@@ -231,6 +231,19 @@ async fn execute_operation(client: &Client, case: &TestCase) -> Result<Outcome, 
                 .await?;
             page(client, result, follow).await
         }
+        "CreateTopicComment" => {
+            let request = models::CreateTopicCommentRequestContent {
+                comment: models::TopicCommentPayload {
+                    content: string_param(body, "content"),
+                },
+            };
+            json(
+                client
+                    .topics()
+                    .create_comment(int64_param(path, "topicId"), &request)
+                    .await?,
+            )
+        }
         "GetSentTopics" => {
             page(
                 client,

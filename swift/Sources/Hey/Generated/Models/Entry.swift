@@ -17,6 +17,9 @@ public struct Entry: Codable, Sendable, Equatable {
     public var subject: String?
     public var topicId: Int?
     public var addressed: Addressed?
+    /// The entry's body as HTML, as GetMessage serves it. Present on the note
+    /// CreateTopicComment answers; the topic's entry index carries summaries only.
+    public var content: String?
 
     public init(
         id: Int,
@@ -30,7 +33,8 @@ public struct Entry: Codable, Sendable, Equatable {
         appUrl: String? = nil,
         subject: String? = nil,
         topicId: Int? = nil,
-        addressed: Addressed? = nil
+        addressed: Addressed? = nil,
+        content: String? = nil
     ) {
         self.id = id
         self.createdAt = createdAt
@@ -44,6 +48,7 @@ public struct Entry: Codable, Sendable, Equatable {
         self.subject = subject
         self.topicId = topicId
         self.addressed = addressed
+        self.content = content
     }
 
     enum CodingKeys: String, CodingKey {
@@ -59,5 +64,6 @@ public struct Entry: Codable, Sendable, Equatable {
         case subject
         case topicId = "topic_id"
         case addressed
+        case content
     }
 }
