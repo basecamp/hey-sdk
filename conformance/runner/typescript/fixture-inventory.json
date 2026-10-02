@@ -123,6 +123,14 @@
       "operation": "GetBox"
     },
     {
+      "name": "403 with an empty JSON-typed body maps to forbidden",
+      "operation": "UpdateClearance"
+    },
+    {
+      "name": "403 on a write with a JSON error body maps to forbidden",
+      "operation": "UpdateClearance"
+    },
+    {
       "name": "404 maps to not_found error code",
       "operation": "GetBox"
     },

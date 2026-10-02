@@ -11,8 +11,8 @@ GitHub Actions remains the authority for the exact pull-request head and support
 | Runtime behavior | `npm test` runs 521 tests across transport, retries, cancellation, credentials, OAuth, pagination, account scope, response limits, package installation, generation and release integration. |
 | Type safety | `npm run typecheck`, `npm run typecheck:tests` and the conformance-runner typecheck cover the public SDK, tests, examples and fixture adapter. |
 | Package artifact | `npm run package:smoke` packs the package, installs the tarball in an isolated project and validates its exports without resolving repository source files. |
-| Shared conformance | `make conformance-ts` executes 192 applicable fixtures through generated methods. Four named convenience-layer fixtures remain explicitly excluded in `conformance/runner/typescript/not-applicable.json`; stale exclusions and unknown fixture shapes fail closed. |
-| Existing SDKs | `make check` runs the complete Smithy, drift, Go, Rust, TypeScript, Kotlin, Swift and conformance gate. Go, Rust, Kotlin and Swift each execute all 196 fixtures. |
+| Shared conformance | `make conformance-ts` executes 194 applicable fixtures through generated methods. Four named convenience-layer fixtures remain explicitly excluded in `conformance/runner/typescript/not-applicable.json`; stale exclusions and unknown fixture shapes fail closed. |
+| Existing SDKs | `make check` runs the complete Smithy, drift, Go, Rust, TypeScript, Kotlin, Swift and conformance gate. Go, Rust, Kotlin and Swift each execute all 198 fixtures. |
 | Release safety | Release tests validate inactive-by-default npm publication, tagged-state parsing, exact-artifact publication and transactional version synchronization across Go, Rust and TypeScript. |
 
 ## Current local result
@@ -28,11 +28,11 @@ rustc --version  # rustc 1.98.1
 make check
 # PASS
 # TypeScript tests: 521/521
-# Go conformance: 196/196
-# Rust conformance: 196/196
-# TypeScript conformance: 192/192 applicable; 4 declared exclusions
-# Kotlin conformance: 196/196
-# Swift conformance: 196/196
+# Go conformance: 198/198
+# Rust conformance: 198/198
+# TypeScript conformance: 194/194 applicable; 4 declared exclusions
+# Kotlin conformance: 198/198
+# Swift conformance: 198/198
 ```
 
 Focused TypeScript verification is available with:

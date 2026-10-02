@@ -23777,45 +23777,52 @@ func ParseDeleteExtenzionResponse(rsp *http.Response) (*DeleteExtenzionResponse,
 		HTTPResponse: rsp,
 	}
 
-	switch {
-	case rsp.StatusCode == 200:
-		break // No content-type
+	// An undecodable body fails only a 2xx; an error status answers on its own, body or not.
+	if _, err := func() (*DeleteExtenzionResponse, error) {
+		switch {
+		case rsp.StatusCode == 200:
+			break // No content-type
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
-		var dest UnauthorizedErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+			var dest UnauthorizedErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON401 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+			var dest ForbiddenErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON403 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+			var dest NotFoundErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON404 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+			var dest InternalServerErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON500 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+			var dest ServiceUnavailableErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON503 = &dest
+
 		}
-		response.JSON401 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
-		var dest ForbiddenErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON403 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
-		var dest NotFoundErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON404 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
-		var dest InternalServerErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON500 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
-		var dest ServiceUnavailableErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON503 = &dest
-
+		return response, nil
+	}(); err != nil && rsp.StatusCode/100 == 2 {
+		return nil, err
 	}
 
 	return response, nil
@@ -23834,35 +23841,42 @@ func ParseAdvancedSearchResponse(rsp *http.Response) (*AdvancedSearchResponse, e
 		HTTPResponse: rsp,
 	}
 
-	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest AdvancedSearchResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON200 = &dest
+	// An undecodable body fails only a 2xx; an error status answers on its own, body or not.
+	if _, err := func() (*AdvancedSearchResponse, error) {
+		switch {
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+			var dest AdvancedSearchResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON200 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
-		var dest UnauthorizedErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON401 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+			var dest UnauthorizedErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON401 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
-		var dest InternalServerErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON500 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+			var dest InternalServerErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON500 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
-		var dest ServiceUnavailableErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON503 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+			var dest ServiceUnavailableErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON503 = &dest
 
+		}
+
+		return response, nil
+	}(); err != nil && rsp.StatusCode/100 == 2 {
+		return nil, err
 	}
 
 	return response, nil
@@ -23881,35 +23895,42 @@ func ParseGetAdvancedSearchFiltersResponse(rsp *http.Response) (*GetAdvancedSear
 		HTTPResponse: rsp,
 	}
 
-	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest GetAdvancedSearchFiltersResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON200 = &dest
+	// An undecodable body fails only a 2xx; an error status answers on its own, body or not.
+	if _, err := func() (*GetAdvancedSearchFiltersResponse, error) {
+		switch {
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+			var dest GetAdvancedSearchFiltersResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON200 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
-		var dest UnauthorizedErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON401 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+			var dest UnauthorizedErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON401 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
-		var dest InternalServerErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON500 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+			var dest InternalServerErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON500 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
-		var dest ServiceUnavailableErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON503 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+			var dest ServiceUnavailableErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON503 = &dest
 
+		}
+
+		return response, nil
+	}(); err != nil && rsp.StatusCode/100 == 2 {
+		return nil, err
 	}
 
 	return response, nil
@@ -23928,35 +23949,42 @@ func ParseListAddressableContactsResponse(rsp *http.Response) (*ListAddressableC
 		HTTPResponse: rsp,
 	}
 
-	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest ListAddressableContactsResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON200 = &dest
+	// An undecodable body fails only a 2xx; an error status answers on its own, body or not.
+	if _, err := func() (*ListAddressableContactsResponse, error) {
+		switch {
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+			var dest ListAddressableContactsResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON200 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
-		var dest UnauthorizedErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON401 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+			var dest UnauthorizedErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON401 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
-		var dest InternalServerErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON500 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+			var dest InternalServerErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON500 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
-		var dest ServiceUnavailableErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON503 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+			var dest ServiceUnavailableErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON503 = &dest
 
+		}
+
+		return response, nil
+	}(); err != nil && rsp.StatusCode/100 == 2 {
+		return nil, err
 	}
 
 	return response, nil
@@ -23975,35 +24003,42 @@ func ParseListBoxesResponse(rsp *http.Response) (*ListBoxesResponse, error) {
 		HTTPResponse: rsp,
 	}
 
-	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest ListBoxesResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON200 = &dest
+	// An undecodable body fails only a 2xx; an error status answers on its own, body or not.
+	if _, err := func() (*ListBoxesResponse, error) {
+		switch {
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+			var dest ListBoxesResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON200 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
-		var dest UnauthorizedErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON401 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+			var dest UnauthorizedErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON401 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
-		var dest InternalServerErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON500 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+			var dest InternalServerErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON500 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
-		var dest ServiceUnavailableErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON503 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+			var dest ServiceUnavailableErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON503 = &dest
 
+		}
+
+		return response, nil
+	}(); err != nil && rsp.StatusCode/100 == 2 {
+		return nil, err
 	}
 
 	return response, nil
@@ -24022,42 +24057,49 @@ func ParseGetBoxResponse(rsp *http.Response) (*GetBoxResponse, error) {
 		HTTPResponse: rsp,
 	}
 
-	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest GetBoxResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON200 = &dest
+	// An undecodable body fails only a 2xx; an error status answers on its own, body or not.
+	if _, err := func() (*GetBoxResponse, error) {
+		switch {
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+			var dest GetBoxResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON200 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
-		var dest UnauthorizedErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON401 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+			var dest UnauthorizedErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON401 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
-		var dest NotFoundErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON404 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+			var dest NotFoundErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON404 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
-		var dest InternalServerErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON500 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+			var dest InternalServerErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON500 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
-		var dest ServiceUnavailableErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON503 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+			var dest ServiceUnavailableErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON503 = &dest
 
+		}
+
+		return response, nil
+	}(); err != nil && rsp.StatusCode/100 == 2 {
+		return nil, err
 	}
 
 	return response, nil
@@ -24076,45 +24118,52 @@ func ParseCreateBoxDesignationResponse(rsp *http.Response) (*CreateBoxDesignatio
 		HTTPResponse: rsp,
 	}
 
-	switch {
-	case rsp.StatusCode == 200:
-		break // No content-type
+	// An undecodable body fails only a 2xx; an error status answers on its own, body or not.
+	if _, err := func() (*CreateBoxDesignationResponse, error) {
+		switch {
+		case rsp.StatusCode == 200:
+			break // No content-type
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
-		var dest UnauthorizedErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+			var dest UnauthorizedErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON401 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+			var dest ForbiddenErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON403 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+			var dest NotFoundErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON404 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+			var dest InternalServerErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON500 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+			var dest ServiceUnavailableErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON503 = &dest
+
 		}
-		response.JSON401 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
-		var dest ForbiddenErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON403 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
-		var dest NotFoundErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON404 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
-		var dest InternalServerErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON500 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
-		var dest ServiceUnavailableErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON503 = &dest
-
+		return response, nil
+	}(); err != nil && rsp.StatusCode/100 == 2 {
+		return nil, err
 	}
 
 	return response, nil
@@ -24133,38 +24182,45 @@ func ParseDeleteBoxDesignationResponse(rsp *http.Response) (*DeleteBoxDesignatio
 		HTTPResponse: rsp,
 	}
 
-	switch {
-	case rsp.StatusCode == 200:
-		break // No content-type
+	// An undecodable body fails only a 2xx; an error status answers on its own, body or not.
+	if _, err := func() (*DeleteBoxDesignationResponse, error) {
+		switch {
+		case rsp.StatusCode == 200:
+			break // No content-type
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
-		var dest UnauthorizedErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+			var dest UnauthorizedErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON401 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+			var dest NotFoundErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON404 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+			var dest InternalServerErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON500 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+			var dest ServiceUnavailableErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON503 = &dest
+
 		}
-		response.JSON401 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
-		var dest NotFoundErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON404 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
-		var dest InternalServerErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON500 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
-		var dest ServiceUnavailableErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON503 = &dest
-
+		return response, nil
+	}(); err != nil && rsp.StatusCode/100 == 2 {
+		return nil, err
 	}
 
 	return response, nil
@@ -24183,42 +24239,49 @@ func ParseListBoxGroupsResponse(rsp *http.Response) (*ListBoxGroupsResponse, err
 		HTTPResponse: rsp,
 	}
 
-	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest ListBoxGroupsResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON200 = &dest
+	// An undecodable body fails only a 2xx; an error status answers on its own, body or not.
+	if _, err := func() (*ListBoxGroupsResponse, error) {
+		switch {
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+			var dest ListBoxGroupsResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON200 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
-		var dest UnauthorizedErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON401 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+			var dest UnauthorizedErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON401 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
-		var dest NotFoundErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON404 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+			var dest NotFoundErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON404 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
-		var dest InternalServerErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON500 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+			var dest InternalServerErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON500 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
-		var dest ServiceUnavailableErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON503 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+			var dest ServiceUnavailableErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON503 = &dest
 
+		}
+
+		return response, nil
+	}(); err != nil && rsp.StatusCode/100 == 2 {
+		return nil, err
 	}
 
 	return response, nil
@@ -24237,42 +24300,49 @@ func ParseCreateBoxGroupResponse(rsp *http.Response) (*CreateBoxGroupResponse, e
 		HTTPResponse: rsp,
 	}
 
-	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest CreateBoxGroupResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON200 = &dest
+	// An undecodable body fails only a 2xx; an error status answers on its own, body or not.
+	if _, err := func() (*CreateBoxGroupResponse, error) {
+		switch {
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+			var dest CreateBoxGroupResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON200 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
-		var dest UnauthorizedErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON401 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+			var dest UnauthorizedErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON401 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
-		var dest NotFoundErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON404 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+			var dest NotFoundErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON404 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
-		var dest InternalServerErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON500 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+			var dest InternalServerErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON500 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
-		var dest ServiceUnavailableErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON503 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+			var dest ServiceUnavailableErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON503 = &dest
 
+		}
+
+		return response, nil
+	}(); err != nil && rsp.StatusCode/100 == 2 {
+		return nil, err
 	}
 
 	return response, nil
@@ -24291,38 +24361,45 @@ func ParseDeleteBoxGroupResponse(rsp *http.Response) (*DeleteBoxGroupResponse, e
 		HTTPResponse: rsp,
 	}
 
-	switch {
-	case rsp.StatusCode == 200:
-		break // No content-type
+	// An undecodable body fails only a 2xx; an error status answers on its own, body or not.
+	if _, err := func() (*DeleteBoxGroupResponse, error) {
+		switch {
+		case rsp.StatusCode == 200:
+			break // No content-type
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
-		var dest UnauthorizedErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+			var dest UnauthorizedErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON401 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+			var dest NotFoundErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON404 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+			var dest InternalServerErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON500 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+			var dest ServiceUnavailableErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON503 = &dest
+
 		}
-		response.JSON401 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
-		var dest NotFoundErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON404 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
-		var dest InternalServerErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON500 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
-		var dest ServiceUnavailableErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON503 = &dest
-
+		return response, nil
+	}(); err != nil && rsp.StatusCode/100 == 2 {
+		return nil, err
 	}
 
 	return response, nil
@@ -24341,42 +24418,49 @@ func ParseGetBoxGroupResponse(rsp *http.Response) (*GetBoxGroupResponse, error) 
 		HTTPResponse: rsp,
 	}
 
-	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest GetBoxGroupResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON200 = &dest
+	// An undecodable body fails only a 2xx; an error status answers on its own, body or not.
+	if _, err := func() (*GetBoxGroupResponse, error) {
+		switch {
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+			var dest GetBoxGroupResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON200 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
-		var dest UnauthorizedErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON401 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+			var dest UnauthorizedErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON401 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
-		var dest NotFoundErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON404 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+			var dest NotFoundErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON404 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
-		var dest InternalServerErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON500 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+			var dest InternalServerErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON500 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
-		var dest ServiceUnavailableErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON503 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+			var dest ServiceUnavailableErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON503 = &dest
 
+		}
+
+		return response, nil
+	}(); err != nil && rsp.StatusCode/100 == 2 {
+		return nil, err
 	}
 
 	return response, nil
@@ -24395,38 +24479,45 @@ func ParseMarkBoxSeenResponse(rsp *http.Response) (*MarkBoxSeenResponse, error) 
 		HTTPResponse: rsp,
 	}
 
-	switch {
-	case rsp.StatusCode == 200:
-		break // No content-type
+	// An undecodable body fails only a 2xx; an error status answers on its own, body or not.
+	if _, err := func() (*MarkBoxSeenResponse, error) {
+		switch {
+		case rsp.StatusCode == 200:
+			break // No content-type
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
-		var dest UnauthorizedErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+			var dest UnauthorizedErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON401 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+			var dest NotFoundErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON404 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+			var dest InternalServerErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON500 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+			var dest ServiceUnavailableErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON503 = &dest
+
 		}
-		response.JSON401 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
-		var dest NotFoundErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON404 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
-		var dest InternalServerErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON500 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
-		var dest ServiceUnavailableErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON503 = &dest
-
+		return response, nil
+	}(); err != nil && rsp.StatusCode/100 == 2 {
+		return nil, err
 	}
 
 	return response, nil
@@ -24445,49 +24536,56 @@ func ParseGetBoxPostingChangesResponse(rsp *http.Response) (*GetBoxPostingChange
 		HTTPResponse: rsp,
 	}
 
-	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest GetBoxPostingChangesResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON200 = &dest
+	// An undecodable body fails only a 2xx; an error status answers on its own, body or not.
+	if _, err := func() (*GetBoxPostingChangesResponse, error) {
+		switch {
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+			var dest GetBoxPostingChangesResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON200 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
-		var dest UnauthorizedErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON401 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+			var dest UnauthorizedErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON401 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
-		var dest NotFoundErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON404 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+			var dest NotFoundErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON404 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
-		var dest ConflictErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON409 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
+			var dest ConflictErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON409 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
-		var dest InternalServerErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON500 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+			var dest InternalServerErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON500 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
-		var dest ServiceUnavailableErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON503 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+			var dest ServiceUnavailableErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON503 = &dest
 
+		}
+
+		return response, nil
+	}(); err != nil && rsp.StatusCode/100 == 2 {
+		return nil, err
 	}
 
 	return response, nil
@@ -24506,35 +24604,42 @@ func ParseGetBubbleboxResponse(rsp *http.Response) (*GetBubbleboxResponse, error
 		HTTPResponse: rsp,
 	}
 
-	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest GetBubbleboxResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON200 = &dest
+	// An undecodable body fails only a 2xx; an error status answers on its own, body or not.
+	if _, err := func() (*GetBubbleboxResponse, error) {
+		switch {
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+			var dest GetBubbleboxResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON200 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
-		var dest UnauthorizedErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON401 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+			var dest UnauthorizedErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON401 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
-		var dest InternalServerErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON500 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+			var dest InternalServerErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON500 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
-		var dest ServiceUnavailableErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON503 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+			var dest ServiceUnavailableErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON503 = &dest
 
+		}
+
+		return response, nil
+	}(); err != nil && rsp.StatusCode/100 == 2 {
+		return nil, err
 	}
 
 	return response, nil
@@ -24553,42 +24658,49 @@ func ParseCreateBulkReplyResponse(rsp *http.Response) (*CreateBulkReplyResponse,
 		HTTPResponse: rsp,
 	}
 
-	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
-		var dest CreateBulkReplyResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON201 = &dest
+	// An undecodable body fails only a 2xx; an error status answers on its own, body or not.
+	if _, err := func() (*CreateBulkReplyResponse, error) {
+		switch {
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+			var dest CreateBulkReplyResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON201 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
-		var dest UnauthorizedErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON401 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+			var dest UnauthorizedErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON401 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 422:
-		var dest UnprocessableEntityErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON422 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 422:
+			var dest UnprocessableEntityErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON422 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
-		var dest InternalServerErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON500 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+			var dest InternalServerErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON500 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
-		var dest ServiceUnavailableErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON503 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+			var dest ServiceUnavailableErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON503 = &dest
 
+		}
+
+		return response, nil
+	}(); err != nil && rsp.StatusCode/100 == 2 {
+		return nil, err
 	}
 
 	return response, nil
@@ -24607,42 +24719,49 @@ func ParseNewBulkReplyResponse(rsp *http.Response) (*NewBulkReplyResponse, error
 		HTTPResponse: rsp,
 	}
 
-	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest NewBulkReplyResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON200 = &dest
+	// An undecodable body fails only a 2xx; an error status answers on its own, body or not.
+	if _, err := func() (*NewBulkReplyResponse, error) {
+		switch {
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+			var dest NewBulkReplyResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON200 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
-		var dest UnauthorizedErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON401 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+			var dest UnauthorizedErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON401 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
-		var dest NotFoundErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON404 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+			var dest NotFoundErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON404 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
-		var dest InternalServerErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON500 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+			var dest InternalServerErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON500 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
-		var dest ServiceUnavailableErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON503 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+			var dest ServiceUnavailableErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON503 = &dest
 
+		}
+
+		return response, nil
+	}(); err != nil && rsp.StatusCode/100 == 2 {
+		return nil, err
 	}
 
 	return response, nil
@@ -24661,35 +24780,42 @@ func ParseListCalendarDaysResponse(rsp *http.Response) (*ListCalendarDaysRespons
 		HTTPResponse: rsp,
 	}
 
-	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest ListCalendarDaysResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON200 = &dest
+	// An undecodable body fails only a 2xx; an error status answers on its own, body or not.
+	if _, err := func() (*ListCalendarDaysResponse, error) {
+		switch {
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+			var dest ListCalendarDaysResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON200 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
-		var dest UnauthorizedErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON401 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+			var dest UnauthorizedErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON401 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
-		var dest InternalServerErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON500 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+			var dest InternalServerErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON500 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
-		var dest ServiceUnavailableErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON503 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+			var dest ServiceUnavailableErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON503 = &dest
 
+		}
+
+		return response, nil
+	}(); err != nil && rsp.StatusCode/100 == 2 {
+		return nil, err
 	}
 
 	return response, nil
@@ -24708,42 +24834,49 @@ func ParseGetCalendarDayResponse(rsp *http.Response) (*GetCalendarDayResponse, e
 		HTTPResponse: rsp,
 	}
 
-	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest GetCalendarDayResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON200 = &dest
+	// An undecodable body fails only a 2xx; an error status answers on its own, body or not.
+	if _, err := func() (*GetCalendarDayResponse, error) {
+		switch {
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+			var dest GetCalendarDayResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON200 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
-		var dest UnauthorizedErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON401 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+			var dest UnauthorizedErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON401 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
-		var dest NotFoundErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON404 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+			var dest NotFoundErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON404 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
-		var dest InternalServerErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON500 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+			var dest InternalServerErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON500 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
-		var dest ServiceUnavailableErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON503 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+			var dest ServiceUnavailableErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON503 = &dest
 
+		}
+
+		return response, nil
+	}(); err != nil && rsp.StatusCode/100 == 2 {
+		return nil, err
 	}
 
 	return response, nil
@@ -24762,42 +24895,49 @@ func ParseUncompleteHabitResponse(rsp *http.Response) (*UncompleteHabitResponse,
 		HTTPResponse: rsp,
 	}
 
-	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest UncompleteHabitResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON200 = &dest
+	// An undecodable body fails only a 2xx; an error status answers on its own, body or not.
+	if _, err := func() (*UncompleteHabitResponse, error) {
+		switch {
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+			var dest UncompleteHabitResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON200 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
-		var dest UnauthorizedErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON401 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+			var dest UnauthorizedErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON401 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
-		var dest NotFoundErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON404 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+			var dest NotFoundErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON404 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
-		var dest InternalServerErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON500 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+			var dest InternalServerErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON500 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
-		var dest ServiceUnavailableErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON503 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+			var dest ServiceUnavailableErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON503 = &dest
 
+		}
+
+		return response, nil
+	}(); err != nil && rsp.StatusCode/100 == 2 {
+		return nil, err
 	}
 
 	return response, nil
@@ -24816,42 +24956,49 @@ func ParseCompleteHabitResponse(rsp *http.Response) (*CompleteHabitResponse, err
 		HTTPResponse: rsp,
 	}
 
-	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest CompleteHabitResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON200 = &dest
+	// An undecodable body fails only a 2xx; an error status answers on its own, body or not.
+	if _, err := func() (*CompleteHabitResponse, error) {
+		switch {
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+			var dest CompleteHabitResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON200 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
-		var dest UnauthorizedErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON401 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+			var dest UnauthorizedErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON401 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
-		var dest NotFoundErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON404 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+			var dest NotFoundErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON404 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
-		var dest InternalServerErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON500 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+			var dest InternalServerErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON500 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
-		var dest ServiceUnavailableErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON503 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+			var dest ServiceUnavailableErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON503 = &dest
 
+		}
+
+		return response, nil
+	}(); err != nil && rsp.StatusCode/100 == 2 {
+		return nil, err
 	}
 
 	return response, nil
@@ -24870,42 +25017,49 @@ func ParseGetJournalEntryResponse(rsp *http.Response) (*GetJournalEntryResponse,
 		HTTPResponse: rsp,
 	}
 
-	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest GetJournalEntryResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON200 = &dest
+	// An undecodable body fails only a 2xx; an error status answers on its own, body or not.
+	if _, err := func() (*GetJournalEntryResponse, error) {
+		switch {
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+			var dest GetJournalEntryResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON200 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
-		var dest UnauthorizedErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON401 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+			var dest UnauthorizedErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON401 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
-		var dest NotFoundErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON404 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+			var dest NotFoundErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON404 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
-		var dest InternalServerErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON500 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+			var dest InternalServerErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON500 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
-		var dest ServiceUnavailableErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON503 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+			var dest ServiceUnavailableErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON503 = &dest
 
+		}
+
+		return response, nil
+	}(); err != nil && rsp.StatusCode/100 == 2 {
+		return nil, err
 	}
 
 	return response, nil
@@ -24924,49 +25078,56 @@ func ParseUpdateJournalEntryResponse(rsp *http.Response) (*UpdateJournalEntryRes
 		HTTPResponse: rsp,
 	}
 
-	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest UpdateJournalEntryResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON200 = &dest
+	// An undecodable body fails only a 2xx; an error status answers on its own, body or not.
+	if _, err := func() (*UpdateJournalEntryResponse, error) {
+		switch {
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+			var dest UpdateJournalEntryResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON200 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
-		var dest UnauthorizedErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON401 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+			var dest UnauthorizedErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON401 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
-		var dest NotFoundErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON404 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+			var dest NotFoundErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON404 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 422:
-		var dest UnprocessableEntityErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON422 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 422:
+			var dest UnprocessableEntityErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON422 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
-		var dest InternalServerErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON500 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+			var dest InternalServerErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON500 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
-		var dest ServiceUnavailableErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON503 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+			var dest ServiceUnavailableErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON503 = &dest
 
+		}
+
+		return response, nil
+	}(); err != nil && rsp.StatusCode/100 == 2 {
+		return nil, err
 	}
 
 	return response, nil
@@ -24985,38 +25146,45 @@ func ParseDeleteCalendarEventResponse(rsp *http.Response) (*DeleteCalendarEventR
 		HTTPResponse: rsp,
 	}
 
-	switch {
-	case rsp.StatusCode == 200:
-		break // No content-type
+	// An undecodable body fails only a 2xx; an error status answers on its own, body or not.
+	if _, err := func() (*DeleteCalendarEventResponse, error) {
+		switch {
+		case rsp.StatusCode == 200:
+			break // No content-type
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
-		var dest UnauthorizedErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+			var dest UnauthorizedErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON401 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+			var dest NotFoundErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON404 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+			var dest InternalServerErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON500 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+			var dest ServiceUnavailableErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON503 = &dest
+
 		}
-		response.JSON401 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
-		var dest NotFoundErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON404 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
-		var dest InternalServerErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON500 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
-		var dest ServiceUnavailableErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON503 = &dest
-
+		return response, nil
+	}(); err != nil && rsp.StatusCode/100 == 2 {
+		return nil, err
 	}
 
 	return response, nil
@@ -25035,38 +25203,45 @@ func ParseDeleteCalendarEventOccurrenceResponse(rsp *http.Response) (*DeleteCale
 		HTTPResponse: rsp,
 	}
 
-	switch {
-	case rsp.StatusCode == 200:
-		break // No content-type
+	// An undecodable body fails only a 2xx; an error status answers on its own, body or not.
+	if _, err := func() (*DeleteCalendarEventOccurrenceResponse, error) {
+		switch {
+		case rsp.StatusCode == 200:
+			break // No content-type
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
-		var dest UnauthorizedErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+			var dest UnauthorizedErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON401 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+			var dest NotFoundErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON404 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+			var dest InternalServerErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON500 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+			var dest ServiceUnavailableErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON503 = &dest
+
 		}
-		response.JSON401 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
-		var dest NotFoundErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON404 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
-		var dest InternalServerErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON500 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
-		var dest ServiceUnavailableErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON503 = &dest
-
+		return response, nil
+	}(); err != nil && rsp.StatusCode/100 == 2 {
+		return nil, err
 	}
 
 	return response, nil
@@ -25085,42 +25260,49 @@ func ParseCreateHabitResponse(rsp *http.Response) (*CreateHabitResponse, error) 
 		HTTPResponse: rsp,
 	}
 
-	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
-		var dest CreateHabitResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON201 = &dest
+	// An undecodable body fails only a 2xx; an error status answers on its own, body or not.
+	if _, err := func() (*CreateHabitResponse, error) {
+		switch {
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+			var dest CreateHabitResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON201 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
-		var dest UnauthorizedErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON401 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+			var dest UnauthorizedErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON401 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 422:
-		var dest UnprocessableEntityErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON422 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 422:
+			var dest UnprocessableEntityErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON422 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
-		var dest InternalServerErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON500 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+			var dest InternalServerErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON500 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
-		var dest ServiceUnavailableErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON503 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+			var dest ServiceUnavailableErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON503 = &dest
 
+		}
+
+		return response, nil
+	}(); err != nil && rsp.StatusCode/100 == 2 {
+		return nil, err
 	}
 
 	return response, nil
@@ -25139,38 +25321,45 @@ func ParseDeleteHabitResponse(rsp *http.Response) (*DeleteHabitResponse, error) 
 		HTTPResponse: rsp,
 	}
 
-	switch {
-	case rsp.StatusCode == 200:
-		break // No content-type
+	// An undecodable body fails only a 2xx; an error status answers on its own, body or not.
+	if _, err := func() (*DeleteHabitResponse, error) {
+		switch {
+		case rsp.StatusCode == 200:
+			break // No content-type
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
-		var dest UnauthorizedErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+			var dest UnauthorizedErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON401 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+			var dest NotFoundErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON404 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+			var dest InternalServerErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON500 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+			var dest ServiceUnavailableErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON503 = &dest
+
 		}
-		response.JSON401 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
-		var dest NotFoundErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON404 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
-		var dest InternalServerErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON500 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
-		var dest ServiceUnavailableErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON503 = &dest
-
+		return response, nil
+	}(); err != nil && rsp.StatusCode/100 == 2 {
+		return nil, err
 	}
 
 	return response, nil
@@ -25189,49 +25378,56 @@ func ParseUpdateHabitResponse(rsp *http.Response) (*UpdateHabitResponse, error) 
 		HTTPResponse: rsp,
 	}
 
-	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest UpdateHabitResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON200 = &dest
+	// An undecodable body fails only a 2xx; an error status answers on its own, body or not.
+	if _, err := func() (*UpdateHabitResponse, error) {
+		switch {
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+			var dest UpdateHabitResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON200 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
-		var dest UnauthorizedErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON401 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+			var dest UnauthorizedErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON401 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
-		var dest NotFoundErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON404 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+			var dest NotFoundErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON404 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 422:
-		var dest UnprocessableEntityErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON422 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 422:
+			var dest UnprocessableEntityErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON422 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
-		var dest InternalServerErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON500 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+			var dest InternalServerErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON500 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
-		var dest ServiceUnavailableErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON503 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+			var dest ServiceUnavailableErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON503 = &dest
 
+		}
+
+		return response, nil
+	}(); err != nil && rsp.StatusCode/100 == 2 {
+		return nil, err
 	}
 
 	return response, nil
@@ -25250,38 +25446,45 @@ func ParseResumeHabitResponse(rsp *http.Response) (*ResumeHabitResponse, error) 
 		HTTPResponse: rsp,
 	}
 
-	switch {
-	case rsp.StatusCode == 200:
-		break // No content-type
+	// An undecodable body fails only a 2xx; an error status answers on its own, body or not.
+	if _, err := func() (*ResumeHabitResponse, error) {
+		switch {
+		case rsp.StatusCode == 200:
+			break // No content-type
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
-		var dest UnauthorizedErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+			var dest UnauthorizedErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON401 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+			var dest NotFoundErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON404 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+			var dest InternalServerErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON500 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+			var dest ServiceUnavailableErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON503 = &dest
+
 		}
-		response.JSON401 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
-		var dest NotFoundErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON404 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
-		var dest InternalServerErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON500 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
-		var dest ServiceUnavailableErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON503 = &dest
-
+		return response, nil
+	}(); err != nil && rsp.StatusCode/100 == 2 {
+		return nil, err
 	}
 
 	return response, nil
@@ -25300,38 +25503,45 @@ func ParseStopHabitResponse(rsp *http.Response) (*StopHabitResponse, error) {
 		HTTPResponse: rsp,
 	}
 
-	switch {
-	case rsp.StatusCode == 200:
-		break // No content-type
+	// An undecodable body fails only a 2xx; an error status answers on its own, body or not.
+	if _, err := func() (*StopHabitResponse, error) {
+		switch {
+		case rsp.StatusCode == 200:
+			break // No content-type
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
-		var dest UnauthorizedErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+			var dest UnauthorizedErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON401 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+			var dest NotFoundErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON404 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+			var dest InternalServerErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON500 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+			var dest ServiceUnavailableErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON503 = &dest
+
 		}
-		response.JSON401 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
-		var dest NotFoundErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON404 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
-		var dest InternalServerErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON500 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
-		var dest ServiceUnavailableErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON503 = &dest
-
+		return response, nil
+	}(); err != nil && rsp.StatusCode/100 == 2 {
+		return nil, err
 	}
 
 	return response, nil
@@ -25350,42 +25560,49 @@ func ParseUpdateFirstWeekDayResponse(rsp *http.Response) (*UpdateFirstWeekDayRes
 		HTTPResponse: rsp,
 	}
 
-	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest UpdateFirstWeekDayResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON200 = &dest
+	// An undecodable body fails only a 2xx; an error status answers on its own, body or not.
+	if _, err := func() (*UpdateFirstWeekDayResponse, error) {
+		switch {
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+			var dest UpdateFirstWeekDayResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON200 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
-		var dest BadRequestErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON400 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+			var dest BadRequestErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON400 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
-		var dest UnauthorizedErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON401 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+			var dest UnauthorizedErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON401 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
-		var dest InternalServerErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON500 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+			var dest InternalServerErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON500 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
-		var dest ServiceUnavailableErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON503 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+			var dest ServiceUnavailableErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON503 = &dest
 
+		}
+
+		return response, nil
+	}(); err != nil && rsp.StatusCode/100 == 2 {
+		return nil, err
 	}
 
 	return response, nil
@@ -25404,35 +25621,42 @@ func ParseListJournalEntriesResponse(rsp *http.Response) (*ListJournalEntriesRes
 		HTTPResponse: rsp,
 	}
 
-	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest ListJournalEntriesResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON200 = &dest
+	// An undecodable body fails only a 2xx; an error status answers on its own, body or not.
+	if _, err := func() (*ListJournalEntriesResponse, error) {
+		switch {
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+			var dest ListJournalEntriesResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON200 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
-		var dest UnauthorizedErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON401 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+			var dest UnauthorizedErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON401 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
-		var dest InternalServerErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON500 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+			var dest InternalServerErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON500 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
-		var dest ServiceUnavailableErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON503 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+			var dest ServiceUnavailableErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON503 = &dest
 
+		}
+
+		return response, nil
+	}(); err != nil && rsp.StatusCode/100 == 2 {
+		return nil, err
 	}
 
 	return response, nil
@@ -25451,35 +25675,42 @@ func ParseGetOngoingTimeTrackResponse(rsp *http.Response) (*GetOngoingTimeTrackR
 		HTTPResponse: rsp,
 	}
 
-	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest GetOngoingTimeTrackResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON200 = &dest
+	// An undecodable body fails only a 2xx; an error status answers on its own, body or not.
+	if _, err := func() (*GetOngoingTimeTrackResponse, error) {
+		switch {
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+			var dest GetOngoingTimeTrackResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON200 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
-		var dest UnauthorizedErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON401 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+			var dest UnauthorizedErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON401 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
-		var dest InternalServerErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON500 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+			var dest InternalServerErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON500 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
-		var dest ServiceUnavailableErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON503 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+			var dest ServiceUnavailableErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON503 = &dest
 
+		}
+
+		return response, nil
+	}(); err != nil && rsp.StatusCode/100 == 2 {
+		return nil, err
 	}
 
 	return response, nil
@@ -25498,49 +25729,56 @@ func ParseStartTimeTrackResponse(rsp *http.Response) (*StartTimeTrackResponse, e
 		HTTPResponse: rsp,
 	}
 
-	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest StartTimeTrackResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON200 = &dest
+	// An undecodable body fails only a 2xx; an error status answers on its own, body or not.
+	if _, err := func() (*StartTimeTrackResponse, error) {
+		switch {
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+			var dest StartTimeTrackResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON200 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
-		var dest UnauthorizedErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON401 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+			var dest UnauthorizedErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON401 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
-		var dest ConflictErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON409 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
+			var dest ConflictErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON409 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 422:
-		var dest UnprocessableEntityErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON422 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 422:
+			var dest UnprocessableEntityErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON422 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
-		var dest InternalServerErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON500 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+			var dest InternalServerErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON500 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
-		var dest ServiceUnavailableErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON503 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+			var dest ServiceUnavailableErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON503 = &dest
 
+		}
+
+		return response, nil
+	}(); err != nil && rsp.StatusCode/100 == 2 {
+		return nil, err
 	}
 
 	return response, nil
@@ -25559,42 +25797,49 @@ func ParseListTimeTracksResponse(rsp *http.Response) (*ListTimeTracksResponse, e
 		HTTPResponse: rsp,
 	}
 
-	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest ListTimeTracksResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON200 = &dest
+	// An undecodable body fails only a 2xx; an error status answers on its own, body or not.
+	if _, err := func() (*ListTimeTracksResponse, error) {
+		switch {
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+			var dest ListTimeTracksResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON200 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
-		var dest UnauthorizedErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON401 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+			var dest UnauthorizedErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON401 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
-		var dest NotFoundErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON404 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+			var dest NotFoundErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON404 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
-		var dest InternalServerErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON500 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+			var dest InternalServerErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON500 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
-		var dest ServiceUnavailableErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON503 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+			var dest ServiceUnavailableErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON503 = &dest
 
+		}
+
+		return response, nil
+	}(); err != nil && rsp.StatusCode/100 == 2 {
+		return nil, err
 	}
 
 	return response, nil
@@ -25613,49 +25858,56 @@ func ParseCreateTimeTrackResponse(rsp *http.Response) (*CreateTimeTrackResponse,
 		HTTPResponse: rsp,
 	}
 
-	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest CreateTimeTrackResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON200 = &dest
+	// An undecodable body fails only a 2xx; an error status answers on its own, body or not.
+	if _, err := func() (*CreateTimeTrackResponse, error) {
+		switch {
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+			var dest CreateTimeTrackResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON200 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
-		var dest BadRequestErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON400 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+			var dest BadRequestErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON400 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
-		var dest UnauthorizedErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON401 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+			var dest UnauthorizedErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON401 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 422:
-		var dest UnprocessableEntityErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON422 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 422:
+			var dest UnprocessableEntityErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON422 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
-		var dest InternalServerErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON500 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+			var dest InternalServerErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON500 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
-		var dest ServiceUnavailableErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON503 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+			var dest ServiceUnavailableErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON503 = &dest
 
+		}
+
+		return response, nil
+	}(); err != nil && rsp.StatusCode/100 == 2 {
+		return nil, err
 	}
 
 	return response, nil
@@ -25674,35 +25926,42 @@ func ParseListTimeTrackCategoriesResponse(rsp *http.Response) (*ListTimeTrackCat
 		HTTPResponse: rsp,
 	}
 
-	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest ListTimeTrackCategoriesResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON200 = &dest
+	// An undecodable body fails only a 2xx; an error status answers on its own, body or not.
+	if _, err := func() (*ListTimeTrackCategoriesResponse, error) {
+		switch {
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+			var dest ListTimeTrackCategoriesResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON200 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
-		var dest UnauthorizedErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON401 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+			var dest UnauthorizedErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON401 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
-		var dest InternalServerErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON500 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+			var dest InternalServerErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON500 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
-		var dest ServiceUnavailableErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON503 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+			var dest ServiceUnavailableErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON503 = &dest
 
+		}
+
+		return response, nil
+	}(); err != nil && rsp.StatusCode/100 == 2 {
+		return nil, err
 	}
 
 	return response, nil
@@ -25721,38 +25980,45 @@ func ParseDeleteTimeTrackResponse(rsp *http.Response) (*DeleteTimeTrackResponse,
 		HTTPResponse: rsp,
 	}
 
-	switch {
-	case rsp.StatusCode == 200:
-		break // No content-type
+	// An undecodable body fails only a 2xx; an error status answers on its own, body or not.
+	if _, err := func() (*DeleteTimeTrackResponse, error) {
+		switch {
+		case rsp.StatusCode == 200:
+			break // No content-type
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
-		var dest UnauthorizedErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+			var dest UnauthorizedErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON401 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+			var dest NotFoundErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON404 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+			var dest InternalServerErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON500 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+			var dest ServiceUnavailableErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON503 = &dest
+
 		}
-		response.JSON401 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
-		var dest NotFoundErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON404 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
-		var dest InternalServerErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON500 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
-		var dest ServiceUnavailableErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON503 = &dest
-
+		return response, nil
+	}(); err != nil && rsp.StatusCode/100 == 2 {
+		return nil, err
 	}
 
 	return response, nil
@@ -25771,56 +26037,63 @@ func ParseUpdateTimeTrackResponse(rsp *http.Response) (*UpdateTimeTrackResponse,
 		HTTPResponse: rsp,
 	}
 
-	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest UpdateTimeTrackResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON200 = &dest
+	// An undecodable body fails only a 2xx; an error status answers on its own, body or not.
+	if _, err := func() (*UpdateTimeTrackResponse, error) {
+		switch {
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+			var dest UpdateTimeTrackResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON200 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
-		var dest BadRequestErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON400 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+			var dest BadRequestErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON400 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
-		var dest UnauthorizedErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON401 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+			var dest UnauthorizedErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON401 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
-		var dest NotFoundErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON404 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+			var dest NotFoundErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON404 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 422:
-		var dest UnprocessableEntityErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON422 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 422:
+			var dest UnprocessableEntityErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON422 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
-		var dest InternalServerErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON500 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+			var dest InternalServerErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON500 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
-		var dest ServiceUnavailableErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON503 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+			var dest ServiceUnavailableErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON503 = &dest
 
+		}
+
+		return response, nil
+	}(); err != nil && rsp.StatusCode/100 == 2 {
+		return nil, err
 	}
 
 	return response, nil
@@ -25839,42 +26112,49 @@ func ParseCreateCalendarTodoResponse(rsp *http.Response) (*CreateCalendarTodoRes
 		HTTPResponse: rsp,
 	}
 
-	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest CreateCalendarTodoResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON200 = &dest
+	// An undecodable body fails only a 2xx; an error status answers on its own, body or not.
+	if _, err := func() (*CreateCalendarTodoResponse, error) {
+		switch {
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+			var dest CreateCalendarTodoResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON200 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
-		var dest UnauthorizedErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON401 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+			var dest UnauthorizedErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON401 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 422:
-		var dest UnprocessableEntityErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON422 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 422:
+			var dest UnprocessableEntityErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON422 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
-		var dest InternalServerErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON500 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+			var dest InternalServerErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON500 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
-		var dest ServiceUnavailableErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON503 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+			var dest ServiceUnavailableErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON503 = &dest
 
+		}
+
+		return response, nil
+	}(); err != nil && rsp.StatusCode/100 == 2 {
+		return nil, err
 	}
 
 	return response, nil
@@ -25893,38 +26173,45 @@ func ParseDeleteCalendarTodoResponse(rsp *http.Response) (*DeleteCalendarTodoRes
 		HTTPResponse: rsp,
 	}
 
-	switch {
-	case rsp.StatusCode == 200:
-		break // No content-type
+	// An undecodable body fails only a 2xx; an error status answers on its own, body or not.
+	if _, err := func() (*DeleteCalendarTodoResponse, error) {
+		switch {
+		case rsp.StatusCode == 200:
+			break // No content-type
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
-		var dest UnauthorizedErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+			var dest UnauthorizedErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON401 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+			var dest NotFoundErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON404 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+			var dest InternalServerErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON500 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+			var dest ServiceUnavailableErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON503 = &dest
+
 		}
-		response.JSON401 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
-		var dest NotFoundErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON404 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
-		var dest InternalServerErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON500 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
-		var dest ServiceUnavailableErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON503 = &dest
-
+		return response, nil
+	}(); err != nil && rsp.StatusCode/100 == 2 {
+		return nil, err
 	}
 
 	return response, nil
@@ -25943,49 +26230,56 @@ func ParseUpdateCalendarTodoResponse(rsp *http.Response) (*UpdateCalendarTodoRes
 		HTTPResponse: rsp,
 	}
 
-	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest UpdateCalendarTodoResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON200 = &dest
+	// An undecodable body fails only a 2xx; an error status answers on its own, body or not.
+	if _, err := func() (*UpdateCalendarTodoResponse, error) {
+		switch {
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+			var dest UpdateCalendarTodoResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON200 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
-		var dest UnauthorizedErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON401 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+			var dest UnauthorizedErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON401 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
-		var dest NotFoundErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON404 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+			var dest NotFoundErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON404 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 422:
-		var dest UnprocessableEntityErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON422 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 422:
+			var dest UnprocessableEntityErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON422 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
-		var dest InternalServerErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON500 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+			var dest InternalServerErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON500 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
-		var dest ServiceUnavailableErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON503 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+			var dest ServiceUnavailableErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON503 = &dest
 
+		}
+
+		return response, nil
+	}(); err != nil && rsp.StatusCode/100 == 2 {
+		return nil, err
 	}
 
 	return response, nil
@@ -26004,42 +26298,49 @@ func ParseUncompleteCalendarTodoResponse(rsp *http.Response) (*UncompleteCalenda
 		HTTPResponse: rsp,
 	}
 
-	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest UncompleteCalendarTodoResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON200 = &dest
+	// An undecodable body fails only a 2xx; an error status answers on its own, body or not.
+	if _, err := func() (*UncompleteCalendarTodoResponse, error) {
+		switch {
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+			var dest UncompleteCalendarTodoResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON200 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
-		var dest UnauthorizedErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON401 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+			var dest UnauthorizedErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON401 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
-		var dest NotFoundErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON404 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+			var dest NotFoundErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON404 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
-		var dest InternalServerErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON500 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+			var dest InternalServerErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON500 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
-		var dest ServiceUnavailableErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON503 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+			var dest ServiceUnavailableErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON503 = &dest
 
+		}
+
+		return response, nil
+	}(); err != nil && rsp.StatusCode/100 == 2 {
+		return nil, err
 	}
 
 	return response, nil
@@ -26058,42 +26359,49 @@ func ParseCompleteCalendarTodoResponse(rsp *http.Response) (*CompleteCalendarTod
 		HTTPResponse: rsp,
 	}
 
-	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest CompleteCalendarTodoResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON200 = &dest
+	// An undecodable body fails only a 2xx; an error status answers on its own, body or not.
+	if _, err := func() (*CompleteCalendarTodoResponse, error) {
+		switch {
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+			var dest CompleteCalendarTodoResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON200 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
-		var dest UnauthorizedErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON401 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+			var dest UnauthorizedErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON401 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
-		var dest NotFoundErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON404 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+			var dest NotFoundErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON404 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
-		var dest InternalServerErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON500 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+			var dest InternalServerErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON500 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
-		var dest ServiceUnavailableErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON503 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+			var dest ServiceUnavailableErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON503 = &dest
 
+		}
+
+		return response, nil
+	}(); err != nil && rsp.StatusCode/100 == 2 {
+		return nil, err
 	}
 
 	return response, nil
@@ -26112,35 +26420,42 @@ func ParseListCalendarWeeksResponse(rsp *http.Response) (*ListCalendarWeeksRespo
 		HTTPResponse: rsp,
 	}
 
-	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest ListCalendarWeeksResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON200 = &dest
+	// An undecodable body fails only a 2xx; an error status answers on its own, body or not.
+	if _, err := func() (*ListCalendarWeeksResponse, error) {
+		switch {
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+			var dest ListCalendarWeeksResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON200 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
-		var dest UnauthorizedErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON401 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+			var dest UnauthorizedErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON401 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
-		var dest InternalServerErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON500 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+			var dest InternalServerErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON500 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
-		var dest ServiceUnavailableErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON503 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+			var dest ServiceUnavailableErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON503 = &dest
 
+		}
+
+		return response, nil
+	}(); err != nil && rsp.StatusCode/100 == 2 {
+		return nil, err
 	}
 
 	return response, nil
@@ -26159,42 +26474,49 @@ func ParseGetCalendarWeekResponse(rsp *http.Response) (*GetCalendarWeekResponse,
 		HTTPResponse: rsp,
 	}
 
-	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest GetCalendarWeekResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON200 = &dest
+	// An undecodable body fails only a 2xx; an error status answers on its own, body or not.
+	if _, err := func() (*GetCalendarWeekResponse, error) {
+		switch {
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+			var dest GetCalendarWeekResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON200 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
-		var dest UnauthorizedErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON401 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+			var dest UnauthorizedErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON401 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
-		var dest NotFoundErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON404 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+			var dest NotFoundErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON404 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
-		var dest InternalServerErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON500 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+			var dest InternalServerErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON500 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
-		var dest ServiceUnavailableErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON503 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+			var dest ServiceUnavailableErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON503 = &dest
 
+		}
+
+		return response, nil
+	}(); err != nil && rsp.StatusCode/100 == 2 {
+		return nil, err
 	}
 
 	return response, nil
@@ -26213,42 +26535,49 @@ func ParseGetCalendarYearResponse(rsp *http.Response) (*GetCalendarYearResponse,
 		HTTPResponse: rsp,
 	}
 
-	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest GetCalendarYearResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON200 = &dest
+	// An undecodable body fails only a 2xx; an error status answers on its own, body or not.
+	if _, err := func() (*GetCalendarYearResponse, error) {
+		switch {
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+			var dest GetCalendarYearResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON200 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
-		var dest UnauthorizedErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON401 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+			var dest UnauthorizedErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON401 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
-		var dest NotFoundErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON404 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+			var dest NotFoundErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON404 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
-		var dest InternalServerErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON500 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+			var dest InternalServerErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON500 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
-		var dest ServiceUnavailableErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON503 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+			var dest ServiceUnavailableErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON503 = &dest
 
+		}
+
+		return response, nil
+	}(); err != nil && rsp.StatusCode/100 == 2 {
+		return nil, err
 	}
 
 	return response, nil
@@ -26267,35 +26596,42 @@ func ParseListCalendarsResponse(rsp *http.Response) (*ListCalendarsResponse, err
 		HTTPResponse: rsp,
 	}
 
-	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest ListCalendarsResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON200 = &dest
+	// An undecodable body fails only a 2xx; an error status answers on its own, body or not.
+	if _, err := func() (*ListCalendarsResponse, error) {
+		switch {
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+			var dest ListCalendarsResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON200 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
-		var dest UnauthorizedErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON401 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+			var dest UnauthorizedErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON401 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
-		var dest InternalServerErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON500 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+			var dest InternalServerErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON500 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
-		var dest ServiceUnavailableErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON503 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+			var dest ServiceUnavailableErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON503 = &dest
 
+		}
+
+		return response, nil
+	}(); err != nil && rsp.StatusCode/100 == 2 {
+		return nil, err
 	}
 
 	return response, nil
@@ -26314,42 +26650,49 @@ func ParseGetCalendarRecordingsResponse(rsp *http.Response) (*GetCalendarRecordi
 		HTTPResponse: rsp,
 	}
 
-	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest GetCalendarRecordingsResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON200 = &dest
+	// An undecodable body fails only a 2xx; an error status answers on its own, body or not.
+	if _, err := func() (*GetCalendarRecordingsResponse, error) {
+		switch {
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+			var dest GetCalendarRecordingsResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON200 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
-		var dest UnauthorizedErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON401 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+			var dest UnauthorizedErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON401 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
-		var dest NotFoundErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON404 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+			var dest NotFoundErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON404 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
-		var dest InternalServerErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON500 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+			var dest InternalServerErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON500 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
-		var dest ServiceUnavailableErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON503 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+			var dest ServiceUnavailableErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON503 = &dest
 
+		}
+
+		return response, nil
+	}(); err != nil && rsp.StatusCode/100 == 2 {
+		return nil, err
 	}
 
 	return response, nil
@@ -26368,42 +26711,49 @@ func ParseToggleCalendarResponse(rsp *http.Response) (*ToggleCalendarResponse, e
 		HTTPResponse: rsp,
 	}
 
-	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest ToggleCalendarResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON200 = &dest
+	// An undecodable body fails only a 2xx; an error status answers on its own, body or not.
+	if _, err := func() (*ToggleCalendarResponse, error) {
+		switch {
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+			var dest ToggleCalendarResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON200 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
-		var dest UnauthorizedErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON401 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+			var dest UnauthorizedErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON401 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
-		var dest NotFoundErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON404 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+			var dest NotFoundErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON404 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
-		var dest InternalServerErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON500 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+			var dest InternalServerErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON500 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
-		var dest ServiceUnavailableErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON503 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+			var dest ServiceUnavailableErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON503 = &dest
 
+		}
+
+		return response, nil
+	}(); err != nil && rsp.StatusCode/100 == 2 {
+		return nil, err
 	}
 
 	return response, nil
@@ -26422,35 +26772,42 @@ func ParseGetClearancesResponse(rsp *http.Response) (*GetClearancesResponse, err
 		HTTPResponse: rsp,
 	}
 
-	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest GetClearancesResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON200 = &dest
+	// An undecodable body fails only a 2xx; an error status answers on its own, body or not.
+	if _, err := func() (*GetClearancesResponse, error) {
+		switch {
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+			var dest GetClearancesResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON200 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
-		var dest UnauthorizedErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON401 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+			var dest UnauthorizedErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON401 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
-		var dest InternalServerErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON500 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+			var dest InternalServerErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON500 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
-		var dest ServiceUnavailableErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON503 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+			var dest ServiceUnavailableErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON503 = &dest
 
+		}
+
+		return response, nil
+	}(); err != nil && rsp.StatusCode/100 == 2 {
+		return nil, err
 	}
 
 	return response, nil
@@ -26469,42 +26826,49 @@ func ParseBulkUpdateClearancesResponse(rsp *http.Response) (*BulkUpdateClearance
 		HTTPResponse: rsp,
 	}
 
-	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest BulkUpdateClearancesResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON200 = &dest
+	// An undecodable body fails only a 2xx; an error status answers on its own, body or not.
+	if _, err := func() (*BulkUpdateClearancesResponse, error) {
+		switch {
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+			var dest BulkUpdateClearancesResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON200 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
-		var dest UnauthorizedErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON401 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+			var dest UnauthorizedErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON401 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
-		var dest NotFoundErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON404 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+			var dest NotFoundErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON404 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
-		var dest InternalServerErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON500 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+			var dest InternalServerErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON500 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
-		var dest ServiceUnavailableErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON503 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+			var dest ServiceUnavailableErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON503 = &dest
 
+		}
+
+		return response, nil
+	}(); err != nil && rsp.StatusCode/100 == 2 {
+		return nil, err
 	}
 
 	return response, nil
@@ -26523,31 +26887,38 @@ func ParsePuntClearancesResponse(rsp *http.Response) (*PuntClearancesResponse, e
 		HTTPResponse: rsp,
 	}
 
-	switch {
-	case rsp.StatusCode == 200:
-		break // No content-type
+	// An undecodable body fails only a 2xx; an error status answers on its own, body or not.
+	if _, err := func() (*PuntClearancesResponse, error) {
+		switch {
+		case rsp.StatusCode == 200:
+			break // No content-type
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
-		var dest UnauthorizedErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+			var dest UnauthorizedErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON401 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+			var dest InternalServerErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON500 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+			var dest ServiceUnavailableErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON503 = &dest
+
 		}
-		response.JSON401 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
-		var dest InternalServerErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON500 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
-		var dest ServiceUnavailableErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON503 = &dest
-
+		return response, nil
+	}(); err != nil && rsp.StatusCode/100 == 2 {
+		return nil, err
 	}
 
 	return response, nil
@@ -26566,49 +26937,56 @@ func ParseUpdateClearanceResponse(rsp *http.Response) (*UpdateClearanceResponse,
 		HTTPResponse: rsp,
 	}
 
-	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest UpdateClearanceResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON200 = &dest
+	// An undecodable body fails only a 2xx; an error status answers on its own, body or not.
+	if _, err := func() (*UpdateClearanceResponse, error) {
+		switch {
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+			var dest UpdateClearanceResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON200 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
-		var dest UnauthorizedErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON401 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+			var dest UnauthorizedErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON401 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
-		var dest ForbiddenErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON403 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+			var dest ForbiddenErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON403 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
-		var dest NotFoundErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON404 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+			var dest NotFoundErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON404 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
-		var dest InternalServerErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON500 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+			var dest InternalServerErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON500 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
-		var dest ServiceUnavailableErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON503 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+			var dest ServiceUnavailableErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON503 = &dest
 
+		}
+
+		return response, nil
+	}(); err != nil && rsp.StatusCode/100 == 2 {
+		return nil, err
 	}
 
 	return response, nil
@@ -26627,35 +27005,42 @@ func ParseListClipsResponse(rsp *http.Response) (*ListClipsResponse, error) {
 		HTTPResponse: rsp,
 	}
 
-	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest ListClipsResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON200 = &dest
+	// An undecodable body fails only a 2xx; an error status answers on its own, body or not.
+	if _, err := func() (*ListClipsResponse, error) {
+		switch {
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+			var dest ListClipsResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON200 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
-		var dest UnauthorizedErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON401 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+			var dest UnauthorizedErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON401 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
-		var dest InternalServerErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON500 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+			var dest InternalServerErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON500 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
-		var dest ServiceUnavailableErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON503 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+			var dest ServiceUnavailableErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON503 = &dest
 
+		}
+
+		return response, nil
+	}(); err != nil && rsp.StatusCode/100 == 2 {
+		return nil, err
 	}
 
 	return response, nil
@@ -26674,35 +27059,42 @@ func ParseListCollectionsResponse(rsp *http.Response) (*ListCollectionsResponse,
 		HTTPResponse: rsp,
 	}
 
-	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest ListCollectionsResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON200 = &dest
+	// An undecodable body fails only a 2xx; an error status answers on its own, body or not.
+	if _, err := func() (*ListCollectionsResponse, error) {
+		switch {
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+			var dest ListCollectionsResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON200 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
-		var dest UnauthorizedErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON401 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+			var dest UnauthorizedErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON401 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
-		var dest InternalServerErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON500 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+			var dest InternalServerErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON500 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
-		var dest ServiceUnavailableErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON503 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+			var dest ServiceUnavailableErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON503 = &dest
 
+		}
+
+		return response, nil
+	}(); err != nil && rsp.StatusCode/100 == 2 {
+		return nil, err
 	}
 
 	return response, nil
@@ -26721,42 +27113,49 @@ func ParseGetCollectionResponse(rsp *http.Response) (*GetCollectionResponse, err
 		HTTPResponse: rsp,
 	}
 
-	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest GetCollectionResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON200 = &dest
+	// An undecodable body fails only a 2xx; an error status answers on its own, body or not.
+	if _, err := func() (*GetCollectionResponse, error) {
+		switch {
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+			var dest GetCollectionResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON200 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
-		var dest UnauthorizedErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON401 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+			var dest UnauthorizedErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON401 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
-		var dest NotFoundErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON404 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+			var dest NotFoundErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON404 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
-		var dest InternalServerErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON500 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+			var dest InternalServerErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON500 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
-		var dest ServiceUnavailableErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON503 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+			var dest ServiceUnavailableErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON503 = &dest
 
+		}
+
+		return response, nil
+	}(); err != nil && rsp.StatusCode/100 == 2 {
+		return nil, err
 	}
 
 	return response, nil
@@ -26775,45 +27174,52 @@ func ParseUpdateCollectionResponse(rsp *http.Response) (*UpdateCollectionRespons
 		HTTPResponse: rsp,
 	}
 
-	switch {
-	case rsp.StatusCode == 200:
-		break // No content-type
+	// An undecodable body fails only a 2xx; an error status answers on its own, body or not.
+	if _, err := func() (*UpdateCollectionResponse, error) {
+		switch {
+		case rsp.StatusCode == 200:
+			break // No content-type
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
-		var dest UnauthorizedErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+			var dest UnauthorizedErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON401 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+			var dest NotFoundErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON404 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 422:
+			var dest UnprocessableEntityErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON422 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+			var dest InternalServerErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON500 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+			var dest ServiceUnavailableErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON503 = &dest
+
 		}
-		response.JSON401 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
-		var dest NotFoundErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON404 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 422:
-		var dest UnprocessableEntityErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON422 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
-		var dest InternalServerErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON500 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
-		var dest ServiceUnavailableErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON503 = &dest
-
+		return response, nil
+	}(); err != nil && rsp.StatusCode/100 == 2 {
+		return nil, err
 	}
 
 	return response, nil
@@ -26832,35 +27238,42 @@ func ParseListContactsResponse(rsp *http.Response) (*ListContactsResponse, error
 		HTTPResponse: rsp,
 	}
 
-	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest ListContactsResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON200 = &dest
+	// An undecodable body fails only a 2xx; an error status answers on its own, body or not.
+	if _, err := func() (*ListContactsResponse, error) {
+		switch {
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+			var dest ListContactsResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON200 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
-		var dest UnauthorizedErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON401 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+			var dest UnauthorizedErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON401 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
-		var dest InternalServerErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON500 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+			var dest InternalServerErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON500 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
-		var dest ServiceUnavailableErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON503 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+			var dest ServiceUnavailableErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON503 = &dest
 
+		}
+
+		return response, nil
+	}(); err != nil && rsp.StatusCode/100 == 2 {
+		return nil, err
 	}
 
 	return response, nil
@@ -26879,49 +27292,56 @@ func ParseCreateContactResponse(rsp *http.Response) (*CreateContactResponse, err
 		HTTPResponse: rsp,
 	}
 
-	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
-		var dest CreateContactResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON201 = &dest
+	// An undecodable body fails only a 2xx; an error status answers on its own, body or not.
+	if _, err := func() (*CreateContactResponse, error) {
+		switch {
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+			var dest CreateContactResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON201 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
-		var dest UnauthorizedErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON401 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+			var dest UnauthorizedErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON401 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
-		var dest ConflictErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON409 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
+			var dest ConflictErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON409 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 422:
-		var dest UnprocessableEntityErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON422 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 422:
+			var dest UnprocessableEntityErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON422 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
-		var dest InternalServerErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON500 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+			var dest InternalServerErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON500 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
-		var dest ServiceUnavailableErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON503 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+			var dest ServiceUnavailableErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON503 = &dest
 
+		}
+
+		return response, nil
+	}(); err != nil && rsp.StatusCode/100 == 2 {
+		return nil, err
 	}
 
 	return response, nil
@@ -26940,38 +27360,45 @@ func ParseHideContactResponse(rsp *http.Response) (*HideContactResponse, error) 
 		HTTPResponse: rsp,
 	}
 
-	switch {
-	case rsp.StatusCode == 200:
-		break // No content-type
+	// An undecodable body fails only a 2xx; an error status answers on its own, body or not.
+	if _, err := func() (*HideContactResponse, error) {
+		switch {
+		case rsp.StatusCode == 200:
+			break // No content-type
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
-		var dest UnauthorizedErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+			var dest UnauthorizedErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON401 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+			var dest NotFoundErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON404 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+			var dest InternalServerErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON500 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+			var dest ServiceUnavailableErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON503 = &dest
+
 		}
-		response.JSON401 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
-		var dest NotFoundErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON404 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
-		var dest InternalServerErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON500 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
-		var dest ServiceUnavailableErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON503 = &dest
-
+		return response, nil
+	}(); err != nil && rsp.StatusCode/100 == 2 {
+		return nil, err
 	}
 
 	return response, nil
@@ -26990,42 +27417,49 @@ func ParseGetContactResponse(rsp *http.Response) (*GetContactResponse, error) {
 		HTTPResponse: rsp,
 	}
 
-	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest GetContactResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON200 = &dest
+	// An undecodable body fails only a 2xx; an error status answers on its own, body or not.
+	if _, err := func() (*GetContactResponse, error) {
+		switch {
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+			var dest GetContactResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON200 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
-		var dest UnauthorizedErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON401 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+			var dest UnauthorizedErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON401 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
-		var dest NotFoundErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON404 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+			var dest NotFoundErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON404 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
-		var dest InternalServerErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON500 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+			var dest InternalServerErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON500 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
-		var dest ServiceUnavailableErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON503 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+			var dest ServiceUnavailableErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON503 = &dest
 
+		}
+
+		return response, nil
+	}(); err != nil && rsp.StatusCode/100 == 2 {
+		return nil, err
 	}
 
 	return response, nil
@@ -27044,56 +27478,63 @@ func ParseUpdateContactResponse(rsp *http.Response) (*UpdateContactResponse, err
 		HTTPResponse: rsp,
 	}
 
-	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest UpdateContactResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON200 = &dest
+	// An undecodable body fails only a 2xx; an error status answers on its own, body or not.
+	if _, err := func() (*UpdateContactResponse, error) {
+		switch {
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+			var dest UpdateContactResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON200 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
-		var dest UnauthorizedErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON401 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+			var dest UnauthorizedErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON401 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
-		var dest NotFoundErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON404 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+			var dest NotFoundErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON404 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
-		var dest ConflictErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON409 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
+			var dest ConflictErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON409 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 422:
-		var dest UnprocessableEntityErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON422 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 422:
+			var dest UnprocessableEntityErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON422 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
-		var dest InternalServerErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON500 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+			var dest InternalServerErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON500 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
-		var dest ServiceUnavailableErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON503 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+			var dest ServiceUnavailableErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON503 = &dest
 
+		}
+
+		return response, nil
+	}(); err != nil && rsp.StatusCode/100 == 2 {
+		return nil, err
 	}
 
 	return response, nil
@@ -27112,38 +27553,45 @@ func ParseUnbundleContactResponse(rsp *http.Response) (*UnbundleContactResponse,
 		HTTPResponse: rsp,
 	}
 
-	switch {
-	case rsp.StatusCode == 200:
-		break // No content-type
+	// An undecodable body fails only a 2xx; an error status answers on its own, body or not.
+	if _, err := func() (*UnbundleContactResponse, error) {
+		switch {
+		case rsp.StatusCode == 200:
+			break // No content-type
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
-		var dest UnauthorizedErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+			var dest UnauthorizedErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON401 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+			var dest NotFoundErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON404 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+			var dest InternalServerErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON500 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+			var dest ServiceUnavailableErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON503 = &dest
+
 		}
-		response.JSON401 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
-		var dest NotFoundErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON404 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
-		var dest InternalServerErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON500 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
-		var dest ServiceUnavailableErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON503 = &dest
-
+		return response, nil
+	}(); err != nil && rsp.StatusCode/100 == 2 {
+		return nil, err
 	}
 
 	return response, nil
@@ -27162,45 +27610,52 @@ func ParseBundleContactResponse(rsp *http.Response) (*BundleContactResponse, err
 		HTTPResponse: rsp,
 	}
 
-	switch {
-	case rsp.StatusCode == 200:
-		break // No content-type
+	// An undecodable body fails only a 2xx; an error status answers on its own, body or not.
+	if _, err := func() (*BundleContactResponse, error) {
+		switch {
+		case rsp.StatusCode == 200:
+			break // No content-type
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
-		var dest UnauthorizedErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+			var dest UnauthorizedErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON401 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+			var dest ForbiddenErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON403 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+			var dest NotFoundErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON404 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+			var dest InternalServerErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON500 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+			var dest ServiceUnavailableErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON503 = &dest
+
 		}
-		response.JSON401 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
-		var dest ForbiddenErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON403 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
-		var dest NotFoundErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON404 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
-		var dest InternalServerErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON500 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
-		var dest ServiceUnavailableErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON503 = &dest
-
+		return response, nil
+	}(); err != nil && rsp.StatusCode/100 == 2 {
+		return nil, err
 	}
 
 	return response, nil
@@ -27219,45 +27674,52 @@ func ParseUpdateContactClearanceResponse(rsp *http.Response) (*UpdateContactClea
 		HTTPResponse: rsp,
 	}
 
-	switch {
-	case rsp.StatusCode == 200:
-		break // No content-type
+	// An undecodable body fails only a 2xx; an error status answers on its own, body or not.
+	if _, err := func() (*UpdateContactClearanceResponse, error) {
+		switch {
+		case rsp.StatusCode == 200:
+			break // No content-type
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
-		var dest UnauthorizedErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+			var dest UnauthorizedErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON401 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+			var dest NotFoundErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON404 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 422:
+			var dest UnprocessableEntityErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON422 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+			var dest InternalServerErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON500 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+			var dest ServiceUnavailableErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON503 = &dest
+
 		}
-		response.JSON401 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
-		var dest NotFoundErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON404 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 422:
-		var dest UnprocessableEntityErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON422 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
-		var dest InternalServerErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON500 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
-		var dest ServiceUnavailableErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON503 = &dest
-
+		return response, nil
+	}(); err != nil && rsp.StatusCode/100 == 2 {
+		return nil, err
 	}
 
 	return response, nil
@@ -27276,38 +27738,45 @@ func ParseDeleteContactNoteResponse(rsp *http.Response) (*DeleteContactNoteRespo
 		HTTPResponse: rsp,
 	}
 
-	switch {
-	case rsp.StatusCode == 200:
-		break // No content-type
+	// An undecodable body fails only a 2xx; an error status answers on its own, body or not.
+	if _, err := func() (*DeleteContactNoteResponse, error) {
+		switch {
+		case rsp.StatusCode == 200:
+			break // No content-type
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
-		var dest UnauthorizedErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+			var dest UnauthorizedErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON401 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+			var dest NotFoundErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON404 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+			var dest InternalServerErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON500 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+			var dest ServiceUnavailableErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON503 = &dest
+
 		}
-		response.JSON401 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
-		var dest NotFoundErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON404 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
-		var dest InternalServerErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON500 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
-		var dest ServiceUnavailableErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON503 = &dest
-
+		return response, nil
+	}(); err != nil && rsp.StatusCode/100 == 2 {
+		return nil, err
 	}
 
 	return response, nil
@@ -27326,42 +27795,49 @@ func ParseGetContactNoteResponse(rsp *http.Response) (*GetContactNoteResponse, e
 		HTTPResponse: rsp,
 	}
 
-	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest GetContactNoteResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON200 = &dest
+	// An undecodable body fails only a 2xx; an error status answers on its own, body or not.
+	if _, err := func() (*GetContactNoteResponse, error) {
+		switch {
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+			var dest GetContactNoteResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON200 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
-		var dest UnauthorizedErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON401 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+			var dest UnauthorizedErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON401 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
-		var dest NotFoundErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON404 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+			var dest NotFoundErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON404 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
-		var dest InternalServerErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON500 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+			var dest InternalServerErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON500 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
-		var dest ServiceUnavailableErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON503 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+			var dest ServiceUnavailableErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON503 = &dest
 
+		}
+
+		return response, nil
+	}(); err != nil && rsp.StatusCode/100 == 2 {
+		return nil, err
 	}
 
 	return response, nil
@@ -27380,49 +27856,56 @@ func ParseUpdateContactNoteResponse(rsp *http.Response) (*UpdateContactNoteRespo
 		HTTPResponse: rsp,
 	}
 
-	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest UpdateContactNoteResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON200 = &dest
+	// An undecodable body fails only a 2xx; an error status answers on its own, body or not.
+	if _, err := func() (*UpdateContactNoteResponse, error) {
+		switch {
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+			var dest UpdateContactNoteResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON200 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
-		var dest UnauthorizedErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON401 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+			var dest UnauthorizedErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON401 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
-		var dest NotFoundErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON404 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+			var dest NotFoundErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON404 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 422:
-		var dest UnprocessableEntityErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON422 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 422:
+			var dest UnprocessableEntityErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON422 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
-		var dest InternalServerErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON500 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+			var dest InternalServerErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON500 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
-		var dest ServiceUnavailableErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON503 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+			var dest ServiceUnavailableErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON503 = &dest
 
+		}
+
+		return response, nil
+	}(); err != nil && rsp.StatusCode/100 == 2 {
+		return nil, err
 	}
 
 	return response, nil
@@ -27441,42 +27924,49 @@ func ParseRevealContactResponse(rsp *http.Response) (*RevealContactResponse, err
 		HTTPResponse: rsp,
 	}
 
-	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest RevealContactResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON200 = &dest
+	// An undecodable body fails only a 2xx; an error status answers on its own, body or not.
+	if _, err := func() (*RevealContactResponse, error) {
+		switch {
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+			var dest RevealContactResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON200 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
-		var dest UnauthorizedErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON401 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+			var dest UnauthorizedErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON401 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
-		var dest NotFoundErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON404 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+			var dest NotFoundErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON404 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
-		var dest InternalServerErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON500 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+			var dest InternalServerErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON500 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
-		var dest ServiceUnavailableErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON503 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+			var dest ServiceUnavailableErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON503 = &dest
 
+		}
+
+		return response, nil
+	}(); err != nil && rsp.StatusCode/100 == 2 {
+		return nil, err
 	}
 
 	return response, nil
@@ -27495,35 +27985,42 @@ func ParseListDraftsResponse(rsp *http.Response) (*ListDraftsResponse, error) {
 		HTTPResponse: rsp,
 	}
 
-	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest ListDraftsResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON200 = &dest
+	// An undecodable body fails only a 2xx; an error status answers on its own, body or not.
+	if _, err := func() (*ListDraftsResponse, error) {
+		switch {
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+			var dest ListDraftsResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON200 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
-		var dest UnauthorizedErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON401 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+			var dest UnauthorizedErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON401 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
-		var dest InternalServerErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON500 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+			var dest InternalServerErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON500 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
-		var dest ServiceUnavailableErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON503 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+			var dest ServiceUnavailableErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON503 = &dest
 
+		}
+
+		return response, nil
+	}(); err != nil && rsp.StatusCode/100 == 2 {
+		return nil, err
 	}
 
 	return response, nil
@@ -27542,38 +28039,45 @@ func ParseDeleteDraftResponse(rsp *http.Response) (*DeleteDraftResponse, error) 
 		HTTPResponse: rsp,
 	}
 
-	switch {
-	case rsp.StatusCode == 200:
-		break // No content-type
+	// An undecodable body fails only a 2xx; an error status answers on its own, body or not.
+	if _, err := func() (*DeleteDraftResponse, error) {
+		switch {
+		case rsp.StatusCode == 200:
+			break // No content-type
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
-		var dest UnauthorizedErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+			var dest UnauthorizedErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON401 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+			var dest NotFoundErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON404 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+			var dest InternalServerErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON500 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+			var dest ServiceUnavailableErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON503 = &dest
+
 		}
-		response.JSON401 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
-		var dest NotFoundErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON404 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
-		var dest InternalServerErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON500 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
-		var dest ServiceUnavailableErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON503 = &dest
-
+		return response, nil
+	}(); err != nil && rsp.StatusCode/100 == 2 {
+		return nil, err
 	}
 
 	return response, nil
@@ -27592,42 +28096,49 @@ func ParseNewEntryForwardResponse(rsp *http.Response) (*NewEntryForwardResponse,
 		HTTPResponse: rsp,
 	}
 
-	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest NewEntryForwardResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON200 = &dest
+	// An undecodable body fails only a 2xx; an error status answers on its own, body or not.
+	if _, err := func() (*NewEntryForwardResponse, error) {
+		switch {
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+			var dest NewEntryForwardResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON200 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
-		var dest UnauthorizedErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON401 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+			var dest UnauthorizedErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON401 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
-		var dest NotFoundErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON404 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+			var dest NotFoundErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON404 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
-		var dest InternalServerErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON500 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+			var dest InternalServerErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON500 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
-		var dest ServiceUnavailableErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON503 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+			var dest ServiceUnavailableErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON503 = &dest
 
+		}
+
+		return response, nil
+	}(); err != nil && rsp.StatusCode/100 == 2 {
+		return nil, err
 	}
 
 	return response, nil
@@ -27646,45 +28157,52 @@ func ParseCreateReplyResponse(rsp *http.Response) (*CreateReplyResponse, error) 
 		HTTPResponse: rsp,
 	}
 
-	switch {
-	case rsp.StatusCode == 200:
-		break // No content-type
+	// An undecodable body fails only a 2xx; an error status answers on its own, body or not.
+	if _, err := func() (*CreateReplyResponse, error) {
+		switch {
+		case rsp.StatusCode == 200:
+			break // No content-type
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
-		var dest UnauthorizedErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+			var dest UnauthorizedErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON401 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+			var dest NotFoundErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON404 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 422:
+			var dest UnprocessableEntityErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON422 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+			var dest InternalServerErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON500 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+			var dest ServiceUnavailableErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON503 = &dest
+
 		}
-		response.JSON401 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
-		var dest NotFoundErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON404 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 422:
-		var dest UnprocessableEntityErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON422 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
-		var dest InternalServerErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON500 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
-		var dest ServiceUnavailableErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON503 = &dest
-
+		return response, nil
+	}(); err != nil && rsp.StatusCode/100 == 2 {
+		return nil, err
 	}
 
 	return response, nil
@@ -27703,42 +28221,49 @@ func ParseNewEntryReplyResponse(rsp *http.Response) (*NewEntryReplyResponse, err
 		HTTPResponse: rsp,
 	}
 
-	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest NewEntryReplyResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON200 = &dest
+	// An undecodable body fails only a 2xx; an error status answers on its own, body or not.
+	if _, err := func() (*NewEntryReplyResponse, error) {
+		switch {
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+			var dest NewEntryReplyResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON200 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
-		var dest UnauthorizedErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON401 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+			var dest UnauthorizedErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON401 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
-		var dest NotFoundErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON404 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+			var dest NotFoundErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON404 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
-		var dest InternalServerErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON500 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+			var dest InternalServerErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON500 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
-		var dest ServiceUnavailableErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON503 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+			var dest ServiceUnavailableErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON503 = &dest
 
+		}
+
+		return response, nil
+	}(); err != nil && rsp.StatusCode/100 == 2 {
+		return nil, err
 	}
 
 	return response, nil
@@ -27757,38 +28282,45 @@ func ParseMarkEntrySpamResponse(rsp *http.Response) (*MarkEntrySpamResponse, err
 		HTTPResponse: rsp,
 	}
 
-	switch {
-	case rsp.StatusCode == 200:
-		break // No content-type
+	// An undecodable body fails only a 2xx; an error status answers on its own, body or not.
+	if _, err := func() (*MarkEntrySpamResponse, error) {
+		switch {
+		case rsp.StatusCode == 200:
+			break // No content-type
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
-		var dest UnauthorizedErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+			var dest UnauthorizedErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON401 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+			var dest NotFoundErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON404 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+			var dest InternalServerErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON500 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+			var dest ServiceUnavailableErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON503 = &dest
+
 		}
-		response.JSON401 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
-		var dest NotFoundErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON404 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
-		var dest InternalServerErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON500 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
-		var dest ServiceUnavailableErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON503 = &dest
-
+		return response, nil
+	}(); err != nil && rsp.StatusCode/100 == 2 {
+		return nil, err
 	}
 
 	return response, nil
@@ -27807,35 +28339,42 @@ func ParseGetFeedboxResponse(rsp *http.Response) (*GetFeedboxResponse, error) {
 		HTTPResponse: rsp,
 	}
 
-	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest GetFeedboxResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON200 = &dest
+	// An undecodable body fails only a 2xx; an error status answers on its own, body or not.
+	if _, err := func() (*GetFeedboxResponse, error) {
+		switch {
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+			var dest GetFeedboxResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON200 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
-		var dest UnauthorizedErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON401 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+			var dest UnauthorizedErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON401 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
-		var dest InternalServerErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON500 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+			var dest InternalServerErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON500 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
-		var dest ServiceUnavailableErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON503 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+			var dest ServiceUnavailableErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON503 = &dest
 
+		}
+
+		return response, nil
+	}(); err != nil && rsp.StatusCode/100 == 2 {
+		return nil, err
 	}
 
 	return response, nil
@@ -27854,42 +28393,49 @@ func ParseGetFolderResponse(rsp *http.Response) (*GetFolderResponse, error) {
 		HTTPResponse: rsp,
 	}
 
-	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest GetFolderResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON200 = &dest
+	// An undecodable body fails only a 2xx; an error status answers on its own, body or not.
+	if _, err := func() (*GetFolderResponse, error) {
+		switch {
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+			var dest GetFolderResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON200 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
-		var dest UnauthorizedErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON401 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+			var dest UnauthorizedErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON401 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
-		var dest NotFoundErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON404 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+			var dest NotFoundErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON404 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
-		var dest InternalServerErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON500 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+			var dest InternalServerErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON500 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
-		var dest ServiceUnavailableErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON503 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+			var dest ServiceUnavailableErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON503 = &dest
 
+		}
+
+		return response, nil
+	}(); err != nil && rsp.StatusCode/100 == 2 {
+		return nil, err
 	}
 
 	return response, nil
@@ -27908,35 +28454,42 @@ func ParseGetIdentityResponse(rsp *http.Response) (*GetIdentityResponse, error) 
 		HTTPResponse: rsp,
 	}
 
-	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest GetIdentityResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON200 = &dest
+	// An undecodable body fails only a 2xx; an error status answers on its own, body or not.
+	if _, err := func() (*GetIdentityResponse, error) {
+		switch {
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+			var dest GetIdentityResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON200 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
-		var dest UnauthorizedErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON401 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+			var dest UnauthorizedErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON401 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
-		var dest InternalServerErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON500 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+			var dest InternalServerErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON500 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
-		var dest ServiceUnavailableErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON503 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+			var dest ServiceUnavailableErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON503 = &dest
 
+		}
+
+		return response, nil
+	}(); err != nil && rsp.StatusCode/100 == 2 {
+		return nil, err
 	}
 
 	return response, nil
@@ -27955,35 +28508,42 @@ func ParseUpdateTimeFormatResponse(rsp *http.Response) (*UpdateTimeFormatRespons
 		HTTPResponse: rsp,
 	}
 
-	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest UpdateTimeFormatResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON200 = &dest
+	// An undecodable body fails only a 2xx; an error status answers on its own, body or not.
+	if _, err := func() (*UpdateTimeFormatResponse, error) {
+		switch {
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+			var dest UpdateTimeFormatResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON200 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
-		var dest UnauthorizedErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON401 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+			var dest UnauthorizedErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON401 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
-		var dest InternalServerErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON500 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+			var dest InternalServerErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON500 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
-		var dest ServiceUnavailableErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON503 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+			var dest ServiceUnavailableErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON503 = &dest
 
+		}
+
+		return response, nil
+	}(); err != nil && rsp.StatusCode/100 == 2 {
+		return nil, err
 	}
 
 	return response, nil
@@ -28002,35 +28562,42 @@ func ParseGetImboxResponse(rsp *http.Response) (*GetImboxResponse, error) {
 		HTTPResponse: rsp,
 	}
 
-	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest GetImboxResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON200 = &dest
+	// An undecodable body fails only a 2xx; an error status answers on its own, body or not.
+	if _, err := func() (*GetImboxResponse, error) {
+		switch {
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+			var dest GetImboxResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON200 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
-		var dest UnauthorizedErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON401 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+			var dest UnauthorizedErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON401 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
-		var dest InternalServerErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON500 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+			var dest InternalServerErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON500 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
-		var dest ServiceUnavailableErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON503 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+			var dest ServiceUnavailableErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON503 = &dest
 
+		}
+
+		return response, nil
+	}(); err != nil && rsp.StatusCode/100 == 2 {
+		return nil, err
 	}
 
 	return response, nil
@@ -28049,35 +28616,42 @@ func ParseGetImboxSeenResponse(rsp *http.Response) (*GetImboxSeenResponse, error
 		HTTPResponse: rsp,
 	}
 
-	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest GetImboxSeenResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON200 = &dest
+	// An undecodable body fails only a 2xx; an error status answers on its own, body or not.
+	if _, err := func() (*GetImboxSeenResponse, error) {
+		switch {
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+			var dest GetImboxSeenResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON200 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
-		var dest UnauthorizedErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON401 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+			var dest UnauthorizedErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON401 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
-		var dest InternalServerErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON500 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+			var dest InternalServerErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON500 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
-		var dest ServiceUnavailableErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON503 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+			var dest ServiceUnavailableErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON503 = &dest
 
+		}
+
+		return response, nil
+	}(); err != nil && rsp.StatusCode/100 == 2 {
+		return nil, err
 	}
 
 	return response, nil
@@ -28096,38 +28670,45 @@ func ParseCreateMessageResponse(rsp *http.Response) (*CreateMessageResponse, err
 		HTTPResponse: rsp,
 	}
 
-	switch {
-	case rsp.StatusCode == 200:
-		break // No content-type
+	// An undecodable body fails only a 2xx; an error status answers on its own, body or not.
+	if _, err := func() (*CreateMessageResponse, error) {
+		switch {
+		case rsp.StatusCode == 200:
+			break // No content-type
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
-		var dest UnauthorizedErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+			var dest UnauthorizedErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON401 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 422:
+			var dest UnprocessableEntityErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON422 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+			var dest InternalServerErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON500 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+			var dest ServiceUnavailableErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON503 = &dest
+
 		}
-		response.JSON401 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 422:
-		var dest UnprocessableEntityErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON422 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
-		var dest InternalServerErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON500 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
-		var dest ServiceUnavailableErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON503 = &dest
-
+		return response, nil
+	}(); err != nil && rsp.StatusCode/100 == 2 {
+		return nil, err
 	}
 
 	return response, nil
@@ -28146,42 +28727,49 @@ func ParseGetMessageResponse(rsp *http.Response) (*GetMessageResponse, error) {
 		HTTPResponse: rsp,
 	}
 
-	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest GetMessageResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON200 = &dest
+	// An undecodable body fails only a 2xx; an error status answers on its own, body or not.
+	if _, err := func() (*GetMessageResponse, error) {
+		switch {
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+			var dest GetMessageResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON200 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
-		var dest UnauthorizedErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON401 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+			var dest UnauthorizedErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON401 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
-		var dest NotFoundErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON404 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+			var dest NotFoundErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON404 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
-		var dest InternalServerErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON500 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+			var dest InternalServerErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON500 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
-		var dest ServiceUnavailableErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON503 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+			var dest ServiceUnavailableErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON503 = &dest
 
+		}
+
+		return response, nil
+	}(); err != nil && rsp.StatusCode/100 == 2 {
+		return nil, err
 	}
 
 	return response, nil
@@ -28200,45 +28788,52 @@ func ParseUpdateMessageResponse(rsp *http.Response) (*UpdateMessageResponse, err
 		HTTPResponse: rsp,
 	}
 
-	switch {
-	case rsp.StatusCode == 200:
-		break // No content-type
+	// An undecodable body fails only a 2xx; an error status answers on its own, body or not.
+	if _, err := func() (*UpdateMessageResponse, error) {
+		switch {
+		case rsp.StatusCode == 200:
+			break // No content-type
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
-		var dest UnauthorizedErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+			var dest UnauthorizedErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON401 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+			var dest NotFoundErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON404 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 422:
+			var dest UnprocessableEntityErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON422 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+			var dest InternalServerErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON500 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+			var dest ServiceUnavailableErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON503 = &dest
+
 		}
-		response.JSON401 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
-		var dest NotFoundErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON404 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 422:
-		var dest UnprocessableEntityErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON422 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
-		var dest InternalServerErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON500 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
-		var dest ServiceUnavailableErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON503 = &dest
-
+		return response, nil
+	}(); err != nil && rsp.StatusCode/100 == 2 {
+		return nil, err
 	}
 
 	return response, nil
@@ -28257,42 +28852,49 @@ func ParseGetMessageEditResponse(rsp *http.Response) (*GetMessageEditResponse, e
 		HTTPResponse: rsp,
 	}
 
-	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest GetMessageEditResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON200 = &dest
+	// An undecodable body fails only a 2xx; an error status answers on its own, body or not.
+	if _, err := func() (*GetMessageEditResponse, error) {
+		switch {
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+			var dest GetMessageEditResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON200 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
-		var dest UnauthorizedErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON401 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+			var dest UnauthorizedErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON401 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
-		var dest NotFoundErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON404 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+			var dest NotFoundErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON404 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
-		var dest InternalServerErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON500 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+			var dest InternalServerErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON500 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
-		var dest ServiceUnavailableErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON503 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+			var dest ServiceUnavailableErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON503 = &dest
 
+		}
+
+		return response, nil
+	}(); err != nil && rsp.StatusCode/100 == 2 {
+		return nil, err
 	}
 
 	return response, nil
@@ -28311,35 +28913,42 @@ func ParseGetMyClearancesResponse(rsp *http.Response) (*GetMyClearancesResponse,
 		HTTPResponse: rsp,
 	}
 
-	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest GetMyClearancesResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON200 = &dest
+	// An undecodable body fails only a 2xx; an error status answers on its own, body or not.
+	if _, err := func() (*GetMyClearancesResponse, error) {
+		switch {
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+			var dest GetMyClearancesResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON200 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
-		var dest UnauthorizedErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON401 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+			var dest UnauthorizedErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON401 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
-		var dest InternalServerErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON500 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+			var dest InternalServerErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON500 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
-		var dest ServiceUnavailableErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON503 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+			var dest ServiceUnavailableErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON503 = &dest
 
+		}
+
+		return response, nil
+	}(); err != nil && rsp.StatusCode/100 == 2 {
+		return nil, err
 	}
 
 	return response, nil
@@ -28358,49 +28967,56 @@ func ParseUpdateMyClearanceResponse(rsp *http.Response) (*UpdateMyClearanceRespo
 		HTTPResponse: rsp,
 	}
 
-	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest UpdateMyClearanceResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON200 = &dest
+	// An undecodable body fails only a 2xx; an error status answers on its own, body or not.
+	if _, err := func() (*UpdateMyClearanceResponse, error) {
+		switch {
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+			var dest UpdateMyClearanceResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON200 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
-		var dest UnauthorizedErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON401 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+			var dest UnauthorizedErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON401 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
-		var dest ForbiddenErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON403 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+			var dest ForbiddenErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON403 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
-		var dest NotFoundErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON404 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+			var dest NotFoundErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON404 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
-		var dest InternalServerErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON500 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+			var dest InternalServerErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON500 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
-		var dest ServiceUnavailableErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON503 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+			var dest ServiceUnavailableErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON503 = &dest
 
+		}
+
+		return response, nil
+	}(); err != nil && rsp.StatusCode/100 == 2 {
+		return nil, err
 	}
 
 	return response, nil
@@ -28419,35 +29035,42 @@ func ParseGetNavigationResponse(rsp *http.Response) (*GetNavigationResponse, err
 		HTTPResponse: rsp,
 	}
 
-	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest GetNavigationResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON200 = &dest
+	// An undecodable body fails only a 2xx; an error status answers on its own, body or not.
+	if _, err := func() (*GetNavigationResponse, error) {
+		switch {
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+			var dest GetNavigationResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON200 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
-		var dest UnauthorizedErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON401 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+			var dest UnauthorizedErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON401 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
-		var dest InternalServerErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON500 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+			var dest InternalServerErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON500 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
-		var dest ServiceUnavailableErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON503 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+			var dest ServiceUnavailableErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON503 = &dest
 
+		}
+
+		return response, nil
+	}(); err != nil && rsp.StatusCode/100 == 2 {
+		return nil, err
 	}
 
 	return response, nil
@@ -28466,35 +29089,42 @@ func ParseGetTrailboxResponse(rsp *http.Response) (*GetTrailboxResponse, error) 
 		HTTPResponse: rsp,
 	}
 
-	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest GetTrailboxResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON200 = &dest
+	// An undecodable body fails only a 2xx; an error status answers on its own, body or not.
+	if _, err := func() (*GetTrailboxResponse, error) {
+		switch {
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+			var dest GetTrailboxResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON200 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
-		var dest UnauthorizedErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON401 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+			var dest UnauthorizedErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON401 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
-		var dest InternalServerErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON500 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+			var dest InternalServerErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON500 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
-		var dest ServiceUnavailableErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON503 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+			var dest ServiceUnavailableErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON503 = &dest
 
+		}
+
+		return response, nil
+	}(); err != nil && rsp.StatusCode/100 == 2 {
+		return nil, err
 	}
 
 	return response, nil
@@ -28513,31 +29143,38 @@ func ParseRemovePostingsFromBoxGroupResponse(rsp *http.Response) (*RemovePosting
 		HTTPResponse: rsp,
 	}
 
-	switch {
-	case rsp.StatusCode == 200:
-		break // No content-type
+	// An undecodable body fails only a 2xx; an error status answers on its own, body or not.
+	if _, err := func() (*RemovePostingsFromBoxGroupResponse, error) {
+		switch {
+		case rsp.StatusCode == 200:
+			break // No content-type
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
-		var dest UnauthorizedErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+			var dest UnauthorizedErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON401 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+			var dest InternalServerErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON500 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+			var dest ServiceUnavailableErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON503 = &dest
+
 		}
-		response.JSON401 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
-		var dest InternalServerErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON500 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
-		var dest ServiceUnavailableErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON503 = &dest
-
+		return response, nil
+	}(); err != nil && rsp.StatusCode/100 == 2 {
+		return nil, err
 	}
 
 	return response, nil
@@ -28556,38 +29193,45 @@ func ParseAddPostingsToBoxGroupResponse(rsp *http.Response) (*AddPostingsToBoxGr
 		HTTPResponse: rsp,
 	}
 
-	switch {
-	case rsp.StatusCode == 200:
-		break // No content-type
+	// An undecodable body fails only a 2xx; an error status answers on its own, body or not.
+	if _, err := func() (*AddPostingsToBoxGroupResponse, error) {
+		switch {
+		case rsp.StatusCode == 200:
+			break // No content-type
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
-		var dest UnauthorizedErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+			var dest UnauthorizedErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON401 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+			var dest NotFoundErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON404 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+			var dest InternalServerErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON500 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+			var dest ServiceUnavailableErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON503 = &dest
+
 		}
-		response.JSON401 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
-		var dest NotFoundErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON404 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
-		var dest InternalServerErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON500 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
-		var dest ServiceUnavailableErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON503 = &dest
-
+		return response, nil
+	}(); err != nil && rsp.StatusCode/100 == 2 {
+		return nil, err
 	}
 
 	return response, nil
@@ -28606,38 +29250,45 @@ func ParseCancelPostingsBubbleUpResponse(rsp *http.Response) (*CancelPostingsBub
 		HTTPResponse: rsp,
 	}
 
-	switch {
-	case rsp.StatusCode == 200:
-		break // No content-type
+	// An undecodable body fails only a 2xx; an error status answers on its own, body or not.
+	if _, err := func() (*CancelPostingsBubbleUpResponse, error) {
+		switch {
+		case rsp.StatusCode == 200:
+			break // No content-type
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
-		var dest UnauthorizedErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+			var dest UnauthorizedErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON401 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+			var dest NotFoundErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON404 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+			var dest InternalServerErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON500 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+			var dest ServiceUnavailableErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON503 = &dest
+
 		}
-		response.JSON401 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
-		var dest NotFoundErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON404 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
-		var dest InternalServerErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON500 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
-		var dest ServiceUnavailableErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON503 = &dest
-
+		return response, nil
+	}(); err != nil && rsp.StatusCode/100 == 2 {
+		return nil, err
 	}
 
 	return response, nil
@@ -28656,38 +29307,45 @@ func ParseSchedulePostingsBubbleUpResponse(rsp *http.Response) (*SchedulePosting
 		HTTPResponse: rsp,
 	}
 
-	switch {
-	case rsp.StatusCode == 200:
-		break // No content-type
+	// An undecodable body fails only a 2xx; an error status answers on its own, body or not.
+	if _, err := func() (*SchedulePostingsBubbleUpResponse, error) {
+		switch {
+		case rsp.StatusCode == 200:
+			break // No content-type
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
-		var dest UnauthorizedErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+			var dest UnauthorizedErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON401 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+			var dest NotFoundErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON404 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+			var dest InternalServerErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON500 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+			var dest ServiceUnavailableErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON503 = &dest
+
 		}
-		response.JSON401 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
-		var dest NotFoundErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON404 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
-		var dest InternalServerErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON500 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
-		var dest ServiceUnavailableErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON503 = &dest
-
+		return response, nil
+	}(); err != nil && rsp.StatusCode/100 == 2 {
+		return nil, err
 	}
 
 	return response, nil
@@ -28706,38 +29364,45 @@ func ParseBubbleUpPostingsNowResponse(rsp *http.Response) (*BubbleUpPostingsNowR
 		HTTPResponse: rsp,
 	}
 
-	switch {
-	case rsp.StatusCode == 200:
-		break // No content-type
+	// An undecodable body fails only a 2xx; an error status answers on its own, body or not.
+	if _, err := func() (*BubbleUpPostingsNowResponse, error) {
+		switch {
+		case rsp.StatusCode == 200:
+			break // No content-type
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
-		var dest UnauthorizedErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+			var dest UnauthorizedErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON401 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+			var dest NotFoundErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON404 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+			var dest InternalServerErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON500 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+			var dest ServiceUnavailableErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON503 = &dest
+
 		}
-		response.JSON401 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
-		var dest NotFoundErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON404 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
-		var dest InternalServerErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON500 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
-		var dest ServiceUnavailableErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON503 = &dest
-
+		return response, nil
+	}(); err != nil && rsp.StatusCode/100 == 2 {
+		return nil, err
 	}
 
 	return response, nil
@@ -28756,38 +29421,45 @@ func ParseUnfilePostingsResponse(rsp *http.Response) (*UnfilePostingsResponse, e
 		HTTPResponse: rsp,
 	}
 
-	switch {
-	case rsp.StatusCode == 200:
-		break // No content-type
+	// An undecodable body fails only a 2xx; an error status answers on its own, body or not.
+	if _, err := func() (*UnfilePostingsResponse, error) {
+		switch {
+		case rsp.StatusCode == 200:
+			break // No content-type
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
-		var dest UnauthorizedErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+			var dest UnauthorizedErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON401 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+			var dest NotFoundErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON404 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+			var dest InternalServerErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON500 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+			var dest ServiceUnavailableErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON503 = &dest
+
 		}
-		response.JSON401 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
-		var dest NotFoundErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON404 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
-		var dest InternalServerErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON500 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
-		var dest ServiceUnavailableErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON503 = &dest
-
+		return response, nil
+	}(); err != nil && rsp.StatusCode/100 == 2 {
+		return nil, err
 	}
 
 	return response, nil
@@ -28806,38 +29478,45 @@ func ParseFilePostingsResponse(rsp *http.Response) (*FilePostingsResponse, error
 		HTTPResponse: rsp,
 	}
 
-	switch {
-	case rsp.StatusCode == 200:
-		break // No content-type
+	// An undecodable body fails only a 2xx; an error status answers on its own, body or not.
+	if _, err := func() (*FilePostingsResponse, error) {
+		switch {
+		case rsp.StatusCode == 200:
+			break // No content-type
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
-		var dest UnauthorizedErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+			var dest UnauthorizedErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON401 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+			var dest NotFoundErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON404 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+			var dest InternalServerErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON500 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+			var dest ServiceUnavailableErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON503 = &dest
+
 		}
-		response.JSON401 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
-		var dest NotFoundErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON404 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
-		var dest InternalServerErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON500 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
-		var dest ServiceUnavailableErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON503 = &dest
-
+		return response, nil
+	}(); err != nil && rsp.StatusCode/100 == 2 {
+		return nil, err
 	}
 
 	return response, nil
@@ -28856,45 +29535,52 @@ func ParseCreateFolderForPostingsResponse(rsp *http.Response) (*CreateFolderForP
 		HTTPResponse: rsp,
 	}
 
-	switch {
-	case rsp.StatusCode == 200:
-		break // No content-type
+	// An undecodable body fails only a 2xx; an error status answers on its own, body or not.
+	if _, err := func() (*CreateFolderForPostingsResponse, error) {
+		switch {
+		case rsp.StatusCode == 200:
+			break // No content-type
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
-		var dest UnauthorizedErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+			var dest UnauthorizedErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON401 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+			var dest NotFoundErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON404 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 422:
+			var dest UnprocessableEntityErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON422 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+			var dest InternalServerErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON500 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+			var dest ServiceUnavailableErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON503 = &dest
+
 		}
-		response.JSON401 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
-		var dest NotFoundErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON404 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 422:
-		var dest UnprocessableEntityErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON422 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
-		var dest InternalServerErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON500 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
-		var dest ServiceUnavailableErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON503 = &dest
-
+		return response, nil
+	}(); err != nil && rsp.StatusCode/100 == 2 {
+		return nil, err
 	}
 
 	return response, nil
@@ -28913,38 +29599,45 @@ func ParseMovePostingsResponse(rsp *http.Response) (*MovePostingsResponse, error
 		HTTPResponse: rsp,
 	}
 
-	switch {
-	case rsp.StatusCode == 200:
-		break // No content-type
+	// An undecodable body fails only a 2xx; an error status answers on its own, body or not.
+	if _, err := func() (*MovePostingsResponse, error) {
+		switch {
+		case rsp.StatusCode == 200:
+			break // No content-type
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
-		var dest UnauthorizedErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+			var dest UnauthorizedErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON401 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+			var dest NotFoundErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON404 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+			var dest InternalServerErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON500 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+			var dest ServiceUnavailableErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON503 = &dest
+
 		}
-		response.JSON401 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
-		var dest NotFoundErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON404 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
-		var dest InternalServerErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON500 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
-		var dest ServiceUnavailableErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON503 = &dest
-
+		return response, nil
+	}(); err != nil && rsp.StatusCode/100 == 2 {
+		return nil, err
 	}
 
 	return response, nil
@@ -28963,38 +29656,45 @@ func ParseUnmutePostingsResponse(rsp *http.Response) (*UnmutePostingsResponse, e
 		HTTPResponse: rsp,
 	}
 
-	switch {
-	case rsp.StatusCode == 200:
-		break // No content-type
+	// An undecodable body fails only a 2xx; an error status answers on its own, body or not.
+	if _, err := func() (*UnmutePostingsResponse, error) {
+		switch {
+		case rsp.StatusCode == 200:
+			break // No content-type
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
-		var dest UnauthorizedErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+			var dest UnauthorizedErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON401 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+			var dest NotFoundErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON404 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+			var dest InternalServerErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON500 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+			var dest ServiceUnavailableErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON503 = &dest
+
 		}
-		response.JSON401 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
-		var dest NotFoundErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON404 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
-		var dest InternalServerErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON500 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
-		var dest ServiceUnavailableErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON503 = &dest
-
+		return response, nil
+	}(); err != nil && rsp.StatusCode/100 == 2 {
+		return nil, err
 	}
 
 	return response, nil
@@ -29013,38 +29713,45 @@ func ParseMutePostingsResponse(rsp *http.Response) (*MutePostingsResponse, error
 		HTTPResponse: rsp,
 	}
 
-	switch {
-	case rsp.StatusCode == 200:
-		break // No content-type
+	// An undecodable body fails only a 2xx; an error status answers on its own, body or not.
+	if _, err := func() (*MutePostingsResponse, error) {
+		switch {
+		case rsp.StatusCode == 200:
+			break // No content-type
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
-		var dest UnauthorizedErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+			var dest UnauthorizedErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON401 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+			var dest NotFoundErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON404 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+			var dest InternalServerErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON500 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+			var dest ServiceUnavailableErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON503 = &dest
+
 		}
-		response.JSON401 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
-		var dest NotFoundErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON404 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
-		var dest InternalServerErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON500 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
-		var dest ServiceUnavailableErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON503 = &dest
-
+		return response, nil
+	}(); err != nil && rsp.StatusCode/100 == 2 {
+		return nil, err
 	}
 
 	return response, nil
@@ -29063,31 +29770,38 @@ func ParseMarkPostingsSeenResponse(rsp *http.Response) (*MarkPostingsSeenRespons
 		HTTPResponse: rsp,
 	}
 
-	switch {
-	case rsp.StatusCode == 200:
-		break // No content-type
+	// An undecodable body fails only a 2xx; an error status answers on its own, body or not.
+	if _, err := func() (*MarkPostingsSeenResponse, error) {
+		switch {
+		case rsp.StatusCode == 200:
+			break // No content-type
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
-		var dest UnauthorizedErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+			var dest UnauthorizedErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON401 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+			var dest InternalServerErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON500 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+			var dest ServiceUnavailableErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON503 = &dest
+
 		}
-		response.JSON401 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
-		var dest InternalServerErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON500 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
-		var dest ServiceUnavailableErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON503 = &dest
-
+		return response, nil
+	}(); err != nil && rsp.StatusCode/100 == 2 {
+		return nil, err
 	}
 
 	return response, nil
@@ -29106,38 +29820,45 @@ func ParseMarkPostingsSpamResponse(rsp *http.Response) (*MarkPostingsSpamRespons
 		HTTPResponse: rsp,
 	}
 
-	switch {
-	case rsp.StatusCode == 200:
-		break // No content-type
+	// An undecodable body fails only a 2xx; an error status answers on its own, body or not.
+	if _, err := func() (*MarkPostingsSpamResponse, error) {
+		switch {
+		case rsp.StatusCode == 200:
+			break // No content-type
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
-		var dest UnauthorizedErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+			var dest UnauthorizedErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON401 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+			var dest NotFoundErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON404 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+			var dest InternalServerErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON500 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+			var dest ServiceUnavailableErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON503 = &dest
+
 		}
-		response.JSON401 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
-		var dest NotFoundErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON404 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
-		var dest InternalServerErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON500 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
-		var dest ServiceUnavailableErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON503 = &dest
-
+		return response, nil
+	}(); err != nil && rsp.StatusCode/100 == 2 {
+		return nil, err
 	}
 
 	return response, nil
@@ -29156,38 +29877,45 @@ func ParseTrashPostingsResponse(rsp *http.Response) (*TrashPostingsResponse, err
 		HTTPResponse: rsp,
 	}
 
-	switch {
-	case rsp.StatusCode == 200:
-		break // No content-type
+	// An undecodable body fails only a 2xx; an error status answers on its own, body or not.
+	if _, err := func() (*TrashPostingsResponse, error) {
+		switch {
+		case rsp.StatusCode == 200:
+			break // No content-type
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
-		var dest UnauthorizedErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+			var dest UnauthorizedErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON401 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+			var dest NotFoundErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON404 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+			var dest InternalServerErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON500 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+			var dest ServiceUnavailableErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON503 = &dest
+
 		}
-		response.JSON401 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
-		var dest NotFoundErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON404 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
-		var dest InternalServerErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON500 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
-		var dest ServiceUnavailableErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON503 = &dest
-
+		return response, nil
+	}(); err != nil && rsp.StatusCode/100 == 2 {
+		return nil, err
 	}
 
 	return response, nil
@@ -29206,31 +29934,38 @@ func ParseMarkPostingsUnseenResponse(rsp *http.Response) (*MarkPostingsUnseenRes
 		HTTPResponse: rsp,
 	}
 
-	switch {
-	case rsp.StatusCode == 200:
-		break // No content-type
+	// An undecodable body fails only a 2xx; an error status answers on its own, body or not.
+	if _, err := func() (*MarkPostingsUnseenResponse, error) {
+		switch {
+		case rsp.StatusCode == 200:
+			break // No content-type
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
-		var dest UnauthorizedErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+			var dest UnauthorizedErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON401 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+			var dest InternalServerErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON500 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+			var dest ServiceUnavailableErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON503 = &dest
+
 		}
-		response.JSON401 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
-		var dest InternalServerErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON500 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
-		var dest ServiceUnavailableErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON503 = &dest
-
+		return response, nil
+	}(); err != nil && rsp.StatusCode/100 == 2 {
+		return nil, err
 	}
 
 	return response, nil
@@ -29249,42 +29984,49 @@ func ParseGetBundleUnseenPostingsResponse(rsp *http.Response) (*GetBundleUnseenP
 		HTTPResponse: rsp,
 	}
 
-	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest GetBundleUnseenPostingsResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON200 = &dest
+	// An undecodable body fails only a 2xx; an error status answers on its own, body or not.
+	if _, err := func() (*GetBundleUnseenPostingsResponse, error) {
+		switch {
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+			var dest GetBundleUnseenPostingsResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON200 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
-		var dest UnauthorizedErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON401 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+			var dest UnauthorizedErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON401 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
-		var dest NotFoundErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON404 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+			var dest NotFoundErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON404 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
-		var dest InternalServerErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON500 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+			var dest InternalServerErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON500 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
-		var dest ServiceUnavailableErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON503 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+			var dest ServiceUnavailableErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON503 = &dest
 
+		}
+
+		return response, nil
+	}(); err != nil && rsp.StatusCode/100 == 2 {
+		return nil, err
 	}
 
 	return response, nil
@@ -29303,42 +30045,49 @@ func ParseCreateDirectUploadResponse(rsp *http.Response) (*CreateDirectUploadRes
 		HTTPResponse: rsp,
 	}
 
-	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest DirectUpload
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON200 = &dest
+	// An undecodable body fails only a 2xx; an error status answers on its own, body or not.
+	if _, err := func() (*CreateDirectUploadResponse, error) {
+		switch {
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+			var dest DirectUpload
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON200 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
-		var dest UnauthorizedErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON401 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+			var dest UnauthorizedErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON401 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 422:
-		var dest UnprocessableEntityErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON422 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 422:
+			var dest UnprocessableEntityErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON422 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
-		var dest InternalServerErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON500 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+			var dest InternalServerErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON500 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
-		var dest ServiceUnavailableErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON503 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+			var dest ServiceUnavailableErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON503 = &dest
 
+		}
+
+		return response, nil
+	}(); err != nil && rsp.StatusCode/100 == 2 {
+		return nil, err
 	}
 
 	return response, nil
@@ -29357,35 +30106,42 @@ func ParseGetLaterboxResponse(rsp *http.Response) (*GetLaterboxResponse, error) 
 		HTTPResponse: rsp,
 	}
 
-	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest GetLaterboxResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON200 = &dest
+	// An undecodable body fails only a 2xx; an error status answers on its own, body or not.
+	if _, err := func() (*GetLaterboxResponse, error) {
+		switch {
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+			var dest GetLaterboxResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON200 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
-		var dest UnauthorizedErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON401 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+			var dest UnauthorizedErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON401 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
-		var dest InternalServerErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON500 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+			var dest InternalServerErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON500 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
-		var dest ServiceUnavailableErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON503 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+			var dest ServiceUnavailableErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON503 = &dest
 
+		}
+
+		return response, nil
+	}(); err != nil && rsp.StatusCode/100 == 2 {
+		return nil, err
 	}
 
 	return response, nil
@@ -29404,35 +30160,42 @@ func ParseGetAsideboxResponse(rsp *http.Response) (*GetAsideboxResponse, error) 
 		HTTPResponse: rsp,
 	}
 
-	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest GetAsideboxResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON200 = &dest
+	// An undecodable body fails only a 2xx; an error status answers on its own, body or not.
+	if _, err := func() (*GetAsideboxResponse, error) {
+		switch {
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+			var dest GetAsideboxResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON200 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
-		var dest UnauthorizedErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON401 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+			var dest UnauthorizedErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON401 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
-		var dest InternalServerErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON500 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+			var dest InternalServerErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON500 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
-		var dest ServiceUnavailableErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON503 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+			var dest ServiceUnavailableErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON503 = &dest
 
+		}
+
+		return response, nil
+	}(); err != nil && rsp.StatusCode/100 == 2 {
+		return nil, err
 	}
 
 	return response, nil
@@ -29451,35 +30214,42 @@ func ParseListSnippetsResponse(rsp *http.Response) (*ListSnippetsResponse, error
 		HTTPResponse: rsp,
 	}
 
-	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest ListSnippetsResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON200 = &dest
+	// An undecodable body fails only a 2xx; an error status answers on its own, body or not.
+	if _, err := func() (*ListSnippetsResponse, error) {
+		switch {
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+			var dest ListSnippetsResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON200 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
-		var dest UnauthorizedErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON401 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+			var dest UnauthorizedErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON401 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
-		var dest InternalServerErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON500 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+			var dest InternalServerErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON500 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
-		var dest ServiceUnavailableErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON503 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+			var dest ServiceUnavailableErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON503 = &dest
 
+		}
+
+		return response, nil
+	}(); err != nil && rsp.StatusCode/100 == 2 {
+		return nil, err
 	}
 
 	return response, nil
@@ -29498,35 +30268,42 @@ func ParseListStickiesResponse(rsp *http.Response) (*ListStickiesResponse, error
 		HTTPResponse: rsp,
 	}
 
-	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest ListStickiesResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON200 = &dest
+	// An undecodable body fails only a 2xx; an error status answers on its own, body or not.
+	if _, err := func() (*ListStickiesResponse, error) {
+		switch {
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+			var dest ListStickiesResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON200 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
-		var dest UnauthorizedErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON401 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+			var dest UnauthorizedErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON401 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
-		var dest InternalServerErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON500 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+			var dest InternalServerErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON500 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
-		var dest ServiceUnavailableErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON503 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+			var dest ServiceUnavailableErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON503 = &dest
 
+		}
+
+		return response, nil
+	}(); err != nil && rsp.StatusCode/100 == 2 {
+		return nil, err
 	}
 
 	return response, nil
@@ -29545,42 +30322,49 @@ func ParseCreateStickyResponse(rsp *http.Response) (*CreateStickyResponse, error
 		HTTPResponse: rsp,
 	}
 
-	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest CreateStickyResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON200 = &dest
+	// An undecodable body fails only a 2xx; an error status answers on its own, body or not.
+	if _, err := func() (*CreateStickyResponse, error) {
+		switch {
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+			var dest CreateStickyResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON200 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
-		var dest UnauthorizedErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON401 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+			var dest UnauthorizedErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON401 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 422:
-		var dest UnprocessableEntityErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON422 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 422:
+			var dest UnprocessableEntityErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON422 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
-		var dest InternalServerErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON500 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+			var dest InternalServerErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON500 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
-		var dest ServiceUnavailableErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON503 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+			var dest ServiceUnavailableErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON503 = &dest
 
+		}
+
+		return response, nil
+	}(); err != nil && rsp.StatusCode/100 == 2 {
+		return nil, err
 	}
 
 	return response, nil
@@ -29599,38 +30383,45 @@ func ParseMoveStickyResponse(rsp *http.Response) (*MoveStickyResponse, error) {
 		HTTPResponse: rsp,
 	}
 
-	switch {
-	case rsp.StatusCode == 200:
-		break // No content-type
+	// An undecodable body fails only a 2xx; an error status answers on its own, body or not.
+	if _, err := func() (*MoveStickyResponse, error) {
+		switch {
+		case rsp.StatusCode == 200:
+			break // No content-type
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
-		var dest UnauthorizedErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+			var dest UnauthorizedErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON401 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+			var dest NotFoundErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON404 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+			var dest InternalServerErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON500 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+			var dest ServiceUnavailableErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON503 = &dest
+
 		}
-		response.JSON401 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
-		var dest NotFoundErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON404 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
-		var dest InternalServerErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON500 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
-		var dest ServiceUnavailableErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON503 = &dest
-
+		return response, nil
+	}(); err != nil && rsp.StatusCode/100 == 2 {
+		return nil, err
 	}
 
 	return response, nil
@@ -29649,38 +30440,45 @@ func ParseDeleteStickyResponse(rsp *http.Response) (*DeleteStickyResponse, error
 		HTTPResponse: rsp,
 	}
 
-	switch {
-	case rsp.StatusCode == 200:
-		break // No content-type
+	// An undecodable body fails only a 2xx; an error status answers on its own, body or not.
+	if _, err := func() (*DeleteStickyResponse, error) {
+		switch {
+		case rsp.StatusCode == 200:
+			break // No content-type
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
-		var dest UnauthorizedErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+			var dest UnauthorizedErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON401 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+			var dest NotFoundErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON404 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+			var dest InternalServerErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON500 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+			var dest ServiceUnavailableErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON503 = &dest
+
 		}
-		response.JSON401 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
-		var dest NotFoundErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON404 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
-		var dest InternalServerErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON500 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
-		var dest ServiceUnavailableErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON503 = &dest
-
+		return response, nil
+	}(); err != nil && rsp.StatusCode/100 == 2 {
+		return nil, err
 	}
 
 	return response, nil
@@ -29699,49 +30497,56 @@ func ParseUpdateStickyResponse(rsp *http.Response) (*UpdateStickyResponse, error
 		HTTPResponse: rsp,
 	}
 
-	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest UpdateStickyResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON200 = &dest
+	// An undecodable body fails only a 2xx; an error status answers on its own, body or not.
+	if _, err := func() (*UpdateStickyResponse, error) {
+		switch {
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+			var dest UpdateStickyResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON200 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
-		var dest UnauthorizedErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON401 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+			var dest UnauthorizedErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON401 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
-		var dest NotFoundErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON404 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+			var dest NotFoundErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON404 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 422:
-		var dest UnprocessableEntityErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON422 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 422:
+			var dest UnprocessableEntityErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON422 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
-		var dest InternalServerErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON500 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+			var dest InternalServerErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON500 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
-		var dest ServiceUnavailableErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON503 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+			var dest ServiceUnavailableErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON503 = &dest
 
+		}
+
+		return response, nil
+	}(); err != nil && rsp.StatusCode/100 == 2 {
+		return nil, err
 	}
 
 	return response, nil
@@ -29760,35 +30565,42 @@ func ParseGetEverythingTopicsResponse(rsp *http.Response) (*GetEverythingTopicsR
 		HTTPResponse: rsp,
 	}
 
-	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest GetEverythingTopicsResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON200 = &dest
+	// An undecodable body fails only a 2xx; an error status answers on its own, body or not.
+	if _, err := func() (*GetEverythingTopicsResponse, error) {
+		switch {
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+			var dest GetEverythingTopicsResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON200 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
-		var dest UnauthorizedErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON401 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+			var dest UnauthorizedErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON401 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
-		var dest InternalServerErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON500 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+			var dest InternalServerErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON500 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
-		var dest ServiceUnavailableErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON503 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+			var dest ServiceUnavailableErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON503 = &dest
 
+		}
+
+		return response, nil
+	}(); err != nil && rsp.StatusCode/100 == 2 {
+		return nil, err
 	}
 
 	return response, nil
@@ -29807,35 +30619,42 @@ func ParseGetSentTopicsResponse(rsp *http.Response) (*GetSentTopicsResponse, err
 		HTTPResponse: rsp,
 	}
 
-	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest GetSentTopicsResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON200 = &dest
+	// An undecodable body fails only a 2xx; an error status answers on its own, body or not.
+	if _, err := func() (*GetSentTopicsResponse, error) {
+		switch {
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+			var dest GetSentTopicsResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON200 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
-		var dest UnauthorizedErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON401 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+			var dest UnauthorizedErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON401 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
-		var dest InternalServerErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON500 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+			var dest InternalServerErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON500 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
-		var dest ServiceUnavailableErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON503 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+			var dest ServiceUnavailableErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON503 = &dest
 
+		}
+
+		return response, nil
+	}(); err != nil && rsp.StatusCode/100 == 2 {
+		return nil, err
 	}
 
 	return response, nil
@@ -29854,35 +30673,42 @@ func ParseGetSpamTopicsResponse(rsp *http.Response) (*GetSpamTopicsResponse, err
 		HTTPResponse: rsp,
 	}
 
-	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest GetSpamTopicsResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON200 = &dest
+	// An undecodable body fails only a 2xx; an error status answers on its own, body or not.
+	if _, err := func() (*GetSpamTopicsResponse, error) {
+		switch {
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+			var dest GetSpamTopicsResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON200 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
-		var dest UnauthorizedErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON401 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+			var dest UnauthorizedErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON401 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
-		var dest InternalServerErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON500 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+			var dest InternalServerErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON500 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
-		var dest ServiceUnavailableErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON503 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+			var dest ServiceUnavailableErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON503 = &dest
 
+		}
+
+		return response, nil
+	}(); err != nil && rsp.StatusCode/100 == 2 {
+		return nil, err
 	}
 
 	return response, nil
@@ -29901,31 +30727,38 @@ func ParseEmptySpamResponse(rsp *http.Response) (*EmptySpamResponse, error) {
 		HTTPResponse: rsp,
 	}
 
-	switch {
-	case rsp.StatusCode == 200:
-		break // No content-type
+	// An undecodable body fails only a 2xx; an error status answers on its own, body or not.
+	if _, err := func() (*EmptySpamResponse, error) {
+		switch {
+		case rsp.StatusCode == 200:
+			break // No content-type
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
-		var dest UnauthorizedErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+			var dest UnauthorizedErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON401 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+			var dest InternalServerErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON500 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+			var dest ServiceUnavailableErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON503 = &dest
+
 		}
-		response.JSON401 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
-		var dest InternalServerErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON500 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
-		var dest ServiceUnavailableErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON503 = &dest
-
+		return response, nil
+	}(); err != nil && rsp.StatusCode/100 == 2 {
+		return nil, err
 	}
 
 	return response, nil
@@ -29944,35 +30777,42 @@ func ParseGetTrashTopicsResponse(rsp *http.Response) (*GetTrashTopicsResponse, e
 		HTTPResponse: rsp,
 	}
 
-	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest GetTrashTopicsResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON200 = &dest
+	// An undecodable body fails only a 2xx; an error status answers on its own, body or not.
+	if _, err := func() (*GetTrashTopicsResponse, error) {
+		switch {
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+			var dest GetTrashTopicsResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON200 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
-		var dest UnauthorizedErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON401 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+			var dest UnauthorizedErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON401 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
-		var dest InternalServerErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON500 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+			var dest InternalServerErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON500 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
-		var dest ServiceUnavailableErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON503 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+			var dest ServiceUnavailableErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON503 = &dest
 
+		}
+
+		return response, nil
+	}(); err != nil && rsp.StatusCode/100 == 2 {
+		return nil, err
 	}
 
 	return response, nil
@@ -29991,31 +30831,38 @@ func ParseEmptyTrashResponse(rsp *http.Response) (*EmptyTrashResponse, error) {
 		HTTPResponse: rsp,
 	}
 
-	switch {
-	case rsp.StatusCode == 200:
-		break // No content-type
+	// An undecodable body fails only a 2xx; an error status answers on its own, body or not.
+	if _, err := func() (*EmptyTrashResponse, error) {
+		switch {
+		case rsp.StatusCode == 200:
+			break // No content-type
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
-		var dest UnauthorizedErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+			var dest UnauthorizedErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON401 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+			var dest InternalServerErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON500 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+			var dest ServiceUnavailableErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON503 = &dest
+
 		}
-		response.JSON401 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
-		var dest InternalServerErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON500 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
-		var dest ServiceUnavailableErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON503 = &dest
-
+		return response, nil
+	}(); err != nil && rsp.StatusCode/100 == 2 {
+		return nil, err
 	}
 
 	return response, nil
@@ -30034,42 +30881,49 @@ func ParseGetTopicResponse(rsp *http.Response) (*GetTopicResponse, error) {
 		HTTPResponse: rsp,
 	}
 
-	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest GetTopicResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON200 = &dest
+	// An undecodable body fails only a 2xx; an error status answers on its own, body or not.
+	if _, err := func() (*GetTopicResponse, error) {
+		switch {
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+			var dest GetTopicResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON200 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
-		var dest UnauthorizedErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON401 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+			var dest UnauthorizedErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON401 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
-		var dest NotFoundErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON404 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+			var dest NotFoundErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON404 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
-		var dest InternalServerErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON500 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+			var dest InternalServerErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON500 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
-		var dest ServiceUnavailableErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON503 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+			var dest ServiceUnavailableErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON503 = &dest
 
+		}
+
+		return response, nil
+	}(); err != nil && rsp.StatusCode/100 == 2 {
+		return nil, err
 	}
 
 	return response, nil
@@ -30088,42 +30942,49 @@ func ParseGetTopicEntriesResponse(rsp *http.Response) (*GetTopicEntriesResponse,
 		HTTPResponse: rsp,
 	}
 
-	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest GetTopicEntriesResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON200 = &dest
+	// An undecodable body fails only a 2xx; an error status answers on its own, body or not.
+	if _, err := func() (*GetTopicEntriesResponse, error) {
+		switch {
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+			var dest GetTopicEntriesResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON200 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
-		var dest UnauthorizedErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON401 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+			var dest UnauthorizedErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON401 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
-		var dest NotFoundErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON404 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+			var dest NotFoundErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON404 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
-		var dest InternalServerErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON500 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+			var dest InternalServerErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON500 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
-		var dest ServiceUnavailableErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON503 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+			var dest ServiceUnavailableErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON503 = &dest
 
+		}
+
+		return response, nil
+	}(); err != nil && rsp.StatusCode/100 == 2 {
+		return nil, err
 	}
 
 	return response, nil
@@ -30142,38 +31003,45 @@ func ParseMoveTopicResponse(rsp *http.Response) (*MoveTopicResponse, error) {
 		HTTPResponse: rsp,
 	}
 
-	switch {
-	case rsp.StatusCode == 200:
-		break // No content-type
+	// An undecodable body fails only a 2xx; an error status answers on its own, body or not.
+	if _, err := func() (*MoveTopicResponse, error) {
+		switch {
+		case rsp.StatusCode == 200:
+			break // No content-type
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
-		var dest UnauthorizedErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+			var dest UnauthorizedErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON401 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+			var dest NotFoundErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON404 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+			var dest InternalServerErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON500 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+			var dest ServiceUnavailableErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON503 = &dest
+
 		}
-		response.JSON401 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
-		var dest NotFoundErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON404 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
-		var dest InternalServerErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON500 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
-		var dest ServiceUnavailableErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON503 = &dest
-
+		return response, nil
+	}(); err != nil && rsp.StatusCode/100 == 2 {
+		return nil, err
 	}
 
 	return response, nil
@@ -30192,49 +31060,56 @@ func ParseGetTopicPublicationResponse(rsp *http.Response) (*GetTopicPublicationR
 		HTTPResponse: rsp,
 	}
 
-	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest GetTopicPublicationResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON200 = &dest
+	// An undecodable body fails only a 2xx; an error status answers on its own, body or not.
+	if _, err := func() (*GetTopicPublicationResponse, error) {
+		switch {
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+			var dest GetTopicPublicationResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON200 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
-		var dest UnauthorizedErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON401 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+			var dest UnauthorizedErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON401 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
-		var dest ForbiddenErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON403 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+			var dest ForbiddenErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON403 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
-		var dest NotFoundErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON404 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+			var dest NotFoundErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON404 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
-		var dest InternalServerErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON500 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+			var dest InternalServerErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON500 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
-		var dest ServiceUnavailableErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON503 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+			var dest ServiceUnavailableErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON503 = &dest
 
+		}
+
+		return response, nil
+	}(); err != nil && rsp.StatusCode/100 == 2 {
+		return nil, err
 	}
 
 	return response, nil
@@ -30253,38 +31128,45 @@ func ParseRestoreTopicResponse(rsp *http.Response) (*RestoreTopicResponse, error
 		HTTPResponse: rsp,
 	}
 
-	switch {
-	case rsp.StatusCode == 200:
-		break // No content-type
+	// An undecodable body fails only a 2xx; an error status answers on its own, body or not.
+	if _, err := func() (*RestoreTopicResponse, error) {
+		switch {
+		case rsp.StatusCode == 200:
+			break // No content-type
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
-		var dest UnauthorizedErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+			var dest UnauthorizedErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON401 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+			var dest NotFoundErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON404 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+			var dest InternalServerErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON500 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+			var dest ServiceUnavailableErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON503 = &dest
+
 		}
-		response.JSON401 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
-		var dest NotFoundErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON404 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
-		var dest InternalServerErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON500 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
-		var dest ServiceUnavailableErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON503 = &dest
-
+		return response, nil
+	}(); err != nil && rsp.StatusCode/100 == 2 {
+		return nil, err
 	}
 
 	return response, nil
@@ -30303,38 +31185,45 @@ func ParseMarkTopicHamResponse(rsp *http.Response) (*MarkTopicHamResponse, error
 		HTTPResponse: rsp,
 	}
 
-	switch {
-	case rsp.StatusCode == 200:
-		break // No content-type
+	// An undecodable body fails only a 2xx; an error status answers on its own, body or not.
+	if _, err := func() (*MarkTopicHamResponse, error) {
+		switch {
+		case rsp.StatusCode == 200:
+			break // No content-type
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
-		var dest UnauthorizedErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+			var dest UnauthorizedErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON401 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+			var dest NotFoundErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON404 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+			var dest InternalServerErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON500 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+			var dest ServiceUnavailableErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON503 = &dest
+
 		}
-		response.JSON401 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
-		var dest NotFoundErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON404 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
-		var dest InternalServerErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON500 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
-		var dest ServiceUnavailableErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON503 = &dest
-
+		return response, nil
+	}(); err != nil && rsp.StatusCode/100 == 2 {
+		return nil, err
 	}
 
 	return response, nil
@@ -30353,38 +31242,45 @@ func ParseTrashTopicResponse(rsp *http.Response) (*TrashTopicResponse, error) {
 		HTTPResponse: rsp,
 	}
 
-	switch {
-	case rsp.StatusCode == 200:
-		break // No content-type
+	// An undecodable body fails only a 2xx; an error status answers on its own, body or not.
+	if _, err := func() (*TrashTopicResponse, error) {
+		switch {
+		case rsp.StatusCode == 200:
+			break // No content-type
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
-		var dest UnauthorizedErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+			var dest UnauthorizedErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON401 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+			var dest NotFoundErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON404 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+			var dest InternalServerErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON500 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+			var dest ServiceUnavailableErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON503 = &dest
+
 		}
-		response.JSON401 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
-		var dest NotFoundErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON404 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
-		var dest InternalServerErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON500 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
-		var dest ServiceUnavailableErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON503 = &dest
-
+		return response, nil
+	}(); err != nil && rsp.StatusCode/100 == 2 {
+		return nil, err
 	}
 
 	return response, nil
@@ -30403,52 +31299,59 @@ func ParseMoveWorkflowStagingResponse(rsp *http.Response) (*MoveWorkflowStagingR
 		HTTPResponse: rsp,
 	}
 
-	switch {
-	case rsp.StatusCode == 200:
-		break // No content-type
+	// An undecodable body fails only a 2xx; an error status answers on its own, body or not.
+	if _, err := func() (*MoveWorkflowStagingResponse, error) {
+		switch {
+		case rsp.StatusCode == 200:
+			break // No content-type
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
-		var dest UnauthorizedErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+			var dest UnauthorizedErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON401 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+			var dest ForbiddenErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON403 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+			var dest NotFoundErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON404 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 422:
+			var dest UnprocessableEntityErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON422 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+			var dest InternalServerErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON500 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+			var dest ServiceUnavailableErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON503 = &dest
+
 		}
-		response.JSON401 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
-		var dest ForbiddenErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON403 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
-		var dest NotFoundErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON404 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 422:
-		var dest UnprocessableEntityErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON422 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
-		var dest InternalServerErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON500 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
-		var dest ServiceUnavailableErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON503 = &dest
-
+		return response, nil
+	}(); err != nil && rsp.StatusCode/100 == 2 {
+		return nil, err
 	}
 
 	return response, nil
@@ -30467,52 +31370,59 @@ func ParseCreateWorkflowStagingResponse(rsp *http.Response) (*CreateWorkflowStag
 		HTTPResponse: rsp,
 	}
 
-	switch {
-	case rsp.StatusCode == 200:
-		break // No content-type
+	// An undecodable body fails only a 2xx; an error status answers on its own, body or not.
+	if _, err := func() (*CreateWorkflowStagingResponse, error) {
+		switch {
+		case rsp.StatusCode == 200:
+			break // No content-type
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
-		var dest UnauthorizedErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+			var dest UnauthorizedErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON401 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+			var dest ForbiddenErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON403 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+			var dest NotFoundErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON404 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 422:
+			var dest UnprocessableEntityErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON422 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+			var dest InternalServerErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON500 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+			var dest ServiceUnavailableErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON503 = &dest
+
 		}
-		response.JSON401 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
-		var dest ForbiddenErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON403 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
-		var dest NotFoundErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON404 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 422:
-		var dest UnprocessableEntityErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON422 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
-		var dest InternalServerErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON500 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
-		var dest ServiceUnavailableErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON503 = &dest
-
+		return response, nil
+	}(); err != nil && rsp.StatusCode/100 == 2 {
+		return nil, err
 	}
 
 	return response, nil
@@ -30531,42 +31441,49 @@ func ParseGetWorkflowResponse(rsp *http.Response) (*GetWorkflowResponse, error) 
 		HTTPResponse: rsp,
 	}
 
-	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest GetWorkflowResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON200 = &dest
+	// An undecodable body fails only a 2xx; an error status answers on its own, body or not.
+	if _, err := func() (*GetWorkflowResponse, error) {
+		switch {
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+			var dest GetWorkflowResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON200 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
-		var dest UnauthorizedErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON401 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+			var dest UnauthorizedErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON401 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
-		var dest NotFoundErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON404 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+			var dest NotFoundErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON404 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
-		var dest InternalServerErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON500 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+			var dest InternalServerErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON500 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
-		var dest ServiceUnavailableErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON503 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+			var dest ServiceUnavailableErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON503 = &dest
 
+		}
+
+		return response, nil
+	}(); err != nil && rsp.StatusCode/100 == 2 {
+		return nil, err
 	}
 
 	return response, nil
@@ -30585,35 +31502,42 @@ func ParseGetWorkflowStageResponse(rsp *http.Response) (*GetWorkflowStageRespons
 		HTTPResponse: rsp,
 	}
 
-	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
-		var dest UnauthorizedErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON401 = &dest
+	// An undecodable body fails only a 2xx; an error status answers on its own, body or not.
+	if _, err := func() (*GetWorkflowStageResponse, error) {
+		switch {
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+			var dest UnauthorizedErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON401 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
-		var dest NotFoundErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON404 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+			var dest NotFoundErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON404 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
-		var dest InternalServerErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON500 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+			var dest InternalServerErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON500 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
-		var dest ServiceUnavailableErrorResponseContent
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON503 = &dest
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+			var dest ServiceUnavailableErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON503 = &dest
 
+		}
+
+		return response, nil
+	}(); err != nil && rsp.StatusCode/100 == 2 {
+		return nil, err
 	}
 
 	return response, nil
