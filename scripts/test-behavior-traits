@@ -1,0 +1,119 @@
+#!/usr/bin/env bash
+# test-behavior-traits — prove the effect/provenance tripwires fire
+#
+# spec/hey-traits.smithy makes every operation declare @heyDestructive, @heyOpenWorld
+# and @heyUntrustedContent, and forbids resending an open-world operation, through
+# EmitEachSelector validators. A validator whose selector stops matching passes
+# silently, so this breaks the model on purpose, one declaration at a time, and
+# fails unless `smithy validate` refuses each break under the expected id and shape.
+# The unbroken model must validate, or every refusal below proves nothing.
+#
+# Usage: scripts/test-behavior-traits   (from anywhere; needs the smithy CLI and jq)
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SPEC_DIR="$(dirname "$SCRIPT_DIR")/spec"
+
+WORK=$(mktemp -d)
+trap 'rm -rf "$WORK"' EXIT
+
+# A copy of the build config reading the sources from $WORK, with the vendored
+# mapper repository kept absolute. Validation needs the same dependencies as a build.
+jq --arg lib "file://$SPEC_DIR/lib" \
+   '.sources = ["hey.smithy", "hey-traits.smithy"]
+    | .maven.repositories |= map(if .url == "file://lib" then .url = $lib else . end)
+    | del(.projections)' \
+   "$SPEC_DIR/smithy-build.json" > "$WORK/smithy-build.json"
+
+failures=0
+
+reset_model() {
+    cp "$SPEC_DIR/hey.smithy" "$SPEC_DIR/hey-traits.smithy" "$WORK/"
+}
+
+validate() {
+    (cd "$WORK" && smithy validate -c smithy-build.json 2>&1)
+}
+
+# Edit the trait block of one operation: the lines between its doc comment and
+# `operation NAME {`. Modes: drop PREFIX (delete the line starting with PREFIX),
+# add LINE (append LINE to the block), sub FROM TO (replace FROM with TO).
+edit_operation() {
+    local operation="$1" mode="$2" a="$3" b="${4:-}"
+    awk -v op="$operation" -v mode="$mode" -v a="$a" -v b="$b" '
+        { lines[NR] = $0 }
+        $0 ~ "^operation " op " [{]" { target = NR }
+        END {
+            if (!target) { print "no operation " op > "/dev/stderr"; exit 1 }
+            start = target
+            while (start > 1 && lines[start - 1] !~ /^(\/\/\/|}|$)/) start--
+            for (i = 1; i <= NR; i++) {
+                line = lines[i]
+                if (i >= start && i < target) {
+                    if (mode == "drop" && index(line, a) == 1) continue
+                    if (mode == "sub" && (at = index(line, a)))
+                        line = substr(line, 1, at - 1) b substr(line, at + length(a))
+                }
+                if (i == target && mode == "add") print a
+                print line
+            }
+        }' "$WORK/hey.smithy" > "$WORK/hey.smithy.new"
+    mv "$WORK/hey.smithy.new" "$WORK/hey.smithy"
+}
+
+expect_refusal() {
+    local name="$1" id="$2" shape="$3" output
+    if output=$(validate); then
+        echo "FAIL  $name: the model validated; expected $id on $shape"
+        failures=$((failures + 1))
+    elif printf '%s\n' "$output" | grep -A1 -- "$id" | grep -q "Shape: $shape\$"; then
+        echo "ok    $name: refused with $id on $shape"
+    else
+        echo "FAIL  $name: refused, but not with $id on $shape:"
+        printf '%s\n' "$output" | tail -20
+        failures=$((failures + 1))
+    fi
+}
+
+reset_model
+if output=$(validate); then
+    echo "ok    the unbroken model validates"
+else
+    echo "FAIL  the unbroken model does not validate:"
+    printf '%s\n' "$output" | tail -20
+    exit 1
+fi
+
+reset_model
+edit_operation CreateBulkReply drop '@heyOpenWorld('
+expect_refusal "a send without @heyOpenWorld" HeyOpenWorldUndeclared hey#CreateBulkReply
+
+reset_model
+edit_operation EmptyTrash drop '@heyDestructive('
+expect_refusal "a purge without @heyDestructive" HeyDestructiveUndeclared hey#EmptyTrash
+
+reset_model
+edit_operation GetMessage drop '@heyUntrustedContent('
+expect_refusal "a read without @heyUntrustedContent" HeyUntrustedContentUndeclared hey#GetMessage
+
+reset_model
+edit_operation CreateReply add '@idempotent'
+expect_refusal "a send marked @idempotent" HeyOpenWorldRetried hey#CreateReply
+
+reset_model
+edit_operation UpdateMessage sub 'natural: false' 'natural: true'
+expect_refusal "a send opted into resends" HeyOpenWorldRetried hey#UpdateMessage
+
+reset_model
+edit_operation UpdateMessage drop '@heyIdempotent('
+expect_refusal "a PUT send left to the verb's retries" HeyOpenWorldRetried hey#UpdateMessage
+
+reset_model
+edit_operation CreateBulkReply sub '@heyOpenWorld(true)' '@heyOpenWorld(true)\n@heyDraftWhen([])'
+expect_refusal "a send whose draft conditions are empty" TraitValue hey#CreateBulkReply
+
+if [[ $failures -gt 0 ]]; then
+    echo "$failures tripwire check(s) failed"
+    exit 1
+fi
+echo "All behavior-trait tripwires fire."

@@ -54,3 +54,7 @@ jobs:
       - name: Verify behavior model is up to date
         working-directory: .
         run: make behavior-model-check
+
+      - name: Verify behavior-trait tripwires fire
+        working-directory: .
+        run: make behavior-traits-test

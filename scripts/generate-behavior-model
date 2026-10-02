@@ -19,7 +19,22 @@ if [[ ! -f "$AST_FILE" ]]; then
     exit 1
 fi
 
-GENERATED=$(jq -S '{
+# Effect and provenance declarations (spec/hey-traits.smithy). The Smithy validators
+# already refuse a model without them; this refuses too, so a validator edited away
+# cannot quietly turn a missing declaration into `false` here.
+GENERATED=$(jq -S '
+def declared($op; $trait):
+  .value.traits["hey.traits#" + $trait] as $v
+  | if $v == null then error("\($op) does not declare @\($trait); see spec/hey-traits.smithy") else $v end;
+def write_effect($trait):
+  if .value.traits["smithy.api#readonly"] != null then false
+  else declared(.key | split("#")[1]; $trait) end;
+def condition:
+  if (has("equals") | not) == (has("notEquals") | not) then
+    error("a heyDraftWhen condition on \(.pointer) needs exactly one of equals and notEquals")
+  elif has("equals") then { pointer, equals }
+  else { pointer, not_equals: .notEquals } end;
+{
   "$schema": "https://hey.com/schemas/behavior-model.json",
   "version": "1.0.0",
   "generated": true,
@@ -30,8 +45,12 @@ GENERATED=$(jq -S '{
       value: (
         {
           readonly: (if .value.traits["smithy.api#readonly"] != null then true else false end),
-          idempotent: (if .value.traits["smithy.api#idempotent"] != null
-                       or .value.traits["hey.traits#heyIdempotent"] != null
+          # @heyIdempotent counts only for what its natural member says: natural: false
+          # is an opt-out (UpdateMessage delivers), and a trait carrying only
+          # keySupported says nothing about resending.
+          idempotent: (if .value.traits["hey.traits#heyIdempotent"].natural == false then false
+                       elif .value.traits["smithy.api#idempotent"] != null
+                         or .value.traits["hey.traits#heyIdempotent"].natural == true
                        then true else false end)
         } +
         # Pagination
@@ -52,6 +71,15 @@ GENERATED=$(jq -S '{
         else
           { retry: { max: 0 } }
         end) +
+        # Effects and provenance
+        {
+          destructive: write_effect("heyDestructive"),
+          open_world: write_effect("heyOpenWorld"),
+          untrusted_content: declared(.key | split("#")[1]; "heyUntrustedContent")
+        } +
+        (if .value.traits["hey.traits#heyDraftWhen"] != null then
+          { draft_when: (.value.traits["hey.traits#heyDraftWhen"] | map(condition)) }
+        else {} end) +
         # Empty-on
         (if .value.traits["hey.traits#heyEmptyOn"] != null then
           { empty_on: .value.traits["hey.traits#heyEmptyOn"].statusCodes }

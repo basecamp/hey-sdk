@@ -96,6 +96,8 @@
         "tags": [
           "Extenzions"
         ],
+        "x-hey-destructive": true,
+        "x-hey-open-world": false,
         "x-hey-retry": {
           "maxAttempts": 2,
           "baseDelayMs": 1000,
@@ -104,7 +106,8 @@
             429,
             503
           ]
-        }
+        },
+        "x-hey-untrusted-content": false
       }
     },
     "/advanced_search.json": {
@@ -277,7 +280,8 @@
             429,
             503
           ]
-        }
+        },
+        "x-hey-untrusted-content": true
       }
     },
     "/advanced_search_filters.json": {
@@ -337,7 +341,8 @@
             429,
             503
           ]
-        }
+        },
+        "x-hey-untrusted-content": false
       }
     },
     "/autocompletable/contacts/addressable.json": {
@@ -409,7 +414,8 @@
             429,
             503
           ]
-        }
+        },
+        "x-hey-untrusted-content": true
       }
     },
     "/boxes.json": {
@@ -473,7 +479,8 @@
             429,
             503
           ]
-        }
+        },
+        "x-hey-untrusted-content": false
       }
     },
     "/boxes/{boxId}": {
@@ -566,7 +573,8 @@
             429,
             503
           ]
-        }
+        },
+        "x-hey-untrusted-content": true
       }
     },
     "/boxes/{boxId}/designations.json": {
@@ -652,6 +660,8 @@
         "tags": [
           "Boxes"
         ],
+        "x-hey-destructive": false,
+        "x-hey-open-world": false,
         "x-hey-retry": {
           "maxAttempts": 2,
           "baseDelayMs": 1000,
@@ -660,7 +670,8 @@
             429,
             503
           ]
-        }
+        },
+        "x-hey-untrusted-content": false
       }
     },
     "/boxes/{boxId}/designations/{designationId}": {
@@ -735,6 +746,8 @@
         "tags": [
           "Boxes"
         ],
+        "x-hey-destructive": false,
+        "x-hey-open-world": false,
         "x-hey-retry": {
           "maxAttempts": 2,
           "baseDelayMs": 1000,
@@ -743,7 +756,8 @@
             429,
             503
           ]
-        }
+        },
+        "x-hey-untrusted-content": false
       }
     },
     "/boxes/{boxId}/groups.json": {
@@ -824,7 +838,8 @@
             429,
             503
           ]
-        }
+        },
+        "x-hey-untrusted-content": false
       },
       "post": {
         "description": "Create a Set Aside group out of a selection of postings.\n\nThis endpoint does not split a comma-joined posting_ids string — send an array.",
@@ -905,6 +920,8 @@
         "tags": [
           "Boxes"
         ],
+        "x-hey-destructive": false,
+        "x-hey-open-world": false,
         "x-hey-retry": {
           "maxAttempts": 2,
           "baseDelayMs": 1000,
@@ -913,7 +930,8 @@
             429,
             503
           ]
-        }
+        },
+        "x-hey-untrusted-content": false
       }
     },
     "/boxes/{boxId}/groups/{groupId}": {
@@ -988,6 +1006,8 @@
         "tags": [
           "Boxes"
         ],
+        "x-hey-destructive": false,
+        "x-hey-open-world": false,
         "x-hey-retry": {
           "maxAttempts": 2,
           "baseDelayMs": 1000,
@@ -996,7 +1016,8 @@
             429,
             503
           ]
-        }
+        },
+        "x-hey-untrusted-content": false
       },
       "get": {
         "description": "Read one Set Aside group with the postings in it.\n\nThe postings are paged like a folder's: newest observed first, 30 to a page, with the\nnext page in the Link header and the total in X-Total-Count.",
@@ -1096,7 +1117,8 @@
             429,
             503
           ]
-        }
+        },
+        "x-hey-untrusted-content": true
       }
     },
     "/boxes/{boxId}/observation.json": {
@@ -1162,6 +1184,8 @@
         "tags": [
           "Boxes"
         ],
+        "x-hey-destructive": false,
+        "x-hey-open-world": false,
         "x-hey-retry": {
           "maxAttempts": 2,
           "baseDelayMs": 1000,
@@ -1170,7 +1194,8 @@
             429,
             503
           ]
-        }
+        },
+        "x-hey-untrusted-content": false
       }
     },
     "/boxes/{boxId}/postings/changes.json": {
@@ -1298,7 +1323,8 @@
             429,
             503
           ]
-        }
+        },
+        "x-hey-untrusted-content": true
       }
     },
     "/bubble_up.json": {
@@ -1368,7 +1394,8 @@
             429,
             503
           ]
-        }
+        },
+        "x-hey-untrusted-content": true
       }
     },
     "/bulk_replies.json": {
@@ -1439,7 +1466,10 @@
         },
         "tags": [
           "Bulk Reply"
-        ]
+        ],
+        "x-hey-destructive": false,
+        "x-hey-open-world": true,
+        "x-hey-untrusted-content": false
       }
     },
     "/bulk_replies/new.json": {
@@ -1521,7 +1551,8 @@
             429,
             503
           ]
-        }
+        },
+        "x-hey-untrusted-content": true
       }
     },
     "/calendar/days.json": {
@@ -1593,7 +1624,8 @@
             429,
             503
           ]
-        }
+        },
+        "x-hey-untrusted-content": true
       }
     },
     "/calendar/days/{day}": {
@@ -1673,7 +1705,8 @@
             429,
             503
           ]
-        }
+        },
+        "x-hey-untrusted-content": true
       }
     },
     "/calendar/days/{day}/habits/{habitId}/completions": {
@@ -1754,6 +1787,8 @@
         "tags": [
           "Calendar Habits"
         ],
+        "x-hey-destructive": false,
+        "x-hey-open-world": false,
         "x-hey-retry": {
           "maxAttempts": 3,
           "baseDelayMs": 1000,
@@ -1762,7 +1797,8 @@
             429,
             503
           ]
-        }
+        },
+        "x-hey-untrusted-content": false
       },
       "post": {
         "description": "Complete a habit for a day",
@@ -1841,9 +1877,11 @@
         "tags": [
           "Calendar Habits"
         ],
+        "x-hey-destructive": false,
         "x-hey-idempotent": {
           "natural": true
         },
+        "x-hey-open-world": false,
         "x-hey-retry": {
           "maxAttempts": 3,
           "baseDelayMs": 1000,
@@ -1852,7 +1890,8 @@
             429,
             503
           ]
-        }
+        },
+        "x-hey-untrusted-content": false
       }
     },
     "/calendar/days/{day}/journal_entry": {
@@ -1932,7 +1971,8 @@
             429,
             503
           ]
-        }
+        },
+        "x-hey-untrusted-content": false
       },
       "patch": {
         "description": "Update the journal entry for a day: writes it, creating it if the day has none, and\nanswers the entry as a recording. Empty content removes the entry instead, and HEY then\nanswers 204 with no body — which is not this shape, so send that through the SDK's own\njournal wrapper rather than here.",
@@ -2022,6 +2062,8 @@
         "tags": [
           "Calendar Journal"
         ],
+        "x-hey-destructive": true,
+        "x-hey-open-world": false,
         "x-hey-retry": {
           "maxAttempts": 2,
           "baseDelayMs": 1000,
@@ -2030,7 +2072,8 @@
             429,
             503
           ]
-        }
+        },
+        "x-hey-untrusted-content": false
       }
     },
     "/calendar/events/{eventId}": {
@@ -2096,6 +2139,8 @@
         "tags": [
           "Calendar Events"
         ],
+        "x-hey-destructive": true,
+        "x-hey-open-world": true,
         "x-hey-retry": {
           "maxAttempts": 3,
           "baseDelayMs": 1000,
@@ -2104,7 +2149,8 @@
             429,
             503
           ]
-        }
+        },
+        "x-hey-untrusted-content": false
       }
     },
     "/calendar/events/{eventId}/occurrences/{occurrence}": {
@@ -2190,6 +2236,8 @@
         "tags": [
           "Calendar Events"
         ],
+        "x-hey-destructive": true,
+        "x-hey-open-world": true,
         "x-hey-retry": {
           "maxAttempts": 3,
           "baseDelayMs": 1000,
@@ -2198,7 +2246,8 @@
             429,
             503
           ]
-        }
+        },
+        "x-hey-untrusted-content": false
       }
     },
     "/calendar/habits.json": {
@@ -2270,6 +2319,8 @@
         "tags": [
           "Calendar Habits"
         ],
+        "x-hey-destructive": false,
+        "x-hey-open-world": false,
         "x-hey-retry": {
           "maxAttempts": 2,
           "baseDelayMs": 1000,
@@ -2278,7 +2329,8 @@
             429,
             503
           ]
-        }
+        },
+        "x-hey-untrusted-content": false
       }
     },
     "/calendar/habits/{habitId}": {
@@ -2344,6 +2396,8 @@
         "tags": [
           "Calendar Habits"
         ],
+        "x-hey-destructive": true,
+        "x-hey-open-world": false,
         "x-hey-retry": {
           "maxAttempts": 2,
           "baseDelayMs": 1000,
@@ -2352,7 +2406,8 @@
             429,
             503
           ]
-        }
+        },
+        "x-hey-untrusted-content": false
       },
       "patch": {
         "description": "Edit a habit. habitId is the recording's id.",
@@ -2443,6 +2498,8 @@
         "tags": [
           "Calendar Habits"
         ],
+        "x-hey-destructive": false,
+        "x-hey-open-world": false,
         "x-hey-retry": {
           "maxAttempts": 2,
           "baseDelayMs": 1000,
@@ -2451,7 +2508,8 @@
             429,
             503
           ]
-        }
+        },
+        "x-hey-untrusted-content": false
       }
     },
     "/calendar/habits/{habitId}/stop.json": {
@@ -2517,6 +2575,8 @@
         "tags": [
           "Calendar Habits"
         ],
+        "x-hey-destructive": false,
+        "x-hey-open-world": false,
         "x-hey-retry": {
           "maxAttempts": 2,
           "baseDelayMs": 1000,
@@ -2525,7 +2585,8 @@
             429,
             503
           ]
-        }
+        },
+        "x-hey-untrusted-content": false
       },
       "post": {
         "description": "Pause a habit, so it stops appearing on the calendar",
@@ -2589,6 +2650,8 @@
         "tags": [
           "Calendar Habits"
         ],
+        "x-hey-destructive": false,
+        "x-hey-open-world": false,
         "x-hey-retry": {
           "maxAttempts": 2,
           "baseDelayMs": 1000,
@@ -2597,7 +2660,8 @@
             429,
             503
           ]
-        }
+        },
+        "x-hey-untrusted-content": false
       }
     },
     "/calendar/identity/first_week_day": {
@@ -2669,6 +2733,8 @@
         "tags": [
           "Identity"
         ],
+        "x-hey-destructive": false,
+        "x-hey-open-world": false,
         "x-hey-retry": {
           "maxAttempts": 3,
           "baseDelayMs": 1000,
@@ -2677,7 +2743,8 @@
             429,
             503
           ]
-        }
+        },
+        "x-hey-untrusted-content": false
       }
     },
     "/calendar/journal_entries": {
@@ -2758,7 +2825,8 @@
             429,
             503
           ]
-        }
+        },
+        "x-hey-untrusted-content": false
       }
     },
     "/calendar/ongoing_time_track.json": {
@@ -2823,7 +2891,8 @@
             429,
             503
           ]
-        }
+        },
+        "x-hey-untrusted-content": false
       },
       "post": {
         "description": "Start a new time track. Takes no body: haystack's\nCalendar::OngoingTimeTracksController#create ignores request parameters and\nstarts a track with defaults; use UpdateTimeTrack to set notes and category_title,\nwhich also stops the track.",
@@ -2893,6 +2962,8 @@
         "tags": [
           "Calendar Time Tracks"
         ],
+        "x-hey-destructive": false,
+        "x-hey-open-world": false,
         "x-hey-retry": {
           "maxAttempts": 2,
           "baseDelayMs": 1000,
@@ -2901,7 +2972,8 @@
             429,
             503
           ]
-        }
+        },
+        "x-hey-untrusted-content": false
       }
     },
     "/calendar/time_tracks.json": {
@@ -2993,7 +3065,8 @@
             429,
             503
           ]
-        }
+        },
+        "x-hey-untrusted-content": false
       },
       "post": {
         "description": "Record a finished stretch of time.\n\nJSON callers send the fields flat; Rails wraps them into calendar_time_track itself.",
@@ -3073,6 +3146,8 @@
         "tags": [
           "Calendar Time Tracks"
         ],
+        "x-hey-destructive": false,
+        "x-hey-open-world": false,
         "x-hey-retry": {
           "maxAttempts": 2,
           "baseDelayMs": 1000,
@@ -3081,7 +3156,8 @@
             429,
             503
           ]
-        }
+        },
+        "x-hey-untrusted-content": false
       }
     },
     "/calendar/time_tracks/categories.json": {
@@ -3141,7 +3217,8 @@
             429,
             503
           ]
-        }
+        },
+        "x-hey-untrusted-content": false
       }
     },
     "/calendar/time_tracks/{timeTrackId}": {
@@ -3207,6 +3284,8 @@
         "tags": [
           "Calendar Time Tracks"
         ],
+        "x-hey-destructive": true,
+        "x-hey-open-world": false,
         "x-hey-retry": {
           "maxAttempts": 2,
           "baseDelayMs": 1000,
@@ -3215,7 +3294,8 @@
             429,
             503
           ]
-        }
+        },
+        "x-hey-untrusted-content": false
       },
       "put": {
         "description": "Update a time track (stop by setting ends_at to current time).\n\nEvery update completes the track, whether or not ends_at is sent, so this cannot\nbe used to adjust a running track: it stops it.\n\nOnly the fields sent are written, so a partial update leaves the rest of the track\nalone. A starts_at or ends_at the server cannot parse is a 400, not a 422.",
@@ -3316,6 +3396,8 @@
         "tags": [
           "Calendar Time Tracks"
         ],
+        "x-hey-destructive": false,
+        "x-hey-open-world": false,
         "x-hey-retry": {
           "maxAttempts": 3,
           "baseDelayMs": 1000,
@@ -3324,7 +3406,8 @@
             429,
             503
           ]
-        }
+        },
+        "x-hey-untrusted-content": false
       }
     },
     "/calendar/todos.json": {
@@ -3396,6 +3479,8 @@
         "tags": [
           "Calendar Todos"
         ],
+        "x-hey-destructive": false,
+        "x-hey-open-world": false,
         "x-hey-retry": {
           "maxAttempts": 2,
           "baseDelayMs": 1000,
@@ -3404,7 +3489,8 @@
             429,
             503
           ]
-        }
+        },
+        "x-hey-untrusted-content": false
       }
     },
     "/calendar/todos/{todoId}": {
@@ -3470,6 +3556,8 @@
         "tags": [
           "Calendar Todos"
         ],
+        "x-hey-destructive": true,
+        "x-hey-open-world": false,
         "x-hey-retry": {
           "maxAttempts": 3,
           "baseDelayMs": 1000,
@@ -3478,7 +3566,8 @@
             429,
             503
           ]
-        }
+        },
+        "x-hey-untrusted-content": false
       },
       "patch": {
         "description": "Edit a calendar todo. todoId is the recording's id, and every field of the payload\nis optional: haystack's `wrap_parameters` accepts title, focused and starts_at, and\nchanges only what is sent.",
@@ -3569,6 +3658,8 @@
         "tags": [
           "Calendar Todos"
         ],
+        "x-hey-destructive": false,
+        "x-hey-open-world": false,
         "x-hey-retry": {
           "maxAttempts": 2,
           "baseDelayMs": 1000,
@@ -3577,7 +3668,8 @@
             429,
             503
           ]
-        }
+        },
+        "x-hey-untrusted-content": false
       }
     },
     "/calendar/todos/{todoId}/completions": {
@@ -3650,6 +3742,8 @@
         "tags": [
           "Calendar Todos"
         ],
+        "x-hey-destructive": false,
+        "x-hey-open-world": false,
         "x-hey-retry": {
           "maxAttempts": 3,
           "baseDelayMs": 1000,
@@ -3658,7 +3752,8 @@
             429,
             503
           ]
-        }
+        },
+        "x-hey-untrusted-content": false
       },
       "post": {
         "description": "Complete a calendar todo",
@@ -3729,9 +3824,11 @@
         "tags": [
           "Calendar Todos"
         ],
+        "x-hey-destructive": false,
         "x-hey-idempotent": {
           "natural": true
         },
+        "x-hey-open-world": false,
         "x-hey-retry": {
           "maxAttempts": 3,
           "baseDelayMs": 1000,
@@ -3740,7 +3837,8 @@
             429,
             503
           ]
-        }
+        },
+        "x-hey-untrusted-content": false
       }
     },
     "/calendar/weeks.json": {
@@ -3822,7 +3920,8 @@
             429,
             503
           ]
-        }
+        },
+        "x-hey-untrusted-content": true
       }
     },
     "/calendar/weeks/{week}": {
@@ -3904,7 +4003,8 @@
             429,
             503
           ]
-        }
+        },
+        "x-hey-untrusted-content": true
       }
     },
     "/calendar/years/{year}": {
@@ -3986,7 +4086,8 @@
             429,
             503
           ]
-        }
+        },
+        "x-hey-untrusted-content": true
       }
     },
     "/calendars.json": {
@@ -4046,7 +4147,8 @@
             429,
             503
           ]
-        }
+        },
+        "x-hey-untrusted-content": true
       }
     },
     "/calendars/{calendarId}/recordings": {
@@ -4154,7 +4256,8 @@
             429,
             503
           ]
-        }
+        },
+        "x-hey-untrusted-content": true
       }
     },
     "/calendars/{calendarId}/toggle": {
@@ -4227,6 +4330,8 @@
         "tags": [
           "Calendars"
         ],
+        "x-hey-destructive": false,
+        "x-hey-open-world": false,
         "x-hey-retry": {
           "maxAttempts": 2,
           "baseDelayMs": 1000,
@@ -4235,7 +4340,8 @@
             429,
             503
           ]
-        }
+        },
+        "x-hey-untrusted-content": false
       }
     },
     "/clearances.json": {
@@ -4317,7 +4423,8 @@
             429,
             503
           ]
-        }
+        },
+        "x-hey-untrusted-content": true
       }
     },
     "/clearances/bulk.json": {
@@ -4389,6 +4496,8 @@
         "tags": [
           "Contacts"
         ],
+        "x-hey-destructive": false,
+        "x-hey-open-world": false,
         "x-hey-retry": {
           "maxAttempts": 2,
           "baseDelayMs": 1000,
@@ -4397,7 +4506,8 @@
             429,
             503
           ]
-        }
+        },
+        "x-hey-untrusted-content": true
       }
     },
     "/clearances/punt.json": {
@@ -4442,6 +4552,8 @@
         "tags": [
           "Contacts"
         ],
+        "x-hey-destructive": true,
+        "x-hey-open-world": false,
         "x-hey-retry": {
           "maxAttempts": 2,
           "baseDelayMs": 1000,
@@ -4450,7 +4562,8 @@
             429,
             503
           ]
-        }
+        },
+        "x-hey-untrusted-content": false
       }
     },
     "/clearances/{clearanceId}": {
@@ -4543,6 +4656,8 @@
         "tags": [
           "Contacts"
         ],
+        "x-hey-destructive": false,
+        "x-hey-open-world": false,
         "x-hey-retry": {
           "maxAttempts": 2,
           "baseDelayMs": 1000,
@@ -4551,7 +4666,8 @@
             429,
             503
           ]
-        }
+        },
+        "x-hey-untrusted-content": true
       }
     },
     "/clips.json": {
@@ -4625,7 +4741,8 @@
             429,
             503
           ]
-        }
+        },
+        "x-hey-untrusted-content": true
       }
     },
     "/collections.json": {
@@ -4685,7 +4802,8 @@
             429,
             503
           ]
-        }
+        },
+        "x-hey-untrusted-content": false
       }
     },
     "/collections/{collectionId}": {
@@ -4778,7 +4896,8 @@
             429,
             503
           ]
-        }
+        },
+        "x-hey-untrusted-content": true
       },
       "patch": {
         "description": "Rename a collection or change its summary",
@@ -4862,6 +4981,8 @@
         "tags": [
           "Collections"
         ],
+        "x-hey-destructive": false,
+        "x-hey-open-world": false,
         "x-hey-retry": {
           "maxAttempts": 2,
           "baseDelayMs": 1000,
@@ -4870,7 +4991,8 @@
             429,
             503
           ]
-        }
+        },
+        "x-hey-untrusted-content": false
       }
     },
     "/contacts.json": {
@@ -4952,7 +5074,8 @@
             429,
             503
           ]
-        }
+        },
+        "x-hey-untrusted-content": true
       },
       "post": {
         "description": "Add a contact. Answers the contact that was created.",
@@ -5032,6 +5155,8 @@
         "tags": [
           "Contacts"
         ],
+        "x-hey-destructive": false,
+        "x-hey-open-world": false,
         "x-hey-retry": {
           "maxAttempts": 2,
           "baseDelayMs": 1000,
@@ -5040,7 +5165,8 @@
             429,
             503
           ]
-        }
+        },
+        "x-hey-untrusted-content": true
       }
     },
     "/contacts/{contactId}": {
@@ -5106,6 +5232,8 @@
         "tags": [
           "Contacts"
         ],
+        "x-hey-destructive": false,
+        "x-hey-open-world": false,
         "x-hey-retry": {
           "maxAttempts": 2,
           "baseDelayMs": 1000,
@@ -5114,7 +5242,8 @@
             429,
             503
           ]
-        }
+        },
+        "x-hey-untrusted-content": false
       },
       "get": {
         "description": "Get a contact, with a page of the threads they are on",
@@ -5205,7 +5334,8 @@
             429,
             503
           ]
-        }
+        },
+        "x-hey-untrusted-content": true
       },
       "patch": {
         "description": "Edit a contact. HEY rewrites the whole contact, so send every field: a name,\naddress or alias left out is cleared. Answers the contact, which is not always\nthe one addressed — promoting an alias makes the alias primary.",
@@ -5306,6 +5436,8 @@
         "tags": [
           "Contacts"
         ],
+        "x-hey-destructive": false,
+        "x-hey-open-world": false,
         "x-hey-retry": {
           "maxAttempts": 2,
           "baseDelayMs": 1000,
@@ -5314,7 +5446,8 @@
             429,
             503
           ]
-        }
+        },
+        "x-hey-untrusted-content": true
       }
     },
     "/contacts/{contactId}/bundle.json": {
@@ -5380,6 +5513,8 @@
         "tags": [
           "Contacts"
         ],
+        "x-hey-destructive": false,
+        "x-hey-open-world": false,
         "x-hey-retry": {
           "maxAttempts": 2,
           "baseDelayMs": 1000,
@@ -5388,7 +5523,8 @@
             429,
             503
           ]
-        }
+        },
+        "x-hey-untrusted-content": false
       },
       "post": {
         "description": "Bundle a contact so their mail arrives grouped",
@@ -5462,6 +5598,8 @@
         "tags": [
           "Contacts"
         ],
+        "x-hey-destructive": false,
+        "x-hey-open-world": false,
         "x-hey-retry": {
           "maxAttempts": 2,
           "baseDelayMs": 1000,
@@ -5470,7 +5608,8 @@
             429,
             503
           ]
-        }
+        },
+        "x-hey-untrusted-content": false
       }
     },
     "/contacts/{contactId}/clearance.json": {
@@ -5556,6 +5695,8 @@
         "tags": [
           "Contacts"
         ],
+        "x-hey-destructive": false,
+        "x-hey-open-world": false,
         "x-hey-retry": {
           "maxAttempts": 2,
           "baseDelayMs": 1000,
@@ -5564,7 +5705,8 @@
             429,
             503
           ]
-        }
+        },
+        "x-hey-untrusted-content": false
       }
     },
     "/contacts/{contactId}/note.json": {
@@ -5630,6 +5772,8 @@
         "tags": [
           "Contacts"
         ],
+        "x-hey-destructive": true,
+        "x-hey-open-world": false,
         "x-hey-retry": {
           "maxAttempts": 2,
           "baseDelayMs": 1000,
@@ -5638,7 +5782,8 @@
             429,
             503
           ]
-        }
+        },
+        "x-hey-untrusted-content": false
       },
       "get": {
         "description": "Read the private note kept on a contact",
@@ -5717,7 +5862,8 @@
             429,
             503
           ]
-        }
+        },
+        "x-hey-untrusted-content": false
       },
       "patch": {
         "description": "Write the private note on a contact, replacing whatever was there",
@@ -5808,6 +5954,8 @@
         "tags": [
           "Contacts"
         ],
+        "x-hey-destructive": false,
+        "x-hey-open-world": false,
         "x-hey-retry": {
           "maxAttempts": 2,
           "baseDelayMs": 1000,
@@ -5816,7 +5964,8 @@
             429,
             503
           ]
-        }
+        },
+        "x-hey-untrusted-content": false
       }
     },
     "/contacts/{contactId}/reveal.json": {
@@ -5889,6 +6038,8 @@
         "tags": [
           "Contacts"
         ],
+        "x-hey-destructive": false,
+        "x-hey-open-world": false,
         "x-hey-retry": {
           "maxAttempts": 2,
           "baseDelayMs": 1000,
@@ -5897,7 +6048,8 @@
             429,
             503
           ]
-        }
+        },
+        "x-hey-untrusted-content": true
       }
     },
     "/entries/drafts.json": {
@@ -5971,7 +6123,8 @@
             429,
             503
           ]
-        }
+        },
+        "x-hey-untrusted-content": true
       }
     },
     "/entries/drafts/{entryId}": {
@@ -6037,6 +6190,8 @@
         "tags": [
           "Entries"
         ],
+        "x-hey-destructive": false,
+        "x-hey-open-world": false,
         "x-hey-retry": {
           "maxAttempts": 2,
           "baseDelayMs": 1000,
@@ -6045,7 +6200,8 @@
             429,
             503
           ]
-        }
+        },
+        "x-hey-untrusted-content": false
       }
     },
     "/entries/{entryId}/forwards/new.json": {
@@ -6126,7 +6282,8 @@
             429,
             503
           ]
-        }
+        },
+        "x-hey-untrusted-content": true
       }
     },
     "/entries/{entryId}/replies.json": {
@@ -6212,6 +6369,18 @@
         "tags": [
           "Entries"
         ],
+        "x-hey-destructive": false,
+        "x-hey-draft-when": [
+          {
+            "pointer": "/entry/status",
+            "equals": "drafted"
+          },
+          {
+            "pointer": "/entry/scheduled_delivery",
+            "notEquals": "true"
+          }
+        ],
+        "x-hey-open-world": true,
         "x-hey-retry": {
           "maxAttempts": 2,
           "baseDelayMs": 1000,
@@ -6220,7 +6389,8 @@
             429,
             503
           ]
-        }
+        },
+        "x-hey-untrusted-content": false
       }
     },
     "/entries/{entryId}/replies/new.json": {
@@ -6301,7 +6471,8 @@
             429,
             503
           ]
-        }
+        },
+        "x-hey-untrusted-content": true
       }
     },
     "/entries/{entryId}/status/spam.json": {
@@ -6367,6 +6538,8 @@
         "tags": [
           "Entries"
         ],
+        "x-hey-destructive": false,
+        "x-hey-open-world": false,
         "x-hey-retry": {
           "maxAttempts": 2,
           "baseDelayMs": 1000,
@@ -6375,7 +6548,8 @@
             429,
             503
           ]
-        }
+        },
+        "x-hey-untrusted-content": false
       }
     },
     "/feedbox.json": {
@@ -6445,7 +6619,8 @@
             429,
             503
           ]
-        }
+        },
+        "x-hey-untrusted-content": true
       }
     },
     "/folders/{folderId}": {
@@ -6538,7 +6713,8 @@
             429,
             503
           ]
-        }
+        },
+        "x-hey-untrusted-content": true
       }
     },
     "/identity.json": {
@@ -6598,7 +6774,8 @@
             429,
             503
           ]
-        }
+        },
+        "x-hey-untrusted-content": false
       }
     },
     "/identity/time_format": {
@@ -6660,6 +6837,8 @@
         "tags": [
           "Identity"
         ],
+        "x-hey-destructive": false,
+        "x-hey-open-world": false,
         "x-hey-retry": {
           "maxAttempts": 3,
           "baseDelayMs": 1000,
@@ -6668,7 +6847,8 @@
             429,
             503
           ]
-        }
+        },
+        "x-hey-untrusted-content": false
       }
     },
     "/imbox.json": {
@@ -6738,7 +6918,8 @@
             429,
             503
           ]
-        }
+        },
+        "x-hey-untrusted-content": true
       }
     },
     "/imbox/seen.json": {
@@ -6808,7 +6989,8 @@
             429,
             503
           ]
-        }
+        },
+        "x-hey-untrusted-content": true
       }
     },
     "/messages.json": {
@@ -6873,6 +7055,18 @@
         "tags": [
           "Messages"
         ],
+        "x-hey-destructive": false,
+        "x-hey-draft-when": [
+          {
+            "pointer": "/entry/status",
+            "equals": "drafted"
+          },
+          {
+            "pointer": "/entry/scheduled_delivery",
+            "notEquals": "true"
+          }
+        ],
+        "x-hey-open-world": true,
         "x-hey-retry": {
           "maxAttempts": 2,
           "baseDelayMs": 1000,
@@ -6881,7 +7075,8 @@
             429,
             503
           ]
-        }
+        },
+        "x-hey-untrusted-content": false
       }
     },
     "/messages/{messageId}": {
@@ -6962,7 +7157,8 @@
             429,
             503
           ]
-        }
+        },
+        "x-hey-untrusted-content": true
       },
       "put": {
         "description": "Revise a message entry (MessagesController#update). With entry.status \"drafted\" the\nentry is saved as a draft (204 + Location, like CreateMessage); without it a draft is\ndelivered through the undo-delay window. A trashed draft is silently restored first.\nThe revision is not a patch: subject, content and any scheduled delivery are rewritten\nfrom this request (an omitted scheduled delivery clears one), while recipients are\nreplaced only when entry.addressed is present.\n\nNot naturally idempotent despite the PUT: without the drafted status this request\n*delivers*, so a transparent retry after an ambiguous first attempt could send the\nmessage again. The client must not retry it.",
@@ -7046,9 +7242,21 @@
         "tags": [
           "Messages"
         ],
+        "x-hey-destructive": false,
+        "x-hey-draft-when": [
+          {
+            "pointer": "/entry/status",
+            "equals": "drafted"
+          },
+          {
+            "pointer": "/entry/scheduled_delivery",
+            "notEquals": "true"
+          }
+        ],
         "x-hey-idempotent": {
           "natural": false
         },
+        "x-hey-open-world": true,
         "x-hey-retry": {
           "maxAttempts": 2,
           "baseDelayMs": 1000,
@@ -7057,7 +7265,8 @@
             429,
             503
           ]
-        }
+        },
+        "x-hey-untrusted-content": false
       }
     },
     "/messages/{messageId}/edit.json": {
@@ -7138,7 +7347,8 @@
             429,
             503
           ]
-        }
+        },
+        "x-hey-untrusted-content": true
       }
     },
     "/my/clearances.json": {
@@ -7212,7 +7422,8 @@
             429,
             503
           ]
-        }
+        },
+        "x-hey-untrusted-content": true
       }
     },
     "/my/clearances/{clearanceId}": {
@@ -7305,6 +7516,8 @@
         "tags": [
           "Contacts"
         ],
+        "x-hey-destructive": false,
+        "x-hey-open-world": false,
         "x-hey-retry": {
           "maxAttempts": 2,
           "baseDelayMs": 1000,
@@ -7313,7 +7526,8 @@
             429,
             503
           ]
-        }
+        },
+        "x-hey-untrusted-content": true
       }
     },
     "/my/navigation.json": {
@@ -7373,7 +7587,8 @@
             429,
             503
           ]
-        }
+        },
+        "x-hey-untrusted-content": false
       }
     },
     "/paper_trail.json": {
@@ -7443,7 +7658,8 @@
             429,
             503
           ]
-        }
+        },
+        "x-hey-untrusted-content": true
       }
     },
     "/postings/box_groups.json": {
@@ -7500,6 +7716,8 @@
         "tags": [
           "Postings"
         ],
+        "x-hey-destructive": false,
+        "x-hey-open-world": false,
         "x-hey-retry": {
           "maxAttempts": 2,
           "baseDelayMs": 1000,
@@ -7508,7 +7726,8 @@
             429,
             503
           ]
-        }
+        },
+        "x-hey-untrusted-content": false
       },
       "post": {
         "description": "Add a selection of postings to a Set Aside group",
@@ -7571,6 +7790,8 @@
         "tags": [
           "Postings"
         ],
+        "x-hey-destructive": false,
+        "x-hey-open-world": false,
         "x-hey-retry": {
           "maxAttempts": 2,
           "baseDelayMs": 1000,
@@ -7579,7 +7800,8 @@
             429,
             503
           ]
-        }
+        },
+        "x-hey-untrusted-content": false
       }
     },
     "/postings/bubble_up.json": {
@@ -7646,6 +7868,8 @@
         "tags": [
           "Postings"
         ],
+        "x-hey-destructive": false,
+        "x-hey-open-world": false,
         "x-hey-retry": {
           "maxAttempts": 2,
           "baseDelayMs": 1000,
@@ -7654,7 +7878,8 @@
             429,
             503
           ]
-        }
+        },
+        "x-hey-untrusted-content": false
       },
       "post": {
         "description": "Schedule a selection of postings to bubble up.\n\nHEY's scheduler takes a `slot` — today, tomorrow, weekend, next_week, surprise_me\nor custom — and a custom slot also carries the `date` (YYYY-MM-DD) to bubble up on,\nat HEY's morning hour. The today slot lands at HEY's evening hour of the current\nday instead, and both hours are UTC over JSON. An unknown slot, or a custom slot\nwithout a date, is a server error rather than a validation response, so callers\ncheck both first. Responds 201 Created.",
@@ -7717,6 +7942,8 @@
         "tags": [
           "Postings"
         ],
+        "x-hey-destructive": false,
+        "x-hey-open-world": false,
         "x-hey-retry": {
           "maxAttempts": 2,
           "baseDelayMs": 1000,
@@ -7725,7 +7952,8 @@
             429,
             503
           ]
-        }
+        },
+        "x-hey-untrusted-content": false
       }
     },
     "/postings/bulk_bubble_up_now.json": {
@@ -7790,6 +8018,8 @@
         "tags": [
           "Postings"
         ],
+        "x-hey-destructive": false,
+        "x-hey-open-world": false,
         "x-hey-retry": {
           "maxAttempts": 2,
           "baseDelayMs": 1000,
@@ -7798,7 +8028,8 @@
             429,
             503
           ]
-        }
+        },
+        "x-hey-untrusted-content": false
       }
     },
     "/postings/filings.json": {
@@ -7874,6 +8105,8 @@
         "tags": [
           "Postings"
         ],
+        "x-hey-destructive": false,
+        "x-hey-open-world": false,
         "x-hey-retry": {
           "maxAttempts": 2,
           "baseDelayMs": 1000,
@@ -7882,7 +8115,8 @@
             429,
             503
           ]
-        }
+        },
+        "x-hey-untrusted-content": false
       },
       "post": {
         "description": "File a selection of postings into an existing folder (label)",
@@ -7945,6 +8179,8 @@
         "tags": [
           "Postings"
         ],
+        "x-hey-destructive": false,
+        "x-hey-open-world": false,
         "x-hey-retry": {
           "maxAttempts": 2,
           "baseDelayMs": 1000,
@@ -7953,7 +8189,8 @@
             429,
             503
           ]
-        }
+        },
+        "x-hey-untrusted-content": false
       }
     },
     "/postings/folders.json": {
@@ -8028,6 +8265,8 @@
         "tags": [
           "Postings"
         ],
+        "x-hey-destructive": false,
+        "x-hey-open-world": false,
         "x-hey-retry": {
           "maxAttempts": 2,
           "baseDelayMs": 1000,
@@ -8036,7 +8275,8 @@
             429,
             503
           ]
-        }
+        },
+        "x-hey-untrusted-content": false
       }
     },
     "/postings/moves.json": {
@@ -8101,6 +8341,8 @@
         "tags": [
           "Postings"
         ],
+        "x-hey-destructive": false,
+        "x-hey-open-world": false,
         "x-hey-retry": {
           "maxAttempts": 2,
           "baseDelayMs": 1000,
@@ -8109,7 +8351,8 @@
             429,
             503
           ]
-        }
+        },
+        "x-hey-untrusted-content": false
       }
     },
     "/postings/mutings.json": {
@@ -8176,6 +8419,8 @@
         "tags": [
           "Postings"
         ],
+        "x-hey-destructive": false,
+        "x-hey-open-world": false,
         "x-hey-retry": {
           "maxAttempts": 2,
           "baseDelayMs": 1000,
@@ -8184,7 +8429,8 @@
             429,
             503
           ]
-        }
+        },
+        "x-hey-untrusted-content": false
       },
       "post": {
         "description": "Mute postings (bulk) — stop notifications for their threads.\nMirrors HEY's Postings::MutingsController#create. Responds 201 Created.",
@@ -8247,6 +8493,8 @@
         "tags": [
           "Postings"
         ],
+        "x-hey-destructive": false,
+        "x-hey-open-world": false,
         "x-hey-retry": {
           "maxAttempts": 2,
           "baseDelayMs": 1000,
@@ -8255,7 +8503,8 @@
             429,
             503
           ]
-        }
+        },
+        "x-hey-untrusted-content": false
       }
     },
     "/postings/seen.json": {
@@ -8310,6 +8559,8 @@
         "tags": [
           "Postings"
         ],
+        "x-hey-destructive": false,
+        "x-hey-open-world": false,
         "x-hey-retry": {
           "maxAttempts": 2,
           "baseDelayMs": 1000,
@@ -8318,7 +8569,8 @@
             429,
             503
           ]
-        }
+        },
+        "x-hey-untrusted-content": false
       }
     },
     "/postings/spam.json": {
@@ -8383,6 +8635,8 @@
         "tags": [
           "Postings"
         ],
+        "x-hey-destructive": false,
+        "x-hey-open-world": false,
         "x-hey-retry": {
           "maxAttempts": 2,
           "baseDelayMs": 1000,
@@ -8391,7 +8645,8 @@
             429,
             503
           ]
-        }
+        },
+        "x-hey-untrusted-content": false
       }
     },
     "/postings/trash.json": {
@@ -8456,6 +8711,8 @@
         "tags": [
           "Postings"
         ],
+        "x-hey-destructive": true,
+        "x-hey-open-world": false,
         "x-hey-retry": {
           "maxAttempts": 2,
           "baseDelayMs": 1000,
@@ -8464,7 +8721,8 @@
             429,
             503
           ]
-        }
+        },
+        "x-hey-untrusted-content": false
       }
     },
     "/postings/unseen.json": {
@@ -8519,6 +8777,8 @@
         "tags": [
           "Postings"
         ],
+        "x-hey-destructive": false,
+        "x-hey-open-world": false,
         "x-hey-retry": {
           "maxAttempts": 2,
           "baseDelayMs": 1000,
@@ -8527,7 +8787,8 @@
             429,
             503
           ]
-        }
+        },
+        "x-hey-untrusted-content": false
       }
     },
     "/postings/{postingId}/bundles/unseen.json": {
@@ -8620,7 +8881,8 @@
             429,
             503
           ]
-        }
+        },
+        "x-hey-untrusted-content": true
       }
     },
     "/rails/active_storage/direct_uploads.json": {
@@ -8691,7 +8953,10 @@
         },
         "tags": [
           "Attachments"
-        ]
+        ],
+        "x-hey-destructive": false,
+        "x-hey-open-world": false,
+        "x-hey-untrusted-content": false
       }
     },
     "/reply_later.json": {
@@ -8761,7 +9026,8 @@
             429,
             503
           ]
-        }
+        },
+        "x-hey-untrusted-content": true
       }
     },
     "/set_aside.json": {
@@ -8831,7 +9097,8 @@
             429,
             503
           ]
-        }
+        },
+        "x-hey-untrusted-content": true
       }
     },
     "/snippets.json": {
@@ -8891,7 +9158,8 @@
             429,
             503
           ]
-        }
+        },
+        "x-hey-untrusted-content": false
       }
     },
     "/stickies.json": {
@@ -8964,7 +9232,8 @@
             429,
             503
           ]
-        }
+        },
+        "x-hey-untrusted-content": false
       },
       "post": {
         "description": "Write a new sticky",
@@ -9034,6 +9303,8 @@
         "tags": [
           "Stickies"
         ],
+        "x-hey-destructive": false,
+        "x-hey-open-world": false,
         "x-hey-retry": {
           "maxAttempts": 2,
           "baseDelayMs": 1000,
@@ -9042,7 +9313,8 @@
             429,
             503
           ]
-        }
+        },
+        "x-hey-untrusted-content": false
       }
     },
     "/stickies/moves.json": {
@@ -9107,6 +9379,8 @@
         "tags": [
           "Stickies"
         ],
+        "x-hey-destructive": false,
+        "x-hey-open-world": false,
         "x-hey-retry": {
           "maxAttempts": 2,
           "baseDelayMs": 1000,
@@ -9115,7 +9389,8 @@
             429,
             503
           ]
-        }
+        },
+        "x-hey-untrusted-content": false
       }
     },
     "/stickies/{stickyId}": {
@@ -9181,6 +9456,8 @@
         "tags": [
           "Stickies"
         ],
+        "x-hey-destructive": true,
+        "x-hey-open-world": false,
         "x-hey-retry": {
           "maxAttempts": 2,
           "baseDelayMs": 1000,
@@ -9189,7 +9466,8 @@
             429,
             503
           ]
-        }
+        },
+        "x-hey-untrusted-content": false
       },
       "patch": {
         "description": "Edit a sticky",
@@ -9280,6 +9558,8 @@
         "tags": [
           "Stickies"
         ],
+        "x-hey-destructive": false,
+        "x-hey-open-world": false,
         "x-hey-retry": {
           "maxAttempts": 2,
           "baseDelayMs": 1000,
@@ -9288,7 +9568,8 @@
             429,
             503
           ]
-        }
+        },
+        "x-hey-untrusted-content": false
       }
     },
     "/topics/everything.json": {
@@ -9362,7 +9643,8 @@
             429,
             503
           ]
-        }
+        },
+        "x-hey-untrusted-content": true
       }
     },
     "/topics/sent.json": {
@@ -9436,7 +9718,8 @@
             429,
             503
           ]
-        }
+        },
+        "x-hey-untrusted-content": true
       }
     },
     "/topics/spam.json": {
@@ -9510,7 +9793,8 @@
             429,
             503
           ]
-        }
+        },
+        "x-hey-untrusted-content": true
       }
     },
     "/topics/spam/all.json": {
@@ -9555,6 +9839,8 @@
         "tags": [
           "Topics"
         ],
+        "x-hey-destructive": true,
+        "x-hey-open-world": false,
         "x-hey-retry": {
           "maxAttempts": 2,
           "baseDelayMs": 1000,
@@ -9563,7 +9849,8 @@
             429,
             503
           ]
-        }
+        },
+        "x-hey-untrusted-content": false
       }
     },
     "/topics/trash.json": {
@@ -9637,7 +9924,8 @@
             429,
             503
           ]
-        }
+        },
+        "x-hey-untrusted-content": true
       }
     },
     "/topics/trash/all.json": {
@@ -9682,6 +9970,8 @@
         "tags": [
           "Topics"
         ],
+        "x-hey-destructive": true,
+        "x-hey-open-world": false,
         "x-hey-retry": {
           "maxAttempts": 2,
           "baseDelayMs": 1000,
@@ -9690,7 +9980,8 @@
             429,
             503
           ]
-        }
+        },
+        "x-hey-untrusted-content": false
       }
     },
     "/topics/{topicId}": {
@@ -9771,7 +10062,8 @@
             429,
             503
           ]
-        }
+        },
+        "x-hey-untrusted-content": true
       }
     },
     "/topics/{topicId}/entries": {
@@ -9864,7 +10156,8 @@
             429,
             503
           ]
-        }
+        },
+        "x-hey-untrusted-content": true
       }
     },
     "/topics/{topicId}/moves.json": {
@@ -9940,6 +10233,8 @@
         "tags": [
           "Topics"
         ],
+        "x-hey-destructive": false,
+        "x-hey-open-world": false,
         "x-hey-retry": {
           "maxAttempts": 2,
           "baseDelayMs": 1000,
@@ -9948,7 +10243,8 @@
             429,
             503
           ]
-        }
+        },
+        "x-hey-untrusted-content": false
       }
     },
     "/topics/{topicId}/publication.json": {
@@ -10039,7 +10335,8 @@
             429,
             503
           ]
-        }
+        },
+        "x-hey-untrusted-content": false
       }
     },
     "/topics/{topicId}/status/active.json": {
@@ -10105,6 +10402,8 @@
         "tags": [
           "Topics"
         ],
+        "x-hey-destructive": false,
+        "x-hey-open-world": false,
         "x-hey-retry": {
           "maxAttempts": 2,
           "baseDelayMs": 1000,
@@ -10113,7 +10412,8 @@
             429,
             503
           ]
-        }
+        },
+        "x-hey-untrusted-content": false
       }
     },
     "/topics/{topicId}/status/ham.json": {
@@ -10179,6 +10479,8 @@
         "tags": [
           "Topics"
         ],
+        "x-hey-destructive": false,
+        "x-hey-open-world": false,
         "x-hey-retry": {
           "maxAttempts": 2,
           "baseDelayMs": 1000,
@@ -10187,7 +10489,8 @@
             429,
             503
           ]
-        }
+        },
+        "x-hey-untrusted-content": false
       }
     },
     "/topics/{topicId}/status/trashed.json": {
@@ -10261,6 +10564,8 @@
         "tags": [
           "Topics"
         ],
+        "x-hey-destructive": false,
+        "x-hey-open-world": false,
         "x-hey-retry": {
           "maxAttempts": 2,
           "baseDelayMs": 1000,
@@ -10269,7 +10574,8 @@
             429,
             503
           ]
-        }
+        },
+        "x-hey-untrusted-content": false
       }
     },
     "/topics/{topicId}/workflows/{workflowId}/stagings": {
@@ -10373,7 +10679,10 @@
         },
         "tags": [
           "Workflows"
-        ]
+        ],
+        "x-hey-destructive": false,
+        "x-hey-open-world": false,
+        "x-hey-untrusted-content": false
       },
       "post": {
         "description": "Add a topic to a workflow. HEY places it in the first stage.",
@@ -10465,7 +10774,10 @@
         },
         "tags": [
           "Workflows"
-        ]
+        ],
+        "x-hey-destructive": false,
+        "x-hey-open-world": false,
+        "x-hey-untrusted-content": false
       }
     },
     "/workflows/{workflowId}": {
@@ -10546,7 +10858,8 @@
             429,
             503
           ]
-        }
+        },
+        "x-hey-untrusted-content": false
       }
     },
     "/workflows/{workflowId}/stages/{stageId}": {
@@ -10636,7 +10949,8 @@
             429,
             503
           ]
-        }
+        },
+        "x-hey-untrusted-content": true
       }
     }
   },
