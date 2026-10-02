@@ -5,9 +5,12 @@ package com.basecamp.hey.generated.services
 import com.basecamp.hey.HeyClient
 import com.basecamp.hey.Page
 import com.basecamp.hey.generated.Routes
+import com.basecamp.hey.generated.models.CreateTopicCommentRequestContent
+import com.basecamp.hey.generated.models.CreateTopicCommentResponseContent
 import com.basecamp.hey.generated.models.GetEverythingTopicsResponseContent
 import com.basecamp.hey.generated.models.GetSentTopicsResponseContent
 import com.basecamp.hey.generated.models.GetSpamTopicsResponseContent
+import com.basecamp.hey.generated.models.GetTopicCommentAudienceResponseContent
 import com.basecamp.hey.generated.models.GetTopicEntriesResponseContent
 import com.basecamp.hey.generated.models.GetTopicResponseContent
 import com.basecamp.hey.generated.models.GetTrashTopicsResponseContent
@@ -52,6 +55,25 @@ data class TrashTopicOptions(
  */
 open class TopicsService(client: HeyClient) : BaseService(client) {
     /**
+     * Add a note to a topic: a comment entry everyone with access to the thread sees,
+     * and which HEY never emails to anyone. On a thread no one else can reach it is a
+     * note to self. Answers the note as an entry of kind "comment", with its id,
+     * topic_id and content, and who it reaches (visible_to, collection_only), as
+     * GetTopicCommentAudience answers before posting.
+     *
+     * The content is HTML, as HEY's composer writes it, so escape plain text before
+     * sending it. Blank content answers 422.
+     * @param topicId The topic ID
+     * @param body Request body
+     */
+    suspend fun createComment(topicId: Long, body: CreateTopicCommentRequestContent): CreateTopicCommentResponseContent {
+        val operation = client.operation(Routes.CREATE_TOPIC_COMMENT, listOf(topicId))
+        operation.resourceId(topicId)
+        operation.json(body)
+        return client.send(operation)
+    }
+
+    /**
      * Empty the spam box. Runs synchronously, so it can take a while on a large mailbox.
      */
     suspend fun emptySpam(): Unit {
@@ -73,6 +95,17 @@ open class TopicsService(client: HeyClient) : BaseService(client) {
      */
     suspend fun get(topicId: Long): GetTopicResponseContent {
         val operation = client.operation(Routes.GET_TOPIC, listOf(topicId))
+        operation.resourceId(topicId)
+        return client.send(operation)
+    }
+
+    /**
+     * Who a note on a topic would reach, as HEY's composer shows it before posting:
+     * nothing is written. The same answer CreateTopicComment gives with the note.
+     * @param topicId The topic ID
+     */
+    suspend fun getCommentAudience(topicId: Long): GetTopicCommentAudienceResponseContent {
+        val operation = client.operation(Routes.GET_TOPIC_COMMENT_AUDIENCE, listOf(topicId))
         operation.resourceId(topicId)
         return client.send(operation)
     }

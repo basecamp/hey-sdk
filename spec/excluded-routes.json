@@ -3200,11 +3200,6 @@
     "reason": "phase-2: topic comments"
   },
   {
-    "method": "POST",
-    "path": "/topics/{topic_id}/comments",
-    "reason": "phase-2: topic comments"
-  },
-  {
     "method": "DELETE",
     "path": "/topics/{topic_id}/comments/{id}",
     "reason": "phase-2: topic comments"

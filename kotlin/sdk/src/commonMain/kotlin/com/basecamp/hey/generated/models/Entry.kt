@@ -37,4 +37,21 @@ data class Entry(
     @SerialName("topic_id")
     val topicId: Long? = null,
     val addressed: Addressed? = null,
+    /**
+     * The entry's body as HTML, as GetMessage serves it. Present on the note
+     * CreateTopicComment answers; the topic's entry index carries summaries only.
+     */
+    val content: String? = null,
+    /**
+     * Who sees the note besides its author. Present on the note CreateTopicComment
+     * answers; see TopicCommentAudience.
+     */
+    @SerialName("visible_to")
+    val visibleTo: List<Contact>? = null,
+    /**
+     * Whether the note is seen only on a collection. Present on the note
+     * CreateTopicComment answers; see TopicCommentAudience.
+     */
+    @SerialName("collection_only")
+    val collectionOnly: Boolean? = null,
 )

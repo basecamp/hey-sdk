@@ -101,6 +101,11 @@
   },
   {
     "method": "POST",
+    "operationId": "CreateTopicComment",
+    "path": "/topics/{topicId}/comments.json"
+  },
+  {
+    "method": "POST",
     "operationId": "CreateWorkflowStaging",
     "path": "/topics/{topicId}/workflows/{workflowId}/stagings"
   },
@@ -333,6 +338,11 @@
     "method": "GET",
     "operationId": "GetTopic",
     "path": "/topics/{topicId}"
+  },
+  {
+    "method": "GET",
+    "operationId": "GetTopicCommentAudience",
+    "path": "/topics/{topicId}/comments/new.json"
   },
   {
     "method": "GET",

@@ -963,6 +963,15 @@ pub type CreateStickyResponseContent = Sticky;
 
 pub type CreateTimeTrackResponseContent = Recording;
 
+/// Wire format: {comment: {content: "<div>…</div>"}}
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+pub struct CreateTopicCommentRequestContent {
+    #[serde(default)]
+    pub comment: TopicCommentPayload,
+}
+
+pub type CreateTopicCommentResponseContent = Entry;
+
 /// DeletedPosting — the stub the changes feed answers with for a posting that is gone
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 #[non_exhaustive]
@@ -1118,6 +1127,18 @@ pub struct Entry {
     pub topic_id: Option<i64>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub addressed: Option<Addressed>,
+    /// The entry's body as HTML, as GetMessage serves it. Present on the note
+    /// CreateTopicComment answers; the topic's entry index carries summaries only.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub content: Option<String>,
+    /// Who sees the note besides its author. Present on the note CreateTopicComment
+    /// answers; see TopicCommentAudience.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub visible_to: Option<Vec<Contact>>,
+    /// Whether the note is seen only on a collection. Present on the note
+    /// CreateTopicComment answers; see TopicCommentAudience.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub collection_only: Option<bool>,
 }
 
 /// Extenzion — external account extension
@@ -1325,6 +1346,8 @@ pub type GetOngoingTimeTrackResponseContent = Recording;
 pub type GetSentTopicsResponseContent = TopicListResponse;
 
 pub type GetSpamTopicsResponseContent = TopicListResponse;
+
+pub type GetTopicCommentAudienceResponseContent = TopicCommentAudience;
 
 pub type GetTopicEntriesResponseContent = Vec<Entry>;
 
@@ -2307,6 +2330,28 @@ pub struct Topic {
     /// GetTopicEntries for the rest and GetMessage for a body.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub entries: Option<Vec<Entry>>,
+}
+
+/// Who a note on a topic reaches.
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[non_exhaustive]
+pub struct TopicCommentAudience {
+    /// The other users with access to the thread, who see the note. Empty when the
+    /// note is a private note for its author alone. Never includes the author.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub visible_to: Option<Vec<Contact>>,
+    /// True on a collection's own thread, where the note is seen only on the collection.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub collection_only: Option<bool>,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+pub struct TopicCommentPayload {
+    #[serde(
+        default,
+        deserialize_with = "crate::types::null_as_default::deserialize"
+    )]
+    pub content: String,
 }
 
 /// TopicListResponse — wrapped topic list (sent, spam, trash, everything)

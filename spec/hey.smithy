@@ -91,6 +91,10 @@ service HEY {
         GetTrashTopics
         GetEverythingTopics
 
+        // Topics — notes
+        GetTopicCommentAudience
+        CreateTopicComment
+
         // Messages (3 MVP)
         GetMessage
         CreateMessage
@@ -606,6 +610,18 @@ structure Entry {
 
     /// Exact recipients, grouped by delivery kind. Present on the latest entry in Sent topics.
     addressed: Addressed
+
+    /// The entry's body as HTML, as GetMessage serves it. Present on the note
+    /// CreateTopicComment answers; the topic's entry index carries summaries only.
+    content: String
+
+    /// Who sees the note besides its author. Present on the note CreateTopicComment
+    /// answers; see TopicCommentAudience.
+    visible_to: ContactList
+
+    /// Whether the note is seen only on a collection. Present on the note
+    /// CreateTopicComment answers; see TopicCommentAudience.
+    collection_only: Boolean
 }
 
 list EntryList {
@@ -1547,6 +1563,80 @@ structure GetTopicEntriesInput {
 structure GetTopicEntriesOutput {
     @required
     entries: EntryList
+}
+
+/// Who a note on a topic would reach, as HEY's composer shows it before posting:
+/// nothing is written. The same answer CreateTopicComment gives with the note.
+@readonly
+@http(method: "GET", uri: "/topics/{topicId}/comments/new.json")
+@tags(["Topics"])
+@heyRetry(maxAttempts: 3, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+@heyUntrustedContent(true)
+operation GetTopicCommentAudience {
+    input: GetTopicInput
+    output: GetTopicCommentAudienceOutput
+    errors: [UnauthorizedError, NotFoundError, InternalServerError, ServiceUnavailableError]
+}
+
+structure GetTopicCommentAudienceOutput {
+    @required
+    audience: TopicCommentAudience
+}
+
+/// Who a note on a topic reaches.
+structure TopicCommentAudience {
+    /// The other users with access to the thread, who see the note. Empty when the
+    /// note is a private note for its author alone. Never includes the author.
+    visible_to: ContactList
+
+    /// True on a collection's own thread, where the note is seen only on the collection.
+    collection_only: Boolean
+}
+
+/// Add a note to a topic: a comment entry everyone with access to the thread sees,
+/// and which HEY never emails to anyone. On a thread no one else can reach it is a
+/// note to self. Answers the note as an entry of kind "comment", with its id,
+/// topic_id and content, and who it reaches (visible_to, collection_only), as
+/// GetTopicCommentAudience answers before posting.
+///
+/// The content is HTML, as HEY's composer writes it, so escape plain text before
+/// sending it. Blank content answers 422.
+@http(method: "POST", uri: "/topics/{topicId}/comments.json", code: 201)
+@tags(["Topics"])
+@heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+@heyDestructive(false)
+@heyOpenWorld(false)
+@heyUntrustedContent(true)
+operation CreateTopicComment {
+    input: CreateTopicCommentInput
+    output: CreateTopicCommentOutput
+    errors: [UnauthorizedError, NotFoundError, UnprocessableEntityError, InternalServerError, ServiceUnavailableError]
+}
+
+structure CreateTopicCommentInput {
+    @httpLabel
+    @required
+    topicId: Long
+
+    @httpPayload
+    @required
+    body: CreateTopicCommentRequestContent
+}
+
+/// Wire format: {comment: {content: "<div>…</div>"}}
+structure CreateTopicCommentRequestContent {
+    @required
+    comment: TopicCommentPayload
+}
+
+structure TopicCommentPayload {
+    @required
+    content: String
+}
+
+structure CreateTopicCommentOutput {
+    @required
+    entry: Entry
 }
 
 /// Get sent topics

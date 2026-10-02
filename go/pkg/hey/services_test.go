@@ -2785,6 +2785,117 @@ func TestTopicsService_TrashWithoutConfirmation(t *testing.T) {
 	}
 }
 
+func TestTopicsService_CreateComment(t *testing.T) {
+	var sent generated.CreateTopicCommentRequestContent
+	client := newJSONWriteTestClient(t, http.MethodPost, "/topics/4471829/comments.json", &sent, http.StatusCreated,
+		`{"id":1019246358,"kind":"comment","topic_id":4471829,"summary":"Can you take a look at the spine?",`+
+			`"creator":{"id":197214974,"name":"Jason Fried","email_address":"jason@example.com"},`+
+			`"app_url":"https://app.hey.com/topics/4471829#__entry_1019246358",`+
+			`"created_at":"2026-10-01T16:59:04.735Z","content":"<div>Can you take a look at the <strong>spine</strong>?</div>",`+
+			`"visible_to":[{"id":140958377,"name":"Andrea LaRowe","email_address":"andrea@example.com"}],"collection_only":false}`)
+
+	entry, err := client.Topics().CreateComment(context.Background(), 4471829, "<div>Can you take a look at the <strong>spine</strong>?</div>")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if sent.Comment.Content != "<div>Can you take a look at the <strong>spine</strong>?</div>" {
+		t.Errorf("expected the content under comment, got %q", sent.Comment.Content)
+	}
+	if entry == nil || entry.Id != 1019246358 || entry.Kind != "comment" || entry.TopicId != 4471829 {
+		t.Fatalf("expected the created note, got %+v", entry)
+	}
+	if entry.Creator.Name != "Jason Fried" || entry.Content == "" || entry.CreatedAt.IsZero() {
+		t.Errorf("expected the creator, content and timestamp decoded, got %+v", entry)
+	}
+	if len(entry.VisibleTo) != 1 || entry.VisibleTo[0].Name != "Andrea LaRowe" || entry.CollectionOnly {
+		t.Errorf("expected the note's audience decoded, got %+v / %v", entry.VisibleTo, entry.CollectionOnly)
+	}
+}
+
+func TestTopicsService_GetCommentAudience(t *testing.T) {
+	client := newJSONWriteTestClient(t, http.MethodGet, "/topics/4471829/comments/new.json", nil, http.StatusOK,
+		`{"visible_to":[{"id":140958377,"name":"Andrea LaRowe","email_address":"andrea@example.com"},`+
+			`{"id":197214974,"name":"Jason Fried","email_address":"jason@example.com"}],"collection_only":false}`)
+
+	audience, err := client.Topics().GetCommentAudience(context.Background(), 4471829)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(audience.VisibleTo) != 2 || audience.VisibleTo[1].EmailAddress != "jason@example.com" || audience.CollectionOnly {
+		t.Errorf("expected two teammates on a thread outside a collection, got %+v", audience)
+	}
+}
+
+func TestTopicsService_GetCommentAudienceForANoteToSelf(t *testing.T) {
+	client := newJSONStatusTestClient(t, http.StatusOK, `{"visible_to":[],"collection_only":true}`)
+
+	audience, err := client.Topics().GetCommentAudience(context.Background(), 4471829)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if audience.VisibleTo == nil || len(audience.VisibleTo) != 0 || !audience.CollectionOnly {
+		t.Errorf("expected an empty, non-nil audience on a collection, got %+v", audience)
+	}
+}
+
+func TestTopicsService_GetCommentAudienceNotFound(t *testing.T) {
+	client := newJSONStatusTestClient(t, http.StatusNotFound, `{"error":"Not found"}`)
+
+	_, err := client.Topics().GetCommentAudience(context.Background(), 4471829)
+
+	var heyErr *Error
+	if !errors.As(err, &heyErr) || heyErr.Code != CodeNotFound {
+		t.Fatalf("expected a not found error, got %v", err)
+	}
+}
+
+func TestTopicsService_CreateCommentWithoutTheNote(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		_, _ = w.Write([]byte("<html><body>Imbox</body></html>"))
+	}))
+	t.Cleanup(server.Close)
+	client := NewClient(&Config{BaseURL: server.URL}, &StaticTokenProvider{Token: "test-token"}, WithMaxRetries(0))
+
+	entry, err := client.Topics().CreateComment(context.Background(), 4471829, "<div>Following up</div>")
+
+	var heyErr *Error
+	if !errors.As(err, &heyErr) || heyErr.Code != CodeAPI || heyErr.HTTPStatus != http.StatusOK {
+		t.Fatalf("expected an API error for a success without the note, got %v", err)
+	}
+	if entry != nil {
+		t.Errorf("expected no entry, got %+v", entry)
+	}
+}
+
+func TestTopicsService_CreateCommentInvalid(t *testing.T) {
+	client := newJSONStatusTestClient(t, http.StatusUnprocessableEntity, `{"errors":["Content can't be blank"]}`)
+
+	entry, err := client.Topics().CreateComment(context.Background(), 4471829, "")
+
+	var heyErr *Error
+	if !errors.As(err, &heyErr) || heyErr.Code != CodeValidation {
+		t.Fatalf("expected a validation error, got %v", err)
+	}
+	if heyErr.Message != "Content can't be blank" {
+		t.Errorf("expected the server's own message, got %q", heyErr.Message)
+	}
+	if entry != nil {
+		t.Errorf("expected no entry, got %+v", entry)
+	}
+}
+
+func TestTopicsService_CreateCommentNotFound(t *testing.T) {
+	client := newJSONStatusTestClient(t, http.StatusNotFound, `{"error":"Not found"}`)
+
+	_, err := client.Topics().CreateComment(context.Background(), 4471829, "<div>Following up</div>")
+
+	var heyErr *Error
+	if !errors.As(err, &heyErr) || heyErr.Code != CodeNotFound || heyErr.HTTPStatus != http.StatusNotFound {
+		t.Fatalf("expected a not found error, got %v", err)
+	}
+}
+
 func TestTopicsService_RestoreAndHam(t *testing.T) {
 	restorer := newRequestTestClient(t, "PUT", "/topics/%s/status/active.json", nil, 204, "")
 	if err := restorer.Topics().Restore(context.Background(), 1); err != nil {
