@@ -414,7 +414,8 @@
             429,
             503
           ]
-        }
+        },
+        "x-hey-untrusted-content": true
       }
     },
     "/boxes.json": {

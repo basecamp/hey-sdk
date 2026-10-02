@@ -2094,6 +2094,7 @@ structure GetContactOutput {
 @http(method: "GET", uri: "/autocompletable/contacts/addressable.json")
 @tags(["Contacts"])
 @heyRetry(maxAttempts: 3, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+@heyUntrustedContent(true)
 operation ListAddressableContacts {
     input: ListAddressableContactsInput
     output: ListAddressableContactsOutput

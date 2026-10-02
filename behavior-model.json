@@ -1239,7 +1239,9 @@
       "untrusted_content": false
     },
     "ListAddressableContacts": {
+      "destructive": false,
       "idempotent": false,
+      "open_world": false,
       "readonly": true,
       "retry": {
         "backoff": "exponential",
@@ -1249,7 +1251,8 @@
           429,
           503
         ]
-      }
+      },
+      "untrusted_content": true
     },
     "ListBoxGroups": {
       "destructive": false,
