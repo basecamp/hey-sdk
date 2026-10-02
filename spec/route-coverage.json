@@ -131,6 +131,11 @@
   },
   {
     "method": "DELETE",
+    "operationId": "DeleteContactAvatar",
+    "path": "/contacts/{contactId}/uploaded_avatar.json"
+  },
+  {
+    "method": "DELETE",
     "operationId": "DeleteContactNote",
     "path": "/contacts/{contactId}/note.json"
   },
@@ -608,6 +613,11 @@
     "method": "PATCH",
     "operationId": "UpdateContact",
     "path": "/contacts/{contactId}"
+  },
+  {
+    "method": "PUT",
+    "operationId": "UpdateContactAvatar",
+    "path": "/contacts/{contactId}/uploaded_avatar.json"
   },
   {
     "method": "PATCH",

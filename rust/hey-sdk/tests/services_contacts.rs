@@ -5,6 +5,7 @@ mod support;
 use std::sync::Arc;
 
 use hey_sdk::ErrorCode;
+use hey_sdk::models::{ContactAvatarPayload, ContactAvatarRequestContent};
 use hey_sdk::services::{ClearanceStatus, ContactConflict, ContactParams};
 use serde_json::{Value, json};
 use wiremock::matchers::{method, path};
@@ -196,6 +197,42 @@ async fn an_update_fills_in_the_fields_it_was_not_given_and_can_promote_an_alias
             "email_address": "j.dawson@example.org",
             "alias_email_addresses": ["j.dawson@example.org"]
         })
+    );
+}
+
+#[tokio::test]
+async fn an_avatar_is_updated_from_a_signed_blob_and_deleted() {
+    let server = MockServer::start().await;
+    Mock::given(method("PUT"))
+        .and(path("/contacts/91824/uploaded_avatar.json"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({ "id": 91824 })))
+        .mount(&server)
+        .await;
+    Mock::given(method("DELETE"))
+        .and(path("/contacts/91824/uploaded_avatar.json"))
+        .respond_with(ResponseTemplate::new(204))
+        .mount(&server)
+        .await;
+    let client = client(&server);
+
+    let contact = client
+        .contacts()
+        .update_avatar(
+            91824,
+            &ContactAvatarRequestContent {
+                contact: ContactAvatarPayload {
+                    uploaded_avatar: "signed-blob-id".to_string(),
+                },
+            },
+        )
+        .await
+        .unwrap();
+    client.contacts().delete_avatar(91824).await.unwrap();
+
+    assert_eq!(contact.id, 91824);
+    assert_eq!(
+        sent_json(&server, 0).await,
+        json!({ "contact": { "uploaded_avatar": "signed-blob-id" } })
     );
 }
 

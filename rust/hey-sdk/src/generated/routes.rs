@@ -634,6 +634,31 @@ pub static DELETE_CALENDAR_TODO: Route = Route {
     },
 };
 
+pub static DELETE_CONTACT_AVATAR: Route = Route {
+    id: "DeleteContactAvatar",
+    service: "Contacts",
+    method: Method::DELETE,
+    path: "/contacts/{contactId}/uploaded_avatar.json",
+    pattern: "/contacts/{contactId}/uploaded_avatar",
+    resource: "Contacts",
+    resource_type: "contact",
+    params: &[RouteParam {
+        name: "contactId",
+        role: ParamRole::Parent,
+        kind: ParamKind::Int64,
+    }],
+    idempotent: true,
+    readonly: false,
+    html: false,
+    empty_on: &[],
+    pagination: Pagination::None,
+    retry: Retry {
+        max: 2,
+        base_delay_ms: 1000,
+        retry_on: &[429, 503],
+    },
+};
+
 pub static DELETE_CONTACT_NOTE: Route = Route {
     id: "DeleteContactNote",
     service: "Contacts",
@@ -2877,6 +2902,31 @@ pub static UPDATE_CONTACT: Route = Route {
     },
 };
 
+pub static UPDATE_CONTACT_AVATAR: Route = Route {
+    id: "UpdateContactAvatar",
+    service: "Contacts",
+    method: Method::PUT,
+    path: "/contacts/{contactId}/uploaded_avatar.json",
+    pattern: "/contacts/{contactId}/uploaded_avatar",
+    resource: "Contacts",
+    resource_type: "contact",
+    params: &[RouteParam {
+        name: "contactId",
+        role: ParamRole::Parent,
+        kind: ParamKind::Int64,
+    }],
+    idempotent: true,
+    readonly: false,
+    html: false,
+    empty_on: &[],
+    pagination: Pagination::None,
+    retry: Retry {
+        max: 2,
+        base_delay_ms: 1000,
+        retry_on: &[429, 503],
+    },
+};
+
 pub static UPDATE_CONTACT_CLEARANCE: Route = Route {
     id: "UpdateContactClearance",
     service: "Contacts",
@@ -3147,6 +3197,7 @@ pub static ROUTES: &[&Route] = &[
     &DELETE_CALENDAR_EVENT,
     &DELETE_CALENDAR_EVENT_OCCURRENCE,
     &DELETE_CALENDAR_TODO,
+    &DELETE_CONTACT_AVATAR,
     &DELETE_CONTACT_NOTE,
     &DELETE_DRAFT,
     &DELETE_EXTENZION,
@@ -3243,6 +3294,7 @@ pub static ROUTES: &[&Route] = &[
     &UPDATE_CLEARANCE,
     &UPDATE_COLLECTION,
     &UPDATE_CONTACT,
+    &UPDATE_CONTACT_AVATAR,
     &UPDATE_CONTACT_CLEARANCE,
     &UPDATE_CONTACT_NOTE,
     &UPDATE_FIRST_WEEK_DAY,

@@ -3620,6 +3620,43 @@ func TestContactsService_CreateInvalid(t *testing.T) {
 	}
 }
 
+func TestContactsService_UpdateAndDeleteAvatar(t *testing.T) {
+	var sent generated.ContactAvatarRequestContent
+	updater := newJSONWriteTestClient(t, http.MethodPut, "/contacts/91824/uploaded_avatar.json", &sent, http.StatusOK,
+		`{"id":91824,"name":"Jane Dawson","avatar_url":"https://example.com/avatar.png"}`)
+
+	contact, err := updater.Contacts().UpdateAvatar(context.Background(), 91824, "signed-blob-id")
+	if err != nil {
+		t.Fatalf("unexpected error updating the avatar: %v", err)
+	}
+	if sent.Contact.UploadedAvatar != "signed-blob-id" {
+		t.Errorf("expected the signed blob ID, got %q", sent.Contact.UploadedAvatar)
+	}
+	if contact == nil || contact.Id != 91824 {
+		t.Errorf("expected the updated contact, got %+v", contact)
+	}
+
+	deleter := newJSONWriteTestClient(t, http.MethodDelete, "/contacts/91824/uploaded_avatar.json", nil, http.StatusNoContent, "")
+	if err := deleter.Contacts().DeleteAvatar(context.Background(), 91824); err != nil {
+		t.Fatalf("unexpected error deleting the avatar: %v", err)
+	}
+}
+
+func TestContactsService_UpdateAvatarInvalid(t *testing.T) {
+	client := newJSONStatusTestClient(t, http.StatusUnprocessableEntity,
+		`{"errors":["Avatar must be a JPEG or PNG image"]}`)
+
+	_, err := client.Contacts().UpdateAvatar(context.Background(), 91824, "signed-blob-id")
+
+	var heyErr *Error
+	if !errors.As(err, &heyErr) || heyErr.Code != CodeValidation {
+		t.Fatalf("expected a validation error, got %v", err)
+	}
+	if heyErr.Message != "Avatar must be a JPEG or PNG image" {
+		t.Errorf("expected the server's own message, got %q", heyErr.Message)
+	}
+}
+
 func TestContactsService_HideAndReveal(t *testing.T) {
 	hider := newJSONWriteTestClient(t, http.MethodDelete, "/contacts/91824.json", nil, http.StatusNoContent, "")
 	if err := hider.Contacts().Hide(context.Background(), 91824); err != nil {

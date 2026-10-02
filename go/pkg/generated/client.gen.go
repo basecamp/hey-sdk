@@ -442,6 +442,16 @@ type Contact struct {
 	UpdatedAt time.Time `json:"updated_at,omitempty,omitzero"`
 }
 
+// ContactAvatarPayload defines model for ContactAvatarPayload.
+type ContactAvatarPayload struct {
+	UploadedAvatar string `json:"uploaded_avatar"`
+}
+
+// ContactAvatarRequestContent Wire format: {contact: {uploaded_avatar: "signed-blob-id"}}
+type ContactAvatarRequestContent struct {
+	Contact ContactAvatarPayload `json:"contact"`
+}
+
 // ContactDetail ContactDetail — extended contact with additional show fields
 type ContactDetail struct {
 	AccountId             int64     `json:"account_id,omitempty"`
@@ -1604,6 +1614,9 @@ type UpdateCollectionRequestContent struct {
 	Collection CollectionPayload `json:"collection"`
 }
 
+// UpdateContactAvatarResponseContent Contact — the identity of someone in HEY
+type UpdateContactAvatarResponseContent = Contact
+
 // UpdateContactClearanceRequestContent Wire format: {status: "approved"|"denied"} — top level, not nested under a clearance key.
 type UpdateContactClearanceRequestContent struct {
 	Status string `json:"status"`
@@ -2045,6 +2058,9 @@ type UpdateContactClearanceJSONRequestBody = UpdateContactClearanceRequestConten
 // UpdateContactNoteJSONRequestBody defines body for UpdateContactNote for application/json ContentType.
 type UpdateContactNoteJSONRequestBody = ContactNoteRequestContent
 
+// UpdateContactAvatarJSONRequestBody defines body for UpdateContactAvatar for application/json ContentType.
+type UpdateContactAvatarJSONRequestBody = ContactAvatarRequestContent
+
 // CreateReplyJSONRequestBody defines body for CreateReply for application/json ContentType.
 type CreateReplyJSONRequestBody = CreateReplyRequestContent
 
@@ -2237,6 +2253,8 @@ var operationRetryPolicies = map[string]RetryPolicy{
 	"GetContactNote":                {MaxAttempts: 3, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
 	"UpdateContactNote":             {MaxAttempts: 2, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
 	"RevealContact":                 {MaxAttempts: 2, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
+	"DeleteContactAvatar":           {MaxAttempts: 2, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
+	"UpdateContactAvatar":           {MaxAttempts: 2, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
 	"ListDrafts":                    {MaxAttempts: 3, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
 	"DeleteDraft":                   {MaxAttempts: 2, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
 	"NewEntryForward":               {MaxAttempts: 3, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
@@ -2945,6 +2963,14 @@ type ClientInterface interface {
 
 	// RevealContact request
 	RevealContact(ctx context.Context, contactId int64, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DeleteContactAvatar request
+	DeleteContactAvatar(ctx context.Context, contactId int64, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// UpdateContactAvatarWithBody request with any body
+	UpdateContactAvatarWithBody(ctx context.Context, contactId int64, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	UpdateContactAvatar(ctx context.Context, contactId int64, body UpdateContactAvatarJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ListDrafts request
 	ListDrafts(ctx context.Context, params *ListDraftsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -3933,6 +3959,33 @@ func (c *Client) RevealContact(ctx context.Context, contactId int64, reqEditors 
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
 		return NewRevealContactRequest(c.Server, contactId)
 	}, false, "RevealContact", reqEditors...)
+}
+
+// DeleteContactAvatar is marked as idempotent and will be retried on transient failures.
+
+func (c *Client) DeleteContactAvatar(ctx context.Context, contactId int64, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	return c.doWithRetry(ctx, func() (*http.Request, error) {
+		return NewDeleteContactAvatarRequest(c.Server, contactId)
+	}, true, "DeleteContactAvatar", reqEditors...)
+}
+
+// UpdateContactAvatarWithBody is marked as idempotent and will be retried on transient failures.
+
+func (c *Client) UpdateContactAvatarWithBody(ctx context.Context, contactId int64, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	body, rewind, finish := resendableBody(body)
+	defer finish()
+	return c.doWithRetry(ctx, func() (*http.Request, error) {
+		if err := rewind(); err != nil {
+			return nil, err
+		}
+		return NewUpdateContactAvatarRequestWithBody(c.Server, contactId, contentType, body)
+	}, true, "UpdateContactAvatar", reqEditors...)
+}
+
+func (c *Client) UpdateContactAvatar(ctx context.Context, contactId int64, body UpdateContactAvatarJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	return c.doWithRetry(ctx, func() (*http.Request, error) {
+		return NewUpdateContactAvatarRequest(c.Server, contactId, body)
+	}, true, "UpdateContactAvatar", reqEditors...)
 }
 
 // ListDrafts is marked as idempotent and will be retried on transient failures.
@@ -7894,6 +7947,87 @@ func NewRevealContactRequest(server string, contactId int64) (*http.Request, err
 	return req, nil
 }
 
+// NewDeleteContactAvatarRequest generates requests for DeleteContactAvatar
+func NewDeleteContactAvatarRequest(server string, contactId int64) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "contactId", runtime.ParamLocationPath, contactId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/contacts/%s/uploaded_avatar.json", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("DELETE", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewUpdateContactAvatarRequest calls the generic UpdateContactAvatar builder with application/json body
+func NewUpdateContactAvatarRequest(server string, contactId int64, body UpdateContactAvatarJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewUpdateContactAvatarRequestWithBody(server, contactId, "application/json", bodyReader)
+}
+
+// NewUpdateContactAvatarRequestWithBody generates requests for UpdateContactAvatar with any type of body
+func NewUpdateContactAvatarRequestWithBody(server string, contactId int64, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "contactId", runtime.ParamLocationPath, contactId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/contacts/%s/uploaded_avatar.json", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("PUT", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
 // NewListDraftsRequest generates requests for ListDrafts
 func NewListDraftsRequest(server string, params *ListDraftsParams) (*http.Request, error) {
 	var err error
@@ -10602,6 +10736,8 @@ var operationMetadata = map[string]OperationMetadata{
 	"GetContactNote":                {Idempotent: true, HasSensitiveParams: false},
 	"UpdateContactNote":             {Idempotent: true, HasSensitiveParams: false},
 	"RevealContact":                 {Idempotent: false, HasSensitiveParams: false},
+	"DeleteContactAvatar":           {Idempotent: true, HasSensitiveParams: false},
+	"UpdateContactAvatar":           {Idempotent: true, HasSensitiveParams: false},
 	"ListDrafts":                    {Idempotent: true, HasSensitiveParams: false},
 	"DeleteDraft":                   {Idempotent: true, HasSensitiveParams: false},
 	"NewEntryForward":               {Idempotent: true, HasSensitiveParams: false},
@@ -11988,6 +12124,29 @@ type ClientWithResponsesInterface interface {
 	//
 	// Returns a wrapper object for the known response body format(s).
 	RevealContactWithResponse(ctx context.Context, contactId int64, reqEditors ...RequestEditorFn) (*RevealContactResponse, error)
+
+	// DeleteContactAvatarWithResponse performs a DELETE /contacts/{contactId}/uploaded_avatar.json (the `DeleteContactAvatar` operationId) request.
+	//
+	// Remove a contact's uploaded avatar and return to their default avatar.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	DeleteContactAvatarWithResponse(ctx context.Context, contactId int64, reqEditors ...RequestEditorFn) (*DeleteContactAvatarResponse, error)
+
+	// UpdateContactAvatarWithBodyWithResponse performs a PUT /contacts/{contactId}/uploaded_avatar.json (the `UpdateContactAvatar` operationId) request,
+	// with any type of body and a specified content type.
+	//
+	// Set a contact's avatar to an already uploaded JPEG or PNG Active Storage blob.
+	// CreateDirectUpload returns the signed blob ID this operation accepts.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	UpdateContactAvatarWithBodyWithResponse(ctx context.Context, contactId int64, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateContactAvatarResponse, error)
+
+	// UpdateContactAvatarWithResponse performs a PUT /contacts/{contactId}/uploaded_avatar.json (the `UpdateContactAvatar` operationId) request.
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Set a contact's avatar to an already uploaded JPEG or PNG Active Storage blob.
+	// CreateDirectUpload returns the signed blob ID this operation accepts.
+	UpdateContactAvatarWithResponse(ctx context.Context, contactId int64, body UpdateContactAvatarJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateContactAvatarResponse, error)
 
 	// ListDraftsWithResponse performs a GET /entries/drafts.json (the `ListDrafts` operationId) request.
 	//
@@ -17372,6 +17531,144 @@ func (r RevealContactResponse) ContentType() string {
 	return ""
 }
 
+type DeleteContactAvatarResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *UnauthorizedErrorResponseContent
+	// JSON404 the response for an HTTP 404 `application/json` response
+	JSON404 *NotFoundErrorResponseContent
+	// JSON500 the response for an HTTP 500 `application/json` response
+	JSON500 *InternalServerErrorResponseContent
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *ServiceUnavailableErrorResponseContent
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r DeleteContactAvatarResponse) GetJSON401() *UnauthorizedErrorResponseContent {
+	return r.JSON401
+}
+
+// GetJSON404 returns the response for an HTTP 404 `application/json` response
+func (r DeleteContactAvatarResponse) GetJSON404() *NotFoundErrorResponseContent {
+	return r.JSON404
+}
+
+// GetJSON500 returns the response for an HTTP 500 `application/json` response
+func (r DeleteContactAvatarResponse) GetJSON500() *InternalServerErrorResponseContent {
+	return r.JSON500
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r DeleteContactAvatarResponse) GetJSON503() *ServiceUnavailableErrorResponseContent {
+	return r.JSON503
+}
+
+// GetBody returns the raw response body bytes
+func (r DeleteContactAvatarResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r DeleteContactAvatarResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DeleteContactAvatarResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r DeleteContactAvatarResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type UpdateContactAvatarResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *UpdateContactAvatarResponseContent
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *UnauthorizedErrorResponseContent
+	// JSON404 the response for an HTTP 404 `application/json` response
+	JSON404 *NotFoundErrorResponseContent
+	// JSON422 the response for an HTTP 422 `application/json` response
+	JSON422 *UnprocessableEntityErrorResponseContent
+	// JSON500 the response for an HTTP 500 `application/json` response
+	JSON500 *InternalServerErrorResponseContent
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *ServiceUnavailableErrorResponseContent
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r UpdateContactAvatarResponse) GetJSON200() *UpdateContactAvatarResponseContent {
+	return r.JSON200
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r UpdateContactAvatarResponse) GetJSON401() *UnauthorizedErrorResponseContent {
+	return r.JSON401
+}
+
+// GetJSON404 returns the response for an HTTP 404 `application/json` response
+func (r UpdateContactAvatarResponse) GetJSON404() *NotFoundErrorResponseContent {
+	return r.JSON404
+}
+
+// GetJSON422 returns the response for an HTTP 422 `application/json` response
+func (r UpdateContactAvatarResponse) GetJSON422() *UnprocessableEntityErrorResponseContent {
+	return r.JSON422
+}
+
+// GetJSON500 returns the response for an HTTP 500 `application/json` response
+func (r UpdateContactAvatarResponse) GetJSON500() *InternalServerErrorResponseContent {
+	return r.JSON500
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r UpdateContactAvatarResponse) GetJSON503() *ServiceUnavailableErrorResponseContent {
+	return r.JSON503
+}
+
+// GetBody returns the raw response body bytes
+func (r UpdateContactAvatarResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r UpdateContactAvatarResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r UpdateContactAvatarResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r UpdateContactAvatarResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type ListDraftsResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -22587,6 +22884,47 @@ func (c *ClientWithResponses) RevealContactWithResponse(ctx context.Context, con
 		return nil, err
 	}
 	return ParseRevealContactResponse(rsp)
+}
+
+// DeleteContactAvatarWithResponse performs a DELETE /contacts/{contactId}/uploaded_avatar.json (the `DeleteContactAvatar` operationId) request.
+//
+// Remove a contact's uploaded avatar and return to their default avatar.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) DeleteContactAvatarWithResponse(ctx context.Context, contactId int64, reqEditors ...RequestEditorFn) (*DeleteContactAvatarResponse, error) {
+	rsp, err := c.DeleteContactAvatar(ctx, contactId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDeleteContactAvatarResponse(rsp)
+}
+
+// UpdateContactAvatarWithBodyWithResponse performs a PUT /contacts/{contactId}/uploaded_avatar.json (the `UpdateContactAvatar` operationId) request,
+// with any type of body and a specified content type.
+//
+// Set a contact's avatar to an already uploaded JPEG or PNG Active Storage blob.
+// CreateDirectUpload returns the signed blob ID this operation accepts.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) UpdateContactAvatarWithBodyWithResponse(ctx context.Context, contactId int64, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateContactAvatarResponse, error) {
+	rsp, err := c.UpdateContactAvatarWithBody(ctx, contactId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpdateContactAvatarResponse(rsp)
+}
+
+// UpdateContactAvatarWithResponse performs a PUT /contacts/{contactId}/uploaded_avatar.json (the `UpdateContactAvatar` operationId) request.
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Set a contact's avatar to an already uploaded JPEG or PNG Active Storage blob.
+// CreateDirectUpload returns the signed blob ID this operation accepts.
+func (c *ClientWithResponses) UpdateContactAvatarWithResponse(ctx context.Context, contactId int64, body UpdateContactAvatarJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateContactAvatarResponse, error) {
+	rsp, err := c.UpdateContactAvatar(ctx, contactId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpdateContactAvatarResponse(rsp)
 }
 
 // ListDraftsWithResponse performs a GET /entries/drafts.json (the `ListDrafts` operationId) request.
@@ -27947,6 +28285,131 @@ func ParseRevealContactResponse(rsp *http.Response) (*RevealContactResponse, err
 				return nil, err
 			}
 			response.JSON404 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+			var dest InternalServerErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON500 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+			var dest ServiceUnavailableErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON503 = &dest
+
+		}
+
+		return response, nil
+	}(); err != nil && rsp.StatusCode/100 == 2 {
+		return nil, err
+	}
+
+	return response, nil
+}
+
+// ParseDeleteContactAvatarResponse parses an HTTP response from a DeleteContactAvatarWithResponse call
+func ParseDeleteContactAvatarResponse(rsp *http.Response) (*DeleteContactAvatarResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DeleteContactAvatarResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	// An undecodable body fails only a 2xx; an error status answers on its own, body or not.
+	if _, err := func() (*DeleteContactAvatarResponse, error) {
+		switch {
+		case rsp.StatusCode == 204:
+			break // No content-type
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+			var dest UnauthorizedErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON401 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+			var dest NotFoundErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON404 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+			var dest InternalServerErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON500 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+			var dest ServiceUnavailableErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON503 = &dest
+
+		}
+
+		return response, nil
+	}(); err != nil && rsp.StatusCode/100 == 2 {
+		return nil, err
+	}
+
+	return response, nil
+}
+
+// ParseUpdateContactAvatarResponse parses an HTTP response from a UpdateContactAvatarWithResponse call
+func ParseUpdateContactAvatarResponse(rsp *http.Response) (*UpdateContactAvatarResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &UpdateContactAvatarResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	// An undecodable body fails only a 2xx; an error status answers on its own, body or not.
+	if _, err := func() (*UpdateContactAvatarResponse, error) {
+		switch {
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+			var dest UpdateContactAvatarResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON200 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+			var dest UnauthorizedErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON401 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+			var dest NotFoundErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON404 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 422:
+			var dest UnprocessableEntityErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON422 = &dest
 
 		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
 			var dest InternalServerErrorResponseContent

@@ -374,6 +374,48 @@ func (s *ContactsService) Update(ctx context.Context, contactID int64, params Co
 	return contact, err
 }
 
+// UpdateAvatar sets a contact's avatar from an uploaded blob's signed ID.
+// Pass DirectUpload.SignedId returned by Attachments.Upload or CreateDirectUpload.
+func (s *ContactsService) UpdateAvatar(ctx context.Context, contactID int64, signedBlobID string) (contact *generated.Contact, err error) {
+	op := OperationInfo{
+		Service: "Contacts", Operation: "UpdateContactAvatar",
+		ResourceType: "contact", IsMutation: true, ResourceID: contactID,
+	}
+
+	err = s.client.instrument(ctx, op, func(ctx context.Context) error {
+		body := generated.ContactAvatarRequestContent{
+			Contact: generated.ContactAvatarPayload{UploadedAvatar: signedBlobID},
+		}
+
+		resp, rerr := s.client.genClient().UpdateContactAvatarWithResponse(ctx, contactID, body)
+		if rerr != nil {
+			return rerr
+		}
+		if cerr := contactWriteError(nil, resp.JSON422, resp.HTTPResponse); cerr != nil {
+			return cerr
+		}
+		contact = resp.JSON200
+		return nil
+	})
+	return contact, err
+}
+
+// DeleteAvatar removes a contact's uploaded avatar and returns them to their default avatar.
+func (s *ContactsService) DeleteAvatar(ctx context.Context, contactID int64) error {
+	op := OperationInfo{
+		Service: "Contacts", Operation: "DeleteContactAvatar",
+		ResourceType: "contact", IsMutation: true, ResourceID: contactID,
+	}
+
+	return s.client.instrument(ctx, op, func(ctx context.Context) error {
+		resp, err := s.client.genClient().DeleteContactAvatarWithResponse(ctx, contactID)
+		if err != nil {
+			return err
+		}
+		return CheckResponse(resp.HTTPResponse)
+	})
+}
+
 // Hide takes a contact out of the contact list. Nothing is deleted — Reveal brings them back.
 func (s *ContactsService) Hide(ctx context.Context, contactID int64) error {
 	op := OperationInfo{

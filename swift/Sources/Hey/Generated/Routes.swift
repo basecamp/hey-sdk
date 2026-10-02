@@ -527,6 +527,27 @@ public enum Routes {
         retry: RetryPolicy(max: 3, baseDelayMs: 1000, retryOn: [429, 503])
     )
 
+    /// `DELETE /contacts/{contactId}/uploaded_avatar.json`
+    public static let deleteContactAvatar = Route(
+        id: "DeleteContactAvatar",
+        service: "Contacts",
+        method: .delete,
+        path: "/contacts/{contactId}/uploaded_avatar.json",
+        pattern: "/contacts/{contactId}/uploaded_avatar",
+        resource: "Contacts",
+        resourceType: "contact",
+        params: [
+            RouteParam(name: "contactId", role: .parent, kind: .int64),
+        ],
+        idempotent: true,
+        readonly: false,
+        html: false,
+        emptyOn: [],
+        pagination: .unpaged,
+        pageParameter: nil,
+        retry: RetryPolicy(max: 2, baseDelayMs: 1000, retryOn: [429, 503])
+    )
+
     /// `DELETE /contacts/{contactId}/note.json`
     public static let deleteContactNote = Route(
         id: "DeleteContactNote",
@@ -2452,6 +2473,27 @@ public enum Routes {
         retry: RetryPolicy(max: 2, baseDelayMs: 1000, retryOn: [429, 503])
     )
 
+    /// `PUT /contacts/{contactId}/uploaded_avatar.json`
+    public static let updateContactAvatar = Route(
+        id: "UpdateContactAvatar",
+        service: "Contacts",
+        method: .put,
+        path: "/contacts/{contactId}/uploaded_avatar.json",
+        pattern: "/contacts/{contactId}/uploaded_avatar",
+        resource: "Contacts",
+        resourceType: "contact",
+        params: [
+            RouteParam(name: "contactId", role: .parent, kind: .int64),
+        ],
+        idempotent: true,
+        readonly: false,
+        html: false,
+        emptyOn: [],
+        pagination: .unpaged,
+        pageParameter: nil,
+        retry: RetryPolicy(max: 2, baseDelayMs: 1000, retryOn: [429, 503])
+    )
+
     /// `PATCH /contacts/{contactId}/clearance.json`
     public static let updateContactClearance = Route(
         id: "UpdateContactClearance",
@@ -2686,6 +2728,7 @@ public enum Routes {
         deleteCalendarEvent,
         deleteCalendarEventOccurrence,
         deleteCalendarTodo,
+        deleteContactAvatar,
         deleteContactNote,
         deleteDraft,
         deleteExtenzion,
@@ -2782,6 +2825,7 @@ public enum Routes {
         updateClearance,
         updateCollection,
         updateContact,
+        updateContactAvatar,
         updateContactClearance,
         updateContactNote,
         updateFirstWeekDay,

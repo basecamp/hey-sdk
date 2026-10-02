@@ -6,7 +6,7 @@ operation) or a hand-written convenience (`src/services/*.rs`). Parity is semant
 request with the same behaviour — not one method name per method name: Rust types what Go
 passes as strings and zero values, and answers `Page<T>` where Go unwraps the payload.
 
-Counts at the time of writing: 203 Go methods; 132 modelled operations, each a Rust route and
+Counts at the time of writing: 207 Go methods; 134 modelled operations, each a Rust route and
 a generated method; 123 Rust conveniences. Every Go method has a Rust route to the same
 request except the waivers at the end. Both runners dispatch the whole shared conformance
 suite.

@@ -106,6 +106,31 @@ describe("HEY transport", () => {
     expectTypeOf(result.data).toEqualTypeOf<string[][] | undefined>();
     expect(result.data).toEqual(rows);
   });
+  it("updates and deletes a contact avatar", async () => {
+    const m = mock([
+      json({ id: 91824, avatar_url: "https://example.com/avatar.png" }),
+      new Response(null, { status: 204 }),
+    ]);
+    const client = new HeyClient({ token: "secret", fetch: m.fetch });
+
+    const updated = await client.updateContactAvatar({
+      path: { contactId: 91824 },
+      body: { contact: { uploaded_avatar: "signed-blob-id" } },
+    });
+    await client.deleteContactAvatar({ path: { contactId: 91824 } });
+
+    expect(updated.data).toMatchObject({ id: 91824 });
+    expect(new URL(m.requests[0]!.url).pathname).toBe(
+      "/contacts/91824/uploaded_avatar.json",
+    );
+    expect(await m.requests[0]!.json()).toEqual({
+      contact: { uploaded_avatar: "signed-blob-id" },
+    });
+    expect(m.requests[1]!.method).toBe("DELETE");
+    expect(new URL(m.requests[1]!.url).pathname).toBe(
+      "/contacts/91824/uploaded_avatar.json",
+    );
+  });
   it("requests and returns modeled HTML without inventing a JSON representation", async () => {
     const html = '<section id="container_workflow_stage_5512">Applied</section>';
     const m = mock([

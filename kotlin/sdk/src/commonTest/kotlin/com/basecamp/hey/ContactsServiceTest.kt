@@ -1,6 +1,8 @@
 package com.basecamp.hey
 
 import com.basecamp.hey.generated.contacts
+import com.basecamp.hey.generated.models.ContactAvatarPayload
+import com.basecamp.hey.generated.models.ContactAvatarRequestContent
 import com.basecamp.hey.services.AddressableRecipient
 import com.basecamp.hey.services.ClearanceStatus
 import com.basecamp.hey.services.ContactConflict
@@ -105,6 +107,25 @@ class ContactsServiceTest {
         val hey = mockHey(status(422, """{"errors":["Name can't be blank","Email address is invalid"]}"""))
         val error = assertFailsWith<HeyException.Validation> { hey.client().contacts.createContact(ContactParams()) }
         assertEquals("Name can't be blank; Email address is invalid", error.message)
+    }
+
+    @Test
+    fun anAvatarIsUpdatedFromASignedBlobAndDeleted() = runTest {
+        val hey = mockHey(ok("""{"id":77,"avatar_url":"https://example.com/avatar.png"}"""), status(204))
+        val client = hey.client()
+
+        val updated = client.contacts.updateAvatar(
+            77,
+            ContactAvatarRequestContent(ContactAvatarPayload("signed-blob-id")),
+        )
+        client.contacts.deleteAvatar(77)
+
+        assertEquals(77L, updated.id)
+        assertEquals("PUT", hey.requests[0].method)
+        assertEquals("/contacts/77/uploaded_avatar.json", hey.requests[0].path)
+        assertEquals("signed-blob-id", contact(hey.requests[0]).getValue("uploaded_avatar").jsonPrimitive.content)
+        assertEquals("DELETE", hey.requests[1].method)
+        assertEquals("/contacts/77/uploaded_avatar.json", hey.requests[1].path)
     }
 
     @Test

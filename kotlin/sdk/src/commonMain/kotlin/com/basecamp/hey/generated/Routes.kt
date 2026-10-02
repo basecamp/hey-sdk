@@ -539,6 +539,27 @@ object Routes {
         retry = RetryPolicy(max = 3, baseDelayMs = 1000L, retryOn = listOf(429, 503)),
     )
 
+    /** `DELETE /contacts/{contactId}/uploaded_avatar.json` */
+    val DELETE_CONTACT_AVATAR: Route = Route(
+        id = "DeleteContactAvatar",
+        service = "Contacts",
+        method = Method.DELETE,
+        path = "/contacts/{contactId}/uploaded_avatar.json",
+        pattern = "/contacts/{contactId}/uploaded_avatar",
+        resource = "Contacts",
+        resourceType = "contact",
+        params = listOf(
+            RouteParam("contactId", ParamRole.PARENT, ParamKind.INT64),
+        ),
+        idempotent = true,
+        readonly = false,
+        html = false,
+        emptyOn = emptyList(),
+        pagination = Pagination.NONE,
+        pageParameter = null,
+        retry = RetryPolicy(max = 2, baseDelayMs = 1000L, retryOn = listOf(429, 503)),
+    )
+
     /** `DELETE /contacts/{contactId}/note.json` */
     val DELETE_CONTACT_NOTE: Route = Route(
         id = "DeleteContactNote",
@@ -2464,6 +2485,27 @@ object Routes {
         retry = RetryPolicy(max = 2, baseDelayMs = 1000L, retryOn = listOf(429, 503)),
     )
 
+    /** `PUT /contacts/{contactId}/uploaded_avatar.json` */
+    val UPDATE_CONTACT_AVATAR: Route = Route(
+        id = "UpdateContactAvatar",
+        service = "Contacts",
+        method = Method.PUT,
+        path = "/contacts/{contactId}/uploaded_avatar.json",
+        pattern = "/contacts/{contactId}/uploaded_avatar",
+        resource = "Contacts",
+        resourceType = "contact",
+        params = listOf(
+            RouteParam("contactId", ParamRole.PARENT, ParamKind.INT64),
+        ),
+        idempotent = true,
+        readonly = false,
+        html = false,
+        emptyOn = emptyList(),
+        pagination = Pagination.NONE,
+        pageParameter = null,
+        retry = RetryPolicy(max = 2, baseDelayMs = 1000L, retryOn = listOf(429, 503)),
+    )
+
     /** `PATCH /contacts/{contactId}/clearance.json` */
     val UPDATE_CONTACT_CLEARANCE: Route = Route(
         id = "UpdateContactClearance",
@@ -2698,6 +2740,7 @@ object Routes {
         DELETE_CALENDAR_EVENT,
         DELETE_CALENDAR_EVENT_OCCURRENCE,
         DELETE_CALENDAR_TODO,
+        DELETE_CONTACT_AVATAR,
         DELETE_CONTACT_NOTE,
         DELETE_DRAFT,
         DELETE_EXTENZION,
@@ -2794,6 +2837,7 @@ object Routes {
         UPDATE_CLEARANCE,
         UPDATE_COLLECTION,
         UPDATE_CONTACT,
+        UPDATE_CONTACT_AVATAR,
         UPDATE_CONTACT_CLEARANCE,
         UPDATE_CONTACT_NOTE,
         UPDATE_FIRST_WEEK_DAY,

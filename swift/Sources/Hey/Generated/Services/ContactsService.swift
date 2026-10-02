@@ -51,6 +51,16 @@ public final class ContactsService: BaseService, @unchecked Sendable {
         return try await client.send(operation)
     }
 
+    /// Remove a contact's uploaded avatar and return to their default avatar.
+    ///
+    /// - Parameters:
+    ///   - contactId: The contact ID
+    public func deleteAvatar(contactId: Int) async throws {
+        var operation = try client.operation(Routes.deleteContactAvatar, [contactId])
+        operation.resourceId(contactId)
+        return try await client.sendVoid(operation)
+    }
+
     /// Clear the private note on a contact
     ///
     /// - Parameters:
@@ -154,6 +164,19 @@ public final class ContactsService: BaseService, @unchecked Sendable {
     ///   - body: Request body
     public func update(contactId: Int, body: ContactRequestContent) async throws -> UpdateContactResponseContent {
         var operation = try client.operation(Routes.updateContact, [contactId])
+        operation.resourceId(contactId)
+        try operation.json(body)
+        return try await client.send(operation)
+    }
+
+    /// Set a contact's avatar to an already uploaded JPEG or PNG Active Storage blob.
+    /// CreateDirectUpload returns the signed blob ID this operation accepts.
+    ///
+    /// - Parameters:
+    ///   - contactId: The contact ID
+    ///   - body: Request body
+    public func updateAvatar(contactId: Int, body: ContactAvatarRequestContent) async throws -> UpdateContactAvatarResponseContent {
+        var operation = try client.operation(Routes.updateContactAvatar, [contactId])
         operation.resourceId(contactId)
         try operation.json(body)
         return try await client.send(operation)

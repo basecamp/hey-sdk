@@ -1906,6 +1906,56 @@ export const operationMetadata = {
     "actingSender": false,
     "actingUser": false
   },
+  "DeleteContactAvatar": {
+    "method": "DELETE",
+    "path": "/contacts/{contactId}/uploaded_avatar.json",
+    "parameters": [
+      {
+        "name": "contactId",
+        "in": "path",
+        "required": true,
+        "type": "integer"
+      }
+    ],
+    "bodyRequired": false,
+    "safe": true,
+    "retry": {
+      "maxAttempts": 2,
+      "baseDelayMs": 1000,
+      "backoff": "exponential",
+      "retryOn": [
+        429,
+        503
+      ]
+    },
+    "actingSender": false,
+    "actingUser": false
+  },
+  "UpdateContactAvatar": {
+    "method": "PUT",
+    "path": "/contacts/{contactId}/uploaded_avatar.json",
+    "parameters": [
+      {
+        "name": "contactId",
+        "in": "path",
+        "required": true,
+        "type": "integer"
+      }
+    ],
+    "bodyRequired": true,
+    "safe": true,
+    "retry": {
+      "maxAttempts": 2,
+      "baseDelayMs": 1000,
+      "backoff": "exponential",
+      "retryOn": [
+        429,
+        503
+      ]
+    },
+    "actingSender": false,
+    "actingUser": false
+  },
   "ListDrafts": {
     "method": "GET",
     "path": "/entries/drafts.json",
@@ -3793,6 +3843,17 @@ export class GeneratedOperations {
   /** Put a hidden contact back in the contact list */
   revealContact(input: OperationInput<"RevealContact">, options?: RequestOptions): Promise<OperationResponse<"RevealContact">> {
     return this.transport.execute("RevealContact", input, options);
+  }
+
+  /** Remove a contact's uploaded avatar and return to their default avatar. */
+  deleteContactAvatar(input: OperationInput<"DeleteContactAvatar">, options?: RequestOptions): Promise<OperationResponse<"DeleteContactAvatar">> {
+    return this.transport.execute("DeleteContactAvatar", input, options);
+  }
+
+  /** Set a contact's avatar to an already uploaded JPEG or PNG Active Storage blob.
+   * CreateDirectUpload returns the signed blob ID this operation accepts. */
+  updateContactAvatar(input: OperationInput<"UpdateContactAvatar">, options?: RequestOptions): Promise<OperationResponse<"UpdateContactAvatar">> {
+    return this.transport.execute("UpdateContactAvatar", input, options);
   }
 
   /** List draft messages */

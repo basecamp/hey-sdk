@@ -2560,6 +2560,84 @@
     ]
   },
   {
+    "name": "UpdateContactAvatar uses /contacts/{contactId}/uploaded_avatar.json path",
+    "description": "Verifies that UpdateContactAvatar sends the signed blob ID to the contact avatar path",
+    "operation": "UpdateContactAvatar",
+    "method": "PUT",
+    "path": "/contacts/{contactId}/uploaded_avatar.json",
+    "pathParams": {
+      "contactId": 91824
+    },
+    "requestBody": {
+      "uploaded_avatar": "signed-blob-id"
+    },
+    "mockResponses": [
+      {
+        "status": 200,
+        "body": {
+          "id": 91824,
+          "avatar_url": "https://example.com/avatar.png"
+        }
+      }
+    ],
+    "assertions": [
+      {
+        "type": "requestPath",
+        "expected": "/contacts/91824/uploaded_avatar.json"
+      },
+      {
+        "type": "requestMethod",
+        "expected": "PUT"
+      },
+      {
+        "type": "requestBody",
+        "expected": {
+          "contact.uploaded_avatar": "signed-blob-id"
+        }
+      },
+      {
+        "type": "noError"
+      }
+    ],
+    "tags": [
+      "path",
+      "contacts"
+    ]
+  },
+  {
+    "name": "DeleteContactAvatar uses /contacts/{contactId}/uploaded_avatar.json path",
+    "description": "Verifies that DeleteContactAvatar removes an uploaded avatar through the contact avatar path",
+    "operation": "DeleteContactAvatar",
+    "method": "DELETE",
+    "path": "/contacts/{contactId}/uploaded_avatar.json",
+    "pathParams": {
+      "contactId": 91824
+    },
+    "mockResponses": [
+      {
+        "status": 204,
+        "body": {}
+      }
+    ],
+    "assertions": [
+      {
+        "type": "requestPath",
+        "expected": "/contacts/91824/uploaded_avatar.json"
+      },
+      {
+        "type": "requestMethod",
+        "expected": "DELETE"
+      },
+      {
+        "type": "noError"
+      }
+    ],
+    "tags": [
+      "path",
+      "contacts"
+    ]
+  },
+  {
     "name": "GetContactNote uses /contacts/{contactId}/note.json path",
     "description": "Verifies that GetContactNote constructs the URL path /contacts/{contactId}/note.json",
     "operation": "GetContactNote",

@@ -509,6 +509,14 @@
       "operation": "RevealContact"
     },
     {
+      "name": "UpdateContactAvatar uses /contacts/{contactId}/uploaded_avatar.json path",
+      "operation": "UpdateContactAvatar"
+    },
+    {
+      "name": "DeleteContactAvatar uses /contacts/{contactId}/uploaded_avatar.json path",
+      "operation": "DeleteContactAvatar"
+    },
+    {
       "name": "GetContactNote uses /contacts/{contactId}/note.json path",
       "operation": "GetContactNote"
     },
