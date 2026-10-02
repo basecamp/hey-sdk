@@ -17,7 +17,7 @@ GitHub Actions remains the authority for the exact pull-request head and support
 
 ## Current local result
 
-The final review-fix working tree passed:
+A working tree from before the suite reached 198 fixtures passed:
 
 ```text
 node --version   # v26.7.0
