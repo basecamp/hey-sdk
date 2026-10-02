@@ -220,6 +220,26 @@ func TestClearancesService_Screen(t *testing.T) {
 	}
 }
 
+// HEY's CSRF check answers a cookie-authenticated write with an empty 403 under a JSON
+// content type. The caller gets the 403, not the empty body's decode error.
+func TestClearancesService_ScreenEmptyForbiddenIsForbidden(t *testing.T) {
+	for _, body := range []string{"", `{"message":"Forbidden"}`} {
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json; charset=utf-8")
+			w.WriteHeader(http.StatusForbidden)
+			_, _ = io.WriteString(w, body)
+		}))
+		client := NewClient(&Config{BaseURL: srv.URL}, &StaticTokenProvider{Token: "t"}, WithMaxRetries(0))
+
+		_, err := client.Clearances().Screen(context.Background(), 91, ClearanceApproved, ScreenOptions{})
+		srv.Close()
+
+		if e := AsError(err); e == nil || e.Code != CodeForbidden || e.HTTPStatus != http.StatusForbidden {
+			t.Errorf("body %q: expected a 403 forbidden error, got %#v", body, err)
+		}
+	}
+}
+
 // The Screener only takes a decision. Anything else is a caller bug, and HEY answers 403,
 // so it is worth catching before the round trip.
 func TestClearancesService_ScreenRejectsOtherStatuses(t *testing.T) {
