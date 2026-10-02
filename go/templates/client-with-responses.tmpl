@@ -1,5 +1,5 @@
 {{- /* Copied from oapi-codegen v2.8.0 pkg/codegen/templates/client-with-responses.tmpl,
-changed only in the Parse functions' body decoding. Refresh from upstream when the
+changed only in the Parse functions' body reading and decoding. Refresh from upstream when the
 oapi-codegen version in go.mod moves. */ -}}
 // ClientWithResponses builds on ClientInterface to offer response payloads
 type ClientWithResponses struct {
@@ -183,17 +183,41 @@ func (r {{genResponseTypeName $opid | ucFirst}}) ContentType() string {
 {{/* Generate parse functions for responses*/}}
 {{range .}}{{$opid := .OperationId}}
 
+{{- /* HEY: an operation marked x-hey-lenient-success (the heyLenientSuccess trait) has done
+its work once HEY answers a success — a message it has delivered — so a 2xx whose body cannot
+be read or does not decode parses without an error, its typed payload left nil. A caller told
+such a write failed would do it again. A status outside 2xx answers as it does for every
+operation. */ -}}
+{{- /* The extension's value is an empty object, which a template reads as false: test
+for the key instead. */ -}}
+{{$lenient := ne (printf "%v" (index .Spec.Extensions "x-hey-lenient-success")) "<nil>" -}}
 // Parse{{genResponseTypeName $opid | ucFirst}} parses an HTTP response from a {{$opid}}WithResponse call
 func Parse{{genResponseTypeName $opid | ucFirst}}(rsp *http.Response) (*{{genResponseTypeName $opid}}, error) {
     bodyBytes, err := io.ReadAll(rsp.Body)
     defer func() { _ = rsp.Body.Close() }()
     if err != nil {
+        {{- if $lenient}}
+        // A body past the size limit or lost mid-stream is no body; the caller's own
+        // cancellation or deadline is still the caller's error.
+        if rsp.StatusCode >= 200 && rsp.StatusCode < 300 && !errors.Is(err, context.Canceled) && !errors.Is(err, context.DeadlineExceeded) {
+            return &{{genResponseTypeName $opid}}{HTTPResponse: rsp}, nil
+        }
+        {{- end}}
         return nil, err
     }
 
     response := {{genResponsePayload $opid}}
 
     {{- with genResponseUnmarshal .}}
+    {{- if $lenient}}
+
+    // A lenient success has done its work once HEY answers a 2xx, and an error status answers
+    // on its own, so an undecodable body fails neither: its payload is left nil.
+    _, _ = func() (*{{genResponseTypeName $opid}}, error) {
+        {{.}}
+        return response, nil
+    }()
+    {{- else}}
 
     // An undecodable body fails only a 2xx; an error status answers on its own, body or not.
     if _, err := func() (*{{genResponseTypeName $opid}}, error) {
@@ -202,6 +226,7 @@ func Parse{{genResponseTypeName $opid | ucFirst}}(rsp *http.Response) (*{{genRes
     }(); err != nil && rsp.StatusCode/100 == 2 {
         return nil, err
     }
+    {{- end}}
     {{- end}}
     {{- /* Bind declared response headers into the typed Headers<StatusCode>
     fields. Binding is lenient: an absent header (even a required one) leaves

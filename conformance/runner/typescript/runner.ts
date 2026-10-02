@@ -158,11 +158,16 @@ async function run(tc: Fixture) {
       const mock = tc.mockResponses[index];
       if (!mock) throw new Error(`Unexpected request ${index + 1}`);
       if (mock.delay) await new Promise((r) => setTimeout(r, mock.delay));
-      res.writeHead(mock.status, {
-        "Content-Type": "application/json",
-        ...mock.headers,
-      });
-      res.end(serializeMockResponseBody(mock.body));
+      const headers = { "Content-Type": "application/json", ...mock.headers };
+      res.writeHead(mock.status, headers);
+      // An HTML fixture is already wire text, as every runner serves it; a JSON fixture is a
+      // structured value.
+      res.end(
+        typeof mock.body === "string" &&
+          headers["Content-Type"].startsWith("text/html")
+          ? mock.body
+          : serializeMockResponseBody(mock.body),
+      );
     } catch (error) {
       serverFailure = error as Error;
       res.writeHead(500);

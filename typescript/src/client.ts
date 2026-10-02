@@ -68,6 +68,12 @@ type Metadata = {
   };
   pagination?: { style: string; pageParameter?: string };
   emptyOn?: readonly number[];
+  /**
+   * The operation's work is done once HEY answers a success — a message HEY has delivered —
+   * so a 2xx whose body cannot be read or does not decode answers no data rather than an
+   * error: a caller told such a write failed would do it again.
+   */
+  lenientSuccess?: true;
   responseMediaType?: "text/html";
 };
 type RawInput = {
@@ -343,7 +349,21 @@ class HttpTransport implements Transport {
         // Mutations are not replayed after an ambiguous network failure.
         networkFailure(cause, signal);
       }
-      let text = await readBounded(response, this.maxBytes, signal);
+      let text: string;
+      try {
+        text = await readBounded(response, this.maxBytes, signal);
+      } catch (error) {
+        signal.throwIfAborted();
+        // An operation whose work is done once HEY answers a success reads a 2xx body it
+        // could not hold, or lost mid-read, as no body: the write went through either way.
+        if (
+          !meta.lenientSuccess ||
+          response.status < 200 ||
+          response.status >= 300
+        )
+          throw error;
+        text = "";
+      }
       if (
         response.status === 401 &&
         !refreshed &&
@@ -409,7 +429,7 @@ class HttpTransport implements Transport {
         try {
           data = parseJSON(text);
         } catch (cause) {
-          if (successful)
+          if (successful && !meta.lenientSuccess)
             throw new HeyError(
               "api_error",
               "Invalid JSON response",

@@ -52,7 +52,7 @@ openapi.json + behavior-model.json -> rust/generator -> rust/hey-sdk/src/generat
 
 `rust/generator` is a small Rust binary that reads `openapi.json` and `behavior-model.json`
 and writes `types.rs` (every schema), `routes.rs` (one `Route` static per operation, with
-idempotency, empty-on statuses, pagination style and the retry policy) and
+idempotency, empty-on statuses, lenient success, pagination style and the retry policy) and
 `services/*.rs` (one struct per service, one async method per operation). A route's
 `idempotent` — what lets the retry loop resend it — is the spec's explicit
 `x-hey-idempotent.natural` when there is one, otherwise the behavior model's own `readonly`
@@ -210,8 +210,8 @@ does not show up in them.
 `kotlin/generator` is a small Kotlin program, run through the Gradle build under `kotlin/`,
 that reads `openapi.json`, `behavior-model.json` and `kotlin/generator/names.toml` and
 writes `models/<Schema>.kt` (one `@Serializable` data class or typealias per schema),
-`Routes.kt` (one `Route` per operation, with idempotency, empty-on statuses, pagination style
-and the retry policy), `services/<Service>Service.kt` (one class per service, one suspend
+`Routes.kt` (one `Route` per operation, with idempotency, empty-on statuses, lenient success,
+pagination style and the retry policy), `services/<Service>Service.kt` (one class per service, one suspend
 method per operation) and `ServiceAccessors.kt`. The hand-written core in
 `kotlin/sdk/src/commonMain/kotlin/com/basecamp/hey` (client, retries, cache, auth,
 pagination, account scope) knows nothing about individual operations; everything

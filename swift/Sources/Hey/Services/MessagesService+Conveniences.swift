@@ -82,12 +82,15 @@ public struct DraftContent: Sendable, Equatable {
 /// Delivery and draft conveniences on top of the generated surface (`create`, `update`, `get`,
 /// `getEdit`).
 extension MessagesService {
-    /// Delivers a new message through HEY's undo-delay window. Delivery needs somebody to deliver
-    /// to, so at least one recipient is required.
+    /// Delivers a new message through HEY's undo-delay window, and answers what HEY said about it:
+    /// the entry that went out, the thread it started, its subject and whether Undo Send is holding
+    /// it back. An answer that cannot be read costs the ids rather than the send. Delivery needs
+    /// somebody to deliver to, so at least one recipient is required.
     ///
     /// - Throws: ``HeyError/usage(message:hint:)`` for a message addressed to nobody, before
     ///   anything is sent.
-    public func send(_ message: MessageContent) async throws {
+    @discardableResult
+    public func send(_ message: MessageContent) async throws -> SentMessage {
         guard messageHasRecipients(message.to, message.cc, message.bcc) else {
             throw HeyError.usage(message: "a message needs at least one recipient (to, cc or bcc)")
         }
@@ -97,7 +100,7 @@ extension MessagesService {
             entry: deliveredMessageEntry(message.to, message.cc, message.bcc))
         var operation = try client.operation(Routes.createMessage, [])
         try operation.json(body)
-        try await client.sendVoid(operation)
+        return try await client.execute(operation) { sentMessage(from: $0) }
     }
 
     /// Saves a new message as a draft instead of delivering it, and answers the draft's entry id —
@@ -126,9 +129,14 @@ extension MessagesService {
     /// request, so the draft's final state rides along. It is never retried, despite the PUT: it
     /// triggers a delivery, and a resend after an ambiguous first attempt could send twice.
     ///
+    /// It answers what HEY said about the delivery, as ``send(_:)`` does. The entry that went out
+    /// is normally the draft itself; a draft that breaks out into a thread of its own on a Domains
+    /// account goes out as a new entry, and `id` names that one.
+    ///
     /// - Throws: ``HeyError/usage(message:hint:)`` for a draft addressed to nobody, before anything
     ///   is sent.
-    public func sendDraft(entryId: Int, draft: DraftContent) async throws {
+    @discardableResult
+    public func sendDraft(entryId: Int, draft: DraftContent) async throws -> SentMessage {
         guard messageHasRecipients(draft.to, draft.cc, draft.bcc) else {
             throw HeyError.usage(message: "sending a draft needs at least one recipient (to, cc or bcc)")
         }
@@ -140,7 +148,7 @@ extension MessagesService {
         operation.resourceId(entryId)
         try operation.json(body)
         operation.idempotent = false
-        try await client.sendVoid(operation)
+        return try await client.execute(operation) { sentMessage(from: $0) }
     }
 
     private func senderId(_ chosen: Int?) async throws -> Int {
@@ -184,6 +192,22 @@ func deliveredMessageEntry(_ to: [String], _ cc: [String], _ bcc: [String]) -> M
 /// how recipients are removed.
 func draftedMessageEntry(_ to: [String], _ cc: [String], _ bcc: [String]) -> MessageEntryPayload {
     MessageEntryPayload(addressed: MessageAddressed(directly: to, copied: cc, blindcopied: bcc), status: draftedStatus)
+}
+
+/// What HEY answered for a message it has just delivered — a new message, a reply or a sent
+/// draft. By the time it is read the message has gone out, so an answer that cannot be read costs
+/// the ids rather than the send: a caller told the send failed would send it again. The routes are
+/// `lenientSuccess` (ADR-005), so a body the client would not hold arrives here as no body, and one
+/// that does not decode is read as `{}`. A HEY that
+/// predates the ids answers `{}` — or, while Undo Send holds the delivery back, only the undo
+/// members, and `delayed` is read from `undoAction` there, since an undo is only offered while the
+/// delivery is delayed.
+func sentMessage(from response: Response) -> SentMessage {
+    var sent = (try? response.json(SentMessage.self)) ?? SentMessage()
+    if sent.delayed == nil && sent.undoAction != nil {
+        sent.delayed = true
+    }
+    return sent
 }
 
 /// The entry id out of the `Location` a draft save answers with: the save serves no body, so the

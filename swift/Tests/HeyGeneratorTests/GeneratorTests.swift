@@ -126,7 +126,7 @@ final class ModelTests: XCTestCase {
         {
         "/boxes.json": {"get": {"operationId":"ListBoxes","tags":["Boxes"],"description":"List the boxes","responses":{"200":{"content":{"application/json":{"schema":{"$ref":"#/components/schemas/ListBoxesResponseContent"}}}}}}},
         "/boxes/{boxId}": {"get": {"operationId":"GetBox","tags":["Boxes"],"parameters":[{"name":"boxId","in":"path","required":true,"schema":{"type":"integer","format":"int64"}},{"name":"page","in":"query","schema":{"type":"string"}},{"name":"since","in":"query","required":true,"schema":{"type":"string"}}],"x-hey-empty-on":{"statusCodes":[404]},"responses":{"200":{"content":{"application/json":{"schema":{"$ref":"#/components/schemas/GetBoxResponseContent"}}}},"404":{"description":"gone"}}}},
-        "/boxes/{boxId}/observation.json": {"post": {"operationId":"MarkBoxSeen","tags":["Boxes"],"x-hey-idempotent":{"natural":true},"parameters":[{"name":"boxId","in":"path","required":true,"schema":{"type":"integer","format":"int64"}}],"responses":{"200":{"description":"ok"}}}},
+        "/boxes/{boxId}/observation.json": {"post": {"operationId":"MarkBoxSeen","tags":["Boxes"],"x-hey-idempotent":{"natural":true},"x-hey-lenient-success":{},"parameters":[{"name":"boxId","in":"path","required":true,"schema":{"type":"integer","format":"int64"}}],"responses":{"200":{"description":"ok"}}}},
         "/workflows/{workflowId}/stages/{stageId}": {"get": {"operationId":"GetWorkflowStage","tags":["Workflows"],"parameters":[{"name":"workflowId","in":"path","required":true,"schema":{"type":"integer","format":"int64"}},{"name":"stageId","in":"path","required":true,"schema":{"type":"integer","format":"int32"}}],"responses":{"200":{"content":{"text/html":{"schema":{"$ref":"#/components/schemas/StagePage"}}}}}}}
         }
         """#
@@ -181,6 +181,8 @@ final class ModelTests: XCTestCase {
         let seen = try XCTUnwrap(boxes.operations.first { $0.id == "MarkBoxSeen" })
         XCTAssertTrue(seen.idempotent, "x-hey-idempotent.natural wins over the method")
         XCTAssertEqual(seen.response, .empty)
+        XCTAssertTrue(seen.lenientSuccess, "x-hey-lenient-success is carried onto the operation")
+        XCTAssertFalse(get.lenientSuccess)
 
         let stage = try XCTUnwrap(model.services.first { $0.name == "workflows" }?.operations.first)
         XCTAssertEqual(stage.response, .html("StagePage"))

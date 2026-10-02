@@ -9,6 +9,7 @@ import com.basecamp.hey.generated.models.CreateMessageRequestContent
 import com.basecamp.hey.generated.models.MessageAddressed
 import com.basecamp.hey.generated.models.MessageEntryPayload
 import com.basecamp.hey.generated.models.MessagePayload
+import com.basecamp.hey.generated.models.SentMessage
 import com.basecamp.hey.json
 import io.ktor.http.URLBuilder
 import io.ktor.http.encodedPath
@@ -66,10 +67,12 @@ data class DraftContent(
 /** Messages service with delivery and draft conveniences on top of the generated surface (`create`, `update`, `get`, `getEdit`). */
 class MessagesService(client: HeyClient) : GeneratedMessagesService(client) {
     /**
-     * Delivers a new message through HEY's undo-delay window. Delivery needs somebody to
-     * deliver to, so at least one recipient is required.
+     * Delivers a new message through HEY's undo-delay window, and answers what HEY said about
+     * it: the entry that went out, the thread it started, its subject and whether Undo Send is
+     * holding it back. An answer that cannot be read costs the ids rather than the send.
+     * Delivery needs somebody to deliver to, so at least one recipient is required.
      */
-    suspend fun send(message: MessageContent) {
+    suspend fun send(message: MessageContent): SentMessage {
         if (!hasRecipients(message.to, message.cc, message.bcc)) {
             throw HeyException.Usage("a message needs at least one recipient (to, cc or bcc)")
         }
@@ -80,7 +83,7 @@ class MessagesService(client: HeyClient) : GeneratedMessagesService(client) {
         )
         val operation = client.operation(Routes.CREATE_MESSAGE, emptyList())
         operation.json(body)
-        client.sendUnit(operation)
+        return client.execute(operation) { sentMessageFrom(it) }
     }
 
     /**
@@ -106,8 +109,12 @@ class MessagesService(client: HeyClient) : GeneratedMessagesService(client) {
      * Delivers a draft through HEY's undo-delay window. The revision and the delivery are one
      * request, so the draft's final state rides along. It is never retried, despite the PUT:
      * it triggers a delivery, and a resend after an ambiguous first attempt could send twice.
+     *
+     * It answers what HEY said about the delivery, as [send] does. The entry that went out is
+     * normally the draft itself; a draft that breaks out into a thread of its own on a Domains
+     * account goes out as a new entry, and `id` names that one.
      */
-    suspend fun sendDraft(entryId: Long, draft: DraftContent) {
+    suspend fun sendDraft(entryId: Long, draft: DraftContent): SentMessage {
         if (!hasRecipients(draft.to, draft.cc, draft.bcc)) {
             throw HeyException.Usage("sending a draft needs at least one recipient (to, cc or bcc)")
         }
@@ -120,7 +127,7 @@ class MessagesService(client: HeyClient) : GeneratedMessagesService(client) {
         operation.resourceId(entryId)
         operation.json(body)
         operation.idempotent(false)
-        client.sendUnit(operation)
+        return client.execute(operation) { sentMessageFrom(it) }
     }
 
     private suspend fun draftedRequest(draft: DraftContent): CreateMessageRequestContent {
@@ -163,6 +170,21 @@ internal fun draftedEntry(to: List<String>, cc: List<String>, bcc: List<String>)
         addressed = MessageAddressed(directly = to, copied = cc, blindcopied = bcc),
         status = DRAFTED,
     )
+
+/**
+ * What HEY answered for a message it has just delivered — a new message, a reply or a sent
+ * draft. By the time it is read the message has gone out, so an answer that cannot be read costs
+ * the ids rather than the send: a caller told the send failed would send it again. The routes
+ * are `lenientSuccess` (ADR-005), so a body the client would not hold or lost mid-read arrives
+ * here as no body, and one that does not decode is read as `{}`. A HEY
+ * that predates the ids answers `{}` — or, while Undo Send holds the delivery back, only the
+ * undo members, and `delayed` is read from `undoAction` there, since an undo is only offered
+ * while the delivery is delayed.
+ */
+internal fun sentMessageFrom(response: Response): SentMessage {
+    val sent = runCatching { response.json(SentMessage.serializer()) }.getOrNull() ?: SentMessage()
+    return if (sent.delayed == null && sent.undoAction != null) sent.copy(delayed = true) else sent
+}
 
 /** The entry id out of the `Location` a draft save answers with: the save serves no body, so the header is the only place the id is named. */
 internal fun entryIdFromLocation(response: Response): Long {

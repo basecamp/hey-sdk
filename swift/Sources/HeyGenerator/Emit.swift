@@ -170,7 +170,8 @@ func renderRoutes(_ model: Model) -> String {
         out += "        emptyOn: \(intList(operation.emptyOn)),\n"
         out += "        pagination: .\(operation.pagination == .none ? "unpaged" : operation.pagination.rawValue),\n"
         out += "        pageParameter: \(operation.pageParameter.map(literal) ?? "nil"),\n"
-        out += "        retry: RetryPolicy(max: \(operation.retry.max), baseDelayMs: \(operation.retry.baseDelayMs), retryOn: \(intList(operation.retry.on)))\n"
+        out += "        retry: RetryPolicy(max: \(operation.retry.max), baseDelayMs: \(operation.retry.baseDelayMs), retryOn: \(intList(operation.retry.on)))"
+        out += operation.lenientSuccess ? ",\n        lenientSuccess: true\n" : "\n"
         out += "    )\n\n"
     }
     out += "    /// Every route, in operation id order.\n"

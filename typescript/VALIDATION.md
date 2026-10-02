@@ -8,11 +8,11 @@ GitHub Actions remains the authority for the exact pull-request head and support
 | Capability | Evidence |
 |---|---|
 | Generated API coverage | `npm run check:generated` verifies 136 modeled operations, generated routes, schemas, guards and coverage metadata against `openapi.json` and `behavior-model.json`. |
-| Runtime behavior | `npm test` runs 530 tests across transport, retries, cancellation, credentials, OAuth, pagination, account scope, response limits, package installation, generation and release integration. |
+| Runtime behavior | `npm test` runs 532 tests across transport, retries, cancellation, credentials, OAuth, pagination, account scope, response limits, package installation, generation and release integration. |
 | Type safety | `npm run typecheck`, `npm run typecheck:tests` and the conformance-runner typecheck cover the public SDK, tests, examples and fixture adapter. |
 | Package artifact | `npm run package:smoke` packs the package, installs the tarball in an isolated project and validates its exports without resolving repository source files. |
-| Shared conformance | `make conformance-ts` executes 200 applicable fixtures through generated methods. Four named convenience-layer fixtures remain explicitly excluded in `conformance/runner/typescript/not-applicable.json`; stale exclusions and unknown fixture shapes fail closed. |
-| Existing SDKs | `make check` runs the complete Smithy, drift, Go, Rust, TypeScript, Kotlin, Swift and conformance gate. Go, Rust, Kotlin and Swift each execute all 204 fixtures. |
+| Shared conformance | `make conformance-ts` executes 208 applicable fixtures through generated methods. Four named convenience-layer fixtures remain explicitly excluded in `conformance/runner/typescript/not-applicable.json`; stale exclusions and unknown fixture shapes fail closed. |
+| Existing SDKs | `make check` runs the complete Smithy, drift, Go, Rust, TypeScript, Kotlin, Swift and conformance gate. Go, Rust, Kotlin and Swift each execute all 212 fixtures. |
 | Release safety | Release tests validate inactive-by-default npm publication, tagged-state parsing, exact-artifact publication and transactional version synchronization across Go, Rust and TypeScript. |
 
 ## Current local result
@@ -27,12 +27,12 @@ rustc --version  # rustc 1.98.1
 
 make check
 # PASS
-# TypeScript tests: 530/530
-# Go conformance: 204/204
-# Rust conformance: 204/204
-# TypeScript conformance: 200/200 applicable; 4 declared exclusions
-# Kotlin conformance: 204/204
-# Swift conformance: 204/204
+# TypeScript tests: 532/532
+# Go conformance: 212/212
+# Rust conformance: 212/212
+# TypeScript conformance: 208/208 applicable; 4 declared exclusions
+# Kotlin conformance: 212/212
+# Swift conformance: 212/212
 ```
 
 Focused TypeScript verification is available with:

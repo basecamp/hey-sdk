@@ -56,6 +56,7 @@ use hey.traits#heyDestructive
 use hey.traits#heyOpenWorld
 use hey.traits#heyDraftWhen
 use hey.traits#heyUntrustedContent
+use hey.traits#heyLenientSuccess
 
 /// ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)
 @timestampFormat("date-time")
@@ -1746,8 +1747,12 @@ structure GetMessageOutput {
 /// Create a new message (start a new topic).
 /// The acting sender ID must be included; the Go SDK resolves this automatically.
 /// Every message is created drafted on HEY's side; without entry.status the server
-/// delivers it, while entry.status "drafted" leaves it as a draft and answers
-/// 204 with a Location header naming /messages/{entry_id}.
+/// delivers it and answers the sent message, while entry.status "drafted" leaves it as a
+/// draft and answers 204 with no body: the draft's id is in the Location header, which
+/// names /messages/{entry_id}. The Go, Rust, Kotlin and Swift draft conveniences read it
+/// from there; a direct caller reads that header rather than a body. A success whose body
+/// is empty or does not decode — that 204, or a delivery whose answer is unreadable — is an
+/// empty result, not an error (heyLenientSuccess).
 @http(method: "POST", uri: "/messages.json")
 @tags(["Messages"])
 @heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
@@ -1758,9 +1763,45 @@ structure GetMessageOutput {
     { pointer: "/entry/scheduled_delivery", notEquals: "true" }
 ])
 @heyUntrustedContent(false)
+@heyLenientSuccess
 operation CreateMessage {
     input: CreateMessageInput
+    output: CreateMessageOutput
     errors: [UnauthorizedError, UnprocessableEntityError, InternalServerError, ServiceUnavailableError]
+}
+
+structure CreateMessageOutput {
+    @required
+    message: SentMessage
+}
+
+/// SentMessage — what HEY answers for a message, a reply or a draft it has just
+/// delivered (entries/_sent.jbuilder). Every member is optional: a HEY that predates
+/// the ids answers {} — or only the undo members, while the delivery is delayed.
+structure SentMessage {
+    /// The entry that went out. A reply that breaks out into a thread of its own on a
+    /// Domains account is a new entry.
+    id: Long
+
+    /// The thread the entry is on — for a reply that broke out, the new thread rather
+    /// than the one replied to.
+    topic_id: Long
+
+    /// The subject the message went out with.
+    subject: String
+
+    /// True while Undo Send holds the delivery back. The entry and its thread already
+    /// exist, visible to the sender.
+    delayed: Boolean
+
+    /// "Message sent", present only while delayed.
+    notice: String
+
+    /// Where to POST to call the message back, present only while delayed.
+    undo_action: String
+
+    /// Seconds the undo notice stays up, present only while delayed.
+    undo_timeout: Integer
 }
 
 structure CreateMessageInput {
@@ -1789,8 +1830,10 @@ structure MessagePayload {
 }
 
 /// Revise a message entry (MessagesController#update). With entry.status "drafted" the
-/// entry is saved as a draft (204 + Location, like CreateMessage); without it a draft is
-/// delivered through the undo-delay window. A trashed draft is silently restored first.
+/// entry is saved as a draft (204 + Location, like CreateMessage, and no body); without
+/// it a draft is delivered through the undo-delay window and HEY answers the sent
+/// message; a success whose body is empty or does not decode is an empty result, not an
+/// error (heyLenientSuccess). A trashed draft is silently restored first.
 /// The revision is not a patch: subject, content and any scheduled delivery are rewritten
 /// from this request (an omitted scheduled delivery clears one), while recipients are
 /// replaced only when entry.addressed is present.
@@ -1809,9 +1852,16 @@ structure MessagePayload {
     { pointer: "/entry/scheduled_delivery", notEquals: "true" }
 ])
 @heyUntrustedContent(false)
+@heyLenientSuccess
 operation UpdateMessage {
     input: UpdateMessageInput
+    output: UpdateMessageOutput
     errors: [UnauthorizedError, NotFoundError, UnprocessableEntityError, InternalServerError, ServiceUnavailableError]
+}
+
+structure UpdateMessageOutput {
+    @required
+    message: SentMessage
 }
 
 structure UpdateMessageInput {
@@ -2016,7 +2066,12 @@ structure DeleteDraftInput {
     entryId: Long
 }
 
-/// Reply to an entry
+/// Reply to an entry. A delivered reply answers the sent message; one saved as a draft
+/// (entry.status "drafted") answers 204 with no body: the draft's id is in the Location
+/// header, which names /messages/{entry_id}. The Go, Rust, Kotlin and Swift reply-draft
+/// conveniences read it from there; a direct caller reads that header rather than a body.
+/// A success whose body is empty or does not decode is an empty result, not an error
+/// (heyLenientSuccess).
 @http(method: "POST", uri: "/entries/{entryId}/replies.json")
 @tags(["Entries"])
 @heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
@@ -2027,9 +2082,16 @@ structure DeleteDraftInput {
     { pointer: "/entry/scheduled_delivery", notEquals: "true" }
 ])
 @heyUntrustedContent(false)
+@heyLenientSuccess
 operation CreateReply {
     input: CreateReplyInput
+    output: CreateReplyOutput
     errors: [UnauthorizedError, NotFoundError, UnprocessableEntityError, InternalServerError, ServiceUnavailableError]
+}
+
+structure CreateReplyOutput {
+    @required
+    message: SentMessage
 }
 
 /// Get a prefilled reply to an entry: the quoted body and, in addressed, the

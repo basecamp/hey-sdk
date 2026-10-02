@@ -151,10 +151,22 @@ public final class HeyClient: Sendable {
 
     // MARK: - Sending
 
-    /// Sends an operation and decodes its JSON body.
+    /// Sends an operation and decodes its JSON body. A route whose work is done once HEY answers a
+    /// success (``Route/lenientSuccess``) — a message HEY has delivered — answers what an empty JSON
+    /// object decodes to when a 2xx body is empty, cannot be read or does not decode.
     public func send<T: Decodable & Sendable>(_ operation: HeyOperation, as type: T.Type = T.self) async throws -> T {
         let label = operation.label
-        return try await execute(operation) { try decode($0, type, label) }
+        let lenient = operation.route?.lenientSuccess == true
+        return try await execute(operation) { response in
+            do {
+                return try decode(response, type, label)
+            } catch {
+                guard lenient, (200...299).contains(response.status),
+                      let empty = try? JSONDecoder().decode(type, from: Data("{}".utf8))
+                else { throw error }
+                return empty
+            }
+        }
     }
 
     /// Sends an operation whose answer carries no body worth reading.
@@ -717,6 +729,17 @@ public final class HeyClient: Sendable {
                 hops += 1
                 continue
             }
+            if let interruption = response.interruption {
+                // A body cut short is the failure it was — unless the route's work is done once HEY
+                // answers a success and this is one, in which case it is no body. The caller's own
+                // cancellation is never absorbed.
+                let lenient = operation.route?.lenientSuccess == true && (200...299).contains(response.status)
+                if !lenient || Task.isCancelled || isCancellation(interruption) { throw interruption }
+                return Received(
+                    url: url, status: response.status, headers: response.headers, body: Data(), refusal: nil,
+                    redirected: hops > 0, authenticated: authenticated, signedUnder: signedUnder,
+                    bearer: credentials.headers["authorization"]?.first)
+            }
             let refusal: HeyError? = response.bodyExceeded
                 ? .api(
                     message: "response body exceeds \(bound) bytes", httpStatus: nil, retryable: false,
@@ -785,7 +808,9 @@ public final class HeyClient: Sendable {
             }
             return Response(status: 200, headers: merged, body: entry.body, url: received.url, fromCache: true, empty: false)
         }
-        if let refusal = received.refusal {
+        // A route whose work is done once HEY answers a success reads a 2xx body it could not hold
+        // as no body at all: the write went through either way.
+        if let refusal = received.refusal, !((200...299).contains(status) && operation.route?.lenientSuccess == true) {
             if (200...299).contains(status) { throw refusal }
             // The status is what matters about a failure, and a body the client would not hold is no
             // reason to lose it: the error is the one the status maps to, told why its body is missing.

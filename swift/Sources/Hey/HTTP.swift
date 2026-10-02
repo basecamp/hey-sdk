@@ -75,12 +75,21 @@ public struct HTTPResponse: Sendable {
     public var body: Data
     /// The body ran past the limit it was read to, so ``body`` is not all of it.
     public var bodyExceeded: Bool
+    /// What ended the body before it was all read, once the status and headers were in — a
+    /// dropped connection, say. ``body`` is what arrived before it. The client raises it as the
+    /// failure it always was, except for a route whose work is done once HEY answers a success
+    /// (``Route/lenientSuccess``), where a 2xx cut short is read as no body.
+    public var interruption: (any Error)?
 
-    public init(status: Int, headers: HTTPHeaders = HTTPHeaders(), body: Data = Data(), bodyExceeded: Bool = false) {
+    public init(
+        status: Int, headers: HTTPHeaders = HTTPHeaders(), body: Data = Data(), bodyExceeded: Bool = false,
+        interruption: (any Error)? = nil
+    ) {
         self.status = status
         self.headers = headers
         self.body = body
         self.bodyExceeded = bodyExceeded
+        self.interruption = interruption
     }
 }
 

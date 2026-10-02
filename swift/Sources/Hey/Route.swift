@@ -104,11 +104,17 @@ public struct Route: Sendable, Equatable {
     public var pageParameter: String?
     /// The retry policy the model attaches to the route.
     public var retry: RetryPolicy
+    /// The route's work is done once HEY answers a success — a message HEY has delivered — so a
+    /// 2xx whose body cannot be read or does not decode answers what an empty JSON object decodes
+    /// to rather than an error: a caller told such a write failed would do it again. A status
+    /// outside 2xx is an error as usual.
+    public var lenientSuccess: Bool
 
     public init(
         id: String, service: String, method: HTTPMethod, path: String, pattern: String, resource: String,
         resourceType: String, params: [RouteParam], idempotent: Bool, readonly: Bool, html: Bool,
-        emptyOn: [Int], pagination: Pagination, pageParameter: String?, retry: RetryPolicy
+        emptyOn: [Int], pagination: Pagination, pageParameter: String?, retry: RetryPolicy,
+        lenientSuccess: Bool = false
     ) {
         self.id = id
         self.service = service
@@ -125,6 +131,7 @@ public struct Route: Sendable, Equatable {
         self.pagination = pagination
         self.pageParameter = pageParameter
         self.retry = retry
+        self.lenientSuccess = lenientSuccess
     }
 
     /// Substitutes the path parameters, in order, percent-encoding each value.

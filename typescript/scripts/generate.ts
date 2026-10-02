@@ -97,6 +97,7 @@ export function generateOperations(spec: Spec, behavior: Behavior) {
         pagination: op["x-hey-pagination"],
         emptyOn: (op["x-hey-empty-on"] as { statusCodes: number[] } | undefined)
           ?.statusCodes,
+        lenientSuccess: op["x-hey-lenient-success"] ? true : undefined,
         responseMediaType: responseMedia.includes("text/html")
           ? "text/html"
           : undefined,

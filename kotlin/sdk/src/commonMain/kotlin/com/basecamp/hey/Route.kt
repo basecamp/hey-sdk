@@ -85,6 +85,13 @@ data class Route(
     val pageParameter: String?,
     /** The retry policy the model attaches to the route. */
     val retry: RetryPolicy,
+    /**
+     * The route's work is done once HEY answers a success — a message HEY has delivered — so a
+     * 2xx whose body cannot be read or does not decode answers what an empty JSON object
+     * decodes to rather than an error: a caller told such a write failed would do it again. A
+     * status outside 2xx is an error as usual.
+     */
+    val lenientSuccess: Boolean = false,
 ) {
     /**
      * Substitutes the path parameters, in order, percent-encoding each value.

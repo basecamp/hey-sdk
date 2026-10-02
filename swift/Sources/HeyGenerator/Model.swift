@@ -97,6 +97,8 @@ struct Operation {
     let idempotent: Bool
     let readonly: Bool
     let emptyOn: [Int]
+    /// A 2xx whose body cannot be read or does not decode is an empty result (`x-hey-lenient-success`).
+    let lenientSuccess: Bool
     let pagination: Pagination
     let pageParameter: String?
     let retry: Retry
@@ -269,6 +271,7 @@ private func buildServices(_ openapi: JSON, _ behavior: JSON, _ naming: Naming) 
                 idempotent: idempotent(httpMethod, operation, semantics),
                 readonly: readonly,
                 emptyOn: statusCodes(operation["x-hey-empty-on"]?["statusCodes"]),
+                lenientSuccess: operation["x-hey-lenient-success"] != nil,
                 pagination: try pagination(semantics),
                 pageParameter: semantics["pagination"]?["pageParameter"]?.string,
                 retry: retry(semantics)

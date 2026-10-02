@@ -37,6 +37,98 @@ final class MessagesTests: XCTestCase {
         XCTAssertEqual(try jsonObject(hey.requests[1].body)["acting_sender_id"] as? Int, 100)
     }
 
+    /// The generated operation that delivers a message reads an unreadable success as an empty
+    /// answer too (``Route/lenientSuccess``), while an error status stays an error and an ordinary
+    /// read still fails on an unreadable body.
+    func testADeliveryWhoseSuccessCannotBeReadIsNotAnError() async throws {
+        let hey = mockHey(
+            ok("<html>Message sent</html>"), ok(#"{"id":2201,"topic_"#), status(204, nil, []),
+            status(422, "not json", []), ok("not json"))
+        let client = try hey.client()
+        let body = CreateMessageRequestContent(
+            actingSenderId: 314, message: MessagePayload(subject: "Lunch on Friday", content: "Are you free at noon?"))
+        for _ in 0..<3 {
+            let sent = try await client.messages.create(body: body)
+            XCTAssertEqual(sent, SentMessage())
+        }
+        await assertThrows(HeyError.codeValidation, try await client.messages.create(body: body))
+        do {
+            _ = try await client.messages.get(messageId: 9)
+            XCTFail("an unreadable read must still fail")
+        } catch {}
+    }
+
+    /// A delivery whose 2xx body is cut off mid-stream, or runs past the client's size limit, is no
+    /// body rather than a failure; the same cut on an ordinary read is still the failure it was.
+    func testADeliveryWhoseSuccessIsCutShortIsNotAnError() async throws {
+        let body = CreateMessageRequestContent(
+            actingSenderId: 314, message: MessagePayload(subject: "Lunch on Friday", content: "Are you free at noon?"))
+        let lost = URLError(.networkConnectionLost)
+        let hey = mockHey(interrupted(200, #"{"id":2201"#, lost), interrupted(200, #"{"id":9"#, lost))
+        let client = try hey.client()
+        let sent = try await client.messages.create(body: body)
+        XCTAssertEqual(sent, SentMessage())
+        do {
+            _ = try await client.messages.get(messageId: 9)
+            XCTFail("a read cut short must still fail")
+        } catch {}
+
+        let capped = mockHey(ok(String(repeating: " ", count: 4096)))
+        let cappedSent = try await capped.client(configure: { $0.maxResponseBodyBytes = 1024 }).messages.create(body: body)
+        XCTAssertEqual(cappedSent, SentMessage())
+    }
+
+    private let lunchMessage = MessageContent(
+        subject: "Lunch on Friday", content: "Are you free at noon?", to: ["maria@example.com"], actingSenderId: 314)
+
+    func testDeliveringAnswersTheEntryHEYDelivered() async throws {
+        let sentNow = #"{"id":2201,"topic_id":880,"subject":"Lunch on Friday","delayed":false}"#
+        let hey = mockHey(ok(sentNow), ok(sentNow), ok(sentNow))
+        let client = try hey.client()
+        let expected = SentMessage(id: 2201, topicId: 880, subject: "Lunch on Friday", delayed: false)
+        let sent = try await client.messages.send(lunchMessage)
+        XCTAssertEqual(sent, expected)
+        let draftSent = try await client.messages.sendDraft(
+            entryId: 2201,
+            draft: DraftContent(subject: "Lunch on Friday", content: "Are you free at noon?", to: ["maria@example.com"], actingSenderId: 314))
+        XCTAssertEqual(draftSent, expected)
+        let replied = try await client.entries.reply(
+            entryId: 1990, reply: ReplyContent(actingSenderId: 314, subject: "Lunch on Friday", content: "Noon works.", to: ["maria@example.com"]))
+        XCTAssertEqual(replied, expected)
+    }
+
+    func testDeliveringAnswersAnUndoableDelivery() async throws {
+        let hey = mockHey(ok(#"{"id":2201,"topic_id":880,"subject":"Lunch on Friday","delayed":true,"notice":"Message sent","undo_action":"https://app.hey.com/topics/880/undo_send","undo_timeout":12}"#))
+        let sent = try await hey.client().messages.send(lunchMessage)
+        XCTAssertEqual(
+            sent,
+            SentMessage(
+                id: 2201, topicId: 880, subject: "Lunch on Friday", delayed: true, notice: "Message sent",
+                undoAction: "https://app.hey.com/topics/880/undo_send", undoTimeout: 12))
+    }
+
+    func testAHEYThatServesNoIdsAnswersWithoutThemAndReadsTheDelayFromItsUndo() async throws {
+        let hey = mockHey(ok("{}"), ok(#"{"notice":"Message sent","undo_action":"https://app.hey.com/topics/880/undo_send","undo_timeout":12}"#))
+        let client = try hey.client()
+        let plain = try await client.messages.send(lunchMessage)
+        XCTAssertEqual(plain, SentMessage())
+        let delayed = try await client.messages.send(lunchMessage)
+        XCTAssertNil(delayed.id)
+        XCTAssertNil(delayed.topicId)
+        XCTAssertEqual(delayed.delayed, true)
+    }
+
+    /// The message has gone out by the time its answer is read, so an answer the SDK cannot read
+    /// must not turn into an error: a caller told the send failed would send it again.
+    func testAnUnreadableAnswerDoesNotFailADelivery() async throws {
+        let hey = mockHey(ok(""), ok("<html>Message sent</html>"), ok(#"{"topic_id":[880]}"#), status(204, nil, []))
+        let client = try hey.client()
+        for _ in 0..<4 {
+            let sent = try await client.messages.send(lunchMessage)
+            XCTAssertEqual(sent, SentMessage())
+        }
+    }
+
     func testADraftIsSavedDraftedAndAnswersItsEntryId() async throws {
         let hey = mockHey(status(204, nil, [("Location", "https://app.hey.com/messages/777")]), ok(""), ok(""))
         let client = try hey.client()

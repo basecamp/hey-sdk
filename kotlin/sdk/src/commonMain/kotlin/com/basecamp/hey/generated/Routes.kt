@@ -348,6 +348,7 @@ object Routes {
         pagination = Pagination.NONE,
         pageParameter = null,
         retry = RetryPolicy(max = 2, baseDelayMs = 1000L, retryOn = listOf(429, 503)),
+        lenientSuccess = true,
     )
 
     /** `POST /entries/{entryId}/replies.json` */
@@ -369,6 +370,7 @@ object Routes {
         pagination = Pagination.NONE,
         pageParameter = null,
         retry = RetryPolicy(max = 2, baseDelayMs = 1000L, retryOn = listOf(429, 503)),
+        lenientSuccess = true,
     )
 
     /** `POST /stickies.json` */
@@ -2670,6 +2672,7 @@ object Routes {
         pagination = Pagination.NONE,
         pageParameter = null,
         retry = RetryPolicy(max = 2, baseDelayMs = 1000L, retryOn = listOf(429, 503)),
+        lenientSuccess = true,
     )
 
     /** `PATCH /my/clearances/{clearanceId}` */

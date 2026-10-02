@@ -33,9 +33,14 @@ extension EntriesService {
     /// Delivers a reply to an entry. HEY does not reply-all on the caller's behalf, and saves an
     /// unaddressed reply as a draft rather than delivering it, so the recipients are required.
     ///
+    /// It answers what HEY said about the delivery, as ``MessagesService/send(_:)`` does. `topicId`
+    /// is the thread the reply landed on: the one replied to, or — for a reply that breaks out into
+    /// a thread of its own on a Domains account — the new one.
+    ///
     /// - Throws: ``HeyError/usage(message:hint:)`` for a reply addressed to nobody, before anything
     ///   is sent.
-    public func reply(entryId: Int, reply: ReplyContent) async throws {
+    @discardableResult
+    public func reply(entryId: Int, reply: ReplyContent) async throws -> SentMessage {
         guard messageHasRecipients(reply.to, reply.cc, reply.bcc) else {
             throw HeyError.usage(message: "a reply needs at least one recipient (to, cc or bcc); HEY saves an unaddressed reply as a draft")
         }
@@ -46,7 +51,7 @@ extension EntriesService {
         var operation = try client.operation(Routes.createReply, [entryId])
         operation.resourceId(entryId)
         try operation.json(body)
-        try await client.sendVoid(operation)
+        return try await client.execute(operation) { sentMessage(from: $0) }
     }
 
     /// Saves a reply as a draft instead of delivering it, and answers the draft's entry id. It

@@ -208,14 +208,8 @@ private suspend fun executeOperation(client: HeyClient, case: TestCase): Outcome
         "GetEverythingTopics" -> page(client, client.topics.getEverything(), follow)
 
         "GetMessage" -> asJson(client.messages.get(path.int64("messageId")))
-        "CreateMessage" -> {
-            client.messages.create(messageBody(body))
-            Outcome.Unit
-        }
-        "UpdateMessage" -> {
-            client.messages.update(path.int64("messageId"), messageBody(body))
-            Outcome.Unit
-        }
+        "CreateMessage" -> asJson(client.messages.create(messageBody(body)))
+        "UpdateMessage" -> asJson(client.messages.update(path.int64("messageId"), messageBody(body)))
         "GetMessageEdit" -> asJson(client.messages.getEdit(path.int64("messageId")))
         "CreateDirectUpload" -> asJson(
             client.attachments.createDirectUpload(
@@ -236,14 +230,15 @@ private suspend fun executeOperation(client: HeyClient, case: TestCase): Outcome
         }
         "NewEntryReply" -> asJson(client.entries.newReply(path.int64("entryId")))
         "CreateReply" -> {
-            client.entries.createReply(
-                path.int64("entryId"),
-                CreateReplyRequestContent(
-                    actingSenderId = body.int64("acting_sender_id"),
-                    message = ReplyMessagePayload(subject = body.string("subject"), content = body.string("content")),
+            asJson(
+                client.entries.createReply(
+                    path.int64("entryId"),
+                    CreateReplyRequestContent(
+                        actingSenderId = body.int64("acting_sender_id"),
+                        message = ReplyMessagePayload(subject = body.string("subject"), content = body.string("content")),
+                    ),
                 ),
             )
-            Outcome.Unit
         }
 
         "ListContacts" -> page(client, client.contacts.list(), follow)
@@ -549,10 +544,7 @@ private suspend fun executeHeyOperation(client: HeyClient, case: TestCase): Outc
             client.extenzions.delete(path.int64("accountId"), path.int64("extenzionId"))
             Outcome.Unit
         }
-        "CreateReply" -> {
-            client.entries.reply(path.int64("entryId"), replyContent(body))
-            Outcome.Unit
-        }
+        "CreateReply" -> asJson(client.entries.reply(path.int64("entryId"), replyContent(body)))
         "CreateReplyDraft" -> {
             client.entries.replyDraft(path.int64("entryId"), replyContent(body))
             Outcome.Unit
@@ -565,10 +557,7 @@ private suspend fun executeHeyOperation(client: HeyClient, case: TestCase): Outc
             client.messages.updateDraft(path.int64("entryId"), draftContent(body))
             Outcome.Unit
         }
-        "SendDraft" -> {
-            client.messages.sendDraft(path.int64("entryId"), draftContent(body))
-            Outcome.Unit
-        }
+        "SendDraft" -> asJson(client.messages.sendDraft(path.int64("entryId"), draftContent(body)))
         else -> unknown(case.operation)
     }
 }

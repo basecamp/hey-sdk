@@ -6,6 +6,7 @@ use percent_encoding::{AsciiSet, NON_ALPHANUMERIC, utf8_percent_encode};
 /// One API operation: its method, its path template and the behaviour the Smithy model
 /// attaches to it. Every route the SDK knows lives in [`crate::routes`].
 #[derive(Debug)]
+#[allow(clippy::struct_excessive_bools)] // independent facts the model states about a route, not a state machine
 pub struct Route {
     /// The operation as the model names it: `ListBoxes`, `GetTopic`.
     pub id: &'static str,
@@ -35,6 +36,11 @@ pub struct Route {
     /// The statuses that mean HEY has nothing for this route rather than that it failed — a
     /// 404 for a record that may simply not be there. Such an answer is empty, not an error.
     pub empty_on: &'static [u16],
+    /// The route's work is done once HEY answers a success — a message HEY has delivered —
+    /// so a 2xx whose body cannot be read or does not decode answers what an empty JSON
+    /// object decodes to rather than an error: a caller told such a write failed would do
+    /// it again. A status outside 2xx is an error as usual.
+    pub lenient_success: bool,
     /// How the route pages, when it does.
     pub pagination: Pagination,
     /// The retry policy the model attaches to the route.

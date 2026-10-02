@@ -53,11 +53,15 @@ async fn a_json_body_goes_out_as_json() {
     let server = MockServer::start().await;
     Mock::given(method("POST"))
         .and(path("/messages.json"))
-        .respond_with(ResponseTemplate::new(204))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+            "id": 2201, "topic_id": 880, "subject": "Quarterly planning", "delayed": false
+        })))
         .mount(&server)
         .await;
 
-    client(&server).messages().create(&message()).await.unwrap();
+    let sent = client(&server).messages().create(&message()).await.unwrap();
+
+    assert_eq!(sent.topic_id, Some(880));
 
     let requests = server.received_requests().await.unwrap();
     assert_eq!(requests.len(), 1);
@@ -69,6 +73,57 @@ async fn a_json_body_goes_out_as_json() {
             "message": { "subject": "Quarterly planning", "content": "<div>Agenda.</div>" }
         })
     );
+}
+
+/// A message HEY answers a success for has gone out, so the operations that deliver one
+/// (`Route::lenient_success`) answer an empty `SentMessage` for a 2xx they cannot read — a
+/// caller told the send failed would send it again — while an error status stays an error
+/// and an ordinary read still fails on an unreadable body.
+#[tokio::test]
+async fn a_delivery_whose_success_cannot_be_read_is_not_an_error() {
+    for answer in [
+        ResponseTemplate::new(200).set_body_string("<html>Message sent</html>"),
+        ResponseTemplate::new(200)
+            .set_body_raw(br#"{"id":2201,"topic_"#.to_vec(), "application/json"),
+        ResponseTemplate::new(204),
+        ResponseTemplate::new(200).set_body_raw(vec![b' '; 4096], "application/json"),
+    ] {
+        let server = MockServer::start().await;
+        Mock::given(method("POST"))
+            .and(path("/messages.json"))
+            .respond_with(answer)
+            .mount(&server)
+            .await;
+        let client = builder(&server)
+            .max_response_body_bytes(1024)
+            .build()
+            .unwrap();
+
+        let sent = client.messages().create(&message()).await.unwrap();
+
+        assert_eq!(sent.id, None);
+        assert_eq!(sent.topic_id, None);
+    }
+}
+
+#[tokio::test]
+async fn only_a_delivery_success_is_read_leniently() {
+    let server = MockServer::start().await;
+    Mock::given(method("POST"))
+        .and(path("/messages.json"))
+        .respond_with(ResponseTemplate::new(422).set_body_string("not json"))
+        .mount(&server)
+        .await;
+    Mock::given(method("GET"))
+        .and(path("/messages/9.json"))
+        .respond_with(ResponseTemplate::new(200).set_body_string("not json"))
+        .mount(&server)
+        .await;
+    let client = client(&server);
+
+    let refused = client.messages().create(&message()).await.unwrap_err();
+    assert_eq!(refused.http_status(), Some(422));
+    assert!(client.messages().get(9).await.is_err());
 }
 
 #[tokio::test]

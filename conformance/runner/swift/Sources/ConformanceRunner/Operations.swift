@@ -129,12 +129,9 @@ private func executeOperation(_ client: HeyClient, _ testCase: TestCase) async t
     case "GetEverythingTopics": return try await page(client, try await client.topics.getEverything(), follow)
 
     case "GetMessage": return try asJSON(try await client.messages.get(messageId: path.int("messageId")))
-    case "CreateMessage":
-        try await client.messages.create(body: messageBody(body))
-        return .unit
+    case "CreateMessage": return try asJSON(try await client.messages.create(body: messageBody(body)))
     case "UpdateMessage":
-        try await client.messages.update(messageId: path.int("messageId"), body: messageBody(body))
-        return .unit
+        return try asJSON(try await client.messages.update(messageId: path.int("messageId"), body: messageBody(body)))
     case "GetMessageEdit": return try asJSON(try await client.messages.getEdit(messageId: path.int("messageId")))
     case "CreateDirectUpload":
         return try asJSON(
@@ -149,12 +146,12 @@ private func executeOperation(_ client: HeyClient, _ testCase: TestCase) async t
         return .unit
     case "NewEntryReply": return try asJSON(try await client.entries.newReply(entryId: path.int("entryId")))
     case "CreateReply":
-        try await client.entries.createReply(
-            entryId: path.int("entryId"),
-            body: CreateReplyRequestContent(
-                actingSenderId: body.int("acting_sender_id"),
-                message: ReplyMessagePayload(content: body.string("content"), subject: body.string("subject"))))
-        return .unit
+        return try asJSON(
+            try await client.entries.createReply(
+                entryId: path.int("entryId"),
+                body: CreateReplyRequestContent(
+                    actingSenderId: body.int("acting_sender_id"),
+                    message: ReplyMessagePayload(content: body.string("content"), subject: body.string("subject")))))
 
     case "ListContacts": return try await page(client, try await client.contacts.list(), follow)
     case "GetContact":
@@ -478,8 +475,7 @@ private func executeHeyOperation(_ client: HeyClient, _ testCase: TestCase) asyn
         try await client.extenzions.delete(accountId: path.int("accountId"), extenzionId: path.int("extenzionId"))
         return .unit
     case "CreateReply":
-        try await client.entries.reply(entryId: path.int("entryId"), reply: replyContent(body))
-        return .unit
+        return try asJSON(try await client.entries.reply(entryId: path.int("entryId"), reply: replyContent(body)))
     case "CreateReplyDraft":
         _ = try await client.entries.replyDraft(entryId: path.int("entryId"), reply: replyContent(body))
         return .unit
@@ -490,8 +486,7 @@ private func executeHeyOperation(_ client: HeyClient, _ testCase: TestCase) asyn
         try await client.messages.updateDraft(entryId: path.int("entryId"), draft: draftContent(body))
         return .unit
     case "SendDraft":
-        try await client.messages.sendDraft(entryId: path.int("entryId"), draft: draftContent(body))
-        return .unit
+        return try asJSON(try await client.messages.sendDraft(entryId: path.int("entryId"), draft: draftContent(body)))
     default:
         throw unknown(testCase.operation)
     }

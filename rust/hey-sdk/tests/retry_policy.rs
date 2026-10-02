@@ -33,6 +33,7 @@ const fn route(retry: Retry) -> Route {
         readonly: true,
         html: false,
         empty_on: &[],
+        lenient_success: false,
         pagination: Pagination::None,
         retry,
     }

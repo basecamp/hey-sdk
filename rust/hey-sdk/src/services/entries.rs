@@ -2,9 +2,9 @@
 
 use crate::error::Error;
 use crate::generated::routes;
-use crate::generated::types::{CreateReplyRequestContent, ReplyMessagePayload};
+use crate::generated::types::{CreateReplyRequestContent, ReplyMessagePayload, SentMessage};
 use crate::services::messages::{
-    delivered_entry, drafted_entry, entry_id_from_location, has_recipients,
+    delivered_entry, drafted_entry, entry_id_from_location, has_recipients, sent_message,
 };
 
 pub use crate::generated::services::entries::*;
@@ -35,7 +35,11 @@ impl Entries<'_> {
     /// Delivers a reply to an entry. HEY does not reply-all on the caller's behalf, and
     /// saves an unaddressed reply as a draft rather than delivering it, so the thread's
     /// recipients — the prefill's — are required.
-    pub async fn reply(&self, entry_id: i64, reply: &ReplyContent) -> Result<(), Error> {
+    ///
+    /// It answers what HEY said about the delivery, as `Messages::send` does. `topic_id`
+    /// is the thread the reply landed on: the one replied to, or — for a reply that breaks
+    /// out into a thread of its own on a Domains account — the new one.
+    pub async fn reply(&self, entry_id: i64, reply: &ReplyContent) -> Result<SentMessage, Error> {
         if !has_recipients(&reply.to, &reply.cc, &reply.bcc) {
             return Err(Error::usage(
                 "a reply needs at least one recipient (to, cc or bcc); HEY saves an unaddressed reply as a draft",
@@ -49,7 +53,8 @@ impl Entries<'_> {
         };
         let mut operation = self.client().operation(&routes::CREATE_REPLY, &[&entry_id]);
         operation.json(&body)?;
-        self.client().send_unit(operation).await
+        let response = self.client().execute(operation).await?;
+        Ok(sent_message(&response))
     }
 
     /// Saves a reply as a draft instead of delivering it, and answers the draft's entry
@@ -199,6 +204,50 @@ mod tests {
 
         let body = sent_json(&server).await;
         assert_eq!(body["message"], json!({ "content": "Reply text" }));
+    }
+
+    #[tokio::test]
+    async fn reply_answers_the_thread_it_landed_on() {
+        let server = MockServer::start().await;
+        Mock::given(method("POST"))
+            .and(path("/entries/456/replies.json"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+                "id": 2202, "topic_id": 881, "subject": "Re: From the support address", "delayed": false
+            })))
+            .mount(&server)
+            .await;
+
+        let sent = client(&server)
+            .entries()
+            .reply(456, &prefilled_reply())
+            .await
+            .unwrap();
+
+        assert_eq!(sent.id, Some(2202));
+        assert_eq!(sent.topic_id, Some(881));
+        assert_eq!(
+            sent.subject.as_deref(),
+            Some("Re: From the support address")
+        );
+        assert_eq!(sent.delayed, Some(false));
+    }
+
+    #[tokio::test]
+    async fn reply_answers_without_ids_from_a_hey_that_serves_none() {
+        let server = MockServer::start().await;
+        Mock::given(method("POST"))
+            .and(path("/entries/456/replies.json"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(json!({})))
+            .mount(&server)
+            .await;
+
+        let sent = client(&server)
+            .entries()
+            .reply(456, &prefilled_reply())
+            .await
+            .unwrap();
+
+        assert_eq!(sent, SentMessage::default());
     }
 
     fn prefilled_reply() -> ReplyContent {

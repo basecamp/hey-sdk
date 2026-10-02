@@ -6467,7 +6467,7 @@
     },
     "/entries/{entryId}/replies.json": {
       "post": {
-        "description": "Reply to an entry",
+        "description": "Reply to an entry. A delivered reply answers the sent message; one saved as a draft\n(entry.status \"drafted\") answers 204 with no body: the draft's id is in the Location\nheader, which names /messages/{entry_id}. The Go, Rust, Kotlin and Swift reply-draft\nconveniences read it from there; a direct caller reads that header rather than a body.\nA success whose body is empty or does not decode is an empty result, not an error\n(heyLenientSuccess).",
         "operationId": "CreateReply",
         "requestBody": {
           "content": {
@@ -6492,7 +6492,14 @@
         ],
         "responses": {
           "200": {
-            "description": "CreateReply 200 response"
+            "description": "CreateReply 200 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateReplyResponseContent"
+                }
+              }
+            }
           },
           "401": {
             "description": "UnauthorizedError 401 response",
@@ -6559,6 +6566,7 @@
             "notEquals": "true"
           }
         ],
+        "x-hey-lenient-success": {},
         "x-hey-open-world": true,
         "x-hey-retry": {
           "maxAttempts": 2,
@@ -7174,7 +7182,7 @@
     },
     "/messages.json": {
       "post": {
-        "description": "Create a new message (start a new topic).\nThe acting sender ID must be included; the Go SDK resolves this automatically.\nEvery message is created drafted on HEY's side; without entry.status the server\ndelivers it, while entry.status \"drafted\" leaves it as a draft and answers\n204 with a Location header naming /messages/{entry_id}.",
+        "description": "Create a new message (start a new topic).\nThe acting sender ID must be included; the Go SDK resolves this automatically.\nEvery message is created drafted on HEY's side; without entry.status the server\ndelivers it and answers the sent message, while entry.status \"drafted\" leaves it as a\ndraft and answers 204 with no body: the draft's id is in the Location header, which\nnames /messages/{entry_id}. The Go, Rust, Kotlin and Swift draft conveniences read it\nfrom there; a direct caller reads that header rather than a body. A success whose body\nis empty or does not decode — that 204, or a delivery whose answer is unreadable — is an\nempty result, not an error (heyLenientSuccess).",
         "operationId": "CreateMessage",
         "requestBody": {
           "content": {
@@ -7188,7 +7196,14 @@
         },
         "responses": {
           "200": {
-            "description": "CreateMessage 200 response"
+            "description": "CreateMessage 200 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateMessageResponseContent"
+                }
+              }
+            }
           },
           "401": {
             "description": "UnauthorizedError 401 response",
@@ -7245,6 +7260,7 @@
             "notEquals": "true"
           }
         ],
+        "x-hey-lenient-success": {},
         "x-hey-open-world": true,
         "x-hey-retry": {
           "maxAttempts": 2,
@@ -7340,7 +7356,7 @@
         "x-hey-untrusted-content": true
       },
       "put": {
-        "description": "Revise a message entry (MessagesController#update). With entry.status \"drafted\" the\nentry is saved as a draft (204 + Location, like CreateMessage); without it a draft is\ndelivered through the undo-delay window. A trashed draft is silently restored first.\nThe revision is not a patch: subject, content and any scheduled delivery are rewritten\nfrom this request (an omitted scheduled delivery clears one), while recipients are\nreplaced only when entry.addressed is present.\n\nNot naturally idempotent despite the PUT: without the drafted status this request\n*delivers*, so a transparent retry after an ambiguous first attempt could send the\nmessage again. The client must not retry it.",
+        "description": "Revise a message entry (MessagesController#update). With entry.status \"drafted\" the\nentry is saved as a draft (204 + Location, like CreateMessage, and no body); without\nit a draft is delivered through the undo-delay window and HEY answers the sent\nmessage; a success whose body is empty or does not decode is an empty result, not an\nerror (heyLenientSuccess). A trashed draft is silently restored first.\nThe revision is not a patch: subject, content and any scheduled delivery are rewritten\nfrom this request (an omitted scheduled delivery clears one), while recipients are\nreplaced only when entry.addressed is present.\n\nNot naturally idempotent despite the PUT: without the drafted status this request\n*delivers*, so a transparent retry after an ambiguous first attempt could send the\nmessage again. The client must not retry it.",
         "operationId": "UpdateMessage",
         "requestBody": {
           "content": {
@@ -7365,7 +7381,14 @@
         ],
         "responses": {
           "200": {
-            "description": "UpdateMessage 200 response"
+            "description": "UpdateMessage 200 response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UpdateMessageResponseContent"
+                }
+              }
+            }
           },
           "401": {
             "description": "UnauthorizedError 401 response",
@@ -7435,6 +7458,7 @@
         "x-hey-idempotent": {
           "natural": false
         },
+        "x-hey-lenient-success": {},
         "x-hey-open-world": true,
         "x-hey-retry": {
           "maxAttempts": 2,
@@ -12736,6 +12760,9 @@
           "message"
         ]
       },
+      "CreateMessageResponseContent": {
+        "$ref": "#/components/schemas/SentMessage"
+      },
       "CreateReplyRequestContent": {
         "type": "object",
         "description": "Wire format: {acting_sender_id, message: {subject, content}, entry: {addressed: {directly: [...]}}}\nentry.addressed is optional on the wire but a reply posted without it is saved as a\ndraft rather than delivered — HEY does not reply-all for the caller. Resolve the\nthread's recipients first and always send them.",
@@ -12756,6 +12783,9 @@
           "acting_sender_id",
           "message"
         ]
+      },
+      "CreateReplyResponseContent": {
+        "$ref": "#/components/schemas/SentMessage"
       },
       "CreateStickyResponseContent": {
         "$ref": "#/components/schemas/Sticky"
@@ -14716,6 +14746,43 @@
           "id"
         ]
       },
+      "SentMessage": {
+        "type": "object",
+        "description": "SentMessage — what HEY answers for a message, a reply or a draft it has just\ndelivered (entries/_sent.jbuilder). Every member is optional: a HEY that predates\nthe ids answers {} — or only the undo members, while the delivery is delayed.",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "description": "The entry that went out. A reply that breaks out into a thread of its own on a\nDomains account is a new entry.",
+            "format": "int64"
+          },
+          "topic_id": {
+            "type": "integer",
+            "description": "The thread the entry is on — for a reply that broke out, the new thread rather\nthan the one replied to.",
+            "format": "int64"
+          },
+          "subject": {
+            "type": "string",
+            "description": "The subject the message went out with."
+          },
+          "delayed": {
+            "type": "boolean",
+            "description": "True while Undo Send holds the delivery back. The entry and its thread already\nexist, visible to the sender."
+          },
+          "notice": {
+            "type": "string",
+            "description": "\"Message sent\", present only while delayed."
+          },
+          "undo_action": {
+            "type": "string",
+            "description": "Where to POST to call the message back, present only while delayed."
+          },
+          "undo_timeout": {
+            "type": "integer",
+            "description": "Seconds the undo notice stays up, present only while delayed.",
+            "format": "int32"
+          }
+        }
+      },
       "ServiceUnavailableErrorResponseContent": {
         "type": "object",
         "properties": {
@@ -15243,6 +15310,9 @@
       },
       "UpdateJournalEntryResponseContent": {
         "$ref": "#/components/schemas/Recording"
+      },
+      "UpdateMessageResponseContent": {
+        "$ref": "#/components/schemas/SentMessage"
       },
       "UpdateMyClearanceRequestContent": {
         "type": "object",

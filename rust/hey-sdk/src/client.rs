@@ -517,12 +517,21 @@ impl Client {
     }
 
     /// Sends an operation and decodes its JSON body.
+    ///
+    /// A route whose work is done once HEY answers a success ([`Route::lenient_success`]) —
+    /// a message HEY has delivered — answers what an empty JSON object decodes to when a 2xx
+    /// body is empty, cannot be read or does not decode, rather than an error.
     pub async fn send<T: DeserializeOwned>(&self, operation: Operation) -> Result<T, Error> {
         let label = operation.label().to_string();
-        self.execute(operation)
-            .await?
-            .json()
-            .map_err(|error| error.about(&label))
+        let lenient = lenient_success(&operation);
+        let response = self.execute(operation).await?;
+        match response.json() {
+            Ok(value) => Ok(value),
+            Err(error) if lenient && response.status.is_success() => {
+                serde_json::from_slice(b"{}").map_err(|_| error.about(&label))
+            }
+            Err(error) => Err(error.about(&label)),
+        }
     }
 
     /// Sends an operation whose answer carries no body worth reading.
@@ -1356,6 +1365,9 @@ impl Client {
         let body = match read_body(response.into_body(), bound, &operation.method, url.path()).await
         {
             Ok(body) => body,
+            // A route whose work is done once HEY answers a success reads a 2xx body it
+            // could not hold as no body at all: the write went through either way.
+            Err(_) if status.is_success() && lenient_success(operation) => Bytes::new(),
             Err(refusal) if status.is_success() => return Err(refusal),
             // The status is what matters about a failure, and a body the client would not
             // read is no reason to lose it.
@@ -1745,6 +1757,12 @@ fn is_parsed(accept: &str) -> bool {
                 || media_type.ends_with("+json")
                 || media_type == "text/html"
         })
+}
+
+/// Whether the operation's route has done its work once HEY answers a success, so that a 2xx
+/// it cannot read is no body rather than an error ([`Route::lenient_success`]).
+fn lenient_success(operation: &Operation) -> bool {
+    operation.route.is_some_and(|route| route.lenient_success)
 }
 
 /// Reads a body up to the bound and refuses it on the first byte past. A body exactly at

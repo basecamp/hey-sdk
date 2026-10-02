@@ -583,7 +583,7 @@ func TestMessagesService_Create(t *testing.T) {
 		`{"notice":"sent"}`,
 	)
 
-	err := client.Messages().Create(context.Background(), "Test", "Hello", []string{"test@example.com"}, []string{"cc@example.com"}, nil)
+	_, err := client.Messages().Create(context.Background(), "Test", "Hello", []string{"test@example.com"}, []string{"cc@example.com"}, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -607,7 +607,7 @@ func TestMessagesService_SendUsesSelectedSender(t *testing.T) {
 		`{"notice":"sent"}`,
 	)
 
-	err := client.Messages().Send(context.Background(), MessageContent{
+	_, err := client.Messages().Send(context.Background(), MessageContent{
 		Subject:        "From support",
 		Content:        "How can we help?",
 		To:             []string{"jane@example.com"},
@@ -655,7 +655,7 @@ func TestEntriesService_CreateReply(t *testing.T) {
 		`{"notice":"sent"}`,
 	)
 
-	err := client.Entries().CreateReply(context.Background(), 10, 0, "Re: A thread", "My reply", []string{"test@example.com"}, nil, nil)
+	_, err := client.Entries().CreateReply(context.Background(), 10, 0, "Re: A thread", "My reply", []string{"test@example.com"}, nil, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -675,7 +675,7 @@ func TestEntriesService_CreateReply_SendsTheChosenActingSender(t *testing.T) {
 		`{"notice":"sent"}`,
 	)
 
-	err := client.Entries().CreateReply(context.Background(), 10, 4242, "Re: A thread", "My reply", []string{"test@example.com"}, nil, nil)
+	_, err := client.Entries().CreateReply(context.Background(), 10, 4242, "Re: A thread", "My reply", []string{"test@example.com"}, nil, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -695,7 +695,7 @@ func TestEntriesService_CreateReply_PassesNonZeroSendersThroughUntouched(t *test
 		`{"notice":"sent"}`,
 	)
 
-	err := client.Entries().CreateReply(context.Background(), 10, -7, "Re: A thread", "My reply", []string{"test@example.com"}, nil, nil)
+	_, err := client.Entries().CreateReply(context.Background(), 10, -7, "Re: A thread", "My reply", []string{"test@example.com"}, nil, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -712,7 +712,7 @@ func TestEntriesService_CreateReply_ZeroActingSenderFallsBackToDefault(t *testin
 		`{"notice":"sent"}`,
 	)
 
-	err := client.Entries().CreateReply(context.Background(), 10, 0, "Re: A thread", "My reply", []string{"test@example.com"}, nil, nil)
+	_, err := client.Entries().CreateReply(context.Background(), 10, 0, "Re: A thread", "My reply", []string{"test@example.com"}, nil, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -730,7 +730,7 @@ func TestEntriesService_CreateReply_EmptySubjectStaysOffTheWire(t *testing.T) {
 		`{"notice":"sent"}`,
 	)
 
-	err := client.Entries().CreateReply(context.Background(), 10, 0, "", "My reply", []string{"test@example.com"}, nil, nil)
+	_, err := client.Entries().CreateReply(context.Background(), 10, 0, "", "My reply", []string{"test@example.com"}, nil, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -743,11 +743,11 @@ func TestEntriesService_CreateReply_RequiresRecipients(t *testing.T) {
 		func(t *testing.T, _ map[string]any) { t.Helper(); t.Error("no request should be sent") },
 		`{"notice":"sent"}`,
 	)
-	err := client.Entries().CreateReply(context.Background(), 10, 0, "Re: hello", "hello", nil, nil, nil)
+	_, err := client.Entries().CreateReply(context.Background(), 10, 0, "Re: hello", "hello", nil, nil, nil)
 	if e := AsError(err); e == nil || e.Code != CodeUsage {
 		t.Fatalf("expected a usage error, got %#v", err)
 	}
-	err = client.Messages().Create(context.Background(), "s", "b", nil, nil, nil)
+	_, err = client.Messages().Create(context.Background(), "s", "b", nil, nil, nil)
 	if e := AsError(err); e == nil || e.Code != CodeUsage {
 		t.Fatalf("expected a usage error for a message with no recipients, got %#v", err)
 	}
@@ -772,7 +772,7 @@ func TestEntriesService_CreateReply_RecipientsAreArrays(t *testing.T) {
 		`{"notice":"sent"}`,
 	)
 
-	err := client.Entries().CreateReply(context.Background(), 10, 0, "Re: hi", "hi", []string{"a@x.com"}, nil, []string{"b@x.com"})
+	_, err := client.Entries().CreateReply(context.Background(), 10, 0, "Re: hi", "hi", []string{"a@x.com"}, nil, []string{"b@x.com"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

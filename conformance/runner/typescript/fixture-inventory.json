@@ -789,6 +789,40 @@
       "operation": "ListBoxes"
     }
   ],
+  "sent-messages.json": [
+    {
+      "name": "CreateMessage answers the entry it delivered and the thread it started",
+      "operation": "CreateMessage"
+    },
+    {
+      "name": "CreateReply wrapper answers the thread the reply landed on",
+      "operation": "CreateReply"
+    },
+    {
+      "name": "SendDraft wrapper answers a delivery Undo Send is holding back",
+      "operation": "SendDraft"
+    },
+    {
+      "name": "CreateReply wrapper succeeds against a HEY that names no entry",
+      "operation": "CreateReply"
+    },
+    {
+      "name": "SendDraft wrapper succeeds against a HEY that answers only its undo",
+      "operation": "SendDraft"
+    },
+    {
+      "name": "CreateMessage answers a delivery whose answer is not JSON without an error",
+      "operation": "CreateMessage"
+    },
+    {
+      "name": "SendDraft wrapper answers a delivery whose answer is not JSON without an error",
+      "operation": "SendDraft"
+    },
+    {
+      "name": "CreateMessage refused with an answer that is not JSON is still an error",
+      "operation": "CreateMessage"
+    }
+  ],
   "status-codes.json": [
     {
       "name": "GET returns 200 OK on success",

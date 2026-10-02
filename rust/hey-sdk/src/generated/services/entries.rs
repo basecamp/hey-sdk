@@ -28,16 +28,21 @@ impl<'a> Entries<'a> {
         self.client
     }
 
-    /// Reply to an entry
+    /// Reply to an entry. A delivered reply answers the sent message; one saved as a draft
+    /// (entry.status "drafted") answers 204 with no body: the draft's id is in the Location
+    /// header, which names /messages/{entry_id}. The Go, Rust, Kotlin and Swift reply-draft
+    /// conveniences read it from there; a direct caller reads that header rather than a body.
+    /// A success whose body is empty or does not decode is an empty result, not an error
+    /// (heyLenientSuccess).
     pub async fn create_reply(
         &self,
         entry_id: i64,
         body: &CreateReplyRequestContent,
-    ) -> Result<(), Error> {
+    ) -> Result<CreateReplyResponseContent, Error> {
         let mut operation = self.client.operation(&routes::CREATE_REPLY, &[&entry_id]);
         operation.resource_id(entry_id);
         operation.json(body)?;
-        self.client.send_unit(operation).await
+        self.client.send(operation).await
     }
 
     /// Trash a draft (Entries::DraftsController#destroy). The id is the draft's entry id,

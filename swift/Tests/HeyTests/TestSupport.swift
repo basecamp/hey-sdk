@@ -26,6 +26,11 @@ func status(_ code: Int, _ body: String? = nil, _ headers: [(String, String)] = 
     Answer(status: code, body: body, headers: headers)
 }
 
+/// A status and headers that arrived, and a body that ended early with `error` after `body`.
+func interrupted(_ code: Int, _ body: String, _ error: any Error) -> Answer {
+    Answer(status: code, body: body, failure: error)
+}
+
 func failure(_ error: any Error) -> Answer {
     Answer(status: 0, failure: error)
 }
@@ -98,7 +103,7 @@ final class MockHey: Transport, @unchecked Sendable {
         try Task.checkCancellation()
         let answer = respond?(index, seen)
             ?? (index < answers.count ? answers[index] : Answer(status: 500, body: #"{"error":"No more mock responses"}"#))
-        if let failure = answer.failure { throw failure }
+        if let failure = answer.failure, answer.status == 0 { throw failure }
         var headers = HTTPHeaders()
         if !answer.headers.contains(where: { $0.0.caseInsensitiveCompare("Content-Type") == .orderedSame }) {
             headers.add("Content-Type", "application/json")
@@ -107,6 +112,9 @@ final class MockHey: Transport, @unchecked Sendable {
         let bytes = Data((answer.body ?? "").utf8)
         guard let limit = bodyLimit(answer.status, headers) else {
             return HTTPResponse(status: answer.status, headers: headers)
+        }
+        if let failure = answer.failure {
+            return HTTPResponse(status: answer.status, headers: headers, body: bytes, interruption: failure)
         }
         if bytes.count > limit {
             return HTTPResponse(status: answer.status, headers: headers, body: bytes.prefix(limit + 1), bodyExceeded: true)
