@@ -28,11 +28,11 @@ rustc --version  # rustc 1.98.1
 make check
 # PASS
 # TypeScript tests: 521/521
-# Go conformance: 198/198
-# Rust conformance: 198/198
-# TypeScript conformance: 194/194 applicable; 4 declared exclusions
-# Kotlin conformance: 198/198
-# Swift conformance: 198/198
+# Go conformance: 196/196
+# Rust conformance: 196/196
+# TypeScript conformance: 192/192 applicable; 4 declared exclusions
+# Kotlin conformance: 196/196
+# Swift conformance: 196/196
 ```
 
 Focused TypeScript verification is available with:
