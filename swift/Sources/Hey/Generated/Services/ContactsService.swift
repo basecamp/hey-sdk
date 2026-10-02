@@ -20,6 +20,15 @@ public struct ListContactsOptions: Sendable, Equatable {
     }
 }
 
+/// Options for ListAddressableContacts.
+public struct ListAddressableContactsOptions: Sendable, Equatable {
+    public var includeSelf: Bool?
+
+    public init(includeSelf: Bool? = nil) {
+        self.includeSelf = includeSelf
+    }
+}
+
 /// Service for Contacts operations.
 public final class ContactsService: BaseService, @unchecked Sendable {
     /// Bundle a contact so their mail arrives grouped
@@ -93,6 +102,27 @@ public final class ContactsService: BaseService, @unchecked Sendable {
         operation.queryOptional("page", options?.page)
         operation.queryOptional("q", options?.q)
         return try await client.sendPage(operation)
+    }
+
+    /// The recipients HEY suggests in a composer's To, Cc and Bcc fields: the
+    /// contacts the identity recently addressed, then every other contact by name,
+    /// then "Everyone at …" for each active account with a domain, then the
+    /// identity's contact groups. Order is HEY's and is meaningful.
+    ///
+    /// Each row is a bare array of strings, `[value, label]` or
+    /// `[value, label, detail]`: `value` is one address for a contact, or the
+    /// comma-joined addresses of an account's people or a group's members; `label`
+    /// is the name to show (the address itself when there is no name); `detail` is
+    /// "@domain" for an account and "Contact group with N people" for a group.
+    /// An account with nobody but the identity on it (unless `include_self` is
+    /// true) and a group with no members still get a row, with an empty `value`.
+    ///
+    /// - Parameters:
+    ///   - options: Optional query parameters
+    public func listAddressable(options: ListAddressableContactsOptions? = nil) async throws -> ListAddressableContactsResponseContent {
+        var operation = try client.operation(Routes.listAddressableContacts, [])
+        operation.queryOptional("include_self", options?.includeSelf)
+        return try await client.send(operation)
     }
 
     /// Put a hidden contact back in the contact list

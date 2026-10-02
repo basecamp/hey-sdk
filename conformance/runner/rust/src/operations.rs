@@ -375,6 +375,12 @@ async fn execute_operation(client: &Client, case: &TestCase) -> Result<Outcome, 
             )
             .await
         }
+        "ListAddressableContacts" => {
+            let params = contacts::ListAddressableContactsParams {
+                include_self: bool_ptr_param(query, "include_self"),
+            };
+            json(client.contacts().list_addressable(&params).await?)
+        }
 
         "ListCalendars" => json(client.calendars().list().await?),
         "GetCalendarRecordings" => {

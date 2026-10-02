@@ -151,6 +151,31 @@ export const operationMetadata = {
     "actingSender": false,
     "actingUser": false
   },
+  "ListAddressableContacts": {
+    "method": "GET",
+    "path": "/autocompletable/contacts/addressable.json",
+    "parameters": [
+      {
+        "name": "include_self",
+        "in": "query",
+        "required": false,
+        "type": "boolean"
+      }
+    ],
+    "bodyRequired": false,
+    "safe": true,
+    "retry": {
+      "maxAttempts": 3,
+      "baseDelayMs": 1000,
+      "backoff": "exponential",
+      "retryOn": [
+        429,
+        503
+      ]
+    },
+    "actingSender": false,
+    "actingUser": false
+  },
   "ListBoxes": {
     "method": "GET",
     "path": "/boxes.json",
@@ -3366,6 +3391,22 @@ export class GeneratedOperations {
   /** The advanced search refine form's options: boxes, date ranges, labels and attachment kinds. */
   getAdvancedSearchFilters(input: OperationInput<"GetAdvancedSearchFilters"> = {}, options?: RequestOptions): Promise<OperationResponse<"GetAdvancedSearchFilters">> {
     return this.transport.execute("GetAdvancedSearchFilters", input, options);
+  }
+
+  /** The recipients HEY suggests in a composer's To, Cc and Bcc fields: the
+   * contacts the identity recently addressed, then every other contact by name,
+   * then "Everyone at …" for each active account with a domain, then the
+   * identity's contact groups. Order is HEY's and is meaningful.
+   *
+   * Each row is a bare array of strings, `[value, label]` or
+   * `[value, label, detail]`: `value` is one address for a contact, or the
+   * comma-joined addresses of an account's people or a group's members; `label`
+   * is the name to show (the address itself when there is no name); `detail` is
+   * "@domain" for an account and "Contact group with N people" for a group.
+   * An account with nobody but the identity on it (unless `include_self` is
+   * true) and a group with no members still get a row, with an empty `value`. */
+  listAddressableContacts(input: OperationInput<"ListAddressableContacts"> = {}, options?: RequestOptions): Promise<OperationResponse<"ListAddressableContacts">> {
+    return this.transport.execute("ListAddressableContacts", input, options);
   }
 
   /** List all boxes */

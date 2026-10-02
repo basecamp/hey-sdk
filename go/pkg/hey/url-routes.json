@@ -37,6 +37,14 @@
       "params": {}
     },
     {
+      "pattern": "/autocompletable/contacts/addressable",
+      "resource": "Contacts",
+      "operations": {
+        "GET": "ListAddressableContacts"
+      },
+      "params": {}
+    },
+    {
       "pattern": "/boxes",
       "resource": "Boxes",
       "operations": {

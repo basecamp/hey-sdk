@@ -59,6 +59,7 @@ import com.basecamp.hey.generated.services.GetBundleUnseenPostingsOptions
 import com.basecamp.hey.generated.services.GetCalendarRecordingsOptions
 import com.basecamp.hey.generated.services.GetCollectionOptions
 import com.basecamp.hey.generated.services.GetContactOptions
+import com.basecamp.hey.generated.services.ListAddressableContactsOptions
 import com.basecamp.hey.generated.services.ListStickiesOptions
 import com.basecamp.hey.services.OccurrenceId
 import com.basecamp.hey.services.OccurrenceScope
@@ -241,6 +242,7 @@ private suspend fun executeOperation(client: HeyClient, case: TestCase): Outcome
 
         "ListContacts" -> page(client, client.contacts.list(), follow)
         "GetContact" -> page(client, client.contacts.get(path.int64("contactId"), GetContactOptions(page = query.stringOrNull("page"))), follow)
+        "ListAddressableContacts" -> asJson(client.contacts.listAddressable(ListAddressableContactsOptions(includeSelf = query.boolOrNull("include_self"))))
 
         "ListCalendars" -> asJson(client.calendars.list())
         "GetCalendarRecordings" -> page(

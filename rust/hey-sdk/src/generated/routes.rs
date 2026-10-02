@@ -1750,6 +1750,27 @@ pub static HIDE_CONTACT: Route = Route {
     },
 };
 
+pub static LIST_ADDRESSABLE_CONTACTS: Route = Route {
+    id: "ListAddressableContacts",
+    service: "Contacts",
+    method: Method::GET,
+    path: "/autocompletable/contacts/addressable.json",
+    pattern: "/autocompletable/contacts/addressable",
+    resource: "Contacts",
+    resource_type: "contact",
+    params: &[],
+    idempotent: true,
+    readonly: true,
+    html: false,
+    empty_on: &[],
+    pagination: Pagination::None,
+    retry: Retry {
+        max: 3,
+        base_delay_ms: 1000,
+        retry_on: &[429, 503],
+    },
+};
+
 pub static LIST_BOX_GROUPS: Route = Route {
     id: "ListBoxGroups",
     service: "Boxes",
@@ -3173,6 +3194,7 @@ pub static ROUTES: &[&Route] = &[
     &GET_WORKFLOW,
     &GET_WORKFLOW_STAGE,
     &HIDE_CONTACT,
+    &LIST_ADDRESSABLE_CONTACTS,
     &LIST_BOX_GROUPS,
     &LIST_BOXES,
     &LIST_CALENDAR_DAYS,

@@ -108,6 +108,69 @@ func (s *ContactsService) ThreadsPage(ctx context.Context, contactID int64, curs
 	return result, err
 }
 
+// --- Recipient autocomplete ---
+
+// AddressableRecipient is one suggestion from HEY's recipient autocomplete list.
+type AddressableRecipient struct {
+	Value  string // one address, or a comma-separated list for a group / "Everyone at …"
+	Label  string // the name to show
+	Detail string // e.g. "@example.com" or "Contact group with 3 people"; empty for a person
+}
+
+// Addressable returns the recipients HEY suggests in a composer's To, Cc and Bcc fields,
+// in HEY's order: the contacts the identity recently addressed, then every other contact
+// by name, then "Everyone at …" for each active account with a domain, then the
+// identity's contact groups. includeSelf asks for the identity's own addresses too, as
+// the web composer does.
+//
+// HEY answers bare [value, label] and [value, label, detail] rows. A row with fewer than
+// two strings is skipped rather than failing the read, and so is one with no address in
+// it: "Everyone at …" for an account nobody else is on, or a contact group with no
+// members.
+func (s *ContactsService) Addressable(ctx context.Context, includeSelf bool) (result []AddressableRecipient, err error) {
+	op := OperationInfo{
+		Service: "Contacts", Operation: "ListAddressableContacts",
+		ResourceType: "contact", IsMutation: false,
+	}
+
+	err = s.client.instrument(ctx, op, func(ctx context.Context) error {
+		var params *generated.ListAddressableContactsParams
+		if includeSelf {
+			params = &generated.ListAddressableContactsParams{IncludeSelf: &includeSelf}
+		}
+		resp, rerr := s.client.genClient().ListAddressableContactsWithResponse(ctx, params)
+		if rerr != nil {
+			return rerr
+		}
+		if cerr := CheckResponse(resp.HTTPResponse); cerr != nil {
+			return cerr
+		}
+		if resp.JSON200 != nil {
+			result = addressableRecipients(*resp.JSON200)
+		}
+		return nil
+	})
+	return result, err
+}
+
+// addressableRecipients reads HEY's autocomplete rows in order, skipping any row too short
+// to name both a value and a label, and any whose value is empty and so names nobody to
+// address.
+func addressableRecipients(rows [][]string) []AddressableRecipient {
+	recipients := make([]AddressableRecipient, 0, len(rows))
+	for _, row := range rows {
+		if len(row) < 2 || row[0] == "" {
+			continue
+		}
+		recipient := AddressableRecipient{Value: row[0], Label: row[1]}
+		if len(row) > 2 {
+			recipient.Detail = row[2]
+		}
+		recipients = append(recipients, recipient)
+	}
+	return recipients
+}
+
 // --- Bundling and screening ---
 
 // Bundle groups a contact's mail together in the box instead of listing every thread.

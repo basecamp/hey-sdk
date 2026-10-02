@@ -86,11 +86,6 @@
   },
   {
     "method": "GET",
-    "path": "/autocompletable/contacts/addressable",
-    "reason": "phase-2: autocomplete API"
-  },
-  {
-    "method": "GET",
     "path": "/autofileables/{autofileable_id}/autofilings",
     "reason": "phase-2: autofiling rules"
   },

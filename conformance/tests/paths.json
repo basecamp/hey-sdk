@@ -418,6 +418,54 @@
     ]
   },
   {
+    "name": "ListAddressableContacts uses /autocompletable/contacts/addressable.json path and reads the bare rows",
+    "description": "Verifies that ListAddressableContacts constructs the URL path /autocompletable/contacts/addressable.json, sends include_self, and answers HEY's [value, label] and [value, label, detail] rows as they are, in order",
+    "operation": "ListAddressableContacts",
+    "method": "GET",
+    "path": "/autocompletable/contacts/addressable.json",
+    "queryParams": {
+      "include_self": true
+    },
+    "mockResponses": [
+      {
+        "status": 200,
+        "body": [
+          ["jason@example.com", "Jason Fried"],
+          ["jason@example.com,david@example.com", "Everyone at Example Co", "@example.com"],
+          ["troy@example.org,abed@example.org,britta@example.org", "Study group", "Contact group with 3 people"]
+        ]
+      }
+    ],
+    "assertions": [
+      {
+        "type": "requestPath",
+        "expected": "/autocompletable/contacts/addressable.json"
+      },
+      {
+        "type": "requestMethod",
+        "expected": "GET"
+      },
+      {
+        "type": "requestQuery",
+        "expected": {
+          "include_self": "true"
+        }
+      },
+      {
+        "type": "noError"
+      },
+      {"type": "responseBody", "path": "0.0", "expected": "jason@example.com"},
+      {"type": "responseBody", "path": "0.1", "expected": "Jason Fried"},
+      {"type": "responseBody", "path": "1.1", "expected": "Everyone at Example Co"},
+      {"type": "responseBody", "path": "1.2", "expected": "@example.com"},
+      {"type": "responseBody", "path": "2.2", "expected": "Contact group with 3 people"}
+    ],
+    "tags": [
+      "path",
+      "contacts"
+    ]
+  },
+  {
     "name": "GetEverythingTopics uses /topics/everything.json path",
     "description": "Verifies that GetEverythingTopics constructs the URL path /topics/everything.json",
     "operation": "GetEverythingTopics",

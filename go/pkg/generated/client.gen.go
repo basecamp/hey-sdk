@@ -939,6 +939,9 @@ type JournalEntryPayload struct {
 	Content string `json:"content"`
 }
 
+// ListAddressableContactsResponseContent defines model for ListAddressableContactsResponseContent.
+type ListAddressableContactsResponseContent = [][]string
+
 // ListBoxGroupsResponseContent BoxGroupsResponse — the wrapper the groups index answers with
 type ListBoxGroupsResponseContent = BoxGroupsResponse
 
@@ -1773,6 +1776,14 @@ type AdvancedSearchParams struct {
 	RefineAttachment  *string `form:"refine[attachment],omitempty" json:"refine[attachment],omitempty"`
 }
 
+// ListAddressableContactsParams defines parameters for ListAddressableContacts.
+type ListAddressableContactsParams struct {
+	// IncludeSelf true includes the identity's own addresses, as the web composer asks.
+	// Anything else leaves them out, except an address of its own the
+	// identity recently wrote to, which the recent contacts still carry.
+	IncludeSelf *bool `form:"include_self,omitempty" json:"include_self,omitempty"`
+}
+
 // GetBoxParams defines parameters for GetBox.
 type GetBoxParams struct {
 	Page *string `form:"page,omitempty" json:"page,omitempty"`
@@ -2160,6 +2171,7 @@ var operationRetryPolicies = map[string]RetryPolicy{
 	"DeleteExtenzion":               {MaxAttempts: 2, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
 	"AdvancedSearch":                {MaxAttempts: 3, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
 	"GetAdvancedSearchFilters":      {MaxAttempts: 3, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
+	"ListAddressableContacts":       {MaxAttempts: 3, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
 	"ListBoxes":                     {MaxAttempts: 3, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
 	"GetBox":                        {MaxAttempts: 3, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
 	"CreateBoxDesignation":          {MaxAttempts: 2, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
@@ -2697,6 +2709,9 @@ type ClientInterface interface {
 	// GetAdvancedSearchFilters request
 	GetAdvancedSearchFilters(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// ListAddressableContacts request
+	ListAddressableContacts(ctx context.Context, params *ListAddressableContactsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// ListBoxes request
 	ListBoxes(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 
@@ -3184,6 +3199,14 @@ func (c *Client) GetAdvancedSearchFilters(ctx context.Context, reqEditors ...Req
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
 		return NewGetAdvancedSearchFiltersRequest(c.Server)
 	}, true, "GetAdvancedSearchFilters", reqEditors...)
+}
+
+// ListAddressableContacts is marked as idempotent and will be retried on transient failures.
+
+func (c *Client) ListAddressableContacts(ctx context.Context, params *ListAddressableContactsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	return c.doWithRetry(ctx, func() (*http.Request, error) {
+		return NewListAddressableContactsRequest(c.Server, params)
+	}, true, "ListAddressableContacts", reqEditors...)
 }
 
 // ListBoxes is marked as idempotent and will be retried on transient failures.
@@ -4949,6 +4972,55 @@ func NewGetAdvancedSearchFiltersRequest(server string) (*http.Request, error) {
 	queryURL, err := serverURL.Parse(operationPath)
 	if err != nil {
 		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewListAddressableContactsRequest generates requests for ListAddressableContacts
+func NewListAddressableContactsRequest(server string, params *ListAddressableContactsParams) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/autocompletable/contacts/addressable.json")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if params.IncludeSelf != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "include_self", runtime.ParamLocationQuery, *params.IncludeSelf); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
 	}
 
 	req, err := http.NewRequest("GET", queryURL.String(), nil)
@@ -10463,6 +10535,7 @@ var operationMetadata = map[string]OperationMetadata{
 	"DeleteExtenzion":               {Idempotent: true, HasSensitiveParams: false},
 	"AdvancedSearch":                {Idempotent: true, HasSensitiveParams: false},
 	"GetAdvancedSearchFilters":      {Idempotent: true, HasSensitiveParams: false},
+	"ListAddressableContacts":       {Idempotent: true, HasSensitiveParams: false},
 	"ListBoxes":                     {Idempotent: true, HasSensitiveParams: false},
 	"GetBox":                        {Idempotent: true, HasSensitiveParams: false},
 	"CreateBoxDesignation":          {Idempotent: false, HasSensitiveParams: false},
@@ -11230,6 +11303,24 @@ type ClientWithResponsesInterface interface {
 	//
 	// Returns a wrapper object for the known response body format(s).
 	GetAdvancedSearchFiltersWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetAdvancedSearchFiltersResponse, error)
+
+	// ListAddressableContactsWithResponse performs a GET /autocompletable/contacts/addressable.json (the `ListAddressableContacts` operationId) request.
+	//
+	// The recipients HEY suggests in a composer's To, Cc and Bcc fields: the
+	// contacts the identity recently addressed, then every other contact by name,
+	// then "Everyone at …" for each active account with a domain, then the
+	// identity's contact groups. Order is HEY's and is meaningful.
+	//
+	// Each row is a bare array of strings, `[value, label]` or
+	// `[value, label, detail]`: `value` is one address for a contact, or the
+	// comma-joined addresses of an account's people or a group's members; `label`
+	// is the name to show (the address itself when there is no name); `detail` is
+	// "@domain" for an account and "Contact group with N people" for a group.
+	// An account with nobody but the identity on it (unless `include_self` is
+	// true) and a group with no members still get a row, with an empty `value`.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	ListAddressableContactsWithResponse(ctx context.Context, params *ListAddressableContactsParams, reqEditors ...RequestEditorFn) (*ListAddressableContactsResponse, error)
 
 	// ListBoxesWithResponse performs a GET /boxes.json (the `ListBoxes` operationId) request.
 	//
@@ -12757,6 +12848,68 @@ func (r GetAdvancedSearchFiltersResponse) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r GetAdvancedSearchFiltersResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ListAddressableContactsResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *ListAddressableContactsResponseContent
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *UnauthorizedErrorResponseContent
+	// JSON500 the response for an HTTP 500 `application/json` response
+	JSON500 *InternalServerErrorResponseContent
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *ServiceUnavailableErrorResponseContent
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListAddressableContactsResponse) GetJSON200() *ListAddressableContactsResponseContent {
+	return r.JSON200
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r ListAddressableContactsResponse) GetJSON401() *UnauthorizedErrorResponseContent {
+	return r.JSON401
+}
+
+// GetJSON500 returns the response for an HTTP 500 `application/json` response
+func (r ListAddressableContactsResponse) GetJSON500() *InternalServerErrorResponseContent {
+	return r.JSON500
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r ListAddressableContactsResponse) GetJSON503() *ServiceUnavailableErrorResponseContent {
+	return r.JSON503
+}
+
+// GetBody returns the raw response body bytes
+func (r ListAddressableContactsResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListAddressableContactsResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListAddressableContactsResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListAddressableContactsResponse) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -21241,6 +21394,30 @@ func (c *ClientWithResponses) GetAdvancedSearchFiltersWithResponse(ctx context.C
 	return ParseGetAdvancedSearchFiltersResponse(rsp)
 }
 
+// ListAddressableContactsWithResponse performs a GET /autocompletable/contacts/addressable.json (the `ListAddressableContacts` operationId) request.
+//
+// The recipients HEY suggests in a composer's To, Cc and Bcc fields: the
+// contacts the identity recently addressed, then every other contact by name,
+// then "Everyone at …" for each active account with a domain, then the
+// identity's contact groups. Order is HEY's and is meaningful.
+//
+// Each row is a bare array of strings, `[value, label]` or
+// `[value, label, detail]`: `value` is one address for a contact, or the
+// comma-joined addresses of an account's people or a group's members; `label`
+// is the name to show (the address itself when there is no name); `detail` is
+// "@domain" for an account and "Contact group with N people" for a group.
+// An account with nobody but the identity on it (unless `include_self` is
+// true) and a group with no members still get a row, with an empty `value`.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) ListAddressableContactsWithResponse(ctx context.Context, params *ListAddressableContactsParams, reqEditors ...RequestEditorFn) (*ListAddressableContactsResponse, error) {
+	rsp, err := c.ListAddressableContacts(ctx, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListAddressableContactsResponse(rsp)
+}
+
 // ListBoxesWithResponse performs a GET /boxes.json (the `ListBoxes` operationId) request.
 //
 // List all boxes.
@@ -23707,6 +23884,53 @@ func ParseGetAdvancedSearchFiltersResponse(rsp *http.Response) (*GetAdvancedSear
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest GetAdvancedSearchFiltersResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest UnauthorizedErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest InternalServerErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+		var dest ServiceUnavailableErrorResponseContent
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON503 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListAddressableContactsResponse parses an HTTP response from a ListAddressableContactsWithResponse call
+func ParseListAddressableContactsResponse(rsp *http.Response) (*ListAddressableContactsResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListAddressableContactsResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ListAddressableContactsResponseContent
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}

@@ -261,6 +261,10 @@
       "operation": "GetContact"
     },
     {
+      "name": "ListAddressableContacts uses /autocompletable/contacts/addressable.json path and reads the bare rows",
+      "operation": "ListAddressableContacts"
+    },
+    {
       "name": "GetEverythingTopics uses /topics/everything.json path",
       "operation": "GetEverythingTopics"
     },

@@ -1489,6 +1489,25 @@ object Routes {
         retry = RetryPolicy(max = 2, baseDelayMs = 1000L, retryOn = listOf(429, 503)),
     )
 
+    /** `GET /autocompletable/contacts/addressable.json` */
+    val LIST_ADDRESSABLE_CONTACTS: Route = Route(
+        id = "ListAddressableContacts",
+        service = "Contacts",
+        method = Method.GET,
+        path = "/autocompletable/contacts/addressable.json",
+        pattern = "/autocompletable/contacts/addressable",
+        resource = "Contacts",
+        resourceType = "contact",
+        params = emptyList(),
+        idempotent = true,
+        readonly = true,
+        html = false,
+        emptyOn = emptyList(),
+        pagination = Pagination.NONE,
+        pageParameter = null,
+        retry = RetryPolicy(max = 3, baseDelayMs = 1000L, retryOn = listOf(429, 503)),
+    )
+
     /** `GET /boxes/{boxId}/groups.json` */
     val LIST_BOX_GROUPS: Route = Route(
         id = "ListBoxGroups",
@@ -2726,6 +2745,7 @@ object Routes {
         GET_WORKFLOW,
         GET_WORKFLOW_STAGE,
         HIDE_CONTACT,
+        LIST_ADDRESSABLE_CONTACTS,
         LIST_BOX_GROUPS,
         LIST_BOXES,
         LIST_CALENDAR_DAYS,

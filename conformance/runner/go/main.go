@@ -1179,6 +1179,10 @@ func executeOperation(client *generated.Client, ctx context.Context, tc TestCase
 		return client.GetContact(ctx, contactId, &generated.GetContactParams{
 			Page: getStringPtrParam(tc.QueryParams, "page"),
 		})
+	case "ListAddressableContacts":
+		return client.ListAddressableContacts(ctx, &generated.ListAddressableContactsParams{
+			IncludeSelf: getBoolPtrParam(tc.QueryParams, "include_self"),
+		})
 
 	// Calendars
 	case "ListCalendars":

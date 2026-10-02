@@ -6,8 +6,8 @@ operation) or a hand-written convenience (`src/services/*.rs`). Parity is semant
 request with the same behaviour — not one method name per method name: Rust types what Go
 passes as strings and zero values, and answers `Page<T>` where Go unwraps the payload.
 
-Counts at the time of writing: 202 Go methods; 131 modelled operations, each a Rust route and
-a generated method; 122 Rust conveniences. Every Go method has a Rust route to the same
+Counts at the time of writing: 203 Go methods; 132 modelled operations, each a Rust route and
+a generated method; 123 Rust conveniences. Every Go method has a Rust route to the same
 request except the waivers at the end. Both runners dispatch the whole shared conformance
 suite.
 
@@ -51,6 +51,7 @@ Unqualified Rust names are conveniences; `gen` marks a generated method.
 | Contacts.List / Get / ThreadsPage | ListContacts / GetContact | gen `list` / `get` → `Page` | |
 | Contacts.Bundle / Unbundle / Hide / Reveal / Note / DeleteNote | same ids | gen | |
 | Contacts.Screen(id, status) | UpdateContactClearance | `screen(id, ClearanceStatus)` | |
+| Contacts.Addressable(includeSelf) | ListAddressableContacts | `addressable(include_self)` → `Vec<AddressableRecipient>` | gen `list_addressable` answers the bare rows; both skip a row shorter than two strings or with an empty value. Rust's `value` is a `SensitiveString` |
 | Contacts.Create / Update / SetNote | CreateContact / UpdateContact / UpdateContactNote | `create_contact` / `update_contact` / `set_note` | Rust always sends the alias list, so `Some(vec![])` clears it, which Go's `omitempty` cannot |
 | Clearances.PendingCount / Summary / Pending / PendingPage | GetClearances | `pending_count` / `summary` / `pending` / `pending_page` | |
 | Clearances.Screen / ScreenMany / Punt | UpdateClearance / BulkUpdateClearances / PuntClearances | `screen` / `screen_many` / gen `punt` | |

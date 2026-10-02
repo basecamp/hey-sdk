@@ -844,6 +844,78 @@ func TestContactsService_ThreadsPage(t *testing.T) {
 	}
 }
 
+func TestContactsService_Addressable(t *testing.T) {
+	var paths, queries []string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		paths = append(paths, r.URL.Path)
+		queries = append(queries, r.URL.RawQuery)
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`[
+			["jason@example.com","Jason Fried"],
+			["annie.edison@example.org","Annie Edison"],
+			["broken@example.com"],
+			[],
+			["","Everyone at Solo Co","@solo.example"],
+			["jason@example.com,david@example.com","Everyone at Example Co","@example.com"],
+			["","Nobody yet","Contact group with 0 people"],
+			["troy@example.org,abed@example.org,britta@example.org","Study group","Contact group with 3 people"]
+		]`))
+	}))
+	t.Cleanup(server.Close)
+	rec := &opRecorder{}
+	client := NewClient(&Config{BaseURL: server.URL}, &StaticTokenProvider{Token: "test-token"}, WithMaxRetries(0), WithHooks(rec))
+
+	recipients, err := client.Contacts().Addressable(context.Background(), true)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	want := []AddressableRecipient{
+		{Value: "jason@example.com", Label: "Jason Fried"},
+		{Value: "annie.edison@example.org", Label: "Annie Edison"},
+		{Value: "jason@example.com,david@example.com", Label: "Everyone at Example Co", Detail: "@example.com"},
+		{Value: "troy@example.org,abed@example.org,britta@example.org", Label: "Study group", Detail: "Contact group with 3 people"},
+	}
+	if len(recipients) != len(want) {
+		t.Fatalf("got %d recipients %+v, want %d with the short rows and the ones with no address skipped", len(recipients), recipients, len(want))
+	}
+	for i := range want {
+		if recipients[i] != want[i] {
+			t.Errorf("recipient %d = %+v, want %+v in HEY's order", i, recipients[i], want[i])
+		}
+	}
+	if len(paths) != 1 || paths[0] != "/autocompletable/contacts/addressable.json" {
+		t.Errorf("paths = %q, want the addressable autocomplete route", paths)
+	}
+	if queries[0] != "include_self=true" {
+		t.Errorf("query = %q, want include_self=true", queries[0])
+	}
+	if len(rec.ops) != 1 || rec.ops[0] != "ListAddressableContacts" {
+		t.Errorf("hooks saw %v, want [ListAddressableContacts]", rec.ops)
+	}
+
+	if _, err := client.Contacts().Addressable(context.Background(), false); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if queries[1] != "" {
+		t.Errorf("query = %q, want include_self left off when not asked for", queries[1])
+	}
+}
+
+func TestContactsService_Addressable_Error(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusUnauthorized)
+		_, _ = w.Write([]byte(`{"message":"unauthorized"}`))
+	}))
+	t.Cleanup(server.Close)
+	client := NewClient(&Config{BaseURL: server.URL}, &StaticTokenProvider{Token: "test-token"}, WithMaxRetries(0))
+
+	recipients, err := client.Contacts().Addressable(context.Background(), true)
+	if err == nil {
+		t.Fatalf("expected an error, got %+v", recipients)
+	}
+}
+
 // --- Calendars ---
 
 func TestCalendarsService_List(t *testing.T) {

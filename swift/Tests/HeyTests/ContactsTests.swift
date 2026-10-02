@@ -118,6 +118,46 @@ final class ContactsTests: XCTestCase {
         XCTAssertEqual(hey.requests[1].path, "/contacts/77/note.json")
         XCTAssertEqual(try contact(hey.requests[1])["note"] as? String, "Met at the conference")
     }
+
+    func testTheAddressableRecipientsAreReadOffTheRowsInOrder() async throws {
+        let rows = #"""
+        [
+            ["jason@example.com","Jason Fried"],
+            ["annie.edison@example.org","Annie Edison"],
+            ["broken@example.com"],
+            [],
+            ["","Everyone at Solo Co","@solo.example"],
+            ["jason@example.com,david@example.com","Everyone at Example Co","@example.com"],
+            ["","Nobody yet","Contact group with 0 people"],
+            ["troy@example.org,abed@example.org,britta@example.org","Study group","Contact group with 3 people"]
+        ]
+        """#
+        let hey = mockHey(ok(rows), ok("[]"))
+        let log = OperationLog()
+        let client = try hey.client(hooks: log)
+
+        let recipients = try await client.contacts.addressable(includeSelf: true)
+
+        XCTAssertEqual(recipients, [
+            AddressableRecipient(value: "jason@example.com", label: "Jason Fried"),
+            AddressableRecipient(value: "annie.edison@example.org", label: "Annie Edison"),
+            AddressableRecipient(value: "jason@example.com,david@example.com", label: "Everyone at Example Co", detail: "@example.com"),
+            AddressableRecipient(
+                value: "troy@example.org,abed@example.org,britta@example.org", label: "Study group", detail: "Contact group with 3 people"),
+        ], "a row shorter than a value and a label, or with no address in it, is skipped, and the rest keep HEY's order")
+        XCTAssertEqual(recipients.first?.value.expose(), "jason@example.com")
+        let printed = String(describing: recipients)
+        XCTAssertTrue(printed.contains("[REDACTED]"))
+        XCTAssertFalse(printed.contains("jason@example.com"), "the addresses stay out of a print of the recipients")
+        XCTAssertEqual(hey.requests[0].method, "GET")
+        XCTAssertEqual(hey.requests[0].path, "/autocompletable/contacts/addressable.json")
+        XCTAssertEqual(hey.requests[0].query("include_self"), "true")
+        XCTAssertEqual(log.started, ["Contacts.ListAddressableContacts:contact:false:nil"])
+
+        let none = try await client.contacts.addressable()
+        XCTAssertEqual(none, [])
+        XCTAssertNil(hey.requests[1].query("include_self"), "leaving yourself out sends no include_self")
+    }
 }
 
 /// Unwraps what an async assertion handed back, failing the test when it handed back nothing.

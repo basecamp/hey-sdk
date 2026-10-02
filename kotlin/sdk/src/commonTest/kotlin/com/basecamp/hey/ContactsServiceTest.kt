@@ -1,6 +1,7 @@
 package com.basecamp.hey
 
 import com.basecamp.hey.generated.contacts
+import com.basecamp.hey.services.AddressableRecipient
 import com.basecamp.hey.services.ClearanceStatus
 import com.basecamp.hey.services.ContactConflict
 import com.basecamp.hey.services.ContactParams
@@ -118,5 +119,52 @@ class ContactsServiceTest {
         assertEquals("Met at the conference", note.note)
         assertEquals("/contacts/77/note.json", hey.requests[1].path)
         assertEquals("Met at the conference", contact(hey.requests[1]).getValue("note").jsonPrimitive.content)
+    }
+
+    @Test
+    fun theAddressableRecipientsAreReadOffTheRowsInOrder() = runTest {
+        val rows = """[
+            ["jason@example.com","Jason Fried"],
+            ["annie.edison@example.org","Annie Edison"],
+            ["broken@example.com"],
+            [],
+            ["","Everyone at Solo Co","@solo.example"],
+            ["jason@example.com,david@example.com","Everyone at Example Co","@example.com"],
+            ["","Nobody yet","Contact group with 0 people"],
+            ["troy@example.org,abed@example.org,britta@example.org","Study group","Contact group with 3 people"]
+        ]"""
+        val hey = mockHey(ok(rows), ok("[]"))
+        val log = OperationLog()
+        val client = hey.client { hooks = log }
+
+        val recipients = client.contacts.addressable(includeSelf = true)
+
+        assertEquals(
+            listOf(
+                AddressableRecipient(SensitiveString("jason@example.com"), "Jason Fried"),
+                AddressableRecipient(SensitiveString("annie.edison@example.org"), "Annie Edison"),
+                AddressableRecipient(SensitiveString("jason@example.com,david@example.com"), "Everyone at Example Co", "@example.com"),
+                AddressableRecipient(
+                    SensitiveString("troy@example.org,abed@example.org,britta@example.org"),
+                    "Study group",
+                    "Contact group with 3 people",
+                ),
+            ),
+            recipients,
+            "a row shorter than a value and a label, or with no address in it, is skipped, and the rest keep HEY's order",
+        )
+        assertEquals("jason@example.com", recipients[0].value.expose())
+        assertEquals(
+            "AddressableRecipient(value=[REDACTED], label=Jason Fried, detail=)",
+            recipients[0].toString(),
+            "the address stays out of a print of the recipient",
+        )
+        assertEquals("GET", hey.requests[0].method)
+        assertEquals("/autocompletable/contacts/addressable.json", hey.requests[0].path)
+        assertEquals("true", hey.requests[0].query("include_self"))
+        assertEquals(listOf("Contacts.ListAddressableContacts:contact:false:null"), log.started)
+
+        assertEquals(emptyList(), client.contacts.addressable())
+        assertNull(hey.requests[1].query("include_self"), "leaving yourself out sends no include_self")
     }
 }

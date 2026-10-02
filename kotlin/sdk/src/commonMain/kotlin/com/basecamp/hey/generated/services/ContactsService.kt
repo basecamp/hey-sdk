@@ -11,6 +11,7 @@ import com.basecamp.hey.generated.models.CreateContactRequestContent
 import com.basecamp.hey.generated.models.CreateContactResponseContent
 import com.basecamp.hey.generated.models.GetContactNoteResponseContent
 import com.basecamp.hey.generated.models.GetContactResponseContent
+import com.basecamp.hey.generated.models.ListAddressableContactsResponseContent
 import com.basecamp.hey.generated.models.ListContactsResponseContent
 import com.basecamp.hey.generated.models.RevealContactResponseContent
 import com.basecamp.hey.generated.models.UpdateContactClearanceRequestContent
@@ -28,6 +29,11 @@ data class GetContactOptions(
 data class ListContactsOptions(
     val page: String? = null,
     val q: String? = null,
+)
+
+/** Options for ListAddressableContacts. */
+data class ListAddressableContactsOptions(
+    val includeSelf: Boolean? = null,
 )
 
 /**
@@ -107,6 +113,27 @@ open class ContactsService(client: HeyClient) : BaseService(client) {
         operation.queryOptional("page", options?.page)
         operation.queryOptional("q", options?.q)
         return client.sendPage(operation)
+    }
+
+    /**
+     * The recipients HEY suggests in a composer's To, Cc and Bcc fields: the
+     * contacts the identity recently addressed, then every other contact by name,
+     * then "Everyone at …" for each active account with a domain, then the
+     * identity's contact groups. Order is HEY's and is meaningful.
+     *
+     * Each row is a bare array of strings, `[value, label]` or
+     * `[value, label, detail]`: `value` is one address for a contact, or the
+     * comma-joined addresses of an account's people or a group's members; `label`
+     * is the name to show (the address itself when there is no name); `detail` is
+     * "@domain" for an account and "Contact group with N people" for a group.
+     * An account with nobody but the identity on it (unless `include_self` is
+     * true) and a group with no members still get a row, with an empty `value`.
+     * @param options Optional query parameters
+     */
+    suspend fun listAddressable(options: ListAddressableContactsOptions? = null): ListAddressableContactsResponseContent {
+        val operation = client.operation(Routes.LIST_ADDRESSABLE_CONTACTS, listOf())
+        operation.queryOptional("include_self", options?.includeSelf)
+        return client.send(operation)
     }
 
     /**
