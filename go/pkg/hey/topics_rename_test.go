@@ -7,15 +7,17 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"reflect"
+	"sync"
+	"sync/atomic"
 	"testing"
 )
 
 func TestTopicsService_Rename(t *testing.T) {
 	for _, name := range []string{"Kitchen renovation", "", "Renovation: \"café\" & garden"} {
 		t.Run(name, func(t *testing.T) {
-			requests := 0
+			var requests atomic.Int32
 			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				requests++
+				requests.Add(1)
 				if r.Method != http.MethodPatch || r.URL.Path != "/topics/42.json" {
 					t.Errorf("request = %s %s, want PATCH /topics/42.json", r.Method, r.URL.Path)
 				}
@@ -38,8 +40,8 @@ func TestTopicsService_Rename(t *testing.T) {
 			if err := client.Topics().Rename(context.Background(), 42, name); err != nil {
 				t.Fatalf("rename: %v", err)
 			}
-			if requests != 1 {
-				t.Errorf("requests = %d, want one write with no read-back", requests)
+			if got := requests.Load(); got != 1 {
+				t.Errorf("requests = %d, want one write with no read-back", got)
 			}
 		})
 	}
@@ -69,8 +71,11 @@ func TestTopicsService_RenameRejectsUnacknowledgedSuccess(t *testing.T) {
 
 func TestTopicsService_RenameMergedTopicDoesNotReportAReadAsAWrite(t *testing.T) {
 	var requests []string
+	var mu sync.Mutex
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
 		requests = append(requests, r.Method+" "+r.URL.Path)
+		mu.Unlock()
 		switch r.URL.Path {
 		case "/topics/42.json":
 			http.Redirect(w, r, "/topics/43", http.StatusFound)
@@ -89,6 +94,8 @@ func TestTopicsService_RenameMergedTopicDoesNotReportAReadAsAWrite(t *testing.T)
 	if !errors.As(err, &sdkError) || sdkError.Code != CodeAPI || sdkError.HTTPStatus != http.StatusOK || sdkError.Retryable {
 		t.Fatalf("error = %v, want a non-retryable API error for the redirected read", err)
 	}
+	mu.Lock()
+	defer mu.Unlock()
 	if want := []string{"PATCH /topics/42.json", "GET /topics/43"}; !reflect.DeepEqual(requests, want) {
 		t.Errorf("requests = %v, want %v", requests, want)
 	}
