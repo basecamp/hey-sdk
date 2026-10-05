@@ -2094,6 +2094,13 @@ pub struct Reminder {
     pub label: Option<String>,
 }
 
+/// Wire format: {topic: {name}}. Name is required, including when it is empty.
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+pub struct RenameTopicRequestContent {
+    #[serde(default)]
+    pub topic: TopicNamePayload,
+}
+
 /// HEY does not derive a subject for a reply: a reply draft saved without message.subject
 /// reads "No subject" in Drafts. NewEntryReply hands back the prefilled subject ("Re: …") —
 /// send it here. Content is the caller's reply body alone: the server appends the quoted
@@ -2400,6 +2407,15 @@ pub struct TopicListResponse {
     pub description: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub topics: Option<Vec<Topic>>,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+pub struct TopicNamePayload {
+    #[serde(
+        default,
+        deserialize_with = "crate::types::null_as_default::deserialize"
+    )]
+    pub name: String,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]

@@ -1,0 +1,83 @@
+[
+  {
+    "name": "Rename a topic asks for JSON and succeeds without a body or read-back",
+    "operation": "RenameTopic",
+    "method": "PATCH",
+    "path": "/topics/{topicId}",
+    "pathParams": { "topicId": 42 },
+    "requestBody": { "name": "Renovation: \"café\" & garden" },
+    "mockResponses": [{ "status": 204 }],
+    "assertions": [
+      { "type": "requestMethod", "expected": "PATCH" },
+      { "type": "lastRequestHeader", "path": "Accept", "expected": "application/json" },
+      { "type": "requestBody", "expected": { "topic": { "name": "Renovation: \"café\" & garden" } } },
+      { "type": "requestCount", "expected": 1 },
+      { "type": "noError" }
+    ],
+    "configOverrides": { "clientLayer": "hey" },
+    "tags": ["topics", "json", "mutation"]
+  },
+  {
+    "name": "Rename sends an explicitly empty name for HEY to normalize",
+    "operation": "RenameTopic",
+    "method": "PATCH",
+    "path": "/topics/{topicId}",
+    "pathParams": { "topicId": 42 },
+    "requestBody": { "name": "" },
+    "mockResponses": [{ "status": 204 }],
+    "assertions": [
+      { "type": "requestBody", "expected": { "topic": { "name": "" } } },
+      { "type": "requestCount", "expected": 1 },
+      { "type": "noError" }
+    ],
+    "configOverrides": { "clientLayer": "hey" },
+    "tags": ["topics", "mutation"]
+  },
+  {
+    "name": "Rename reports an inaccessible topic",
+    "operation": "RenameTopic",
+    "method": "PATCH",
+    "path": "/topics/{topicId}",
+    "pathParams": { "topicId": 42 },
+    "requestBody": { "name": "Kitchen renovation" },
+    "mockResponses": [{ "status": 404 }],
+    "assertions": [
+      { "type": "errorCode", "expected": "not_found" },
+      { "type": "statusCode", "expected": 404 },
+      { "type": "requestCount", "expected": 1 }
+    ],
+    "configOverrides": { "clientLayer": "hey" },
+    "tags": ["topics", "errors"]
+  },
+  {
+    "name": "Idempotent topic rename retries a declared transient failure",
+    "operation": "RenameTopic",
+    "method": "PATCH",
+    "path": "/topics/{topicId}",
+    "pathParams": { "topicId": 42 },
+    "requestBody": { "name": "Kitchen renovation" },
+    "mockResponses": [{ "status": 503 }, { "status": 204 }],
+    "assertions": [
+      { "type": "requestCount", "expected": 2 },
+      { "type": "requestBody", "expected": { "topic": { "name": "Kitchen renovation" } } },
+      { "type": "noError" }
+    ],
+    "configOverrides": { "clientLayer": "hey", "maxRetries": 3 },
+    "tags": ["topics", "retry", "idempotency"]
+  },
+  {
+    "name": "Topic rename stops at its two-attempt retry limit",
+    "operation": "RenameTopic",
+    "method": "PATCH",
+    "path": "/topics/{topicId}",
+    "pathParams": { "topicId": 42 },
+    "requestBody": { "name": "Kitchen renovation" },
+    "mockResponses": [{ "status": 503 }, { "status": 503 }, { "status": 204 }],
+    "assertions": [
+      { "type": "requestCount", "expected": 2 },
+      { "type": "statusCode", "expected": 503 }
+    ],
+    "configOverrides": { "clientLayer": "hey", "maxRetries": 3 },
+    "tags": ["topics", "retry", "max-attempts"]
+  }
+]

@@ -15,6 +15,7 @@ import com.basecamp.hey.generated.models.GetTopicEntriesResponseContent
 import com.basecamp.hey.generated.models.GetTopicResponseContent
 import com.basecamp.hey.generated.models.GetTrashTopicsResponseContent
 import com.basecamp.hey.generated.models.MoveTopicRequestContent
+import com.basecamp.hey.generated.models.RenameTopicRequestContent
 import com.basecamp.hey.json
 import com.basecamp.hey.services.BaseService
 
@@ -181,6 +182,19 @@ open class TopicsService(client: HeyClient) : BaseService(client) {
      */
     suspend fun moveTopic(topicId: Long, body: MoveTopicRequestContent): Unit {
         val operation = client.operation(Routes.MOVE_TOPIC, listOf(topicId))
+        operation.resourceId(topicId)
+        operation.json(body)
+        return client.sendUnit(operation)
+    }
+
+    /**
+     * Rename a topic. HEY normalizes a blank name to "No subject" and truncates
+     * names to 1024 characters. Returns no content; read the topic to see the saved name.
+     * @param topicId The topic ID
+     * @param body Request body
+     */
+    suspend fun rename(topicId: Long, body: RenameTopicRequestContent): Unit {
+        val operation = client.operation(Routes.RENAME_TOPIC, listOf(topicId))
         operation.resourceId(topicId)
         operation.json(body)
         return client.sendUnit(operation)

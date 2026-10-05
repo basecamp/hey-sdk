@@ -108,6 +108,7 @@
     "NewEntryReply",
     "PuntClearances",
     "RemovePostingsFromBoxGroup",
+    "RenameTopic",
     "RestoreTopic",
     "ResumeHabit",
     "RevealContact",

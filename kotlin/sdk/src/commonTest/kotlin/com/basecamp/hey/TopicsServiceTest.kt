@@ -1,5 +1,7 @@
 package com.basecamp.hey
 
+import com.basecamp.hey.generated.models.RenameTopicRequestContent
+import com.basecamp.hey.generated.models.TopicNamePayload
 import com.basecamp.hey.generated.models.CreateTopicCommentRequestContent
 import com.basecamp.hey.generated.models.TopicCommentPayload
 import com.basecamp.hey.generated.topics
@@ -10,6 +12,27 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertNull
 
 class TopicsServiceTest {
+    @Test
+    fun renameSendsTheNameIncludingAnEmptyOneWithoutReadingTheTopic() = runTest {
+        val hey = mockHey(status(204), status(204))
+        val client = hey.client()
+        client.topics.rename(9, RenameTopicRequestContent(TopicNamePayload("Kitchen renovation")))
+        client.topics.rename(9, RenameTopicRequestContent(TopicNamePayload("")))
+        assertEquals(2, hey.requests.size)
+        assertEquals("PATCH", hey.requests[0].method)
+        assertEquals("/topics/9.json", hey.requests[0].path)
+        assertEquals("""{"topic":{"name":"Kitchen renovation"}}""", hey.requests[0].body)
+        assertEquals("""{"topic":{"name":""}}""", hey.requests[1].body)
+    }
+
+    @Test
+    fun renameReportsAnInaccessibleTopic() = runTest {
+        val hey = mockHey(status(404))
+        assertFailsWith<HeyException.NotFound> {
+            hey.client().topics.rename(9, RenameTopicRequestContent(TopicNamePayload("Kitchen renovation")))
+        }
+    }
+
     @Test
     fun aTopicIsMovedToABoxByItsId() = runTest {
         val hey = mockHey(ok(""))

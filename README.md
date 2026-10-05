@@ -81,6 +81,9 @@ _, _ = client.Entries().CreateReply(ctx, entryID, prefill.Sender.Id, prefill.Sub
 _ = client.Postings().MoveToSetAside(ctx, postingID)
 _ = client.Postings().MarkSeen(ctx, []int64{a, b})
 
+// Rename a thread by its topic ID. Success is 204 No Content, not a thread read.
+_ = client.Topics().Rename(ctx, topicID, "Kitchen renovation")
+
 // Calendar
 rec, _ := client.TimeTracks().Start(ctx)
 _ = client.TimeTracks().Stop(ctx, rec.Id)

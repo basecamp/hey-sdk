@@ -2622,6 +2622,32 @@ pub static REMOVE_POSTINGS_FROM_BOX_GROUP: Route = Route {
     },
 };
 
+pub static RENAME_TOPIC: Route = Route {
+    id: "RenameTopic",
+    service: "Topics",
+    method: Method::PATCH,
+    path: "/topics/{topicId}",
+    pattern: "/topics/{topicId}",
+    resource: "Topics",
+    resource_type: "topic",
+    params: &[RouteParam {
+        name: "topicId",
+        role: ParamRole::Recording,
+        kind: ParamKind::Int64,
+    }],
+    idempotent: true,
+    readonly: false,
+    html: false,
+    empty_on: &[],
+    lenient_success: false,
+    pagination: Pagination::None,
+    retry: Retry {
+        max: 2,
+        base_delay_ms: 1000,
+        retry_on: &[429, 503],
+    },
+};
+
 pub static RESTORE_TOPIC: Route = Route {
     id: "RestoreTopic",
     service: "Topics",
@@ -3464,6 +3490,7 @@ pub static ROUTES: &[&Route] = &[
     &NEW_ENTRY_REPLY,
     &PUNT_CLEARANCES,
     &REMOVE_POSTINGS_FROM_BOX_GROUP,
+    &RENAME_TOPIC,
     &RESTORE_TOPIC,
     &RESUME_HABIT,
     &REVEAL_CONTACT,

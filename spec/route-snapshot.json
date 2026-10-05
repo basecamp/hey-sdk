@@ -1521,35 +1521,7 @@
   },
   {
     "method": "GET",
-    "path": "/calendar/ical/uploads"
-  },
-  {
-    "method": "POST",
-    "path": "/calendar/ical/uploads"
-  },
-  {
-    "method": "GET",
     "path": "/calendar/ical/uploads/new"
-  },
-  {
-    "method": "DELETE",
-    "path": "/calendar/ical/uploads/{id}"
-  },
-  {
-    "method": "GET",
-    "path": "/calendar/ical/uploads/{id}"
-  },
-  {
-    "method": "PATCH",
-    "path": "/calendar/ical/uploads/{id}"
-  },
-  {
-    "method": "PUT",
-    "path": "/calendar/ical/uploads/{id}"
-  },
-  {
-    "method": "GET",
-    "path": "/calendar/ical/uploads/{id}/edit"
   },
   {
     "method": "GET",
@@ -1564,38 +1536,6 @@
     "path": "/calendar/ical_events/new"
   },
   {
-    "method": "DELETE",
-    "path": "/calendar/identity"
-  },
-  {
-    "method": "GET",
-    "path": "/calendar/identity"
-  },
-  {
-    "method": "PATCH",
-    "path": "/calendar/identity"
-  },
-  {
-    "method": "POST",
-    "path": "/calendar/identity"
-  },
-  {
-    "method": "PUT",
-    "path": "/calendar/identity"
-  },
-  {
-    "method": "PATCH",
-    "path": "/calendar/identity/auto_time_zone"
-  },
-  {
-    "method": "PUT",
-    "path": "/calendar/identity/auto_time_zone"
-  },
-  {
-    "method": "GET",
-    "path": "/calendar/identity/edit"
-  },
-  {
     "method": "PATCH",
     "path": "/calendar/identity/first_week_day"
   },
@@ -1606,22 +1546,6 @@
   {
     "method": "GET",
     "path": "/calendar/identity/first_week_day/edit"
-  },
-  {
-    "method": "GET",
-    "path": "/calendar/identity/new"
-  },
-  {
-    "method": "PATCH",
-    "path": "/calendar/identity/time_format"
-  },
-  {
-    "method": "PUT",
-    "path": "/calendar/identity/time_format"
-  },
-  {
-    "method": "GET",
-    "path": "/calendar/identity/time_format/edit"
   },
   {
     "method": "PATCH",
@@ -3541,6 +3465,18 @@
   },
   {
     "method": "GET",
+    "path": "/frame.html"
+  },
+  {
+    "method": "GET",
+    "path": "/frame.js"
+  },
+  {
+    "method": "GET",
+    "path": "/hotcellz"
+  },
+  {
+    "method": "GET",
     "path": "/identities"
   },
   {
@@ -4433,34 +4369,6 @@
   },
   {
     "method": "DELETE",
-    "path": "/my/accounts/{account_id}/forwardings/inbounds"
-  },
-  {
-    "method": "GET",
-    "path": "/my/accounts/{account_id}/forwardings/inbounds"
-  },
-  {
-    "method": "PATCH",
-    "path": "/my/accounts/{account_id}/forwardings/inbounds"
-  },
-  {
-    "method": "POST",
-    "path": "/my/accounts/{account_id}/forwardings/inbounds"
-  },
-  {
-    "method": "PUT",
-    "path": "/my/accounts/{account_id}/forwardings/inbounds"
-  },
-  {
-    "method": "GET",
-    "path": "/my/accounts/{account_id}/forwardings/inbounds/edit"
-  },
-  {
-    "method": "GET",
-    "path": "/my/accounts/{account_id}/forwardings/inbounds/new"
-  },
-  {
-    "method": "DELETE",
     "path": "/my/accounts/{account_id}/forwardings/outbounds"
   },
   {
@@ -4569,43 +4477,11 @@
   },
   {
     "method": "GET",
-    "path": "/my/external_accounts"
-  },
-  {
-    "method": "POST",
-    "path": "/my/external_accounts"
-  },
-  {
-    "method": "GET",
-    "path": "/my/external_accounts/new"
-  },
-  {
-    "method": "GET",
     "path": "/my/external_accounts/{external_account_id}/gmail_session/new"
   },
   {
     "method": "GET",
     "path": "/my/external_accounts/{external_account_id}/outlook_session/new"
-  },
-  {
-    "method": "DELETE",
-    "path": "/my/external_accounts/{id}"
-  },
-  {
-    "method": "GET",
-    "path": "/my/external_accounts/{id}"
-  },
-  {
-    "method": "PATCH",
-    "path": "/my/external_accounts/{id}"
-  },
-  {
-    "method": "PUT",
-    "path": "/my/external_accounts/{id}"
-  },
-  {
-    "method": "GET",
-    "path": "/my/external_accounts/{id}/edit"
   },
   {
     "method": "GET",
@@ -4766,6 +4642,10 @@
   {
     "method": "POST",
     "path": "/oauth/tokens"
+  },
+  {
+    "method": "POST",
+    "path": "/oauth/web_sessions"
   },
   {
     "method": "DELETE",
@@ -4978,10 +4858,6 @@
   {
     "method": "PUT",
     "path": "/postings/workflows/{id}"
-  },
-  {
-    "method": "POST",
-    "path": "/postings/{posting_id}/bundles/seen"
   },
   {
     "method": "GET",
@@ -5490,14 +5366,6 @@
   {
     "method": "GET",
     "path": "/sign_up/domains/backup_email_address/new"
-  },
-  {
-    "method": "POST",
-    "path": "/sign_up/domains/company_name"
-  },
-  {
-    "method": "GET",
-    "path": "/sign_up/domains/company_name/new"
   },
   {
     "method": "POST",
@@ -6274,10 +6142,6 @@
   {
     "method": "POST",
     "path": "/two_factor_authentication/security_keys/{security_key_id}/confirmation"
-  },
-  {
-    "method": "GET",
-    "path": "/two_factor_authentication/security_keys/{security_key_id}/removal/new"
   },
   {
     "method": "GET",

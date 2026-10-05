@@ -186,6 +186,19 @@ impl<'a> Topics<'a> {
         self.client.send_unit(operation).await
     }
 
+    /// Rename a topic. HEY normalizes a blank name to "No subject" and truncates
+    /// names to 1024 characters. Returns no content; read the topic to see the saved name.
+    pub async fn rename(
+        &self,
+        topic_id: i64,
+        body: &RenameTopicRequestContent,
+    ) -> Result<(), Error> {
+        let mut operation = self.client.operation(&routes::RENAME_TOPIC, &[&topic_id]);
+        operation.resource_id(topic_id);
+        operation.json(body)?;
+        self.client.send_unit(operation).await
+    }
+
     /// Restore a topic from the trash or the catch-all
     pub async fn restore(&self, topic_id: i64) -> Result<(), Error> {
         let mut operation = self.client.operation(&routes::RESTORE_TOPIC, &[&topic_id]);

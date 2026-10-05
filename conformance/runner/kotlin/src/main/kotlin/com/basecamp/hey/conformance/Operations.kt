@@ -46,6 +46,8 @@ import com.basecamp.hey.generated.models.TimeTrackRequestContent
 import com.basecamp.hey.generated.models.TopicCommentPayload
 import com.basecamp.hey.generated.models.TrashPostingsRequestContent
 import com.basecamp.hey.generated.models.UpdateClearanceRequestContent
+import com.basecamp.hey.generated.models.RenameTopicRequestContent
+import com.basecamp.hey.generated.models.TopicNamePayload
 import com.basecamp.hey.generated.models.UpdateCollectionRequestContent
 import com.basecamp.hey.generated.models.UpdateContactClearanceRequestContent
 import com.basecamp.hey.generated.models.UpdateJournalEntryRequestContent
@@ -198,6 +200,10 @@ private suspend fun executeOperation(client: HeyClient, case: TestCase): Outcome
         "GetLaterbox" -> asJson(client.boxes.getLaterbox())
         "GetBubblebox" -> asJson(client.boxes.getBubblebox())
 
+        "RenameTopic" -> {
+            client.topics.rename(path.int64("topicId"), RenameTopicRequestContent(topic = TopicNamePayload(name = body.string("name"))))
+            Outcome.Unit
+        }
         "GetTopic" -> asJson(client.topics.get(path.int64("topicId")))
         "GetTopicEntries" -> page(client, client.topics.getEntries(path.int64("topicId")), follow)
         "GetTopicCommentAudience" -> asJson(client.topics.getCommentAudience(path.int64("topicId")))
@@ -526,6 +532,7 @@ private suspend fun executeHeyOperation(client: HeyClient, case: TestCase): Outc
     val path = case.pathParams
     val body = case.requestBody
     return when (case.operation) {
+        "RenameTopic" -> executeOperation(client, case)
         "ListBoxes" -> page(client, client.boxes.list(), case.followsNextPage)
         "GetWorkflowStage" -> asJson(client.workflows.stage(path.int64("workflowId"), path.int64("stageId")))
         "UpdateCalendarEvent" -> {

@@ -115,6 +115,9 @@ private func executeOperation(_ client: HeyClient, _ testCase: TestCase) async t
     case "GetLaterbox": return try asJSON(try await client.boxes.getLaterbox())
     case "GetBubblebox": return try asJSON(try await client.boxes.getBubblebox())
 
+    case "RenameTopic":
+        try await client.topics.rename(topicId: path.int("topicId"), body: RenameTopicRequestContent(topic: TopicNamePayload(name: body.string("name"))))
+        return .unit
     case "GetTopic": return try asJSON(try await client.topics.get(topicId: path.int("topicId")))
     case "GetTopicEntries": return try await page(client, try await client.topics.getEntries(topicId: path.int("topicId")), follow)
     case "GetTopicCommentAudience": return try asJSON(try await client.topics.getCommentAudience(topicId: path.int("topicId")))
@@ -458,6 +461,7 @@ private func executeHeyOperation(_ client: HeyClient, _ testCase: TestCase) asyn
     let path = testCase.pathParams
     let body = testCase.requestBody
     switch testCase.operation {
+    case "RenameTopic": return try await executeOperation(client, testCase)
     case "ListBoxes": return try await page(client, try await client.boxes.list(), testCase.followsNextPage)
     case "GetWorkflowStage":
         return try asJSON(try await client.workflows.stage(workflowId: path.int("workflowId"), stageId: path.int("stageId")))

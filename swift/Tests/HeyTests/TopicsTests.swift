@@ -4,6 +4,24 @@ import XCTest
 @testable import Hey
 
 final class TopicsTests: XCTestCase {
+    func testRenameSendsTheNameIncludingAnEmptyOneWithoutReadingTheTopic() async throws {
+        let hey = mockHey(status(204), status(204))
+        let client = try hey.client()
+        try await client.topics.rename(topicId: 9, body: RenameTopicRequestContent(topic: TopicNamePayload(name: "Kitchen renovation")))
+        try await client.topics.rename(topicId: 9, body: RenameTopicRequestContent(topic: TopicNamePayload(name: "")))
+        XCTAssertEqual(hey.requests.count, 2)
+        XCTAssertEqual(hey.requests[0].method, "PATCH")
+        XCTAssertEqual(hey.requests[0].path, "/topics/9.json")
+        XCTAssertEqual(hey.requests[0].body, #"{"topic":{"name":"Kitchen renovation"}}"#)
+        XCTAssertEqual(hey.requests[1].body, #"{"topic":{"name":""}}"#)
+    }
+
+    func testRenameReportsAnInaccessibleTopic() async throws {
+        let hey = mockHey(status(404))
+        _ = await assertThrows(HeyError.codeNotFound, try await hey.client().topics.rename(
+            topicId: 9, body: RenameTopicRequestContent(topic: TopicNamePayload(name: "Kitchen renovation"))))
+    }
+
     func testATopicIsMovedToABoxByItsId() async throws {
         let hey = mockHey(ok(""))
         try await hey.client().topics.moveToBox(topicId: 9, boxId: 3)

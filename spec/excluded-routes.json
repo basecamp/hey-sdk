@@ -1,6 +1,21 @@
 [
   {
     "method": "GET",
+    "path": "/frame.html",
+    "reason": "internal: hotcell message-content frame, not a JSON API"
+  },
+  {
+    "method": "GET",
+    "path": "/frame.js",
+    "reason": "internal: hotcell message-content script, not a JSON API"
+  },
+  {
+    "method": "GET",
+    "path": "/hotcellz",
+    "reason": "internal: hotcell health check"
+  },
+  {
+    "method": "GET",
     "path": "/calendar/todos.json",
     "reason": "broken: returns 404 (hey-cli PR #2)"
   },
@@ -3271,11 +3286,6 @@
   },
   {
     "method": "DELETE",
-    "path": "/topics/{id}",
-    "reason": "phase-2: topic management"
-  },
-  {
-    "method": "PATCH",
     "path": "/topics/{id}",
     "reason": "phase-2: topic management"
   },

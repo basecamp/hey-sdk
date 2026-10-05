@@ -1412,6 +1412,11 @@ type Reminder struct {
 	UpdatedAt time.Time `json:"updated_at,omitempty,omitzero"`
 }
 
+// RenameTopicRequestContent Wire format: {topic: {name}}. Name is required, including when it is empty.
+type RenameTopicRequestContent struct {
+	Topic TopicNamePayload `json:"topic"`
+}
+
 // ReplyMessagePayload HEY does not derive a subject for a reply: a reply draft saved without message.subject
 // reads "No subject" in Drafts. NewEntryReply hands back the prefilled subject ("Re: …") —
 // send it here. Content is the caller's reply body alone: the server appends the quoted
@@ -1619,6 +1624,11 @@ type TopicListResponse struct {
 	Description string  `json:"description,omitempty"`
 	Title       string  `json:"title,omitempty"`
 	Topics      []Topic `json:"topics,omitempty"`
+}
+
+// TopicNamePayload defines model for TopicNamePayload.
+type TopicNamePayload struct {
+	Name string `json:"name"`
 }
 
 // TopicPublication defines model for TopicPublication.
@@ -2203,6 +2213,9 @@ type MoveStickyJSONRequestBody = MoveStickyRequestContent
 // UpdateStickyJSONRequestBody defines body for UpdateSticky for application/json ContentType.
 type UpdateStickyJSONRequestBody = StickyRequestContent
 
+// RenameTopicJSONRequestBody defines body for RenameTopic for application/json ContentType.
+type RenameTopicJSONRequestBody = RenameTopicRequestContent
+
 // CreateTopicCommentJSONRequestBody defines body for CreateTopicComment for application/json ContentType.
 type CreateTopicCommentJSONRequestBody = CreateTopicCommentRequestContent
 
@@ -2391,6 +2404,7 @@ var operationRetryPolicies = map[string]RetryPolicy{
 	"GetTrashTopics":                {MaxAttempts: 3, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
 	"EmptyTrash":                    {MaxAttempts: 2, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
 	"GetTopic":                      {MaxAttempts: 3, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
+	"RenameTopic":                   {MaxAttempts: 2, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
 	"CreateTopicComment":            {MaxAttempts: 2, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
 	"GetTopicCommentAudience":       {MaxAttempts: 3, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
 	"GetTopicEntries":               {MaxAttempts: 3, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
@@ -3254,6 +3268,11 @@ type ClientInterface interface {
 
 	// GetTopic request
 	GetTopic(ctx context.Context, topicId int64, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// RenameTopicWithBody request with any body
+	RenameTopicWithBody(ctx context.Context, topicId int64, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	RenameTopic(ctx context.Context, topicId int64, body RenameTopicJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// CreateTopicCommentWithBody request with any body
 	CreateTopicCommentWithBody(ctx context.Context, topicId int64, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -4717,6 +4736,25 @@ func (c *Client) GetTopic(ctx context.Context, topicId int64, reqEditors ...Requ
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
 		return NewGetTopicRequest(c.Server, topicId)
 	}, true, "GetTopic", reqEditors...)
+}
+
+// RenameTopicWithBody is marked as idempotent and will be retried on transient failures.
+
+func (c *Client) RenameTopicWithBody(ctx context.Context, topicId int64, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	body, rewind, finish := resendableBody(body)
+	defer finish()
+	return c.doWithRetry(ctx, func() (*http.Request, error) {
+		if err := rewind(); err != nil {
+			return nil, err
+		}
+		return NewRenameTopicRequestWithBody(c.Server, topicId, contentType, body)
+	}, true, "RenameTopic", reqEditors...)
+}
+
+func (c *Client) RenameTopic(ctx context.Context, topicId int64, body RenameTopicJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	return c.doWithRetry(ctx, func() (*http.Request, error) {
+		return NewRenameTopicRequest(c.Server, topicId, body)
+	}, true, "RenameTopic", reqEditors...)
 }
 
 // CreateTopicCommentWithBody executes the CreateTopicComment operation.
@@ -10330,6 +10368,53 @@ func NewGetTopicRequest(server string, topicId int64) (*http.Request, error) {
 	return req, nil
 }
 
+// NewRenameTopicRequest calls the generic RenameTopic builder with application/json body
+func NewRenameTopicRequest(server string, topicId int64, body RenameTopicJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewRenameTopicRequestWithBody(server, topicId, "application/json", bodyReader)
+}
+
+// NewRenameTopicRequestWithBody generates requests for RenameTopic with any type of body
+func NewRenameTopicRequestWithBody(server string, topicId int64, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "topicId", runtime.ParamLocationPath, topicId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/topics/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("PATCH", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
 // NewCreateTopicCommentRequest calls the generic CreateTopicComment builder with application/json body
 func NewCreateTopicCommentRequest(server string, topicId int64, body CreateTopicCommentJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
@@ -10993,6 +11078,7 @@ var operationMetadata = map[string]OperationMetadata{
 	"GetTrashTopics":                {Idempotent: true, HasSensitiveParams: false},
 	"EmptyTrash":                    {Idempotent: true, HasSensitiveParams: false},
 	"GetTopic":                      {Idempotent: true, HasSensitiveParams: false},
+	"RenameTopic":                   {Idempotent: true, HasSensitiveParams: false},
 	"CreateTopicComment":            {Idempotent: false, HasSensitiveParams: false},
 	"GetTopicCommentAudience":       {Idempotent: true, HasSensitiveParams: false},
 	"GetTopicEntries":               {Idempotent: true, HasSensitiveParams: false},
@@ -12954,6 +13040,22 @@ type ClientWithResponsesInterface interface {
 	//
 	// Returns a wrapper object for the known response body format(s).
 	GetTopicWithResponse(ctx context.Context, topicId int64, reqEditors ...RequestEditorFn) (*GetTopicResponse, error)
+
+	// RenameTopicWithBodyWithResponse performs a PATCH /topics/{topicId} (the `RenameTopic` operationId) request,
+	// with any type of body and a specified content type.
+	//
+	// Rename a topic. HEY normalizes a blank name to "No subject" and truncates
+	// names to 1024 characters. Returns no content; read the topic to see the saved name.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	RenameTopicWithBodyWithResponse(ctx context.Context, topicId int64, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*RenameTopicResponse, error)
+
+	// RenameTopicWithResponse performs a PATCH /topics/{topicId} (the `RenameTopic` operationId) request.
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Rename a topic. HEY normalizes a blank name to "No subject" and truncates
+	// names to 1024 characters. Returns no content; read the topic to see the saved name.
+	RenameTopicWithResponse(ctx context.Context, topicId int64, body RenameTopicJSONRequestBody, reqEditors ...RequestEditorFn) (*RenameTopicResponse, error)
 
 	// CreateTopicCommentWithBodyWithResponse performs a POST /topics/{topicId}/comments.json (the `CreateTopicComment` operationId) request,
 	// with any type of body and a specified content type.
@@ -21254,6 +21356,75 @@ func (r GetTopicResponse) ContentType() string {
 	return ""
 }
 
+type RenameTopicResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *UnauthorizedErrorResponseContent
+	// JSON404 the response for an HTTP 404 `application/json` response
+	JSON404 *NotFoundErrorResponseContent
+	// JSON422 the response for an HTTP 422 `application/json` response
+	JSON422 *UnprocessableEntityErrorResponseContent
+	// JSON500 the response for an HTTP 500 `application/json` response
+	JSON500 *InternalServerErrorResponseContent
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *ServiceUnavailableErrorResponseContent
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r RenameTopicResponse) GetJSON401() *UnauthorizedErrorResponseContent {
+	return r.JSON401
+}
+
+// GetJSON404 returns the response for an HTTP 404 `application/json` response
+func (r RenameTopicResponse) GetJSON404() *NotFoundErrorResponseContent {
+	return r.JSON404
+}
+
+// GetJSON422 returns the response for an HTTP 422 `application/json` response
+func (r RenameTopicResponse) GetJSON422() *UnprocessableEntityErrorResponseContent {
+	return r.JSON422
+}
+
+// GetJSON500 returns the response for an HTTP 500 `application/json` response
+func (r RenameTopicResponse) GetJSON500() *InternalServerErrorResponseContent {
+	return r.JSON500
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r RenameTopicResponse) GetJSON503() *ServiceUnavailableErrorResponseContent {
+	return r.JSON503
+}
+
+// GetBody returns the raw response body bytes
+func (r RenameTopicResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r RenameTopicResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r RenameTopicResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r RenameTopicResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type CreateTopicCommentResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -24388,6 +24559,34 @@ func (c *ClientWithResponses) GetTopicWithResponse(ctx context.Context, topicId 
 		return nil, err
 	}
 	return ParseGetTopicResponse(rsp)
+}
+
+// RenameTopicWithBodyWithResponse performs a PATCH /topics/{topicId} (the `RenameTopic` operationId) request,
+// with any type of body and a specified content type.
+//
+// Rename a topic. HEY normalizes a blank name to "No subject" and truncates
+// names to 1024 characters. Returns no content; read the topic to see the saved name.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) RenameTopicWithBodyWithResponse(ctx context.Context, topicId int64, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*RenameTopicResponse, error) {
+	rsp, err := c.RenameTopicWithBody(ctx, topicId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseRenameTopicResponse(rsp)
+}
+
+// RenameTopicWithResponse performs a PATCH /topics/{topicId} (the `RenameTopic` operationId) request.
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Rename a topic. HEY normalizes a blank name to "No subject" and truncates
+// names to 1024 characters. Returns no content; read the topic to see the saved name.
+func (c *ClientWithResponses) RenameTopicWithResponse(ctx context.Context, topicId int64, body RenameTopicJSONRequestBody, reqEditors ...RequestEditorFn) (*RenameTopicResponse, error) {
+	rsp, err := c.RenameTopic(ctx, topicId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseRenameTopicResponse(rsp)
 }
 
 // CreateTopicCommentWithBodyWithResponse performs a POST /topics/{topicId}/comments.json (the `CreateTopicComment` operationId) request,
@@ -31896,6 +32095,70 @@ func ParseGetTopicResponse(rsp *http.Response) (*GetTopicResponse, error) {
 				return nil, err
 			}
 			response.JSON404 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+			var dest InternalServerErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON500 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+			var dest ServiceUnavailableErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON503 = &dest
+
+		}
+
+		return response, nil
+	}(); err != nil && rsp.StatusCode/100 == 2 {
+		return nil, err
+	}
+
+	return response, nil
+}
+
+// ParseRenameTopicResponse parses an HTTP response from a RenameTopicWithResponse call
+func ParseRenameTopicResponse(rsp *http.Response) (*RenameTopicResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &RenameTopicResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	// An undecodable body fails only a 2xx; an error status answers on its own, body or not.
+	if _, err := func() (*RenameTopicResponse, error) {
+		switch {
+		case rsp.StatusCode == 204:
+			break // No content-type
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+			var dest UnauthorizedErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON401 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+			var dest NotFoundErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON404 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 422:
+			var dest UnprocessableEntityErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON422 = &dest
 
 		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
 			var dest InternalServerErrorResponseContent

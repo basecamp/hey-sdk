@@ -3,12 +3,73 @@
 mod support;
 
 use hey_sdk::ErrorCode;
-use hey_sdk::models::{CreateTopicCommentRequestContent, TopicCommentPayload};
+use hey_sdk::models::{
+    CreateTopicCommentRequestContent, RenameTopicRequestContent, TopicCommentPayload,
+    TopicNamePayload,
+};
 use serde_json::{Value, json};
 use wiremock::matchers::{method, path, query_param, query_param_is_missing};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
 use support::client;
+
+#[tokio::test]
+async fn rename_sends_the_name_including_an_empty_one_and_needs_no_read_back() {
+    let server = MockServer::start().await;
+    Mock::given(method("PATCH"))
+        .and(path("/topics/9.json"))
+        .respond_with(ResponseTemplate::new(204))
+        .mount(&server)
+        .await;
+    let client = client(&server);
+    for name in ["Kitchen renovation", "", "Renovation: \"café\" & garden"] {
+        client
+            .topics()
+            .rename(
+                9,
+                &RenameTopicRequestContent {
+                    topic: TopicNamePayload { name: name.into() },
+                },
+            )
+            .await
+            .unwrap();
+    }
+    let requests = server.received_requests().await.unwrap();
+    assert_eq!(requests.len(), 3);
+    for (request, name) in
+        requests
+            .iter()
+            .zip(["Kitchen renovation", "", "Renovation: \"café\" & garden"])
+    {
+        assert_eq!(
+            request.body_json::<Value>().unwrap(),
+            json!({"topic": {"name": name}})
+        );
+    }
+}
+
+#[tokio::test]
+async fn rename_reports_a_topic_that_is_not_accessible() {
+    let server = MockServer::start().await;
+    Mock::given(method("PATCH"))
+        .and(path("/topics/9.json"))
+        .respond_with(ResponseTemplate::new(404))
+        .mount(&server)
+        .await;
+    let error = client(&server)
+        .topics()
+        .rename(
+            9,
+            &RenameTopicRequestContent {
+                topic: TopicNamePayload {
+                    name: "Kitchen renovation".into(),
+                },
+            },
+        )
+        .await
+        .unwrap_err();
+    assert_eq!(error.code(), ErrorCode::NotFound);
+}
 
 #[tokio::test]
 async fn confirmation_is_asked_for_only_when_it_is_given() {

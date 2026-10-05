@@ -65,7 +65,7 @@ timestamp DateTime
 /// HEY API
 @restJson1
 service HEY {
-    version: "2026-09-20"
+    version: "2026-10-05"
     operations: [
         // Identity (4 MVP)
         GetIdentity
@@ -86,6 +86,7 @@ service HEY {
 
         // Topics (6 MVP)
         GetTopic
+        RenameTopic
         GetTopicEntries
         GetSentTopics
         GetSpamTopics
@@ -1537,6 +1538,41 @@ structure GetTopicInput {
 structure GetTopicOutput {
     @required
     topic: Topic
+}
+
+/// Rename a topic. HEY normalizes a blank name to "No subject" and truncates
+/// names to 1024 characters. Returns no content; read the topic to see the saved name.
+@idempotent
+@http(method: "PATCH", uri: "/topics/{topicId}", code: 204)
+@tags(["Topics"])
+@heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+@heyDestructive(false)
+@heyOpenWorld(false)
+@heyUntrustedContent(false)
+operation RenameTopic {
+    input: RenameTopicInput
+    errors: [UnauthorizedError, NotFoundError, UnprocessableEntityError, InternalServerError, ServiceUnavailableError]
+}
+
+structure RenameTopicInput {
+    @httpLabel
+    @required
+    topicId: Long
+
+    @httpPayload
+    @required
+    body: RenameTopicRequestContent
+}
+
+/// Wire format: {topic: {name}}. Name is required, including when it is empty.
+structure RenameTopicRequestContent {
+    @required
+    topic: TopicNamePayload
+}
+
+structure TopicNamePayload {
+    @required
+    name: String
 }
 
 /// Get entries for a topic

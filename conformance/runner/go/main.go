@@ -1103,6 +1103,10 @@ func executeOperation(client *generated.Client, ctx context.Context, tc TestCase
 		return client.GetBubblebox(ctx, nil)
 
 	// Topics
+	case "RenameTopic":
+		return client.RenameTopic(ctx, getInt64Param(tc.PathParams, "topicId"), generated.RenameTopicJSONRequestBody{
+			Topic: generated.TopicNamePayload{Name: getStringParam(tc.RequestBody, "name")},
+		})
 	case "GetTopic":
 		topicId := getInt64Param(tc.PathParams, "topicId")
 		return client.GetTopic(ctx, topicId)
@@ -1624,6 +1628,8 @@ func executeOperation(client *generated.Client, ctx context.Context, tc TestCase
 // responseBody assertion can see it; a mutation hands back nil.
 func executeHEYOperation(client *hey.Client, ctx context.Context, tc TestCase) (interface{}, error) {
 	switch tc.Operation {
+	case "RenameTopic":
+		return nil, client.Topics().Rename(ctx, getInt64Param(tc.PathParams, "topicId"), getStringParam(tc.RequestBody, "name"))
 	case "ListBoxes":
 		return client.Boxes().List(ctx)
 	case "GetWorkflowStage":

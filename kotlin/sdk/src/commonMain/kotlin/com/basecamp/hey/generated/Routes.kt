@@ -2160,6 +2160,27 @@ object Routes {
         retry = RetryPolicy(max = 2, baseDelayMs = 1000L, retryOn = listOf(429, 503)),
     )
 
+    /** `PATCH /topics/{topicId}` */
+    val RENAME_TOPIC: Route = Route(
+        id = "RenameTopic",
+        service = "Topics",
+        method = Method.PATCH,
+        path = "/topics/{topicId}",
+        pattern = "/topics/{topicId}",
+        resource = "Topics",
+        resourceType = "topic",
+        params = listOf(
+            RouteParam("topicId", ParamRole.RECORDING, ParamKind.INT64),
+        ),
+        idempotent = true,
+        readonly = false,
+        html = false,
+        emptyOn = emptyList(),
+        pagination = Pagination.NONE,
+        pageParameter = null,
+        retry = RetryPolicy(max = 2, baseDelayMs = 1000L, retryOn = listOf(429, 503)),
+    )
+
     /** `PUT /topics/{topicId}/status/active.json` */
     val RESTORE_TOPIC: Route = Route(
         id = "RestoreTopic",
@@ -2866,6 +2887,7 @@ object Routes {
         NEW_ENTRY_REPLY,
         PUNT_CLEARANCES,
         REMOVE_POSTINGS_FROM_BOX_GROUP,
+        RENAME_TOPIC,
         RESTORE_TOPIC,
         RESUME_HABIT,
         REVEAL_CONTACT,
