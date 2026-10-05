@@ -1893,7 +1893,11 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
-        patch?: never;
+        /**
+         * @description Rename a topic. HEY normalizes a blank name to "No subject" and truncates
+         *     names to 1024 characters. Returns no content; read the topic to see the saved name.
+         */
+        patch: operations["RenameTopic"];
         trace?: never;
     };
     "/topics/{topicId}/comments.json": {
@@ -3288,6 +3292,10 @@ export interface components {
             updated_at?: string;
             label?: string;
         };
+        /** @description Wire format: {topic: {name}}. Name is required, including when it is empty. */
+        RenameTopicRequestContent: {
+            topic: components["schemas"]["TopicNamePayload"];
+        };
         /**
          * @description HEY does not derive a subject for a reply: a reply draft saved without message.subject
          *     reads "No subject" in Drafts. NewEntryReply hands back the prefilled subject ("Re: …") —
@@ -3495,6 +3503,9 @@ export interface components {
             title?: string;
             description?: string;
             topics?: components["schemas"]["Topic"][];
+        };
+        TopicNamePayload: {
+            name: string;
         };
         TopicPublication: {
             published: boolean;
@@ -10781,6 +10792,75 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["NotFoundErrorResponseContent"];
+                };
+            };
+            /** @description InternalServerError 500 response */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InternalServerErrorResponseContent"];
+                };
+            };
+            /** @description ServiceUnavailableError 503 response */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ServiceUnavailableErrorResponseContent"];
+                };
+            };
+        };
+    };
+    RenameTopic: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                topicId: number | bigint;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RenameTopicRequestContent"];
+            };
+        };
+        responses: {
+            /** @description RenameTopic 204 response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description UnauthorizedError 401 response */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UnauthorizedErrorResponseContent"];
+                };
+            };
+            /** @description NotFoundError 404 response */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NotFoundErrorResponseContent"];
+                };
+            };
+            /** @description UnprocessableEntityError 422 response */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UnprocessableEntityErrorResponseContent"];
                 };
             };
             /** @description InternalServerError 500 response */

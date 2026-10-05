@@ -884,5 +884,27 @@
       "name": "422 on create is not retried",
       "operation": "CreateMessage"
     }
+  ],
+  "topic-rename.json": [
+    {
+      "name": "Rename a topic asks for JSON and succeeds without a body or read-back",
+      "operation": "RenameTopic"
+    },
+    {
+      "name": "Rename sends an explicitly empty name for HEY to normalize",
+      "operation": "RenameTopic"
+    },
+    {
+      "name": "Rename reports an inaccessible topic",
+      "operation": "RenameTopic"
+    },
+    {
+      "name": "Idempotent topic rename retries a declared transient failure",
+      "operation": "RenameTopic"
+    },
+    {
+      "name": "Topic rename stops at its two-attempt retry limit",
+      "operation": "RenameTopic"
+    }
   ]
 }

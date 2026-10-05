@@ -45,6 +45,35 @@ func (s *TopicsService) Get(ctx context.Context, topicID int64) (result *generat
 	return resp.JSON200, nil
 }
 
+// Rename changes a topic's name. HEY normalizes blank names to "No subject" and
+// truncates names to 1024 characters. Get the topic afterwards to read its saved name.
+func (s *TopicsService) Rename(ctx context.Context, topicID int64, name string) error {
+	op := OperationInfo{
+		Service: "Topics", Operation: "RenameTopic",
+		ResourceType: "topic", IsMutation: true, ResourceID: topicID,
+	}
+
+	return s.client.instrument(ctx, op, func(ctx context.Context) error {
+		resp, err := s.client.genClient().RenameTopicWithResponse(ctx, topicID, generated.RenameTopicRequestContent{
+			Topic: generated.TopicNamePayload{Name: name},
+		})
+		if err != nil {
+			return err
+		}
+		if err := CheckResponse(resp.HTTPResponse); err != nil {
+			return err
+		}
+		// A merged topic redirects. net/http may follow that as a GET, so a
+		// successful read is not acknowledgement that the name was changed.
+		if resp.StatusCode() != http.StatusNoContent {
+			err := ErrAPI(resp.StatusCode(), "topic rename was not acknowledged (expected HTTP 204)")
+			err.RequestID = resp.HTTPResponse.Header.Get("X-Request-Id")
+			return err
+		}
+		return nil
+	})
+}
+
 // GetEntries returns entries for a specific topic.
 //
 // The entry index is paginated by geared_pagination, so the page in params is a cursor out

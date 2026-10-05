@@ -220,6 +220,20 @@ async fn execute_operation(client: &Client, case: &TestCase) -> Result<Outcome, 
                 .await?,
         ),
 
+        "RenameTopic" => {
+            client
+                .topics()
+                .rename(
+                    int64_param(path, "topicId"),
+                    &models::RenameTopicRequestContent {
+                        topic: models::TopicNamePayload {
+                            name: string_param(body, "name"),
+                        },
+                    },
+                )
+                .await?;
+            Ok(Outcome::Unit)
+        }
         "GetTopic" => json(client.topics().get(int64_param(path, "topicId")).await?),
         "GetTopicEntries" => {
             let result = client
@@ -1105,6 +1119,7 @@ async fn execute_hey_operation(client: &Client, case: &TestCase) -> Result<Outco
     let body = &case.request_body;
 
     match case.operation.as_str() {
+        "RenameTopic" => execute_operation(client, case).await,
         "ListBoxes" => {
             page(
                 client,

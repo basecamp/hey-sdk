@@ -184,6 +184,19 @@ public final class TopicsService: BaseService, @unchecked Sendable {
         return try await client.sendVoid(operation)
     }
 
+    /// Rename a topic. HEY normalizes a blank name to "No subject" and truncates
+    /// names to 1024 characters. Returns no content; read the topic to see the saved name.
+    ///
+    /// - Parameters:
+    ///   - topicId: The topic ID
+    ///   - body: Request body
+    public func rename(topicId: Int, body: RenameTopicRequestContent) async throws {
+        var operation = try client.operation(Routes.renameTopic, [topicId])
+        operation.resourceId(topicId)
+        try operation.json(body)
+        return try await client.sendVoid(operation)
+    }
+
     /// Restore a topic from the trash or the catch-all
     ///
     /// - Parameters:

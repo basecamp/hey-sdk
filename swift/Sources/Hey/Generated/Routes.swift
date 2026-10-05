@@ -2148,6 +2148,27 @@ public enum Routes {
         retry: RetryPolicy(max: 2, baseDelayMs: 1000, retryOn: [429, 503])
     )
 
+    /// `PATCH /topics/{topicId}`
+    public static let renameTopic = Route(
+        id: "RenameTopic",
+        service: "Topics",
+        method: .patch,
+        path: "/topics/{topicId}",
+        pattern: "/topics/{topicId}",
+        resource: "Topics",
+        resourceType: "topic",
+        params: [
+            RouteParam(name: "topicId", role: .recording, kind: .int64),
+        ],
+        idempotent: true,
+        readonly: false,
+        html: false,
+        emptyOn: [],
+        pagination: .unpaged,
+        pageParameter: nil,
+        retry: RetryPolicy(max: 2, baseDelayMs: 1000, retryOn: [429, 503])
+    )
+
     /// `PUT /topics/{topicId}/status/active.json`
     public static let restoreTopic = Route(
         id: "RestoreTopic",
@@ -2854,6 +2875,7 @@ public enum Routes {
         newEntryReply,
         puntClearances,
         removePostingsFromBoxGroup,
+        renameTopic,
         restoreTopic,
         resumeHabit,
         revealContact,

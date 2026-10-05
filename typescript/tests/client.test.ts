@@ -29,6 +29,27 @@ function mock(responses: Response[]) {
   return { fetch, requests };
 }
 describe("HEY transport", () => {
+  it.each(["Kitchen renovation", "", 'Renovation: "café" & garden'])(
+    "renames a topic with the exact name %j and no read-back",
+    async (name) => {
+      const m = mock([new Response(null, { status: 204 })]);
+      const result = await new HeyClient({ token: "secret", fetch: m.fetch }).renameTopic({
+        path: { topicId: 9 }, body: { topic: { name } },
+      });
+      expect(result.status).toBe(204);
+      expect(m.requests).toHaveLength(1);
+      expect(m.requests[0]!.method).toBe("PATCH");
+      expect(m.requests[0]!.url).toBe("https://app.hey.com/topics/9");
+      expect(m.requests[0]!.headers.get("Accept")).toBe("application/json");
+      expect(parseJSON(await m.requests[0]!.text())).toEqual({ topic: { name } });
+    },
+  );
+  it("reports an inaccessible topic when renaming", async () => {
+    const m = mock([json({}, 404)]);
+    await expect(new HeyClient({ token: "secret", fetch: m.fetch }).renameTopic({
+      path: { topicId: 9 }, body: { topic: { name: "Kitchen renovation" } },
+    })).rejects.toMatchObject({ code: "not_found" });
+  });
   it("preserves int64 path/body/response, decimals, nulls and absent fields", async () => {
     const m = mock([
       json({ id: 9007199254740993n, position: 1.5, description: null }),

@@ -3153,6 +3153,31 @@ export const operationMetadata = {
     "actingSender": false,
     "actingUser": false
   },
+  "RenameTopic": {
+    "method": "PATCH",
+    "path": "/topics/{topicId}",
+    "parameters": [
+      {
+        "name": "topicId",
+        "in": "path",
+        "required": true,
+        "type": "integer"
+      }
+    ],
+    "bodyRequired": true,
+    "safe": true,
+    "retry": {
+      "maxAttempts": 2,
+      "baseDelayMs": 1000,
+      "backoff": "exponential",
+      "retryOn": [
+        429,
+        503
+      ]
+    },
+    "actingSender": false,
+    "actingUser": false
+  },
   "CreateTopicComment": {
     "method": "POST",
     "path": "/topics/{topicId}/comments.json",
@@ -4221,6 +4246,12 @@ export class GeneratedOperations {
   /** Get a topic */
   getTopic(input: OperationInput<"GetTopic">, options?: RequestOptions): Promise<OperationResponse<"GetTopic">> {
     return this.transport.execute("GetTopic", input, options);
+  }
+
+  /** Rename a topic. HEY normalizes a blank name to "No subject" and truncates
+   * names to 1024 characters. Returns no content; read the topic to see the saved name. */
+  renameTopic(input: OperationInput<"RenameTopic">, options?: RequestOptions): Promise<OperationResponse<"RenameTopic">> {
+    return this.transport.execute("RenameTopic", input, options);
   }
 
   /** Add a note to a topic: a comment entry everyone with access to the thread sees,

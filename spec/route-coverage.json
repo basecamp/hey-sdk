@@ -535,6 +535,11 @@
     "path": "/postings/box_groups.json"
   },
   {
+    "method": "PATCH",
+    "operationId": "RenameTopic",
+    "path": "/topics/{topicId}"
+  },
+  {
     "method": "PUT",
     "operationId": "RestoreTopic",
     "path": "/topics/{topicId}/status/active.json"
