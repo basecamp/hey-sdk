@@ -42,6 +42,8 @@ jobs:
         with:
           version: ${{ github.event.inputs.tag || github.ref_name }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
+          # Each language publish now waits for a reviewer's approval.
+          timeout: '19800'
           # The tagged commit provides the same immutable activation decision to
           # release-typescript.yml and this orchestrator. Historical manual targets
           # select the release workflows that existed in that target.
