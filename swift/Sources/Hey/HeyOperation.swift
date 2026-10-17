@@ -172,6 +172,12 @@ public struct HeyOperation: Sendable, CustomStringConvertible {
         )
     }
 
+    /// Whether a success whose body cannot be read is answered as the success it was, with the
+    /// read failure in ``Response/bodyError``: a write to a path the caller wrote, which the model
+    /// says nothing about, has taken effect once HEY answers a 2xx. A modelled route opts in on its
+    /// own (``Route/lenientSuccess``), and a GET changes nothing a second send would repeat.
+    var keepsUnreadSuccess: Bool { route == nil && method != .get }
+
     static func raw(_ method: HTTPMethod, _ path: String) -> HeyOperation {
         let id = "\(method.rawValue) \(path)"
         return HeyOperation(
