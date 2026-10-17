@@ -14,6 +14,8 @@ class FormResponse internal constructor(
     val status: Int,
     /** What the endpoint answered when it answered a document instead of a redirect. */
     val body: String,
+    /** Why [body] is empty when the endpoint answered a 2xx whose body was lost mid-read or ran past the limit: the write took effect all the same ([Response.bodyError]). */
+    val bodyError: HeyException? = null,
 ) {
     /**
      * The id of the record the redirect named: the rightmost path segment that reads as a
@@ -37,7 +39,7 @@ class FormResponse internal constructor(
             if (response.empty && response.status in 300..399) {
                 FormResponse(response.header("Location"), response.status, "")
             } else {
-                FormResponse(null, response.status, response.text())
+                FormResponse(null, response.status, response.body.decodeToString(), response.bodyError)
             }
     }
 }
