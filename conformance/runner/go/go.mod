@@ -11,7 +11,7 @@ require (
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/oapi-codegen/runtime v1.7.0 // indirect
 	github.com/zalando/go-keyring v0.2.8 // indirect
-	golang.org/x/net v0.59.0 // indirect
+	golang.org/x/net v0.60.0 // indirect
 	golang.org/x/sys v0.48.0 // indirect
 )
 
