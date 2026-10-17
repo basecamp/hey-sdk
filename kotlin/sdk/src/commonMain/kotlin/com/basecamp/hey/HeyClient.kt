@@ -653,11 +653,12 @@ class HeyClient internal constructor(
      * as any other failure to get an answer; the operation's idempotency and its budget say
      * whether it is resent.
      */
-    private fun networkFailure(error: Exception): HeyException =
+    /** A transport failure. One after a write's success is not retryable: the write took effect, and resending it would repeat it. */
+    private fun networkFailure(error: Exception, retryable: Boolean = true): HeyException =
         HeyException.Network(
             "Network error",
             hint = HeyException.truncateMessage(redactUrls(error.message ?: error::class.simpleName ?: "unknown")),
-            retryable = true,
+            retryable = retryable,
         )
 
     /**
@@ -954,7 +955,7 @@ class HeyClient internal constructor(
                 // A raw write HEY answered a success has taken effect: the lost body is kept
                 // as the answer's refusal, which finish attaches to the success, rather than
                 // thrown into the retry loop, which would send a PUT or DELETE again.
-                Received(url, status, headers, ByteArray(0), networkFailure(error), redirected, authenticated, signedUnder, bearer)
+                Received(url, status, headers, ByteArray(0), networkFailure(error, retryable = false), redirected, authenticated, signedUnder, bearer)
             } else {
                 throw error
             }

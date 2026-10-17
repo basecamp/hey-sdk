@@ -22,19 +22,22 @@ final class UnreadSuccessTests: XCTestCase {
                 XCTAssertTrue(response.body.isEmpty, "\(method)")
                 let bodyError = try XCTUnwrap(response.bodyError, "\(method) \(code)")
                 XCTAssertEqual(bodyError.code, HeyError.codeNetwork)
+                XCTAssertFalse(bodyError.isRetryable, "a write that took effect must not be resent")
                 XCTAssertEqual(hey.requests.count, 1, "\(method): a write that took effect is never resent")
             }
         }
     }
 
     func testSendVoidSucceedsAndSendThrowsTheBodyError() async throws {
-        let hey = mockHey(interrupted(200, #"{"id":"#, lost), interrupted(200, #"{"id":"#, lost))
+        let hey = mockHey(
+            interrupted(200, #"{"id":"#, lost), interrupted(200, #"{"id":"#, lost), interrupted(200, #"{"id":"#, lost))
         let client = try hey.client()
         try await client.sendVoid(client.request(.put, "/messages/1"))
 
         struct Sent: Decodable, Sendable { let id: Int }
         await assertThrows(HeyError.codeNetwork, try await client.send(client.request(.post, "/messages"), as: Sent.self))
-        XCTAssertEqual(hey.requests.count, 2)
+        await assertThrows(HeyError.codeNetwork, try await client.sendText(client.request(.post, "/messages")))
+        XCTAssertEqual(hey.requests.count, 3)
     }
 
     func testJSONThrowsTheBodyErrorRatherThanADecodeFailure() async throws {

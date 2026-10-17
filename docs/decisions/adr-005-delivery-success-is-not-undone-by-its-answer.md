@@ -69,7 +69,8 @@ asks for the decoded body (`send<T>`, `send_text`/`sendText`) answers the attach
 since the body it asked for never arrived.
 
 Decoding such a response (`UnmarshalData`, `json`) answers the attached failure rather than a
-decode error. A raw GET whose body breaks is still an error, since nothing happened that
+decode error. The attached failure is never marked retryable, since the write it follows took
+effect, and any 2xx counts: Go reads a raw write's 202 as the success it is. A raw GET whose body breaks is still an error, since nothing happened that
 fetching again would repeat. So is a read the caller's own cancellation ends, so a cancelled
 send is never reported delivered. A raw 2xx body that arrives whole but is not JSON is
 returned as it is: decoding it is the caller's business. TypeScript has no raw requests.

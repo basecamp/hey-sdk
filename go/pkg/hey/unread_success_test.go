@@ -54,7 +54,7 @@ func TestRawMutationsReportASuccessWhoseBodyBreaksMidStreamAsASuccess(t *testing
 		{"Patch", func(c *Client) (*Response, error) { return c.Patch(context.Background(), "/messages/1.json", body) }},
 		{"Delete", func(c *Client) (*Response, error) { return c.Delete(context.Background(), "/messages/1.json") }},
 	} {
-		for _, status := range []int{http.StatusOK, http.StatusCreated} {
+		for _, status := range []int{http.StatusOK, http.StatusCreated, http.StatusAccepted} {
 			t.Run(call.name+"/"+http.StatusText(status), func(t *testing.T) {
 				client, requests := brokenSuccessClient(t, status)
 
@@ -68,6 +68,10 @@ func TestRawMutationsReportASuccessWhoseBodyBreaksMidStreamAsASuccess(t *testing
 				var readErr *BodyReadError
 				if !errors.As(resp.BodyErr, &readErr) || readErr.StatusCode != status {
 					t.Fatalf("BodyErr = %#v, want a *BodyReadError for HTTP %d", resp.BodyErr, status)
+				}
+				var sdkErr *Error
+				if errors.As(resp.BodyErr, &sdkErr) && sdkErr.Retryable {
+					t.Errorf("BodyErr is retryable; a write that took effect must not be resent")
 				}
 				var into map[string]any
 				if err := resp.UnmarshalData(&into); !errors.Is(err, resp.BodyErr) {
@@ -162,9 +166,26 @@ func TestRawFormMutationsReportASuccessWhoseBodyBreaksMidStreamAsASuccess(t *tes
 			if resp.Body != "" || !errors.As(resp.BodyErr, &readErr) || readErr.StatusCode != http.StatusOK {
 				t.Fatalf("resp = %+v, want an empty body and a *BodyReadError", resp)
 			}
+			if e := AsError(resp.BodyErr); e != nil && e.Retryable {
+				t.Errorf("BodyErr is retryable; a write that took effect must not be resent")
+			}
 			if n := requests.Load(); n != 1 {
 				t.Errorf("requests = %d, want 1", n)
 			}
 		})
+	}
+}
+
+// A write HEY answers 202 has worked as much as one it answers 200, whatever its body.
+func TestRawMutationReadsA202AsTheSuccessItIs(t *testing.T) {
+	client := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusAccepted)
+		_, _ = io.WriteString(w, `{"id":2201}`)
+	})
+
+	resp, err := client.Post(context.Background(), "/messages.json", map[string]any{"subject": "Lunch"})
+	if err != nil || resp.StatusCode != http.StatusAccepted || string(resp.Data) != `{"id":2201}` || resp.BodyErr != nil {
+		t.Fatalf("resp = %+v, err = %v; want the 202 and its body", resp, err)
 	}
 }

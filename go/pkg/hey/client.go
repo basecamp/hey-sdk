@@ -169,6 +169,12 @@ func (c *Client) unreadSuccess(ctx context.Context, method string, status int, e
 	}
 	c.logger.Warn("success answer could not be read; the request took effect",
 		"method", method, "status", status, "reason", unreadReason(err))
+	// The write took effect, so the failure is not one to send it again over.
+	if sdkErr, ok := err.(*Error); ok && sdkErr.Retryable {
+		settled := *sdkErr
+		settled.Retryable = false
+		err = &settled
+	}
 	return &BodyReadError{StatusCode: status, Err: err}
 }
 
@@ -1106,7 +1112,14 @@ func (c *Client) singleRequest(ctx context.Context, method, url string, body any
 		cacheKey = ""
 	}
 
-	switch resp.StatusCode {
+	// A write answered with any success status took effect: a 202 is as much the write
+	// having worked as a 200 is, so it reads as one, and the answer keeps the status HEY
+	// sent. A GET keeps to the statuses it always read.
+	status := resp.StatusCode
+	if method != http.MethodGet && status >= 200 && status < 300 && status != http.StatusNoContent && status != http.StatusCreated {
+		status = http.StatusOK
+	}
+	switch status {
 	case http.StatusNotModified:
 		if cacheKey != "" {
 			c.logger.Debug("cache hit", "status", 304)

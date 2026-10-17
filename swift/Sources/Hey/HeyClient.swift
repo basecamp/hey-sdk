@@ -175,8 +175,14 @@ public final class HeyClient: Sendable {
     }
 
     /// Sends an operation and reads its body as text: the HTML page a route serves no JSON for.
+    /// A raw write whose success answer could not be read (``Response/bodyError``) throws that
+    /// error, since the text asked for never arrived; ``execute(_:)`` and ``sendVoid(_:)`` answer
+    /// it as the success it was.
     public func sendText(_ operation: HeyOperation) async throws -> String {
-        try await execute(operation) { $0.text() }
+        try await execute(operation) { response in
+            if let bodyError = response.bodyError { throw bodyError }
+            return response.text()
+        }
     }
 
     /// Sends an operation that answers a status meaning "nothing there" with nil.
@@ -443,9 +449,11 @@ public final class HeyClient: Sendable {
     /// transport's own error is not kept, for the same reason. A timeout is as retryable as any
     /// other failure to get an answer; the operation's idempotency and its budget say whether it is
     /// resent.
-    private func networkFailure(_ error: any Error) -> HeyError {
+    /// A transport failure. One after a write's success is not retryable: the write took effect,
+    /// and resending it would repeat it.
+    private func networkFailure(_ error: any Error, retryable: Bool = true) -> HeyError {
         .network(
-            message: "Network error", retryable: true,
+            message: "Network error", retryable: retryable,
             detail: ErrorDetail(hint: HeyError.truncate(redactURLs(String(describing: error)))))
     }
 
@@ -746,7 +754,7 @@ public final class HeyClient: Sendable {
                     url: url, status: response.status, headers: response.headers, body: Data(), refusal: nil,
                     redirected: hops > 0, authenticated: authenticated, signedUnder: signedUnder,
                     bearer: credentials.headers["authorization"]?.first,
-                    bodyError: kept && !lenient ? networkFailure(interruption) : nil)
+                    bodyError: kept && !lenient ? networkFailure(interruption, retryable: false) : nil)
             }
             let refusal: HeyError? = response.bodyExceeded
                 ? .api(

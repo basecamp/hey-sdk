@@ -19,6 +19,7 @@ import kotlin.concurrent.atomics.incrementAndFetch
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertSame
@@ -73,6 +74,7 @@ class RawWriteBodyTest {
                     assertEquals(0, response.body.size, "$method $status")
                     val error = assertNotNull(response.bodyError, "$method $status: the read failure is attached")
                     assertTrue(error is HeyException.Network, "$method $status: $error")
+                    assertFalse(error.retryable, "$method $status: a write that took effect must not be resent")
                     assertEquals(1, hey.requests.load(), "$method $status: a write that took effect is never resent")
                     assertSame(error, assertFailsWith<HeyException> { response.json<Map<String, Int>>() })
                 } finally {

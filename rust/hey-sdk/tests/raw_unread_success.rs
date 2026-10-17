@@ -74,6 +74,10 @@ async fn a_raw_post_and_put_whose_success_body_breaks_answer_the_success() {
         assert!(response.body.is_empty(), "{verb} kept a partial body");
         let unread = response.body_error().expect("the read failure is attached");
         assert_eq!(unread.code(), ErrorCode::Network, "{verb}");
+        assert!(
+            !unread.is_retryable(),
+            "{verb}: a write that took effect must not be resent"
+        );
         assert_eq!(
             requests.load(Ordering::SeqCst),
             1,

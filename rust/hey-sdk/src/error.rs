@@ -392,6 +392,14 @@ impl Error {
         self
     }
 
+    /// The same error, not retryable: a failure after a write's success, which resending would
+    /// repeat.
+    #[must_use]
+    pub(crate) fn not_retryable(mut self) -> Error {
+        self.retryable = false;
+        self
+    }
+
     /// Marks the call as worth sending again.
     #[must_use]
     pub fn retryable(mut self) -> Error {

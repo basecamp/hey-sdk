@@ -1423,7 +1423,7 @@ impl Client {
                     url: final_url,
                     from_cache: false,
                     empty: false,
-                    body_error: Some(UnreadBody(Arc::new(refusal))),
+                    body_error: Some(UnreadBody(Arc::new(refusal.not_retryable()))),
                 });
             }
             Err(refusal) if status.is_success() => return Err(refusal),
