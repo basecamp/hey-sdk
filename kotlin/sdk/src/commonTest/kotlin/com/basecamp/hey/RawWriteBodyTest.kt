@@ -5,7 +5,12 @@ import io.ktor.client.engine.mock.respond
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.headersOf
-import io.ktor.utils.io.ByteChannel
+import io.ktor.utils.io.writer
+import kotlinx.coroutines.DelicateCoroutinesApi
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.delay
+import kotlinx.io.IOException
 import io.ktor.utils.io.writeFully
 import kotlinx.coroutines.test.runTest
 import kotlin.concurrent.atomics.AtomicInt
@@ -25,7 +30,7 @@ import kotlin.time.Duration.Companion.milliseconds
  * A raw write HEY answered a success has taken effect, so a body lost after the status must
  * not fail the call: a caller told a send failed would send it again.
  */
-@OptIn(ExperimentalAtomicApi::class)
+@OptIn(ExperimentalAtomicApi::class, DelicateCoroutinesApi::class)
 class RawWriteBodyTest {
     /** A HEY that answers [status], sends the start of a JSON body and then drops the connection mid-body. Counts the requests it sees. */
     private class BrokenAnswer(private val status: Int = 200) {
@@ -33,10 +38,17 @@ class RawWriteBodyTest {
 
         val engine = MockEngine {
             requests.incrementAndFetch()
-            val channel = ByteChannel(autoFlush = true)
-            channel.writeFully("""{"id":2201,"topic_id":""".encodeToByteArray())
-            channel.cancel(RuntimeException("connection reset by peer"))
-            respond(channel, HttpStatusCode.fromValue(status), headersOf(HttpHeaders.ContentType, "application/json"))
+            // A producer that sends the start of the body, waits for the SDK to be reading the
+            // rest, then fails, as a connection reset mid-body does: the read gets the bytes and
+            // then the failure. A channel failed before the read starts can read as merely
+            // closed, which is not the case under test.
+            val body = GlobalScope.writer(Dispatchers.Default) {
+                channel.writeFully("""{"id":2201,"topic_id":""".encodeToByteArray())
+                channel.flush()
+                delay(200.milliseconds)
+                throw IOException("connection reset by peer")
+            }.channel
+            respond(body, HttpStatusCode.fromValue(status), headersOf(HttpHeaders.ContentType, "application/json"))
         }
 
         fun client(): HeyClient = HeyClient {
