@@ -106,6 +106,14 @@ type Response struct {
 	StatusCode int
 	Headers    http.Header
 	FromCache  bool
+	// BodyErr is set when HEY answered a POST, PUT, PATCH or DELETE with a success
+	// status but its body could not be read in full: the connection broke mid-body, or
+	// the body ran past the response body limit. The request took effect, so the call
+	// reports it as the success it was, with Data nil and the read failure here as a
+	// *BodyReadError. Treating it as a failed send would make the caller send it again.
+	// A GET whose body cannot be read is still an error, because a GET changes nothing
+	// and can simply be repeated. A read the caller's own context ends is an error too.
+	BodyErr error
 }
 
 // FormResponse wraps a response from a form-encoded request that returns a redirect.
@@ -118,11 +126,70 @@ type FormResponse struct {
 	// .json path answer the created resource here instead of redirecting. It is a string
 	// rather than a byte slice so a FormResponse stays comparable.
 	Body string
+	// BodyErr is set, as on Response, when a 2xx answer's body could not be read in full.
+	// The request took effect and Body is empty. It is always a *BodyReadError, a pointer,
+	// so a FormResponse stays comparable.
+	BodyErr error
 }
 
-// UnmarshalData unmarshals the response data into the given value.
+// BodyReadError is a Response's or FormResponse's BodyErr: HEY answered a mutation with a
+// success status, and its body was then lost mid-stream or refused past the size limit.
+// Err is the read failure, so errors.Is finds ErrResponseTooLarge or the network error
+// beneath it.
+type BodyReadError struct {
+	StatusCode int
+	Err        error
+}
+
+func (e *BodyReadError) Error() string {
+	return fmt.Sprintf("HTTP %d answer could not be read: %v", e.StatusCode, e.Err)
+}
+
+func (e *BodyReadError) Unwrap() error { return e.Err }
+
+// UnmarshalData unmarshals the response data into the given value. A response whose
+// body could not be read (BodyErr) answers that error rather than a decode failure.
 func (r *Response) UnmarshalData(v any) error {
+	if r.BodyErr != nil {
+		return r.BodyErr
+	}
 	return json.Unmarshal(r.Data, v)
+}
+
+// unreadSuccess decides what a 2xx answer whose body failed to read becomes. A mutation
+// has taken effect by now, so it becomes a *BodyReadError for the response to carry, and
+// a warning in the log; the request is not failed, since a caller told it failed would
+// send it again. A GET's read failure, and one the caller's own context ended, stays the
+// error it was: nothing returns to a GET's caller that it couldn't fetch again, and a
+// cancelled send must not be reported as delivered.
+func (c *Client) unreadSuccess(ctx context.Context, method string, status int, err error) *BodyReadError {
+	mutation := method != http.MethodGet && method != http.MethodHead
+	if !mutation || isCallerCancellation(ctx) {
+		return nil
+	}
+	c.logger.Warn("success answer could not be read; the request took effect",
+		"method", method, "status", status, "reason", unreadReason(err))
+	// The write took effect, so the failure is not one to send it again over.
+	if sdkErr, ok := err.(*Error); ok && sdkErr.Retryable {
+		settled := *sdkErr
+		settled.Retryable = false
+		err = &settled
+	}
+	return &BodyReadError{StatusCode: status, Err: err}
+}
+
+// isCallerCancellation reports whether the caller's own context has ended.
+func isCallerCancellation(ctx context.Context) bool {
+	return ctx.Err() != nil
+}
+
+// unreadReason names why a body went unread, for the log, which never carries the error's
+// text: a transport error can quote the URL.
+func unreadReason(err error) string {
+	if errors.Is(err, ErrResponseTooLarge) {
+		return "too_large"
+	}
+	return CodeNetwork
 }
 
 // ClientOption configures a Client.
@@ -737,7 +804,11 @@ func (c *Client) sendBodyRequest(ctx context.Context, method, reqURL, contentTyp
 		// singleRequest bounds its own reads.
 		responseBody, err := limitedReadAll(resp.Body, MaxResponseBodyBytes)
 		if err != nil {
-			return nil, networkError(err, c.trustedOrigin(ctx))
+			readErr := networkError(err, c.trustedOrigin(ctx))
+			if unread := c.unreadSuccess(ctx, method, resp.StatusCode, readErr); unread != nil {
+				return &FormResponse{StatusCode: resp.StatusCode, BodyErr: unread}, nil
+			}
+			return nil, readErr
 		}
 		return &FormResponse{StatusCode: resp.StatusCode, Body: string(responseBody)}, nil
 
@@ -1041,7 +1112,14 @@ func (c *Client) singleRequest(ctx context.Context, method, url string, body any
 		cacheKey = ""
 	}
 
-	switch resp.StatusCode {
+	// A write answered with any success status took effect: a 202 is as much the write
+	// having worked as a 200 is, so it reads as one, and the answer keeps the status HEY
+	// sent. A GET keeps to the statuses it always read.
+	status := resp.StatusCode
+	if method != http.MethodGet && status >= 200 && status < 300 && status != http.StatusNoContent && status != http.StatusCreated {
+		status = http.StatusOK
+	}
+	switch status {
 	case http.StatusNotModified:
 		if cacheKey != "" {
 			c.logger.Debug("cache hit", "status", 304)
@@ -1073,7 +1151,11 @@ func (c *Client) singleRequest(ctx context.Context, method, url string, body any
 		}
 		respBody, err := limitedReadAll(resp.Body, c.bufferBound(req))
 		if err != nil {
-			return nil, fmt.Errorf("failed to read response: %w", err)
+			readErr := fmt.Errorf("failed to read response: %w", err)
+			if unread := c.unreadSuccess(ctx, method, resp.StatusCode, readErr); unread != nil {
+				return &Response{StatusCode: resp.StatusCode, Headers: resp.Header, BodyErr: unread}, nil
+			}
+			return nil, readErr
 		}
 
 		if resp.StatusCode == http.StatusNoContent {

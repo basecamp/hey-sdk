@@ -16,6 +16,13 @@ public struct Response: Sendable {
     /// The operation takes this status for an answer rather than a failure: a 404 that means
     /// "nothing there", or the redirect a form request went out to collect.
     public let empty: Bool
+    /// Set when HEY answered a request the caller wrote (``HeyClient/request(_:_:)``) that is not a
+    /// GET with a success status, and its body then could not be read: the connection was lost
+    /// mid-body, or the body ran past the response size limit. The request took effect, so it is
+    /// answered as the success it was, with an empty ``body`` and the read failure here; a caller
+    /// told it failed would send it again. A GET whose body cannot be read is still an error, since
+    /// it changes nothing and can be sent again, and so is a read the caller's cancellation ends.
+    public internal(set) var bodyError: HeyError? = nil
 
     /// One header's value, when HEY sent it.
     public func header(_ name: String) -> String? { headers[name] }
@@ -26,6 +33,8 @@ public struct Response: Sendable {
     /// Decodes the body as JSON. A body that will not decode is an error that still says what
     /// HEY answered: the status, and the request id when the answer named one.
     public func json<T: Decodable>(_ type: T.Type = T.self) throws -> T {
+        // A body that could not be read is that failure, not an empty or undecodable body.
+        if let bodyError { throw bodyError }
         guard !body.isEmpty else {
             throw HeyError.api(
                 message: "empty response body", httpStatus: status, retryable: false,

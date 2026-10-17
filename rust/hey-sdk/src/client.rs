@@ -198,13 +198,40 @@ pub struct Response {
     /// The operation takes this status for an answer rather than a failure: a 404 that
     /// means "nothing there", or the redirect a form request went out to collect.
     pub empty: bool,
+    /// Why the body is empty when HEY answered a request for a path the model does not
+    /// cover — a POST, PUT, PATCH or DELETE through [`Client::request`] or the raw helpers
+    /// — with a success, and its body was then lost mid-read or ran past the size limit.
+    /// The request took effect, so the call answers the success it was, with an empty
+    /// `body` and the read failure here, rather than an error a caller would answer by
+    /// sending it again. A GET whose body cannot be read is still an error: it changed
+    /// nothing, and can simply be repeated. [`Response::json`] answers this error. Read it
+    /// through [`Response::body_error`].
+    body_error: Option<UnreadBody>,
 }
 
+/// A success answer's read failure, as a [`Response`] holds it. An [`Error`] can carry a
+/// source that is not unwind-safe, but this one is never changed once the response is
+/// built, so holding it keeps `Response` as unwind-safe as it was.
+#[derive(Debug, Clone)]
+struct UnreadBody(Arc<Error>);
+
+impl std::panic::UnwindSafe for UnreadBody {}
+impl std::panic::RefUnwindSafe for UnreadBody {}
+
 impl Response {
+    /// Why the body is empty, when HEY answered a write to a path the model does not cover
+    /// with a success and its body could not then be read in full (lost mid-read, or past
+    /// the size limit). The request took effect; see the field's notes on [`Response`].
+    pub fn body_error(&self) -> Option<&Error> {
+        self.body_error.as_ref().map(|unread| unread.0.as_ref())
+    }
+
     /// Decodes the body as JSON. A body that will not decode is an error that still says
     /// what HEY answered: the status, and the request id when the answer named one.
     pub fn json<T: DeserializeOwned>(&self) -> Result<T, Error> {
-        if self.body.is_empty() {
+        if let Some(UnreadBody(unread)) = &self.body_error {
+            Err(Error::unread_body(self.status.as_u16(), unread))
+        } else if self.body.is_empty() {
             let error = Error::api(self.status.as_u16(), "empty response body");
             Err(match self.header("x-request-id") {
                 Some(request_id) => error.with_request_id(request_id),
@@ -541,9 +568,16 @@ impl Client {
 
     /// Sends an operation and reads its body as text: the HTML page a route serves no
     /// JSON for.
+    ///
+    /// A request whose success answer could not be read ([`Response::body_error`]) answers
+    /// that error, since the text asked for never arrived; [`Client::send_unit`] and
+    /// [`Client::execute`] answer it as the success it was.
     pub async fn send_text(&self, operation: Operation) -> Result<String, Error> {
         let response = self.execute(operation).await?;
-        Ok(String::from_utf8_lossy(&response.body).into_owned())
+        match &response.body_error {
+            Some(UnreadBody(unread)) => Err(Error::unread_body(response.status.as_u16(), unread)),
+            None => Ok(String::from_utf8_lossy(&response.body).into_owned()),
+        }
     }
 
     /// Sends an operation that answers a status meaning "nothing there" with `None`.
@@ -1353,6 +1387,7 @@ impl Client {
                     url: final_url,
                     from_cache: true,
                     empty: false,
+                    body_error: None,
                 }),
                 _ => Err(Error::api(
                     304,
@@ -1368,6 +1403,29 @@ impl Client {
             // A route whose work is done once HEY answers a success reads a 2xx body it
             // could not hold as no body at all: the write went through either way.
             Err(_) if status.is_success() && lenient_success(operation) => Bytes::new(),
+            // A write to a path the model does not cover has taken effect once HEY answers a
+            // success, so a body lost after it is the success with the loss attached.
+            Err(refusal) if status.is_success() && raw_write(operation) => {
+                crate::trace::warning!(
+                    operation = label(operation),
+                    status = status.as_u16(),
+                    reason = if refusal.is_response_too_large() {
+                        "too_large"
+                    } else {
+                        "network"
+                    },
+                    "success answer could not be read; the request took effect"
+                );
+                return Ok(Response {
+                    status,
+                    headers,
+                    body: Bytes::new(),
+                    url: final_url,
+                    from_cache: false,
+                    empty: false,
+                    body_error: Some(UnreadBody(Arc::new(refusal.not_retryable()))),
+                });
+            }
             Err(refusal) if status.is_success() => return Err(refusal),
             // The status is what matters about a failure, and a body the client would not
             // read is no reason to lose it.
@@ -1400,6 +1458,7 @@ impl Client {
                 url: final_url,
                 from_cache: false,
                 empty: false,
+                body_error: None,
             })
         } else if operation.empty_on.contains(&status.as_u16()) {
             Ok(Response {
@@ -1409,6 +1468,7 @@ impl Client {
                 url: final_url,
                 from_cache: false,
                 empty: true,
+                body_error: None,
             })
         } else {
             Err(Error::from_response(
@@ -1763,6 +1823,13 @@ fn is_parsed(accept: &str) -> bool {
 /// it cannot read is no body rather than an error ([`Route::lenient_success`]).
 fn lenient_success(operation: &Operation) -> bool {
     operation.route.is_some_and(|route| route.lenient_success)
+}
+
+/// Whether the operation is a write to a path the model does not cover: one with no route,
+/// whose method is not a read. Its 2xx answer is the write having happened, so a body it
+/// cannot read is attached to the success rather than made the error ([`Response::body_error`]).
+fn raw_write(operation: &Operation) -> bool {
+    operation.route.is_none() && !matches!(operation.method, Method::GET | Method::HEAD)
 }
 
 /// Reads a body up to the bound and refuses it on the first byte past. A body exactly at

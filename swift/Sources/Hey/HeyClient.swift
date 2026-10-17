@@ -175,8 +175,14 @@ public final class HeyClient: Sendable {
     }
 
     /// Sends an operation and reads its body as text: the HTML page a route serves no JSON for.
+    /// A raw write whose success answer could not be read (``Response/bodyError``) throws that
+    /// error, since the text asked for never arrived; ``execute(_:)`` and ``sendVoid(_:)`` answer
+    /// it as the success it was.
     public func sendText(_ operation: HeyOperation) async throws -> String {
-        try await execute(operation) { $0.text() }
+        try await execute(operation) { response in
+            if let bodyError = response.bodyError { throw bodyError }
+            return response.text()
+        }
     }
 
     /// Sends an operation that answers a status meaning "nothing there" with nil.
@@ -335,6 +341,9 @@ public final class HeyClient: Sendable {
         /// The `Authorization` the request this answers carried, for a 401 to be checked against
         /// what the provider would sign with now.
         let bearer: String?
+        /// Why the body of a success went unread, on a write the caller wrote
+        /// (``HeyOperation/keepsUnreadSuccess``): the connection was lost mid-body.
+        var bodyError: HeyError? = nil
     }
 
     /// The auth strategy failed to sign a hop; the failure is passed on as the strategy threw it.
@@ -440,9 +449,11 @@ public final class HeyClient: Sendable {
     /// transport's own error is not kept, for the same reason. A timeout is as retryable as any
     /// other failure to get an answer; the operation's idempotency and its budget say whether it is
     /// resent.
-    private func networkFailure(_ error: any Error) -> HeyError {
+    /// A transport failure. One after a write's success is not retryable: the write took effect,
+    /// and resending it would repeat it.
+    private func networkFailure(_ error: any Error, retryable: Bool = true) -> HeyError {
         .network(
-            message: "Network error", retryable: true,
+            message: "Network error", retryable: retryable,
             detail: ErrorDetail(hint: HeyError.truncate(redactURLs(String(describing: error)))))
     }
 
@@ -733,12 +744,17 @@ public final class HeyClient: Sendable {
                 // A body cut short is the failure it was — unless the route's work is done once HEY
                 // answers a success and this is one, in which case it is no body. The caller's own
                 // cancellation is never absorbed.
-                let lenient = operation.route?.lenientSuccess == true && (200...299).contains(response.status)
-                if !lenient || Task.isCancelled || isCancellation(interruption) { throw interruption }
+                // A write the caller wrote keeps the failure for the caller to see, and is not resent:
+                // it has taken effect.
+                let success = (200...299).contains(response.status)
+                let lenient = operation.route?.lenientSuccess == true && success
+                let kept = operation.keepsUnreadSuccess && success
+                if !(lenient || kept) || Task.isCancelled || isCancellation(interruption) { throw interruption }
                 return Received(
                     url: url, status: response.status, headers: response.headers, body: Data(), refusal: nil,
                     redirected: hops > 0, authenticated: authenticated, signedUnder: signedUnder,
-                    bearer: credentials.headers["authorization"]?.first)
+                    bearer: credentials.headers["authorization"]?.first,
+                    bodyError: kept && !lenient ? networkFailure(interruption, retryable: false) : nil)
             }
             let refusal: HeyError? = response.bodyExceeded
                 ? .api(
@@ -810,7 +826,13 @@ public final class HeyClient: Sendable {
         }
         // A route whose work is done once HEY answers a success reads a 2xx body it could not hold
         // as no body at all: the write went through either way.
-        if let refusal = received.refusal, !((200...299).contains(status) && operation.route?.lenientSuccess == true) {
+        // A write the caller wrote reads it as no body too, and keeps the refusal for the caller.
+        var bodyError = received.bodyError
+        if let refusal = received.refusal, (200...299).contains(status), operation.keepsUnreadSuccess,
+           operation.route?.lenientSuccess != true
+        {
+            bodyError = refusal
+        } else if let refusal = received.refusal, !((200...299).contains(status) && operation.route?.lenientSuccess == true) {
             if (200...299).contains(status) { throw refusal }
             // The status is what matters about a failure, and a body the client would not hold is no
             // reason to lose it: the error is the one the status maps to, told why its body is missing.
@@ -832,7 +854,8 @@ public final class HeyClient: Sendable {
                     cache.invalidate(key)
                 }
             }
-            return Response(status: status, headers: headers, body: body, url: received.url, fromCache: false, empty: false)
+            return Response(
+                status: status, headers: headers, body: body, url: received.url, fromCache: false, empty: false, bodyError: bodyError)
         }
         if operation.emptyOn.contains(status) || (operation.capturesRedirects && formAnswerStatuses.contains(status)) {
             return Response(status: status, headers: headers, body: body, url: received.url, fromCache: false, empty: true)

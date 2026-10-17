@@ -20,18 +20,30 @@ class Response internal constructor(
     val fromCache: Boolean,
     /** The operation takes this status for an answer rather than a failure: a 404 that means "nothing there", or the redirect a form request went out to collect. */
     val empty: Boolean,
+    /**
+     * Why the body is missing from a success: HEY answered a raw POST, PUT, PATCH or DELETE
+     * ([HeyClient.request]) with a 2xx, and its body was then lost mid-read or ran past the
+     * response body limit. The write took effect, so the call is the success it was, with an
+     * empty [body] and the read failure here — a caller told it failed would send it again.
+     * A GET whose body cannot be read, and a modelled operation, still fail as before.
+     */
+    val bodyError: HeyException? = null,
 ) {
     /** One header's value, when HEY sent it. */
     fun header(name: String): String? = headers[name]
 
-    /** The body as text. */
-    fun text(): String = body.decodeToString()
+    /** The body as text. A success whose body could not be read ([bodyError]) throws that error rather than answering an empty string. */
+    fun text(): String {
+        bodyError?.let { throw it }
+        return body.decodeToString()
+    }
 
     /**
-     * Decodes the body as JSON. A body that will not decode is an error that still says what
+     * Decodes the body as JSON. A success whose body could not be read throws [bodyError]. A body that will not decode is an error that still says what
      * HEY answered: the status, and the request id when the answer named one.
      */
     fun <T> json(deserializer: DeserializationStrategy<T>): T {
+        bodyError?.let { throw it }
         if (body.isEmpty()) {
             throw HeyException.Api("empty response body", httpStatus = status, requestId = header("X-Request-Id"), retryable = false)
         }

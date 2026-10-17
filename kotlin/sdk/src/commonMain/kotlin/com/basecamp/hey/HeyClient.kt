@@ -408,6 +408,7 @@ class HeyClient internal constructor(
         try {
             response.json(deserializer)
         } catch (error: HeyException.Api) {
+            if (error === response.bodyError) throw error
             throw HeyException.Api(
                 "$label: ${error.message}",
                 httpStatus = error.httpStatus,
@@ -652,11 +653,12 @@ class HeyClient internal constructor(
      * as any other failure to get an answer; the operation's idempotency and its budget say
      * whether it is resent.
      */
-    private fun networkFailure(error: Exception): HeyException =
+    /** A transport failure. One after a write's success is not retryable: the write took effect, and resending it would repeat it. */
+    private fun networkFailure(error: Exception, retryable: Boolean = true): HeyException =
         HeyException.Network(
             "Network error",
             hint = HeyException.truncateMessage(redactUrls(error.message ?: error::class.simpleName ?: "unknown")),
-            retryable = true,
+            retryable = retryable,
         )
 
     /**
@@ -949,6 +951,11 @@ class HeyClient internal constructor(
             // mid-read as no body at all: the write went through either way.
             if (status in 200..299 && operation.route?.lenientSuccess == true) {
                 Received(url, status, headers, ByteArray(0), refusal = null, redirected, authenticated, signedUnder, bearer)
+            } else if (status in 200..299 && operation.rawWrite) {
+                // A raw write HEY answered a success has taken effect: the lost body is kept
+                // as the answer's refusal, which finish attaches to the success, rather than
+                // thrown into the retry loop, which would send a PUT or DELETE again.
+                Received(url, status, headers, ByteArray(0), networkFailure(error, retryable = false), redirected, authenticated, signedUnder, bearer)
             } else {
                 throw error
             }
@@ -1020,6 +1027,9 @@ class HeyClient internal constructor(
             return Response(200, merged, entry.body.copyOf(), received.url, fromCache = true, empty = false)
         }
         received.refusal?.takeUnless { status in 200..299 && operation.route?.lenientSuccess == true }?.let { refusal ->
+            if (status in 200..299 && operation.rawWrite) {
+                return Response(status, headers, ByteArray(0), received.url, fromCache = false, empty = false, bodyError = refusal)
+            }
             if (status in 200..299) throw refusal
             // The status is what matters about a failure, and a body the client would not
             // hold is no reason to lose it: the error is the one the status maps to, told why

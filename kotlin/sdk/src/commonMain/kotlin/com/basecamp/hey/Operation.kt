@@ -49,6 +49,12 @@ class Operation internal constructor(
     /** HEY answers JSON to paths that end in `.json`, so a modelled route gets one put back on. */
     internal var jsonSuffix: Boolean = route?.html != true
     internal var noCache: Boolean = false
+
+    /**
+     * A write to a path the caller wrote: no modelled route, and not a read. Its 2xx is the
+     * success it was even when the body after it cannot be read ([Response.bodyError]).
+     */
+    internal val rawWrite: Boolean get() = route == null && method != Method.GET
     internal var captureRedirects: Boolean = false
     internal var quiet: Boolean = false
     internal var unsigned: Boolean = false
