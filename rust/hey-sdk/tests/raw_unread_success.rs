@@ -72,10 +72,7 @@ async fn a_raw_post_and_put_whose_success_body_breaks_answer_the_success() {
 
         assert_eq!(response.status.as_u16(), 200, "{verb}");
         assert!(response.body.is_empty(), "{verb} kept a partial body");
-        let unread = response
-            .body_error
-            .as_ref()
-            .expect("the read failure is attached");
+        let unread = response.body_error().expect("the read failure is attached");
         assert_eq!(unread.code(), ErrorCode::Network, "{verb}");
         assert_eq!(
             requests.load(Ordering::SeqCst),
@@ -138,10 +135,7 @@ async fn a_raw_post_whose_success_body_runs_past_the_cap_answers_the_success() {
     let response = client.post("/messages", &json!({})).await.unwrap();
 
     assert_eq!(response.status.as_u16(), 201);
-    let unread = response
-        .body_error
-        .as_ref()
-        .expect("the refusal is attached");
+    let unread = response.body_error().expect("the refusal is attached");
     assert!(unread.is_response_too_large());
     let decoded = response.json::<Value>().unwrap_err();
     assert!(decoded.is_response_too_large());
