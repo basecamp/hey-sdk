@@ -46,6 +46,34 @@ The empty value comes from decoding `{}` rather than a per-type default, so it a
 output whose members are all optional. An operation whose output has required members should
 not carry the trait: there is no empty value to answer.
 
+### Raw requests
+
+A raw request — Go's `Client.Post`, `PostMutation`, `Put`, `Patch`, `Delete` and the form
+helpers, Rust's `raw.rs` helpers and `Operation::raw`, Kotlin's `HeyClient.request` and
+Swift's `HeyClient.request` — has no operation to carry the trait, yet it is how hey-cli and
+hey-mcp-server send mail. So a raw request with any method but GET (or HEAD) treats a 2xx
+whose body cannot be read, because it was lost mid-read or ran past the response size limit,
+as the success it was. The response comes back with no body and the read failure attached,
+and the request is sent once and never resent:
+
+| Language | Attached failure |
+|----------|------------------|
+| **Go** | `Response.BodyErr` / `FormResponse.BodyErr`, a `*BodyReadError`; also logged as a warning |
+| **Rust** | `Response.body_error`; also a trace warning. A raw form's `FormResponse` comes back with an empty body and only the warning, since it derives `Eq` |
+| **Kotlin** | `Response.bodyError` / `FormResponse.bodyError` |
+| **Swift** | `Response.bodyError`. A raw form's `FormResponse` comes back with an empty body, since it is `Equatable` |
+
+A call that only needs the write to have landed (`execute`, the raw helpers, Rust's
+`send_unit`, Kotlin's `sendUnit`, Swift's `sendVoid`, the form calls) succeeds. A call that
+asks for the decoded body (`send<T>`, `send_text`/`sendText`) answers the attached failure,
+since the body it asked for never arrived.
+
+Decoding such a response (`UnmarshalData`, `json`) answers the attached failure rather than a
+decode error. A raw GET whose body breaks is still an error, since nothing happened that
+fetching again would repeat. So is a read the caller's own cancellation ends, so a cancelled
+send is never reported delivered. A raw 2xx body that arrives whole but is not JSON is
+returned as it is: decoding it is the caller's business. TypeScript has no raw requests.
+
 ### Conformance
 
 `conformance/tests/sent-messages.json` serves a delivery an HTML 200 on the generated
