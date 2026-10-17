@@ -264,6 +264,20 @@ impl Error {
         }
     }
 
+    /// The error a success answer's unread body stands for when the caller goes on to read
+    /// it ([`crate::Response::body_error`]): the same category and refusal, with the status
+    /// HEY answered, and the read failure itself as the source.
+    pub(crate) fn unread_body(status: u16, unread: &std::sync::Arc<Error>) -> Error {
+        Error {
+            response_too_large: unread.response_too_large,
+            hint: unread.hint.clone(),
+            request_id: unread.request_id.clone(),
+            ..Error::new(unread.code, "the success answer's body could not be read")
+                .with_status(status)
+                .with_source(std::sync::Arc::clone(unread))
+        }
+    }
+
     /// Puts a refusal behind the error a status maps to, so a body too large to read on a
     /// non-2xx answer still reports the status the answer carried.
     pub(crate) fn refusing(mut self, refusal: Error) -> Error {
