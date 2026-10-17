@@ -16,8 +16,15 @@ public final class URLSessionTransport: Transport, @unchecked Sendable {
     private let timeout: Duration?
 
     /// A transport whose requests time out after `timeout`, or never for `nil`.
-    public init(timeout: Duration? = HeyConfig.defaultTimeout) {
+    public convenience init(timeout: Duration? = HeyConfig.defaultTimeout) {
+        self.init(timeout: timeout, protocolClasses: nil)
+    }
+
+    /// A transport whose session loads through `protocolClasses` when given: the seam tests use to
+    /// answer from a `URLProtocol` while every other part of the transport runs as shipped.
+    init(timeout: Duration?, protocolClasses: [AnyClass]?) {
         let configuration = URLSessionConfiguration.ephemeral
+        if let protocolClasses { configuration.protocolClasses = protocolClasses }
         configuration.httpCookieAcceptPolicy = .never
         configuration.httpShouldSetCookies = false
         configuration.httpCookieStorage = nil
@@ -181,7 +188,16 @@ public final class URLSessionTransport: Transport, @unchecked Sendable {
             guard let (state, timedOut) = finish(task), let continuation = state.continuation else { return }
             state.continuation = nil
             if timedOut, !state.exceeded {
-                continuation.resume(throwing: URLError(.timedOut))
+                // A deadline that passes once the status and headers are in is a body that ended
+                // early, reported with them as any other is, so the client can tell what HEY
+                // answered: a write's success is not undone by its body stalling.
+                if state.status != 0, state.readBody {
+                    continuation.resume(returning: HTTPResponse(
+                        status: state.status, headers: state.headers, body: state.body,
+                        interruption: URLError(.timedOut)))
+                } else {
+                    continuation.resume(throwing: URLError(.timedOut))
+                }
                 return
             }
             if state.status != 0, !state.readBody {
