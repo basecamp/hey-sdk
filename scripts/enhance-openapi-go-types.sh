@@ -59,6 +59,24 @@ jq '
     end
 ' "$OPENAPI_FILE" > "${OPENAPI_FILE}.tmp" && mv "${OPENAPI_FILE}.tmp" "$OPENAPI_FILE"
 
+# A schema that holds itself (Recording.parent) must reach itself through a pointer, or Go
+# rejects it as an invalid recursive type. oapi-codegen made that pointer on its own while
+# kin-openapi reported the cycle, which v0.149 no longer does under prefer-skip-optional-pointer,
+# so it is asked for here: every property that $refs its own schema directly stays a pointer.
+# A self-reference through an array (NavigationItem.menu_items) is a slice, already indirect.
+jq '
+  (.components.schemas // {}) |= with_entries(
+    .key as $name
+    | if .value.properties then
+        .value.properties |= with_entries(
+          if .value["$ref"]? == "#/components/schemas/\($name)" then
+            .value += {"x-go-type-skip-optional-pointer": false}
+          else . end
+        )
+      else . end
+  )
+' "$OPENAPI_FILE" > "${OPENAPI_FILE}.tmp" && mv "${OPENAPI_FILE}.tmp" "$OPENAPI_FILE"
+
 # Pass 2: Optional booleans and timestamps in request schemas → pointers
 # Without this, Go's JSON encoder sends zero-valued time.Time as "0001-01-01T00:00:00Z"
 # and false booleans even when the caller didn't set them — `omitempty` does not omit a
