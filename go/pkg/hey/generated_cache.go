@@ -10,8 +10,8 @@ import (
 
 // cachingDoer sends the generated client's requests through the response cache the way
 // singleRequest does for hand-written ones: a GET whose URL and credentials have a cached
-// body goes out conditional on its ETag, a 304 is answered from the cache, and a fresh 200
-// bearing an ETag replaces what was stored. Only JSON API reads participate: form and
+// body goes out conditional on its ETag, a 304 is answered from the cache under the headers
+// stored with the body, and a fresh 200 bearing an ETag replaces what was stored. Only JSON API reads participate: form and
 // document representations pass through untouched, as does any request whose context
 // bypasses the cache and any request without an Authorization header to key by.
 type cachingDoer struct {
@@ -29,13 +29,19 @@ func (d *cachingDoer) Do(req *http.Request) (*http.Response, error) {
 	// The request goes out conditional only when the cache can answer the 304 it may
 	// draw: an ETag without its body, or a body the current buffer bound would refuse,
 	// is no better than a miss.
+	// An entry an older SDK wrote without its headers would answer the 304 without the
+	// Link and X-Total-Count of the page it holds, so it is a miss too.
 	key := c.cache.Key(req.URL.String(), authorization)
 	var cached []byte
-	if etag := c.cache.GetETag(key); etag != "" {
+	var cachedHeader http.Header
+	etag := c.cache.GetETag(key)
+	if etag != "" {
 		if body := c.cache.GetBody(key); body != nil && int64(len(body)) <= c.bufferBound(req) {
-			cached = body
-			req.Header.Set("If-None-Match", etag)
-			c.logger.Debug("cache conditional request", "etag", etag)
+			if header := c.cache.GetHeaders(key); header != nil {
+				cached, cachedHeader = body, header
+				req.Header.Set("If-None-Match", etag)
+				c.logger.Debug("cache conditional request", "etag", etag)
+			}
 		}
 	}
 
@@ -62,7 +68,9 @@ func (d *cachingDoer) Do(req *http.Request) (*http.Response, error) {
 	case resp.StatusCode == http.StatusNotModified && cached != nil:
 		c.logger.Debug("cache hit", "status", 304)
 		_ = resp.Body.Close()
-		return cachedResponse(req, resp, cached), nil
+		header := revalidatedHeaders(cachedHeader, resp.Header)
+		_ = c.cache.SetResponse(key, cached, etag, header)
+		return cachedResponse(req, resp, header, cached), nil
 	case resp.StatusCode == http.StatusOK:
 		if etag := resp.Header.Get("ETag"); etag != "" {
 			d.store(key, etag, resp, c.bufferBound(req))
@@ -88,7 +96,7 @@ func (d *cachingDoer) store(key, etag string, resp *http.Response, bound int64) 
 		return
 	}
 	if int64(len(body)) <= bound {
-		_ = d.client.cache.Set(key, body, etag)
+		_ = d.client.cache.SetResponse(key, body, etag, resp.Header)
 		d.client.logger.Debug("cache stored", "etag", etag)
 	} else {
 		_ = d.client.cache.Invalidate(key)
@@ -96,12 +104,12 @@ func (d *cachingDoer) store(key, etag string, resp *http.Response, bound int64) 
 	resp.Body = io.NopCloser(bytes.NewReader(body))
 }
 
-// cachedResponse answers a 304 with the body stored from the 200 it revalidated. The
-// generated parsers choose a shape by status code and Content-Type, and a 304 carries
-// neither for the representation it confirms, so the response reports the JSON the
-// cache holds.
-func cachedResponse(req *http.Request, notModified *http.Response, body []byte) *http.Response {
-	header := notModified.Header.Clone()
+// cachedResponse answers a 304 with the body stored from the 200 it revalidated, under the
+// stored headers the 304 updated. The generated parsers choose a shape by status code and
+// Content-Type, and a 304 carries neither for the representation it confirms, so the
+// response reports the JSON the cache holds.
+func cachedResponse(req *http.Request, notModified *http.Response, header http.Header, body []byte) *http.Response {
+	header = header.Clone()
 	header.Set("Content-Type", "application/json")
 	header.Set("Content-Length", strconv.Itoa(len(body)))
 	return &http.Response{

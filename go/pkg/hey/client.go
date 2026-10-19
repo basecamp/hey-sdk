@@ -1088,11 +1088,18 @@ func (c *Client) singleRequest(ctx context.Context, method, url string, body any
 	requestURL := req.URL.String()
 	var cacheKey string
 	authorization := req.Header.Get("Authorization")
+	var cachedETag string
+	var cachedHeader http.Header
 	if method == http.MethodGet && c.cache != nil && authorization != "" && !noCacheFromContext(ctx) {
 		cacheKey = c.cache.Key(requestURL, authorization)
+		// An entry an older SDK wrote without its headers would answer the 304 without the
+		// Link and X-Total-Count of the page it holds, so the read goes out unconditional.
 		if etag := c.cache.GetETag(cacheKey); etag != "" {
-			req.Header.Set("If-None-Match", etag)
-			c.logger.Debug("cache conditional request", "etag", etag)
+			if header := c.cache.GetHeaders(cacheKey); header != nil {
+				cachedETag, cachedHeader = etag, header
+				req.Header.Set("If-None-Match", etag)
+				c.logger.Debug("cache conditional request", "etag", etag)
+			}
 		}
 	}
 
@@ -1121,7 +1128,7 @@ func (c *Client) singleRequest(ctx context.Context, method, url string, body any
 	}
 	switch status {
 	case http.StatusNotModified:
-		if cacheKey != "" {
+		if cacheKey != "" && cachedHeader != nil {
 			c.logger.Debug("cache hit", "status", 304)
 			cached := c.cache.GetBody(cacheKey)
 			if cached != nil {
@@ -1131,10 +1138,14 @@ func (c *Client) singleRequest(ctx context.Context, method, url string, body any
 					return nil, fmt.Errorf("%s %s: cached response of %d bytes: %w of %d bytes",
 						method, req.URL.Path, len(cached), ErrResponseTooLarge, bound)
 				}
+				// The 304 answers the page as it was first read: the stored headers,
+				// updated by what the 304 carried, and the entry keeps the update.
+				header := revalidatedHeaders(cachedHeader, resp.Header)
+				_ = c.cache.SetResponse(cacheKey, cached, cachedETag, header)
 				return &Response{
 					Data:       cached,
 					StatusCode: http.StatusOK,
-					Headers:    resp.Header,
+					Headers:    header,
 					FromCache:  true,
 				}, nil
 			}
@@ -1164,7 +1175,7 @@ func (c *Client) singleRequest(ctx context.Context, method, url string, body any
 
 		if method == http.MethodGet && cacheKey != "" {
 			if etag := resp.Header.Get("ETag"); etag != "" {
-				_ = c.cache.Set(cacheKey, respBody, etag)
+				_ = c.cache.SetResponse(cacheKey, respBody, etag, resp.Header)
 				c.logger.Debug("cache stored", "etag", etag)
 			}
 		}
