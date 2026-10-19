@@ -6,14 +6,70 @@ use std::sync::{Mutex, PoisonError};
 use bytes::Bytes;
 use sha2::{Digest, Sha256};
 
-/// A response the cache holds for a URL: the validator HEY sent with it, and the body it
-/// validates.
+use crate::http::header::{CONNECTION, CONTENT_LENGTH};
+use crate::http::{HeaderMap, HeaderName, HeaderValue};
+
+/// A response the cache holds for a URL: the validator HEY sent with it, the body it
+/// validates, and the headers that came with the body, so a 304 answers the page as it was
+/// first read — `Link` and `X-Total-Count` included, which a 304 need not repeat.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CachedResponse {
     /// The `ETag` HEY sent with the body, sent back as `If-None-Match` on the next read.
     pub etag: String,
     /// The body as HEY answered it.
     pub body: Bytes,
+    /// The headers HEY answered the body with, less any credential and the connection's own
+    /// fields.
+    pub headers: HeaderMap,
+}
+
+/// The fields a cache entry never keeps: credentials, which have no place on disk, and the
+/// connection's own fields, which RFC 9111 §3.1 keeps out of a cache.
+const UNSTORED_HEADERS: &[&str] = &[
+    "authorization",
+    "proxy-authorization",
+    "cookie",
+    "set-cookie",
+    "x-csrf-token",
+    "connection",
+    "keep-alive",
+    "proxy-connection",
+    "te",
+    "transfer-encoding",
+    "upgrade",
+];
+
+/// What of a response's headers a cache entry keeps beside its body.
+pub(crate) fn storable_headers(headers: &HeaderMap) -> HeaderMap {
+    let mut stored = headers.clone();
+    for listed in headers.get_all(CONNECTION) {
+        for name in listed.to_str().unwrap_or_default().split(',') {
+            stored.remove(name.trim());
+        }
+    }
+    for name in UNSTORED_HEADERS {
+        stored.remove(*name);
+    }
+    stored
+}
+
+/// What a 304 answers with: the headers stored with the body, each field the 304 carried
+/// replacing the stored one of that name, as RFC 9111 §4.3.4 has a cache update its entry.
+/// `Content-Length` describes the 304's own empty body, not the stored one, so it is not
+/// taken (RFC 9111 §3.2).
+pub(crate) fn revalidated_headers(stored: &HeaderMap, not_modified: &HeaderMap) -> HeaderMap {
+    let mut merged = stored.clone();
+    let fresh = storable_headers(not_modified);
+    for name in fresh.keys() {
+        if name == CONTENT_LENGTH {
+            continue;
+        }
+        merged.remove(name);
+        for value in fresh.get_all(name) {
+            merged.append(name.clone(), value.clone());
+        }
+    }
+    merged
 }
 
 /// Stores JSON responses by `ETag` so a repeated read can be answered from a 304.
@@ -73,8 +129,10 @@ impl ResponseCache for InMemoryCache {
 }
 
 /// Keeps cached responses on disk, the same layout the Go SDK uses: `etags.json` maps
-/// keys to validators and `responses/<key>.body` holds the bodies. Anything that goes
-/// wrong on disk is treated as a miss.
+/// keys to validators, `responses/<key>.body` holds the bodies and `responses/<key>.headers`
+/// the headers each came with, as JSON mapping a name to its values. Anything that goes
+/// wrong on disk is treated as a miss, and so is an entry an older SDK wrote without its
+/// headers: it could answer a 304 with the body but not with the `Link` it came with.
 #[derive(Debug)]
 pub struct FileCache {
     directory: PathBuf,
@@ -106,6 +164,45 @@ impl FileCache {
     fn body_path(&self, key: &str) -> PathBuf {
         self.directory.join("responses").join(format!("{key}.body"))
     }
+
+    fn headers_path(&self, key: &str) -> PathBuf {
+        self.directory
+            .join("responses")
+            .join(format!("{key}.headers"))
+    }
+
+    fn headers(&self, key: &str) -> Option<HeaderMap> {
+        let bytes = fs::read(self.headers_path(key)).ok()?;
+        let stored: HashMap<String, Vec<String>> = serde_json::from_slice(&bytes).ok()?;
+        let mut headers = HeaderMap::new();
+        for (name, values) in stored {
+            // A name or value the client could not send is one it never stored either.
+            let Ok(name) = HeaderName::from_bytes(name.as_bytes()) else {
+                continue;
+            };
+            for value in values {
+                if let Ok(value) = HeaderValue::from_str(&value) {
+                    headers.append(name.clone(), value);
+                }
+            }
+        }
+        Some(headers)
+    }
+
+    fn write_headers(&self, key: &str, headers: &HeaderMap) {
+        let storable = storable_headers(headers);
+        let mut stored: HashMap<&str, Vec<&str>> = HashMap::new();
+        for (name, value) in &storable {
+            // A value that is not text cannot be written down as JSON, and is not one a
+            // page's pagination is read from.
+            if let Ok(value) = value.to_str() {
+                stored.entry(name.as_str()).or_default().push(value);
+            }
+        }
+        if let Ok(json) = serde_json::to_vec_pretty(&stored) {
+            write_private(&self.headers_path(key), &json);
+        }
+    }
 }
 
 impl ResponseCache for FileCache {
@@ -113,15 +210,18 @@ impl ResponseCache for FileCache {
         let _guard = self.lock.lock().unwrap_or_else(PoisonError::into_inner);
         let etag = self.etags().get(key).cloned()?;
         let body = fs::read(self.body_path(key)).ok()?;
+        let headers = self.headers(key)?;
         Some(CachedResponse {
             etag,
             body: Bytes::from(body),
+            headers,
         })
     }
 
     fn set(&self, key: &str, response: CachedResponse) {
         let _guard = self.lock.lock().unwrap_or_else(PoisonError::into_inner);
         write_private(&self.body_path(key), &response.body);
+        self.write_headers(key, &response.headers);
         let mut etags = self.etags();
         etags.insert(key.to_string(), response.etag);
         self.write_etags(&etags);
@@ -130,6 +230,7 @@ impl ResponseCache for FileCache {
     fn invalidate(&self, key: &str) {
         let _guard = self.lock.lock().unwrap_or_else(PoisonError::into_inner);
         let _ = fs::remove_file(self.body_path(key));
+        let _ = fs::remove_file(self.headers_path(key));
         let mut etags = self.etags();
         etags.remove(key);
         self.write_etags(&etags);

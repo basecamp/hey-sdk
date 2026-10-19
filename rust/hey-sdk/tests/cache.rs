@@ -3,13 +3,15 @@
 mod support;
 
 use std::fs;
+use std::sync::{Arc, Mutex};
 
 use bytes::Bytes;
 use hey_sdk::cache::{CachedResponse, FileCache, InMemoryCache, ResponseCache};
+use hey_sdk::http::HeaderMap;
 use hey_sdk::models::{CreateMessageRequestContent, MessagePayload};
 use serde_json::json;
-use wiremock::matchers::{header, method, path};
-use wiremock::{Mock, MockServer, ResponseTemplate};
+use wiremock::matchers::{header, method, path, query_param};
+use wiremock::{Mock, MockServer, Request, Respond, ResponseTemplate};
 
 use support::{builder, client};
 
@@ -26,6 +28,7 @@ fn clearing_the_file_cache_leaves_the_rest_of_the_directory_alone() {
         CachedResponse {
             etag: "\"v1\"".to_string(),
             body: Bytes::from_static(b"[]"),
+            headers: HeaderMap::new(),
         },
     );
 
@@ -186,4 +189,162 @@ async fn a_write_is_never_cached() {
             .iter()
             .all(|request| !request.headers.contains_key("if-none-match"))
     );
+}
+
+/// Answers `/boxes.json` the way `geared_pagination`'s 200 does — `Link` and `X-Total-Count`
+/// beside the `ETag` — and a request conditional on that `ETag` with a 304 carrying the
+/// `ETag` and whatever `not_modified` holds, which is nothing unless a test puts news in it.
+struct PagedBoxes {
+    not_modified: Arc<Mutex<Vec<(&'static str, &'static str)>>>,
+}
+
+impl Respond for PagedBoxes {
+    fn respond(&self, request: &Request) -> ResponseTemplate {
+        if request
+            .headers
+            .get("if-none-match")
+            .is_some_and(|etag| etag == "\"v1\"")
+        {
+            let mut answer = ResponseTemplate::new(304).insert_header("ETag", "\"v1\"");
+            for (name, value) in self.not_modified.lock().unwrap().iter() {
+                answer = answer.insert_header(*name, *value);
+            }
+            return answer;
+        }
+        ResponseTemplate::new(200)
+            .insert_header("ETag", "\"v1\"")
+            .insert_header("Link", r#"</boxes.json?page=cursor-2>; rel="next""#)
+            .insert_header("X-Total-Count", "75")
+            .insert_header("Set-Cookie", "session=abc")
+            .set_body_json(json!([{ "id": 7, "kind": "imbox", "name": "Imbox" }]))
+    }
+}
+
+/// Mounts [`PagedBoxes`] with a second page behind its cursor, and hands back what its
+/// 304s carry, for a test to put news in.
+async fn paged_boxes(server: &MockServer) -> Arc<Mutex<Vec<(&'static str, &'static str)>>> {
+    let not_modified = Arc::new(Mutex::new(Vec::new()));
+    Mock::given(method("GET"))
+        .and(path("/boxes.json"))
+        .and(query_param("page", "cursor-2"))
+        .respond_with(
+            ResponseTemplate::new(200)
+                .set_body_json(json!([{ "id": 8, "kind": "feedbox", "name": "The Feed" }])),
+        )
+        .mount(server)
+        .await;
+    Mock::given(method("GET"))
+        .and(path("/boxes.json"))
+        .respond_with(PagedBoxes {
+            not_modified: not_modified.clone(),
+        })
+        .mount(server)
+        .await;
+    not_modified
+}
+
+/// A 304 need not repeat the `Link` and `X-Total-Count` of the page it confirms, so the
+/// cache answers it with the headers stored beside the body: the revalidated page still
+/// counts the collection and still leads to the next page.
+async fn a_bare_304_keeps_the_page_it_confirms(cache: impl ResponseCache + 'static) {
+    let server = MockServer::start().await;
+    let not_modified = paged_boxes(&server).await;
+    let client = builder(&server).cache(cache).build().unwrap();
+
+    let first = client.boxes().list().await.unwrap();
+    let revalidated = client.boxes().list().await.unwrap();
+
+    assert_eq!(first.total_count(), Some(75));
+    assert_eq!(
+        revalidated.total_count(),
+        Some(75),
+        "the count the 304 left out"
+    );
+    assert_eq!(
+        revalidated.next_page(),
+        Some("cursor-2"),
+        "the Link the 304 left out"
+    );
+    let second = client.next_page(&revalidated).await.unwrap().unwrap();
+    assert_eq!(second[0].name, "The Feed");
+
+    // A header the 304 carries replaces the stored one, in the answer and in the entry.
+    not_modified.lock().unwrap().push(("X-Total-Count", "76"));
+    let updated = client.boxes().list().await.unwrap();
+    not_modified.lock().unwrap().clear();
+    let after = client.boxes().list().await.unwrap();
+
+    assert_eq!(updated.total_count(), Some(76));
+    assert_eq!(
+        after.total_count(),
+        Some(76),
+        "the entry kept the 304's update"
+    );
+    assert_eq!(after.next_page(), Some("cursor-2"));
+    let requests = server.received_requests().await.unwrap();
+    let conditional = requests
+        .iter()
+        .filter(|request| request.headers.contains_key("if-none-match"))
+        .count();
+    assert_eq!(conditional, 3, "every read after the first revalidated");
+}
+
+#[tokio::test]
+async fn a_bare_304_keeps_the_page_it_confirms_in_memory() {
+    a_bare_304_keeps_the_page_it_confirms(InMemoryCache::new()).await;
+}
+
+#[tokio::test]
+async fn a_bare_304_keeps_the_page_it_confirms_on_disk() {
+    let directory = std::env::temp_dir().join(format!("hey-sdk-cache-{}", rand::random::<u64>()));
+    a_bare_304_keeps_the_page_it_confirms(FileCache::new(&directory)).await;
+    fs::remove_dir_all(&directory).unwrap();
+}
+
+/// The file cache keeps the headers in the layout the Go SDK reads, leaves credentials and
+/// the connection's own fields out, and takes an entry an older SDK wrote without its
+/// headers for a miss: it could answer a 304 with the body, but not with the `Link`.
+#[test]
+fn the_file_cache_keeps_headers_beside_the_body() {
+    let directory = std::env::temp_dir().join(format!("hey-sdk-cache-{}", rand::random::<u64>()));
+    let cache = FileCache::new(&directory);
+    let mut headers = HeaderMap::new();
+    headers.insert(
+        "link",
+        r#"</boxes.json?page=2>; rel="next""#.parse().unwrap(),
+    );
+    headers.insert("x-total-count", "2".parse().unwrap());
+    headers.insert("set-cookie", "session=abc".parse().unwrap());
+    headers.insert("connection", "keep-alive, x-hop".parse().unwrap());
+    headers.insert("x-hop", "1".parse().unwrap());
+    cache.set(
+        "abc",
+        CachedResponse {
+            etag: "\"v1\"".to_string(),
+            body: Bytes::from_static(b"[]"),
+            headers,
+        },
+    );
+
+    let held = cache.get("abc").unwrap();
+    let mut names: Vec<_> = held
+        .headers
+        .keys()
+        .map(hey_sdk::http::HeaderName::as_str)
+        .collect();
+    names.sort_unstable();
+    assert_eq!(names, ["link", "x-total-count"]);
+
+    // Go writes the names canonically; they read back all the same.
+    fs::write(
+        directory.join("responses").join("abc.headers"),
+        br#"{"Link": ["</boxes.json?page=3>; rel=\"next\""], "X-Total-Count": ["3"]}"#,
+    )
+    .unwrap();
+    assert_eq!(cache.get("abc").unwrap().headers["x-total-count"], "3");
+
+    fs::remove_file(directory.join("responses").join("abc.headers")).unwrap();
+    assert_eq!(None, cache.get("abc"));
+
+    fs::remove_dir_all(&directory).unwrap();
 }
