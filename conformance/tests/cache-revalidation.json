@@ -140,6 +140,81 @@
     ]
   },
   {
+    "name": "Cache-enabled paginated read keeps its pagination headers through a bare 304",
+    "description": "A 304 need not repeat the Link and X-Total-Count of the 200 it confirms (RFC 9111 §4.3.4): the cache answers it with the headers stored beside the body, so the revalidated page still counts the collection and still names the next page",
+    "operation": "GetCollection",
+    "method": "GET",
+    "path": "/collections/{collectionId}",
+    "pathParams": {
+      "collectionId": 33
+    },
+    "configOverrides": {
+      "clientLayer": "hey",
+      "cacheEnabled": true
+    },
+    "repeatOperation": 2,
+    "mockResponses": [
+      {
+        "status": 200,
+        "headers": {
+          "ETag": "\"v1\"",
+          "Link": "</collections/33.json?page=next-cursor>; rel=\"next\"",
+          "X-Total-Count": "42"
+        },
+        "body": {
+          "id": 33,
+          "name": "Kitchen remodel",
+          "postings": [
+            {
+              "id": 91,
+              "kind": "topic"
+            }
+          ]
+        }
+      },
+      {
+        "status": 304,
+        "headers": {
+          "ETag": "\"v1\""
+        }
+      }
+    ],
+    "assertions": [
+      {
+        "type": "requestCount",
+        "expected": 2
+      },
+      {
+        "type": "lastRequestHeader",
+        "path": "If-None-Match",
+        "expected": "\"v1\""
+      },
+      {
+        "type": "responseBody",
+        "path": "id",
+        "expected": 33
+      },
+      {
+        "type": "responseMeta",
+        "path": "nextPage",
+        "expected": "next-cursor"
+      },
+      {
+        "type": "responseMeta",
+        "path": "totalCount",
+        "expected": 42
+      },
+      {
+        "type": "noError"
+      }
+    ],
+    "tags": [
+      "cache",
+      "revalidation",
+      "pagination"
+    ]
+  },
+  {
     "name": "Client without a cache never sends a conditional request",
     "description": "With no cache configured, repeated generated reads carry no If-None-Match and fetch every answer in full",
     "operation": "ListBoxes",

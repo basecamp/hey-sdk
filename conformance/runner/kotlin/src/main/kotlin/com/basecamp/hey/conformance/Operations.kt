@@ -532,7 +532,8 @@ private suspend fun executeHeyOperation(client: HeyClient, case: TestCase): Outc
     val path = case.pathParams
     val body = case.requestBody
     return when (case.operation) {
-        "RenameTopic" -> executeOperation(client, case)
+        // Generated operations, sent through the client a HEY-layer case configures.
+        "RenameTopic", "GetCollection" -> executeOperation(client, case)
         "ListBoxes" -> page(client, client.boxes.list(), case.followsNextPage)
         "GetWorkflowStage" -> asJson(client.workflows.stage(path.int64("workflowId"), path.int64("stageId")))
         "UpdateCalendarEvent" -> {

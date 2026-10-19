@@ -461,7 +461,8 @@ private func executeHeyOperation(_ client: HeyClient, _ testCase: TestCase) asyn
     let path = testCase.pathParams
     let body = testCase.requestBody
     switch testCase.operation {
-    case "RenameTopic": return try await executeOperation(client, testCase)
+    // Generated operations, sent through the client a HEY-layer case configures.
+    case "RenameTopic", "GetCollection": return try await executeOperation(client, testCase)
     case "ListBoxes": return try await page(client, try await client.boxes.list(), testCase.followsNextPage)
     case "GetWorkflowStage":
         return try asJSON(try await client.workflows.stage(workflowId: path.int("workflowId"), stageId: path.int("stageId")))

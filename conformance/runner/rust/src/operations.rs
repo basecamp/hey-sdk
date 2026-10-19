@@ -1119,7 +1119,8 @@ async fn execute_hey_operation(client: &Client, case: &TestCase) -> Result<Outco
     let body = &case.request_body;
 
     match case.operation.as_str() {
-        "RenameTopic" => execute_operation(client, case).await,
+        // Generated operations, sent through the client a HEY-layer case configures.
+        "RenameTopic" | "GetCollection" => execute_operation(client, case).await,
         "ListBoxes" => {
             page(
                 client,
