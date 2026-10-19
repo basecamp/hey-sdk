@@ -182,8 +182,9 @@ Every failure is a `HeyError`, an enum, so a `switch` over it is exhaustive: `us
 `ambiguous`. Each carries the category as `code` (the string every HEY SDK uses, `not_found`,
 `rate_limit`), an `exitCode` for a command-line tool, the HTTP status when HEY answered,
 whether the call `isRetryable`, the `X-Request-Id` HEY answered with, HEY's own message as the
-`hint`, and the failure body up to a megabyte. An HTML error page is never echoed into a
-message. Cancelling the task a call runs in cancels the call, its waits included, and the
+`hint`, and the failure body up to a megabyte. A 422's `fieldErrors` are each reason HEY gave,
+in order, with the `message` and the `field` when HEY named one. An HTML error page is never
+echoed into a message. Cancelling the task a call runs in cancels the call, its waits included, and the
 cancellation is thrown as it arrived — a `CancellationError`, or the transport's `URLError` with
 the `.cancelled` code — rather than as a `HeyError`.
 

@@ -114,7 +114,9 @@ Verify the returned OAuth `state` in your callback before exchanging the code; p
 installation ID and rotated refresh tokens, and use provider `refresh` to renew them. See the
 [OAuth example](https://github.com/basecamp/hey-sdk/blob/main/typescript/examples/oauth.ts).
 
-`HeyError` has `code`, `httpStatus`, `retryable`, `requestId`, `hint` and `cause`.
+`HeyError` has `code`, `httpStatus`, `retryable`, `requestId`, `hint` and `cause`, and on a
+422 `fieldErrors`: each reason HEY gave, in order, with the `message` and the `field` when HEY
+named one.
 Error messages are bounded and HTML error pages are not echoed. `retryable` describes
 the error, not permission to replay a mutation. Only model-declared safe operations
 retry 429/503 with Retry-After/exponential delay. Explicit `natural: false` overrides

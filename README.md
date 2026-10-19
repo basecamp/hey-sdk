@@ -167,7 +167,9 @@ without a bound.
 
 Calls return `*hey.Error` with a stable `Code` (`hey.CodeNotFound`, `hey.CodeAuth`,
 `hey.CodeForbidden`, `hey.CodeRateLimit`, `hey.CodeConflict`, `hey.CodeUsage`, ...), the
-HTTP status, and — for auth and scope problems — a hint. `hey.AsError(err)` unwraps it.
+HTTP status, and — for auth and scope problems — a hint. `hey.AsError(err)` unwraps it. A 422
+is `hey.CodeValidation`, its `Message` HEY's reasons joined, and `FieldErrors()` each reason on
+its own: the `Message`, and the `Field` when HEY named one.
 
 ### Pagination
 
@@ -265,7 +267,8 @@ let postings = work.boxes().get_imbox(&Default::default()).await?;
 Every call answers `Result<_, hey_sdk::Error>`: a stable `ErrorCode` (`NotFound`, `Auth`,
 `Forbidden`, `RateLimit`, `Validation`, `Api`, `Usage`, ...), the HTTP status, whether it is
 worth retrying, HEY's `X-Request-Id`, a hint when there was one, and the body HEY answered
-the failure with, for the endpoints that describe a refusal there.
+the failure with, for the endpoints that describe a refusal there. A 422's reasons, one per
+entry of HEY's `errors` list, are `field_errors()`.
 
 ### Pagination
 

@@ -199,7 +199,7 @@ impl Contacts<'_> {
                     match self.client().execute(operation).await {
                         Ok(response) => response.json(),
                         Err(error) if error.http_status() == Some(409) => Err(clash(&error)),
-                        Err(error) if error.http_status() == Some(422) => Err(rejection(&error)),
+                        Err(error) if error.http_status() == Some(422) => Err(rejection(error)),
                         Err(error) => Err(error),
                     }
                 }),
@@ -275,9 +275,12 @@ fn clash(error: &Error) -> Error {
     })
 }
 
-fn rejection(error: &Error) -> Error {
+fn rejection(error: Error) -> Error {
     let payload: UnprocessableEntityErrorResponseContent = error.body_json().unwrap_or_default();
-    Error::validation(&payload.errors.unwrap_or_default())
+    let message = Error::validation(&payload.errors.unwrap_or_default())
+        .message()
+        .to_string();
+    error.reworded(message)
 }
 
 /// The server's own words out of a 409. Contact writes answer the `errors` list the other

@@ -1,8 +1,10 @@
 package hey
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"net/http"
 	"strconv"
 	"strings"
@@ -13,7 +15,22 @@ import (
 
 // CheckResponse converts HTTP response errors to SDK errors for non-2xx responses.
 // It is exported for use by conformance testing and consumers using the raw generated client.
+//
+// A 422's error carries the reasons HEY gave (Error.FieldErrors), read from the body; the
+// body is left for the caller to read again.
 func CheckResponse(resp *http.Response) error {
+	if resp != nil && resp.StatusCode == http.StatusUnprocessableEntity {
+		e := validationFromBody(peekErrorBody(resp))
+		e.RequestID = resp.Header.Get("X-Request-Id")
+		return e
+	}
+	return statusError(resp)
+}
+
+// statusError is the error CheckResponse builds from the status and headers alone, without
+// reading the body: the transport's body cap names it for a refused error body
+// (bodyLimitTransport) before anything has read that body.
+func statusError(resp *http.Response) error {
 	if resp == nil {
 		return nil
 	}
@@ -45,6 +62,26 @@ func CheckResponse(resp *http.Response) error {
 		retryable := resp.StatusCode >= 500 && resp.StatusCode < 600
 		return &Error{Code: CodeAPI, Message: fmt.Sprintf("API error: %s", resp.Status), HTTPStatus: resp.StatusCode, Retryable: retryable, RequestID: requestID}
 	}
+}
+
+// peekErrorBody reads up to MaxErrorBodyBytes of an error response's body and puts what it
+// read back in front of the rest, so a caller that reads the body after CheckResponse
+// still reads all of it. The generated parsers hand the body back the same way once they
+// have read it. A body that will not read is no body.
+func peekErrorBody(resp *http.Response) []byte {
+	if resp.Body == nil || resp.Body == http.NoBody {
+		return nil
+	}
+	read, _ := io.ReadAll(io.LimitReader(resp.Body, MaxErrorBodyBytes))
+	resp.Body = readCloser{Reader: io.MultiReader(bytes.NewReader(read), resp.Body), Closer: resp.Body}
+	return read
+}
+
+// readCloser reads from one reader and closes another: a body put back together in front
+// of the one it was read from still closes that one.
+type readCloser struct {
+	io.Reader
+	io.Closer
 }
 
 // checkResponseEmptyOn converts HTTP response errors to SDK errors, but returns

@@ -16,6 +16,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -588,6 +589,14 @@ func checkAssertion(testName string, a Assertion, s checkState) TestResult {
 			}
 			if s.sdkError.RequestID != expected {
 				return fail(testName, "Expected error requestId %q, got %q", expected, s.sdkError.RequestID)
+			}
+		case "fieldErrors":
+			expected, err := expectedFieldErrors(a.Expected)
+			if err != nil {
+				return fail(testName, "errorField.fieldErrors: %v", err)
+			}
+			if actual := s.sdkError.FieldErrors(); !slices.Equal(actual, expected) {
+				return fail(testName, "Expected error fieldErrors %+v, got %+v", expected, actual)
 			}
 		default:
 			return fail(testName, "Unknown error field: %s", a.Path)
@@ -1865,4 +1874,24 @@ func getBoolPtrParam(params map[string]interface{}, key string) *bool {
 		}
 	}
 	return nil
+}
+
+// expectedFieldErrors reads a fieldErrors assertion's list: each entry a message, and the
+// field when the reason names one.
+func expectedFieldErrors(value any) ([]hey.FieldError, error) {
+	entries, ok := value.([]any)
+	if !ok {
+		return nil, fmt.Errorf("expected a list, got %T", value)
+	}
+	reasons := make([]hey.FieldError, 0, len(entries))
+	for _, entry := range entries {
+		object, ok := entry.(map[string]any)
+		message, isString := object["message"].(string)
+		if !ok || !isString {
+			return nil, fmt.Errorf("expected {field?, message} entries, got %v", entry)
+		}
+		field, _ := object["field"].(string)
+		reasons = append(reasons, hey.FieldError{Field: field, Message: message})
+	}
+	return reasons, nil
 }

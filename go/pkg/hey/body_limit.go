@@ -18,7 +18,7 @@ import (
 // A body past the limit is refused — its first read past the cap fails with an error that
 // wraps ErrResponseTooLarge — since a parser that buffers it would buffer it whole. An error
 // body is refused the same way, but the refusal is the *Error CheckResponse would have built
-// for the status, with the refusal as its Cause: the generated parsers decode a modeled error
+// for the status (statusError: nothing has read the body yet), with the refusal as its Cause: the generated parsers decode a modeled error
 // payload before a service wrapper reaches CheckResponse, so a body merely cut off at the
 // cap would surface as a JSON syntax error and the status would be lost with it. Both happen
 // at read time rather than at the round trip: a round-trip error is one the retry loops, the
@@ -61,7 +61,7 @@ func (t *bodyLimitTransport) RoundTrip(req *http.Request) (*http.Response, error
 	}
 	if resp.StatusCode >= 400 {
 		// The status is what matters about an error; the refusal carries it.
-		body.status, _ = CheckResponse(resp).(*Error)
+		body.status, _ = statusError(resp).(*Error)
 	}
 	resp.Body = body
 	return resp, nil

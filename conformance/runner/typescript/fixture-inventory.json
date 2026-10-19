@@ -143,6 +143,10 @@
       "operation": "CreateTopicComment"
     },
     {
+      "name": "422 keeps each reason HEY gave as a field error",
+      "operation": "CreateHabit"
+    },
+    {
       "name": "CreateTopicComment's 404 for a topic out of reach maps to not_found error code",
       "operation": "CreateTopicComment"
     },

@@ -247,7 +247,7 @@ async function run(tc: Fixture) {
       case "errorField":
         assert.ok(error);
         assert.ok(
-          ["httpStatus", "retryable", "requestId"].includes(a.path),
+          ["httpStatus", "retryable", "requestId", "fieldErrors"].includes(a.path),
           `Unknown error field ${a.path}`,
         );
         assert.deepEqual(at(error, a.path), a.expected);

@@ -131,7 +131,15 @@ sealed class HeyException(
         httpStatus: Int = 422,
         requestId: String? = null,
         body: ByteArray? = null,
-    ) : HeyException(message, CODE_VALIDATION, hint, httpStatus, false, requestId, body)
+    ) : HeyException(message, CODE_VALIDATION, hint, httpStatus, false, requestId, body) {
+        /**
+         * Each reason HEY gave for the 422, in the order it gave them: the entries of the
+         * body's `errors` list, or its single `error` or `message` when it sent no list. The
+         * [hint] joins the same reasons. Empty when the body is missing or names no reason,
+         * and for a refusal the SDK raised itself.
+         */
+        val fieldErrors: List<FieldError> = if (httpStatus == 422) reasons(body) else emptyList()
+    }
 
     /** Conflict error (409): the request conflicts with what HEY already holds, such as a time track already running. */
     class Conflict(
@@ -251,19 +259,64 @@ sealed class HeyException(
          * carries none.
          */
         internal fun serverMessage(body: ByteArray): String? {
-            if (body.isEmpty()) return null
-            val parsed = runCatching { heyJson.parseToJsonElement(body.decodeToString()) }.getOrNull()
-            val fields = parsed as? JsonObject ?: return null
+            val fields = jsonObject(body) ?: return null
             stringMember(fields, "error")?.let { return truncateMessage(it) }
             stringMember(fields, "message")?.let { return truncateMessage(it) }
-            val errors = fields["errors"] as? JsonArray ?: return null
-            val messages = errors.mapNotNull { (it as? JsonPrimitive)?.takeIf { primitive -> primitive.isString }?.content }
-            return messages.takeIf { it.isNotEmpty() }?.let { truncateMessage(it.joinToString("; ")) }
+            val reasons = listedReasons(fields)
+            return reasons.takeIf { it.isNotEmpty() }?.let { truncateMessage(it.joinToString("; ")) }
+        }
+
+        /** The reasons a 422's body gives: the `errors` list, or its single `error` or `message`. */
+        internal fun reasons(body: ByteArray?): List<FieldError> {
+            val fields = body?.let { jsonObject(it) } ?: return emptyList()
+            listedReasons(fields).takeIf { it.isNotEmpty() }?.let { return it }
+            val single = stringMember(fields, "error") ?: stringMember(fields, "message") ?: return emptyList()
+            return listOf(FieldError(null, single))
+        }
+
+        /**
+         * The entries of a body's `errors` list: a message, or an object naming the field and
+         * the message. An entry that is neither is skipped, so one malformed entry costs the
+         * caller none of the rest; an `errors` member that is not a list has no entries.
+         */
+        private fun listedReasons(fields: JsonObject): List<FieldError> {
+            val errors = fields["errors"] as? JsonArray ?: return emptyList()
+            return errors.mapNotNull { entry ->
+                when (entry) {
+                    is JsonPrimitive -> entry.takeIf { it.isString && it.content.isNotBlank() }?.let { FieldError(null, it.content) }
+                    is JsonObject -> stringMember(entry, "message")?.let { message ->
+                        FieldError(stringMember(entry, "field") ?: stringMember(entry, "attribute"), message)
+                    }
+                    else -> null
+                }
+            }
+        }
+
+        private fun jsonObject(body: ByteArray): JsonObject? {
+            if (body.isEmpty()) return null
+            return runCatching { heyJson.parseToJsonElement(body.decodeToString()) }.getOrNull() as? JsonObject
         }
 
         private fun stringMember(fields: JsonObject, key: String): String? =
             (fields[key] as? JsonPrimitive)?.takeIf { it.isString }?.content?.takeIf { it.isNotBlank() }
     }
+}
+
+/**
+ * One reason HEY gave for refusing what was sent (422): the [field] it objected to, when it
+ * named one, and the [message] it gave. HEY answers a 422 with `{"errors": ["Subject can't be
+ * blank", ...]}`, the model's own full messages, which name no field apart from the message,
+ * so [field] is null for those; an entry that is an object, `{"field": "subject", "message":
+ * "can't be blank"}` (`attribute` is read as well), carries both.
+ */
+data class FieldError(
+    /** The field HEY objected to, when it named one. */
+    val field: String?,
+    /** What HEY said about it. */
+    val message: String,
+) {
+    /** The message alone, or the field and the message when HEY named one. */
+    override fun toString(): String = if (field == null) message else "$field: $message"
 }
 
 /**

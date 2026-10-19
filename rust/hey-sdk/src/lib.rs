@@ -67,7 +67,7 @@ pub mod version;
 pub use auth::{AuthStrategy, BearerAuth, StaticTokenProvider, TokenProvider};
 pub use client::{Client, ClientBuilder, Response};
 pub use config::Config;
-pub use error::{Error, ErrorCode};
+pub use error::{Error, ErrorCode, FieldError};
 pub use form::FormResponse;
 pub use http::HttpClient;
 pub use operation::Operation;
