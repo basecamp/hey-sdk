@@ -300,11 +300,20 @@ fn write_private(path: &Path, bytes: &[u8]) {
     if fs::create_dir_all(parent).is_err() {
         return;
     }
-    let temporary = path.with_extension("tmp");
+    let temporary = temporary_path(path);
     if fs::write(&temporary, bytes).is_ok() {
         restrict_permissions(parent, &temporary);
         let _ = fs::rename(&temporary, path);
     }
+}
+
+/// Where a file is written before it is renamed into place: its whole name with `.tmp`
+/// added, as Go names it, so a body and the headers beside it — `<key>.body` and
+/// `<key>.headers` — never share one, even when another process writes the same key.
+fn temporary_path(path: &Path) -> PathBuf {
+    let mut name = path.as_os_str().to_owned();
+    name.push(".tmp");
+    PathBuf::from(name)
 }
 
 #[cfg(unix)]
@@ -335,4 +344,22 @@ fn hex(bytes: &[u8]) -> String {
         let _ = write!(hex, "{byte:02x}");
         hex
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_body_and_its_headers_are_written_through_different_temporary_files() {
+        let responses = Path::new("cache").join("responses");
+        assert_eq!(
+            temporary_path(&responses.join("abc.body")),
+            responses.join("abc.body.tmp")
+        );
+        assert_ne!(
+            temporary_path(&responses.join("abc.body")),
+            temporary_path(&responses.join("abc.headers"))
+        );
+    }
 }
