@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -267,5 +268,175 @@ func TestCacheStoresHeadersWithoutCredentials(t *testing.T) {
 	}
 	if got := cache.GetHeaders(key); got != nil {
 		t.Errorf("headers after Invalidate = %v, want none", got)
+	}
+}
+
+// onlyEntry is the key of the one entry a test's cache holds.
+func onlyEntry(t *testing.T, dir string) string {
+	t.Helper()
+	files, err := filepath.Glob(filepath.Join(dir, "responses", "*.headers"))
+	if err != nil || len(files) != 1 {
+		t.Fatalf("header files = %v (%v), want exactly one entry", files, err)
+	}
+	return strings.TrimSuffix(filepath.Base(files[0]), ".headers")
+}
+
+// A 304 is answered from the entry the request went out conditional on, even when another
+// request stores a newer version while it is in flight; and the newer version stays, since
+// nothing the 304 confirms is newer than it. Both the hand-written path and the generated
+// client's doer read the entry whole before sending.
+func TestARevalidationAnswersTheVersionItConfirms(t *testing.T) {
+	for _, reader := range []struct {
+		name string
+		read func(*Client) (body string, total string, err error)
+	}{
+		{"hand-written", func(c *Client) (string, string, error) {
+			resp, err := c.Get(context.Background(), "/items.json")
+			if err != nil {
+				return "", "", err
+			}
+			return string(resp.Data), resp.Headers.Get("X-Total-Count"), nil
+		}},
+		{"generated", func(c *Client) (string, string, error) {
+			page, err := scopedTestClient(c, 42).Folders().GetPage(context.Background(), 1, nil)
+			if err != nil {
+				return "", "", err
+			}
+			return page.Folder.Name, strconv.Itoa(page.TotalCount), nil
+		}},
+	} {
+		t.Run(reader.name, func(t *testing.T) {
+			arrived := make(chan struct{})
+			release := make(chan struct{})
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("ETag", `"v1"`)
+				if r.Header.Get("If-None-Match") == `"v1"` {
+					close(arrived)
+					<-release
+					w.WriteHeader(http.StatusNotModified)
+					return
+				}
+				w.Header().Set("Content-Type", "application/json")
+				w.Header().Set("X-Total-Count", "2")
+				if strings.Contains(r.URL.Path, "/folders/") {
+					_, _ = fmt.Fprint(w, `{"id":1,"name":"v1"}`)
+					return
+				}
+				_, _ = fmt.Fprint(w, `[{"id":"v1"}]`)
+			}))
+			t.Cleanup(server.Close)
+
+			dir := t.TempDir()
+			cache := NewCache(dir)
+			client := NewClient(&Config{BaseURL: server.URL}, &StaticTokenProvider{Token: "token"},
+				WithMaxRetries(0), WithCache(cache))
+			if _, _, err := reader.read(client); err != nil {
+				t.Fatal(err)
+			}
+			key := onlyEntry(t, dir)
+
+			type answer struct {
+				body, total string
+				err         error
+			}
+			answered := make(chan answer, 1)
+			go func() {
+				body, total, err := reader.read(client)
+				answered <- answer{body, total, err}
+			}()
+			<-arrived
+			newer := `[{"id":"v2"}]`
+			if strings.Contains(reader.name, "generated") {
+				newer = `{"id":1,"name":"v2"}`
+			}
+			if err := cache.SetResponse(key, []byte(newer), `"v2"`, http.Header{"X-Total-Count": {"99"}}); err != nil {
+				t.Fatal(err)
+			}
+			close(release)
+			got := <-answered
+			if got.err != nil {
+				t.Fatal(got.err)
+			}
+			if !strings.Contains(got.body, "v1") || got.total != "2" {
+				t.Errorf("answered %q with X-Total-Count %q, want v1's body and count", got.body, got.total)
+			}
+			if etag, body, header, _ := cache.lookup(key); etag != `"v2"` || string(body) != newer || header.Get("X-Total-Count") != "99" {
+				t.Errorf("entry = %s %s %v, want the newer version left as stored", etag, body, header)
+			}
+		})
+	}
+}
+
+// What a 304 carries reaches the caller whole, and the entry keeps what it may: a new
+// validator is the one the next read goes out with, a fresh Set-Cookie is the caller's but
+// never the cache's, and the body on disk is left as it was rather than written again.
+func TestARevalidationKeepsItsMetadataWithoutRewritingTheBody(t *testing.T) {
+	var conditionals []string
+	var mu sync.Mutex
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		conditionals = append(conditionals, r.Header.Get("If-None-Match"))
+		mu.Unlock()
+		switch r.Header.Get("If-None-Match") {
+		case `"v1"`:
+			w.Header().Set("ETag", `"v1-gzip"`)
+			w.Header().Set("Set-Cookie", "session=fresh")
+			w.WriteHeader(http.StatusNotModified)
+		case `"v1-gzip"`:
+			w.Header().Set("ETag", `"v1-gzip"`)
+			w.WriteHeader(http.StatusNotModified)
+		default:
+			w.Header().Set("ETag", `"v1"`)
+			w.Header().Set("X-Total-Count", "2")
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = fmt.Fprint(w, `[{"id":1}]`)
+		}
+	}))
+	t.Cleanup(server.Close)
+
+	dir := t.TempDir()
+	cache := NewCache(dir)
+	client := NewClient(&Config{BaseURL: server.URL}, &StaticTokenProvider{Token: "token"},
+		WithMaxRetries(0), WithCache(cache))
+	if _, err := client.Get(context.Background(), "/items.json"); err != nil {
+		t.Fatal(err)
+	}
+	key := onlyEntry(t, dir)
+	before, err := os.Stat(filepath.Join(dir, "responses", key+".body"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	revalidated, err := client.Get(context.Background(), "/items.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := revalidated.Headers.Get("Set-Cookie"); got != "session=fresh" {
+		t.Errorf("Set-Cookie = %q, want the 304's own handed to the caller", got)
+	}
+	if got := revalidated.Headers.Get("X-Total-Count"); got != "2" {
+		t.Errorf("X-Total-Count = %q, want the stored 2", got)
+	}
+	if got := cache.GetHeaders(key).Get("Set-Cookie"); got != "" {
+		t.Errorf("stored Set-Cookie = %q, want it kept out of the cache", got)
+	}
+	if got := cache.GetETag(key); got != `"v1-gzip"` {
+		t.Errorf("stored ETag = %q, want the one the 304 carried", got)
+	}
+	after, err := os.Stat(filepath.Join(dir, "responses", key+".body"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !os.SameFile(before, after) {
+		t.Error("the body file was written again on a 304")
+	}
+
+	if _, err := client.Get(context.Background(), "/items.json"); err != nil {
+		t.Fatal(err)
+	}
+	mu.Lock()
+	defer mu.Unlock()
+	if want := []string{"", `"v1"`, `"v1-gzip"`}; fmt.Sprint(conditionals) != fmt.Sprint(want) {
+		t.Errorf("conditionals = %v, want %v", conditionals, want)
 	}
 }

@@ -348,3 +348,117 @@ fn the_file_cache_keeps_headers_beside_the_body() {
 
     fs::remove_dir_all(&directory).unwrap();
 }
+
+/// What a 304 carries reaches the caller whole, and the entry keeps what it may: a new
+/// validator is the one the next read goes out with, a fresh `Set-Cookie` is the caller's
+/// but never the cache's, and the body on disk is left as it was rather than written again.
+#[tokio::test]
+async fn a_304_updates_the_entry_without_rewriting_its_body() {
+    let server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path("/boxes.json"))
+        .and(header("if-none-match", "\"v1\""))
+        .respond_with(
+            ResponseTemplate::new(304)
+                .insert_header("ETag", "\"v1-gzip\"")
+                .insert_header("Set-Cookie", "session=fresh"),
+        )
+        .mount(&server)
+        .await;
+    Mock::given(method("GET"))
+        .and(path("/boxes.json"))
+        .and(header("if-none-match", "\"v1-gzip\""))
+        .respond_with(ResponseTemplate::new(304).insert_header("ETag", "\"v1-gzip\""))
+        .mount(&server)
+        .await;
+    Mock::given(method("GET"))
+        .and(path("/boxes.json"))
+        .respond_with(
+            ResponseTemplate::new(200)
+                .insert_header("ETag", "\"v1\"")
+                .insert_header("X-Total-Count", "75")
+                .set_body_json(json!([{ "id": 7, "kind": "imbox", "name": "Imbox" }])),
+        )
+        .mount(&server)
+        .await;
+
+    let directory = std::env::temp_dir().join(format!("hey-sdk-cache-{}", rand::random::<u64>()));
+    let client = builder(&server)
+        .cache(FileCache::new(&directory))
+        .build()
+        .unwrap();
+    client.get("/boxes.json").await.unwrap();
+    let body_file = fs::read_dir(directory.join("responses"))
+        .unwrap()
+        .map(|entry| entry.unwrap().path())
+        .find(|path| {
+            path.extension()
+                .is_some_and(|extension| extension == "body")
+        })
+        .unwrap();
+    let before = fs::metadata(&body_file).unwrap();
+    let headers_file = body_file.with_extension("headers");
+
+    let response = client.get("/boxes.json").await.unwrap();
+    assert!(response.from_cache);
+    assert_eq!(response.headers["set-cookie"], "session=fresh");
+    assert_eq!(response.headers["x-total-count"], "75");
+    let stored = fs::read_to_string(&headers_file).unwrap().to_lowercase();
+    assert!(!stored.contains("set-cookie"), "{stored}");
+    assert!(stored.contains("v1-gzip"), "{stored}");
+    // A rewrite lands as a new file renamed into place.
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::MetadataExt;
+        assert_eq!(before.ino(), fs::metadata(&body_file).unwrap().ino());
+    }
+    #[cfg(not(unix))]
+    assert_eq!(
+        before.modified().unwrap(),
+        fs::metadata(&body_file).unwrap().modified().unwrap()
+    );
+
+    let again = client.get("/boxes.json").await.unwrap();
+    assert_eq!(again.headers["x-total-count"], "75");
+    let requests = server.received_requests().await.unwrap();
+    assert_eq!(requests[2].headers["if-none-match"], "\"v1-gzip\"");
+    fs::remove_dir_all(&directory).unwrap();
+}
+
+/// A 304 confirms the entry the request went out conditional on, so an entry another read
+/// replaced meanwhile is newer than anything it says, and both stores leave it alone.
+#[test]
+fn a_revalidation_leaves_an_entry_replaced_meanwhile_alone() {
+    let directory = std::env::temp_dir().join(format!("hey-sdk-cache-{}", rand::random::<u64>()));
+    let stores: [Box<dyn ResponseCache>; 2] = [
+        Box::new(InMemoryCache::new()),
+        Box::new(FileCache::new(&directory)),
+    ];
+    for cache in stores {
+        let mut newer = HeaderMap::new();
+        newer.insert("x-total-count", "99".parse().unwrap());
+        cache.set(
+            "abc",
+            CachedResponse {
+                etag: "\"v2\"".to_string(),
+                body: Bytes::from_static(b"[2]"),
+                headers: newer.clone(),
+            },
+        );
+        let mut stale = HeaderMap::new();
+        stale.insert("x-total-count", "2".parse().unwrap());
+        cache.revalidate("abc", "\"v1\"", "\"v1\"".to_string(), stale.clone());
+        let held = cache.get("abc").unwrap();
+        assert_eq!(held.etag, "\"v2\"");
+        assert_eq!(held.headers, newer);
+
+        cache.revalidate("abc", "\"v2\"", "\"v3\"".to_string(), stale.clone());
+        let held = cache.get("abc").unwrap();
+        assert_eq!(
+            (held.etag.as_str(), &held.body[..]),
+            ("\"v3\"", &b"[2]"[..])
+        );
+        assert_eq!(held.headers, stale);
+    }
+    fs::remove_dir_all(&directory).unwrap();
+}

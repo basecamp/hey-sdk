@@ -56,16 +56,16 @@ pub(crate) fn storable_headers(headers: &HeaderMap) -> HeaderMap {
 /// What a 304 answers with: the headers stored with the body, each field the 304 carried
 /// replacing the stored one of that name, as RFC 9111 §4.3.4 has a cache update its entry.
 /// `Content-Length` describes the 304's own empty body, not the stored one, so it is not
-/// taken (RFC 9111 §3.2).
+/// taken (RFC 9111 §3.2). Everything else the 304 carried reaches the caller, a fresh
+/// `Set-Cookie` included; what the entry keeps of it is [`storable_headers`]' to decide.
 pub(crate) fn revalidated_headers(stored: &HeaderMap, not_modified: &HeaderMap) -> HeaderMap {
     let mut merged = stored.clone();
-    let fresh = storable_headers(not_modified);
-    for name in fresh.keys() {
+    for name in not_modified.keys() {
         if name == CONTENT_LENGTH {
             continue;
         }
         merged.remove(name);
-        for value in fresh.get_all(name) {
+        for value in not_modified.get_all(name) {
             merged.append(name.clone(), value.clone());
         }
     }
@@ -82,6 +82,26 @@ pub trait ResponseCache: Send + Sync {
     fn invalidate(&self, key: &str);
     /// Forgets everything.
     fn clear(&self);
+    /// Keeps what a 304 said about the entry under `key`: the validator it carried, which
+    /// is `validated` unless the 304 named another, and the headers it updated. The body
+    /// is the one already held, so a store need not write it again; and the update is
+    /// made only while the entry's validator is still `validated`, since a body stored
+    /// meanwhile is newer than anything the 304 confirmed. The default reads the entry and
+    /// sets it again; a store that can do better, as both of the crate's do, does.
+    fn revalidate(&self, key: &str, validated: &str, etag: String, headers: HeaderMap) {
+        if let Some(held) = self.get(key)
+            && held.etag == validated
+        {
+            self.set(
+                key,
+                CachedResponse {
+                    etag,
+                    body: held.body,
+                    headers,
+                },
+            );
+        }
+    }
 }
 
 /// Keeps cached responses for the life of the process.
@@ -125,6 +145,16 @@ impl ResponseCache for InMemoryCache {
             .lock()
             .unwrap_or_else(PoisonError::into_inner)
             .clear();
+    }
+
+    fn revalidate(&self, key: &str, validated: &str, etag: String, headers: HeaderMap) {
+        let mut entries = self.entries.lock().unwrap_or_else(PoisonError::into_inner);
+        if let Some(held) = entries.get_mut(key)
+            && held.etag == validated
+        {
+            held.etag = etag;
+            held.headers = headers;
+        }
     }
 }
 
@@ -234,6 +264,21 @@ impl ResponseCache for FileCache {
         let mut etags = self.etags();
         etags.remove(key);
         self.write_etags(&etags);
+    }
+
+    /// Writes the headers and, should the 304 carry a new one, the validator; the body on
+    /// disk is the one the 304 confirmed and stays as it is.
+    fn revalidate(&self, key: &str, validated: &str, etag: String, headers: HeaderMap) {
+        let _guard = self.lock.lock().unwrap_or_else(PoisonError::into_inner);
+        let mut etags = self.etags();
+        if etags.get(key).is_none_or(|held| held != validated) {
+            return;
+        }
+        self.write_headers(key, &headers);
+        if etag != validated {
+            etags.insert(key.to_string(), etag);
+            self.write_etags(&etags);
+        }
     }
 
     /// Throws away what the cache put in the directory and nothing else. The directory is

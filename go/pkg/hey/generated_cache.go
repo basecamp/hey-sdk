@@ -34,15 +34,11 @@ func (d *cachingDoer) Do(req *http.Request) (*http.Response, error) {
 	key := c.cache.Key(req.URL.String(), authorization)
 	var cached []byte
 	var cachedHeader http.Header
-	etag := c.cache.GetETag(key)
-	if etag != "" {
-		if body := c.cache.GetBody(key); body != nil && int64(len(body)) <= c.bufferBound(req) {
-			if header := c.cache.GetHeaders(key); header != nil {
-				cached, cachedHeader = body, header
-				req.Header.Set("If-None-Match", etag)
-				c.logger.Debug("cache conditional request", "etag", etag)
-			}
-		}
+	etag, body, header, ok := c.cache.lookup(key)
+	if ok && int64(len(body)) <= c.bufferBound(req) {
+		cached, cachedHeader = body, header
+		req.Header.Set("If-None-Match", etag)
+		c.logger.Debug("cache conditional request", "etag", etag)
 	}
 
 	// The generated client sends every attempt with a redirect state of its own; a
@@ -69,7 +65,7 @@ func (d *cachingDoer) Do(req *http.Request) (*http.Response, error) {
 		c.logger.Debug("cache hit", "status", 304)
 		_ = resp.Body.Close()
 		header := revalidatedHeaders(cachedHeader, resp.Header)
-		_ = c.cache.SetResponse(key, cached, etag, header)
+		_ = c.cache.revalidate(key, etag, revalidatedETag(etag, resp.Header), header)
 		return cachedResponse(req, resp, header, cached), nil
 	case resp.StatusCode == http.StatusOK:
 		if etag := resp.Header.Get("ETag"); etag != "" {

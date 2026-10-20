@@ -1384,16 +1384,13 @@ impl Client {
             Some((key, entry)) if !entry.etag.is_empty() => {
                 let headers = revalidated_headers(&entry.headers, not_modified);
                 if let Some(cache) = self.cacheable(operation) {
-                    cache_set(
-                        cache,
-                        &key,
-                        CachedResponse {
-                            etag: entry.etag,
-                            body: entry.body.clone(),
-                            headers: headers.clone(),
-                        },
-                    )
-                    .await;
+                    let etag = not_modified
+                        .get("etag")
+                        .and_then(|value| value.to_str().ok())
+                        .filter(|etag| !etag.is_empty())
+                        .map_or_else(|| entry.etag.clone(), str::to_string);
+                    cache_revalidate(cache, &key, entry.etag, etag, storable_headers(&headers))
+                        .await;
                 }
                 Ok(Response {
                     status: StatusCode::OK,
@@ -1703,6 +1700,19 @@ async fn cache_set(cache: &Arc<dyn ResponseCache>, key: &str, response: CachedRe
     let cache = cache.clone();
     let key = key.to_string();
     let _ = tokio::task::spawn_blocking(move || cache.set(&key, response)).await;
+}
+
+async fn cache_revalidate(
+    cache: &Arc<dyn ResponseCache>,
+    key: &str,
+    validated: String,
+    etag: String,
+    headers: HeaderMap,
+) {
+    let cache = cache.clone();
+    let key = key.to_string();
+    let _ = tokio::task::spawn_blocking(move || cache.revalidate(&key, &validated, etag, headers))
+        .await;
 }
 
 async fn cache_invalidate(cache: &Arc<dyn ResponseCache>, key: &str) {

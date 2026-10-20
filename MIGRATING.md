@@ -22,7 +22,10 @@ CachedResponse { etag, body, headers }
 ```
 
 An entry whose headers a cache cannot give back can use `HeaderMap::new()`; a 304 is then
-answered under its own headers alone, as before. `FileCache` writes them to
+answered under its own headers alone, as before. `ResponseCache` also gains `revalidate`,
+which a 304 calls to keep its validator and headers; its default reads the entry and sets it
+again, so a cache of your own needs no change for it, and can override it to skip writing
+the body again. `FileCache` writes them to
 `responses/<key>.headers`, the file the Go SDK reads, and takes an entry written without one
 for a miss, so each page is fetched in full once after the upgrade.
 

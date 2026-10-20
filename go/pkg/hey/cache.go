@@ -75,7 +75,71 @@ func (c *Cache) GetBody(key string) []byte {
 func (c *Cache) GetHeaders(key string) http.Header {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
+	return c.readHeaders(key)
+}
 
+// lookup reads a key's ETag, body and headers in one go, so a request revalidates the very
+// entry it answers a 304 from: read apart, a body stored by a concurrent request between
+// the reads would be answered under another version's headers. ok is false when any part
+// is missing, an entry written before headers were kept included.
+func (c *Cache) lookup(key string) (etag string, body []byte, header http.Header, ok bool) {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+
+	etag = c.readETags()[key]
+	if etag == "" {
+		return "", nil, nil, false
+	}
+	body, err := os.ReadFile(filepath.Join(c.dir, "responses", key+".body"))
+	if err != nil {
+		return "", nil, nil, false
+	}
+	header = c.readHeaders(key)
+	if header == nil {
+		return "", nil, nil, false
+	}
+	return etag, body, header, true
+}
+
+// revalidate keeps what a 304 told the cache about an entry: its validator, should the 304
+// carry a new one, and the headers updated by it. Only the metadata is written — the body
+// is the one already on disk — and only while the entry is still the one revalidated: a
+// body stored meanwhile is newer than anything this 304 confirms.
+func (c *Cache) revalidate(key, validated, etag string, header http.Header) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	etags := c.readETags()
+	if etags[key] != validated {
+		return nil
+	}
+	headers, err := json.MarshalIndent(storableHeaders(header), "", "  ")
+	if err != nil {
+		return err
+	}
+	if err := writeFileAtomically(c.headersFile(key), headers); err != nil {
+		return err
+	}
+	if etag == validated {
+		return nil
+	}
+	etags[key] = etag
+	data, err := json.MarshalIndent(etags, "", "  ")
+	if err != nil {
+		return err
+	}
+	return writeFileAtomically(filepath.Join(c.dir, "etags.json"), data)
+}
+
+func (c *Cache) readETags() map[string]string {
+	etags := make(map[string]string)
+	if data, err := os.ReadFile(filepath.Join(c.dir, "etags.json")); err == nil {
+		_ = json.Unmarshal(data, &etags)
+	}
+	return etags
+}
+
+func (c *Cache) readHeaders(key string) http.Header {
 	data, err := os.ReadFile(c.headersFile(key))
 	if err != nil {
 		return nil
@@ -185,19 +249,30 @@ func storableHeaders(header http.Header) http.Header {
 // revalidatedHeaders is what a 304 answers with: the headers stored with the body, each
 // field the 304 carried replacing the stored one of that name, as RFC 9111 §4.3.4 has a
 // cache update its entry. Content-Length describes the 304's own empty body, not the
-// stored one, so it is not taken (RFC 9111 §3.2).
+// stored one, so it is not taken (RFC 9111 §3.2). Everything else the 304 carried reaches
+// the caller, a fresh Set-Cookie included; what the entry keeps of it is storableHeaders'
+// to decide.
 func revalidatedHeaders(stored, notModified http.Header) http.Header {
 	merged := stored.Clone()
 	if merged == nil {
 		merged = http.Header{}
 	}
-	for name, values := range storableHeaders(notModified) {
-		if name == "Content-Length" {
+	for name, values := range notModified {
+		if http.CanonicalHeaderKey(name) == "Content-Length" {
 			continue
 		}
-		merged[name] = append([]string(nil), values...)
+		merged[http.CanonicalHeaderKey(name)] = append([]string(nil), values...)
 	}
 	return merged
+}
+
+// revalidatedETag is the validator an entry keeps after a 304: the one the 304 carried,
+// should it name one, and otherwise the one it was asked about.
+func revalidatedETag(validated string, notModified http.Header) string {
+	if etag := notModified.Get("ETag"); etag != "" {
+		return etag
+	}
+	return validated
 }
 
 // Clear removes all cached data.
