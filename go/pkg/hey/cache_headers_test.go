@@ -255,6 +255,21 @@ func TestCacheStoresHeadersWithoutCredentials(t *testing.T) {
 		}
 	}
 
+	// A header built by hand need not use canonical names, and is filtered all the same.
+	handBuilt := http.Header{
+		"x-total-count": {"2"},
+		"set-cookie":    {"session=abc"},
+		"authorization": {"Bearer token"},
+		"connection":    {"x-hop"},
+		"x-hop":         {"1"},
+	}
+	if err := cache.SetResponse(key, []byte(`[]`), `"v1"`, handBuilt); err != nil {
+		t.Fatal(err)
+	}
+	if got := cache.GetHeaders(key); len(got) != 1 || got.Get("X-Total-Count") != "2" {
+		t.Errorf("headers = %v, want only X-Total-Count kept from non-canonical names", got)
+	}
+
 	if err := os.WriteFile(filepath.Join(dir, "responses", key+".headers"),
 		[]byte(`{"link":["</boxes.json?page=3>; rel=\"next\""],"x-total-count":["3"]}`), 0600); err != nil {
 		t.Fatal(err)

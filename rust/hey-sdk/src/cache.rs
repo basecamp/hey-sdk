@@ -87,7 +87,11 @@ pub trait ResponseCache: Send + Sync {
     /// is the one already held, so a store need not write it again; and the update is
     /// made only while the entry's validator is still `validated`, since a body stored
     /// meanwhile is newer than anything the 304 confirmed. The default reads the entry and
-    /// sets it again; a store that can do better, as both of the crate's do, does.
+    /// sets it again whole. Between the two, another read can store a newer entry, which the
+    /// set then replaces with the older one. That entry is still consistent — body,
+    /// validator and headers of one version — so the next read revalidates it and draws the
+    /// newer one in full. A store that can check and update in one step, as both of the
+    /// crate's do, overrides this.
     fn revalidate(&self, key: &str, validated: &str, etag: String, headers: HeaderMap) {
         if let Some(held) = self.get(key)
             && held.etag == validated

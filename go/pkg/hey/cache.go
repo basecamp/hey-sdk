@@ -231,11 +231,15 @@ var unstoredHeaders = []string{
 
 // storableHeaders is what of a response's headers a cache entry keeps beside its body.
 func storableHeaders(header http.Header) http.Header {
-	stored := header.Clone()
-	if stored == nil {
-		stored = http.Header{}
+	// Names are made canonical first: Del and Values look names up canonically, so a
+	// header built by hand under "set-cookie" would otherwise slip past them.
+	stored := make(http.Header, len(header))
+	for name, values := range header {
+		for _, value := range values {
+			stored.Add(name, value)
+		}
 	}
-	for _, name := range header.Values("Connection") {
+	for _, name := range stored.Values("Connection") {
 		for _, listed := range strings.Split(name, ",") {
 			stored.Del(strings.TrimSpace(listed))
 		}
