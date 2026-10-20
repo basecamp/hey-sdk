@@ -336,19 +336,26 @@ func fieldErrorFrom(entry json.RawMessage) (FieldError, bool) {
 	if json.Unmarshal(entry, &message) == nil {
 		return FieldError{Message: message}, strings.TrimSpace(message) != ""
 	}
-	var object struct {
-		Field     string `json:"field"`
-		Attribute string `json:"attribute"`
-		Message   string `json:"message"`
-	}
-	if json.Unmarshal(entry, &object) != nil || strings.TrimSpace(object.Message) == "" {
+	// Each member is read on its own, so a field that is not a string costs the reason
+	// only its field.
+	var object map[string]json.RawMessage
+	if json.Unmarshal(entry, &object) != nil {
 		return FieldError{}, false
 	}
-	field := object.Field
-	if field == "" {
-		field = object.Attribute
+	member := func(key string) string {
+		var value string
+		_ = json.Unmarshal(object[key], &value)
+		return value
 	}
-	return FieldError{Field: field, Message: object.Message}, true
+	message = member("message")
+	if strings.TrimSpace(message) == "" {
+		return FieldError{}, false
+	}
+	field := member("field")
+	if field == "" {
+		field = member("attribute")
+	}
+	return FieldError{Field: field, Message: message}, true
 }
 
 // ErrAmbiguous creates an ambiguous match error.

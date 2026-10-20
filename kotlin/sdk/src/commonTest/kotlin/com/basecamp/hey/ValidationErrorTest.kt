@@ -77,6 +77,21 @@ class ValidationErrorTest {
     }
 
     @Test
+    fun aHintIsItsFieldErrorsJoined() {
+        val cases = listOf(
+            """{"error":"Invalid habit","errors":["Title can't be blank"]}""" to "Title can't be blank",
+            """{"error":"Invalid habit","message":"Try again"}""" to "Invalid habit",
+            """{"errors":[{"field":7,"message":"is invalid"}]}""" to "is invalid",
+            """{"errors":"wrong","message":"Invalid"}""" to "Invalid",
+        )
+        for ((body, hint) in cases) {
+            val error = refused(body) as HeyException.Validation
+            assertEquals(hint, error.hint, body)
+            assertEquals(hint, error.fieldErrors.joinToString("; "), body)
+        }
+    }
+
+    @Test
     fun aRefusalTheSdkRaisesItselfHasNoFieldErrors() {
         assertTrue(HeyException.Validation("clearance status must be \"approved\" or \"denied\"").fieldErrors.isEmpty())
     }

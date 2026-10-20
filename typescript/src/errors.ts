@@ -61,7 +61,7 @@ function reasonsIn(body: unknown): FieldError[] {
     const listed = b.errors.flatMap((entry) => fieldError(entry) ?? []);
     if (listed.length > 0) return listed;
   }
-  const single = [b.errors, b.error, b.message].find(text);
+  const single = [b.error, b.message].find(text);
   return single === undefined ? [] : [{ message: single }];
 }
 const reasonText = (reason: FieldError) =>

@@ -233,7 +233,9 @@ public enum HeyError: Error, Sendable, LocalizedError, CustomStringConvertible {
     /// client refused to hold leaves the error the status maps to, told why its body is missing.
     static func fromResponse(status: Int, method: HTTPMethod, headers: HTTPHeaders, body: Data, refusal: HeyError? = nil) -> HeyError {
         let kept = body.count > maxErrorBodyBytes ? body.prefix(maxErrorBodyBytes) : body
-        let serverMessage = Self.serverMessage(body) ?? refusal?.message
+        // A 422's hint is its field errors joined, so the two never disagree.
+        let said = status == 422 ? Self.reasonsText(body) : Self.serverMessage(body)
+        let serverMessage = said ?? refusal?.message
         let detail = ErrorDetail(
             hint: serverMessage, requestId: headers["X-Request-Id"],
             body: kept.isEmpty ? nil : Data(kept), responseTooLarge: refusal != nil)
@@ -272,6 +274,12 @@ public enum HeyError: Error, Sendable, LocalizedError, CustomStringConvertible {
         guard let object = jsonObject(body) else { return nil }
         if let single = singleMessage(object) { return truncate(single) }
         let reasons = listedReasons(object)
+        return reasons.isEmpty ? nil : truncate(reasons.map(\.description).joined(separator: "; "))
+    }
+
+    /// A 422's reasons joined for its hint, as ``fieldErrors`` reads them.
+    static func reasonsText(_ body: Data) -> String? {
+        let reasons = reasons(body)
         return reasons.isEmpty ? nil : truncate(reasons.map(\.description).joined(separator: "; "))
     }
 

@@ -378,7 +378,13 @@ impl Error {
             Some(request_id) => error.with_request_id(request_id),
             None => error,
         };
-        let mut error = match (error.hint.is_none(), server_message(body)) {
+        // A 422's hint is its field errors joined, so the two never disagree.
+        let said = if status == StatusCode::UNPROCESSABLE_ENTITY {
+            reasons_text(body)
+        } else {
+            server_message(body)
+        };
+        let mut error = match (error.hint.is_none(), said) {
             (true, Some(message)) => error.with_hint(message),
             _ => error,
         };
@@ -671,6 +677,19 @@ fn server_message(body: &[u8]) -> Option<String> {
         })
     })?;
     Some(truncate(&message, MAX_ERROR_MESSAGE_BYTES))
+}
+
+/// A 422's reasons joined for its hint, as [`Error::field_errors`] reads them.
+fn reasons_text(body: &[u8]) -> Option<String> {
+    let reasons = reasons(body);
+    (!reasons.is_empty()).then(|| {
+        let joined = reasons
+            .iter()
+            .map(ToString::to_string)
+            .collect::<Vec<_>>()
+            .join("; ");
+        truncate(&joined, MAX_ERROR_MESSAGE_BYTES)
+    })
 }
 
 /// The reasons a 422's body gives: the `errors` list, or the single `error` or `message`.

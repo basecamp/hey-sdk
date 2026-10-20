@@ -178,6 +178,40 @@ fn a_reason_naming_its_field_reads_with_it() {
 }
 
 #[test]
+fn a_422_hint_is_its_field_errors_joined() {
+    let cases: [(&[u8], &str); 4] = [
+        (
+            br#"{"message":"Invalid habit","errors":["Title can't be blank"]}"#,
+            "Title can't be blank",
+        ),
+        (
+            br#"{"error":"Invalid habit","message":"Try again"}"#,
+            "Invalid habit",
+        ),
+        (
+            br#"{"errors":[{"field":7,"message":"is invalid"}]}"#,
+            "is invalid",
+        ),
+        (br#"{"errors":"wrong","message":"Invalid"}"#, "Invalid"),
+    ];
+    for (body, hint) in cases {
+        let error = refused(body);
+        let joined: Vec<String> = error
+            .field_errors()
+            .iter()
+            .map(ToString::to_string)
+            .collect();
+        assert_eq!(
+            error.hint(),
+            Some(hint),
+            "{}",
+            String::from_utf8_lossy(body)
+        );
+        assert_eq!(joined.join("; "), hint, "{}", String::from_utf8_lossy(body));
+    }
+}
+
+#[test]
 fn only_a_422_has_field_errors() {
     let conflict = Error::from_response(
         StatusCode::CONFLICT,

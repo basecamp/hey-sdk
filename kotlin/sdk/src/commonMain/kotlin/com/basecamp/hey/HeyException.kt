@@ -227,7 +227,9 @@ sealed class HeyException(
             val requestId = headers["X-Request-Id"]
             val kept = if (body.size > MAX_ERROR_BODY_BYTES) body.copyOf(MAX_ERROR_BODY_BYTES) else body
             val stored = kept.takeIf { it.isNotEmpty() }
-            val message = serverMessage(body) ?: refusal?.message
+            // A 422's hint is its field errors joined, so the two never disagree.
+            val said = if (status == 422) reasons(body).takeIf { it.isNotEmpty() }?.let { truncateMessage(it.joinToString("; ")) } else serverMessage(body)
+            val message = said ?: refusal?.message
             return mapped(status, method, headers, message, requestId, stored).also { it.responseTooLarge = refusal != null }
         }
 

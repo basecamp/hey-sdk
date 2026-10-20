@@ -126,6 +126,18 @@ func TestValidation_ReadsEveryShapeOfReason(t *testing.T) {
 			message: "Invalid message",
 			reasons: []FieldError{{Message: "Invalid message"}},
 		},
+		{
+			name:    "a field that is not a string",
+			body:    `{"errors":[{"field":7,"message":"is invalid"}]}`,
+			message: "is invalid",
+			reasons: []FieldError{{Message: "is invalid"}},
+		},
+		{
+			name:    "a list beside a message",
+			body:    `{"message":"Invalid habit","errors":["Title can't be blank"]}`,
+			message: "Title can't be blank",
+			reasons: []FieldError{{Message: "Title can't be blank"}},
+		},
 		{name: "no body", body: ``, message: "validation error"},
 		{name: "an HTML page", body: `<html>Unprocessable</html>`, message: "validation error"},
 		{name: "an empty list", body: `{"errors":[]}`, message: "validation error"},

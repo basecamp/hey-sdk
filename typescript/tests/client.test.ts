@@ -349,6 +349,8 @@ describe("HEY transport", () => {
         422,
       ),
       json({ error: "Subject can't be blank" }, 422),
+      json({ errors: "wrong", message: "Invalid" }, 422),
+      json({ errors: [{ field: 7, message: "is invalid" }], message: "Invalid" }, 422),
       json({ errors: ["Email address is taken"] }, 409),
     ]);
     const c = new HeyClient({ token: "secret", fetch: m.fetch });
@@ -378,6 +380,14 @@ describe("HEY transport", () => {
     await expect(c.listBoxes()).rejects.toMatchObject({
       message: "Subject can't be blank",
       fieldErrors: [{ message: "Subject can't be blank" }],
+    });
+    await expect(c.listBoxes()).rejects.toMatchObject({
+      message: "Invalid",
+      fieldErrors: [{ message: "Invalid" }],
+    });
+    await expect(c.listBoxes()).rejects.toMatchObject({
+      message: "is invalid",
+      fieldErrors: [{ message: "is invalid" }],
     });
     await expect(c.listBoxes()).rejects.toMatchObject({
       code: "conflict",

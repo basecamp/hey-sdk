@@ -73,6 +73,20 @@ final class ValidationErrorTests: XCTestCase {
         XCTAssertEqual(error.fieldErrors.first?.description, "subject: is too long")
     }
 
+    func testAHintIsItsFieldErrorsJoined() {
+        let cases: [(String, String)] = [
+            (#"{"error":"Invalid habit","errors":["Title can't be blank"]}"#, "Title can't be blank"),
+            (#"{"error":"Invalid habit","message":"Try again"}"#, "Invalid habit"),
+            (#"{"errors":[{"field":7,"message":"is invalid"}]}"#, "is invalid"),
+            (#"{"errors":"wrong","message":"Invalid"}"#, "Invalid"),
+        ]
+        for (body, hint) in cases {
+            let error = refused(body)
+            XCTAssertEqual(error.hint, hint, body)
+            XCTAssertEqual(error.fieldErrors.map(\.description).joined(separator: "; "), hint, body)
+        }
+    }
+
     func testOnlyA422HasFieldErrors() {
         let conflict = HeyError.fromResponse(
             status: 409, method: .post, headers: HTTPHeaders([]), body: Data(#"{"errors":["Email address is taken"]}"#.utf8))
