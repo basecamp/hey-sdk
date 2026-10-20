@@ -14,6 +14,8 @@ permissions: {}
 jobs:
   release:
     runs-on: ubuntu-latest
+    # Room for the orchestrator's 5.5-hour wait below, under the 6-hour job ceiling.
+    timeout-minutes: 340
     permissions:
       actions: read
       contents: write
@@ -46,3 +48,7 @@ jobs:
           # release-typescript.yml and this orchestrator. Historical manual targets
           # select the release workflows that existed in that target.
           languages: ${{ steps.activation.outputs.languages }}
+          # The npm and crates.io publishes wait for a reviewer's approval (release-npm and
+          # release-crates require one), so the action's 30-minute default would give up
+          # before the reviewers got to them.
+          timeout: '19800'
