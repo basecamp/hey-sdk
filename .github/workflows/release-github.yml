@@ -52,3 +52,7 @@ jobs:
           # release-crates require one), so the action's 30-minute default would give up
           # before the reviewers got to them.
           timeout: '19800'
+          # The action polls each pending language with `gh run list --workflow`, about two
+          # requests apiece. Five languages every 30s would be ~1,200 an hour against
+          # GITHUB_TOKEN's 1,000; every 60s is ~600 at worst, falling as languages finish.
+          poll-interval: '60'
