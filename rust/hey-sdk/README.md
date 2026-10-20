@@ -6,7 +6,7 @@ is what HEY serves.
 
 ```toml
 [dependencies]
-hey-sdk = "0.32"
+hey-sdk = "0.33"
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 ```
 
@@ -16,7 +16,7 @@ tag — the repository's `vX.Y.Z` tags are the crate's releases, and there is no
 tag to look for:
 
 ```toml
-hey-sdk = { git = "https://github.com/basecamp/hey-sdk", tag = "v0.32.1" }
+hey-sdk = { git = "https://github.com/basecamp/hey-sdk", tag = "v0.33.0" }
 ```
 
 Requires Rust 1.88 or newer; see [Versioning](#versioning).
