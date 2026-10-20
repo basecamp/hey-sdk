@@ -317,7 +317,7 @@ func (s *ContactsService) Create(ctx context.Context, params ContactParams) (con
 		if rerr != nil {
 			return rerr
 		}
-		if cerr := contactWriteError(resp.JSON409, resp.JSON422, resp.HTTPResponse); cerr != nil {
+		if cerr := contactWriteError(resp.JSON409, resp.HTTPResponse); cerr != nil {
 			return cerr
 		}
 		contact = resp.JSON201
@@ -365,7 +365,7 @@ func (s *ContactsService) Update(ctx context.Context, contactID int64, params Co
 		if rerr != nil {
 			return rerr
 		}
-		if cerr := contactWriteError(resp.JSON409, resp.JSON422, resp.HTTPResponse); cerr != nil {
+		if cerr := contactWriteError(resp.JSON409, resp.HTTPResponse); cerr != nil {
 			return cerr
 		}
 		contact = resp.JSON200
@@ -391,7 +391,7 @@ func (s *ContactsService) UpdateAvatar(ctx context.Context, contactID int64, sig
 		if rerr != nil {
 			return rerr
 		}
-		if cerr := contactWriteError(nil, resp.JSON422, resp.HTTPResponse); cerr != nil {
+		if cerr := contactWriteError(nil, resp.HTTPResponse); cerr != nil {
 			return cerr
 		}
 		contact = resp.JSON200
@@ -492,7 +492,7 @@ func (s *ContactsService) SetNote(ctx context.Context, contactID int64, note str
 		if rerr != nil {
 			return rerr
 		}
-		if cerr := contactWriteError(nil, resp.JSON422, resp.HTTPResponse); cerr != nil {
+		if cerr := contactWriteError(nil, resp.HTTPResponse); cerr != nil {
 			return cerr
 		}
 		result = resp.JSON200
@@ -554,19 +554,16 @@ func conflictMessage(conflict *generated.ConflictErrorResponseContent) string {
 	return "the contact conflicts with one that already exists"
 }
 
-// contactWriteError turns the two refusals a contact write can answer with into typed
-// errors — an email address that belongs to someone else, and a contact the model itself
-// rejected — and falls back to the usual status handling.
-func contactWriteError(conflict *generated.ConflictErrorResponseContent, invalid *generated.UnprocessableEntityErrorResponseContent, resp *http.Response) error {
+// contactWriteError turns an email address that belongs to someone else into a typed
+// ContactConflictError, and maps anything else by status: a contact the model itself
+// rejected answers with HEY's reasons (CheckResponse).
+func contactWriteError(conflict *generated.ConflictErrorResponseContent, resp *http.Response) error {
 	if conflict != nil {
 		return &ContactConflictError{
 			ContactID:             conflict.ContactId,
 			ConflictingContactIDs: conflict.ConflictingContactIds,
 			err:                   ErrConflict(conflictMessage(conflict)),
 		}
-	}
-	if invalid != nil {
-		return ErrValidation(invalid.Errors...)
 	}
 	return CheckResponse(resp)
 }

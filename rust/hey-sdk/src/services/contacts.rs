@@ -10,7 +10,7 @@ use crate::generated::routes;
 use crate::generated::types::{
     ConflictErrorResponseContent, Contact, ContactDetail, ContactNote, ContactNotePayload,
     ContactNoteRequestContent, ContactPayload, ContactRequestContent, CreateContactRequestContent,
-    UnprocessableEntityErrorResponseContent, UpdateContactClearanceRequestContent,
+    UpdateContactClearanceRequestContent,
 };
 use crate::operation::Operation;
 use crate::services::clearances::ClearanceStatus;
@@ -276,10 +276,12 @@ fn clash(error: &Error) -> Error {
 }
 
 fn rejection(error: Error) -> Error {
-    let payload: UnprocessableEntityErrorResponseContent = error.body_json().unwrap_or_default();
-    let message = Error::validation(&payload.errors.unwrap_or_default())
-        .message()
-        .to_string();
+    let reasons: Vec<String> = error
+        .field_errors()
+        .iter()
+        .map(ToString::to_string)
+        .collect();
+    let message = Error::validation(&reasons).message().to_string();
     error.reworded(message)
 }
 

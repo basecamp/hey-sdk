@@ -85,8 +85,9 @@ type FieldError struct {
 }
 
 // FieldErrors returns each reason HEY gave for a 422, in the order it gave them: the
-// entries of the body's errors list, or the body's single error or message when it sent
-// no list. Message joins the same reasons for display. It is nil for any other error,
+// entries of the body's errors list, or the body's single error or message when the list
+// is absent or gives no usable reason (so {"errors":[],"message":"Invalid"} gives one).
+// Message joins the same reasons for display. It is nil for any other error,
 // and for a 422 that carried no reason.
 func (e *Error) FieldErrors() []FieldError {
 	if e.fieldErrors == nil {

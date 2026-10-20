@@ -130,7 +130,7 @@ async fn a_refused_contact_note_keeps_its_reasons_and_request_id() {
 
 #[test]
 fn every_shape_of_reason_reads() {
-    let cases: [(&[u8], Vec<Reason>); 7] = [
+    let cases: [(&[u8], Vec<Reason>); 8] = [
         (
             br#"{"errors":[{"field":"subject","message":"is too long"},{"attribute":"content","message":"can't be blank"}]}"#,
             vec![
@@ -153,6 +153,10 @@ fn every_shape_of_reason_reads() {
         (b"", vec![]),
         (b"<html>Unprocessable</html>", vec![]),
         (br#"{"errors":[]}"#, vec![]),
+        (
+            br#"{"errors":[],"message":"Invalid"}"#,
+            vec![reason(None, "Invalid")],
+        ),
     ];
 
     for (body, expected) in cases {
@@ -183,4 +187,38 @@ fn only_a_422_has_field_errors() {
     );
 
     assert!(conflict.field_errors().is_empty());
+}
+
+#[tokio::test]
+async fn a_refused_contact_note_reads_every_shape_of_reason() {
+    let cases = [
+        (json!({ "error": "Note is too long" }), "Note is too long"),
+        (json!({ "message": "Note is too long" }), "Note is too long"),
+        (
+            json!({ "errors": [{ "field": "note", "message": "is too long" }, 7] }),
+            "note: is too long",
+        ),
+        (
+            json!({ "errors": ["Note is too long", null] }),
+            "Note is too long",
+        ),
+        (json!({}), "validation error"),
+    ];
+    for (body, message) in cases {
+        let server = MockServer::start().await;
+        Mock::given(method("PATCH"))
+            .and(path("/contacts/91825/note.json"))
+            .respond_with(ResponseTemplate::new(422).set_body_json(&body))
+            .mount(&server)
+            .await;
+
+        let error = client(&server)
+            .contacts()
+            .set_note(91825, "Prefers a call")
+            .await
+            .unwrap_err();
+
+        assert_eq!(error.code(), ErrorCode::Validation, "{body}");
+        assert_eq!(error.to_string(), message, "{body}");
+    }
 }

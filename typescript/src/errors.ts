@@ -32,7 +32,9 @@ export class HeyError extends Error {
     options?: ErrorOptions,
     /**
      * Each reason HEY gave for a 422, in the order it gave them: the entries of the body's
-     * `errors` list, or its single `error` or `message`. The message joins the same reasons.
+     * `errors` list, or its single `error` or `message` when the list is absent or gives no
+     * usable reason (so `{"errors":[],"message":"Invalid"}` gives one). The message joins the
+     * same reasons.
      * Empty for any other error.
      */
     readonly fieldErrors: readonly FieldError[] = [],

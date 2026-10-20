@@ -25,14 +25,29 @@ var _ = Error{} == Error{}
 
 func newValidationTestServer(t *testing.T, body string) *httptest.Server {
 	t.Helper()
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+	server, _ := newRecordingValidationServer(t, body)
+	return server
+}
+
+// newRecordingValidationServer answers the identity a draft's sender lookup reads, and
+// every other request with a 422 carrying body, recording each of those by method and path.
+func newRecordingValidationServer(t *testing.T, body string) (*httptest.Server, *[]string) {
+	t.Helper()
+	var seen []string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/identity.json" {
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = io.WriteString(w, identityJSON)
+			return
+		}
+		seen = append(seen, r.Method+" "+r.URL.Path)
 		w.Header().Set("Content-Type", "application/json")
 		w.Header().Set("X-Request-Id", "req-422")
 		w.WriteHeader(http.StatusUnprocessableEntity)
 		_, _ = io.WriteString(w, body)
 	}))
 	t.Cleanup(server.Close)
-	return server
+	return server, &seen
 }
 
 func assertValidationReasons(t *testing.T, err error, message string, reasons []FieldError) {
@@ -114,6 +129,12 @@ func TestValidation_ReadsEveryShapeOfReason(t *testing.T) {
 		{name: "no body", body: ``, message: "validation error"},
 		{name: "an HTML page", body: `<html>Unprocessable</html>`, message: "validation error"},
 		{name: "an empty list", body: `{"errors":[]}`, message: "validation error"},
+		{
+			name:    "an empty list beside a message",
+			body:    `{"errors":[],"message":"Invalid"}`,
+			message: "Invalid",
+			reasons: []FieldError{{Message: "Invalid"}},
+		},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -163,5 +184,45 @@ func TestErrValidation_KeepsEachMessageAsAReason(t *testing.T) {
 	}
 	if got := ErrNotFound("box", "1").FieldErrors(); got != nil {
 		t.Errorf("FieldErrors() on a not-found error = %#v, want nil", got)
+	}
+}
+
+// The service methods that read a 422 themselves (contacts, topic comments, drafts) answer
+// every shape CheckResponse reads, the single error and message included.
+func TestValidation_EveryServiceShortcutReadsEveryShape(t *testing.T) {
+	calls := map[string]func(*Client) error{
+		"Contacts.SetNote": func(c *Client) error {
+			_, err := c.Contacts().SetNote(context.Background(), 91825, "Prefers a call")
+			return err
+		},
+		"Topics.CreateComment": func(c *Client) error {
+			_, err := c.Topics().CreateComment(context.Background(), 4471829, "")
+			return err
+		},
+		"Messages.UpdateDraft": func(c *Client) error {
+			return c.Messages().UpdateDraft(context.Background(), 12345, DraftContent{Subject: "Planning"})
+		},
+		"Messages.SendDraft": func(c *Client) error {
+			_, err := c.Messages().SendDraft(context.Background(), 12345, DraftContent{Subject: "Planning", To: []string{"maria@example"}})
+			return err
+		},
+	}
+	bodies := map[string][]FieldError{
+		`{"error":"Note is too long"}`:                             {{Message: "Note is too long"}},
+		`{"message":"Note is too long"}`:                           {{Message: "Note is too long"}},
+		`{"errors":[{"field":"note","message":"is too long"}, 7]}`: {{Field: "note", Message: "is too long"}},
+		`{"errors":["Note is too long", null]}`:                    {{Message: "Note is too long"}},
+	}
+	for name, call := range calls {
+		for body, reasons := range bodies {
+			t.Run(name+" "+body, func(t *testing.T) {
+				server, seen := newRecordingValidationServer(t, body)
+				client := NewClient(&Config{BaseURL: server.URL}, &StaticTokenProvider{Token: "test-token"}, WithMaxRetries(0))
+				assertValidationReasons(t, call(client), reasons[0].String(), reasons)
+				if len(*seen) != 1 || !strings.HasPrefix((*seen)[0], "P") {
+					t.Errorf("requests = %v, want the one write", *seen)
+				}
+			})
+		}
 	}
 }

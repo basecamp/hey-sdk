@@ -134,8 +134,8 @@ sealed class HeyException(
     ) : HeyException(message, CODE_VALIDATION, hint, httpStatus, false, requestId, body) {
         /**
          * Each reason HEY gave for the 422, in the order it gave them: the entries of the
-         * body's `errors` list, or its single `error` or `message` when it sent no list. The
-         * [hint] joins the same reasons. Empty when the body is missing or names no reason,
+         * body's `errors` list, or its single `error` or `message` when the list is absent or
+         * gives no usable reason (so `{"errors":[],"message":"Invalid"}` gives one). The [hint] joins the same reasons. Empty when the body is missing or names no reason,
          * and for a refusal the SDK raised itself.
          */
         val fieldErrors: List<FieldError> = if (httpStatus == 422) reasons(body) else emptyList()

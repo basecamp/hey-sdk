@@ -510,7 +510,8 @@ impl Error {
     }
 
     /// Each reason HEY gave for a 422, in the order it gave them: the entries of the body's
-    /// `errors` list, or its single `error` or `message` when it sent no list. The hint joins
+    /// `errors` list, or its single `error` or `message` when the list is absent or gives no
+    /// usable reason (so `{"errors":[],"message":"Invalid"}` gives one). The hint joins
     /// the same reasons for display. Empty for any other error, and for a 422 whose body is
     /// missing or names no reason.
     ///
