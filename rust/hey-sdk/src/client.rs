@@ -9,7 +9,9 @@ use tokio::sync::Mutex;
 use url::Url;
 
 use crate::auth::{AuthStrategy, BearerAuth, TokenProvider};
-use crate::cache::{CachedResponse, FileCache, ResponseCache, cache_key};
+use crate::cache::{
+    CachedResponse, FileCache, ResponseCache, cache_key, revalidated_headers, storable_headers,
+};
 use crate::config::Config;
 use crate::error::{Error, ErrorCode, retry_after_seconds};
 use crate::http::header::{
@@ -1269,6 +1271,7 @@ impl Client {
                 CachedResponse {
                     etag: String::new(),
                     body: Bytes::new(),
+                    headers: HeaderMap::new(),
                 },
             )),
         }
@@ -1367,6 +1370,45 @@ impl Client {
         }
     }
 
+    /// Answers a 304 from the entry the request went out conditional on. The 304 answers
+    /// the page as it was first read — the stored headers, updated by what the 304 carried
+    /// (RFC 9111 §4.3.4) — and the entry keeps the update.
+    async fn answer_not_modified(
+        &self,
+        operation: &Operation,
+        cached: Option<(String, CachedResponse)>,
+        not_modified: &HeaderMap,
+        final_url: Url,
+    ) -> Result<Response, Error> {
+        match cached {
+            Some((key, entry)) if !entry.etag.is_empty() => {
+                let headers = revalidated_headers(&entry.headers, not_modified);
+                if let Some(cache) = self.cacheable(operation) {
+                    let etag = not_modified
+                        .get("etag")
+                        .and_then(|value| value.to_str().ok())
+                        .filter(|etag| !etag.is_empty())
+                        .map_or_else(|| entry.etag.clone(), str::to_string);
+                    cache_revalidate(cache, &key, entry.etag, etag, storable_headers(&headers))
+                        .await;
+                }
+                Ok(Response {
+                    status: StatusCode::OK,
+                    headers,
+                    body: entry.body,
+                    url: final_url,
+                    from_cache: true,
+                    empty: false,
+                    body_error: None,
+                })
+            }
+            _ => Err(Error::api(
+                304,
+                "304 received but no cached response available",
+            )),
+        }
+    }
+
     async fn finish(
         &self,
         operation: &Operation,
@@ -1379,21 +1421,9 @@ impl Client {
         let headers = response.headers().clone();
 
         if status == StatusCode::NOT_MODIFIED {
-            return match cached {
-                Some((_, entry)) if !entry.etag.is_empty() => Ok(Response {
-                    status: StatusCode::OK,
-                    headers,
-                    body: entry.body,
-                    url: final_url,
-                    from_cache: true,
-                    empty: false,
-                    body_error: None,
-                }),
-                _ => Err(Error::api(
-                    304,
-                    "304 received but no cached response available",
-                )),
-            };
+            return self
+                .answer_not_modified(operation, cached, &headers, final_url)
+                .await;
         }
 
         let bound = self.buffer_bound(operation);
@@ -1447,6 +1477,7 @@ impl Client {
                     CachedResponse {
                         etag: etag.to_string(),
                         body: body.clone(),
+                        headers: storable_headers(&headers),
                     },
                 )
                 .await;
@@ -1669,6 +1700,19 @@ async fn cache_set(cache: &Arc<dyn ResponseCache>, key: &str, response: CachedRe
     let cache = cache.clone();
     let key = key.to_string();
     let _ = tokio::task::spawn_blocking(move || cache.set(&key, response)).await;
+}
+
+async fn cache_revalidate(
+    cache: &Arc<dyn ResponseCache>,
+    key: &str,
+    validated: String,
+    etag: String,
+    headers: HeaderMap,
+) {
+    let cache = cache.clone();
+    let key = key.to_string();
+    let _ = tokio::task::spawn_blocking(move || cache.revalidate(&key, &validated, etag, headers))
+        .await;
 }
 
 async fn cache_invalidate(cache: &Arc<dyn ResponseCache>, key: &str) {

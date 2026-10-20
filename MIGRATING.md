@@ -3,6 +3,33 @@
 Breaking changes to the SDKs' public surface, by release, with what to change. Wire behavior
 is not versioned here; the conformance fixtures under `conformance/tests/` hold that.
 
+## Rust: the first release after 0.32.1
+
+### `CachedResponse` keeps the headers that came with the body
+
+A 304 need not repeat the `Link` and `X-Total-Count` of the 200 it confirms, so a cache
+entry now holds the headers it was answered with, and a 304 is answered under them, updated
+by whatever the 304 carried (RFC 9111 §4.3.4). `CachedResponse` gains a `headers: HeaderMap`
+field. A `ResponseCache` of your own that builds one literally adds the field, and keeps the
+headers it is handed in `set` to give them back from `get`:
+
+```rust
+// before
+CachedResponse { etag, body }
+
+// after
+CachedResponse { etag, body, headers }
+```
+
+An entry whose headers a cache cannot give back can use `HeaderMap::new()`; a 304 is then
+answered under its own headers alone, as before. `ResponseCache` also gains `revalidate`,
+which a 304 calls to keep its validator and headers; its default reads the entry and sets it
+again, so a cache of your own needs no change for it. Override it to skip writing the body
+again, or to make the check and update a single step (the default can put back an older but
+still consistent entry over one stored meanwhile, which the next read refetches). `FileCache` writes them to
+`responses/<key>.headers`, the file the Go SDK reads, and takes an entry written without one
+for a miss, so each page is fetched in full once after the upgrade.
+
 ## Every SDK: the first release after 0.31.1
 
 ### Delivering a message answers what HEY delivered

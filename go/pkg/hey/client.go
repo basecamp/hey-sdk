@@ -1088,9 +1088,17 @@ func (c *Client) singleRequest(ctx context.Context, method, url string, body any
 	requestURL := req.URL.String()
 	var cacheKey string
 	authorization := req.Header.Get("Authorization")
+	var cachedETag string
+	var cachedBody []byte
+	var cachedHeader http.Header
 	if method == http.MethodGet && c.cache != nil && authorization != "" && !noCacheFromContext(ctx) {
 		cacheKey = c.cache.Key(requestURL, authorization)
-		if etag := c.cache.GetETag(cacheKey); etag != "" {
+		// The entry is read whole before the request goes out, so a 304 is answered from
+		// the version it confirms. One an older SDK wrote without its headers would answer
+		// without the Link and X-Total-Count of the page it holds, so the read goes out
+		// unconditional.
+		if etag, body, header, ok := c.cache.lookup(cacheKey); ok {
+			cachedETag, cachedBody, cachedHeader = etag, body, header
 			req.Header.Set("If-None-Match", etag)
 			c.logger.Debug("cache conditional request", "etag", etag)
 		}
@@ -1121,23 +1129,24 @@ func (c *Client) singleRequest(ctx context.Context, method, url string, body any
 	}
 	switch status {
 	case http.StatusNotModified:
-		if cacheKey != "" {
+		if cacheKey != "" && cachedHeader != nil {
 			c.logger.Debug("cache hit", "status", 304)
-			cached := c.cache.GetBody(cacheKey)
-			if cached != nil {
-				// Written by a client with a higher cap, or an older SDK with none: the
-				// transport never saw it, so it is held to the bound here.
-				if bound := c.bufferBound(req); int64(len(cached)) > bound {
-					return nil, fmt.Errorf("%s %s: cached response of %d bytes: %w of %d bytes",
-						method, req.URL.Path, len(cached), ErrResponseTooLarge, bound)
-				}
-				return &Response{
-					Data:       cached,
-					StatusCode: http.StatusOK,
-					Headers:    resp.Header,
-					FromCache:  true,
-				}, nil
+			// Written by a client with a higher cap, or an older SDK with none: the
+			// transport never saw it, so it is held to the bound here.
+			if bound := c.bufferBound(req); int64(len(cachedBody)) > bound {
+				return nil, fmt.Errorf("%s %s: cached response of %d bytes: %w of %d bytes",
+					method, req.URL.Path, len(cachedBody), ErrResponseTooLarge, bound)
 			}
+			// The 304 answers the page as it was first read: the stored headers,
+			// updated by what the 304 carried, and the entry keeps the update.
+			header := revalidatedHeaders(cachedHeader, resp.Header)
+			_ = c.cache.revalidate(cacheKey, cachedETag, revalidatedETag(cachedETag, resp.Header), header)
+			return &Response{
+				Data:       cachedBody,
+				StatusCode: http.StatusOK,
+				Headers:    header,
+				FromCache:  true,
+			}, nil
 		}
 		return nil, ErrAPI(304, "304 received but no cached response available")
 
@@ -1164,7 +1173,7 @@ func (c *Client) singleRequest(ctx context.Context, method, url string, body any
 
 		if method == http.MethodGet && cacheKey != "" {
 			if etag := resp.Header.Get("ETag"); etag != "" {
-				_ = c.cache.Set(cacheKey, respBody, etag)
+				_ = c.cache.SetResponse(cacheKey, respBody, etag, resp.Header)
 				c.logger.Debug("cache stored", "etag", etag)
 			}
 		}

@@ -248,6 +248,9 @@ func runTest(tc TestCase) TestResult {
 	var sdkResp *http.Response
 	var sdkErr error
 	var heyResult interface{}
+	// A hand-written page carries its pagination state beside the value, read off the
+	// headers the SDK answered with — the cached ones, when a 304 confirmed the page.
+	var heyPage *pageMeta
 	if layer, _ := tc.ConfigOverrides["clientLayer"].(string); layer == "hey" {
 		// The HEY client's own retry settings are a ceiling over each operation's policy,
 		// and a case that exercises the ceiling says where it sits (configOverrides
@@ -278,6 +281,10 @@ func runTest(tc TestCase) TestResult {
 			if sdkErr != nil {
 				break
 			}
+		}
+		if page, ok := heyResult.(*hey.CollectionPage); ok && page != nil {
+			heyPage = &pageMeta{nextPage: page.NextPage, totalCount: page.TotalCount}
+			heyResult = page.Collection
 		}
 	} else if _, scoped := tc.ConfigOverrides["accountId"]; scoped {
 		accountID := getInt64Param(tc.ConfigOverrides, "accountId")
@@ -368,6 +375,7 @@ func runTest(tc TestCase) TestResult {
 			sdkErr:            sdkErr,
 			sdkError:          sdkError,
 			sdkResp:           sdkResp,
+			heyPage:           heyPage,
 			responseBodyBytes: responseBodyBytes,
 		})
 		if !result.Passed {
@@ -497,7 +505,14 @@ type checkState struct {
 	sdkErr            error
 	sdkError          *hey.Error
 	sdkResp           *http.Response
+	heyPage           *pageMeta
 	responseBodyBytes []byte
+}
+
+// pageMeta is the pagination state a hand-written page answered with.
+type pageMeta struct {
+	nextPage   string
+	totalCount int
 }
 
 // emptyOnOperations maps operations to status codes that should be treated as
@@ -755,6 +770,9 @@ func checkAssertion(testName string, a Assertion, s checkState) TestResult {
 		}
 
 	case "responseMeta":
+		if s.sdkResp == nil && s.heyPage != nil {
+			return checkPageMeta(testName, a, *s.heyPage)
+		}
 		switch a.Path {
 		case "totalCount":
 			if s.sdkResp == nil {
@@ -1063,6 +1081,31 @@ func extractNextLinkURL(linkHeader string) string {
 		}
 	}
 	return ""
+}
+
+// checkPageMeta reads a responseMeta assertion against a hand-written page's state.
+func checkPageMeta(testName string, a Assertion, page pageMeta) TestResult {
+	switch a.Path {
+	case "totalCount":
+		expected, err := toInt(a.Expected)
+		if err != nil {
+			return fail(testName, "responseMeta.totalCount: %v", err)
+		}
+		if page.totalCount != expected {
+			return fail(testName, "Expected X-Total-Count=%d, got %d", expected, page.totalCount)
+		}
+	case "nextPage":
+		expected, ok := a.Expected.(string)
+		if !ok {
+			return fail(testName, "responseMeta.nextPage: expected a string, got %T", a.Expected)
+		}
+		if page.nextPage != expected {
+			return fail(testName, "Expected next page %q, got %q", expected, page.nextPage)
+		}
+	default:
+		return fail(testName, "Unknown responseMeta path: %s", a.Path)
+	}
+	return TestResult{Name: testName, Passed: true}
 }
 
 func executeOperation(client *generated.Client, ctx context.Context, tc TestCase) (*http.Response, error) {
@@ -1632,6 +1675,8 @@ func executeHEYOperation(client *hey.Client, ctx context.Context, tc TestCase) (
 		return nil, client.Topics().Rename(ctx, getInt64Param(tc.PathParams, "topicId"), getStringParam(tc.RequestBody, "name"))
 	case "ListBoxes":
 		return client.Boxes().List(ctx)
+	case "GetCollection":
+		return client.Collections().GetPage(ctx, getInt64Param(tc.PathParams, "collectionId"), nil)
 	case "GetWorkflowStage":
 		return client.Workflows().GetStage(ctx, getInt64Param(tc.PathParams, "workflowId"), getInt64Param(tc.PathParams, "stageId"))
 	case "UpdateCalendarEvent":

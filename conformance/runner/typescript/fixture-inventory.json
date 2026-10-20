@@ -25,6 +25,10 @@
       "operation": "ListBoxes"
     },
     {
+      "name": "Cache-enabled paginated read keeps its pagination headers through a bare 304",
+      "operation": "GetCollection"
+    },
+    {
       "name": "Client without a cache never sends a conditional request",
       "operation": "ListBoxes"
     }
