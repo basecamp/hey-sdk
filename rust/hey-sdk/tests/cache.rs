@@ -317,6 +317,14 @@ fn the_file_cache_keeps_headers_beside_the_body() {
     headers.insert("set-cookie", "session=abc".parse().unwrap());
     headers.insert("connection", "keep-alive, x-hop".parse().unwrap());
     headers.insert("x-hop", "1".parse().unwrap());
+    headers.insert(
+        "proxy-authenticate",
+        "Basic realm=\"proxy\"".parse().unwrap(),
+    );
+    headers.insert(
+        "proxy-authentication-info",
+        "nextnonce=abc".parse().unwrap(),
+    );
     cache.set(
         "abc",
         CachedResponse {

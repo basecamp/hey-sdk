@@ -23,8 +23,10 @@ pub struct CachedResponse {
     pub headers: HeaderMap,
 }
 
-/// The fields a cache entry never keeps: credentials, which have no place on disk, and the
-/// connection's own fields, which RFC 9111 §3.1 keeps out of a cache.
+/// The fields a cache entry never keeps: credentials, which have no place on disk, and what
+/// RFC 9111 §3.1 keeps out of a cache — the connection's own fields, and a proxy's
+/// authentication, which belongs to the proxy rather than to the URL and credential the
+/// entry is keyed by.
 const UNSTORED_HEADERS: &[&str] = &[
     "authorization",
     "proxy-authorization",
@@ -37,6 +39,8 @@ const UNSTORED_HEADERS: &[&str] = &[
     "te",
     "transfer-encoding",
     "upgrade",
+    "proxy-authenticate",
+    "proxy-authentication-info",
 ];
 
 /// What of a response's headers a cache entry keeps beside its body.
@@ -271,7 +275,9 @@ impl ResponseCache for FileCache {
     }
 
     /// Writes the headers and, should the 304 carry a new one, the validator; the body on
-    /// disk is the one the 304 confirmed and stays as it is.
+    /// disk is the one the 304 confirmed and stays as it is. Like every write here, the
+    /// check holds within this `FileCache`; other processes sharing the directory are not
+    /// locked out.
     fn revalidate(&self, key: &str, validated: &str, etag: String, headers: HeaderMap) {
         let _guard = self.lock.lock().unwrap_or_else(PoisonError::into_inner);
         let mut etags = self.etags();

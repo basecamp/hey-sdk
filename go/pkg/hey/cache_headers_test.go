@@ -242,6 +242,8 @@ func TestCacheStoresHeadersWithoutCredentials(t *testing.T) {
 	header.Set("Connection", "keep-alive, X-Hop")
 	header.Set("X-Hop", "1")
 	header.Set("Keep-Alive", "timeout=5")
+	header.Set("Proxy-Authenticate", `Basic realm="proxy"`)
+	header.Set("Proxy-Authentication-Info", "nextnonce=abc")
 	if err := cache.SetResponse(key, []byte(`[]`), `"v1"`, header); err != nil {
 		t.Fatal(err)
 	}
@@ -249,7 +251,7 @@ func TestCacheStoresHeadersWithoutCredentials(t *testing.T) {
 	if got.Get("Link") == "" || got.Get("X-Total-Count") != "2" {
 		t.Errorf("headers = %v, want Link and X-Total-Count kept", got)
 	}
-	for _, name := range []string{"Set-Cookie", "Connection", "X-Hop", "Keep-Alive"} {
+	for _, name := range []string{"Set-Cookie", "Connection", "X-Hop", "Keep-Alive", "Proxy-Authenticate", "Proxy-Authentication-Info"} {
 		if got.Get(name) != "" {
 			t.Errorf("%s = %q, want it left out of the cache", name, got.Get(name))
 		}

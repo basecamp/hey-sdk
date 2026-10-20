@@ -104,7 +104,8 @@ func (c *Cache) lookup(key string) (etag string, body []byte, header http.Header
 // revalidate keeps what a 304 told the cache about an entry: its validator, should the 304
 // carry a new one, and the headers updated by it. Only the metadata is written — the body
 // is the one already on disk — and only while the entry is still the one revalidated: a
-// body stored meanwhile is newer than anything this 304 confirms.
+// body stored meanwhile is newer than anything this 304 confirms. Like every write here,
+// that holds within this Cache; other processes sharing the directory are not locked out.
 func (c *Cache) revalidate(key, validated, etag string, header http.Header) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -223,10 +224,13 @@ func writeFileAtomically(path string, data []byte) error {
 }
 
 // unstoredHeaders are the fields a cache entry never keeps: credentials, which have no place
-// on disk, and the connection's own fields, which RFC 9111 §3.1 keeps out of a cache.
+// on disk, and what RFC 9111 §3.1 keeps out of a cache — the connection's own fields, and
+// a proxy's authentication, which belongs to the proxy rather than to the URL and
+// credential the entry is keyed by.
 var unstoredHeaders = []string{
 	"Authorization", "Proxy-Authorization", "Cookie", "Set-Cookie", "X-CSRF-Token",
 	"Connection", "Keep-Alive", "Proxy-Connection", "TE", "Transfer-Encoding", "Upgrade",
+	"Proxy-Authenticate", "Proxy-Authentication-Info",
 }
 
 // storableHeaders is what of a response's headers a cache entry keeps beside its body.
