@@ -102,10 +102,12 @@ OIDC identity for a short-lived token through
 [`rust-lang/crates-io-auth-action`](https://github.com/rust-lang/crates-io-auth-action), runs
 `cargo publish`, and the token is revoked when the job ends. There is no long-lived token in
 the repository's secrets. The job runs only for a pushed `v*` tag, inside the `release-crates`
-environment, which is restricted to `v*` tags (no required reviewers: `release-github.yml`
-polls the run for thirty minutes, and the tag is already a deliberate `make release` from a
-green gate); a `workflow_dispatch` run is a rehearsal that packages and dry-runs but never
-publishes and never exercises the token exchange.
+environment, which is restricted to `v*` tags and needs a reviewer's approval: a member of
+`sip` or `cli`, and not whoever pushed the tag. `release-github.yml` waits up to five and a
+half hours for it; an approval that comes later leaves the crate published and the GitHub
+release missing, so re-run that orchestrator run (`gh run rerun <run-id>`) once it has. A
+`workflow_dispatch` run is a rehearsal that packages and dry-runs but never publishes and
+never exercises the token exchange.
 
 The job is safe to re-run. It publishes only when crates.io answers 404 for the version; a 200
 means the version is there (an earlier run that failed after the upload, say) and the job
@@ -128,8 +130,8 @@ answers 404 and the `publish` job fails pointing here, which holds the GitHub re
 that tag; finish these steps and re-run the failed run.
 
 1. Create the `release-crates` environment on the repository (Settings → Environments) with
-   deployment branches and tags restricted to the tag pattern `v*`, and no required
-   reviewers. Do this before the first tag: a job that references an environment that does
+   deployment branches and tags restricted to the tag pattern `v*`, and required reviewers
+   (`sip` and `cli`, with self-review prevented). Do this before the first tag: a job that references an environment that does
    not exist creates one with no protection.
 2. On a clean checkout of `main` at the commit about to be tagged, with `make check` green:
    mint a crates.io API token scoped to `publish-new` and `change-owners`, crate-name

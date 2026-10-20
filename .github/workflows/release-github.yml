@@ -14,7 +14,7 @@ permissions: {}
 jobs:
   release:
     runs-on: ubuntu-latest
-    # Room for the orchestrator's 5.5-hour wait below, under the 6-hour job ceiling.
+    # The wait below is 5.5 hours; this leaves the job room to report and create the release.
     timeout-minutes: 340
     permissions:
       actions: read
@@ -40,6 +40,60 @@ jobs:
           trap 'rm -rf .release-control' EXIT
           languages=$(.release-control/scripts/release-languages.sh "$GITHUB_WORKSPACE" "$EVENT_NAME")
           echo "languages=$languages" >> "$GITHUB_OUTPUT"
+      # Publishes wait for a reviewer from sip or cli (release-crates today, and every
+      # release-* environment once a workflow uses it), so the wait is measured in hours,
+      # not the shared action's thirty minutes. Its loop costs one or two requests per
+      # language per poll, which over hours outruns GITHUB_TOKEN's 1,000 requests an hour,
+      # so this step does the waiting with one request per poll for every run on the
+      # tagged commit, and the shared action below then takes a single pass to report and
+      # create the release.
+      - name: Wait for release workflows
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.event.inputs.tag || github.ref_name }}
+          LANGUAGES: ${{ steps.activation.outputs.languages }}
+        run: |
+          sha=$(git rev-parse HEAD)
+          max_wait=19800  # 5.5 hours
+          poll=30
+          elapsed=0
+          IFS=',' read -ra langs <<< "$LANGUAGES"
+
+          while :; do
+            pending=()
+            failed=false
+            # A transient API error shouldn't end a wait measured in hours.
+            if runs=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs?head_sha=$sha&event=push&per_page=100" \
+                --jq '.workflow_runs'); then
+              for lang in "${langs[@]}"; do
+                # Newest push run of this workflow for the tag. A run's path can carry an
+                # @ref suffix, so match the file without it.
+                conclusion=$(jq -r --arg path ".github/workflows/release-$lang.yml" --arg tag "$TAG" \
+                  '[.[] | select((.path | sub("@.*$"; "")) == $path and .head_branch == $tag)]
+                   | if length == 0 then "none" else (.[0].conclusion // "running") end' <<< "$runs")
+                case "$conclusion" in
+                  success) ;;
+                  none | running) pending+=("$lang ($conclusion)") ;;
+                  *) failed=true; echo "  $lang: $conclusion" ;;
+                esac
+              done
+            else
+              echo "::warning::Listing workflow runs failed; retrying next poll"
+              pending=("(unknown)")
+            fi
+
+            # A failure is reported by the shared action below, with how to recover.
+            if $failed || [ "${#pending[@]}" -eq 0 ]; then
+              break
+            fi
+            if [ "$elapsed" -ge "$max_wait" ]; then
+              echo "::warning::Stopped waiting after ${max_wait}s for: ${pending[*]}"
+              break
+            fi
+            echo "  Waiting for: ${pending[*]} (${elapsed}s elapsed)"
+            sleep "$poll"
+            elapsed=$((elapsed + poll))
+          done
       - uses: basecamp/sdk/actions/release-orchestrate@main # zizmor: ignore[unpinned-uses] -- internal action tracking main by design (basecamp/sdk AGENTS.md); basecamp/sdk has no tags for Dependabot to advance a pin
         with:
           version: ${{ github.event.inputs.tag || github.ref_name }}
@@ -48,11 +102,7 @@ jobs:
           # release-typescript.yml and this orchestrator. Historical manual targets
           # select the release workflows that existed in that target.
           languages: ${{ steps.activation.outputs.languages }}
-          # The npm and crates.io publishes wait for a reviewer's approval (release-npm and
-          # release-crates require one), so the action's 30-minute default would give up
-          # before the reviewers got to them.
-          timeout: '19800'
-          # The action polls each pending language with `gh run list --workflow`, about two
-          # requests apiece. Five languages every 30s would be ~1,200 an hour against
-          # GITHUB_TOKEN's 1,000; every 60s is ~600 at worst, falling as languages finish.
-          poll-interval: '60'
+          # The step above has already waited: one pass reports what it sees and, when
+          # every workflow succeeded, creates the release.
+          timeout: '1'
+          poll-interval: '1'
