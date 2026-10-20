@@ -1,5 +1,6 @@
 package com.basecamp.hey.conformance
 
+import com.basecamp.hey.FieldError
 import com.basecamp.hey.HeyException
 import com.basecamp.hey.nextLink
 import com.basecamp.hey.generated.Routes
@@ -103,7 +104,23 @@ private fun checkErrorField(run: Run, assertion: Assertion) {
             val actual = error.requestId ?: ""
             if (actual != expected) fail("Expected error requestId \"$expected\", got \"$actual\"")
         }
+        "fieldErrors" -> {
+            val expected = expectedFieldErrors(assertion)
+            val actual = (error as? HeyException.Validation)?.fieldErrors.orEmpty()
+            if (actual != expected) fail("Expected error fieldErrors $expected, got $actual")
+        }
         else -> fail("Unknown error field: ${assertion.path}")
+    }
+}
+
+/** A fieldErrors assertion's list: each entry a message, and the field when the reason names one. */
+private fun expectedFieldErrors(assertion: Assertion): List<FieldError> {
+    val invalid = { fail("errorField.fieldErrors: expected a list of {field?, message}, got ${display(assertion.expected)}") }
+    val entries = assertion.expected as? JsonArray ?: invalid()
+    return entries.map { entry ->
+        val fields = entry as? JsonObject ?: invalid()
+        val message = (fields["message"] as? JsonPrimitive)?.takeIf { it.isString }?.content ?: invalid()
+        FieldError((fields["field"] as? JsonPrimitive)?.takeIf { it.isString }?.content, message)
     }
 }
 

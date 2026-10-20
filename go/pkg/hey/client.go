@@ -1214,6 +1214,14 @@ func (c *Client) singleRequest(ctx context.Context, method, url string, body any
 	case http.StatusNotFound:
 		return nil, ErrNotFound("Resource", displayURL(ctx, url))
 
+	case http.StatusUnprocessableEntity:
+		// HEY's reasons are the error a caller can act on, as they are on the service
+		// methods (CheckResponse).
+		respBody, _ := limitedReadAll(resp.Body, MaxErrorBodyBytes)
+		e := validationFromBody(respBody)
+		e.RequestID = resp.Header.Get("X-Request-Id")
+		return nil, e
+
 	case http.StatusInternalServerError:
 		return nil, ErrAPI(500, "Server error (500)")
 

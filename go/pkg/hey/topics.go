@@ -205,9 +205,6 @@ func (s *TopicsService) CreateComment(ctx context.Context, topicID int64, conten
 		if rerr != nil {
 			return rerr
 		}
-		if resp.JSON422 != nil {
-			return ErrValidation(resp.JSON422.Errors...)
-		}
 		if cerr := CheckResponse(resp.HTTPResponse); cerr != nil {
 			return cerr
 		}

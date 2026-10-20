@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"unicode/utf8"
 )
 
 // Response body size limits. JSON and HTML answers are capped in the transport, at the
@@ -52,15 +53,24 @@ func limitedReadAll(r io.Reader, maxBytes int64) ([]byte, error) {
 	return data, nil
 }
 
-// truncateString truncates s to maxLen bytes, appending "..." if truncated.
+// truncateString truncates s to maxLen bytes, appending "..." if truncated. The cut backs
+// up to a rune boundary, so a multibyte message never ends in half a character.
 func truncateString(s string, maxLen int) string {
 	if len(s) <= maxLen {
 		return s
 	}
 	if maxLen <= 3 {
-		return s[:maxLen]
+		return s[:runeBoundary(s, maxLen)]
 	}
-	return s[:maxLen-3] + "..."
+	return s[:runeBoundary(s, maxLen-3)] + "..."
+}
+
+// runeBoundary is the largest index at most n where a rune of s starts.
+func runeBoundary(s string, n int) int {
+	for n > 0 && !utf8.RuneStart(s[n]) {
+		n--
+	}
+	return n
 }
 
 // errInvalidURL is the whole of what a URL that does not parse renders. net/url's own

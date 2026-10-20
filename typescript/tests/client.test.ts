@@ -328,6 +328,72 @@ describe("HEY transport", () => {
     });
     expect((await c.startTimeTrack()).data).toBeUndefined();
   });
+  it("keeps each reason a 422 gives as a field error", async () => {
+    // The body HEY answers a refused habit with: the model's full messages.
+    const m = mock([
+      json(
+        { errors: ["Title can't be blank", "Days must include at least one day"] },
+        422,
+        { "X-Request-Id": "req-422" },
+      ),
+      json(
+        {
+          errors: [
+            { field: "subject", message: "is too long" },
+            { attribute: "content", message: "can't be blank" },
+            7,
+            { field: "days" },
+            "",
+          ],
+        },
+        422,
+      ),
+      json({ error: "Subject can't be blank" }, 422),
+      json({ errors: "wrong", message: "Invalid" }, 422),
+      json({ errors: [{ field: 7, message: "is invalid" }], message: "Invalid" }, 422),
+      json({ errors: ["Email address is taken"] }, 409),
+    ]);
+    const c = new HeyClient({ token: "secret", fetch: m.fetch });
+    const refusal = await c
+      .createHabit({ body: { calendar_habit: {} } })
+      .catch((error: unknown) => error);
+    expect(refusal).toBeInstanceOf(HeyError);
+    expect(refusal).toMatchObject({
+      code: "validation",
+      httpStatus: 422,
+      retryable: false,
+      requestId: "req-422",
+      message: "Title can't be blank; Days must include at least one day",
+      fieldErrors: [
+        { message: "Title can't be blank" },
+        { message: "Days must include at least one day" },
+      ],
+    });
+    expect((refusal as HeyError).fieldErrors[0]).not.toHaveProperty("field");
+    await expect(c.listBoxes()).rejects.toMatchObject({
+      message: "subject: is too long; content: can't be blank",
+      fieldErrors: [
+        { field: "subject", message: "is too long" },
+        { field: "content", message: "can't be blank" },
+      ],
+    });
+    await expect(c.listBoxes()).rejects.toMatchObject({
+      message: "Subject can't be blank",
+      fieldErrors: [{ message: "Subject can't be blank" }],
+    });
+    await expect(c.listBoxes()).rejects.toMatchObject({
+      message: "Invalid",
+      fieldErrors: [{ message: "Invalid" }],
+    });
+    await expect(c.listBoxes()).rejects.toMatchObject({
+      message: "is invalid",
+      fieldErrors: [{ message: "is invalid" }],
+    });
+    await expect(c.listBoxes()).rejects.toMatchObject({
+      code: "conflict",
+      fieldErrors: [],
+    });
+  });
   it("preserves 409 and 422 messages and request IDs; bounds error text", async () => {
     const m = mock([
       json({ errors: ["a", "b"] }, 422, { "X-Request-Id": "r" }),

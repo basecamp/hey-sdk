@@ -284,23 +284,6 @@ func (s *MessagesService) CreateDraft(ctx context.Context, draft DraftContent) (
 	return entryID, err
 }
 
-// draftWriteError maps a draft write's failure. A 422 the generated client parsed
-// carries HEY's own reasons, and those are the error a caller can act on; the status
-// and request id stay on it as CheckResponse would have left them. Anything else maps
-// by status.
-func draftWriteError(invalid *generated.UnprocessableEntityErrorResponseContent, resp *http.Response) error {
-	if invalid == nil {
-		return CheckResponse(resp)
-	}
-	reasons := invalid.Errors
-	if len(reasons) == 0 && invalid.Message != "" {
-		reasons = []string{invalid.Message}
-	}
-	err := ErrValidation(reasons...)
-	err.RequestID = resp.Header.Get("X-Request-Id")
-	return err
-}
-
 // UpdateDraft revises a draft in place from the whole of draft: the subject, the body
 // and the recipients are replaced with what is sent (empty recipients remove them),
 // and the scheduled delivery is rewritten too — a nil Schedule clears one already set.
@@ -327,7 +310,8 @@ func (s *MessagesService) UpdateDraft(ctx context.Context, entryID int64, draft 
 		if rerr != nil {
 			return rerr
 		}
-		return draftWriteError(resp.JSON422, resp.HTTPResponse)
+		// A 422 answers with HEY's reasons (CheckResponse).
+		return CheckResponse(resp.HTTPResponse)
 	})
 }
 
@@ -369,13 +353,7 @@ func (s *MessagesService) SendDraft(ctx context.Context, entryID int64, draft Dr
 			return rerr
 		}
 		defer resp.Body.Close()
-		if resp.StatusCode == http.StatusUnprocessableEntity {
-			parsed, perr := generated.ParseUpdateMessageResponse(resp)
-			if perr != nil {
-				return CheckResponse(resp)
-			}
-			return draftWriteError(parsed.JSON422, resp)
-		}
+		// A 422 answers with HEY's reasons (CheckResponse).
 		if cerr := CheckResponse(resp); cerr != nil {
 			return cerr
 		}

@@ -30,7 +30,7 @@ const shapes: Record<string, { required: Record<string, Check>; optional?: Recor
   delayBetweenRequests: { required: {}, optional: { min: nonnegative, max: nonnegative } },
   noError: { required: {} },
   errorCode: { required: { expected: nonempty } },
-  errorField: { required: { path: nonempty, expected: scalar } },
+  errorField: { required: { path: nonempty, expected: json } },
   statusCode: { required: { expected: integer } },
   requestPath: { required: { expected: nonempty } },
   lastRequestPath: { required: { expected: nonempty } },
@@ -48,6 +48,8 @@ const shapes: Record<string, { required: Record<string, Check>; optional?: Recor
 };
 const errorFields: Record<string, Check> = {
   httpStatus: integer, retryable: value => typeof value === "boolean", requestId: text,
+  fieldErrors: value => Array.isArray(value) && value.every(entry =>
+    record(entry) && text(entry.message) && (entry.field === undefined || text(entry.field))),
 };
 const responseMetadata: Record<string, Check> = { totalCount: integer, nextPage: text };
 const config: Record<string, Check> = {

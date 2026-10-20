@@ -1,6 +1,7 @@
 package hey
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -66,6 +67,33 @@ type Error struct {
 	Retryable  bool
 	RequestID  string
 	Cause      error
+
+	// fieldErrors is what FieldErrors answers. A pointer keeps Error comparable, as it
+	// was before the reasons were kept.
+	fieldErrors *[]FieldError
+}
+
+// FieldError is one reason HEY gave for refusing what was sent (HTTP 422): the field it
+// objected to, when HEY named one, and what it said. HEY answers a 422 with
+// {"errors": ["Subject can't be blank", ...]}, the model's own full messages, which name
+// no field apart from the message, so Field is empty for those; an entry that is an
+// object, {"field": "subject", "message": "can't be blank"} ("attribute" is read as
+// well), carries both.
+type FieldError struct {
+	Field   string
+	Message string
+}
+
+// FieldErrors returns each reason HEY gave for a 422, in the order it gave them: the
+// entries of the body's errors list, or the body's single error or message when the list
+// is absent or gives no usable reason (so {"errors":[],"message":"Invalid"} gives one).
+// Message joins the same reasons for display. It is nil for any other error,
+// and for a 422 that carried no reason.
+func (e *Error) FieldErrors() []FieldError {
+	if e.fieldErrors == nil {
+		return nil
+	}
+	return *e.fieldErrors
 }
 
 // Error implements the error interface.
@@ -228,16 +256,106 @@ func ErrConflict(msg string) *Error {
 
 // ErrValidation signals that the server rejected the contents of the request (HTTP 422),
 // carrying the messages the model itself produced.
+// Each message is also one of its FieldErrors, with no field named.
 func ErrValidation(messages ...string) *Error {
-	msg := "validation error"
-	if len(messages) > 0 {
-		msg = strings.Join(messages, "; ")
+	reasons := make([]FieldError, 0, len(messages))
+	for _, message := range messages {
+		reasons = append(reasons, FieldError{Message: message})
 	}
-	return &Error{
+	return validationError(reasons)
+}
+
+// validationError is the 422 error for the reasons HEY gave: Message joins them, and
+// FieldErrors keeps each one.
+func validationError(reasons []FieldError) *Error {
+	e := &Error{
 		Code:       CodeValidation,
-		Message:    msg,
+		Message:    "validation error",
 		HTTPStatus: 422,
 	}
+	if len(reasons) > 0 {
+		parts := make([]string, 0, len(reasons))
+		for _, reason := range reasons {
+			parts = append(parts, reason.String())
+		}
+		e.Message = strings.Join(parts, "; ")
+		e.fieldErrors = &reasons
+	}
+	return e
+}
+
+// String renders the reason as it reads in Error.Message: the message alone, or the field
+// and the message when HEY named one.
+func (f FieldError) String() string {
+	if f.Field == "" {
+		return f.Message
+	}
+	return f.Field + ": " + f.Message
+}
+
+// validationFromBody reads the reasons out of a 422's body, as validationError takes them.
+// A body that is not a JSON object, or carries none, is a 422 with no reason. Entries
+// that are neither a string nor an object with a message are skipped; one malformed entry
+// does not cost the caller the rest.
+func validationFromBody(body []byte) *Error {
+	var parsed struct {
+		Errors  json.RawMessage `json:"errors"`
+		Error   json.RawMessage `json:"error"`
+		Message json.RawMessage `json:"message"`
+	}
+	if json.Unmarshal(body, &parsed) != nil {
+		return validationError(nil)
+	}
+	// An errors member that is not a list reads as no list, leaving error and message.
+	var entries []json.RawMessage
+	_ = json.Unmarshal(parsed.Errors, &entries)
+	var reasons []FieldError
+	for _, entry := range entries {
+		if reason, ok := fieldErrorFrom(entry); ok {
+			reasons = append(reasons, reason)
+		}
+	}
+	if len(reasons) == 0 {
+		for _, single := range []json.RawMessage{parsed.Error, parsed.Message} {
+			var message string
+			if json.Unmarshal(single, &message) == nil && strings.TrimSpace(message) != "" {
+				reasons = []FieldError{{Message: message}}
+				break
+			}
+		}
+	}
+	e := validationError(reasons)
+	e.Message = truncateString(e.Message, MaxErrorMessageBytes)
+	return e
+}
+
+// fieldErrorFrom reads one entry of a 422's errors list: a message, or an object naming
+// the field and the message.
+func fieldErrorFrom(entry json.RawMessage) (FieldError, bool) {
+	var message string
+	if json.Unmarshal(entry, &message) == nil {
+		return FieldError{Message: message}, strings.TrimSpace(message) != ""
+	}
+	// Each member is read on its own, so a field that is not a string costs the reason
+	// only its field.
+	var object map[string]json.RawMessage
+	if json.Unmarshal(entry, &object) != nil {
+		return FieldError{}, false
+	}
+	member := func(key string) string {
+		var value string
+		_ = json.Unmarshal(object[key], &value)
+		return value
+	}
+	message = member("message")
+	if strings.TrimSpace(message) == "" {
+		return FieldError{}, false
+	}
+	field := member("field")
+	if field == "" {
+		field = member("attribute")
+	}
+	return FieldError{Field: field, Message: message}, true
 }
 
 // ErrAmbiguous creates an ambiguous match error.

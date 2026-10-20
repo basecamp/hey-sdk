@@ -25,6 +25,31 @@ public struct ErrorDetail: Sendable {
     }
 }
 
+/// One reason HEY gave for refusing what was sent (422): the field it objected to, when it named
+/// one, and what it said. See ``HeyError/fieldErrors``.
+///
+/// HEY answers a 422 with `{"errors": ["Subject can't be blank", ...]}`, the model's own full
+/// messages, which name no field apart from the message, so `field` is nil for those; an entry
+/// that is an object, `{"field": "subject", "message": "can't be blank"}` (`attribute` is read as
+/// well), carries both.
+public struct FieldError: Sendable, Equatable, CustomStringConvertible {
+    /// The field HEY objected to, when it named one.
+    public var field: String?
+    /// What HEY said about it.
+    public var message: String
+
+    public init(field: String?, message: String) {
+        self.field = field
+        self.message = message
+    }
+
+    /// The message alone, or the field and the message when HEY named one.
+    public var description: String {
+        guard let field else { return message }
+        return "\(field): \(message)"
+    }
+}
+
 /// Every failure the SDK reports, for exhaustive `switch` matching.
 ///
 /// ```swift
@@ -160,6 +185,16 @@ public enum HeyError: Error, Sendable, LocalizedError, CustomStringConvertible {
     /// The answer was longer than the client will hold, so ``body`` is missing.
     public var responseTooLarge: Bool { detail?.responseTooLarge ?? false }
 
+    /// Each reason HEY gave for a 422, in the order it gave them: the entries of the body's
+    /// `errors` list, or its single `error` or `message` when the list is absent or gives no usable
+    /// reason (so `{"errors":[],"message":"Invalid"}` gives one). The ``hint`` joins
+    /// the same reasons. Empty for any other error, for a 422 whose body is missing or names no
+    /// reason, and for a refusal the SDK raised itself.
+    public var fieldErrors: [FieldError] {
+        guard case let .validation(_, 422, detail) = self, let body = detail.body else { return [] }
+        return Self.reasons(body)
+    }
+
     /// The exit code a command-line tool leaves with, as every HEY SDK maps it.
     public var exitCode: Int { Self.exitCode(for: code) }
 
@@ -198,7 +233,9 @@ public enum HeyError: Error, Sendable, LocalizedError, CustomStringConvertible {
     /// client refused to hold leaves the error the status maps to, told why its body is missing.
     static func fromResponse(status: Int, method: HTTPMethod, headers: HTTPHeaders, body: Data, refusal: HeyError? = nil) -> HeyError {
         let kept = body.count > maxErrorBodyBytes ? body.prefix(maxErrorBodyBytes) : body
-        let serverMessage = Self.serverMessage(body) ?? refusal?.message
+        // A 422's hint is its field errors joined, so the two never disagree.
+        let said = status == 422 ? Self.reasonsText(body) : Self.serverMessage(body)
+        let serverMessage = said ?? refusal?.message
         let detail = ErrorDetail(
             hint: serverMessage, requestId: headers["X-Request-Id"],
             body: kept.isEmpty ? nil : Data(kept), responseTooLarge: refusal != nil)
@@ -234,17 +271,50 @@ public enum HeyError: Error, Sendable, LocalizedError, CustomStringConvertible {
     /// The message a JSON failure body carries: `error`, then `message`, then an `errors` list
     /// joined. Anything that is not a JSON object — an HTML page, a bare string — carries none.
     static func serverMessage(_ body: Data) -> String? {
-        guard !body.isEmpty,
-              let object = try? JSONSerialization.jsonObject(with: body) as? [String: Any]
-        else { return nil }
-        for key in ["error", "message"] {
-            if let value = object[key] as? String, !value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                return truncate(value)
-            }
+        guard let object = jsonObject(body) else { return nil }
+        if let single = singleMessage(object) { return truncate(single) }
+        let reasons = listedReasons(object)
+        return reasons.isEmpty ? nil : truncate(reasons.map(\.description).joined(separator: "; "))
+    }
+
+    /// A 422's reasons joined for its hint, as ``fieldErrors`` reads them.
+    static func reasonsText(_ body: Data) -> String? {
+        let reasons = reasons(body)
+        return reasons.isEmpty ? nil : truncate(reasons.map(\.description).joined(separator: "; "))
+    }
+
+    /// The reasons a 422's body gives: the `errors` list, or its single `error` or `message`.
+    static func reasons(_ body: Data) -> [FieldError] {
+        guard let object = jsonObject(body) else { return [] }
+        let listed = listedReasons(object)
+        if !listed.isEmpty { return listed }
+        return singleMessage(object).map { [FieldError(field: nil, message: $0)] } ?? []
+    }
+
+    /// The entries of a body's `errors` list: a message, or an object naming the field and the
+    /// message. An entry that is neither is skipped, so one malformed entry costs the caller
+    /// none of the rest; an `errors` member that is not a list has no entries.
+    private static func listedReasons(_ object: [String: Any]) -> [FieldError] {
+        guard let errors = object["errors"] as? [Any] else { return [] }
+        return errors.compactMap { entry in
+            if let message = nonBlank(entry) { return FieldError(field: nil, message: message) }
+            guard let fields = entry as? [String: Any], let message = nonBlank(fields["message"]) else { return nil }
+            return FieldError(field: nonBlank(fields["field"]) ?? nonBlank(fields["attribute"]), message: message)
         }
-        guard let errors = object["errors"] as? [Any] else { return nil }
-        let messages = errors.compactMap { $0 as? String }
-        return messages.isEmpty ? nil : truncate(messages.joined(separator: "; "))
+    }
+
+    private static func singleMessage(_ object: [String: Any]) -> String? {
+        nonBlank(object["error"]) ?? nonBlank(object["message"])
+    }
+
+    private static func nonBlank(_ value: Any?) -> String? {
+        guard let text = value as? String, !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return nil }
+        return text
+    }
+
+    private static func jsonObject(_ body: Data) -> [String: Any]? {
+        guard !body.isEmpty else { return nil }
+        return (try? JSONSerialization.jsonObject(with: body)) as? [String: Any]
     }
 }
 

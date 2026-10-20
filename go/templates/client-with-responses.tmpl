@@ -194,7 +194,13 @@ for the key instead. */ -}}
 // Parse{{genResponseTypeName $opid | ucFirst}} parses an HTTP response from a {{$opid}}WithResponse call
 func Parse{{genResponseTypeName $opid | ucFirst}}(rsp *http.Response) (*{{genResponseTypeName $opid}}, error) {
     bodyBytes, err := io.ReadAll(rsp.Body)
-    defer func() { _ = rsp.Body.Close() }()
+    received := rsp.Body
+    defer func() { _ = received.Close() }()
+    {{- /* HEY: an error status's body is handed back on the response, so hey.CheckResponse can
+    read the reasons a 422 gives, as it can on a response from the plain client. */}}
+    if err == nil && rsp.StatusCode/100 != 2 {
+        rsp.Body = io.NopCloser(bytes.NewReader(bodyBytes))
+    }
     if err != nil {
         {{- if $lenient}}
         // A body past the size limit or lost mid-stream is no body; the caller's own

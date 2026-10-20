@@ -263,8 +263,10 @@ belong to the identity and read the same through a scoped client.
 Every call answers `Result<_, hey_sdk::Error>`. The error carries a stable `ErrorCode`
 (`NotFound`, `Auth`, `Forbidden`, `RateLimit`, `Validation`, `Api`, `Usage`, ...), the HTTP
 status, whether it is worth retrying, HEY's `X-Request-Id`, and a hint when the server or the
-SDK had one. It also keeps the body HEY answered the failure with, for the endpoints that
-describe a refusal there rather than in the status:
+SDK had one. A 422 answers `field_errors()`: each reason HEY gave, in order, as a
+`FieldError` with the `message` and the `field` when HEY named one. It also keeps the body HEY
+answered the failure with, for the endpoints that describe a refusal there rather than in the
+status:
 
 ```rust
 match client.contacts().create_contact(&params).await {

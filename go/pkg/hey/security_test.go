@@ -12,6 +12,7 @@ import (
 	"strings"
 	"testing"
 	"time"
+	"unicode/utf8"
 )
 
 func TestRequireHTTPS(t *testing.T) {
@@ -222,6 +223,13 @@ func TestTruncateString(t *testing.T) {
 	}
 	if got := truncateString("hello", 5); got != "hello" {
 		t.Fatalf("expected 'hello', got %q", got)
+	}
+	// A cut inside a multibyte character backs up to its start.
+	if got := truncateString("ab😀😀", 8); got != "ab..." || !utf8.ValidString(got) {
+		t.Errorf("truncateString cut a rune: %q", got)
+	}
+	if got := truncateString("😀😀", 3); got != "" {
+		t.Errorf("truncateString(%q, 3) = %q, want empty", "😀😀", got)
 	}
 }
 

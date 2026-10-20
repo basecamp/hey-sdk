@@ -35,6 +35,31 @@ pub const MAX_ERROR_BODY_BYTES: usize = 1 << 20;
 /// `MaxErrorMessageBytes`. A longer one is cut and ends in `...`.
 pub const MAX_ERROR_MESSAGE_BYTES: usize = 500;
 
+/// One reason HEY gave for refusing what was sent (422): the field it objected to, when it
+/// named one, and what it said. See [`Error::field_errors`].
+///
+/// HEY answers a 422 with `{"errors": ["Subject can't be blank", ...]}`, the model's own full
+/// messages, which name no field apart from the message, so `field` is `None` for those. An
+/// entry that is an object, `{"field": "subject", "message": "can't be blank"}` (`attribute`
+/// is read as well), carries both.
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[non_exhaustive]
+pub struct FieldError {
+    /// The field HEY objected to, when it named one.
+    pub field: Option<String>,
+    /// What HEY said about it.
+    pub message: String,
+}
+
+impl fmt::Display for FieldError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match &self.field {
+            Some(field) => write!(f, "{field}: {}", self.message),
+            None => f.write_str(&self.message),
+        }
+    }
+}
+
 /// Machine-readable error categories, shared with the other HEY SDKs.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[non_exhaustive]
@@ -353,7 +378,13 @@ impl Error {
             Some(request_id) => error.with_request_id(request_id),
             None => error,
         };
-        let mut error = match (error.hint.is_none(), server_message(body)) {
+        // A 422's hint is its field errors joined, so the two never disagree.
+        let said = if status == StatusCode::UNPROCESSABLE_ENTITY {
+            reasons_text(body)
+        } else {
+            server_message(body)
+        };
+        let mut error = match (error.hint.is_none(), said) {
             (true, Some(message)) => error.with_hint(message),
             _ => error,
         };
@@ -483,6 +514,38 @@ impl Error {
     pub fn body_json<T: DeserializeOwned>(&self) -> Option<T> {
         serde_json::from_slice(self.body()?).ok()
     }
+
+    /// Each reason HEY gave for a 422, in the order it gave them: the entries of the body's
+    /// `errors` list, or its single `error` or `message` when the list is absent or gives no
+    /// usable reason (so `{"errors":[],"message":"Invalid"}` gives one). The hint joins
+    /// the same reasons for display. Empty for any other error, and for a 422 whose body is
+    /// missing or names no reason.
+    ///
+    /// ```no_run
+    /// # fn report(error: &hey_sdk::Error) {
+    /// for reason in error.field_errors() {
+    ///     match &reason.field {
+    ///         Some(field) => println!("{field}: {}", reason.message),
+    ///         None => println!("{}", reason.message),
+    ///     }
+    /// }
+    /// # }
+    /// ```
+    pub fn field_errors(&self) -> Vec<FieldError> {
+        match (self.code, self.http_status) {
+            (ErrorCode::Validation, Some(422)) => self.body().map(reasons).unwrap_or_default(),
+            _ => Vec::new(),
+        }
+    }
+
+    /// The same error with HEY's own words as its message, keeping everything else HEY
+    /// answered: a service restating a refusal in the model's words loses none of it. The
+    /// hint goes, since what it said is the message now.
+    pub(crate) fn reworded(mut self, message: impl Into<String>) -> Error {
+        self.message = message.into();
+        self.hint = None;
+        self
+    }
 }
 
 impl fmt::Display for Error {
@@ -594,13 +657,92 @@ fn seconds_until(
     u64::try_from(if started { whole + 1 } else { whole }).ok()
 }
 
+/// The message a JSON failure body carries: `message`, then `error`, then the `errors` list
+/// joined, as the Kotlin and Swift SDKs read it.
 fn server_message(body: &[u8]) -> Option<String> {
     let value: serde_json::Value = serde_json::from_slice(body).ok()?;
-    let message = value
-        .get("message")
-        .or_else(|| value.get("error"))?
-        .as_str()?;
-    Some(truncate(message, MAX_ERROR_MESSAGE_BYTES))
+    let single = ["message", "error"]
+        .iter()
+        .filter_map(|key| value.get(key)?.as_str())
+        .find(|message| !message.trim().is_empty())
+        .map(ToString::to_string);
+    let message = single.or_else(|| {
+        let listed = listed_reasons(&value);
+        (!listed.is_empty()).then(|| {
+            listed
+                .iter()
+                .map(ToString::to_string)
+                .collect::<Vec<_>>()
+                .join("; ")
+        })
+    })?;
+    Some(truncate(&message, MAX_ERROR_MESSAGE_BYTES))
+}
+
+/// A 422's reasons joined for its hint, as [`Error::field_errors`] reads them.
+fn reasons_text(body: &[u8]) -> Option<String> {
+    let reasons = reasons(body);
+    (!reasons.is_empty()).then(|| {
+        let joined = reasons
+            .iter()
+            .map(ToString::to_string)
+            .collect::<Vec<_>>()
+            .join("; ");
+        truncate(&joined, MAX_ERROR_MESSAGE_BYTES)
+    })
+}
+
+/// The reasons a 422's body gives: the `errors` list, or the single `error` or `message`.
+fn reasons(body: &[u8]) -> Vec<FieldError> {
+    let Ok(value) = serde_json::from_slice::<serde_json::Value>(body) else {
+        return Vec::new();
+    };
+    let listed = listed_reasons(&value);
+    if !listed.is_empty() {
+        return listed;
+    }
+    ["error", "message"]
+        .iter()
+        .filter_map(|key| value.get(key)?.as_str())
+        .find(|message| !message.trim().is_empty())
+        .map(|message| {
+            vec![FieldError {
+                field: None,
+                message: message.to_string(),
+            }]
+        })
+        .unwrap_or_default()
+}
+
+/// The entries of a body's `errors` list: a message, or an object naming the field and the
+/// message. An entry that is neither is skipped, so one malformed entry costs the caller none
+/// of the rest; an `errors` member that is not a list has no entries.
+fn listed_reasons(value: &serde_json::Value) -> Vec<FieldError> {
+    let Some(entries) = value.get("errors").and_then(serde_json::Value::as_array) else {
+        return Vec::new();
+    };
+    entries
+        .iter()
+        .filter_map(|entry| match entry {
+            serde_json::Value::String(message) => Some(FieldError {
+                field: None,
+                message: message.clone(),
+            }),
+            serde_json::Value::Object(object) => {
+                let message = object.get("message")?.as_str()?;
+                let field = ["field", "attribute"]
+                    .iter()
+                    .filter_map(|key| object.get(*key)?.as_str())
+                    .find(|field| !field.is_empty());
+                Some(FieldError {
+                    field: field.map(ToString::to_string),
+                    message: message.to_string(),
+                })
+            }
+            _ => None,
+        })
+        .filter(|reason| !reason.message.trim().is_empty())
+        .collect()
 }
 
 /// Cuts a message to `limit` characters, saying so with a trailing `...`, the way Go's

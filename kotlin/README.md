@@ -186,8 +186,9 @@ Every failure is a `HeyException`, a sealed class, so a `when` over it is exhaus
 `Conflict`, `Ambiguous`. Each carries the category as `code` (the string every HEY SDK uses,
 `not_found`, `rate_limit`), an `exitCode` for a command-line tool, the HTTP status when HEY
 answered, whether the call is `retryable`, the `X-Request-Id` HEY answered with, HEY's own
-message as the `hint`, and the failure body up to a megabyte. An HTML error page is never
-echoed into a message.
+message as the `hint`, and the failure body up to a megabyte. A `Validation` error's
+`fieldErrors` are each reason HEY gave for the 422, in order, with the `message` and the
+`field` when HEY named one. An HTML error page is never echoed into a message.
 
 ```kotlin
 try {

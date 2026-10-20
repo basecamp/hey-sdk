@@ -136,8 +136,21 @@ private func checkErrorField(_ run: Run, _ assertion: Assertion) throws {
         let expected = try expectedString(assertion, "errorField.requestId")
         let actual = error.requestId ?? ""
         if actual != expected { throw fail("Expected error requestId \"\(expected)\", got \"\(actual)\"") }
+    case "fieldErrors":
+        let expected = try expectedFieldErrors(assertion)
+        if error.fieldErrors != expected { throw fail("Expected error fieldErrors \(expected), got \(error.fieldErrors)") }
     default:
         throw fail("Unknown error field: \(assertion.path)")
+    }
+}
+
+/// A fieldErrors assertion's list: each entry a message, and the field when the reason names one.
+private func expectedFieldErrors(_ assertion: Assertion) throws -> [FieldError] {
+    let invalid = fail("errorField.fieldErrors: expected a list of {field?, message}, got \(display(assertion.expected))")
+    guard case let .array(entries) = assertion.expected else { throw invalid }
+    return try entries.map { entry in
+        guard let message = entry["message"]?.string else { throw invalid }
+        return FieldError(field: entry["field"]?.string, message: message)
     }
 }
 

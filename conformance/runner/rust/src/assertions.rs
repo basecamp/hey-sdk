@@ -154,8 +154,51 @@ fn check_error_field(run: &Run, assertion: &Assertion) -> Result<(), String> {
                 ))
             }
         }
+        "fieldErrors" => {
+            let expected = expected_field_errors(assertion)?;
+            let actual: Vec<(Option<String>, String)> = error
+                .field_errors()
+                .into_iter()
+                .map(|reason| (reason.field, reason.message))
+                .collect();
+            if actual == expected {
+                Ok(())
+            } else {
+                Err(format!(
+                    "Expected error fieldErrors {expected:?}, got {actual:?}"
+                ))
+            }
+        }
         field => Err(format!("Unknown error field: {field}")),
     }
+}
+
+/// A fieldErrors assertion's list: each entry a message, and the field when the reason names
+/// one.
+fn expected_field_errors(assertion: &Assertion) -> Result<Vec<(Option<String>, String)>, String> {
+    let invalid = || {
+        format!(
+            "errorField.fieldErrors: expected a list of {{field?, message}}, got {}",
+            display(&assertion.expected)
+        )
+    };
+    assertion
+        .expected
+        .as_array()
+        .ok_or_else(invalid)?
+        .iter()
+        .map(|entry| {
+            let message = entry
+                .get("message")
+                .and_then(Value::as_str)
+                .ok_or_else(invalid)?;
+            let field = entry
+                .get("field")
+                .and_then(Value::as_str)
+                .map(ToString::to_string);
+            Ok((field, message.to_string()))
+        })
+        .collect()
 }
 
 /// The status the case is about. A failure has to carry it on the error itself — that is
