@@ -56,7 +56,9 @@ jobs:
           sha=$(git rev-parse HEAD)
           max_wait=19800  # 5.5 hours
           poll=30
-          elapsed=0
+          # Bash's SECONDS counts the requests and jq between sleeps too, so the wait ends
+          # on time and the job's 340 minutes leave room for the report below.
+          SECONDS=0
           IFS=',' read -ra langs <<< "$LANGUAGES"
 
           while :; do
@@ -86,13 +88,12 @@ jobs:
             if $failed || [ "${#pending[@]}" -eq 0 ]; then
               break
             fi
-            if [ "$elapsed" -ge "$max_wait" ]; then
+            if [ "$SECONDS" -ge "$max_wait" ]; then
               echo "::warning::Stopped waiting after ${max_wait}s for: ${pending[*]}"
               break
             fi
-            echo "  Waiting for: ${pending[*]} (${elapsed}s elapsed)"
+            echo "  Waiting for: ${pending[*]} (${SECONDS}s elapsed)"
             sleep "$poll"
-            elapsed=$((elapsed + poll))
           done
       - uses: basecamp/sdk/actions/release-orchestrate@main # zizmor: ignore[unpinned-uses] -- internal action tracking main by design (basecamp/sdk AGENTS.md); basecamp/sdk has no tags for Dependabot to advance a pin
         with:
