@@ -289,6 +289,21 @@ class CredentialRefreshTest {
         assertEquals(0, nonces.refreshes)
     }
 
+    // A Bearer request sent no proof: a DPoP challenge beside its own refuses nothing it sent, and
+    // its token is refreshed as for any 401.
+    @Test
+    fun aBearerRequestAnsweredWithADpopChallengeBesideItsOwnIsRefreshed() = runTest {
+        val combined = mapOf(
+            HttpHeaders.WWWAuthenticate to "Bearer error=\"invalid_token\", DPoP error=\"use_dpop_nonce\"",
+            "DPoP-Nonce" to "n5",
+        )
+        val hey = mockHey(status(401, headers = combined), ok("[]"))
+        val credentials = Credentials(refreshable = true)
+        hey.client { accessToken(credentials) }.boxes.list()
+        assertEquals(listOf("Bearer stale", "Bearer refreshed"), hey.requests.map { it.header("Authorization") })
+        assertEquals(1, credentials.refreshes)
+    }
+
     // A description quoting a proof error is no proof refusal: the token's own error is heard.
     @Test
     fun aProofErrorQuotedInADescriptionIsNotTakenForARefusal() = runTest {

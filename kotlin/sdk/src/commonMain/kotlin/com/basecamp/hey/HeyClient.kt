@@ -628,8 +628,11 @@ class HeyClient internal constructor(
             // answers a write that went through), and only its hop was refused: sending the
             // operation again could make it twice, so the 401 is the caller's. A server that
             // takes Bearer and DPoP may send a challenge for each, in one field or in fields of
-            // their own: the proof's refusal is heard in whichever carries it.
+            // their own: the proof's refusal is heard in whichever carries it. Only a request that
+            // went out under a DPoP credential sent a proof to refuse; a Bearer request answered
+            // with a DPoP challenge beside its own is refreshed as any other.
             val proofRefused = status == 401 && received.authenticated &&
+                received.bearer?.substringBefore(' ')?.equals("DPoP", ignoreCase = true) == true &&
                 received.headers.getAll(HttpHeaders.WWWAuthenticate).orEmpty().any { field -> challengeErrors(field).any { it in PROOF_REFUSALS } }
             if (proofRefused && !reproved && (operation.idempotent || !received.redirected)) {
                 val cause = HeyException.Auth("DPoP proof refused")
