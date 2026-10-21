@@ -251,12 +251,54 @@ class CredentialRefreshTest {
 
     @Test
     fun aChallengesErrorIsReadQuotedOrBareAndNeverFromItsDescription() {
-        assertEquals("invalid_dpop_proof", bearerError("""DPoP error="invalid_dpop_proof", algs="ES256""""))
-        assertEquals("use_dpop_nonce", bearerError("""DPoP realm="hey", ERROR=use_dpop_nonce"""))
-        assertEquals("invalid_token", bearerError("""Bearer error_description="no error here", error="invalid_token""""))
-        assertNull(bearerError("""Bearer error_description="nothing named""""))
-        assertNull(bearerError("Bearer"))
-        assertNull(bearerError(null))
+        assertEquals(listOf("invalid_dpop_proof"), challengeErrors("""DPoP error="invalid_dpop_proof", algs="ES256""""))
+        assertEquals(listOf("use_dpop_nonce"), challengeErrors("""DPoP realm="hey", ERROR=use_dpop_nonce"""))
+        assertEquals(listOf("invalid_token"), challengeErrors("""Bearer error_description="no error here", error="invalid_token""""))
+        assertEquals(emptyList(), challengeErrors("""Bearer error_description="nothing named""""))
+        assertEquals(emptyList(), challengeErrors("Bearer"))
+        assertEquals(emptyList(), challengeErrors(null))
+    }
+
+    // A field may list several challenges (RFC 9110, 11.6.1), and a quoted value is read whole:
+    // text inside it that looks like a parameter is not one.
+    @Test
+    fun everyChallengeInAFieldIsReadAndNoParameterIsFoundInsideAQuotedValue() {
+        assertEquals(
+            listOf("invalid_token", "use_dpop_nonce"),
+            challengeErrors("""Bearer error="invalid_token", DPoP error="use_dpop_nonce", algs="ES256""""),
+        )
+        assertEquals(
+            listOf("invalid_token"),
+            challengeErrors("""Bearer error_description="prior error=invalid_dpop_proof, retry later", error="invalid_token""""),
+        )
+        assertEquals(listOf("say \"no\""), challengeErrors("""Bearer error="say \"no\"""""))
+    }
+
+    // A field listing a Bearer and a DPoP challenge together is heard for the DPoP one: the proof
+    // is what the server refused, and the token is not refreshed.
+    @Test
+    fun aNonceAskedInAFieldThatAlsoChallengesBearerIsResentWithNoRefresh() = runTest {
+        val combined = mapOf(
+            HttpHeaders.WWWAuthenticate to "Bearer error=\"invalid_token\", DPoP error=\"use_dpop_nonce\"",
+            "DPoP-Nonce" to "n4",
+        )
+        val hey = mockHey(status(401, headers = combined), ok("[]"))
+        val nonces = Nonces()
+        nonces.client(hey).boxes.list()
+        assertEquals(listOf("nonce=null", "nonce=n4"), hey.requests.map { it.header("DPoP") })
+        assertEquals(0, nonces.refreshes)
+    }
+
+    // A description quoting a proof error is no proof refusal: the token's own error is heard.
+    @Test
+    fun aProofErrorQuotedInADescriptionIsNotTakenForARefusal() = runTest {
+        val quoted = mapOf(
+            HttpHeaders.WWWAuthenticate to "Bearer error_description=\"prior error=invalid_dpop_proof\", error=\"invalid_token\"",
+        )
+        val hey = mockHey(status(401, headers = quoted), ok("[]"))
+        val proofs = Proofs()
+        proofs.client(hey).boxes.list()
+        assertEquals(1, proofs.refreshes)
     }
 
     // A nonce is its server's: one another origin handed out never goes in a proof for this one.

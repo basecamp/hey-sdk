@@ -103,15 +103,23 @@ val HttpRequestBuilder.dpopNonce: String? get() = attributes.getOrNull(DpopNonce
 
 internal val DpopNonce = AttributeKey<String>("HeyDpopNonce")
 
-/** The auth-param named `error`, quoted or bare, and never the `error_description` beside it. */
-private val ErrorParam = Regex("""(?:^|[\s,])error\s*=\s*(?:"((?:[^"\\]|\\.)*)"|([^\s,"]+))""", RegexOption.IGNORE_CASE)
+/**
+ * One auth-param (RFC 9110, 11.2): a name, `=`, and a token or a quoted string read whole, so text
+ * inside a quoted value that looks like a parameter is never taken for one.
+ */
+private val AuthParam = Regex("""([!#$%&'*+.^_`|~0-9A-Za-z-]+)\s*=\s*("(?:[^"\\]|\\.)*"|[^\s,"]*)""")
 
 /**
- * The `error` a `WWW-Authenticate` challenge names (RFC 6750, 3; RFC 9449, 7.1):
- * `DPoP error="invalid_dpop_proof"` is `invalid_dpop_proof`. Null for no challenge, or one that
- * names none.
+ * Every `error` the challenges of one `WWW-Authenticate` field name (RFC 6750, 3; RFC 9449, 7.1),
+ * in order: a field may list several challenges, `Bearer error="invalid_token", DPoP
+ * error="use_dpop_nonce"` naming both. Empty for no field, or one that names none.
  */
-internal fun bearerError(challenge: String?): String? =
-    challenge?.let { ErrorParam.find(it) }?.let { found ->
-        found.groupValues[1].replace(Regex("""\\(.)"""), "$1").ifEmpty { found.groupValues[2] }.ifEmpty { null }
-    }
+internal fun challengeErrors(field: String?): List<String> =
+    field?.let { AuthParam.findAll(it) }.orEmpty()
+        .filter { it.groupValues[1].equals("error", ignoreCase = true) }
+        .map { param ->
+            val value = param.groupValues[2]
+            if (value.startsWith('"')) value.substring(1, value.length - 1).replace(Regex("""\\(.)"""), "$1") else value
+        }
+        .filter { it.isNotEmpty() }
+        .toList()
