@@ -71,7 +71,7 @@ Two steps, in this order.
 ```bash
 make bump VERSION=x.y.z     # rewrites Go, Rust, TypeScript, Kotlin and Swift versions and lockfiles
 # commit that, open a PR, merge it
-make release VERSION=x.y.z  # runs the gate, then tags vx.y.z and go/vx.y.z
+make release VERSION=x.y.z  # runs the gate, then tags vx.y.z; go/vx.y.z follows once approved
 ```
 
 The bump has to land on main *before* the tag, because the release workflows check that
