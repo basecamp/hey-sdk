@@ -66,16 +66,6 @@ class CredentialRefreshTest {
         assertEquals(hey.requests[0].body, hey.requests[1].body)
     }
 
-    @Test
-    fun a401ThatOutlivesTheRefreshIsSurfacedAfterTheOneResend() = runTest {
-        val hey = mockHey(status(401), status(401))
-        val credentials = Credentials(refreshable = true)
-        val error = assertFailsWith<HeyException.Auth> { hey.client { accessToken(credentials) }.boxes.list() }
-        assertEquals(2, hey.requests.size)
-        assertEquals(401, error.httpStatus)
-        assertEquals(1, credentials.refreshes)
-    }
-
     // A write HEY answered with a redirect went through: a 401 on the hop renews the token for
     // the requests after it, and the write is not made again.
     @Test
@@ -93,6 +83,16 @@ class CredentialRefreshTest {
             )
         }
         assertEquals(listOf("POST", "GET"), hey.requests.map { it.method })
+        assertEquals(1, credentials.refreshes)
+    }
+
+    @Test
+    fun a401ThatOutlivesTheRefreshIsSurfacedAfterTheOneResend() = runTest {
+        val hey = mockHey(status(401), status(401))
+        val credentials = Credentials(refreshable = true)
+        val error = assertFailsWith<HeyException.Auth> { hey.client { accessToken(credentials) }.boxes.list() }
+        assertEquals(2, hey.requests.size)
+        assertEquals(401, error.httpStatus)
         assertEquals(1, credentials.refreshes)
     }
 
