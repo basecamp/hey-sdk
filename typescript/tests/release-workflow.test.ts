@@ -213,7 +213,9 @@ it("rejects malformed publication state before release tags or pushes", () => {
       try {
         execFileSync(
           "make",
-          ["release", `VERSION=${version}`, "MAKE=/bin/true"],
+          // `true` from PATH, not /bin/true: macOS has only /usr/bin/true, and the shell
+          // builtin answers either way, so the gate is skipped on every platform.
+          ["release", `VERSION=${version}`, "MAKE=true"],
           { cwd: temp, env, encoding: "utf8", stdio: "pipe" },
         );
       } catch (cause) {
