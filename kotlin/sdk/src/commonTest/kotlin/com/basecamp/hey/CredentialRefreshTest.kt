@@ -27,6 +27,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertIs
+import kotlin.test.assertNull
 
 class CredentialRefreshTest {
     private class Credentials(private val refreshable: Boolean) : TokenProvider {
@@ -193,6 +194,16 @@ class CredentialRefreshTest {
             )
         Nonces().client(hey).boxes.list()
         assertEquals(listOf("nonce=null", "nonce=n3"), hey.requests.map { it.header("DPoP") })
+    }
+
+    @Test
+    fun aChallengesErrorIsReadQuotedOrBareAndNeverFromItsDescription() {
+        assertEquals("invalid_dpop_proof", bearerError("""DPoP error="invalid_dpop_proof", algs="ES256""""))
+        assertEquals("use_dpop_nonce", bearerError("""DPoP realm="hey", ERROR=use_dpop_nonce"""))
+        assertEquals("invalid_token", bearerError("""Bearer error_description="no error here", error="invalid_token""""))
+        assertNull(bearerError("""Bearer error_description="nothing named""""))
+        assertNull(bearerError("Bearer"))
+        assertNull(bearerError(null))
     }
 
     // A nonce is its server's: one another origin handed out never goes in a proof for this one.

@@ -102,3 +102,16 @@ class BearerAuth(private val tokenProvider: TokenProvider) : AuthStrategy {
 val HttpRequestBuilder.dpopNonce: String? get() = attributes.getOrNull(DpopNonce)
 
 internal val DpopNonce = AttributeKey<String>("HeyDpopNonce")
+
+/** The auth-param named `error`, quoted or bare, and never the `error_description` beside it. */
+private val ErrorParam = Regex("""(?:^|[\s,])error\s*=\s*(?:"((?:[^"\\]|\\.)*)"|([^\s,"]+))""", RegexOption.IGNORE_CASE)
+
+/**
+ * The `error` a `WWW-Authenticate` challenge names (RFC 6750, 3; RFC 9449, 7.1):
+ * `DPoP error="invalid_dpop_proof"` is `invalid_dpop_proof`. Null for no challenge, or one that
+ * names none.
+ */
+internal fun bearerError(challenge: String?): String? =
+    challenge?.let { ErrorParam.find(it) }?.let { found ->
+        found.groupValues[1].replace(Regex("""\\(.)"""), "$1").ifEmpty { found.groupValues[2] }.ifEmpty { null }
+    }

@@ -260,6 +260,18 @@ internal class Shared(
     /** The bearer the SDK's own strategy last put on a request, so a token the provider rotates of its own accord is seen for the renewal it is. Null until a signing, and again after a refresh. */
     var lastBearer: String? = null
 
+    /** The DPoP nonce each origin handed out last (RFC 9449, 8.2 and 9), by [origin]: a proof for one origin names its nonce alone. */
+    private val nonces = mutableMapOf<String, String>()
+
+    /** Guards [nonces]: held only for a read or a write. */
+    private val nonceGate = Mutex()
+
+    suspend fun nonce(url: Url): String? = nonceGate.withLock { nonces[origin(url)] }
+
+    suspend fun heardNonce(url: Url, nonce: String) = nonceGate.withLock { nonces[origin(url)] = nonce }
+
+    private fun origin(url: Url) = "${url.protocol.name.lowercase()}://${url.host.lowercase()}:${url.port}"
+
     /** The credentials a request is signed under: the state of the counters at its signing, read under [refreshing]. */
     fun generation(): Generation = Generation(refreshes, refreshRuns)
 
@@ -564,6 +576,7 @@ class HeyClient internal constructor(
         var attempt = 1
         var delay = budget.delay
         var refreshed = false
+        var reproved = false
         var cached: Pair<String, CachedResponse>? = null
 
         while (true) {
@@ -608,9 +621,25 @@ class HeyClient internal constructor(
             val received = sent.getOrThrow()
             val status = received.status
             val retryable = status in budget.retryOn
+            // A 401 that refuses the request's DPoP proof and not its token: its time or its jti
+            // (RFC 9449, 7.1), or a nonce it did not name (9). Sent once more with a fresh proof,
+            // naming the nonce just heard, and never a refresh, which would spend a good token. A
+            // mutation the server answered with a redirect went through, and only its hop was
+            // refused: sending the operation again would make it twice, so the 401 is the caller's.
+            val proofRefused = status == 401 && received.authenticated &&
+                bearerError(received.headers[HttpHeaders.WWWAuthenticate]) in PROOF_REFUSALS
+            if (proofRefused && !reproved && (operation.idempotent || !received.redirected)) {
+                val cause = HeyException.Auth("DPoP proof refused")
+                hooks.safeRequestEnd(info, RequestResult(status, duration, error = cause))
+                hooks.safeRetry(info, attempt + 1, cause, 0)
+                reproved = true
+                attempt += 1
+                attempts = maxOf(attempts, attempt)
+                continue
+            }
             // A 401 from a hop that carried no credentials rejected none of HEY's: there is
             // nothing to refresh, and nothing a resend would change.
-            val renewed = status == 401 && received.authenticated && !refreshed && try {
+            val renewed = status == 401 && received.authenticated && !proofRefused && !refreshed && try {
                 refreshCredentials(received.signedUnder, received.bearer)
             } catch (error: Throwable) {
                 hooks.safeRequestEnd(info, RequestResult(status, duration, error = reported(error, "request cancelled")))
@@ -802,6 +831,8 @@ class HeyClient internal constructor(
      */
     private suspend fun sign(request: HttpRequestBuilder): Pair<Credentials, Generation> {
         val before = request.headers.build()
+        val nonce = shared.nonce(request.url.build())
+        if (nonce != null) request.attributes.put(DpopNonce, nonce) else request.attributes.remove(DpopNonce)
         val signedUnder = shared.refreshing.withLock {
             try {
                 shared.auth.authenticate(request)
@@ -893,6 +924,10 @@ class HeyClient internal constructor(
         var authenticated = !operation.unsigned
         while (true) {
             val outcome = shared.http.prepareRequest(request).execute { response ->
+                // A server hands out its next DPoP nonce with any answer, a redirect's included
+                // (RFC 9449, 8.2), and the proofs for that origin name it from then on: the hop
+                // after it among them.
+                response.headers[DPOP_NONCE]?.let { shared.heardNonce(url, it) }
                 val next = if (operation.captureRedirects) null else redirectTarget(url, response)
                 if (next != null) Outcome.Redirect(next, response.status.value) else Outcome.Answer(receive(operation, url, response, hops > 0, authenticated, signedUnder, credentials.headers["authorization"]?.firstOrNull()))
             }
@@ -1223,3 +1258,8 @@ internal fun isParsed(accept: String): Boolean =
  * credentials already ran and failed, in which case its answer is this request's too.
  */
 internal class Generation(val refreshes: Long, val runs: Long)
+
+/** The errors a DPoP challenge names for a proof refused, not a token (RFC 9449, 7.1 and 9). */
+private val PROOF_REFUSALS = setOf("invalid_dpop_proof", "use_dpop_nonce")
+
+private const val DPOP_NONCE = "DPoP-Nonce"

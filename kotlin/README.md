@@ -32,6 +32,13 @@ accord — handing over a new token ahead of expiry — is not asked to refresh 
 old one; the request is simply resent. Anything that wants the request headers
 outright implements `AuthStrategy` and passes it with `auth(strategy)`.
 
+A strategy that signs DPoP proofs (RFC 9449) names `request.dpopNonce` in each proof's `nonce`
+claim: the nonce the request's own origin handed out last, from any answer including a redirect,
+and never another origin's. A 401 whose challenge refuses only the proof (`invalid_dpop_proof`)
+or asks for a nonce (`use_dpop_nonce`) is sent once more with a fresh proof and never refreshes
+the token; a second such refusal is the caller's. A write HEY answered with a redirect is not
+sent again for its hop's refused proof, since the write itself went through.
+
 ```kotlin
 val client = HeyClient {
     accessToken(object : TokenProvider {
