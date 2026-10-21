@@ -254,18 +254,21 @@ class CredentialRefreshTest {
             override suspend fun refresh(): Boolean { refreshes += 1; return true }
         }
         // The first two requests are signed t0 and t1 in turn, and neither is answered until
-        // both are out; the t0 one is answered 401, the t1 one 200.
+        // both are out; the t0 one is answered 401, the t1 one 200. The engine answers by the
+        // token, not by arrival: the two may reach it in either order.
         val bothOut = CompletableDeferred<Unit>()
         val lock = Any()
         var arrivals = 0
         val tokens = mutableListOf<String>()
         val engine = MockEngine { request ->
-            val arrival = synchronized(lock) { arrivals += 1; tokens += request.headers["Authorization"].orEmpty(); arrivals }
+            val token = request.headers["Authorization"].orEmpty()
+            val arrival = synchronized(lock) { arrivals += 1; tokens += token; arrivals }
             if (arrival == 2) bothOut.complete(Unit)
             if (arrival <= 2) bothOut.await()
-            when (arrival) {
-                1, 4 -> respond("", HttpStatusCode.Unauthorized)
-                else -> respond("[]", HttpStatusCode.OK, headersOf(HttpHeaders.ContentType, "application/json"))
+            if (token == "Bearer t0" || arrival == 4) {
+                respond("", HttpStatusCode.Unauthorized)
+            } else {
+                respond("[]", HttpStatusCode.OK, headersOf(HttpHeaders.ContentType, "application/json"))
             }
         }
         val client = HeyClient {
@@ -278,11 +281,11 @@ class CredentialRefreshTest {
         a.await()
         b.await()
         assertEquals(0, refreshes, "the 401 on t0 was answered by t1, which the provider had already handed over")
-        assertEquals(listOf("Bearer t0", "Bearer t1", "Bearer t1"), tokens)
+        assertEquals(listOf("Bearer t0", "Bearer t1", "Bearer t1"), tokens.take(2).sorted() + tokens.drop(2))
 
         client.boxes.list()
         assertEquals(1, refreshes, "a 401 on t1 itself is refreshed, once")
-        assertEquals(listOf("Bearer t0", "Bearer t1", "Bearer t1", "Bearer t1", "Bearer t2"), tokens)
+        assertEquals(listOf("Bearer t1", "Bearer t1", "Bearer t2"), tokens.drop(2))
     }
 
     /**
