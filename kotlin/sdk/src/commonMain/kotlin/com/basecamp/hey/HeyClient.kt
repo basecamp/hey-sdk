@@ -893,7 +893,7 @@ class HeyClient internal constructor(
         var authenticated = !operation.unsigned
         while (true) {
             val outcome = shared.http.prepareRequest(request).execute { response ->
-                val next = if (operation.captureRedirects) null else redirectTarget(url, response)
+                val next = if (operation.captureRedirects || !operation.followsRedirects) null else redirectTarget(url, response)
                 if (next != null) Outcome.Redirect(next, response.status.value) else Outcome.Answer(receive(operation, url, response, hops > 0, authenticated, signedUnder, credentials.headers["authorization"]?.firstOrNull()))
             }
             when (outcome) {

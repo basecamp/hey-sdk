@@ -41,6 +41,11 @@ val client = HeyClient {
 }
 ```
 
+Signing out ends the session HEY holds behind a token with `client.revokeToken(clientId, token)`:
+`DELETE /oauth/tokens`, with the token in a form body and none of the client's own credentials,
+and a redirect taken as a failure rather than followed, since the token rides in the body. HEY
+answers a token it no longer knows as revoked.
+
 ## Use it
 
 ```kotlin
