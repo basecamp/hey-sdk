@@ -617,8 +617,8 @@ class HeyClient internal constructor(
                 throw error
             }
             // Renewed for every request after it, but a mutation the server answered with a
-            // redirect went through: sent again it would be made twice, so its hop's 401 is the
-            // caller's.
+            // redirect may already be made (a 302 or 303 answers a write that went through): sent
+            // again it could be made twice, so its hop's 401 is the caller's.
             if (renewed && (operation.idempotent || !received.redirected)) {
                 val cause = HeyException.Auth("Token refreshed")
                 hooks.safeRequestEnd(info, RequestResult(status, duration, error = cause))

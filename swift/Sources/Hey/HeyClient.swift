@@ -414,8 +414,8 @@ public final class HeyClient: Sendable {
                     throw error
                 }
                 // Renewed for every request after it, but a mutation the server answered with a
-                // redirect went through: sent again it would be made twice, so its hop's 401 is
-                // the caller's.
+                // redirect may already be made (a 302 or 303 answers a write that went through):
+                // sent again it could be made twice, so its hop's 401 is the caller's.
                 if renewed, operation.idempotent || !received.redirected {
                     let cause = HeyError.auth(message: "Token refreshed", detail: ErrorDetail())
                     hooks.onRequestEnd(info, result: RequestResult(statusCode: status, duration: duration, error: cause))

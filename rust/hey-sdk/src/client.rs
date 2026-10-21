@@ -978,8 +978,9 @@ impl Client {
                             .refresh_credentials(signed.under, signed.bearer.clone())
                             .await;
                     // Renewed for every request after it, but a mutation the server answered
-                    // with a redirect went through: sent again it would be made twice, so its
-                    // hop's 401 is the caller's.
+                    // with a redirect may already be made (a 302 or 303 answers a write that
+                    // went through): sent again it could be made twice, so its hop's 401 is the
+                    // caller's.
                     if renewed && (operation.idempotent || !received.redirected) {
                         let cause = Error::auth("Token refreshed").retryable();
                         sending.end(&RequestResult {
@@ -2403,8 +2404,7 @@ mod tests {
     /// A write HEY answered with a redirect went through: a 401 on the hop renews the token
     /// for the requests after it, and the write is not made again.
     #[tokio::test]
-    async fn a_redirected_mutation_whose_hop_had_its_token_refused_is_refreshed_but_not_sent_again(
-    ) {
+    async fn a_redirected_write_whose_hop_was_refused_is_refreshed_but_not_resent() {
         let http = Canned::new(|request| {
             if request.method() == Method::POST {
                 redirect_with(303, "/contacts/1.json")
