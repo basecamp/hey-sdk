@@ -500,7 +500,7 @@ mod tests {
             .and(path("/.well-known/oauth-authorization-server"))
             .and(header("accept", "application/json"))
             .respond_with(ResponseTemplate::new(200).set_body_json(json!({
-                "issuer": "https://auth.example.com",
+                "issuer": server.uri(),
                 "authorization_endpoint": "https://auth.example.com/authorize",
                 "token_endpoint": "https://auth.example.com/token",
                 "scopes_supported": [ "read", "write" ]
@@ -519,6 +519,117 @@ mod tests {
             metadata.scopes_supported
         );
         assert_eq!(None, metadata.registration_endpoint);
+    }
+
+    #[cfg(feature = "reqwest")]
+    async fn serve_metadata(server: &MockServer, metadata: serde_json::Value) {
+        Mock::given(method("GET"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(metadata))
+            .mount(server)
+            .await;
+    }
+
+    // Over plain HTTP anyone on the network could answer with endpoints of their own, so an
+    // issuer must be HTTPS, as a token endpoint already must, and is refused before anything
+    // is sent.
+    #[cfg(feature = "reqwest")]
+    #[tokio::test]
+    async fn discover_refuses_an_insecure_issuer_before_sending() {
+        for issuer in [
+            "http://evil.example",
+            "https://app.hey.com?tenant=1",
+            "https://app.hey.com#fragment",
+            "https://user:secret@app.hey.com",
+            "app.hey.com",
+        ] {
+            let error = OAuthClient::default().discover(issuer).await.unwrap_err();
+
+            assert_eq!(None, error.http_status(), "{issuer} was sent");
+        }
+    }
+
+    // RFC 8414 §3.3: metadata naming another issuer is not used.
+    #[cfg(feature = "reqwest")]
+    #[tokio::test]
+    async fn discover_refuses_metadata_of_another_issuer() {
+        let server = MockServer::start().await;
+        serve_metadata(&server, json!(metadata("https://issuer.example"))).await;
+
+        let error = OAuthClient::default()
+            .discover(&server.uri())
+            .await
+            .unwrap_err();
+
+        assert_eq!("OAuth discovery issuer does not match", error.message());
+    }
+
+    #[cfg(feature = "reqwest")]
+    #[tokio::test]
+    async fn discover_refuses_endpoints_that_are_not_https() {
+        for (field, value) in [
+            ("token_endpoint", "http://evil.example/token"),
+            ("authorization_endpoint", "http://evil.example/authorize"),
+            ("registration_endpoint", "http://evil.example/register"),
+            ("token_endpoint", ""),
+        ] {
+            let server = MockServer::start().await;
+            let mut answer = json!(metadata(&server.uri()));
+            answer[field] = json!(value);
+            serve_metadata(&server, answer).await;
+
+            let error = OAuthClient::default()
+                .discover(&server.uri())
+                .await
+                .unwrap_err();
+
+            assert_eq!(
+                "Invalid OAuth discovery response",
+                error.message(),
+                "{field}: {value:?}"
+            );
+        }
+    }
+
+    // A redirect would take the endpoints from whatever answered it; the client follows none,
+    // so the 3xx is the answer, and an error.
+    #[cfg(feature = "reqwest")]
+    #[tokio::test]
+    async fn discover_follows_no_redirect() {
+        let issuer = MockServer::start().await;
+        let other = MockServer::start().await;
+        serve_metadata(&other, json!(metadata(&issuer.uri()))).await;
+        Mock::given(method("GET"))
+            .respond_with(ResponseTemplate::new(302).insert_header(
+                "location",
+                format!("{}/.well-known/oauth-authorization-server", other.uri()),
+            ))
+            .mount(&issuer)
+            .await;
+
+        let error = OAuthClient::default()
+            .discover(&issuer.uri())
+            .await
+            .unwrap_err();
+
+        assert_eq!(Some(302), error.http_status());
+        assert!(other.received_requests().await.unwrap().is_empty());
+    }
+
+    // RFC 8414 §3.1: the well-known path goes between the host and the issuer's own path.
+    #[cfg(feature = "reqwest")]
+    #[tokio::test]
+    async fn discover_asks_before_the_issuers_path() {
+        let server = MockServer::start().await;
+        let issuer = format!("{}/tenant", server.uri());
+        Mock::given(method("GET"))
+            .and(path("/.well-known/oauth-authorization-server/tenant"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(json!(metadata(&issuer))))
+            .mount(&server)
+            .await;
+
+        let metadata = OAuthClient::default().discover(&issuer).await.unwrap();
+
+        assert_eq!(issuer, metadata.issuer);
     }
 
     #[cfg(feature = "reqwest")]
