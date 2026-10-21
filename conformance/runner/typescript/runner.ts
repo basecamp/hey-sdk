@@ -45,7 +45,7 @@ const inventory: Record<string, { name: string; operation: string }[]> =
   );
 assert.equal(
   exclusions.length,
-  4,
+  5,
   "Applicability boundary changed; review required",
 );
 const schemas = spec.components.schemas;
@@ -355,6 +355,16 @@ for (const file of files) {
           (operationMetadata.GetWorkflowStage as { responseMediaType?: string })
             .responseMediaType,
           "text/html",
+        );
+      } else if (tc.tags?.includes("redirect")) {
+        // The client sends with redirect: "manual" and follows no hop, so a case about what
+        // happens on one is outside what it does.
+        assert.ok(
+          tc.mockResponses.some(
+            (r: any) =>
+              r.status >= 300 && r.status < 400 && r.headers?.Location,
+          ),
+          "Only a case that answers with a redirect may be excluded for one",
         );
       } else {
         assert.equal(tc.operation, "UpdateCalendarEvent");
