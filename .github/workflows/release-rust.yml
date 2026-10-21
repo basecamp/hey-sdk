@@ -162,10 +162,8 @@ jobs:
       contents: read
       id-token: write
     # Restricted to `v*` tags; the trusted-publisher configuration on crates.io names this
-    # environment, so a token cannot be minted from anywhere else. No required reviewers:
-    # release-github.yml polls this workflow for thirty minutes and a wait for approval
-    # would time it out, and the tag is already a deliberate `make release` from a green
-    # gate.
+    # environment, so a token cannot be minted from anywhere else. The environment needs a
+    # reviewer from sip or cli to approve the publish; release-github.yml waits for that.
     environment: release-crates
     env:
       VERSION: ${{ needs.package.outputs.version }}
