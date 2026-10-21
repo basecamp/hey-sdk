@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"sync/atomic"
 	"testing"
 )
 
@@ -206,6 +207,58 @@ func TestAuthManager_Refresh(t *testing.T) {
 	}
 	if creds.RefreshToken != "new-refresh" {
 		t.Fatalf("expected new-refresh, got %q", creds.RefreshToken)
+	}
+}
+
+// A refresh carries the refresh token in its body, which a 307 or 308 keeps. A token endpoint
+// never redirects, so the refresh follows none: the 3xx is an error, and the token goes nowhere
+// else.
+func TestAuthManager_RefreshFollowsNoRedirect(t *testing.T) {
+	var elsewhere atomic.Int32
+	other := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		elsewhere.Add(1)
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"access_token":"theirs","refresh_token":"theirs","expires_in":3600}`))
+	}))
+	defer other.Close()
+	var asked atomic.Int32
+	tokenServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		asked.Add(1)
+		w.Header().Set("Location", other.URL+"/oauth/tokens")
+		w.WriteHeader(http.StatusTemporaryRedirect)
+	}))
+	defer tokenServer.Close()
+
+	dir := t.TempDir()
+	t.Setenv("HEY_NO_KEYRING", "1")
+	store := &CredentialStore{useKeyring: false, fallbackDir: dir}
+	origin := NormalizeBaseURL("https://app.hey.com")
+	if err := store.Save(origin, &Credentials{
+		AccessToken:   "old-token",
+		RefreshToken:  "old-refresh",
+		ExpiresAt:     1,
+		TokenEndpoint: tokenServer.URL,
+		InstallID:     "install-1",
+	}); err != nil {
+		t.Fatalf("Save failed: %v", err)
+	}
+
+	client := &http.Client{}
+	mgr := NewAuthManagerWithStore(DefaultConfig(), client, store)
+	if err := mgr.Refresh(context.Background()); err == nil {
+		t.Fatal("a redirected refresh succeeded")
+	}
+	if n := asked.Load(); n != 1 {
+		t.Errorf("the token endpoint was asked %d times, want 1", n)
+	}
+	if n := elsewhere.Load(); n != 0 {
+		t.Errorf("the Location's server was sent the refresh token %d times, want 0", n)
+	}
+	if client.CheckRedirect != nil {
+		t.Error("the auth manager changed the redirect policy of the client it was given")
+	}
+	if creds, err := store.Load(origin); err != nil || creds.RefreshToken != "old-refresh" {
+		t.Errorf("the stored credentials changed: %+v, %v", creds, err)
 	}
 }
 
