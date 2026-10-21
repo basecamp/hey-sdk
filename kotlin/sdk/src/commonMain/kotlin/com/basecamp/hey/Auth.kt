@@ -3,6 +3,7 @@ package com.basecamp.hey
 import io.ktor.client.request.HttpRequestBuilder
 import io.ktor.client.request.header
 import io.ktor.http.HttpHeaders
+import io.ktor.util.AttributeKey
 
 /**
  * Provides access tokens for authenticating with the HEY API.
@@ -90,3 +91,35 @@ class BearerAuth(private val tokenProvider: TokenProvider) : AuthStrategy {
     /** What this would sign with now, as the header value: asked before a refresh, so a token the provider has already renewed is not renewed again. */
     internal suspend fun bearer(): String = "Bearer ${tokenProvider.accessToken()}"
 }
+
+/**
+ * The DPoP nonce (RFC 9449, 8 and 9) the server this request goes to handed out last, for a
+ * strategy that signs DPoP proofs to name in its proof; null where that origin handed out none. A
+ * nonce is kept for the origin that handed it out, and is never another origin's. A strategy that
+ * signs DPoP proofs must put it in the proof's `nonce` claim: one that does not is refused again
+ * by a server that asks for a nonce, and the request fails with that 401.
+ */
+val HttpRequestBuilder.dpopNonce: String? get() = attributes.getOrNull(DpopNonce)
+
+internal val DpopNonce = AttributeKey<String>("HeyDpopNonce")
+
+/**
+ * One auth-param (RFC 9110, 11.2): a name, `=`, and a token or a quoted string read whole, so text
+ * inside a quoted value that looks like a parameter is never taken for one.
+ */
+private val AuthParam = Regex("""([!#$%&'*+.^_`|~0-9A-Za-z-]+)\s*=\s*("(?:[^"\\]|\\.)*"|[^\s,"]*)""")
+
+/**
+ * Every `error` the challenges of one `WWW-Authenticate` field name (RFC 6750, 3; RFC 9449, 7.1),
+ * in order: a field may list several challenges, `Bearer error="invalid_token", DPoP
+ * error="use_dpop_nonce"` naming both. Empty for no field, or one that names none.
+ */
+internal fun challengeErrors(field: String?): List<String> =
+    field?.let { AuthParam.findAll(it) }.orEmpty()
+        .filter { it.groupValues[1].equals("error", ignoreCase = true) }
+        .map { param ->
+            val value = param.groupValues[2]
+            if (value.startsWith('"')) value.substring(1, value.length - 1).replace(Regex("""\\(.)"""), "$1") else value
+        }
+        .filter { it.isNotEmpty() }
+        .toList()
