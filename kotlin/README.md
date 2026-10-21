@@ -36,9 +36,10 @@ A strategy that signs DPoP proofs (RFC 9449) names `request.dpopNonce` in each p
 claim: the nonce the request's own origin handed out last, from any answer including a redirect,
 and never another origin's. A 401 whose challenge refuses only the proof (`invalid_dpop_proof`)
 or asks for a nonce (`use_dpop_nonce`) is sent once more with a fresh proof and never refreshes
-the token; a second such refusal is the caller's. A write HEY answered with a redirect is not
-sent again for its hop's refused proof, since it may already be made (a 302 or 303 answers a
-write that went through).
+the token; a second such refusal is the caller's. A request whose redirect changed its method on
+the way (a 303, or a 301 or 302 to a POST) is not sent again for its hop's refused proof, since
+the request first sent was answered and may already be made; one a 307 or 308 sent elsewhere
+unchanged goes again.
 
 ```kotlin
 val client = HeyClient {
