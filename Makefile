@@ -203,8 +203,9 @@ endif
 		{ echo "ERROR: swift HeyConfig.swift does not say $(VERSION). Run: make bump VERSION=$(VERSION)"; exit 1; }
 	@$(MAKE) check-mvp
 	git tag "v$(VERSION)"
-	git tag "go/v$(VERSION)"
-	git push origin "v$(VERSION)" "go/v$(VERSION)"
+	# No go/ tag here: release-go.yml's tag job pushes it once a reviewer approves,
+	# since the module proxy serves a go/ tag the moment it exists.
+	git push origin "v$(VERSION)"
 
 #------------------------------------------------------------------------------
 # Go SDK
