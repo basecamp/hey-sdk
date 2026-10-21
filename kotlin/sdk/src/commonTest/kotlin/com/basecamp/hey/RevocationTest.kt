@@ -1,8 +1,11 @@
 package com.basecamp.hey
 
+import io.ktor.client.request.HttpRequestBuilder
+import io.ktor.client.request.header
 import io.ktor.http.HttpHeaders
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
+import kotlin.time.Duration
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertNull
@@ -32,6 +35,35 @@ class RevocationTest {
         assertEquals("", request.url.encodedQuery)
         assertEquals(listOf("client_id" to "the-app", "token" to "refresh-to-revoke"), formPairs(request.body))
         assertNull(request.header(HttpHeaders.Authorization))
+    }
+
+    // A strategy of the caller's own signs nothing on it either, whatever headers it would set.
+    @Test
+    fun aRevocationCarriesNoneOfACallersStrategysHeaders() = runTest {
+        val hey = mockHey(ok("{}"))
+        val strategy = object : AuthStrategy {
+            override suspend fun authenticate(request: HttpRequestBuilder) {
+                request.header(HttpHeaders.Authorization, "DPoP the-session")
+                request.header("DPoP", "a-proof")
+            }
+        }
+        HeyClient {
+            auth(strategy)
+            engine = hey.engine
+            timeout = Duration.INFINITE
+        }.revokeToken("the-app", "refresh-to-revoke")
+        val request = hey.requests.single()
+        assertNull(request.header(HttpHeaders.Authorization))
+        assertNull(request.header("DPoP"))
+    }
+
+    // The session is the identity's, not an account's: a scoped client revokes it unfiltered.
+    @Test
+    fun anAccountScopedClientRevokesWithNoAccountFilter() = runTest {
+        val hey = mockHey(ok(IDENTITY), ok("{}"))
+        hey.client().forAccount(42).revokeToken("the-app", "refresh-to-revoke")
+        assertEquals("/oauth/tokens", hey.requests[1].path)
+        assertNull(hey.requests[1].query("filtered_account_id"))
     }
 
     // HEY answers 200 {} for a token that names nothing: the point of revoking it is reached.
