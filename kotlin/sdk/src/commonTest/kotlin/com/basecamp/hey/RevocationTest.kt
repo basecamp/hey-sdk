@@ -4,6 +4,18 @@ import io.ktor.client.request.HttpRequestBuilder
 import io.ktor.client.request.header
 import io.ktor.http.HttpHeaders
 import kotlinx.coroutines.test.runTest
+import io.ktor.client.engine.mock.MockEngine
+import io.ktor.client.engine.mock.respond
+import io.ktor.http.HttpStatusCode
+import io.ktor.http.headersOf
+import io.ktor.utils.io.writeFully
+import io.ktor.utils.io.writer
+import kotlinx.coroutines.DelicateCoroutinesApi
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.delay
+import kotlinx.io.IOException
+import kotlin.time.Duration.Companion.milliseconds
 import kotlin.test.Test
 import kotlin.time.Duration
 import kotlin.test.assertEquals
@@ -106,6 +118,45 @@ class RevocationTest {
         assertEquals(307, error.httpStatus)
         assertEquals(1, hey.requests.size)
         assertEquals(listOf(307), heard, "the hooks hear the redirect that was received")
+    }
+
+    // A refused redirect is the answer whatever its body does: one lost mid-read must not turn the
+    // 3xx into a network failure, which the retry loop would answer by revoking again, and the
+    // hooks would hear as no response at all.
+    @OptIn(DelicateCoroutinesApi::class)
+    @Test
+    fun aRedirectWhoseBodyBreaksMidReadIsStillTheRefusedAnswerSentOnce() = runTest {
+        var requests = 0
+        val engine = MockEngine {
+            requests += 1
+            val body = GlobalScope.writer(Dispatchers.Default) {
+                channel.writeFully("<html><body>Moved".encodeToByteArray())
+                channel.flush()
+                delay(200.milliseconds)
+                throw IOException("connection reset by peer")
+            }.channel
+            respond(body, HttpStatusCode.TemporaryRedirect, headersOf(HttpHeaders.Location, "https://elsewhere.example/oauth/tokens"))
+        }
+        val heard = mutableListOf<Int>()
+        val hooks = object : HeyHooks {
+            override fun onRequestEnd(info: RequestInfo, result: RequestResult) {
+                heard += result.statusCode
+            }
+        }
+        val client = HeyClient {
+            accessToken("the-session")
+            this.engine = engine
+            this.hooks = hooks
+            timeout = Duration.INFINITE
+            maxRetries = 2
+            baseRetryDelay = 1.milliseconds
+            maxRetryJitter = Duration.ZERO
+        }
+        val error = assertFailsWith<HeyException> { client.revokeToken("the-app", "refresh-to-revoke") }
+        assertEquals("api_error", error.code)
+        assertEquals(307, error.httpStatus)
+        assertEquals(1, requests, "a refused redirect is not answered by revoking again")
+        assertEquals(listOf(307), heard)
     }
 
     @Test
