@@ -366,6 +366,7 @@ func runTest(tc TestCase) TestResult {
 		result := checkAssertion(tc.Name, assertion, checkState{
 			operation:         tc.Operation,
 			requestCount:      requestCount,
+			refreshCount:      credentials.refreshCount(),
 			requestTimes:      requestTimes,
 			requestPaths:      requestPaths,
 			requestMethods:    requestMethods,
@@ -399,11 +400,12 @@ const (
 // conformanceCredentials is the token every request goes out with. A case that marks
 // its credentials refreshable (configOverrides.refreshableCredentials) has a 401
 // answered by swapping in the refreshed token; for any other case the refresh fails
-// and the 401 stands.
+// and the 401 stands. Every refresh asked for is counted, whether or not it succeeds.
 type conformanceCredentials struct {
 	mu          sync.Mutex
 	token       string
 	refreshable bool
+	refreshes   int
 }
 
 func newConformanceCredentials(tc TestCase) *conformanceCredentials {
@@ -420,6 +422,7 @@ func (c *conformanceCredentials) AccessToken(context.Context) (string, error) {
 func (c *conformanceCredentials) Refresh(context.Context) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	c.refreshes++
 	if !c.refreshable {
 		return fmt.Errorf("credentials are not refreshable")
 	}
@@ -429,6 +432,12 @@ func (c *conformanceCredentials) Refresh(context.Context) error {
 
 func (c *conformanceCredentials) refresh(ctx context.Context) bool {
 	return c.Refresh(ctx) == nil
+}
+
+func (c *conformanceCredentials) refreshCount() int {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.refreshes
 }
 
 // runConfigOverrideTest handles tests that override client configuration
@@ -496,6 +505,7 @@ func runConfigOverrideTest(tc TestCase, baseURL string) TestResult {
 type checkState struct {
 	operation         string
 	requestCount      int
+	refreshCount      int
 	requestTimes      []time.Time
 	requestPaths      []string
 	requestMethods    []string
@@ -540,6 +550,15 @@ func checkAssertion(testName string, a Assertion, s checkState) TestResult {
 		}
 		if s.requestCount != expected {
 			return fail(testName, "Expected %d requests, got %d", expected, s.requestCount)
+		}
+
+	case "refreshCount":
+		expected, err := toInt(a.Expected)
+		if err != nil {
+			return fail(testName, "refreshCount: %v", err)
+		}
+		if s.refreshCount != expected {
+			return fail(testName, "Expected %d credential refreshes, got %d", expected, s.refreshCount)
 		}
 
 	case "delayBetweenRequests":

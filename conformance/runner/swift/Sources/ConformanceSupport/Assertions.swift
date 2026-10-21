@@ -23,17 +23,20 @@ public enum Outcome: Sendable {
     }
 }
 
-/// One case after it ran: what the SDK answered and what the mock server saw.
+/// One case after it ran: what the SDK answered, what the mock server saw and how many times the
+/// client asked its credentials to refresh.
 public struct Run: Sendable {
     public var testCase: TestCase
     public var outcome: Result<Outcome, any Error>
     public var recorded: Recorded
+    public var refreshes: Int
     public var baseURL: String
 
-    public init(testCase: TestCase, outcome: Result<Outcome, any Error>, recorded: Recorded, baseURL: String) {
+    public init(testCase: TestCase, outcome: Result<Outcome, any Error>, recorded: Recorded, refreshes: Int, baseURL: String) {
         self.testCase = testCase
         self.outcome = outcome
         self.recorded = recorded
+        self.refreshes = refreshes
         self.baseURL = baseURL
     }
 
@@ -62,6 +65,7 @@ private enum Which {
 private func check(_ run: Run, _ assertion: Assertion) throws {
     switch assertion.type {
     case "requestCount": try checkRequestCount(run, assertion)
+    case "refreshCount": try checkRefreshCount(run, assertion)
     case "delayBetweenRequests": try checkDelayBetweenRequests(run, assertion)
     case "noError": try checkNoError(run)
     case "errorCode": try checkErrorCode(run, assertion)
@@ -87,6 +91,11 @@ private func check(_ run: Run, _ assertion: Assertion) throws {
 private func checkRequestCount(_ run: Run, _ assertion: Assertion) throws {
     let expected = try expectedInt(assertion, "requestCount")
     if run.recorded.count != expected { throw fail("Expected \(expected) requests, got \(run.recorded.count)") }
+}
+
+private func checkRefreshCount(_ run: Run, _ assertion: Assertion) throws {
+    let expected = try expectedInt(assertion, "refreshCount")
+    if run.refreshes != expected { throw fail("Expected \(expected) credential refreshes, got \(run.refreshes)") }
 }
 
 /// Every wait between one request and the next, not only the first: a backoff that collapses after

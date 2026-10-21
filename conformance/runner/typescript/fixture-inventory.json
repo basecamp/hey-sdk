@@ -75,6 +75,10 @@
     {
       "name": "A 401 that outlives the refresh on an SDK form request is surfaced after the one resend",
       "operation": "UpdateCalendarEvent"
+    },
+    {
+      "name": "A write answered through a redirect whose hop is refused is refreshed but not sent again",
+      "operation": "CreateDraft"
     }
   ],
   "draft-lifecycle.json": [

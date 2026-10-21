@@ -213,7 +213,9 @@ it("rejects malformed publication state before release tags or pushes", () => {
       try {
         execFileSync(
           "make",
-          ["release", `VERSION=${version}`, "MAKE=/bin/true"],
+          // `true` from PATH, not /bin/true: macOS has only /usr/bin/true, and the shell
+          // builtin answers either way, so the gate is skipped on every platform.
+          ["release", `VERSION=${version}`, "MAKE=true"],
           { cwd: temp, env, encoding: "utf8", stdio: "pipe" },
         );
       } catch (cause) {
@@ -240,10 +242,10 @@ it("rejects malformed publication state before release tags or pushes", () => {
     const valid = release("false\n");
     expect(valid.error).toBeUndefined();
     expect(valid.calls).toContain(`tag v${version}`);
-    expect(valid.calls).toContain(`tag go/v${version}`);
-    expect(valid.calls).toContain(
-      `push origin v${version} go/v${version}`,
-    );
+    // The go/ module tag is release-go.yml's tag job's, behind its reviewer:
+    // a go/ tag pushed here would publish the module before anyone approved.
+    expect(valid.calls).not.toContain("go/v");
+    expect(valid.calls).toMatch(new RegExp(`(^|\\n)push origin v${version.replaceAll(".", "\\.")}(\\n|$)`));
   } finally {
     rmSync(temp, { recursive: true, force: true });
   }

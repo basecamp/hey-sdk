@@ -55,9 +55,11 @@ func runCase(_ testCase: TestCase) async throws {
         try await runConfigOverrideCase(testCase, baseURL)
     } else {
         let server = try MockHEY(testCase.mockResponses)
-        let outcome = await executeCase(testCase, server.baseURL)
+        let refreshes = RefreshCounter()
+        let outcome = await executeCase(testCase, server.baseURL, refreshes)
         let recorded = server.shutdown()
-        try checkAll(Run(testCase: testCase, outcome: outcome, recorded: recorded, baseURL: server.baseURL))
+        try checkAll(
+            Run(testCase: testCase, outcome: outcome, recorded: recorded, refreshes: refreshes.value, baseURL: server.baseURL))
     }
 }
 

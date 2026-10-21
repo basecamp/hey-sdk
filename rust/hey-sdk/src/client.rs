@@ -971,13 +971,17 @@ impl Client {
                     let retry_after = retry_after_asked(retryable, received.response.headers());
                     // A 401 from a hop that carried no credentials rejected none of HEY's:
                     // there is nothing to refresh, and nothing a resend would change.
-                    if status == StatusCode::UNAUTHORIZED
+                    let renewed = status == StatusCode::UNAUTHORIZED
                         && received.authenticated
                         && !refreshed
                         && self
                             .refresh_credentials(signed.under, signed.bearer.clone())
-                            .await
-                    {
+                            .await;
+                    // Renewed for every request after it, but a mutation the server answered
+                    // with a redirect may already be made (a 302 or 303 can answer a write that
+                    // went through): sent again it could be made twice, so its hop's 401 is the
+                    // caller's.
+                    if renewed && (operation.idempotent || !received.redirected) {
                         let cause = Error::auth("Token refreshed").retryable();
                         sending.end(&RequestResult {
                             status: Some(status),
@@ -2395,6 +2399,37 @@ mod tests {
         assert_eq!(sent[1].2[AUTHORIZATION], "Bearer stale");
         assert_eq!(sent[3].1, "https://hey.test/new.json");
         assert_eq!(sent[3].2[AUTHORIZATION], "Bearer fresh");
+    }
+
+    /// A write HEY answered with a redirect went through: a 401 on the hop renews the token
+    /// for the requests after it, and the write is not made again.
+    #[tokio::test]
+    async fn a_redirected_write_whose_hop_was_refused_is_refreshed_but_not_resent() {
+        let http = Canned::new(|request| {
+            if request.method() == Method::POST {
+                redirect_with(303, "/contacts/1.json")
+            } else if request
+                .headers()
+                .get(AUTHORIZATION)
+                .is_some_and(|token| token == "Bearer fresh")
+            {
+                answer(200, r#"{"id":1}"#)
+            } else {
+                answer(401, "")
+            }
+        });
+        let provider = Renewing::new();
+        let client = client_with(http.clone(), provider.clone());
+
+        let error = client
+            .execute(client.request(Method::POST, "/contacts"))
+            .await
+            .unwrap_err();
+
+        assert_eq!(error.http_status(), Some(401));
+        assert_eq!(provider.refreshes(), 1);
+        let methods: Vec<Method> = http.sent().into_iter().map(|sent| sent.0).collect();
+        assert_eq!(methods, [Method::POST, Method::GET]);
     }
 
     #[test]

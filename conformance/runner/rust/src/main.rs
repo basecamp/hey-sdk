@@ -151,12 +151,13 @@ async fn run_mock_server_case(case: &TestCase) -> Result<(), String> {
         .await
         .map_err(|error| format!("Failed to start the mock server: {error}"))?;
     let base_url = server.base_url().to_string();
-    let outcome = operations::execute_case(case, &base_url).await;
+    let (outcome, refreshes) = operations::execute_case(case, &base_url).await;
     let recorded = server.shutdown();
     assertions::check_all(&Run {
         case,
         outcome: &outcome,
         recorded: &recorded,
+        refreshes,
         base_url: &base_url,
     })
 }
