@@ -3,6 +3,7 @@ package com.basecamp.hey
 import io.ktor.client.request.HttpRequestBuilder
 import io.ktor.client.request.header
 import io.ktor.http.HttpHeaders
+import io.ktor.util.AttributeKey
 
 /**
  * Provides access tokens for authenticating with the HEY API.
@@ -90,3 +91,14 @@ class BearerAuth(private val tokenProvider: TokenProvider) : AuthStrategy {
     /** What this would sign with now, as the header value: asked before a refresh, so a token the provider has already renewed is not renewed again. */
     internal suspend fun bearer(): String = "Bearer ${tokenProvider.accessToken()}"
 }
+
+/**
+ * The DPoP nonce (RFC 9449, 8 and 9) the server this request goes to handed out last, for a
+ * strategy that signs DPoP proofs to name in its proof; null where that origin handed out none. A
+ * nonce is kept for the origin that handed it out, and is never another origin's. A strategy that
+ * signs DPoP proofs must put it in the proof's `nonce` claim: one that does not is refused again
+ * by a server that asks for a nonce, and the request fails with that 401.
+ */
+val HttpRequestBuilder.dpopNonce: String? get() = attributes.getOrNull(DpopNonce)
+
+internal val DpopNonce = AttributeKey<String>("HeyDpopNonce")

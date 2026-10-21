@@ -76,6 +76,141 @@ class CredentialRefreshTest {
         assertEquals(1, credentials.refreshes)
     }
 
+    // A DPoP-bound token signs each request with a proof of its own (RFC 9449); a proof whose
+    // time or jti the server refused costs nothing of the token.
+    private class Proofs : AuthStrategy {
+        var proofs = 0
+        var refreshes = 0
+
+        override suspend fun authenticate(request: HttpRequestBuilder) {
+            proofs += 1
+            request.header(HttpHeaders.Authorization, "DPoP bound")
+            request.header("DPoP", "proof-$proofs")
+        }
+
+        override suspend fun refresh(): Boolean {
+            refreshes += 1
+            return true
+        }
+    }
+
+    private fun AuthStrategy.client(hey: MockHey): HeyClient = HeyClient {
+        auth(this@client)
+        engine = hey.engine
+        timeout = Duration.INFINITE
+    }
+
+    private val proofRefused = mapOf(HttpHeaders.WWWAuthenticate to "DPoP error=\"invalid_dpop_proof\", algs=\"ES256\"")
+
+    // RFC 9449, 7.1: invalid_dpop_proof refuses the proof, not the token, so the request goes
+    // again with a fresh proof and the token is not refreshed.
+    @Test
+    fun a401RefusingTheProofIsResentOnceWithAFreshProofAndNoRefresh() = runTest {
+        val hey = mockHey(status(401, headers = proofRefused), ok("[]"))
+        val proofs = Proofs()
+        proofs.client(hey).boxes.list()
+        assertEquals(listOf("proof-1", "proof-2"), hey.requests.map { it.header("DPoP") })
+        assertEquals(0, proofs.refreshes)
+    }
+
+    @Test
+    fun aProofRefusedAgainAfterItsResendIsSurfacedWithNoRefresh() = runTest {
+        val hey = mockHey(status(401, headers = proofRefused), status(401, headers = proofRefused))
+        val proofs = Proofs()
+        val error = assertFailsWith<HeyException.Auth> { proofs.client(hey).boxes.list() }
+        assertEquals(2, hey.requests.size)
+        assertEquals(401, error.httpStatus)
+        assertEquals(0, proofs.refreshes)
+    }
+
+    // A mutation that went through and was redirected is never sent again for its hop's refused
+    // proof: the 401 is the caller's, and the contact is made once.
+    @Test
+    fun aRedirectedMutationWhoseHopHadItsProofRefusedIsNotSentAgain() = runTest {
+        val hey =
+            mockHey(
+                status(303, headers = mapOf(HttpHeaders.Location to "/contacts/1.json")),
+                status(401, headers = proofRefused),
+                ok("""{"id":1}"""),
+            )
+        val proofs = Proofs()
+        assertFailsWith<HeyException.Auth> {
+            proofs.client(hey).contacts.create(
+                CreateContactRequestContent(contact = ContactPayload(name = "Jane", emailAddress = SensitiveString("jane@example.com"))),
+            )
+        }
+        assertEquals(listOf("POST", "GET"), hey.requests.map { it.method })
+        assertEquals(0, proofs.refreshes)
+    }
+
+    // A strategy that signs DPoP proofs, each naming the nonce the client hands it for the
+    // request's server (RFC 9449, 9).
+    private class Nonces : AuthStrategy {
+        var refreshes = 0
+
+        override suspend fun authenticate(request: HttpRequestBuilder) {
+            request.header(HttpHeaders.Authorization, "DPoP bound")
+            request.header("DPoP", "nonce=${request.dpopNonce}")
+        }
+
+        override suspend fun refresh(): Boolean {
+            refreshes += 1
+            return true
+        }
+    }
+
+    private val nonceAsked =
+        mapOf(HttpHeaders.WWWAuthenticate to "DPoP error=\"use_dpop_nonce\"", "DPoP-Nonce" to "n1")
+
+    // RFC 9449, 9: use_dpop_nonce refuses no token; the request goes again with the nonce the
+    // server handed out beside it, and the token is not refreshed.
+    @Test
+    fun a401AskingForANonceIsResentOnceWithTheServersNonceAndNoRefresh() = runTest {
+        val hey = mockHey(status(401, headers = nonceAsked), ok("[]"))
+        val nonces = Nonces()
+        nonces.client(hey).boxes.list()
+        assertEquals(listOf("nonce=null", "nonce=n1"), hey.requests.map { it.header("DPoP") })
+        assertEquals(0, nonces.refreshes)
+    }
+
+    // RFC 9449, 8.2: a server hands out its next nonce with any answer.
+    @Test
+    fun aNonceAnyAnswerHandsOutSignsTheNextRequestToItsServer() = runTest {
+        val hey = mockHey(ok("[]", mapOf("DPoP-Nonce" to "n2")), ok("[]"))
+        val client = Nonces().client(hey)
+        client.boxes.list()
+        client.boxes.list()
+        assertEquals(listOf("nonce=null", "nonce=n2"), hey.requests.map { it.header("DPoP") })
+    }
+
+    // A same-origin redirect's nonce signs the hop it leads to, as any answer's does.
+    @Test
+    fun aNonceASameOriginRedirectHandsOutSignsTheHopItLeadsTo() = runTest {
+        val hey =
+            mockHey(
+                status(302, headers = mapOf(HttpHeaders.Location to "/boxes/again.json", "DPoP-Nonce" to "n3")),
+                ok("[]"),
+            )
+        Nonces().client(hey).boxes.list()
+        assertEquals(listOf("nonce=null", "nonce=n3"), hey.requests.map { it.header("DPoP") })
+    }
+
+    // A nonce is its server's: one another origin handed out never goes in a proof for this one.
+    @Test
+    fun aNonceAnotherOriginHandedOutNeverSignsForThisOne() = runTest {
+        val hey =
+            mockHey(
+                status(302, headers = mapOf(HttpHeaders.Location to "https://elsewhere.example/boxes.json")),
+                ok("[]", mapOf("DPoP-Nonce" to "theirs")),
+                ok("[]"),
+            )
+        val client = Nonces().client(hey)
+        client.boxes.list()
+        client.boxes.list()
+        assertEquals("elsewhere.example", hey.requests[1].url.host)
+        assertEquals("nonce=null", hey.requests[2].header("DPoP"))
+    }
+
     @Test
     fun a401IsNotResentWhenTheCredentialsCannotBeRefreshed() = runTest {
         val hey = mockHey(status(401))
