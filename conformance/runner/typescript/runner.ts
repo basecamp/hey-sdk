@@ -45,7 +45,7 @@ const inventory: Record<string, { name: string; operation: string }[]> =
   );
 assert.equal(
   exclusions.length,
-  4,
+  5,
   "Applicability boundary changed; review required",
 );
 const schemas = spec.components.schemas;
@@ -178,6 +178,8 @@ async function run(tc: Fixture) {
   const port = (server.address() as { port: number }).port;
   const baseUrl = `http://127.0.0.1:${port}`;
   let error: any, result: any;
+  // Every refresh the client asks for is counted; a token that cannot be refreshed offers none.
+  let refreshes = 0;
   try {
     let token = "conformance-test-token";
     let client = new HeyClient({
@@ -186,6 +188,7 @@ async function run(tc: Fixture) {
         ? {
             getToken: () => token,
             refresh: () => {
+              refreshes++;
               token = "conformance-refreshed-token";
             },
           }
@@ -227,6 +230,9 @@ async function run(tc: Fixture) {
     switch (a.type) {
       case "requestCount":
         assert.equal(requests.length, a.expected);
+        break;
+      case "refreshCount":
+        assert.equal(refreshes, a.expected, "credential refreshes");
         break;
       case "delayBetweenRequests":
         assert.ok(requests.length > 1);
@@ -355,6 +361,16 @@ for (const file of files) {
           (operationMetadata.GetWorkflowStage as { responseMediaType?: string })
             .responseMediaType,
           "text/html",
+        );
+      } else if (tc.tags?.includes("redirect")) {
+        // The client sends with redirect: "manual" and follows no hop, so a case about what
+        // happens on one is outside what it does.
+        assert.ok(
+          tc.mockResponses.some(
+            (r: any) =>
+              r.status >= 300 && r.status < 400 && r.headers?.Location,
+          ),
+          "Only a case that answers with a redirect may be excluded for one",
         );
       } else {
         assert.equal(tc.operation, "UpdateCalendarEvent");

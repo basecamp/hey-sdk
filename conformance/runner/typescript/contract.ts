@@ -27,6 +27,7 @@ const json: Check = value => scalar(value) || (Array.isArray(value)
 const fields = (check: Check): Check => value => record(value) && Object.values(value).every(check);
 const shapes: Record<string, { required: Record<string, Check>; optional?: Record<string, Check> }> = {
   requestCount: { required: { expected: integer } },
+  refreshCount: { required: { expected: integer } },
   delayBetweenRequests: { required: {}, optional: { min: nonnegative, max: nonnegative } },
   noError: { required: {} },
   errorCode: { required: { expected: nonempty } },

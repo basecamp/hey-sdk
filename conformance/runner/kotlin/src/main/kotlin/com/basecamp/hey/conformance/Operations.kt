@@ -76,6 +76,7 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.serializer
+import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
@@ -102,10 +103,10 @@ sealed class Outcome {
  * Builds the client the case asks for and runs its operation as many times as
  * `repeatOperation` says, answering what the last run did. A case at the generated layer
  * goes on past a run that failed with a status HEY answered, as the Go runner's generated
- * client does; any other failure ends the case.
+ * client does; any other failure ends the case. Each refresh the client asks for is counted in [refreshes].
  */
-suspend fun executeCase(case: TestCase, baseUrl: String): Result<Outcome> {
-    val client = runCatching { clientFor(case, baseUrl) }.getOrElse { return Result.failure(it) }
+suspend fun executeCase(case: TestCase, baseUrl: String, refreshes: AtomicInteger): Result<Outcome> {
+    val client = runCatching { clientFor(case, baseUrl, refreshes) }.getOrElse { return Result.failure(it) }
     var outcome: Result<Outcome> = Result.success(Outcome.Unit)
     repeat(case.runs) {
         outcome = runCatching { execute(client, case) }
@@ -119,8 +120,8 @@ suspend fun executeCase(case: TestCase, baseUrl: String): Result<Outcome> {
 }
 
 /** The client layer the case exercises. */
-suspend fun clientFor(case: TestCase, baseUrl: String): HeyClient {
-    val credentials = ConformanceCredentials(case.configOverrides.refreshableCredentials)
+suspend fun clientFor(case: TestCase, baseUrl: String, refreshes: AtomicInteger = AtomicInteger()): HeyClient {
+    val credentials = ConformanceCredentials(case.configOverrides.refreshableCredentials, refreshes)
     return when {
         case.isHeyLayer -> HeyClient {
             this.baseUrl = baseUrl
@@ -144,13 +145,17 @@ suspend fun clientFor(case: TestCase, baseUrl: String): HeyClient {
     }
 }
 
-/** The token every request goes out with. A refreshable one is swapped for the refreshed token on a 401. */
-private class ConformanceCredentials(private val refreshable: Boolean) : TokenProvider {
+/**
+ * The token every request goes out with. A refreshable one is swapped for the refreshed token on a 401.
+ * Every refresh asked for is counted, whether or not it succeeds.
+ */
+private class ConformanceCredentials(private val refreshable: Boolean, private val refreshes: AtomicInteger) : TokenProvider {
     private val token = AtomicReference(CONFORMANCE_TOKEN)
 
     override suspend fun accessToken(): String = token.get()
 
     override suspend fun refresh(): Boolean {
+        refreshes.incrementAndGet()
         if (!refreshable) return false
         token.set(REFRESHED_TOKEN)
         return true

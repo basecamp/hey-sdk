@@ -67,6 +67,26 @@ class CredentialRefreshTest {
         assertEquals(hey.requests[0].body, hey.requests[1].body)
     }
 
+    // A write HEY answered with a redirect went through: a 401 on the hop renews the token for
+    // the requests after it, and the write is not made again.
+    @Test
+    fun aRedirectedMutationWhoseHopHadItsTokenRefusedIsRefreshedButNotSentAgain() = runTest {
+        val hey =
+            mockHey(
+                status(303, headers = mapOf(HttpHeaders.Location to "/contacts/1.json")),
+                status(401, headers = mapOf(HttpHeaders.WWWAuthenticate to "Bearer error=\"invalid_token\"")),
+                ok("""{"id":1}"""),
+            )
+        val credentials = Credentials(refreshable = true)
+        assertFailsWith<HeyException.Auth> {
+            hey.client { accessToken(credentials) }.contacts.create(
+                CreateContactRequestContent(contact = ContactPayload(name = "Jane", emailAddress = SensitiveString("jane@example.com"))),
+            )
+        }
+        assertEquals(listOf("POST", "GET"), hey.requests.map { it.method })
+        assertEquals(1, credentials.refreshes)
+    }
+
     @Test
     fun a401ThatOutlivesTheRefreshIsSurfacedAfterTheOneResend() = runTest {
         val hey = mockHey(status(401), status(401))

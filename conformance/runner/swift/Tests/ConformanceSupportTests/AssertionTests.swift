@@ -6,10 +6,12 @@ import XCTest
 final class AssertionTests: XCTestCase {
     private func json(_ text: String) throws -> FixtureJSON { try FixtureJSON.parse(text) }
 
-    private func run(_ recorded: Recorded, _ assertions: Assertion..., outcome: Result<Outcome, any Error> = .success(.unit)) -> Run {
+    private func run(
+        _ recorded: Recorded, _ assertions: Assertion..., outcome: Result<Outcome, any Error> = .success(.unit), refreshes: Int = 0
+    ) -> Run {
         Run(
             testCase: TestCase(name: "t", operation: "ListBoxes", assertions: assertions), outcome: outcome, recorded: recorded,
-            baseURL: "http://127.0.0.1:1")
+            refreshes: refreshes, baseURL: "http://127.0.0.1:1")
     }
 
     private func failure(_ run: Run, file: StaticString = #filePath, line: UInt = #line) -> String {
@@ -121,6 +123,12 @@ final class AssertionTests: XCTestCase {
         XCTAssertTrue(failure(run(recorded, assertion, outcome: page(.failure(CancellationError())))).contains("as a usage error"))
         recorded.links = [#"<http://127.0.0.1:1/boxes.json?page=2>; rel="next""#]
         XCTAssertTrue(failure(run(recorded, assertion, outcome: page(.failure(HeyError.usage(message: "x"))))).contains("same origin"))
+    }
+
+    func testTheRefreshCountIsTheTimesTheCredentialsWereAskedToRefresh() {
+        let once = Assertion(type: "refreshCount", expected: .number("1"))
+        XCTAssertTrue(failure(run(Recorded(), once)).contains("Expected 1 credential refreshes, got 0"))
+        XCTAssertNoThrow(try checkAll(run(Recorded(), once, refreshes: 1)))
     }
 
     func testAnUnknownAssertionTypeFails() {

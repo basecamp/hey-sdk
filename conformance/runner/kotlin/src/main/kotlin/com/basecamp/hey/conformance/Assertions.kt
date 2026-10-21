@@ -16,11 +16,12 @@ import java.net.URI
 
 class AssertionFailure(message: String) : RuntimeException(message)
 
-/** One case after it ran: what the SDK answered and what the mock server saw. */
+/** One case after it ran: what the SDK answered, what the mock server saw and how many times the client asked its credentials to refresh. */
 class Run(
     val case: TestCase,
     val outcome: Result<Outcome>,
     val recorded: Recorded,
+    val refreshes: Int,
     val baseUrl: String,
 )
 
@@ -33,6 +34,7 @@ private fun fail(message: String): Nothing = throw AssertionFailure(message)
 private fun check(run: Run, assertion: Assertion) {
     when (assertion.type) {
         "requestCount" -> checkRequestCount(run, assertion)
+        "refreshCount" -> checkRefreshCount(run, assertion)
         "delayBetweenRequests" -> checkDelayBetweenRequests(run, assertion)
         "noError" -> checkNoError(run)
         "errorCode" -> checkErrorCode(run, assertion)
@@ -58,6 +60,11 @@ private fun check(run: Run, assertion: Assertion) {
 private fun checkRequestCount(run: Run, assertion: Assertion) {
     val expected = expectedInt(assertion, "requestCount")
     if (run.recorded.count.toLong() != expected) fail("Expected $expected requests, got ${run.recorded.count}")
+}
+
+private fun checkRefreshCount(run: Run, assertion: Assertion) {
+    val expected = expectedInt(assertion, "refreshCount")
+    if (run.refreshes.toLong() != expected) fail("Expected $expected credential refreshes, got ${run.refreshes}")
 }
 
 /** Every wait between one request and the next, not only the first: a backoff that collapses after the second send is still a broken backoff. */

@@ -9,6 +9,7 @@ import (
 	"net/http/cookiejar"
 	"net/http/httptest"
 	"net/url"
+	"slices"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -220,6 +221,74 @@ func TestUnauthorizedOnASameOriginRedirectChainIsRetriedAfterARefresh(t *testing
 	want := []string{"/start.json Bearer stale", "/final.json Bearer stale", "/start.json Bearer fresh", "/final.json Bearer fresh"}
 	if fmt.Sprint(seen) != fmt.Sprint(want) {
 		t.Errorf("requests = %v, want %v", seen, want)
+	}
+}
+
+// redirectedWriteServer answers a POST to /contacts.json with a 303 to the contact, and the
+// contact with 401 until it is asked with the fresh token: a write that went through, whose
+// hop was refused. It records each request's method.
+func redirectedWriteServer(t *testing.T) (*httptest.Server, func() []string) {
+	t.Helper()
+	var mu sync.Mutex
+	var methods []string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		methods = append(methods, r.Method)
+		mu.Unlock()
+		switch {
+		case r.Method == http.MethodPost && r.URL.Path == "/contacts.json":
+			http.Redirect(w, r, "/contacts/1.json", http.StatusSeeOther)
+		case r.Header.Get("Authorization") != "Bearer fresh":
+			http.Error(w, "unauthorized", http.StatusUnauthorized)
+		default:
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = io.WriteString(w, `{"id":1}`)
+		}
+	}))
+	t.Cleanup(server.Close)
+	return server, func() []string {
+		mu.Lock()
+		defer mu.Unlock()
+		return slices.Clone(methods)
+	}
+}
+
+// A write HEY answered with a redirect went through: a 401 on the hop renews the token for
+// the requests after it, and the write is not made again.
+func TestARedirectedMutationWhoseHopWasRefusedIsRefreshedButNotSentAgain(t *testing.T) {
+	server, methods := redirectedWriteServer(t)
+	auth := &refreshingAuth{refreshed: "fresh"}
+	auth.token.Store("stale")
+	client := NewClient(&Config{BaseURL: server.URL}, nil, WithAuthStrategy(auth), WithMaxRetries(0))
+
+	_, err := client.Post(context.Background(), "/contacts.json", map[string]any{"contact": map[string]any{"name": "Jane"}})
+	if apiErr := (*Error)(nil); !errors.As(err, &apiErr) || apiErr.Code != CodeAuth {
+		t.Fatalf("expected the hop's 401 as an auth error, got %v", err)
+	}
+	if refreshes := auth.refreshes.Load(); refreshes != 1 {
+		t.Errorf("expected one refresh, got %d", refreshes)
+	}
+	if got, want := methods(), []string{"POST", "GET"}; fmt.Sprint(got) != fmt.Sprint(want) {
+		t.Errorf("requests = %v, want %v", got, want)
+	}
+}
+
+// The same through a generated operation.
+func TestARedirectedGeneratedMutationWhoseHopWasRefusedIsRefreshedButNotSentAgain(t *testing.T) {
+	server, methods := redirectedWriteServer(t)
+	auth := &refreshingAuth{refreshed: "fresh"}
+	auth.token.Store("stale")
+	client := NewClient(&Config{BaseURL: server.URL}, nil, WithAuthStrategy(auth), WithMaxRetries(0))
+
+	_, err := client.Contacts().Create(context.Background(), ContactParams{Name: "Jane", EmailAddress: "jane@example.com"})
+	if apiErr := (*Error)(nil); !errors.As(err, &apiErr) || apiErr.Code != CodeAuth {
+		t.Fatalf("expected the hop's 401 as an auth error, got %v", err)
+	}
+	if refreshes := auth.refreshes.Load(); refreshes != 1 {
+		t.Errorf("expected one refresh, got %d", refreshes)
+	}
+	if got, want := methods(), []string{"POST", "GET"}; fmt.Sprint(got) != fmt.Sprint(want) {
+		t.Errorf("requests = %v, want %v", got, want)
 	}
 }
 

@@ -651,7 +651,10 @@ class HeyClient internal constructor(
                 hooks.safeRequestEnd(info, RequestResult(status, duration, error = reported(error, "request cancelled")))
                 throw error
             }
-            if (renewed) {
+            // Renewed for every request after it, but a mutation the server answered with a
+            // redirect may already be made (a 302 or 303 can answer a write that went through): sent
+            // again it could be made twice, so its hop's 401 is the caller's.
+            if (renewed && (operation.idempotent || !received.redirected)) {
                 val cause = HeyException.Auth("Token refreshed")
                 hooks.safeRequestEnd(info, RequestResult(status, duration, error = cause))
                 hooks.safeRetry(info, attempt + 1, cause, 0)

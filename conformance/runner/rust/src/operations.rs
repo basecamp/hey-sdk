@@ -1,4 +1,5 @@
-use std::sync::Mutex;
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use async_trait::async_trait;
@@ -53,8 +54,19 @@ impl Outcome {
 /// layer goes on past a run that failed with a status HEY answered, since the Go runner's
 /// generated client counts such a run as answered rather than failed and goes on the same
 /// way; any other failure ends the case, as every failure does at the HEY layer there.
-pub async fn execute_case(case: &TestCase, base_url: &str) -> Result<Outcome, Error> {
-    let client = client_for(case, base_url).await?;
+/// Beside the outcome it answers how many times the client asked for a refresh.
+pub async fn execute_case(case: &TestCase, base_url: &str) -> (Result<Outcome, Error>, usize) {
+    let refreshes = Arc::new(AtomicUsize::new(0));
+    let outcome = execute_runs(case, base_url, &refreshes).await;
+    (outcome, refreshes.load(Ordering::SeqCst))
+}
+
+async fn execute_runs(
+    case: &TestCase,
+    base_url: &str,
+    refreshes: &Arc<AtomicUsize>,
+) -> Result<Outcome, Error> {
+    let client = client_for(case, base_url, refreshes).await?;
     let mut outcome = Ok(Outcome::Unit);
     for _ in 0..case.runs() {
         outcome = execute(&client, case).await;
@@ -72,9 +84,16 @@ pub async fn execute_case(case: &TestCase, base_url: &str) -> Result<Outcome, Er
 /// The client layer the case exercises. An account-scoped client checks the account
 /// against the identity as it is derived, so that read is the case's first request and its
 /// failure is the case's error.
-async fn client_for(case: &TestCase, base_url: &str) -> Result<Client, Error> {
+async fn client_for(
+    case: &TestCase,
+    base_url: &str,
+    refreshes: &Arc<AtomicUsize>,
+) -> Result<Client, Error> {
     let config = Config::default().with_base_url(base_url);
-    let credentials = ConformanceCredentials::new(case.config_overrides.refreshable_credentials);
+    let credentials = ConformanceCredentials::new(
+        case.config_overrides.refreshable_credentials,
+        Arc::clone(refreshes),
+    );
     if case.is_hey_layer() {
         // The client's own retry settings are a ceiling over each operation's policy, and a
         // case that exercises the ceiling says where it sits; any other case runs with no
@@ -107,17 +126,19 @@ async fn client_for(case: &TestCase, base_url: &str) -> Result<Client, Error> {
 
 /// The token every request goes out with. A case that marks its credentials refreshable
 /// has a 401 answered by swapping in the refreshed token; for any other case the refresh
-/// fails and the 401 stands.
+/// fails and the 401 stands. Every refresh asked for is counted, whether or not it succeeds.
 struct ConformanceCredentials {
     token: Mutex<String>,
     refreshable: bool,
+    refreshes: Arc<AtomicUsize>,
 }
 
 impl ConformanceCredentials {
-    fn new(refreshable: bool) -> ConformanceCredentials {
+    fn new(refreshable: bool, refreshes: Arc<AtomicUsize>) -> ConformanceCredentials {
         ConformanceCredentials {
             token: Mutex::new(CONFORMANCE_TOKEN.to_string()),
             refreshable,
+            refreshes,
         }
     }
 }
@@ -130,6 +151,7 @@ impl TokenProvider for ConformanceCredentials {
     }
 
     async fn refresh(&self) -> bool {
+        self.refreshes.fetch_add(1, Ordering::SeqCst);
         if self.refreshable {
             REFRESHED_TOKEN.clone_into(&mut self.token.lock().unwrap());
             true

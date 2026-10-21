@@ -206,7 +206,9 @@ gentler — `maxRetries` caps the sends, `baseRetryDelay` holds the first wait u
 `maxRetryDelay` holds every wait down — so an operation the model calls non-idempotent is sent
 once whatever the client says, and one whose policy allows two sends gets two however high the
 client's ceiling. A `Retry-After` on a 429 is honoured as given. A 401 is answered by one
-credential refresh and one resend, for any operation.
+credential refresh and one resend, for any operation, but for a non-idempotent write HEY
+answered with a redirect, which may already be made (a 302 or 303 can answer a write that went
+through): a 401 on its hop refreshes and is the caller's.
 
 ## Cache
 

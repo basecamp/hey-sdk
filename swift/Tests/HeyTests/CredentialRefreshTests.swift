@@ -95,6 +95,21 @@ final class CredentialRefreshTests: XCTestCase {
         XCTAssertEqual(hey.requests[0].body, hey.requests[1].body)
     }
 
+    /// A write HEY answered with a redirect went through: a 401 on the hop renews the token for the
+    /// requests after it, and the write is not made again.
+    func testARedirectedMutationWhoseHopHadItsTokenRefusedIsRefreshedButNotSentAgain() async throws {
+        let hey = mockHey(
+            status(303, nil, [("Location", "/contacts/1.json")]),
+            status(401, nil, [("WWW-Authenticate", #"Bearer error="invalid_token""#)]),
+            ok(#"{"id":1}"#)
+        )
+        let credentials = renewing()
+        let body = CreateContactRequestContent(contact: ContactPayload(name: "Jane", emailAddress: SensitiveString("jane@example.com")))
+        await assertThrows(HeyError.codeAuth, try await hey.client(auth: BearerAuth(tokenProvider: credentials)).contacts.create(body: body))
+        XCTAssertEqual(hey.requests.map(\.method), ["POST", "GET"])
+        XCTAssertEqual(credentials.refreshes, 1)
+    }
+
     func testA401ThatOutlivesTheRefreshIsSurfacedAfterTheOneResend() async throws {
         let hey = mockHey(status(401), status(401))
         let credentials = renewing()

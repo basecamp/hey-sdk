@@ -8,10 +8,10 @@ private let refreshedToken = "conformance-refreshed-token"
 /// Builds the client the case asks for and runs its operation as many times as `repeatOperation`
 /// says, answering what the last run did. A case at the generated layer goes on past a run that
 /// failed with a status HEY answered, as the Go runner's generated client does; any other failure
-/// ends the case.
-func executeCase(_ testCase: TestCase, _ baseURL: String) async -> Result<Outcome, any Error> {
+/// ends the case. Each refresh the client asks for is counted in `refreshes`.
+func executeCase(_ testCase: TestCase, _ baseURL: String, _ refreshes: RefreshCounter) async -> Result<Outcome, any Error> {
     let client: HeyClient
-    switch await capture({ try await clientFor(testCase, baseURL) }) {
+    switch await capture({ try await clientFor(testCase, baseURL, refreshes) }) {
     case let .success(built): client = built
     case let .failure(error): return .failure(error)
     }
@@ -27,9 +27,9 @@ func executeCase(_ testCase: TestCase, _ baseURL: String) async -> Result<Outcom
 }
 
 /// The client layer the case exercises.
-func clientFor(_ testCase: TestCase, _ baseURL: String) async throws -> HeyClient {
+func clientFor(_ testCase: TestCase, _ baseURL: String, _ refreshes: RefreshCounter = RefreshCounter()) async throws -> HeyClient {
     let overrides = testCase.configOverrides
-    let credentials = ConformanceCredentials(refreshable: overrides.refreshableCredentials)
+    let credentials = ConformanceCredentials(refreshable: overrides.refreshableCredentials, refreshes: refreshes)
     if testCase.isHeyLayer {
         var config = HeyConfig(baseURL: baseURL, enableCache: overrides.cacheEnabled, maxRetries: overrides.maxRetries ?? 0)
         if let delay = overrides.baseDelayMs { config.baseRetryDelay = .milliseconds(delay) }
@@ -44,14 +44,26 @@ func clientFor(_ testCase: TestCase, _ baseURL: String) async throws -> HeyClien
         config: HeyConfig(baseURL: baseURL, maxRetries: 3, baseRetryDelay: .seconds(1), maxRetryDelay: .seconds(30)))
 }
 
+/// How many times a client asked its credentials to refresh, whether or not the refresh succeeded.
+final class RefreshCounter: @unchecked Sendable {
+    private let lock = NSLock()
+    private var count = 0
+
+    var value: Int { lock.withLock { count } }
+
+    func increment() { lock.withLock { count += 1 } }
+}
+
 /// The token every request goes out with. A refreshable one is swapped for the refreshed token on a 401.
 private final class ConformanceCredentials: TokenProvider, @unchecked Sendable {
     private let refreshable: Bool
+    private let refreshes: RefreshCounter
     private let lock = NSLock()
     private var token = conformanceToken
 
-    init(refreshable: Bool) {
+    init(refreshable: Bool, refreshes: RefreshCounter) {
         self.refreshable = refreshable
+        self.refreshes = refreshes
     }
 
     func accessToken() async throws -> String {
@@ -59,6 +71,7 @@ private final class ConformanceCredentials: TokenProvider, @unchecked Sendable {
     }
 
     func refresh() async throws -> Bool {
+        refreshes.increment()
         guard refreshable else { return false }
         lock.withLock { token = refreshedToken }
         return true
