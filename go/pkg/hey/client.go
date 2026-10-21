@@ -386,7 +386,7 @@ func (c *Client) refreshCredentials(ctx context.Context) bool {
 
 // resendAfter401 is the generated client's refresher hook: it refreshes as
 // refreshCredentials does, and answers whether to send the operation again. A write HEY
-// answered with a redirect may already be made (a 302 or 303 answers a write that went
+// answered with a redirect may already be made (a 302 or 303 can answer a write that went
 // through), and only its hop was refused: the refresh serves the requests after it, and the
 // write is not risked twice, so the 401 is the caller's.
 func (c *Client) resendAfter401(ctx context.Context) bool {
@@ -1210,7 +1210,7 @@ func (c *Client) singleRequest(ctx context.Context, method, url string, body any
 				return nil, err
 			}
 			// Renewed for every request after it, but a POST or PATCH HEY answered with a
-			// redirect may already be made (a 302 or 303 answers a write that went through):
+			// redirect may already be made (a 302 or 303 can answer a write that went through):
 			// sent again it could be made twice, so its hop's 401 is the caller's.
 			wentThrough := redirected.followed && (method == http.MethodPost || method == http.MethodPatch)
 			if renewed && !wentThrough {

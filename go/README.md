@@ -16,7 +16,7 @@ a request whose own context ends while it waits returns its context's error and 
 refresh running. When the SDK's bearer strategy signed the request, the provider is asked
 what it would sign with first: a token it has already renewed is resent without a refresh,
 and a provider that cannot hand over a token at all is the refresh failing. A non-idempotent
-write HEY answered with a redirect may already be made (a 302 or 303 answers a write that
+write HEY answered with a redirect may already be made (a 302 or 303 can answer a write that
 went through): a 401 on its hop refreshes, and is the caller's rather than a reason to risk
 making the write twice. An idempotent operation is resent as any other.
 
