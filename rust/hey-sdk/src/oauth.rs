@@ -50,6 +50,34 @@ impl ServerMetadata {
             scopes_supported: None,
         }
     }
+
+    /// Holds discovered metadata to RFC 8414 §3.3: it names the issuer it was asked for, or
+    /// it is not used, which keeps one server from answering for another. Endpoints may sit
+    /// on other hosts, but every one must be HTTPS.
+    fn validate(&self, issuer: &str) -> Result<(), Error> {
+        let endpoints = [
+            Some(&self.issuer),
+            Some(&self.authorization_endpoint),
+            Some(&self.token_endpoint),
+            self.registration_endpoint.as_ref(),
+        ];
+        for endpoint in endpoints.into_iter().flatten() {
+            let url = Url::parse(endpoint).map_err(|_| {
+                Error::api(200, "Invalid OAuth discovery response")
+                    .with_hint(format!("{endpoint} is not an absolute URL"))
+            })?;
+            require_secure_endpoint(&url).map_err(|_| {
+                Error::api(200, "Invalid OAuth discovery response")
+                    .with_hint(format!("{endpoint} must use HTTPS"))
+            })?;
+        }
+        if self.issuer == issuer {
+            Ok(())
+        } else {
+            Err(Error::api(200, "OAuth discovery issuer does not match")
+                .with_hint(format!("asked {issuer}, answered {}", self.issuer)))
+        }
+    }
 }
 
 /// A token response. `expires_in` is a lifetime that starts decaying the moment the server
@@ -200,16 +228,35 @@ impl OAuthClient {
         }
     }
 
-    /// What the server under `base_url` publishes at its well-known endpoint. HEY publishes
-    /// nothing there; [`ServerMetadata::for_hey`] is its answer.
+    /// What the issuer at `base_url` publishes at its well-known endpoint (RFC 8414). HEY
+    /// publishes nothing there; [`ServerMetadata::for_hey`] is its answer.
+    ///
+    /// The metadata names the endpoints a code, its verifier, the client secret and refresh
+    /// tokens go to, so it is trusted only from where it was asked: the issuer must be HTTPS,
+    /// with no query, fragment or credentials, and is refused before anything is sent; a
+    /// redirect is an error, as the [`HttpClient`] follows none; and the metadata is used only
+    /// when it names that same issuer and HTTPS endpoints.
     pub async fn discover(&self, base_url: &str) -> Result<ServerMetadata, Error> {
-        let url = format!(
-            "{}/.well-known/oauth-authorization-server",
-            base_url.trim_end_matches('/')
-        );
+        let issuer = Url::parse(base_url)?;
+        require_secure_endpoint(&issuer)?;
+        if issuer.query().is_some()
+            || issuer.fragment().is_some()
+            || !issuer.username().is_empty()
+            || issuer.password().is_some()
+        {
+            return Err(Error::usage(
+                "OAuth issuer must have no query, fragment or credentials",
+            ));
+        }
+        // The well-known path goes between the host and the issuer's own path (RFC 8414 §3.1).
+        let mut url = issuer.clone();
+        url.set_path(&format!(
+            "/.well-known/oauth-authorization-server{}",
+            issuer.path().trim_end_matches('/')
+        ));
         let request = Request::builder()
             .method(Method::GET)
-            .uri(url)
+            .uri(url.as_str())
             .header(ACCEPT, "application/json")
             .body(Bytes::new())
             .map_err(Error::from_std)?;
@@ -218,7 +265,9 @@ impl OAuthClient {
         let status = response.status();
         if status == StatusCode::OK {
             let body = read_capped(response, MAX_TOKEN_RESPONSE_BYTES).await?;
-            Ok(serde_json::from_slice(&body)?)
+            let metadata: ServerMetadata = serde_json::from_slice(&body)?;
+            metadata.validate(base_url)?;
+            Ok(metadata)
         } else {
             let body = read_truncated(response, MAX_DISCOVERY_ERROR_BYTES).await;
             Err(Error::api(
