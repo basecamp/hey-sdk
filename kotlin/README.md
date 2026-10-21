@@ -38,7 +38,7 @@ and never another origin's. A 401 whose challenge refuses only the proof (`inval
 or asks for a nonce (`use_dpop_nonce`) is sent once more with a fresh proof and never refreshes
 the token; a second such refusal is the caller's. A non-idempotent write HEY answered with a
 redirect is not sent again for its hop's refused proof, since it may already be made (a 302 or
-303 answers a write that went through); an idempotent operation is sent again, as it is after a
+303 can answer a write that went through); an idempotent operation is sent again, as it is after a
 refreshed token.
 
 ```kotlin

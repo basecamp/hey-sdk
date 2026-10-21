@@ -625,7 +625,7 @@ class HeyClient internal constructor(
             // (RFC 9449, 7.1), or a nonce it did not name (9). Sent once more with a fresh proof,
             // naming the nonce just heard, and never a refresh, which would spend a good token. A
             // mutation the server answered with a redirect may already be made (a 302 or 303
-            // answers a write that went through), and only its hop was refused: sending the
+            // can answer a write that went through), and only its hop was refused: sending the
             // operation again could make it twice, so the 401 is the caller's. A server that
             // takes Bearer and DPoP may send a challenge for each, in one field or in fields of
             // their own: the proof's refusal is heard in whichever carries it. Only a request that
