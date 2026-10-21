@@ -593,7 +593,27 @@ mod tests {
         ] {
             let error = OAuthClient::default().discover(issuer).await.unwrap_err();
 
-            assert_eq!(None, error.http_status(), "{issuer} was sent");
+            // A request sent would end as a network or API error, never a usage one.
+            assert_eq!(
+                crate::error::ErrorCode::Usage,
+                error.code(),
+                "{issuer}: {error:?}"
+            );
+        }
+    }
+
+    // An error is logged, so a password in the issuer stays out of it.
+    #[cfg(feature = "reqwest")]
+    #[tokio::test]
+    async fn discover_keeps_an_issuers_credentials_out_of_its_error() {
+        for issuer in [
+            "https://user:secret@app.hey.com",
+            "http://user:secret@evil.example",
+        ] {
+            let error = OAuthClient::default().discover(issuer).await.unwrap_err();
+
+            assert!(!format!("{error}").contains("secret"), "{error}");
+            assert!(!format!("{error:?}").contains("secret"), "{error:?}");
         }
     }
 
@@ -620,6 +640,8 @@ mod tests {
             ("authorization_endpoint", "http://evil.example/authorize"),
             ("registration_endpoint", "http://evil.example/register"),
             ("token_endpoint", ""),
+            ("token_endpoint", "https://user:secret@token.example/oauth"),
+            ("token_endpoint", "https://token.example/oauth#fragment"),
         ] {
             let server = MockServer::start().await;
             let mut answer = json!(metadata(&server.uri()));

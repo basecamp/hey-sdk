@@ -102,6 +102,12 @@ func TestRequireSecureEndpoint(t *testing.T) {
 	if err := RequireSecureEndpoint("http://example.com"); err == nil {
 		t.Fatal("expected error for non-localhost HTTP")
 	}
+	// Localhost lets plain HTTP through, not any scheme at all.
+	for _, endpoint := range []string{"ftp://localhost/token", "javascript://localhost/%0Aalert(1)"} {
+		if err := RequireSecureEndpoint(endpoint); err == nil {
+			t.Fatalf("expected error for %s", endpoint)
+		}
+	}
 }
 
 func TestRedactHeaders(t *testing.T) {

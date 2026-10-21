@@ -119,6 +119,17 @@ func TestDiscoverRefusesAnInsecureIssuer(t *testing.T) {
 	}
 }
 
+// An error is logged, so a password in the issuer stays out of it.
+func TestDiscoverKeepsAnIssuersCredentialsOutOfItsError(t *testing.T) {
+	for _, issuer := range []string{"https://user:secret@app.hey.com", "http://user:secret@evil.example"} {
+		_, err := NewDiscoverer(nil).Discover(context.Background(), issuer)
+
+		if err == nil || strings.Contains(err.Error(), "secret") {
+			t.Errorf("got %v", err)
+		}
+	}
+}
+
 // RFC 8414 §3.3: the issuer the metadata names must be the one it was asked for, or the
 // metadata is not used, which keeps one server from answering for another.
 func TestDiscoverRefusesMetadataOfAnotherIssuer(t *testing.T) {
@@ -145,6 +156,13 @@ func TestDiscoverRefusesIncompleteOrInsecureMetadata(t *testing.T) {
 			m["registration_endpoint"] = "http://evil.example/register"
 		},
 		"a token endpoint with no host": func(m map[string]any) { m["token_endpoint"] = "https:/token" },
+		"a token endpoint with credentials": func(m map[string]any) {
+			m["token_endpoint"] = "https://user:secret@token.example/oauth"
+		},
+		"a token endpoint with a fragment": func(m map[string]any) {
+			m["token_endpoint"] = "https://token.example/oauth#fragment"
+		},
+		"a non-HTTP endpoint on localhost": func(m map[string]any) { m["token_endpoint"] = "ftp://localhost/token" },
 	}
 	for name, spoil := range cases {
 		t.Run(name, func(t *testing.T) {
@@ -185,6 +203,25 @@ func TestDiscoverAsksBeforeTheIssuersPath(t *testing.T) {
 		t.Fatal(err)
 	}
 	if requested != "/.well-known/oauth-authorization-server/tenant" {
+		t.Errorf("asked for %q", requested)
+	}
+}
+
+// An escaped slash in the issuer's path stays escaped, as it is one segment.
+func TestDiscoverKeepsTheIssuersPathEscaped(t *testing.T) {
+	var requested string
+	var server *httptest.Server
+	server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requested = r.URL.EscapedPath()
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(metadataOf(server.URL + "/a%2Fb"))
+	}))
+	defer server.Close()
+
+	if _, err := NewDiscoverer(nil).Discover(context.Background(), server.URL+"/a%2Fb"); err != nil {
+		t.Fatal(err)
+	}
+	if requested != "/.well-known/oauth-authorization-server/a%2Fb" {
 		t.Errorf("asked for %q", requested)
 	}
 }
