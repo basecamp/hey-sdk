@@ -971,13 +971,16 @@ impl Client {
                     let retry_after = retry_after_asked(retryable, received.response.headers());
                     // A 401 from a hop that carried no credentials rejected none of HEY's:
                     // there is nothing to refresh, and nothing a resend would change.
-                    if status == StatusCode::UNAUTHORIZED
+                    let renewed = status == StatusCode::UNAUTHORIZED
                         && received.authenticated
                         && !refreshed
                         && self
                             .refresh_credentials(signed.under, signed.bearer.clone())
-                            .await
-                    {
+                            .await;
+                    // Renewed for every request after it, but a mutation the server answered
+                    // with a redirect went through: sent again it would be made twice, so its
+                    // hop's 401 is the caller's.
+                    if renewed && (operation.idempotent || !received.redirected) {
                         let cause = Error::auth("Token refreshed").retryable();
                         sending.end(&RequestResult {
                             status: Some(status),

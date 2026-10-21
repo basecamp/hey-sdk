@@ -384,6 +384,19 @@ func (c *Client) refreshCredentials(ctx context.Context) bool {
 	return renewed
 }
 
+// resendAfter401 is the generated client's refresher hook: it refreshes as
+// refreshCredentials does, and answers whether to send the operation again. A write HEY
+// answered with a redirect went through, and only its hop was refused: the refresh serves
+// the requests after it, and the write is not made twice, so the 401 is the caller's.
+func (c *Client) resendAfter401(ctx context.Context) bool {
+	renewed := c.refreshCredentials(ctx)
+	if state := redirectStateFromContext(ctx); state != nil && state.followed &&
+		!generated.IsIdempotent(generated.OperationFromContext(ctx)) {
+		return false
+	}
+	return renewed
+}
+
 // answer401 is refreshCredentials with the reason a request got no answer: ctx.Err() when
 // its context ended while it waited on the refresh its 401 joined. The hand-written send
 // paths surface that error rather than an authentication failure, since the request was
@@ -524,7 +537,7 @@ func (c *Client) initGeneratedClient() {
 		gen, err := generated.NewClientWithResponses(serverURL,
 			generated.WithHTTPClient(doer),
 			generated.WithRetryConfig(retryCfg),
-			generated.WithAuthRefresher(c.refreshCredentials),
+			generated.WithAuthRefresher(c.resendAfter401),
 			generated.WithAttemptContext(withRedirectState),
 			generated.WithRetryHook(retryHook),
 			generated.WithRequestEditorFn(authEditor))
@@ -1195,7 +1208,11 @@ func (c *Client) singleRequest(ctx context.Context, method, url string, body any
 			if err != nil {
 				return nil, err
 			}
-			if renewed {
+			// Renewed for every request after it, but a POST or PATCH HEY answered with a
+			// redirect went through: sent again it would be made twice, so its hop's 401 is
+			// the caller's.
+			wentThrough := redirected.followed && (method == http.MethodPost || method == http.MethodPatch)
+			if renewed && !wentThrough {
 				return nil, &Error{
 					Code:      CodeAuth,
 					Message:   "Token refreshed",

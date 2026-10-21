@@ -334,7 +334,9 @@ idempotent, whatever its
 policy says. A path the caller wrote has no policy to bring, so an idempotent one runs on the
 client's settings alone and is resent on 429, 500, 502, 503 and 504; `get_all` and
 `follow_pagination` read every page that way. Any operation is resent once after a 401 that
-the token provider's `refresh` could answer, even with its sends spent — and once for all the
+the token provider's `refresh` could answer, even with its sends spent — but for a write HEY
+answered with a redirect, which went through, so a 401 on its hop refreshes and is the
+caller's — and once for all the
 calls a stale credential earned a 401 on: refreshes go one at a time, and a call signed before
 the last refresh is resent on the new credentials rather than refreshing again, so a rotating
 refresh token is spent once. A refresh that fails is shared the same way: every call signed
