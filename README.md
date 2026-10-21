@@ -191,7 +191,7 @@ tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 
 The crate is [`hey-sdk` on crates.io](https://crates.io/crates/hey-sdk), documented on
 [docs.rs](https://docs.rs/hey-sdk). To track the repository instead, depend on it at a release
-tag: `hey-sdk = { git = "https://github.com/basecamp/hey-sdk", tag = "v0.33.0" }`. Requires
+tag: `hey-sdk = { git = "https://github.com/basecamp/hey-sdk", tag = "v0.33.1" }`. Requires
 Rust 1.88 or newer (`rust-version` in `rust/Cargo.toml`, built on exactly that in CI); the
 crate's [Versioning](rust/hey-sdk/README.md#versioning) section says when that floor moves
 and what a version bump means.
@@ -312,7 +312,7 @@ repositories {
 }
 
 dependencies {
-    implementation("com.basecamp:hey-sdk:0.33.0")
+    implementation("com.basecamp:hey-sdk:0.33.1")
 }
 ```
 
@@ -394,7 +394,7 @@ strict Swift 6 concurrency, for macOS, iOS and Linux.
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/basecamp/hey-sdk", from: "0.33.0"),
+    .package(url: "https://github.com/basecamp/hey-sdk", from: "0.33.1"),
 ]
 ```
 
