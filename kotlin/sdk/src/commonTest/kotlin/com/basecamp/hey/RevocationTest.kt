@@ -95,10 +95,17 @@ class RevocationTest {
             status(307, headers = mapOf(HttpHeaders.Location to "https://elsewhere.example/oauth/tokens")),
             ok("{}"),
         )
-        val error = assertFailsWith<HeyException> { hey.client().revokeToken("the-app", "refresh-to-revoke") }
+        val heard = mutableListOf<Int>()
+        val hooks = object : HeyHooks {
+            override fun onRequestEnd(info: RequestInfo, result: RequestResult) {
+                heard += result.statusCode
+            }
+        }
+        val error = assertFailsWith<HeyException> { hey.client { this.hooks = hooks }.revokeToken("the-app", "refresh-to-revoke") }
         assertEquals("api_error", error.code)
         assertEquals(307, error.httpStatus)
         assertEquals(1, hey.requests.size)
+        assertEquals(listOf(307), heard, "the hooks hear the redirect that was received")
     }
 
     @Test

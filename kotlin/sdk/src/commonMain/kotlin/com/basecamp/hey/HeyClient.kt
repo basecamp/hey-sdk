@@ -894,16 +894,13 @@ class HeyClient internal constructor(
         while (true) {
             val outcome = shared.http.prepareRequest(request).execute { response ->
                 val next = if (operation.captureRedirects) null else redirectTarget(url, response)
-                if (next != null) Outcome.Redirect(next, response.status.value) else Outcome.Answer(receive(operation, url, response, hops > 0, authenticated, signedUnder, credentials.headers["authorization"]?.firstOrNull()))
+                // A request whose body is itself a credential takes no hop, since a redirect that
+                // kept the body would hand it to wherever the Location points: the 3xx is its answer.
+                if (next != null && operation.followsRedirects) Outcome.Redirect(next, response.status.value) else Outcome.Answer(receive(operation, url, response, hops > 0, authenticated, signedUnder, credentials.headers["authorization"]?.firstOrNull()))
             }
             when (outcome) {
                 is Outcome.Answer -> return outcome.received
                 is Outcome.Redirect -> {
-                    // A request whose body is itself a credential takes no hop: a redirect that
-                    // kept the body would hand it to wherever the Location points.
-                    if (!operation.followsRedirects) {
-                        throw HeyException.Api("${operation.label()} was redirected (HTTP ${outcome.status}), and follows no redirect", httpStatus = outcome.status, retryable = false)
-                    }
                     if (hops == MAX_REDIRECTS) {
                         throw HeyException.Network("${operation.label()} redirected more than $MAX_REDIRECTS times", retryable = false)
                     }
