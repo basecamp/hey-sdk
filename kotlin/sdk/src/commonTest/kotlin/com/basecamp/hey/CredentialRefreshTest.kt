@@ -144,41 +144,43 @@ class CredentialRefreshTest {
         assertEquals(0, proofs.refreshes)
     }
 
-    // A DELETE answered with a 303 went through: its GET hop's refused proof does not send the
-    // DELETE again, which would answer a deletion made with a 404, idempotent as it is.
+    // An idempotent write answered through a redirect is sent again for its hop's refused proof,
+    // as the refresh path sends it again for a refused token: repeating it is safe (RFC 9110,
+    // 9.2.2), though a DELETE already made may then answer 404.
     @Test
-    fun aRedirectedDeleteWhoseRewrittenHopHadItsProofRefusedIsNotSentAgain() = runTest {
+    fun aRedirectedIdempotentWriteWhoseHopHadItsProofRefusedIsResent() = runTest {
         val hey =
             mockHey(
                 status(303, headers = mapOf(HttpHeaders.Location to "/contacts.json")),
                 status(401, headers = proofRefused),
-                status(404),
+                status(303, headers = mapOf(HttpHeaders.Location to "/contacts.json")),
+                ok("[]"),
             )
         val proofs = Proofs()
         val client = proofs.client(hey)
-        val error = assertFailsWith<HeyException.Auth> { client.execute(client.request(Method.DELETE, "/contacts/1")) }
-        assertEquals(401, error.httpStatus)
-        assertEquals(listOf("DELETE", "GET"), hey.requests.map { it.method })
+        client.execute(client.request(Method.DELETE, "/contacts/1"))
+        assertEquals(listOf("DELETE", "GET", "DELETE", "GET"), hey.requests.map { it.method })
         assertEquals(0, proofs.refreshes)
     }
 
-    // A 307 asks for the same write elsewhere, which was refused there and not made: the
-    // operation goes again with a fresh proof, through the redirect again.
+    // A non-idempotent write answered through any redirect is held back for its hop's refused
+    // proof, a 307 or 308 included: the client does not tell the redirect that answered a write
+    // from the one that sent it on, and HEY answers no write with a 307 or 308.
     @Test
-    fun aMutationRedirectedWithItsMethodKeptIsResentForItsHopsRefusedProof() = runTest {
+    fun aMutationRedirectedWithItsMethodKeptIsNotResentForItsHopsRefusedProof() = runTest {
         val hey =
             mockHey(
                 status(307, headers = mapOf(HttpHeaders.Location to "/contacts/routed.json")),
                 status(401, headers = proofRefused),
-                status(307, headers = mapOf(HttpHeaders.Location to "/contacts/routed.json")),
                 ok("""{"id":1}"""),
             )
         val proofs = Proofs()
-        proofs.client(hey).contacts.create(
-            CreateContactRequestContent(contact = ContactPayload(name = "Jane", emailAddress = SensitiveString("jane@example.com"))),
-        )
-        assertEquals(listOf("POST", "POST", "POST", "POST"), hey.requests.map { it.method })
-        assertEquals(listOf("/contacts.json", "/contacts/routed.json", "/contacts.json", "/contacts/routed.json"), hey.requests.map { it.path })
+        assertFailsWith<HeyException.Auth> {
+            proofs.client(hey).contacts.create(
+                CreateContactRequestContent(contact = ContactPayload(name = "Jane", emailAddress = SensitiveString("jane@example.com"))),
+            )
+        }
+        assertEquals(listOf("POST", "POST"), hey.requests.map { it.method })
         assertEquals(0, proofs.refreshes)
     }
 

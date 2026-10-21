@@ -551,8 +551,6 @@ class HeyClient internal constructor(
         val refusal: HeyException?,
         /** Whether a redirect was followed to get here: the answer is then another resource's, not the one the cache entry was for. */
         val redirected: Boolean,
-        /** Whether a hop on the way here changed the method (a 303, or a 301 or 302 to a POST): the request first sent was answered, and may have been made. */
-        val rewritten: Boolean,
         /** Whether the request this answers went out with the credentials: a hop to another origin drops them, and they do not come back. */
         val authenticated: Boolean,
         /** The credentials the request this answers was signed under — the last signing, when a hop was signed again. */
@@ -626,12 +624,9 @@ class HeyClient internal constructor(
             // A 401 that refuses the request's DPoP proof and not its token: its time or its jti
             // (RFC 9449, 7.1), or a nonce it did not name (9). Sent once more with a fresh proof,
             // naming the nonce just heard, and never a refresh, which would spend a good token. A
-            // redirect that changed the method on the way (a 303, or a 301 or 302 to a POST)
-            // answered the request first sent, which may already be made, and only its hop was
-            // refused: sending the operation again could make it twice, or answer a DELETE that
-            // went through with a 404, so the 401 is the caller's, idempotent or not. A 307 or
-            // 308, or a 301 or 302 that keeps the method, asks for the same request elsewhere,
-            // which was refused there and not made: it goes again. A server that
+            // mutation the server answered with a redirect may already be made (a 302 or 303
+            // answers a write that went through), and only its hop was refused: sending the
+            // operation again could make it twice, so the 401 is the caller's. A server that
             // takes Bearer and DPoP may send a challenge for each, in one field or in fields of
             // their own: the proof's refusal is heard in whichever carries it. Only a request that
             // went out under a DPoP credential sent a proof to refuse; a Bearer request answered
@@ -639,7 +634,7 @@ class HeyClient internal constructor(
             val proofRefused = status == 401 && received.authenticated &&
                 received.bearer?.substringBefore(' ')?.equals("DPoP", ignoreCase = true) == true &&
                 received.headers.getAll(HttpHeaders.WWWAuthenticate).orEmpty().any { field -> challengeErrors(field).any { it in PROOF_REFUSALS } }
-            if (proofRefused && !reproved && !received.rewritten) {
+            if (proofRefused && !reproved && (operation.idempotent || !received.redirected)) {
                 val cause = HeyException.Auth("DPoP proof refused")
                 hooks.safeRequestEnd(info, RequestResult(status, duration, error = cause))
                 hooks.safeRetry(info, attempt + 1, cause, 0)
@@ -933,7 +928,6 @@ class HeyClient internal constructor(
         var signedUnder = prepared.signedUnder
         var hops = 0
         var authenticated = !operation.unsigned
-        var rewritten = false
         while (true) {
             val outcome = shared.http.prepareRequest(request).execute { response ->
                 // A server hands out its next DPoP nonce with any answer, a redirect's included
@@ -941,7 +935,7 @@ class HeyClient internal constructor(
                 // after it among them.
                 response.headers[DPOP_NONCE]?.let { shared.heardNonce(url, it) }
                 val next = if (operation.captureRedirects) null else redirectTarget(url, response)
-                if (next != null) Outcome.Redirect(next, response.status.value) else Outcome.Answer(receive(operation, url, response, hops > 0, rewritten, authenticated, signedUnder, credentials.headers["authorization"]?.firstOrNull()))
+                if (next != null) Outcome.Redirect(next, response.status.value) else Outcome.Answer(receive(operation, url, response, hops > 0, authenticated, signedUnder, credentials.headers["authorization"]?.firstOrNull()))
             }
             when (outcome) {
                 is Outcome.Answer -> return outcome.received
@@ -955,9 +949,7 @@ class HeyClient internal constructor(
                     requireSecureEndpoint(next)
                     val sameOrigin = isSameOrigin(url, next)
                     if (!sameOrigin) authenticated = false
-                    val method = request.method
                     request = redirected(request, outcome.status, url, next, credentials.names)
-                    if (request.method != method) rewritten = true
                     // The signature was for the URL and method the hop left behind; on the
                     // origin it is made again for the ones it goes to, and off it never is. The
                     // count moves with it: a 401 on the hop is about the credentials it carried.
@@ -980,31 +972,31 @@ class HeyClient internal constructor(
     }
 
     /** Reads what the SDK keeps of a response while the connection is live: a 304 has no body to read, and a body past its bound is refused there and then. */
-    private suspend fun receive(operation: Operation, url: Url, response: HttpResponse, redirected: Boolean, rewritten: Boolean, authenticated: Boolean, signedUnder: Generation, bearer: String?): Received {
+    private suspend fun receive(operation: Operation, url: Url, response: HttpResponse, redirected: Boolean, authenticated: Boolean, signedUnder: Generation, bearer: String?): Received {
         val status = response.status.value
         val headers = response.headers
         // A 304, a status the operation takes for "nothing there", and the redirect a form
         // takes for its answer carry nothing the SDK reads, so their bodies are not read at
         // all — and so cannot be refused for their size.
         val bodyless = status == 304 || status in operation.emptyOn || (operation.captureRedirects && status in FORM_ANSWER_STATUSES)
-        if (bodyless) return Received(url, status, headers, ByteArray(0), refusal = null, redirected, rewritten, authenticated, signedUnder, bearer)
+        if (bodyless) return Received(url, status, headers, ByteArray(0), refusal = null, redirected, authenticated, signedUnder, bearer)
         val bound = if (isParsed(operation.accept)) shared.config.maxResponseBodyBytes else HeyConfig.MAX_RESPONSE_BODY_BYTES
         return try {
-            Received(url, status, headers, readBody(response, bound), refusal = null, redirected, rewritten, authenticated, signedUnder, bearer)
+            Received(url, status, headers, readBody(response, bound), refusal = null, redirected, authenticated, signedUnder, bearer)
         } catch (refusal: HeyException) {
-            Received(url, status, headers, ByteArray(0), refusal, redirected, rewritten, authenticated, signedUnder, bearer)
+            Received(url, status, headers, ByteArray(0), refusal, redirected, authenticated, signedUnder, bearer)
         } catch (error: CancellationException) {
             throw error
         } catch (error: Exception) {
             // A route whose work is done once HEY answers a success reads a 2xx body lost
             // mid-read as no body at all: the write went through either way.
             if (status in 200..299 && operation.route?.lenientSuccess == true) {
-                Received(url, status, headers, ByteArray(0), refusal = null, redirected, rewritten, authenticated, signedUnder, bearer)
+                Received(url, status, headers, ByteArray(0), refusal = null, redirected, authenticated, signedUnder, bearer)
             } else if (status in 200..299 && operation.rawWrite) {
                 // A raw write HEY answered a success has taken effect: the lost body is kept
                 // as the answer's refusal, which finish attaches to the success, rather than
                 // thrown into the retry loop, which would send a PUT or DELETE again.
-                Received(url, status, headers, ByteArray(0), networkFailure(error, retryable = false), redirected, rewritten, authenticated, signedUnder, bearer)
+                Received(url, status, headers, ByteArray(0), networkFailure(error, retryable = false), redirected, authenticated, signedUnder, bearer)
             } else {
                 throw error
             }
