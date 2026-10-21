@@ -37,7 +37,8 @@ claim: the nonce the request's own origin handed out last, from any answer inclu
 and never another origin's. A 401 whose challenge refuses only the proof (`invalid_dpop_proof`)
 or asks for a nonce (`use_dpop_nonce`) is sent once more with a fresh proof and never refreshes
 the token; a second such refusal is the caller's. A write HEY answered with a redirect is not
-sent again for its hop's refused proof, since the write itself went through.
+sent again for its hop's refused proof, since it may already be made (a 302 or 303 answers a
+write that went through).
 
 ```kotlin
 val client = HeyClient {

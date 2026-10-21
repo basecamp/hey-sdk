@@ -624,10 +624,12 @@ class HeyClient internal constructor(
             // A 401 that refuses the request's DPoP proof and not its token: its time or its jti
             // (RFC 9449, 7.1), or a nonce it did not name (9). Sent once more with a fresh proof,
             // naming the nonce just heard, and never a refresh, which would spend a good token. A
-            // mutation the server answered with a redirect went through, and only its hop was
-            // refused: sending the operation again would make it twice, so the 401 is the caller's.
+            // mutation the server answered with a redirect may already be made (a 302 or 303
+            // answers a write that went through), and only its hop was refused: sending the
+            // operation again could make it twice, so the 401 is the caller's. A server that
+            // takes Bearer and DPoP may send a challenge for each, in headers of their own.
             val proofRefused = status == 401 && received.authenticated &&
-                bearerError(received.headers[HttpHeaders.WWWAuthenticate]) in PROOF_REFUSALS
+                received.headers.getAll(HttpHeaders.WWWAuthenticate).orEmpty().any { bearerError(it) in PROOF_REFUSALS }
             if (proofRefused && !reproved && (operation.idempotent || !received.redirected)) {
                 val cause = HeyException.Auth("DPoP proof refused")
                 hooks.safeRequestEnd(info, RequestResult(status, duration, error = cause))

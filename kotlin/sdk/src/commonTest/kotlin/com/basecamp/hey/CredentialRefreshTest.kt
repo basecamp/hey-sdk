@@ -144,6 +144,59 @@ class CredentialRefreshTest {
         assertEquals(0, proofs.refreshes)
     }
 
+    // A write refused on its own first send was not made: it goes again with a fresh proof.
+    @Test
+    fun aMutationWhoseOwnProofWasRefusedIsResentWithAFreshProof() = runTest {
+        val hey = mockHey(status(401, headers = proofRefused), ok("""{"id":1}"""))
+        val proofs = Proofs()
+        proofs.client(hey).contacts.create(
+            CreateContactRequestContent(contact = ContactPayload(name = "Jane", emailAddress = SensitiveString("jane@example.com"))),
+        )
+        assertEquals(listOf("POST", "POST"), hey.requests.map { it.method })
+        assertEquals(listOf("proof-1", "proof-2"), hey.requests.map { it.header("DPoP") })
+        assertEquals(0, proofs.refreshes)
+    }
+
+    // A read whose redirect's hop had its proof refused is read again, from the URL asked for.
+    @Test
+    fun aRedirectedReadWhoseHopHadItsProofRefusedIsResent() = runTest {
+        val hey =
+            mockHey(
+                status(302, headers = mapOf(HttpHeaders.Location to "/boxes/again.json")),
+                status(401, headers = proofRefused),
+                status(302, headers = mapOf(HttpHeaders.Location to "/boxes/again.json")),
+                ok("[]"),
+            )
+        val proofs = Proofs()
+        proofs.client(hey).boxes.list()
+        assertEquals(listOf("/boxes.json", "/boxes/again.json", "/boxes.json", "/boxes/again.json"), hey.requests.map { it.path })
+        assertEquals(0, proofs.refreshes)
+    }
+
+    // A server that takes Bearer and DPoP may challenge for each in a header of its own; the
+    // proof's refusal is heard in whichever one carries it.
+    @Test
+    fun aProofRefusedInASecondChallengeHeaderIsResentWithNoRefresh() = runTest {
+        var answered = 0
+        val engine = MockEngine {
+            answered += 1
+            if (answered == 1) {
+                respond("", HttpStatusCode.Unauthorized, headersOf(HttpHeaders.WWWAuthenticate, listOf("Bearer realm=\"hey\"", "DPoP error=\"invalid_dpop_proof\"")))
+            } else {
+                respond("[]", HttpStatusCode.OK, headersOf(HttpHeaders.ContentType, "application/json"))
+            }
+        }
+        val proofs = Proofs()
+        HeyClient {
+            auth(proofs)
+            this.engine = engine
+            timeout = Duration.INFINITE
+        }.boxes.list()
+        assertEquals(2, answered)
+        assertEquals(2, proofs.proofs)
+        assertEquals(0, proofs.refreshes)
+    }
+
     // A strategy that signs DPoP proofs, each naming the nonce the client hands it for the
     // request's server (RFC 9449, 9).
     private class Nonces : AuthStrategy {
