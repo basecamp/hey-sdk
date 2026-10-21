@@ -240,10 +240,10 @@ it("rejects malformed publication state before release tags or pushes", () => {
     const valid = release("false\n");
     expect(valid.error).toBeUndefined();
     expect(valid.calls).toContain(`tag v${version}`);
-    expect(valid.calls).toContain(`tag go/v${version}`);
-    expect(valid.calls).toContain(
-      `push origin v${version} go/v${version}`,
-    );
+    // The go/ module tag is release-go.yml's tag job's, behind its reviewer:
+    // a go/ tag pushed here would publish the module before anyone approved.
+    expect(valid.calls).not.toContain("go/v");
+    expect(valid.calls).toMatch(new RegExp(`(^|\\n)push origin v${version.replaceAll(".", "\\.")}(\\n|$)`));
   } finally {
     rmSync(temp, { recursive: true, force: true });
   }
