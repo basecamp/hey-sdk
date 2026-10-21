@@ -58,6 +58,7 @@ class Operation internal constructor(
     internal var captureRedirects: Boolean = false
     internal var quiet: Boolean = false
     internal var unsigned: Boolean = false
+    internal var followsRedirects: Boolean = true
 
     /** Adds a query parameter. The same name may be added more than once. */
     fun query(name: String, value: Any): Operation {
@@ -176,6 +177,15 @@ class Operation internal constructor(
      */
     internal fun unsigned(): Operation {
         unsigned = true
+        return this
+    }
+
+    /**
+     * Takes any 3xx as a failure, with no hop: for a request whose body is itself a credential,
+     * which a redirect that kept the body would hand to wherever the `Location` points.
+     */
+    internal fun noRedirects(): Operation {
+        followsRedirects = false
         return this
     }
 

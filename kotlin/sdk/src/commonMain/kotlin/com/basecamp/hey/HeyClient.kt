@@ -938,7 +938,9 @@ class HeyClient internal constructor(
                 // after it among them.
                 response.headers[DPOP_NONCE]?.let { shared.heardNonce(url, it) }
                 val next = if (operation.captureRedirects) null else redirectTarget(url, response)
-                if (next != null) Outcome.Redirect(next, response.status.value) else Outcome.Answer(receive(operation, url, response, hops > 0, authenticated, signedUnder, credentials.headers["authorization"]?.firstOrNull()))
+                // A request whose body is itself a credential takes no hop, since a redirect that
+                // kept the body would hand it to wherever the Location points: the 3xx is its answer.
+                if (next != null && operation.followsRedirects) Outcome.Redirect(next, response.status.value) else Outcome.Answer(receive(operation, url, response, hops > 0, authenticated, signedUnder, credentials.headers["authorization"]?.firstOrNull()))
             }
             when (outcome) {
                 is Outcome.Answer -> return outcome.received
@@ -978,10 +980,13 @@ class HeyClient internal constructor(
     private suspend fun receive(operation: Operation, url: Url, response: HttpResponse, redirected: Boolean, authenticated: Boolean, signedUnder: Generation, bearer: String?): Received {
         val status = response.status.value
         val headers = response.headers
-        // A 304, a status the operation takes for "nothing there", and the redirect a form
-        // takes for its answer carry nothing the SDK reads, so their bodies are not read at
-        // all — and so cannot be refused for their size.
-        val bodyless = status == 304 || status in operation.emptyOn || (operation.captureRedirects && status in FORM_ANSWER_STATUSES)
+        // A 304, a status the operation takes for "nothing there", the redirect a form takes
+        // for its answer, and the redirect a request that follows none is refused by carry
+        // nothing the SDK reads, so their bodies are not read at all — and so cannot be refused
+        // for their size, or lost mid-read into a failure the retry loop would answer.
+        val bodyless = status == 304 || status in operation.emptyOn ||
+            (operation.captureRedirects && status in FORM_ANSWER_STATUSES) ||
+            (!operation.followsRedirects && status in 300..399)
         if (bodyless) return Received(url, status, headers, ByteArray(0), refusal = null, redirected, authenticated, signedUnder, bearer)
         val bound = if (isParsed(operation.accept)) shared.config.maxResponseBodyBytes else HeyConfig.MAX_RESPONSE_BODY_BYTES
         return try {
