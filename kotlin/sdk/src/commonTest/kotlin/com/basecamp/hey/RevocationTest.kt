@@ -65,6 +65,7 @@ class RevocationTest {
         )
         val error = assertFailsWith<HeyException> { hey.client().revokeToken("the-app", "refresh-to-revoke") }
         assertEquals("api_error", error.code)
+        assertEquals(307, error.httpStatus)
         assertEquals(1, hey.requests.size)
     }
 
