@@ -45,8 +45,16 @@ class AssertionHelpersTest {
         assertEquals(emptyList(), queryPairs(null))
     }
 
-    private fun run(recorded: Recorded, vararg assertions: Assertion): Run =
-        Run(TestCase(name = "t", operation = "ListBoxes", assertions = assertions.toList()), Result.success(Outcome.Unit), recorded, "http://127.0.0.1:1")
+    private fun run(recorded: Recorded, vararg assertions: Assertion, refreshes: Int = 0): Run =
+        Run(TestCase(name = "t", operation = "ListBoxes", assertions = assertions.toList()), Result.success(Outcome.Unit), recorded, refreshes, "http://127.0.0.1:1")
+
+    @Test
+    fun theRefreshCountIsTheTimesTheCredentialsWereAskedToRefresh() {
+        val once = Assertion(type = "refreshCount", expected = JsonPrimitive(1))
+        val error = assertFailsWith<AssertionFailure> { checkAll(run(Recorded(), once)) }
+        assertTrue(error.message!!.contains("Expected 1 credential refreshes, got 0"), error.message)
+        checkAll(run(Recorded(), once, refreshes = 1))
+    }
 
     @Test
     fun everyWaitBetweenRequestsIsChecked() {

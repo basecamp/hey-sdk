@@ -27,6 +27,6 @@
     "file": "credential-refresh.json",
     "name": "A write answered through a redirect whose hop is refused is refreshed but not sent again",
     "operation": "CreateDraft",
-    "reason": "The TypeScript client sends every request with redirect: \"manual\" and follows no hop, so a write's 303 is its answer and there is no hop to be refused."
+    "reason": "The TypeScript client sends every request with redirect: \"manual\" and follows no hop, so a write's 302 is its answer and there is no hop to be refused."
   }
 ]

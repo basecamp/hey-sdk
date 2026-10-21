@@ -3,6 +3,7 @@ package com.basecamp.hey.conformance
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
 import java.io.File
+import java.util.concurrent.atomic.AtomicInteger
 import kotlin.system.exitProcess
 
 /**
@@ -84,11 +85,12 @@ private suspend fun runConfigOverrideCase(case: TestCase, baseUrl: String) {
 
 private suspend fun runMockServerCase(case: TestCase) {
     val server = MockServer.start(case.mockResponses)
+    val refreshes = AtomicInteger()
     val outcome = try {
-        executeCase(case, server.baseUrl)
+        executeCase(case, server.baseUrl, refreshes)
     } finally {
         // The recording is read after shutdown either way.
     }
     val recorded = server.shutdown()
-    checkAll(Run(case, outcome, recorded, server.baseUrl))
+    checkAll(Run(case, outcome, recorded, refreshes.get(), server.baseUrl))
 }

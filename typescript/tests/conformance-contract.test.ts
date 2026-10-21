@@ -9,6 +9,7 @@ import {
 } from "../../conformance/runner/typescript/assertions.js";
 const legitimate: Record<string, unknown>[] = [
   { type: "requestCount", expected: 0 },
+  { type: "refreshCount", expected: 1 },
   { type: "delayBetweenRequests", min: 0 },
   { type: "delayBetweenRequests", max: 2000 },
   { type: "delayBetweenRequests", min: 1000, max: 2000 },
@@ -53,7 +54,7 @@ it.each(legitimate)("rejects extra, missing and inherited fields for assertion %
 it.each([
   null, [], {}, { type: 1 },
   { type: "responseMeta", path: "nextPage", expectd: "cursor" },
-  ...["requestCount", "statusCode"].flatMap(type => ["1", -1, 1.5, NaN, Infinity].map(expected => ({ type, expected }))),
+  ...["requestCount", "refreshCount", "statusCode"].flatMap(type => ["1", -1, 1.5, NaN, Infinity].map(expected => ({ type, expected }))),
   { type: "delayBetweenRequests" },
   { type: "delayBetweenRequests", min: "100" },
   { type: "delayBetweenRequests", max: -1 },

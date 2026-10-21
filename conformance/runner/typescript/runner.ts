@@ -178,6 +178,8 @@ async function run(tc: Fixture) {
   const port = (server.address() as { port: number }).port;
   const baseUrl = `http://127.0.0.1:${port}`;
   let error: any, result: any;
+  // Every refresh the client asks for is counted; a token that cannot be refreshed offers none.
+  let refreshes = 0;
   try {
     let token = "conformance-test-token";
     let client = new HeyClient({
@@ -186,6 +188,7 @@ async function run(tc: Fixture) {
         ? {
             getToken: () => token,
             refresh: () => {
+              refreshes++;
               token = "conformance-refreshed-token";
             },
           }
@@ -227,6 +230,9 @@ async function run(tc: Fixture) {
     switch (a.type) {
       case "requestCount":
         assert.equal(requests.length, a.expected);
+        break;
+      case "refreshCount":
+        assert.equal(refreshes, a.expected, "credential refreshes");
         break;
       case "delayBetweenRequests":
         assert.ok(requests.length > 1);

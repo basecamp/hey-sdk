@@ -10,11 +10,13 @@ use crate::fixtures::{Assertion, TestCase};
 use crate::operations::Outcome;
 use crate::server::Recorded;
 
-/// One case after it ran: what the SDK answered and what the mock server saw.
+/// One case after it ran: what the SDK answered, what the mock server saw and how many
+/// times the client asked its credentials to refresh.
 pub struct Run<'a> {
     pub case: &'a TestCase,
     pub outcome: &'a Result<Outcome, Error>,
     pub recorded: &'a Recorded,
+    pub refreshes: usize,
     pub base_url: &'a str,
 }
 
@@ -28,6 +30,7 @@ pub fn check_all(run: &Run) -> Result<(), String> {
 fn check(run: &Run, assertion: &Assertion) -> Result<(), String> {
     match assertion.kind.as_str() {
         "requestCount" => check_request_count(run, assertion),
+        "refreshCount" => check_refresh_count(run, assertion),
         "delayBetweenRequests" => check_delay_between_requests(run, assertion),
         "noError" => check_no_error(run),
         "errorCode" => check_error_code(run, assertion),
@@ -58,6 +61,18 @@ fn check_request_count(run: &Run, assertion: &Assertion) -> Result<(), String> {
         Err(format!(
             "Expected {expected} requests, got {}",
             run.recorded.count
+        ))
+    }
+}
+
+fn check_refresh_count(run: &Run, assertion: &Assertion) -> Result<(), String> {
+    let expected = expected_int(assertion, "refreshCount")?;
+    if run.refreshes as i64 == expected {
+        Ok(())
+    } else {
+        Err(format!(
+            "Expected {expected} credential refreshes, got {}",
+            run.refreshes
         ))
     }
 }
