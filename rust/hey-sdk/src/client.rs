@@ -2397,6 +2397,38 @@ mod tests {
         assert_eq!(sent[3].2[AUTHORIZATION], "Bearer fresh");
     }
 
+    /// A write HEY answered with a redirect went through: a 401 on the hop renews the token
+    /// for the requests after it, and the write is not made again.
+    #[tokio::test]
+    async fn a_redirected_mutation_whose_hop_had_its_token_refused_is_refreshed_but_not_sent_again(
+    ) {
+        let http = Canned::new(|request| {
+            if request.method() == Method::POST {
+                redirect_with(303, "/contacts/1.json")
+            } else if request
+                .headers()
+                .get(AUTHORIZATION)
+                .is_some_and(|token| token == "Bearer fresh")
+            {
+                answer(200, r#"{"id":1}"#)
+            } else {
+                answer(401, "")
+            }
+        });
+        let provider = Renewing::new();
+        let client = client_with(http.clone(), provider.clone());
+
+        let error = client
+            .execute(client.request(Method::POST, "/contacts"))
+            .await
+            .unwrap_err();
+
+        assert_eq!(error.http_status(), Some(401));
+        assert_eq!(provider.refreshes(), 1);
+        let methods: Vec<Method> = http.sent().into_iter().map(|sent| sent.0).collect();
+        assert_eq!(methods, [Method::POST, Method::GET]);
+    }
+
     #[test]
     fn json_extension_is_added_only_where_missing() {
         assert_eq!(with_json_extension("/boxes/123"), "/boxes/123.json");
