@@ -105,6 +105,8 @@ func TestDiscoverRefusesAnInsecureIssuer(t *testing.T) {
 		"http://evil.example",
 		"https://app.hey.com?tenant=1",
 		"https://app.hey.com#fragment",
+		"https://app.hey.com?",
+		"https://app.hey.com#",
 		"https://user:secret@app.hey.com",
 		"app.hey.com",
 	} {

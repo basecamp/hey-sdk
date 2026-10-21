@@ -37,18 +37,22 @@ func NewDiscoverer(httpClient *http.Client) *Discoverer {
 //
 // HEY publishes no metadata; its endpoints are /oauth/authorizations/new and /oauth/tokens.
 func (d *Discoverer) Discover(ctx context.Context, baseURL string) (*Config, error) {
-	issuer, err := url.Parse(baseURL)
-	if err != nil || issuer.Host == "" || issuer.User != nil || issuer.RawQuery != "" || issuer.ForceQuery || issuer.Fragment != "" {
-		return nil, fmt.Errorf("OAuth issuer %q must be an absolute URL without a query, fragment or credentials", baseURL)
+	issuer, ok := plainURL(baseURL)
+	if !ok {
+		// The issuer stays out of the error, which is logged, as it may carry a password.
+		return nil, fmt.Errorf("OAuth issuer must be an absolute URL without a query, fragment or credentials")
 	}
 	if err := hey.RequireSecureEndpoint(baseURL); err != nil {
 		return nil, fmt.Errorf("OAuth issuer validation failed: %w", err)
 	}
-	// The well-known path goes between the host and the issuer's own path (RFC 8414 §3.1).
+	// The well-known path goes between the host and the issuer's own path (RFC 8414 §3.1),
+	// which keeps its escapes.
+	const wellKnown = "/.well-known/oauth-authorization-server"
 	discoveryURL := url.URL{
-		Scheme: issuer.Scheme,
-		Host:   issuer.Host,
-		Path:   "/.well-known/oauth-authorization-server" + strings.TrimSuffix(issuer.Path, "/"),
+		Scheme:  issuer.Scheme,
+		Host:    issuer.Host,
+		Path:    wellKnown + strings.TrimSuffix(issuer.Path, "/"),
+		RawPath: wellKnown + strings.TrimSuffix(issuer.EscapedPath(), "/"),
 	}
 
 	req, err := http.NewRequestWithContext(ctx, "GET", discoveryURL.String(), nil)
@@ -87,9 +91,18 @@ func (d *Discoverer) Discover(ctx context.Context, baseURL string) (*Config, err
 	return &config, nil
 }
 
+// plainURL parses rawURL when it is absolute, with a host, and carries no credentials, query
+// or fragment, an empty one included.
+func plainURL(rawURL string) (*url.URL, bool) {
+	u, err := url.Parse(rawURL)
+	ok := err == nil && u.Host != "" && u.User == nil && u.RawQuery == "" && !u.ForceQuery && !strings.Contains(rawURL, "#")
+	return u, ok
+}
+
 // validate holds the metadata to RFC 8414 §3.3: it names the issuer it was asked for, or it
 // is not used, which keeps one server from answering for another. Endpoints may sit on other
-// hosts, but every one must be HTTPS, and the three a client needs must be there.
+// hosts, but every one must be HTTPS, with no credentials or fragment, and the three a client
+// needs must be there.
 func (c *Config) validate(issuer string) error {
 	if c.Issuer == "" || c.AuthorizationEndpoint == "" || c.TokenEndpoint == "" {
 		return fmt.Errorf("incomplete discovery response: issuer, authorization_endpoint and token_endpoint are required")
@@ -99,8 +112,8 @@ func (c *Config) validate(issuer string) error {
 		endpoints = append(endpoints, c.RegistrationEndpoint)
 	}
 	for _, endpoint := range endpoints {
-		if parsed, err := url.Parse(endpoint); err != nil || parsed.Host == "" {
-			return fmt.Errorf("invalid discovery response: %q is not an absolute URL", endpoint)
+		if parsed, err := url.Parse(endpoint); err != nil || parsed.Host == "" || parsed.User != nil || parsed.Fragment != "" {
+			return fmt.Errorf("invalid discovery response: an endpoint is not an absolute URL without credentials or fragment")
 		}
 		if err := hey.RequireSecureEndpoint(endpoint); err != nil {
 			return fmt.Errorf("invalid discovery response: %w", err)

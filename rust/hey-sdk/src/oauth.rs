@@ -66,6 +66,10 @@ impl ServerMetadata {
                 Error::api(200, "Invalid OAuth discovery response")
                     .with_hint(format!("{endpoint} is not an absolute URL"))
             })?;
+            if has_credentials(&url) || url.fragment().is_some() {
+                return Err(Error::api(200, "Invalid OAuth discovery response")
+                    .with_hint("an endpoint carries credentials or a fragment"));
+            }
             require_secure_endpoint(&url).map_err(|_| {
                 Error::api(200, "Invalid OAuth discovery response")
                     .with_hint(format!("{endpoint} must use HTTPS"))
@@ -238,16 +242,13 @@ impl OAuthClient {
     /// when it names that same issuer and HTTPS endpoints.
     pub async fn discover(&self, base_url: &str) -> Result<ServerMetadata, Error> {
         let issuer = Url::parse(base_url)?;
-        require_secure_endpoint(&issuer)?;
-        if issuer.query().is_some()
-            || issuer.fragment().is_some()
-            || !issuer.username().is_empty()
-            || issuer.password().is_some()
-        {
+        // Before the scheme, whose error names the URL, which may carry a password.
+        if issuer.query().is_some() || issuer.fragment().is_some() || has_credentials(&issuer) {
             return Err(Error::usage(
                 "OAuth issuer must have no query, fragment or credentials",
             ));
         }
+        require_secure_endpoint(&issuer)?;
         // The well-known path goes between the host and the issuer's own path (RFC 8414 §3.1).
         let mut url = issuer.clone();
         url.set_path(&format!(
@@ -325,6 +326,10 @@ impl OAuthClient {
             Err(token_error(status, &body))
         }
     }
+}
+
+fn has_credentials(url: &Url) -> bool {
+    !url.username().is_empty() || url.password().is_some()
 }
 
 fn require(value: &str, message: &str) -> Result<(), Error> {
@@ -588,6 +593,8 @@ mod tests {
             "http://evil.example",
             "https://app.hey.com?tenant=1",
             "https://app.hey.com#fragment",
+            "https://app.hey.com?",
+            "https://app.hey.com#",
             "https://user:secret@app.hey.com",
             "app.hey.com",
         ] {
