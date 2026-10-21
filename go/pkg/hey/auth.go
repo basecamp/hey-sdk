@@ -320,7 +320,16 @@ func (m *AuthManager) refreshLocked(ctx context.Context, origin string, creds *C
 	}
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 
-	resp, err := m.httpClient.Do(req)
+	// The form carries the refresh token, which a 307 or 308 keeps, and a token endpoint never
+	// redirects: the refresh follows none, and a 3xx is an error. The client is copied, not
+	// changed; none given is http.DefaultClient's settings, as NewExchanger takes it.
+	base := m.httpClient
+	if base == nil {
+		base = http.DefaultClient
+	}
+	unredirected := *base
+	unredirected.CheckRedirect = func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
+	resp, err := unredirected.Do(req)
 	if err != nil {
 		return ErrNetwork(err)
 	}

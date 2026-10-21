@@ -18,12 +18,18 @@ type Exchanger struct {
 	httpClient *http.Client
 }
 
-// NewExchanger creates an Exchanger with the given HTTP client.
+// NewExchanger creates an Exchanger with the given HTTP client, or http.DefaultClient's
+// settings. Either way the exchanger follows no redirect: its form carries the authorization
+// code with its verifier, or the refresh token, and the client secret, which a 307 or 308 keeps,
+// and a token endpoint never redirects, so a 3xx is an error. The caller's client is copied, not
+// changed.
 func NewExchanger(httpClient *http.Client) *Exchanger {
 	if httpClient == nil {
 		httpClient = http.DefaultClient
 	}
-	return &Exchanger{httpClient: httpClient}
+	unredirected := *httpClient
+	unredirected.CheckRedirect = func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
+	return &Exchanger{httpClient: &unredirected}
 }
 
 // Exchange exchanges an authorization code for access and refresh tokens.
