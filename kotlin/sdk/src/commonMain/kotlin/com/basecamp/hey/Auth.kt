@@ -21,8 +21,10 @@ import io.ktor.util.AttributeKey
  *
  * The client asks for the token under the same lock it refreshes under, so a request is
  * signed with credentials a refresh cannot change halfway: [accessToken] and [refresh] are
- * called one at a time, and neither may use the client itself, which would wait on that
- * lock forever. A refresh runs in the client's own scope: the request that earned it being
+ * called one at a time, and neither may send a signed request through the client itself,
+ * which would wait on that lock forever. An unsigned one waits on nothing, so a [refresh] may
+ * trade its refresh token through the client it refreshes: `client.oauth.createToken(..)`.
+ * A refresh runs in the client's own scope: the request that earned it being
  * cancelled does not cancel it, and every stale request waits on the same one.
  */
 interface TokenProvider {
@@ -64,7 +66,8 @@ class StaticTokenProvider(token: String) : TokenProvider {
  * [BearerAuth], which uses a [TokenProvider] to set the Authorization header with a Bearer
  * token. Custom strategies can implement alternative auth schemes such as cookie-based auth.
  * [authenticate] and [refresh] are called one at a time, under the client's refresh lock, and
- * neither may send a request through the client itself.
+ * neither may send a signed request through the client itself; an unsigned one, the token
+ * endpoint's, waits on nothing, as [TokenProvider.refresh] says.
  */
 interface AuthStrategy {
     /** Apply authentication to the given request builder. Called before every HTTP request. */
