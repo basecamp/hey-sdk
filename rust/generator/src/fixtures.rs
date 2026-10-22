@@ -570,3 +570,71 @@ fn a_shape_that_mentions_itself_is_boxed_and_a_renamed_one_reaches_every_field()
     assert!(types.contains("pub type Boxes = Vec<Mailbox>;"));
     assert!(!types.contains("struct Box "));
 }
+
+/// `x-hey-unsigned` and `x-hey-no-redirect` mark an operation that goes out without the
+/// client's credentials and takes a 3xx for its answer; the route carries each so the client
+/// can honour it, and a route without them says so too.
+#[test]
+fn unsigned_and_no_redirect_are_carried_onto_the_route() {
+    let mut granting = write("post", "GrantBox", "Boxes", Value::Null);
+    granting["post"]["x-hey-unsigned"] = json!({});
+    granting["post"]["x-hey-no-redirect"] = json!({});
+    let mut unsigned_only = write("post", "PeekBox", "Boxes", Value::Null);
+    unsigned_only["post"]["x-hey-unsigned"] = json!({});
+    let files = generate_under(
+        json!({
+            "/boxes/{id}/grant": granting,
+            "/boxes/{id}/peek": unsigned_only,
+            "/boxes/{id}/name": write("patch", "RenameBox", "Boxes", Value::Null),
+        }),
+        box_schema(),
+        &json!({ "operations": {
+            "GrantBox": write_semantics(None),
+            "PeekBox": write_semantics(None),
+            "RenameBox": write_semantics(None),
+        } }),
+    );
+
+    let routes = file(&files, "routes.rs");
+    assert!(route(routes, "GRANT_BOX").contains("    unsigned: true,\n"));
+    assert!(route(routes, "GRANT_BOX").contains("    no_redirect: true,\n"));
+    assert!(route(routes, "PEEK_BOX").contains("    unsigned: true,\n"));
+    assert!(route(routes, "PEEK_BOX").contains("    no_redirect: false,\n"));
+    assert!(route(routes, "RENAME_BOX").contains("    unsigned: false,\n"));
+    assert!(route(routes, "RENAME_BOX").contains("    no_redirect: false,\n"));
+}
+
+/// A tag that is an acronym snake-cases into `o_auth`, which is no accessor. `[services]`
+/// names the handle's module and accessor, `oauth`, and `[service_types]` the type it is and
+/// the service the hooks hear, where `PascalCase` of the accessor would fold the acronym into
+/// `Oauth`.
+#[test]
+fn a_service_type_keeps_an_acronym_the_accessor_folds() {
+    let names = "[services]\n\"OAuth\" = \"oauth\"\n\n[type_names]\nBox = \"Mailbox\"\n\n[service_types]\noauth = \"OAuth\"\n\n[resource_types]\noauth = \"token\"\n";
+    let mut granting = json!({ "post": {
+        "operationId": "CreateToken",
+        "tags": ["OAuth"],
+        "responses": { "200": json_body("Box") },
+    } });
+    granting["post"]["x-hey-unsigned"] = json!({});
+    let naming = Naming::parse(names).unwrap();
+    let resource_types = ResourceTypes::parse(names).unwrap();
+    let model = Model::build(
+        &openapi(json!({ "/oauth/tokens.json": granting }), box_schema()),
+        &behavior(&["CreateToken"]),
+        &naming,
+        &resource_types,
+    )
+    .unwrap();
+    let files = crate::render(&model);
+
+    assert!(file(&files, "services/mod.rs").contains(
+        "    pub fn oauth(&self) -> oauth::OAuth<'_> {\n        oauth::OAuth::new(self)\n"
+    ));
+    let service = file(&files, "services/oauth.rs");
+    assert!(service.contains("pub struct OAuth<'a> {"));
+    assert!(service.contains("    pub async fn create_token(&self) -> Result<Mailbox, Error> {"));
+    let routes = file(&files, "routes.rs");
+    assert!(route(routes, "CREATE_TOKEN").contains("    service: \"OAuth\",\n"));
+    assert!(route(routes, "CREATE_TOKEN").contains("    resource_type: \"token\",\n"));
+}

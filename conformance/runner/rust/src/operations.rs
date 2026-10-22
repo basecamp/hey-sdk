@@ -1131,6 +1131,33 @@ async fn execute_operation(client: &Client, case: &TestCase) -> Result<Outcome, 
             Ok(Outcome::Unit)
         }
 
+        "CreateToken" => json(
+            client
+                .oauth()
+                .create_token(&models::CreateTokenRequestContent {
+                    grant_type: string_param(body, "grant_type"),
+                    client_id: string_param(body, "client_id"),
+                    install_id: string_param(body, "install_id"),
+                    code: string_ptr_param(body, "code").map(SensitiveString::new),
+                    redirect_uri: string_ptr_param(body, "redirect_uri"),
+                    code_verifier: string_ptr_param(body, "code_verifier")
+                        .map(SensitiveString::new),
+                    refresh_token: string_ptr_param(body, "refresh_token")
+                        .map(SensitiveString::new),
+                })
+                .await?,
+        ),
+        "RevokeToken" => {
+            client
+                .oauth()
+                .revoke_token(&models::RevokeTokenRequestContent {
+                    client_id: string_param(body, "client_id"),
+                    token: SensitiveString::new(string_param(body, "token")),
+                })
+                .await?;
+            Ok(Outcome::Unit)
+        }
+
         operation => Err(Error::usage(format!("unknown operation: {operation}"))),
     }
 }

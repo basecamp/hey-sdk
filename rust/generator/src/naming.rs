@@ -13,6 +13,8 @@ pub(crate) struct Naming {
     operation_methods: BTreeMap<String, String>,
     #[serde(default)]
     type_names: BTreeMap<String, String>,
+    #[serde(default)]
+    service_types: BTreeMap<String, String>,
 }
 
 const KEYWORDS: &[&str] = &[
@@ -59,6 +61,16 @@ impl Naming {
         }
     }
 
+    /// The type a service's handle is, which is also the service the hooks hear: the
+    /// `PascalCase` of its name, unless that would fold an acronym the SDKs keep whole —
+    /// `oauth` is `OAuth`, not `Oauth`.
+    pub(crate) fn service_type(&self, service: &str) -> String {
+        self.service_types
+            .get(service)
+            .cloned()
+            .unwrap_or_else(|| struct_name(service))
+    }
+
     /// What a schema is called in Rust. A shape whose Smithy name collides with something
     /// the language already has is renamed here; the wire is untouched, since a type name
     /// never serializes.
@@ -70,7 +82,7 @@ impl Naming {
     }
 }
 
-pub(crate) fn struct_name(service: &str) -> String {
+fn struct_name(service: &str) -> String {
     service.to_pascal_case()
 }
 

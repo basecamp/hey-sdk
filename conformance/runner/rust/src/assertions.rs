@@ -45,6 +45,7 @@ fn check(run: &Run, assertion: &Assertion) -> Result<(), String> {
         "requestForm" => check_request_form(run, assertion, First),
         "lastRequestForm" => check_request_form(run, assertion, Last),
         "headerPresent" => check_header_present(run, assertion),
+        "headerAbsent" => check_header_absent(run, assertion),
         "lastRequestHeader" => check_last_request_header(run, assertion),
         "responseMeta" => check_response_meta(run, assertion),
         "urlOrigin" => check_url_origin(run, assertion),
@@ -414,6 +415,25 @@ fn check_header_present(run: &Run, assertion: &Assertion) -> Result<(), String> 
         ))
     } else {
         Ok(())
+    }
+}
+
+/// No request the server recorded carried the header, by any spelling of its name: a header
+/// map's lookup ignores case. With nothing recorded there is nothing to check, and the case's
+/// own `requestCount` says whether that is right.
+fn check_header_absent(run: &Run, assertion: &Assertion) -> Result<(), String> {
+    let name = &assertion.path;
+    match run
+        .recorded
+        .headers
+        .iter()
+        .position(|headers| headers.contains_key(name.as_str()))
+    {
+        None => Ok(()),
+        Some(index) => Err(format!(
+            "Expected no request to carry header {name:?}, but request {} did",
+            index + 1
+        )),
     }
 }
 
