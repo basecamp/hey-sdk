@@ -70,6 +70,7 @@ private func check(_ run: Run, _ assertion: Assertion) throws {
     case "noError": try checkNoError(run)
     case "errorCode": try checkErrorCode(run, assertion)
     case "errorField": try checkErrorField(run, assertion)
+    case "errorMessageContains": try checkErrorMessageContains(run, assertion)
     case "statusCode": try checkStatusCode(run, assertion)
     case "requestPath": try checkRequestPath(run, assertion, .first)
     case "lastRequestPath": try checkRequestPath(run, assertion, .last)
@@ -128,6 +129,15 @@ private func checkErrorCode(_ run: Run, _ assertion: Assertion) throws {
         throw fail("Expected error code \"\(expected)\", got a non-SDK failure: \(error)")
     }
     if heyError.code != expected { throw fail("Expected error code \"\(expected)\", got \"\(heyError.code)\"") }
+}
+
+/// The operation failed, and its message — not its hint, which is the detail beside it — says
+/// what the fixture expects: the sentence a caller would show.
+private func checkErrorMessageContains(_ run: Run, _ assertion: Assertion) throws {
+    let expected = try expectedString(assertion, "errorMessageContains")
+    guard let error = run.error else { throw fail("Expected an error message containing \"\(expected)\", but got no error") }
+    let message = (error as? HeyError)?.message ?? "\(error)"
+    if !message.contains(expected) { throw fail("Expected the error message to contain \"\(expected)\", got \"\(message)\"") }
 }
 
 private func checkErrorField(_ run: Run, _ assertion: Assertion) throws {

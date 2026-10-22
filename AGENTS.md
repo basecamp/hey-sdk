@@ -288,7 +288,10 @@ the `HeyError` enum with string `code`s and `exitCode`; hooks are the `HeyHooks`
 default methods, `ChainHooks` and `ConsoleHooks`; the network is a `Transport` protocol, with
 `URLSessionTransport` the one the package ships; generated services extend `BaseService` and
 are reached as properties of the client (`client.boxes`); a paginated read answers a `Page`
-walked with `nextPage`/`eachPage`/`pages(from:)`.
+walked with `nextPage`/`eachPage`/`pages(from:)`. A route the model marks `unsigned` goes out
+with no credentials, a 401 its answer, and one marked `noRedirect` takes a 3xx as an error
+with its status; `try HeyClient(auth: NoCredentials())` is a client for the unsigned routes
+alone, refusing any signed operation `auth_required` before it is sent.
 
 The package builds and tests on Linux as well as Apple platforms, so the library uses
 Foundation's portable surface only: `FoundationNetworking` is imported where it exists, the
