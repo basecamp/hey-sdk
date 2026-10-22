@@ -435,7 +435,7 @@ fn build_services(
                 .ok_or(format!("{id} is missing from behavior-model.json"))?;
             let operation = Operation {
                 id: id.to_string(),
-                service: naming.service_type(&service),
+                service: naming.service_name(&service),
                 method_name: naming.method_for(id, &service)?,
                 description: description_of(operation),
                 http_method: http_method.to_uppercase(),
@@ -471,7 +471,7 @@ fn build_services(
             }
         }
         result.push(Service {
-            type_name: naming.service_type(&name),
+            type_name: naming.service_name(&name),
             name,
             operations,
         });

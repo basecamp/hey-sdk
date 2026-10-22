@@ -82,6 +82,11 @@ place the generator writes the type (the struct, the aliases built from it, the 
 signatures) and nowhere else: a type name never goes on the wire, so Go and the fixtures
 are untouched.
 
+A `[service_names]` table, keyed by the service's module name, names the handle's type and
+the service the hooks hear where the PascalCase of the module would fold an acronym every SDK
+keeps whole: the `OAuth` tag is filed under `oauth` by `[services]` (so `client.oauth()`, not
+`o_auth()`), and `[service_names]` makes its type `OAuth` rather than `Oauth`.
+
 An operation whose 2xx body is `text/html` rather than JSON — a workflow stage — becomes a
 method that asks for the page as HEY serves it (no `.json` suffix, `Accept: text/html`) and
 answers the body as a `String`. Reading anything out of that page is a hand-written
