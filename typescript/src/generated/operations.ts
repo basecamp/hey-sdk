@@ -2424,6 +2424,43 @@ export const operationMetadata = {
     "actingSender": false,
     "actingUser": false
   },
+  "RevokeToken": {
+    "method": "DELETE",
+    "path": "/oauth/tokens.json",
+    "parameters": [],
+    "bodyRequired": true,
+    "safe": true,
+    "retry": {
+      "maxAttempts": 3,
+      "baseDelayMs": 1000,
+      "backoff": "exponential",
+      "retryOn": [
+        429,
+        503
+      ]
+    },
+    "unsigned": true,
+    "noRedirect": true,
+    "actingSender": false,
+    "actingUser": false
+  },
+  "CreateToken": {
+    "method": "POST",
+    "path": "/oauth/tokens.json",
+    "parameters": [],
+    "bodyRequired": true,
+    "safe": false,
+    "retry": {
+      "maxAttempts": 1,
+      "baseDelayMs": 1000,
+      "backoff": "exponential",
+      "retryOn": []
+    },
+    "unsigned": true,
+    "noRedirect": true,
+    "actingSender": false,
+    "actingUser": false
+  },
   "GetTrailbox": {
     "method": "GET",
     "path": "/paper_trail.json",
@@ -4058,6 +4095,24 @@ export class GeneratedOperations {
   /** Get navigation items */
   getNavigation(input: OperationInput<"GetNavigation"> = {}, options?: RequestOptions): Promise<OperationResponse<"GetNavigation">> {
     return this.transport.execute("GetNavigation", input, options);
+  }
+
+  /** Revoke an access or a refresh token the client was handed, ending the session behind it:
+   * what a sign-out asks. HEY answers 200 {} for a token that names nothing, the point of
+   * revoking it reached, and refuses one another client was handed (invalid_client, 401).
+   * The token goes in the body, never the query, where logs would keep it, so this DELETE has
+   * a payload: HEY reads its params from either, and every SDK's client sends one. */
+  revokeToken(input: OperationInput<"RevokeToken">, options?: RequestOptions): Promise<OperationResponse<"RevokeToken">> {
+    return this.transport.execute("RevokeToken", input, options);
+  }
+
+  /** Trade an authorization code, or a refresh token, for tokens. `grant_type` names which:
+   * "authorization_code" sends `code`, `redirect_uri` and `code_verifier` (PKCE), and
+   * "refresh_token" sends `refresh_token`. Every grant names the client and the install it is
+   * for. A refresh answers the refresh token it was sent, unchanged, beside the new access
+   * token. Not sent again after a failure: a code is redeemed once. */
+  createToken(input: OperationInput<"CreateToken">, options?: RequestOptions): Promise<OperationResponse<"CreateToken">> {
+    return this.transport.execute("CreateToken", input, options);
   }
 
   /** Get the Paper Trail */

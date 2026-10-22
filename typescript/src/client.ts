@@ -31,7 +31,22 @@ export interface TokenProvider {
   /** Renew after a definite 401 rejection. Called at most once per request. */
   refresh?(): void | Promise<void>;
 }
+/**
+ * The token for a client that holds no credentials, built to send only the operations HEY
+ * takes unsigned: exchanging a code, refreshing, revoking. Those never ask for a token; any
+ * other operation fails `auth_required` before anything is sent. Passing it is the deliberate
+ * opt-in, so a client given no token at all is still refused when it is built.
+ */
+export const NoCredentials: TokenProvider = Object.freeze({
+  getToken(): string {
+    throw new HeyError(
+      "auth_required",
+      "This client has no credentials: it sends only the operations HEY takes unsigned",
+    );
+  },
+});
 export interface ClientOptions {
+  /** An access token, a provider of one, or `NoCredentials`. */
   token: string | TokenProvider;
   baseUrl?: string;
   userAgent?: string;
@@ -74,6 +89,17 @@ type Metadata = {
    * error: a caller told such a write failed would do it again.
    */
   lenientSuccess?: true;
+  /**
+   * HEY takes the operation without the caller's credentials: the provider is not asked for
+   * a token, no Authorization goes with it, and a 401 is the answer rather than a reason to
+   * refresh, since what HEY judges is in the body.
+   */
+  unsigned?: true;
+  /**
+   * A 3xx is the answer, never followed and its body never read: the request's body carries
+   * secrets a 307 would take wherever it points.
+   */
+  noRedirect?: true;
   responseMediaType?: "text/html";
 };
 type RawInput = {
@@ -288,7 +314,8 @@ class HttpTransport implements Transport {
   ): Promise<ApiResponse<unknown>> {
     const meta: Metadata = operationMetadata[operation];
     url = sameOriginURL(url.href, this.base);
-    if (this.accountId !== undefined)
+    // An account scope filters what the caller's identity sees; an unsigned request has none.
+    if (this.accountId !== undefined && !meta.unsigned)
       url.searchParams.set("filtered_account_id", String(this.accountId));
     if (meta.bodyRequired && input.body === undefined)
       throw new HeyError("usage", `Missing body for ${operation}`);
@@ -313,17 +340,19 @@ class HttpTransport implements Transport {
     );
     for (let attempt = 0; ; attempt++) {
       signal.throwIfAborted();
-      const token = await waitForCredentials(this.credentials.token(), signal);
-      if (!token.value)
+      const token = meta.unsigned
+        ? undefined
+        : await waitForCredentials(this.credentials.token(), signal);
+      if (token && !token.value)
         throw new HeyError("auth_required", "A HEY access token is required");
       const headers = new Headers({
         Accept: meta.responseMediaType ?? "application/json",
-        Authorization: `Bearer ${token.value}`,
         "User-Agent": this.options.userAgent ?? USER_AGENT,
       });
+      if (token) headers.set("Authorization", `Bearer ${token.value}`);
       if (encoded !== undefined)
         headers.set("Content-Type", "application/json");
-      const cacheKey = `${createHash("sha256").update(token.value).digest("hex")} ${url.href}`;
+      const cacheKey = `${token ? createHash("sha256").update(token.value).digest("hex") : "unsigned"} ${url.href}`;
       const cacheable = this.options.cache && meta.method === "GET";
       const cached = cacheable ? this.cache.get(cacheKey) : undefined;
       if (cached) headers.set("If-None-Match", cached.headers.get("ETag")!);
@@ -349,6 +378,19 @@ class HttpTransport implements Transport {
         // Mutations are not replayed after an ambiguous network failure.
         networkFailure(cause, signal);
       }
+      if (
+        meta.noRedirect &&
+        response.status >= 300 &&
+        response.status < 400 &&
+        !(response.status === 304 && cached)
+      ) {
+        try {
+          await response.body?.cancel();
+        } catch {
+          // The redirect remains the answer if releasing its unread body also fails.
+        }
+        throw responseError(response, undefined);
+      }
       let text: string;
       try {
         text = await readBounded(response, this.maxBytes, signal);
@@ -366,6 +408,7 @@ class HttpTransport implements Transport {
       }
       if (
         response.status === 401 &&
+        token &&
         !refreshed &&
         this.credentials.provider.refresh
       ) {
@@ -496,6 +539,16 @@ class HttpTransport implements Transport {
 export class HeyClient extends GeneratedOperations {
   private http: HttpTransport;
   constructor(options: ClientOptions) {
+    // A forgotten token is caught here rather than on the first send; a client meant to hold
+    // none says so with NoCredentials.
+    if (
+      typeof options?.token !== "string" &&
+      typeof options?.token?.getToken !== "function"
+    )
+      throw new HeyError(
+        "usage",
+        "token is required: an access token, a TokenProvider, or NoCredentials",
+      );
     const provider =
       typeof options.token === "string"
         ? { getToken: () => options.token as string }
