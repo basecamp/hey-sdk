@@ -80,6 +80,7 @@ private func check(_ run: Run, _ assertion: Assertion) throws {
     case "requestForm": try checkRequestForm(run, assertion, .first)
     case "lastRequestForm": try checkRequestForm(run, assertion, .last)
     case "headerPresent": try checkHeaderPresent(run, assertion)
+    case "headerAbsent": try checkHeaderAbsent(run, assertion)
     case "lastRequestHeader": try checkLastRequestHeader(run, assertion)
     case "responseMeta": try checkResponseMeta(run, assertion)
     case "urlOrigin": try checkURLOrigin(run, assertion)
@@ -272,6 +273,16 @@ private func checkHeaderPresent(_ run: Run, _ assertion: Assertion) throws {
     let name = assertion.path
     if run.recorded.headers.isEmpty { throw fail("Expected request with header \"\(name)\", but no requests were recorded") }
     if (run.recorded.header(0, name) ?? "").isEmpty { throw fail("Expected header \"\(name)\" to be present, but it was not") }
+}
+
+/// No request the server saw carried the header, by any case of its name and whatever its value,
+/// an empty one included. The value is not quoted: the headers this guards are credentials.
+private func checkHeaderAbsent(_ run: Run, _ assertion: Assertion) throws {
+    let name = assertion.path
+    if name.isEmpty { throw fail("headerAbsent names no header in path") }
+    if let index = run.recorded.headers.indices.first(where: { run.recorded.header($0, name) != nil }) {
+        throw fail("Expected no request to carry header \"\(name)\", but request \(index + 1) did")
+    }
 }
 
 private func checkLastRequestHeader(_ run: Run, _ assertion: Assertion) throws {
