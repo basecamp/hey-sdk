@@ -102,4 +102,19 @@ class AssertionHelpersTest {
         recorded.headers[1] = mapOf("Accept" to listOf("application/json"))
         checkAll(run(recorded, absent))
     }
+
+    @Test
+    fun anErrorMessageMustContainTheExpectedTextAndTheOperationMustHaveFailed() {
+        val contains = Assertion(type = "errorMessageContains", expected = JsonPrimitive("Invalid refresh token."))
+        val case = TestCase(name = "t", operation = "CreateToken", assertions = listOf(contains))
+        val refused = com.basecamp.hey.HeyException.Auth("authentication required: Invalid refresh token.")
+        checkAll(Run(case, Result.failure(refused), Recorded(), 0, "http://127.0.0.1:1"))
+
+        val silent = com.basecamp.hey.HeyException.Auth()
+        val error = assertFailsWith<AssertionFailure> { checkAll(Run(case, Result.failure(silent), Recorded(), 0, "http://127.0.0.1:1")) }
+        assertTrue(error.message!!.contains("to contain \"Invalid refresh token.\""), error.message)
+
+        val succeeded = assertFailsWith<AssertionFailure> { checkAll(Run(case, Result.success(Outcome.Unit), Recorded(), 0, "http://127.0.0.1:1")) }
+        assertTrue(succeeded.message!!.contains("but got no error"), succeeded.message)
+    }
 }

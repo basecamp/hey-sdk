@@ -11,6 +11,7 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlin.test.Test
+import kotlin.test.assertContains
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertNull
@@ -326,5 +327,39 @@ class OAuthTest {
         assertNull(hey.requests[1].header("DPoP"), "the grant carries no proof")
         assertEquals("DPoP fresh-access", hey.requests[2].header(HttpHeaders.Authorization))
         assertEquals(listOf(null, "from-the-grant"), strategy.nonces, "the resend names the nonce the grant's answer handed out")
+    }
+
+    // HEY's token endpoint refuses with RFC 6749's {"error", "error_description"}: the
+    // description is HEY's sentence for a person, and the caller's message carries it, while
+    // the code, the status and whether it may be retried stay what the status says.
+    @Test
+    fun aRefusedGrantsDescriptionIsInTheMessage() = runTest {
+        val hey = mockHey(status(400, """{"error":"invalid_request","error_description":"install_id doesn't identify this install. Upgrade your client."}"""))
+        val error = assertFailsWith<HeyException.Api> { hey.client().oauth.createToken(code) }
+        assertContains(error.message!!, "install_id doesn't identify this install. Upgrade your client.")
+        assertEquals("api_error", error.code)
+        assertEquals(400, error.httpStatus)
+        assertEquals(false, error.retryable)
+        assertEquals("invalid_request", error.hint, "the OAuth code is the hint, where HEY's word on a failure goes")
+    }
+
+    // Shipped HEY clients sign out on invalid_grant, a dead refresh token, and not on
+    // invalid_client, a misconfigured client: both are 401s, told apart by the code.
+    @Test
+    fun aDeadRefreshTokenIsToldApartFromAMisconfiguredClient() = runTest {
+        val hey = mockHey(
+            status(401, """{"error":"invalid_grant","error_description":"Invalid refresh token."}"""),
+            status(401, """{"error":"invalid_client","error_description":"OAuth client is not authorized to revoke this token."}"""),
+        )
+        val client = hey.client()
+        val dead = assertFailsWith<HeyException.Auth> {
+            client.oauth.createToken(CreateTokenRequestContent(grantType = "refresh_token", clientId = "the-app", installId = "the-install", refreshToken = SensitiveString("dead")))
+        }
+        val misconfigured = assertFailsWith<HeyException.Auth> { client.oauth.revokeToken(revocation) }
+        assertEquals("invalid_grant", dead.hint)
+        assertEquals("invalid_client", misconfigured.hint)
+        assertContains(dead.message!!, "Invalid refresh token.")
+        assertContains(misconfigured.message!!, "OAuth client is not authorized to revoke this token.")
+        assertEquals(listOf("auth_required", "auth_required"), listOf(dead.code, misconfigured.code))
     }
 }
