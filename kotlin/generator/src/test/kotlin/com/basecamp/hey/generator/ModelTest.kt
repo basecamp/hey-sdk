@@ -48,7 +48,7 @@ class ModelTest {
     private val boxPaths = """{
         "/boxes.json": {"get": {"operationId":"ListBoxes","tags":["Boxes"],"description":"List the boxes","responses":{"200":{"content":{"application/json":{"schema":{"${'$'}ref":"#/components/schemas/ListBoxesResponseContent"}}}}}}},
         "/boxes/{boxId}": {"get": {"operationId":"GetBox","tags":["Boxes"],"parameters":[{"name":"boxId","in":"path","required":true,"schema":{"type":"integer","format":"int64"}},{"name":"page","in":"query","schema":{"type":"string"}},{"name":"since","in":"query","required":true,"schema":{"type":"string"}}],"x-hey-empty-on":{"statusCodes":[404]},"responses":{"200":{"content":{"application/json":{"schema":{"${'$'}ref":"#/components/schemas/GetBoxResponseContent"}}}},"404":{"description":"gone"}}}},
-        "/boxes/{boxId}/observation.json": {"post": {"operationId":"MarkBoxSeen","tags":["Boxes"],"x-hey-idempotent":{"natural":true},"x-hey-lenient-success":{},"parameters":[{"name":"boxId","in":"path","required":true,"schema":{"type":"integer","format":"int64"}}],"responses":{"200":{"description":"ok"}}}},
+        "/boxes/{boxId}/observation.json": {"post": {"operationId":"MarkBoxSeen","tags":["Boxes"],"x-hey-idempotent":{"natural":true},"x-hey-lenient-success":{},"x-hey-unsigned":{},"x-hey-no-redirect":{},"parameters":[{"name":"boxId","in":"path","required":true,"schema":{"type":"integer","format":"int64"}}],"responses":{"200":{"description":"ok"}}}},
         "/workflows/{workflowId}/stages/{stageId}": {"get": {"operationId":"GetWorkflowStage","tags":["Workflows"],"parameters":[{"name":"workflowId","in":"path","required":true,"schema":{"type":"integer","format":"int64"}},{"name":"stageId","in":"path","required":true,"schema":{"type":"integer","format":"int64"}}],"responses":{"200":{"content":{"text/html":{"schema":{"${'$'}ref":"#/components/schemas/StagePage"}}}}}}}
     }"""
 
@@ -108,6 +108,10 @@ class ModelTest {
         assertEquals(Response.Empty, seen.response)
         assertTrue(seen.lenientSuccess, "x-hey-lenient-success is carried onto the operation")
         assertFalse(get.lenientSuccess)
+        assertTrue(seen.unsigned, "x-hey-unsigned is carried onto the operation")
+        assertFalse(get.unsigned)
+        assertTrue(seen.noRedirect, "x-hey-no-redirect is carried onto the operation")
+        assertFalse(get.noRedirect)
 
         val stage = model.services.first { it.name == "workflows" }.operations.single()
         assertEquals(Response.Html("StagePage"), stage.response)
@@ -238,11 +242,51 @@ class ModelTest {
         assertContains(routes, "retry = RetryPolicy(max = 3, baseDelayMs = 1000L, retryOn = listOf(429, 503)),")
         assertContains(routes, "RouteParam(\"boxId\", ParamRole.RECORDING, ParamKind.INT64),")
         assertContains(routes, "html = true,")
+        val markSeen = routes.substringAfter("val MARK_BOX_SEEN: Route = Route(").substringBefore("    )")
+        assertContains(markSeen, "unsigned = true,")
+        assertContains(markSeen, "noRedirect = true,")
+        val listBoxes = routes.substringAfter("val LIST_BOXES: Route = Route(").substringBefore("    )")
+        assertFalse("unsigned" in listBoxes, "a route the model does not mark unsigned is signed:\n$listBoxes")
+        assertFalse("noRedirect" in listBoxes, "and follows redirects:\n$listBoxes")
 
         val accessors = files.getValue("ServiceAccessors.kt")
         assertContains(accessors, "val HeyClient.boxes: com.basecamp.hey.services.BoxesService")
         assertContains(accessors, "get() = service(\"Boxes\") { com.basecamp.hey.services.BoxesService(this) }")
         assertContains(accessors, "val HeyClient.workflows: WorkflowsService")
         assertEquals(false, files.containsKey("ApiVersion.kt"))
+    }
+
+    @Test
+    fun aServiceNameTheCaseConversionGetsWrongIsSettledInNames() {
+        val openapi = Json.parseToJsonElement(
+            """{"openapi":"3.1.0","info":{"version":"2026-01-01"},"paths":{
+                "/oauth/tokens.json":{"post":{"operationId":"CreateToken","tags":["OAuth"],"x-hey-unsigned":{},"x-hey-no-redirect":{},"requestBody":{"content":{"application/json":{"schema":{"${'$'}ref":"#/components/schemas/CreateTokenRequestContent"}}}},"responses":{"200":{"content":{"application/json":{"schema":{"${'$'}ref":"#/components/schemas/OAuthToken"}}}}}}}
+            },"components":{"schemas":{
+                "CreateTokenRequestContent":{"type":"object","properties":{"grant_type":{"type":"string"},"code":{"type":"string","x-hey-sensitive":{"category":"credential"}}},"required":["grant_type"]},
+                "OAuthToken":{"type":"object","properties":{"access_token":{"type":"string","x-hey-sensitive":{"category":"credential"}}},"required":["access_token"]}
+            }}}""",
+        ) as JsonObject
+        val behavior = Json.parseToJsonElement("""{"operations":{"CreateToken":{"readonly":false}}}""") as JsonObject
+        val naming = Naming.parse(
+            """
+            [service_names]
+            oauth = "OAuth"
+            [resource_types]
+            oauth = "token"
+            """.trimIndent(),
+        )
+        val files = render(Model.build(openapi, behavior, naming))
+
+        val service = files.getValue("services/OAuthService.kt")
+        assertContains(service, "class OAuthService(client: HeyClient) : BaseService(client) {")
+        assertContains(service, "suspend fun createToken(body: CreateTokenRequestContent): OAuthToken {")
+        val accessors = files.getValue("ServiceAccessors.kt")
+        assertContains(accessors, "val HeyClient.oauth: OAuthService")
+        assertContains(accessors, "get() = service(\"OAuth\") { OAuthService(this) }")
+        val routes = files.getValue("Routes.kt")
+        assertContains(routes, "service = \"OAuth\",")
+        assertContains(routes, "resourceType = \"token\",")
+        assertContains(files.getValue("models/OAuthToken.kt"), "val accessToken: SensitiveString,")
+        assertContains(files.getValue("models/CreateTokenRequestContent.kt"), "val code: SensitiveString? = null,")
     }
 }

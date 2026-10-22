@@ -88,4 +88,18 @@ class AssertionHelpersTest {
         recorded.bodies[0] = "calendar_event%5Bsummary%5D=Expected".encodeToByteArray()
         checkAll(run(recorded, expected))
     }
+
+    @Test
+    fun aHeaderIsAbsentOnlyWhenNoRequestCarriedItWhateverItsCase() {
+        val absent = Assertion(type = "headerAbsent", path = "Authorization")
+        checkAll(run(Recorded(), absent))
+
+        val recorded = Recorded()
+        recorded.headers += listOf(mapOf("Accept" to listOf("application/json")), mapOf("authorization" to listOf("Bearer t")))
+        val error = assertFailsWith<AssertionFailure> { checkAll(run(recorded, absent)) }
+        assertTrue(error.message!!.contains("Expected header \"Authorization\" to be absent, but request 2 carried it"), error.message)
+
+        recorded.headers[1] = mapOf("Accept" to listOf("application/json"))
+        checkAll(run(recorded, absent))
+    }
 }
