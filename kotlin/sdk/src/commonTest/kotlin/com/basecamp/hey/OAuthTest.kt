@@ -15,6 +15,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertNull
 import kotlin.time.Duration
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * HEY's token endpoint, as the model describes it: the generated `OAuth` service, sent unsigned
@@ -245,5 +246,85 @@ class OAuthTest {
     fun aClientWithNothingConfiguredIsStillRefusedWhenBuilt() {
         val error = assertFailsWith<HeyException.Usage> { HeyClient { } }
         assertEquals("usage", error.code)
+    }
+
+    /**
+     * A refresher built on the client it refreshes: its refresh trades the refresh token at the
+     * token endpoint through that same client. The refresh runs under the client's signing lock,
+     * so the unsigned grant must not wait on it, or the refresh waits on itself forever.
+     */
+    private class SameClientRefresher : TokenProvider {
+        lateinit var client: HeyClient
+        var token = "stale-access"
+        var refreshes = 0
+
+        override suspend fun accessToken(): String = token
+
+        override suspend fun refresh(): Boolean {
+            refreshes += 1
+            val granted = client.oauth.createToken(
+                CreateTokenRequestContent(grantType = "refresh_token", clientId = "the-app", installId = "the-install", refreshToken = SensitiveString("the-refresh")),
+            )
+            token = granted.accessToken.expose()
+            return true
+        }
+    }
+
+    @Test
+    fun aRefreshThatCallsTheTokenEndpointOnTheSameClientDoesNotWaitOnItself() = runTest(timeout = 10.seconds) {
+        val hey = mockHey(status(401), ok("""{"access_token":"fresh-access","token_type":"bearer"}"""), ok("[]"))
+        val refresher = SameClientRefresher()
+        val client = hey.client { accessToken(refresher) }
+        refresher.client = client
+        client.boxes.list()
+        assertEquals(listOf("/boxes.json", "/oauth/tokens.json", "/boxes.json"), hey.requests.map { it.path })
+        assertEquals("Bearer stale-access", hey.requests[0].header(HttpHeaders.Authorization))
+        assertNull(hey.requests[1].header(HttpHeaders.Authorization), "the grant goes unsigned")
+        assertEquals("Bearer fresh-access", hey.requests[2].header(HttpHeaders.Authorization), "and the operation is resent with what it granted")
+        assertEquals(1, refresher.refreshes)
+    }
+
+    /** The same refresher as a DPoP strategy, which names the nonce each origin handed out in its proofs. */
+    private class SameClientDpopRefresher : AuthStrategy {
+        lateinit var client: HeyClient
+        var token = "stale-access"
+        val nonces = mutableListOf<String?>()
+
+        override suspend fun authenticate(request: HttpRequestBuilder) {
+            nonces += request.dpopNonce
+            request.header(HttpHeaders.Authorization, "DPoP $token")
+            request.header("DPoP", "proof-for-${request.dpopNonce}")
+        }
+
+        override suspend fun refresh(): Boolean {
+            val granted = client.oauth.createToken(
+                CreateTokenRequestContent(grantType = "refresh_token", clientId = "the-app", installId = "the-install", refreshToken = SensitiveString("the-refresh")),
+            )
+            token = granted.accessToken.expose()
+            return true
+        }
+    }
+
+    // The token endpoint hands out a nonce of its own while the refresh holds the signing lock;
+    // hearing it must not wait on that lock either, and the resend names it.
+    @Test
+    fun aDpopRefreshThroughTheSameClientHearsTheGrantsNonceWithoutWaitingOnItself() = runTest(timeout = 10.seconds) {
+        val hey = mockHey(
+            status(401, headers = mapOf("DPoP-Nonce" to "first")),
+            ok("""{"access_token":"fresh-access","token_type":"bearer"}""", headers = mapOf("DPoP-Nonce" to "from-the-grant")),
+            ok("[]"),
+        )
+        val strategy = SameClientDpopRefresher()
+        val client = HeyClient {
+            auth(strategy)
+            engine = hey.engine
+            timeout = Duration.INFINITE
+        }
+        strategy.client = client
+        client.boxes.list()
+        assertEquals(listOf("/boxes.json", "/oauth/tokens.json", "/boxes.json"), hey.requests.map { it.path })
+        assertNull(hey.requests[1].header("DPoP"), "the grant carries no proof")
+        assertEquals("DPoP fresh-access", hey.requests[2].header(HttpHeaders.Authorization))
+        assertEquals(listOf(null, "from-the-grant"), strategy.nonces, "the resend names the nonce the grant's answer handed out")
     }
 }
