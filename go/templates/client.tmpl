@@ -367,7 +367,7 @@ func (c *{{ $clientTypeName }}) doAttempts(ctx context.Context, buildRequest fun
 		}
 		lastReq = req
 
-		resp, err := c.Client.Do(req)
+		resp, err := c.doer(operationId).Do(req)
 		if err != nil {
 			lastErr = err
 			if c.Logger != nil {
@@ -430,6 +430,21 @@ func (c *{{ $clientTypeName }}) doAttempts(ctx context.Context, buildRequest fun
 		return nil, nil, lastErr
 	}
 	return lastResp, lastReq, nil
+}
+
+// doer is what sends an attempt of the operation. A no-redirect operation handed to a plain
+// *http.Client goes through a copy of it that stops at the first redirect, so the 3xx is the
+// answer whatever policy the client was built with, and the body's secrets go nowhere else.
+// Any other Doer decides redirects itself, and can read the operation's NoRedirect off the
+// request's context.
+func (c *{{ $clientTypeName }}) doer(operationId string) HttpRequestDoer {
+	client, ok := c.Client.(*http.Client)
+	if !ok || !operationMetadata[operationId].NoRedirect {
+		return c.Client
+	}
+	stopping := *client
+	stopping.CheckRedirect = func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
+	return &stopping
 }
 
 // announce tells the RetryHook about the attempt about to be made, and reports the context
@@ -713,13 +728,16 @@ type OperationMetadata struct {
 	HasSensitiveParams bool
 	// Unsigned marks an operation HEY takes without the caller's credentials
 	// (x-hey-unsigned): it goes out with no Authorization header, whatever the client
-	// holds, and a 401 is its answer. The client never asks its AuthRefresher about one;
-	// signing it or not is the request editors' to decide, by reading this.
+	// holds, and a 401 is its answer. The client never asks its AuthRefresher about one.
+	// Leaving the credentials off is the request editors' to do, by reading this off the
+	// operation the request's context names: hey.Client's editor does, and an editor a
+	// caller hands this client signs whatever it is given unless it checks.
 	Unsigned bool
 	// NoRedirect marks an operation that follows no redirect (x-hey-no-redirect): a 3xx
-	// is its answer, and its parser does not read the 3xx's body. Whether a redirect is
-	// followed is the Doer's to decide, by reading this off the operation the request's
-	// context names.
+	// is its answer, and its parser does not read the 3xx's body. Handed a plain
+	// *http.Client, the client sends the operation through a copy that stops at the
+	// first redirect; any other Doer decides, by reading this off the operation the
+	// request's context names, as hey.Client's does.
 	NoRedirect bool
 }
 

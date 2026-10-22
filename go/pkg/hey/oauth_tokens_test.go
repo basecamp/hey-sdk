@@ -523,3 +523,97 @@ func TestOAuthOperationsReportTheirNamesToTheHooks(t *testing.T) {
 		t.Errorf("the hooks heard %+v, want %+v", hooks.operations, want)
 	}
 }
+
+// HEY's token endpoint refuses with RFC 6749's {"error", "error_description"}. The
+// description is HEY's sentence for a person and becomes the error's message; the code is
+// what a client acts on and stays reachable as OAuthCode. The error's code, status and
+// retryability are the status's, as for any other refusal.
+func TestOAuthRefusalsSayWhyAndName(t *testing.T) {
+	for _, refusal := range []struct {
+		status         int
+		oauthCode, why string
+		code           string
+		retryable      bool
+	}{
+		{400, "invalid_request", "install_id doesn't identify this install. Upgrade your client.", CodeAPI, false},
+		{401, "invalid_grant", "Invalid refresh token.", CodeAuth, false},
+		{401, "invalid_client", "OAuth client is not authorized to revoke this token.", CodeAuth, false},
+		{403, "unauthorized_client", "This client may not use this grant.", CodeForbidden, false},
+		{429, "rate_limit_exceeded", "Too many failed attempts. Try again later.", CodeRateLimit, true},
+	} {
+		for _, operation := range []string{"CreateToken", "RevokeToken"} {
+			t.Run(fmt.Sprintf("%d %s/%s", refusal.status, refusal.oauthCode, operation), func(t *testing.T) {
+				body, _ := json.Marshal(map[string]string{"error": refusal.oauthCode, "error_description": refusal.why})
+				server, _ := tokenEndpoint(t, tokenAnswer{status: refusal.status, body: string(body)})
+				client := NewClient(&Config{BaseURL: server.URL}, nil, WithAuthStrategy(NoCredentials{}), WithMaxRetries(0))
+
+				err := tokenOperations(client)[operation]()
+				var apiErr *Error
+				if !errors.As(err, &apiErr) {
+					t.Fatalf("%s = %v, want an *Error", operation, err)
+				}
+				if !strings.Contains(apiErr.Message, refusal.why) {
+					t.Errorf("Message = %q, want HEY's description %q", apiErr.Message, refusal.why)
+				}
+				if apiErr.OAuthCode != refusal.oauthCode {
+					t.Errorf("OAuthCode = %q, want %q", apiErr.OAuthCode, refusal.oauthCode)
+				}
+				if apiErr.Code != refusal.code || apiErr.HTTPStatus != refusal.status || apiErr.Retryable != refusal.retryable {
+					t.Errorf("error = %s, HTTP %d, retryable %v; want %s, HTTP %d, retryable %v",
+						apiErr.Code, apiErr.HTTPStatus, apiErr.Retryable, refusal.code, refusal.status, refusal.retryable)
+				}
+			})
+		}
+	}
+}
+
+// A dead refresh token and a misconfigured client both answer 401: the code is what tells
+// them apart, since an app signs out on the one and not the other.
+func TestOAuthUnauthorizedCodesCanBeToldApart(t *testing.T) {
+	codeOf := func(body string) string {
+		server, _ := tokenEndpoint(t, tokenAnswer{status: 401, body: body})
+		client := NewClient(&Config{BaseURL: server.URL}, nil, WithAuthStrategy(NoCredentials{}))
+		_, err := client.OAuth().CreateToken(context.Background(), codeGrant)
+		var apiErr *Error
+		if !errors.As(err, &apiErr) {
+			t.Fatalf("CreateToken = %v, want an *Error", err)
+		}
+		return apiErr.OAuthCode
+	}
+	grant := codeOf(`{"error":"invalid_grant","error_description":"Invalid refresh token."}`)
+	client := codeOf(`{"error":"invalid_client","error_description":"Client authentication failed."}`)
+	if grant != "invalid_grant" || client != "invalid_client" {
+		t.Errorf("the 401s read as %q and %q, want invalid_grant and invalid_client", grant, client)
+	}
+}
+
+// HEY's other refusals carry no error_description, and their errors read as they always
+// have: no message from the body, no OAuth code.
+func TestRefusalsWithoutADescriptionKeepTheirMessages(t *testing.T) {
+	for _, refusal := range []struct {
+		status  int
+		body    string
+		message string
+	}{
+		{400, `{"message":"Bad things"}`, "API error: 400 Bad Request"},
+		{401, `{"error":"invalid_grant"}`, "authentication required"},
+		{404, `{"error":"Not found"}`, "resource not found"},
+		{500, `{"errors":["Something broke"]}`, "API error: 500 Internal Server Error"},
+		{400, `{"error":"invalid_request","error_description":""}`, "API error: 400 Bad Request"},
+		{400, `{"error":"invalid_request","error_description":42}`, "API error: 400 Bad Request"},
+	} {
+		resp := &http.Response{
+			StatusCode: refusal.status,
+			Status:     fmt.Sprintf("%d %s", refusal.status, http.StatusText(refusal.status)),
+			Header:     http.Header{},
+			Body:       io.NopCloser(strings.NewReader(refusal.body)),
+		}
+		var apiErr *Error
+		if !errors.As(CheckResponse(resp), &apiErr) || apiErr.Message != refusal.message || apiErr.OAuthCode != "" {
+			t.Errorf("%d %s = %+v, want message %q and no OAuth code", refusal.status, refusal.body, apiErr, refusal.message)
+		}
+		if rest, _ := io.ReadAll(resp.Body); string(rest) != refusal.body {
+			t.Errorf("%d %s: the body read after CheckResponse is %q", refusal.status, refusal.body, rest)
+		}
+	}
+}

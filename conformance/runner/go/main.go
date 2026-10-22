@@ -599,6 +599,18 @@ func checkAssertion(testName string, a Assertion, s checkState) TestResult {
 			return fail(testName, "Expected error code %q, got %q", expected, s.sdkError.Code)
 		}
 
+	case "errorMessageContains":
+		expected, ok := a.Expected.(string)
+		if !ok {
+			return fail(testName, "errorMessageContains: expected a string value, got %T", a.Expected)
+		}
+		if s.sdkError == nil {
+			return fail(testName, "Expected an error whose message contains %q, but got no error", expected)
+		}
+		if got := s.sdkError.Error(); !strings.Contains(got, expected) {
+			return fail(testName, "Expected the error message to contain %q, got %q", expected, got)
+		}
+
 	case "errorField":
 		if s.sdkError == nil {
 			return fail(testName, "Expected error field %q, but got no error", a.Path)

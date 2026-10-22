@@ -43,6 +43,12 @@ token, err := client.OAuth().CreateToken(ctx, generated.CreateTokenRequestConten
 })
 ```
 
+The token endpoint refuses with RFC 6749's `{"error", "error_description"}`: the description
+is the error's `Message`, and the code is its `OAuthCode`, which tells a dead refresh token
+(`invalid_grant`) from a misconfigured client (`invalid_client`) on a 401. The generated client
+used on its own leaves the credentials to the editors it is given, but it does take a 401 on
+these operations as the answer and, handed an `*http.Client`, follows no redirect for them.
+
 The `oauth` package's `Exchanger` remains the client for an authorization server the caller
 discovered.
 

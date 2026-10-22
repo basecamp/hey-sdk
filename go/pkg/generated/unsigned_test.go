@@ -2,6 +2,7 @@ package generated
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -173,5 +174,72 @@ func TestNoRedirectOperationsLeaveA3xxBodyUnread(t *testing.T) {
 				t.Errorf("the response handed back a body %q, want none", rest)
 			}
 		})
+	}
+}
+
+// The generated client handed a plain *http.Client, the default included, follows no
+// redirect for a no-redirect operation either: the 3xx is the answer and nothing goes to the
+// Location. Any other operation still follows its redirects as the client's policy says.
+func TestBareClientFollowsNoRedirectForNoRedirectOperations(t *testing.T) {
+	for _, supplied := range []bool{false, true} {
+		for name, send := range map[string]func(*ClientWithResponses) (int, error){
+			"CreateToken": func(c *ClientWithResponses) (int, error) {
+				resp, err := c.CreateTokenWithResponse(context.Background(), tokenGrant)
+				if err != nil {
+					return 0, err
+				}
+				return resp.StatusCode(), nil
+			},
+			"RevokeToken": func(c *ClientWithResponses) (int, error) {
+				resp, err := c.RevokeTokenWithResponse(context.Background(), tokenRevocation)
+				if err != nil {
+					return 0, err
+				}
+				return resp.StatusCode(), nil
+			},
+			"GetIdentity": func(c *ClientWithResponses) (int, error) {
+				resp, err := c.GetIdentityWithResponse(context.Background())
+				if err != nil {
+					return 0, err
+				}
+				return resp.StatusCode(), nil
+			},
+		} {
+			t.Run(fmt.Sprintf("%s/supplied=%v", name, supplied), func(t *testing.T) {
+				var redirected, elsewhere atomic.Int32
+				server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					w.Header().Set("Content-Type", "application/json")
+					if r.URL.Path == "/elsewhere" {
+						elsewhere.Add(1)
+						_, _ = io.WriteString(w, `{"access_token":"a","token_type":"bearer","id":1}`)
+						return
+					}
+					redirected.Add(1)
+					w.Header().Set("Location", "/elsewhere")
+					w.WriteHeader(http.StatusTemporaryRedirect)
+				}))
+				t.Cleanup(server.Close)
+				var opts []ClientOption
+				if supplied {
+					opts = append(opts, WithHTTPClient(&http.Client{}))
+				}
+				client, err := NewClientWithResponses(server.URL, opts...)
+				if err != nil {
+					t.Fatal(err)
+				}
+
+				status, err := send(client)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if operationMetadata[name].NoRedirect {
+					if status != http.StatusTemporaryRedirect || redirected.Load() != 1 || elsewhere.Load() != 0 {
+						t.Errorf("%s answered %d; Location sent %d requests; want the 307 and none", name, status, elsewhere.Load())
+					}
+				} else if status != http.StatusOK || elsewhere.Load() != 1 {
+					t.Errorf("%s answered %d; Location sent %d requests; want the redirect followed", name, status, elsewhere.Load())
+				}
+			})
+		}
 	}
 }
