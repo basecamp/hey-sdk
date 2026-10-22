@@ -236,6 +236,19 @@ describe("no-redirect operations", () => {
       expect(pulled).toBe(false);
     },
   );
+  // A fetch that tees or clones its responses can leave a cancel pending until the other
+  // branch is read, which nothing here bounds: the 3xx is known, so it is the answer at once.
+  it("answers a redirect whose body never finishes cancelling", async () => {
+    const body = new ReadableStream<Uint8Array>(
+      { cancel: () => new Promise<void>(() => {}) },
+      { highWaterMark: 0 },
+    );
+    const m = mock([new Response(body, { status: 307, headers: { Location: "/elsewhere" } })]);
+    await expect(
+      new HeyClient({ token: "secret", fetch: m.fetch }).createToken({ body: grant }),
+    ).rejects.toMatchObject({ httpStatus: 307 });
+    expect(m.requests).toHaveLength(1);
+  }, 1000);
   it("does not resend a revocation's redirect", async () => {
     const m = mock([
       new Response(null, { status: 302, headers: { Location: "/elsewhere" } }),
