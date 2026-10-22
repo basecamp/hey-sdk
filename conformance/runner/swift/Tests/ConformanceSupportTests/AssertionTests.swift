@@ -131,6 +131,20 @@ final class AssertionTests: XCTestCase {
         XCTAssertNoThrow(try checkAll(run(Recorded(), once, refreshes: 1)))
     }
 
+    func testAnAbsentHeaderHasToBeAbsentFromEveryRequestWhateverItsCase() {
+        var recorded = Recorded()
+        recorded.paths = ["/oauth/tokens.json", "/oauth/tokens.json"]
+        recorded.headers = [[("Accept", "application/json")], [("authorization", "Bearer secret")]]
+        let absent = Assertion(type: "headerAbsent", path: "Authorization")
+        let message = failure(run(recorded, absent))
+        XCTAssertTrue(message.contains("request 2"), message)
+        XCTAssertFalse(message.contains("secret"), "the value a credential header carried is not quoted")
+        recorded.headers[1] = [("dpop", "")]
+        XCTAssertTrue(failure(run(recorded, Assertion(type: "headerAbsent", path: "DPoP"))).contains("request 2"), "an empty value is still carried")
+        XCTAssertNoThrow(try checkAll(run(recorded, absent)))
+        XCTAssertTrue(failure(run(recorded, Assertion(type: "headerAbsent"))).contains("names no header"))
+    }
+
     func testAnUnknownAssertionTypeFails() {
         XCTAssertTrue(failure(run(Recorded(), Assertion(type: "somethingNew"))).contains("Unknown assertion type"))
     }
