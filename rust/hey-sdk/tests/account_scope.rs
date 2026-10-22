@@ -3,6 +3,7 @@
 mod support;
 
 use hey_sdk::ErrorCode;
+use hey_sdk::models::RevokeTokenRequestContent;
 use hey_sdk::services::BoxKind;
 use serde_json::{Value, json};
 use wiremock::matchers::{method, path, query_param, query_param_is_missing};
@@ -38,6 +39,38 @@ async fn a_scoped_client_checks_the_account_and_filters_what_it_reads() {
     assert_eq!(requests[0].url.path(), "/identity.json");
     assert_eq!(requests[1].url.path(), "/boxes.json");
     assert_eq!(requests[1].url.query(), Some("filtered_account_id=42"));
+}
+
+/// A route HEY takes unsigned goes out as no identity at all, so there is no account of
+/// its to filter to: the token endpoint gets no `filtered_account_id` from a scoped client.
+#[tokio::test]
+async fn a_scoped_client_sends_an_unsigned_route_unscoped() {
+    let server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path("/identity.json"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(identity()))
+        .mount(&server)
+        .await;
+    Mock::given(method("DELETE"))
+        .and(path("/oauth/tokens.json"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({})))
+        .mount(&server)
+        .await;
+
+    let scoped = client(&server).for_account(42).await.unwrap();
+    scoped
+        .oauth()
+        .revoke_token(&RevokeTokenRequestContent {
+            client_id: "client".to_string(),
+            token: "token".into(),
+        })
+        .await
+        .unwrap();
+
+    let requests = server.received_requests().await.unwrap();
+    assert_eq!(requests.len(), 2);
+    assert_eq!(requests[1].url.path(), "/oauth/tokens.json");
+    assert_eq!(requests[1].url.query(), None);
 }
 
 #[tokio::test]
