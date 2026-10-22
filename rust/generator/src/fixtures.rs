@@ -606,11 +606,11 @@ fn unsigned_and_no_redirect_are_carried_onto_the_route() {
 
 /// A tag that is an acronym snake-cases into `o_auth`, which is no accessor. `[services]`
 /// names the handle's module and accessor, `oauth`, and `[service_types]` the type it is and
-/// the service the hooks hear, where PascalCase of the accessor would fold the acronym into
+/// the service the hooks hear, where `PascalCase` of the accessor would fold the acronym into
 /// `Oauth`.
 #[test]
 fn a_service_type_keeps_an_acronym_the_accessor_folds() {
-    let names = "[services]\n\"OAuth\" = \"oauth\"\n\n[service_types]\noauth = \"OAuth\"\n\n[resource_types]\noauth = \"token\"\n";
+    let names = "[services]\n\"OAuth\" = \"oauth\"\n\n[type_names]\nBox = \"Mailbox\"\n\n[service_types]\noauth = \"OAuth\"\n\n[resource_types]\noauth = \"token\"\n";
     let mut granting = json!({ "post": {
         "operationId": "CreateToken",
         "tags": ["OAuth"],

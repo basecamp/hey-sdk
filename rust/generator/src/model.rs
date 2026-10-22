@@ -3,7 +3,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use serde::Deserialize;
 use serde_json::Value;
 
-use crate::naming::{Naming, struct_name};
+use crate::naming::Naming;
 
 /// Which noun each operation acts on, read from the same `names.toml` the naming
 /// overrides come from. Nothing in `openapi.json` says it, and the SDKs have to agree on
@@ -96,9 +96,12 @@ pub(crate) enum FieldType {
 
 pub(crate) struct Service {
     pub name: String,
+    /// The type the service's handle is: `Boxes`, `OAuth`.
+    pub type_name: String,
     pub operations: Vec<Operation>,
 }
 
+#[allow(clippy::struct_excessive_bools)] // independent facts the model states about an operation, not a state machine
 pub(crate) struct Operation {
     pub id: String,
     /// The service handle that sends it, as every HEY SDK names it: `Boxes`, `TimeTracks`.
@@ -119,6 +122,11 @@ pub(crate) struct Operation {
     /// A 2xx whose body cannot be read or does not decode is an empty result
     /// (`x-hey-lenient-success`): the operation's work is done once HEY answers a success.
     pub lenient_success: bool,
+    /// Sent without the client's credentials, and a 401 is the answer rather than a reason
+    /// to refresh them (`x-hey-unsigned`).
+    pub unsigned: bool,
+    /// A 3xx is the answer, never followed (`x-hey-no-redirect`).
+    pub no_redirect: bool,
     pub pagination: Pagination,
     pub retry: Retry,
 }
@@ -427,7 +435,7 @@ fn build_services(
                 .ok_or(format!("{id} is missing from behavior-model.json"))?;
             let operation = Operation {
                 id: id.to_string(),
-                service: struct_name(&service),
+                service: naming.service_type(&service),
                 method_name: naming.method_for(id, &service)?,
                 description: description_of(operation),
                 http_method: http_method.to_uppercase(),
@@ -442,6 +450,8 @@ fn build_services(
                 readonly: readonly(semantics, id)?,
                 empty_on: empty_on(operation),
                 lenient_success: operation.get("x-hey-lenient-success").is_some(),
+                unsigned: operation.get("x-hey-unsigned").is_some(),
+                no_redirect: operation.get("x-hey-no-redirect").is_some(),
                 pagination: pagination(semantics)?,
                 retry: retry(semantics),
             };
@@ -460,7 +470,11 @@ fn build_services(
                 ));
             }
         }
-        result.push(Service { name, operations });
+        result.push(Service {
+            type_name: naming.service_type(&name),
+            name,
+            operations,
+        });
     }
     Ok(result)
 }

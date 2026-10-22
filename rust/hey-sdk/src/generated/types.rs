@@ -967,6 +967,41 @@ pub type CreateStickyResponseContent = Sticky;
 
 pub type CreateTimeTrackResponseContent = Recording;
 
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+pub struct CreateTokenRequestContent {
+    /// "authorization_code" or "refresh_token".
+    #[serde(
+        default,
+        deserialize_with = "crate::types::null_as_default::deserialize"
+    )]
+    pub grant_type: String,
+    /// The OAuth client's id.
+    #[serde(
+        default,
+        deserialize_with = "crate::types::null_as_default::deserialize"
+    )]
+    pub client_id: String,
+    /// Identifies this installation to HEY as a device: the value the authorization URL
+    /// carried, for a code.
+    #[serde(
+        default,
+        deserialize_with = "crate::types::null_as_default::deserialize"
+    )]
+    pub install_id: String,
+    /// The authorization code the redirect carried (authorization_code).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub code: Option<SensitiveString>,
+    /// The redirect URI the authorization request named (authorization_code).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub redirect_uri: Option<String>,
+    /// The PKCE verifier whose challenge the authorization request sent (authorization_code).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub code_verifier: Option<SensitiveString>,
+    /// The refresh token to trade (refresh_token).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub refresh_token: Option<SensitiveString>,
+}
+
 /// Wire format: {comment: {content: "<div>…</div>"}}
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct CreateTopicCommentRequestContent {
@@ -1774,6 +1809,29 @@ pub struct NotFoundErrorResponseContent {
     pub message: String,
 }
 
+/// The tokens a grant answers.
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[non_exhaustive]
+pub struct OAuthToken {
+    #[serde(
+        default,
+        deserialize_with = "crate::types::null_as_default::deserialize"
+    )]
+    pub access_token: SensitiveString,
+    /// "bearer".
+    #[serde(
+        default,
+        deserialize_with = "crate::types::null_as_default::deserialize"
+    )]
+    pub token_type: String,
+    /// Seconds the access token lasts from the moment HEY answered.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub expires_in: Option<i64>,
+    /// The token to refresh with: a new one for a code, the one sent for a refresh.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub refresh_token: Option<SensitiveString>,
+}
+
 /// Organizer — calendar event organizer
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 #[non_exhaustive]
@@ -2120,6 +2178,22 @@ pub struct ReplyMessagePayload {
 pub type RevealContactResponseContent = Contact;
 
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+pub struct RevokeTokenRequestContent {
+    /// The OAuth client's id: the client the token was handed to.
+    #[serde(
+        default,
+        deserialize_with = "crate::types::null_as_default::deserialize"
+    )]
+    pub client_id: String,
+    /// The access or refresh token to revoke.
+    #[serde(
+        default,
+        deserialize_with = "crate::types::null_as_default::deserialize"
+    )]
+    pub token: SensitiveString,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct SchedulePostingsBubbleUpRequestContent {
     #[serde(
         default,
@@ -2330,6 +2404,16 @@ pub struct TimeTrackRequestContent {
 }
 
 pub type ToggleCalendarResponseContent = CalendarSelection;
+
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[non_exhaustive]
+pub struct TooManyRequestsErrorResponseContent {
+    #[serde(
+        default,
+        deserialize_with = "crate::types::null_as_default::deserialize"
+    )]
+    pub message: String,
+}
 
 /// Topic detail
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
