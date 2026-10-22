@@ -708,6 +708,16 @@ type OperationMetadata struct {
 	Idempotent bool
 	// HasSensitiveParams indicates whether any parameters contain sensitive data.
 	HasSensitiveParams bool
+	// Unsigned marks an operation HEY takes without the caller's credentials
+	// (x-hey-unsigned): it goes out with no Authorization header, whatever the client
+	// holds, and a 401 is its answer. The client never asks its AuthRefresher about one;
+	// signing it or not is the request editors' to decide, by reading this.
+	Unsigned bool
+	// NoRedirect marks an operation that follows no redirect (x-hey-no-redirect): a 3xx
+	// is its answer, and its parser does not read the 3xx's body. Whether a redirect is
+	// followed is the Doer's to decide, by reading this off the operation the request's
+	// context names.
+	NoRedirect bool
 }
 
 // operationMetadata maps operation IDs to their metadata.
@@ -726,7 +736,11 @@ var operationMetadata = map[string]OperationMetadata{
 {{end -}}
 {{end -}}
 {{end -}}
-	"{{$opid}}": {Idempotent: {{$isIdempotent}}, HasSensitiveParams: {{$hasSensitive}}},
+{{- /* Both extensions' values are empty objects, which a template reads as false: test
+for the key instead. */ -}}
+{{$unsigned := ne (printf "%v" (index .Spec.Extensions "x-hey-unsigned")) "<nil>" -}}
+{{$noRedirect := ne (printf "%v" (index .Spec.Extensions "x-hey-no-redirect")) "<nil>" -}}
+	"{{$opid}}": {Idempotent: {{$isIdempotent}}, HasSensitiveParams: {{$hasSensitive}}, Unsigned: {{$unsigned}}, NoRedirect: {{$noRedirect}}},
 {{end}}
 }
 

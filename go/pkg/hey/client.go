@@ -98,6 +98,7 @@ type Client struct {
 	workflows       *WorkflowsService
 	publications    *PublicationsService
 	world           *WorldService
+	oauth           *OAuthService
 }
 
 // Response wraps an API response.
@@ -1649,6 +1650,16 @@ func (c *Client) World() *WorldService {
 		c.world = NewWorldService(c)
 	}
 	return c.world
+}
+
+// OAuth returns the OAuthService, for HEY's own token endpoint.
+func (c *Client) OAuth() *OAuthService {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.oauth == nil {
+		c.oauth = NewOAuthService(c)
+	}
+	return c.oauth
 }
 
 // resolveActingSenderID answers the acting sender an operation goes out as: the

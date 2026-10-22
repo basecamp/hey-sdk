@@ -606,6 +606,31 @@ type CreateStickyResponseContent = Sticky
 // CreateTimeTrackResponseContent Recording — polymorphic by `type`, with direct and namespaced calendar wire values
 type CreateTimeTrackResponseContent = Recording
 
+// CreateTokenRequestContent defines model for CreateTokenRequestContent.
+type CreateTokenRequestContent struct {
+	// ClientId The OAuth client's id.
+	ClientId string `json:"client_id"`
+
+	// Code The authorization code the redirect carried (authorization_code).
+	Code string `json:"code,omitempty"`
+
+	// CodeVerifier The PKCE verifier whose challenge the authorization request sent (authorization_code).
+	CodeVerifier string `json:"code_verifier,omitempty"`
+
+	// GrantType "authorization_code" or "refresh_token".
+	GrantType string `json:"grant_type"`
+
+	// InstallId Identifies this installation to HEY as a device: the value the authorization URL
+	// carried, for a code.
+	InstallId string `json:"install_id"`
+
+	// RedirectUri The redirect URI the authorization request named (authorization_code).
+	RedirectUri string `json:"redirect_uri,omitempty"`
+
+	// RefreshToken The refresh token to trade (refresh_token).
+	RefreshToken string `json:"refresh_token,omitempty"`
+}
+
 // CreateTopicCommentRequestContent Wire format: {comment: {content: "<div>…</div>"}}
 type CreateTopicCommentRequestContent struct {
 	Comment TopicCommentPayload `json:"comment"`
@@ -1240,6 +1265,20 @@ type NotFoundErrorResponseContent struct {
 	Message string `json:"message"`
 }
 
+// OAuthToken The tokens a grant answers.
+type OAuthToken struct {
+	AccessToken string `json:"access_token"`
+
+	// ExpiresIn Seconds the access token lasts from the moment HEY answered.
+	ExpiresIn int64 `json:"expires_in,omitempty"`
+
+	// RefreshToken The token to refresh with: a new one for a code, the one sent for a refresh.
+	RefreshToken string `json:"refresh_token,omitempty"`
+
+	// TokenType "bearer".
+	TokenType string `json:"token_type"`
+}
+
 // Organizer Organizer — calendar event organizer
 type Organizer struct {
 	EmailAddress string `json:"email_address,omitempty"`
@@ -1430,6 +1469,15 @@ type ReplyMessagePayload struct {
 // RevealContactResponseContent Contact — the identity of someone in HEY
 type RevealContactResponseContent = Contact
 
+// RevokeTokenRequestContent defines model for RevokeTokenRequestContent.
+type RevokeTokenRequestContent struct {
+	// ClientId The OAuth client's id: the client the token was handed to.
+	ClientId string `json:"client_id"`
+
+	// Token The access or refresh token to revoke.
+	Token string `json:"token"`
+}
+
 // SchedulePostingsBubbleUpRequestContent defines model for SchedulePostingsBubbleUpRequestContent.
 type SchedulePostingsBubbleUpRequestContent struct {
 	Date       string  `json:"date,omitempty"`
@@ -1571,6 +1619,11 @@ type TimeTrackRequestContent struct {
 
 // ToggleCalendarResponseContent CalendarSelection — the calendars a toggle left switched on
 type ToggleCalendarResponseContent = CalendarSelection
+
+// TooManyRequestsErrorResponseContent defines model for TooManyRequestsErrorResponseContent.
+type TooManyRequestsErrorResponseContent struct {
+	Message string `json:"message"`
+}
 
 // Topic Topic detail
 type Topic struct {
@@ -2168,6 +2221,12 @@ type UpdateMessageJSONRequestBody = CreateMessageRequestContent
 // UpdateMyClearanceJSONRequestBody defines body for UpdateMyClearance for application/json ContentType.
 type UpdateMyClearanceJSONRequestBody = UpdateMyClearanceRequestContent
 
+// RevokeTokenJSONRequestBody defines body for RevokeToken for application/json ContentType.
+type RevokeTokenJSONRequestBody = RevokeTokenRequestContent
+
+// CreateTokenJSONRequestBody defines body for CreateToken for application/json ContentType.
+type CreateTokenJSONRequestBody = CreateTokenRequestContent
+
 // AddPostingsToBoxGroupJSONRequestBody defines body for AddPostingsToBoxGroup for application/json ContentType.
 type AddPostingsToBoxGroupJSONRequestBody = AddPostingsToBoxGroupRequestContent
 
@@ -2372,6 +2431,8 @@ var operationRetryPolicies = map[string]RetryPolicy{
 	"GetMyClearances":               {MaxAttempts: 3, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
 	"UpdateMyClearance":             {MaxAttempts: 2, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
 	"GetNavigation":                 {MaxAttempts: 3, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
+	"RevokeToken":                   {MaxAttempts: 3, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
+	"CreateToken":                   {MaxAttempts: 1, RetryableStatuses: []int{}, BaseDelay: 1000 * time.Millisecond},
 	"GetTrailbox":                   {MaxAttempts: 3, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
 	"RemovePostingsFromBoxGroup":    {MaxAttempts: 2, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
 	"AddPostingsToBoxGroup":         {MaxAttempts: 2, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
@@ -3139,6 +3200,16 @@ type ClientInterface interface {
 
 	// GetNavigation request
 	GetNavigation(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// RevokeTokenWithBody request with any body
+	RevokeTokenWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	RevokeToken(ctx context.Context, body RevokeTokenJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CreateTokenWithBody request with any body
+	CreateTokenWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	CreateToken(ctx context.Context, body CreateTokenJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// GetTrailbox request
 	GetTrailbox(ctx context.Context, params *GetTrailboxParams, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -4307,6 +4378,44 @@ func (c *Client) GetNavigation(ctx context.Context, reqEditors ...RequestEditorF
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
 		return NewGetNavigationRequest(c.Server)
 	}, true, "GetNavigation", reqEditors...)
+}
+
+// RevokeTokenWithBody is marked as idempotent and will be retried on transient failures.
+
+func (c *Client) RevokeTokenWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	body, rewind, finish := resendableBody(body)
+	defer finish()
+	return c.doWithRetry(ctx, func() (*http.Request, error) {
+		if err := rewind(); err != nil {
+			return nil, err
+		}
+		return NewRevokeTokenRequestWithBody(c.Server, contentType, body)
+	}, true, "RevokeToken", reqEditors...)
+}
+
+func (c *Client) RevokeToken(ctx context.Context, body RevokeTokenJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	return c.doWithRetry(ctx, func() (*http.Request, error) {
+		return NewRevokeTokenRequest(c.Server, body)
+	}, true, "RevokeToken", reqEditors...)
+}
+
+// CreateTokenWithBody executes the CreateToken operation.
+
+func (c *Client) CreateTokenWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	body, rewind, finish := resendableBody(body)
+	defer finish()
+	return c.doWithRetry(ctx, func() (*http.Request, error) {
+		if err := rewind(); err != nil {
+			return nil, err
+		}
+		return NewCreateTokenRequestWithBody(c.Server, contentType, body)
+	}, false, "CreateToken", reqEditors...)
+}
+
+func (c *Client) CreateToken(ctx context.Context, body CreateTokenJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	return c.doWithRetry(ctx, func() (*http.Request, error) {
+		return NewCreateTokenRequest(c.Server, body)
+	}, false, "CreateToken", reqEditors...)
 }
 
 // GetTrailbox is marked as idempotent and will be retried on transient failures.
@@ -8968,6 +9077,86 @@ func NewGetNavigationRequest(server string) (*http.Request, error) {
 	return req, nil
 }
 
+// NewRevokeTokenRequest calls the generic RevokeToken builder with application/json body
+func NewRevokeTokenRequest(server string, body RevokeTokenJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewRevokeTokenRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewRevokeTokenRequestWithBody generates requests for RevokeToken with any type of body
+func NewRevokeTokenRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/oauth/tokens.json")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("DELETE", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewCreateTokenRequest calls the generic CreateToken builder with application/json body
+func NewCreateTokenRequest(server string, body CreateTokenJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewCreateTokenRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewCreateTokenRequestWithBody generates requests for CreateToken with any type of body
+func NewCreateTokenRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/oauth/tokens.json")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
 // NewGetTrailboxRequest generates requests for GetTrailbox
 func NewGetTrailboxRequest(server string, params *GetTrailboxParams) (*http.Request, error) {
 	var err error
@@ -10947,6 +11136,16 @@ type OperationMetadata struct {
 	Idempotent bool
 	// HasSensitiveParams indicates whether any parameters contain sensitive data.
 	HasSensitiveParams bool
+	// Unsigned marks an operation HEY takes without the caller's credentials
+	// (x-hey-unsigned): it goes out with no Authorization header, whatever the client
+	// holds, and a 401 is its answer. The client never asks its AuthRefresher about one;
+	// signing it or not is the request editors' to decide, by reading this.
+	Unsigned bool
+	// NoRedirect marks an operation that follows no redirect (x-hey-no-redirect): a 3xx
+	// is its answer, and its parser does not read the 3xx's body. Whether a redirect is
+	// followed is the Doer's to decide, by reading this off the operation the request's
+	// context names.
+	NoRedirect bool
 }
 
 // operationMetadata maps operation IDs to their metadata.
@@ -10954,143 +11153,145 @@ type OperationMetadata struct {
 // Idempotent is the same judgement the operation's method makes when it decides whether
 // to spend its retry policy or send once.
 var operationMetadata = map[string]OperationMetadata{
-	"DeleteExtenzion":               {Idempotent: true, HasSensitiveParams: false},
-	"AdvancedSearch":                {Idempotent: true, HasSensitiveParams: false},
-	"GetAdvancedSearchFilters":      {Idempotent: true, HasSensitiveParams: false},
-	"ListAddressableContacts":       {Idempotent: true, HasSensitiveParams: false},
-	"ListBoxes":                     {Idempotent: true, HasSensitiveParams: false},
-	"GetBox":                        {Idempotent: true, HasSensitiveParams: false},
-	"CreateBoxDesignation":          {Idempotent: false, HasSensitiveParams: false},
-	"DeleteBoxDesignation":          {Idempotent: true, HasSensitiveParams: false},
-	"ListBoxGroups":                 {Idempotent: true, HasSensitiveParams: false},
-	"CreateBoxGroup":                {Idempotent: false, HasSensitiveParams: false},
-	"DeleteBoxGroup":                {Idempotent: true, HasSensitiveParams: false},
-	"GetBoxGroup":                   {Idempotent: true, HasSensitiveParams: false},
-	"MarkBoxSeen":                   {Idempotent: false, HasSensitiveParams: false},
-	"GetBoxPostingChanges":          {Idempotent: true, HasSensitiveParams: false},
-	"GetBubblebox":                  {Idempotent: true, HasSensitiveParams: false},
-	"CreateBulkReply":               {Idempotent: false, HasSensitiveParams: false},
-	"NewBulkReply":                  {Idempotent: true, HasSensitiveParams: false},
-	"ListCalendarDays":              {Idempotent: true, HasSensitiveParams: false},
-	"GetCalendarDay":                {Idempotent: true, HasSensitiveParams: false},
-	"UncompleteHabit":               {Idempotent: true, HasSensitiveParams: false},
-	"CompleteHabit":                 {Idempotent: true, HasSensitiveParams: false},
-	"GetJournalEntry":               {Idempotent: true, HasSensitiveParams: false},
-	"UpdateJournalEntry":            {Idempotent: false, HasSensitiveParams: false},
-	"DeleteCalendarEvent":           {Idempotent: true, HasSensitiveParams: false},
-	"DeleteCalendarEventOccurrence": {Idempotent: true, HasSensitiveParams: false},
-	"CreateHabit":                   {Idempotent: false, HasSensitiveParams: false},
-	"DeleteHabit":                   {Idempotent: true, HasSensitiveParams: false},
-	"UpdateHabit":                   {Idempotent: true, HasSensitiveParams: false},
-	"ResumeHabit":                   {Idempotent: true, HasSensitiveParams: false},
-	"StopHabit":                     {Idempotent: false, HasSensitiveParams: false},
-	"UpdateFirstWeekDay":            {Idempotent: true, HasSensitiveParams: false},
-	"ListJournalEntries":            {Idempotent: true, HasSensitiveParams: false},
-	"GetOngoingTimeTrack":           {Idempotent: true, HasSensitiveParams: false},
-	"StartTimeTrack":                {Idempotent: false, HasSensitiveParams: false},
-	"ListTimeTracks":                {Idempotent: true, HasSensitiveParams: false},
-	"CreateTimeTrack":               {Idempotent: false, HasSensitiveParams: false},
-	"ListTimeTrackCategories":       {Idempotent: true, HasSensitiveParams: false},
-	"DeleteTimeTrack":               {Idempotent: true, HasSensitiveParams: false},
-	"UpdateTimeTrack":               {Idempotent: true, HasSensitiveParams: false},
-	"CreateCalendarTodo":            {Idempotent: false, HasSensitiveParams: false},
-	"DeleteCalendarTodo":            {Idempotent: true, HasSensitiveParams: false},
-	"UpdateCalendarTodo":            {Idempotent: true, HasSensitiveParams: false},
-	"UncompleteCalendarTodo":        {Idempotent: true, HasSensitiveParams: false},
-	"CompleteCalendarTodo":          {Idempotent: true, HasSensitiveParams: false},
-	"ListCalendarWeeks":             {Idempotent: true, HasSensitiveParams: false},
-	"GetCalendarWeek":               {Idempotent: true, HasSensitiveParams: false},
-	"GetCalendarYear":               {Idempotent: true, HasSensitiveParams: false},
-	"ListCalendars":                 {Idempotent: true, HasSensitiveParams: false},
-	"GetCalendarRecordings":         {Idempotent: true, HasSensitiveParams: false},
-	"ToggleCalendar":                {Idempotent: false, HasSensitiveParams: false},
-	"GetClearances":                 {Idempotent: true, HasSensitiveParams: false},
-	"BulkUpdateClearances":          {Idempotent: true, HasSensitiveParams: false},
-	"PuntClearances":                {Idempotent: false, HasSensitiveParams: false},
-	"UpdateClearance":               {Idempotent: true, HasSensitiveParams: false},
-	"ListClips":                     {Idempotent: true, HasSensitiveParams: false},
-	"ListCollections":               {Idempotent: true, HasSensitiveParams: false},
-	"GetCollection":                 {Idempotent: true, HasSensitiveParams: false},
-	"UpdateCollection":              {Idempotent: true, HasSensitiveParams: false},
-	"ListContacts":                  {Idempotent: true, HasSensitiveParams: false},
-	"CreateContact":                 {Idempotent: false, HasSensitiveParams: false},
-	"HideContact":                   {Idempotent: true, HasSensitiveParams: false},
-	"GetContact":                    {Idempotent: true, HasSensitiveParams: false},
-	"UpdateContact":                 {Idempotent: true, HasSensitiveParams: false},
-	"UnbundleContact":               {Idempotent: true, HasSensitiveParams: false},
-	"BundleContact":                 {Idempotent: false, HasSensitiveParams: false},
-	"UpdateContactClearance":        {Idempotent: true, HasSensitiveParams: false},
-	"DeleteContactNote":             {Idempotent: true, HasSensitiveParams: false},
-	"GetContactNote":                {Idempotent: true, HasSensitiveParams: false},
-	"UpdateContactNote":             {Idempotent: true, HasSensitiveParams: false},
-	"RevealContact":                 {Idempotent: false, HasSensitiveParams: false},
-	"DeleteContactAvatar":           {Idempotent: true, HasSensitiveParams: false},
-	"UpdateContactAvatar":           {Idempotent: true, HasSensitiveParams: false},
-	"ListDrafts":                    {Idempotent: true, HasSensitiveParams: false},
-	"DeleteDraft":                   {Idempotent: true, HasSensitiveParams: false},
-	"NewEntryForward":               {Idempotent: true, HasSensitiveParams: false},
-	"CreateReply":                   {Idempotent: false, HasSensitiveParams: false},
-	"NewEntryReply":                 {Idempotent: true, HasSensitiveParams: false},
-	"MarkEntrySpam":                 {Idempotent: true, HasSensitiveParams: false},
-	"GetFeedbox":                    {Idempotent: true, HasSensitiveParams: false},
-	"GetFolder":                     {Idempotent: true, HasSensitiveParams: false},
-	"GetIdentity":                   {Idempotent: true, HasSensitiveParams: false},
-	"UpdateTimeFormat":              {Idempotent: true, HasSensitiveParams: false},
-	"GetImbox":                      {Idempotent: true, HasSensitiveParams: false},
-	"GetImboxSeen":                  {Idempotent: true, HasSensitiveParams: false},
-	"CreateMessage":                 {Idempotent: false, HasSensitiveParams: false},
-	"GetMessage":                    {Idempotent: true, HasSensitiveParams: false},
-	"UpdateMessage":                 {Idempotent: false, HasSensitiveParams: false},
-	"GetMessageEdit":                {Idempotent: true, HasSensitiveParams: false},
-	"GetMyClearances":               {Idempotent: true, HasSensitiveParams: false},
-	"UpdateMyClearance":             {Idempotent: true, HasSensitiveParams: false},
-	"GetNavigation":                 {Idempotent: true, HasSensitiveParams: false},
-	"GetTrailbox":                   {Idempotent: true, HasSensitiveParams: false},
-	"RemovePostingsFromBoxGroup":    {Idempotent: true, HasSensitiveParams: false},
-	"AddPostingsToBoxGroup":         {Idempotent: false, HasSensitiveParams: false},
-	"CancelPostingsBubbleUp":        {Idempotent: true, HasSensitiveParams: false},
-	"SchedulePostingsBubbleUp":      {Idempotent: false, HasSensitiveParams: false},
-	"BubbleUpPostingsNow":           {Idempotent: false, HasSensitiveParams: false},
-	"UnfilePostings":                {Idempotent: true, HasSensitiveParams: false},
-	"FilePostings":                  {Idempotent: false, HasSensitiveParams: false},
-	"CreateFolderForPostings":       {Idempotent: false, HasSensitiveParams: false},
-	"MovePostings":                  {Idempotent: false, HasSensitiveParams: false},
-	"UnmutePostings":                {Idempotent: true, HasSensitiveParams: false},
-	"MutePostings":                  {Idempotent: false, HasSensitiveParams: false},
-	"MarkPostingsSeen":              {Idempotent: false, HasSensitiveParams: false},
-	"MarkPostingsSpam":              {Idempotent: false, HasSensitiveParams: false},
-	"TrashPostings":                 {Idempotent: false, HasSensitiveParams: false},
-	"MarkPostingsUnseen":            {Idempotent: false, HasSensitiveParams: false},
-	"GetBundleUnseenPostings":       {Idempotent: true, HasSensitiveParams: false},
-	"CreateDirectUpload":            {Idempotent: false, HasSensitiveParams: false},
-	"GetLaterbox":                   {Idempotent: true, HasSensitiveParams: false},
-	"GetAsidebox":                   {Idempotent: true, HasSensitiveParams: false},
-	"ListSnippets":                  {Idempotent: true, HasSensitiveParams: false},
-	"ListStickies":                  {Idempotent: true, HasSensitiveParams: false},
-	"CreateSticky":                  {Idempotent: false, HasSensitiveParams: false},
-	"MoveSticky":                    {Idempotent: false, HasSensitiveParams: false},
-	"DeleteSticky":                  {Idempotent: true, HasSensitiveParams: false},
-	"UpdateSticky":                  {Idempotent: true, HasSensitiveParams: false},
-	"GetEverythingTopics":           {Idempotent: true, HasSensitiveParams: false},
-	"GetSentTopics":                 {Idempotent: true, HasSensitiveParams: false},
-	"GetSpamTopics":                 {Idempotent: true, HasSensitiveParams: false},
-	"EmptySpam":                     {Idempotent: true, HasSensitiveParams: false},
-	"GetTrashTopics":                {Idempotent: true, HasSensitiveParams: false},
-	"EmptyTrash":                    {Idempotent: true, HasSensitiveParams: false},
-	"GetTopic":                      {Idempotent: true, HasSensitiveParams: false},
-	"RenameTopic":                   {Idempotent: true, HasSensitiveParams: false},
-	"CreateTopicComment":            {Idempotent: false, HasSensitiveParams: false},
-	"GetTopicCommentAudience":       {Idempotent: true, HasSensitiveParams: false},
-	"GetTopicEntries":               {Idempotent: true, HasSensitiveParams: false},
-	"MoveTopic":                     {Idempotent: false, HasSensitiveParams: false},
-	"GetTopicPublication":           {Idempotent: true, HasSensitiveParams: false},
-	"RestoreTopic":                  {Idempotent: true, HasSensitiveParams: false},
-	"MarkTopicHam":                  {Idempotent: true, HasSensitiveParams: false},
-	"TrashTopic":                    {Idempotent: true, HasSensitiveParams: false},
-	"MoveWorkflowStaging":           {Idempotent: false, HasSensitiveParams: false},
-	"CreateWorkflowStaging":         {Idempotent: false, HasSensitiveParams: false},
-	"GetWorkflow":                   {Idempotent: true, HasSensitiveParams: false},
-	"GetWorkflowStage":              {Idempotent: true, HasSensitiveParams: false},
+	"DeleteExtenzion":               {Idempotent: true, HasSensitiveParams: false, Unsigned: false, NoRedirect: false},
+	"AdvancedSearch":                {Idempotent: true, HasSensitiveParams: false, Unsigned: false, NoRedirect: false},
+	"GetAdvancedSearchFilters":      {Idempotent: true, HasSensitiveParams: false, Unsigned: false, NoRedirect: false},
+	"ListAddressableContacts":       {Idempotent: true, HasSensitiveParams: false, Unsigned: false, NoRedirect: false},
+	"ListBoxes":                     {Idempotent: true, HasSensitiveParams: false, Unsigned: false, NoRedirect: false},
+	"GetBox":                        {Idempotent: true, HasSensitiveParams: false, Unsigned: false, NoRedirect: false},
+	"CreateBoxDesignation":          {Idempotent: false, HasSensitiveParams: false, Unsigned: false, NoRedirect: false},
+	"DeleteBoxDesignation":          {Idempotent: true, HasSensitiveParams: false, Unsigned: false, NoRedirect: false},
+	"ListBoxGroups":                 {Idempotent: true, HasSensitiveParams: false, Unsigned: false, NoRedirect: false},
+	"CreateBoxGroup":                {Idempotent: false, HasSensitiveParams: false, Unsigned: false, NoRedirect: false},
+	"DeleteBoxGroup":                {Idempotent: true, HasSensitiveParams: false, Unsigned: false, NoRedirect: false},
+	"GetBoxGroup":                   {Idempotent: true, HasSensitiveParams: false, Unsigned: false, NoRedirect: false},
+	"MarkBoxSeen":                   {Idempotent: false, HasSensitiveParams: false, Unsigned: false, NoRedirect: false},
+	"GetBoxPostingChanges":          {Idempotent: true, HasSensitiveParams: false, Unsigned: false, NoRedirect: false},
+	"GetBubblebox":                  {Idempotent: true, HasSensitiveParams: false, Unsigned: false, NoRedirect: false},
+	"CreateBulkReply":               {Idempotent: false, HasSensitiveParams: false, Unsigned: false, NoRedirect: false},
+	"NewBulkReply":                  {Idempotent: true, HasSensitiveParams: false, Unsigned: false, NoRedirect: false},
+	"ListCalendarDays":              {Idempotent: true, HasSensitiveParams: false, Unsigned: false, NoRedirect: false},
+	"GetCalendarDay":                {Idempotent: true, HasSensitiveParams: false, Unsigned: false, NoRedirect: false},
+	"UncompleteHabit":               {Idempotent: true, HasSensitiveParams: false, Unsigned: false, NoRedirect: false},
+	"CompleteHabit":                 {Idempotent: true, HasSensitiveParams: false, Unsigned: false, NoRedirect: false},
+	"GetJournalEntry":               {Idempotent: true, HasSensitiveParams: false, Unsigned: false, NoRedirect: false},
+	"UpdateJournalEntry":            {Idempotent: false, HasSensitiveParams: false, Unsigned: false, NoRedirect: false},
+	"DeleteCalendarEvent":           {Idempotent: true, HasSensitiveParams: false, Unsigned: false, NoRedirect: false},
+	"DeleteCalendarEventOccurrence": {Idempotent: true, HasSensitiveParams: false, Unsigned: false, NoRedirect: false},
+	"CreateHabit":                   {Idempotent: false, HasSensitiveParams: false, Unsigned: false, NoRedirect: false},
+	"DeleteHabit":                   {Idempotent: true, HasSensitiveParams: false, Unsigned: false, NoRedirect: false},
+	"UpdateHabit":                   {Idempotent: true, HasSensitiveParams: false, Unsigned: false, NoRedirect: false},
+	"ResumeHabit":                   {Idempotent: true, HasSensitiveParams: false, Unsigned: false, NoRedirect: false},
+	"StopHabit":                     {Idempotent: false, HasSensitiveParams: false, Unsigned: false, NoRedirect: false},
+	"UpdateFirstWeekDay":            {Idempotent: true, HasSensitiveParams: false, Unsigned: false, NoRedirect: false},
+	"ListJournalEntries":            {Idempotent: true, HasSensitiveParams: false, Unsigned: false, NoRedirect: false},
+	"GetOngoingTimeTrack":           {Idempotent: true, HasSensitiveParams: false, Unsigned: false, NoRedirect: false},
+	"StartTimeTrack":                {Idempotent: false, HasSensitiveParams: false, Unsigned: false, NoRedirect: false},
+	"ListTimeTracks":                {Idempotent: true, HasSensitiveParams: false, Unsigned: false, NoRedirect: false},
+	"CreateTimeTrack":               {Idempotent: false, HasSensitiveParams: false, Unsigned: false, NoRedirect: false},
+	"ListTimeTrackCategories":       {Idempotent: true, HasSensitiveParams: false, Unsigned: false, NoRedirect: false},
+	"DeleteTimeTrack":               {Idempotent: true, HasSensitiveParams: false, Unsigned: false, NoRedirect: false},
+	"UpdateTimeTrack":               {Idempotent: true, HasSensitiveParams: false, Unsigned: false, NoRedirect: false},
+	"CreateCalendarTodo":            {Idempotent: false, HasSensitiveParams: false, Unsigned: false, NoRedirect: false},
+	"DeleteCalendarTodo":            {Idempotent: true, HasSensitiveParams: false, Unsigned: false, NoRedirect: false},
+	"UpdateCalendarTodo":            {Idempotent: true, HasSensitiveParams: false, Unsigned: false, NoRedirect: false},
+	"UncompleteCalendarTodo":        {Idempotent: true, HasSensitiveParams: false, Unsigned: false, NoRedirect: false},
+	"CompleteCalendarTodo":          {Idempotent: true, HasSensitiveParams: false, Unsigned: false, NoRedirect: false},
+	"ListCalendarWeeks":             {Idempotent: true, HasSensitiveParams: false, Unsigned: false, NoRedirect: false},
+	"GetCalendarWeek":               {Idempotent: true, HasSensitiveParams: false, Unsigned: false, NoRedirect: false},
+	"GetCalendarYear":               {Idempotent: true, HasSensitiveParams: false, Unsigned: false, NoRedirect: false},
+	"ListCalendars":                 {Idempotent: true, HasSensitiveParams: false, Unsigned: false, NoRedirect: false},
+	"GetCalendarRecordings":         {Idempotent: true, HasSensitiveParams: false, Unsigned: false, NoRedirect: false},
+	"ToggleCalendar":                {Idempotent: false, HasSensitiveParams: false, Unsigned: false, NoRedirect: false},
+	"GetClearances":                 {Idempotent: true, HasSensitiveParams: false, Unsigned: false, NoRedirect: false},
+	"BulkUpdateClearances":          {Idempotent: true, HasSensitiveParams: false, Unsigned: false, NoRedirect: false},
+	"PuntClearances":                {Idempotent: false, HasSensitiveParams: false, Unsigned: false, NoRedirect: false},
+	"UpdateClearance":               {Idempotent: true, HasSensitiveParams: false, Unsigned: false, NoRedirect: false},
+	"ListClips":                     {Idempotent: true, HasSensitiveParams: false, Unsigned: false, NoRedirect: false},
+	"ListCollections":               {Idempotent: true, HasSensitiveParams: false, Unsigned: false, NoRedirect: false},
+	"GetCollection":                 {Idempotent: true, HasSensitiveParams: false, Unsigned: false, NoRedirect: false},
+	"UpdateCollection":              {Idempotent: true, HasSensitiveParams: false, Unsigned: false, NoRedirect: false},
+	"ListContacts":                  {Idempotent: true, HasSensitiveParams: false, Unsigned: false, NoRedirect: false},
+	"CreateContact":                 {Idempotent: false, HasSensitiveParams: false, Unsigned: false, NoRedirect: false},
+	"HideContact":                   {Idempotent: true, HasSensitiveParams: false, Unsigned: false, NoRedirect: false},
+	"GetContact":                    {Idempotent: true, HasSensitiveParams: false, Unsigned: false, NoRedirect: false},
+	"UpdateContact":                 {Idempotent: true, HasSensitiveParams: false, Unsigned: false, NoRedirect: false},
+	"UnbundleContact":               {Idempotent: true, HasSensitiveParams: false, Unsigned: false, NoRedirect: false},
+	"BundleContact":                 {Idempotent: false, HasSensitiveParams: false, Unsigned: false, NoRedirect: false},
+	"UpdateContactClearance":        {Idempotent: true, HasSensitiveParams: false, Unsigned: false, NoRedirect: false},
+	"DeleteContactNote":             {Idempotent: true, HasSensitiveParams: false, Unsigned: false, NoRedirect: false},
+	"GetContactNote":                {Idempotent: true, HasSensitiveParams: false, Unsigned: false, NoRedirect: false},
+	"UpdateContactNote":             {Idempotent: true, HasSensitiveParams: false, Unsigned: false, NoRedirect: false},
+	"RevealContact":                 {Idempotent: false, HasSensitiveParams: false, Unsigned: false, NoRedirect: false},
+	"DeleteContactAvatar":           {Idempotent: true, HasSensitiveParams: false, Unsigned: false, NoRedirect: false},
+	"UpdateContactAvatar":           {Idempotent: true, HasSensitiveParams: false, Unsigned: false, NoRedirect: false},
+	"ListDrafts":                    {Idempotent: true, HasSensitiveParams: false, Unsigned: false, NoRedirect: false},
+	"DeleteDraft":                   {Idempotent: true, HasSensitiveParams: false, Unsigned: false, NoRedirect: false},
+	"NewEntryForward":               {Idempotent: true, HasSensitiveParams: false, Unsigned: false, NoRedirect: false},
+	"CreateReply":                   {Idempotent: false, HasSensitiveParams: false, Unsigned: false, NoRedirect: false},
+	"NewEntryReply":                 {Idempotent: true, HasSensitiveParams: false, Unsigned: false, NoRedirect: false},
+	"MarkEntrySpam":                 {Idempotent: true, HasSensitiveParams: false, Unsigned: false, NoRedirect: false},
+	"GetFeedbox":                    {Idempotent: true, HasSensitiveParams: false, Unsigned: false, NoRedirect: false},
+	"GetFolder":                     {Idempotent: true, HasSensitiveParams: false, Unsigned: false, NoRedirect: false},
+	"GetIdentity":                   {Idempotent: true, HasSensitiveParams: false, Unsigned: false, NoRedirect: false},
+	"UpdateTimeFormat":              {Idempotent: true, HasSensitiveParams: false, Unsigned: false, NoRedirect: false},
+	"GetImbox":                      {Idempotent: true, HasSensitiveParams: false, Unsigned: false, NoRedirect: false},
+	"GetImboxSeen":                  {Idempotent: true, HasSensitiveParams: false, Unsigned: false, NoRedirect: false},
+	"CreateMessage":                 {Idempotent: false, HasSensitiveParams: false, Unsigned: false, NoRedirect: false},
+	"GetMessage":                    {Idempotent: true, HasSensitiveParams: false, Unsigned: false, NoRedirect: false},
+	"UpdateMessage":                 {Idempotent: false, HasSensitiveParams: false, Unsigned: false, NoRedirect: false},
+	"GetMessageEdit":                {Idempotent: true, HasSensitiveParams: false, Unsigned: false, NoRedirect: false},
+	"GetMyClearances":               {Idempotent: true, HasSensitiveParams: false, Unsigned: false, NoRedirect: false},
+	"UpdateMyClearance":             {Idempotent: true, HasSensitiveParams: false, Unsigned: false, NoRedirect: false},
+	"GetNavigation":                 {Idempotent: true, HasSensitiveParams: false, Unsigned: false, NoRedirect: false},
+	"RevokeToken":                   {Idempotent: true, HasSensitiveParams: false, Unsigned: true, NoRedirect: true},
+	"CreateToken":                   {Idempotent: false, HasSensitiveParams: false, Unsigned: true, NoRedirect: true},
+	"GetTrailbox":                   {Idempotent: true, HasSensitiveParams: false, Unsigned: false, NoRedirect: false},
+	"RemovePostingsFromBoxGroup":    {Idempotent: true, HasSensitiveParams: false, Unsigned: false, NoRedirect: false},
+	"AddPostingsToBoxGroup":         {Idempotent: false, HasSensitiveParams: false, Unsigned: false, NoRedirect: false},
+	"CancelPostingsBubbleUp":        {Idempotent: true, HasSensitiveParams: false, Unsigned: false, NoRedirect: false},
+	"SchedulePostingsBubbleUp":      {Idempotent: false, HasSensitiveParams: false, Unsigned: false, NoRedirect: false},
+	"BubbleUpPostingsNow":           {Idempotent: false, HasSensitiveParams: false, Unsigned: false, NoRedirect: false},
+	"UnfilePostings":                {Idempotent: true, HasSensitiveParams: false, Unsigned: false, NoRedirect: false},
+	"FilePostings":                  {Idempotent: false, HasSensitiveParams: false, Unsigned: false, NoRedirect: false},
+	"CreateFolderForPostings":       {Idempotent: false, HasSensitiveParams: false, Unsigned: false, NoRedirect: false},
+	"MovePostings":                  {Idempotent: false, HasSensitiveParams: false, Unsigned: false, NoRedirect: false},
+	"UnmutePostings":                {Idempotent: true, HasSensitiveParams: false, Unsigned: false, NoRedirect: false},
+	"MutePostings":                  {Idempotent: false, HasSensitiveParams: false, Unsigned: false, NoRedirect: false},
+	"MarkPostingsSeen":              {Idempotent: false, HasSensitiveParams: false, Unsigned: false, NoRedirect: false},
+	"MarkPostingsSpam":              {Idempotent: false, HasSensitiveParams: false, Unsigned: false, NoRedirect: false},
+	"TrashPostings":                 {Idempotent: false, HasSensitiveParams: false, Unsigned: false, NoRedirect: false},
+	"MarkPostingsUnseen":            {Idempotent: false, HasSensitiveParams: false, Unsigned: false, NoRedirect: false},
+	"GetBundleUnseenPostings":       {Idempotent: true, HasSensitiveParams: false, Unsigned: false, NoRedirect: false},
+	"CreateDirectUpload":            {Idempotent: false, HasSensitiveParams: false, Unsigned: false, NoRedirect: false},
+	"GetLaterbox":                   {Idempotent: true, HasSensitiveParams: false, Unsigned: false, NoRedirect: false},
+	"GetAsidebox":                   {Idempotent: true, HasSensitiveParams: false, Unsigned: false, NoRedirect: false},
+	"ListSnippets":                  {Idempotent: true, HasSensitiveParams: false, Unsigned: false, NoRedirect: false},
+	"ListStickies":                  {Idempotent: true, HasSensitiveParams: false, Unsigned: false, NoRedirect: false},
+	"CreateSticky":                  {Idempotent: false, HasSensitiveParams: false, Unsigned: false, NoRedirect: false},
+	"MoveSticky":                    {Idempotent: false, HasSensitiveParams: false, Unsigned: false, NoRedirect: false},
+	"DeleteSticky":                  {Idempotent: true, HasSensitiveParams: false, Unsigned: false, NoRedirect: false},
+	"UpdateSticky":                  {Idempotent: true, HasSensitiveParams: false, Unsigned: false, NoRedirect: false},
+	"GetEverythingTopics":           {Idempotent: true, HasSensitiveParams: false, Unsigned: false, NoRedirect: false},
+	"GetSentTopics":                 {Idempotent: true, HasSensitiveParams: false, Unsigned: false, NoRedirect: false},
+	"GetSpamTopics":                 {Idempotent: true, HasSensitiveParams: false, Unsigned: false, NoRedirect: false},
+	"EmptySpam":                     {Idempotent: true, HasSensitiveParams: false, Unsigned: false, NoRedirect: false},
+	"GetTrashTopics":                {Idempotent: true, HasSensitiveParams: false, Unsigned: false, NoRedirect: false},
+	"EmptyTrash":                    {Idempotent: true, HasSensitiveParams: false, Unsigned: false, NoRedirect: false},
+	"GetTopic":                      {Idempotent: true, HasSensitiveParams: false, Unsigned: false, NoRedirect: false},
+	"RenameTopic":                   {Idempotent: true, HasSensitiveParams: false, Unsigned: false, NoRedirect: false},
+	"CreateTopicComment":            {Idempotent: false, HasSensitiveParams: false, Unsigned: false, NoRedirect: false},
+	"GetTopicCommentAudience":       {Idempotent: true, HasSensitiveParams: false, Unsigned: false, NoRedirect: false},
+	"GetTopicEntries":               {Idempotent: true, HasSensitiveParams: false, Unsigned: false, NoRedirect: false},
+	"MoveTopic":                     {Idempotent: false, HasSensitiveParams: false, Unsigned: false, NoRedirect: false},
+	"GetTopicPublication":           {Idempotent: true, HasSensitiveParams: false, Unsigned: false, NoRedirect: false},
+	"RestoreTopic":                  {Idempotent: true, HasSensitiveParams: false, Unsigned: false, NoRedirect: false},
+	"MarkTopicHam":                  {Idempotent: true, HasSensitiveParams: false, Unsigned: false, NoRedirect: false},
+	"TrashTopic":                    {Idempotent: true, HasSensitiveParams: false, Unsigned: false, NoRedirect: false},
+	"MoveWorkflowStaging":           {Idempotent: false, HasSensitiveParams: false, Unsigned: false, NoRedirect: false},
+	"CreateWorkflowStaging":         {Idempotent: false, HasSensitiveParams: false, Unsigned: false, NoRedirect: false},
+	"GetWorkflow":                   {Idempotent: true, HasSensitiveParams: false, Unsigned: false, NoRedirect: false},
+	"GetWorkflowStage":              {Idempotent: true, HasSensitiveParams: false, Unsigned: false, NoRedirect: false},
 }
 
 // GetOperationMetadata returns metadata for the given operation ID.
@@ -12663,6 +12864,50 @@ type ClientWithResponsesInterface interface {
 	//
 	// Returns a wrapper object for the known response body format(s).
 	GetNavigationWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetNavigationResponse, error)
+
+	// RevokeTokenWithBodyWithResponse performs a DELETE /oauth/tokens.json (the `RevokeToken` operationId) request,
+	// with any type of body and a specified content type.
+	//
+	// Revoke an access or a refresh token the client was handed, ending the session behind it:
+	// what a sign-out asks. HEY answers 200 {} for a token that names nothing, the point of
+	// revoking it reached, and refuses one another client was handed (invalid_client, 401).
+	// The token goes in the body, never the query, where logs would keep it, so this DELETE has
+	// a payload: HEY reads its params from either, and every SDK's client sends one.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	RevokeTokenWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*RevokeTokenResponse, error)
+
+	// RevokeTokenWithResponse performs a DELETE /oauth/tokens.json (the `RevokeToken` operationId) request.
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Revoke an access or a refresh token the client was handed, ending the session behind it:
+	// what a sign-out asks. HEY answers 200 {} for a token that names nothing, the point of
+	// revoking it reached, and refuses one another client was handed (invalid_client, 401).
+	// The token goes in the body, never the query, where logs would keep it, so this DELETE has
+	// a payload: HEY reads its params from either, and every SDK's client sends one.
+	RevokeTokenWithResponse(ctx context.Context, body RevokeTokenJSONRequestBody, reqEditors ...RequestEditorFn) (*RevokeTokenResponse, error)
+
+	// CreateTokenWithBodyWithResponse performs a POST /oauth/tokens.json (the `CreateToken` operationId) request,
+	// with any type of body and a specified content type.
+	//
+	// Trade an authorization code, or a refresh token, for tokens. `grant_type` names which:
+	// "authorization_code" sends `code`, `redirect_uri` and `code_verifier` (PKCE), and
+	// "refresh_token" sends `refresh_token`. Every grant names the client and the install it is
+	// for. A refresh answers the refresh token it was sent, unchanged, beside the new access
+	// token. Not sent again after a failure: a code is redeemed once.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	CreateTokenWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateTokenResponse, error)
+
+	// CreateTokenWithResponse performs a POST /oauth/tokens.json (the `CreateToken` operationId) request.
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Trade an authorization code, or a refresh token, for tokens. `grant_type` names which:
+	// "authorization_code" sends `code`, `redirect_uri` and `code_verifier` (PKCE), and
+	// "refresh_token" sends `refresh_token`. Every grant names the client and the install it is
+	// for. A refresh answers the refresh token it was sent, unchanged, beside the new access
+	// token. Not sent again after a failure: a code is redeemed once.
+	CreateTokenWithResponse(ctx context.Context, body CreateTokenJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateTokenResponse, error)
 
 	// GetTrailboxWithResponse performs a GET /paper_trail.json (the `GetTrailbox` operationId) request.
 	//
@@ -19296,6 +19541,158 @@ func (r GetNavigationResponse) ContentType() string {
 	return ""
 }
 
+type RevokeTokenResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON400 the response for an HTTP 400 `application/json` response
+	JSON400 *BadRequestErrorResponseContent
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *UnauthorizedErrorResponseContent
+	// JSON429 the response for an HTTP 429 `application/json` response
+	JSON429 *TooManyRequestsErrorResponseContent
+	// JSON500 the response for an HTTP 500 `application/json` response
+	JSON500 *InternalServerErrorResponseContent
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *ServiceUnavailableErrorResponseContent
+}
+
+// GetJSON400 returns the response for an HTTP 400 `application/json` response
+func (r RevokeTokenResponse) GetJSON400() *BadRequestErrorResponseContent {
+	return r.JSON400
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r RevokeTokenResponse) GetJSON401() *UnauthorizedErrorResponseContent {
+	return r.JSON401
+}
+
+// GetJSON429 returns the response for an HTTP 429 `application/json` response
+func (r RevokeTokenResponse) GetJSON429() *TooManyRequestsErrorResponseContent {
+	return r.JSON429
+}
+
+// GetJSON500 returns the response for an HTTP 500 `application/json` response
+func (r RevokeTokenResponse) GetJSON500() *InternalServerErrorResponseContent {
+	return r.JSON500
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r RevokeTokenResponse) GetJSON503() *ServiceUnavailableErrorResponseContent {
+	return r.JSON503
+}
+
+// GetBody returns the raw response body bytes
+func (r RevokeTokenResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r RevokeTokenResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r RevokeTokenResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r RevokeTokenResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type CreateTokenResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *OAuthToken
+	// JSON400 the response for an HTTP 400 `application/json` response
+	JSON400 *BadRequestErrorResponseContent
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *UnauthorizedErrorResponseContent
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *ForbiddenErrorResponseContent
+	// JSON429 the response for an HTTP 429 `application/json` response
+	JSON429 *TooManyRequestsErrorResponseContent
+	// JSON500 the response for an HTTP 500 `application/json` response
+	JSON500 *InternalServerErrorResponseContent
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *ServiceUnavailableErrorResponseContent
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r CreateTokenResponse) GetJSON200() *OAuthToken {
+	return r.JSON200
+}
+
+// GetJSON400 returns the response for an HTTP 400 `application/json` response
+func (r CreateTokenResponse) GetJSON400() *BadRequestErrorResponseContent {
+	return r.JSON400
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r CreateTokenResponse) GetJSON401() *UnauthorizedErrorResponseContent {
+	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r CreateTokenResponse) GetJSON403() *ForbiddenErrorResponseContent {
+	return r.JSON403
+}
+
+// GetJSON429 returns the response for an HTTP 429 `application/json` response
+func (r CreateTokenResponse) GetJSON429() *TooManyRequestsErrorResponseContent {
+	return r.JSON429
+}
+
+// GetJSON500 returns the response for an HTTP 500 `application/json` response
+func (r CreateTokenResponse) GetJSON500() *InternalServerErrorResponseContent {
+	return r.JSON500
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r CreateTokenResponse) GetJSON503() *ServiceUnavailableErrorResponseContent {
+	return r.JSON503
+}
+
+// GetBody returns the raw response body bytes
+func (r CreateTokenResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r CreateTokenResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r CreateTokenResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r CreateTokenResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type GetTrailboxResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -23894,6 +24291,74 @@ func (c *ClientWithResponses) GetNavigationWithResponse(ctx context.Context, req
 		return nil, err
 	}
 	return ParseGetNavigationResponse(rsp)
+}
+
+// RevokeTokenWithBodyWithResponse performs a DELETE /oauth/tokens.json (the `RevokeToken` operationId) request,
+// with any type of body and a specified content type.
+//
+// Revoke an access or a refresh token the client was handed, ending the session behind it:
+// what a sign-out asks. HEY answers 200 {} for a token that names nothing, the point of
+// revoking it reached, and refuses one another client was handed (invalid_client, 401).
+// The token goes in the body, never the query, where logs would keep it, so this DELETE has
+// a payload: HEY reads its params from either, and every SDK's client sends one.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) RevokeTokenWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*RevokeTokenResponse, error) {
+	rsp, err := c.RevokeTokenWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseRevokeTokenResponse(rsp)
+}
+
+// RevokeTokenWithResponse performs a DELETE /oauth/tokens.json (the `RevokeToken` operationId) request.
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Revoke an access or a refresh token the client was handed, ending the session behind it:
+// what a sign-out asks. HEY answers 200 {} for a token that names nothing, the point of
+// revoking it reached, and refuses one another client was handed (invalid_client, 401).
+// The token goes in the body, never the query, where logs would keep it, so this DELETE has
+// a payload: HEY reads its params from either, and every SDK's client sends one.
+func (c *ClientWithResponses) RevokeTokenWithResponse(ctx context.Context, body RevokeTokenJSONRequestBody, reqEditors ...RequestEditorFn) (*RevokeTokenResponse, error) {
+	rsp, err := c.RevokeToken(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseRevokeTokenResponse(rsp)
+}
+
+// CreateTokenWithBodyWithResponse performs a POST /oauth/tokens.json (the `CreateToken` operationId) request,
+// with any type of body and a specified content type.
+//
+// Trade an authorization code, or a refresh token, for tokens. `grant_type` names which:
+// "authorization_code" sends `code`, `redirect_uri` and `code_verifier` (PKCE), and
+// "refresh_token" sends `refresh_token`. Every grant names the client and the install it is
+// for. A refresh answers the refresh token it was sent, unchanged, beside the new access
+// token. Not sent again after a failure: a code is redeemed once.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) CreateTokenWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateTokenResponse, error) {
+	rsp, err := c.CreateTokenWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateTokenResponse(rsp)
+}
+
+// CreateTokenWithResponse performs a POST /oauth/tokens.json (the `CreateToken` operationId) request.
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Trade an authorization code, or a refresh token, for tokens. `grant_type` names which:
+// "authorization_code" sends `code`, `redirect_uri` and `code_verifier` (PKCE), and
+// "refresh_token" sends `refresh_token`. Every grant names the client and the install it is
+// for. A refresh answers the refresh token it was sent, unchanged, beside the new access
+// token. Not sent again after a failure: a code is redeemed once.
+func (c *ClientWithResponses) CreateTokenWithResponse(ctx context.Context, body CreateTokenJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateTokenResponse, error) {
+	rsp, err := c.CreateToken(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateTokenResponse(rsp)
 }
 
 // GetTrailboxWithResponse performs a GET /paper_trail.json (the `GetTrailbox` operationId) request.
@@ -30606,6 +31071,153 @@ func ParseGetNavigationResponse(rsp *http.Response) (*GetNavigationResponse, err
 				return nil, err
 			}
 			response.JSON401 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+			var dest InternalServerErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON500 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+			var dest ServiceUnavailableErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON503 = &dest
+
+		}
+
+		return response, nil
+	}(); err != nil && rsp.StatusCode/100 == 2 {
+		return nil, err
+	}
+
+	return response, nil
+}
+
+// ParseRevokeTokenResponse parses an HTTP response from a RevokeTokenWithResponse call
+func ParseRevokeTokenResponse(rsp *http.Response) (*RevokeTokenResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	received := rsp.Body
+	defer func() { _ = received.Close() }()
+	if err == nil && rsp.StatusCode/100 != 2 {
+		rsp.Body = io.NopCloser(bytes.NewReader(bodyBytes))
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	response := &RevokeTokenResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	// An undecodable body fails only a 2xx; an error status answers on its own, body or not.
+	if _, err := func() (*RevokeTokenResponse, error) {
+		switch {
+		case rsp.StatusCode == 200:
+			break // No content-type
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+			var dest BadRequestErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON400 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+			var dest UnauthorizedErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON401 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 429:
+			var dest TooManyRequestsErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON429 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+			var dest InternalServerErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON500 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+			var dest ServiceUnavailableErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON503 = &dest
+
+		}
+
+		return response, nil
+	}(); err != nil && rsp.StatusCode/100 == 2 {
+		return nil, err
+	}
+
+	return response, nil
+}
+
+// ParseCreateTokenResponse parses an HTTP response from a CreateTokenWithResponse call
+func ParseCreateTokenResponse(rsp *http.Response) (*CreateTokenResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	received := rsp.Body
+	defer func() { _ = received.Close() }()
+	if err == nil && rsp.StatusCode/100 != 2 {
+		rsp.Body = io.NopCloser(bytes.NewReader(bodyBytes))
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	response := &CreateTokenResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	// An undecodable body fails only a 2xx; an error status answers on its own, body or not.
+	if _, err := func() (*CreateTokenResponse, error) {
+		switch {
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+			var dest OAuthToken
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON200 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+			var dest BadRequestErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON400 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+			var dest UnauthorizedErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON401 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+			var dest ForbiddenErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON403 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 429:
+			var dest TooManyRequestsErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON429 = &dest
 
 		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
 			var dest InternalServerErrorResponseContent
