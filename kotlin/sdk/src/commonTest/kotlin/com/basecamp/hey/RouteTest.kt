@@ -10,7 +10,7 @@ import kotlin.test.assertTrue
 class RouteTest {
     @Test
     fun everyOperationHasOneRoute() {
-        assertEquals(137, Routes.ALL.size)
+        assertEquals(139, Routes.ALL.size)
         assertEquals(Routes.ALL.size, Routes.ALL.map { it.id }.toSet().size)
         assertTrue(Routes.ALL.all { it.retry.max >= 0 })
         val stage = Routes.GET_WORKFLOW_STAGE
@@ -21,6 +21,17 @@ class RouteTest {
         assertEquals(true, Routes.COMPLETE_CALENDAR_TODO.idempotent)
         assertEquals("Clearances", Routes.GET_CLEARANCES.service)
         assertEquals("Contacts", Routes.GET_CLEARANCES.resource)
+    }
+
+    // The token endpoint is the only part of HEY the model sends unsigned and unredirected: a
+    // flag that spread to another route would send it without the caller's credentials.
+    @Test
+    fun onlyTheTokenEndpointIsUnsignedAndFollowsNoRedirect() {
+        val tokenEndpoint = setOf("CreateToken", "RevokeToken")
+        assertEquals(tokenEndpoint, Routes.ALL.filter { it.unsigned }.map { it.id }.toSet())
+        assertEquals(tokenEndpoint, Routes.ALL.filter { it.noRedirect }.map { it.id }.toSet())
+        assertEquals("OAuth", Routes.CREATE_TOKEN.service)
+        assertEquals("/oauth/tokens.json", Routes.REVOKE_TOKEN.path)
     }
 
     @Test

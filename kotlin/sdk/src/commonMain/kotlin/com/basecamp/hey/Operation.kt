@@ -57,8 +57,19 @@ class Operation internal constructor(
     internal val rawWrite: Boolean get() = route == null && method != Method.GET
     internal var captureRedirects: Boolean = false
     internal var quiet: Boolean = false
-    internal var unsigned: Boolean = false
-    internal var followsRedirects: Boolean = true
+
+    /** Whether the client's credentials stay off it: the route's say ([Route.unsigned]), or a hand-written request's `unsigned()`. */
+    internal var unsigned: Boolean = route?.unsigned == true
+
+    /** Whether a 3xx is followed: the route's say ([Route.noRedirect]), or a hand-written request's [noRedirects]. */
+    internal var followsRedirects: Boolean = route?.noRedirect != true
+
+    /**
+     * Whether the URL is one that authenticates itself — a storage URL HEY handed out — rather
+     * than a HEY route the model sends unsigned: the hooks hear such a URL cut back to its
+     * origin, since its signature is in the open, while a modelled route's path carries nothing.
+     */
+    internal val selfAuthenticating: Boolean get() = unsigned && route?.unsigned != true
 
     /** Adds a query parameter. The same name may be added more than once. */
     fun query(name: String, value: Any): Operation {
@@ -227,6 +238,10 @@ class Operation internal constructor(
             val operation = raw(method, url.encodedPath)
             operation.url = url
             operation.route = route
+            // A later page goes as the first did: a route that is unsigned or follows no
+            // redirect is so on every page of it.
+            if (route?.unsigned == true) operation.unsigned = true
+            if (route?.noRedirect == true) operation.followsRedirects = false
             return operation
         }
     }

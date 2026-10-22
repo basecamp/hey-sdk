@@ -74,6 +74,27 @@ interface AuthStrategy {
     suspend fun refresh(): Boolean = false
 }
 
+/**
+ * The strategy of a client that holds no credentials, for the operations HEY takes unsigned:
+ * exchanging an authorization code for tokens, refreshing them, revoking one —
+ * `client.oauth.createToken(..)` and `client.oauth.revokeToken(..)`. Any other operation fails
+ * with [HeyException.Auth] (`auth_required`) before anything is sent. A client with no
+ * credentials configured at all is still refused when it is built, so a forgotten token is
+ * caught there; this is how a client says it means to have none.
+ *
+ * ```kotlin
+ * val client = HeyClient { auth(NoCredentials) }
+ * val token = client.oauth.createToken(CreateTokenRequestContent(..))
+ * ```
+ */
+object NoCredentials : AuthStrategy {
+    override suspend fun authenticate(request: HttpRequestBuilder) {
+        throw HeyException.Auth("This client has no credentials: it sends only the operations HEY takes unsigned")
+    }
+
+    override fun toString(): String = "NoCredentials"
+}
+
 /** Bearer token authentication strategy (default). Sets `Authorization: Bearer {token}` from a [TokenProvider]. */
 class BearerAuth(private val tokenProvider: TokenProvider) : AuthStrategy {
     override suspend fun authenticate(request: HttpRequestBuilder) {

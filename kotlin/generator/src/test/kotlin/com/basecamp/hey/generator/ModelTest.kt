@@ -242,10 +242,10 @@ class ModelTest {
         assertContains(routes, "retry = RetryPolicy(max = 3, baseDelayMs = 1000L, retryOn = listOf(429, 503)),")
         assertContains(routes, "RouteParam(\"boxId\", ParamRole.RECORDING, ParamKind.INT64),")
         assertContains(routes, "html = true,")
-        val markSeen = routes.substringAfter("val MARK_BOX_SEEN: Route = Route(").substringBefore("    )")
+        val markSeen = routes.substringAfter("val MARK_BOX_SEEN: Route = Route(").substringBefore("\n    )\n")
         assertContains(markSeen, "unsigned = true,")
         assertContains(markSeen, "noRedirect = true,")
-        val listBoxes = routes.substringAfter("val LIST_BOXES: Route = Route(").substringBefore("    )")
+        val listBoxes = routes.substringAfter("val LIST_BOXES: Route = Route(").substringBefore("\n    )\n")
         assertFalse("unsigned" in listBoxes, "a route the model does not mark unsigned is signed:\n$listBoxes")
         assertFalse("noRedirect" in listBoxes, "and follows redirects:\n$listBoxes")
 

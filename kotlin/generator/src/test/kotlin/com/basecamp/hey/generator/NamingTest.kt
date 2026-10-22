@@ -69,7 +69,7 @@ class NamingTest {
         assertEquals("refineFrom", fieldIdent("refine[from]"))
         assertEquals("LIST_BOXES", constantName("ListBoxes"))
         assertEquals("GET_BOX_POSTING_CHANGES", constantName("GetBoxPostingChanges"))
-        assertEquals("TimeTracksService", serviceClassName("time_tracks"))
+        assertEquals("TimeTracksService", naming.classFor("time_tracks"))
         assertEquals("timeTracks", serviceAccessorName("time_tracks"))
         assertEquals("isCalendarEvent", variantProperty("Calendar::Event"))
         assertEquals("isBundle", variantProperty("bundle"))

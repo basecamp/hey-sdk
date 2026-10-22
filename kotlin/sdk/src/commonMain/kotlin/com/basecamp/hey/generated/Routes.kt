@@ -411,6 +411,27 @@ object Routes {
         retry = RetryPolicy(max = 2, baseDelayMs = 1000L, retryOn = listOf(429, 503)),
     )
 
+    /** `POST /oauth/tokens.json` */
+    val CREATE_TOKEN: Route = Route(
+        id = "CreateToken",
+        service = "OAuth",
+        method = Method.POST,
+        path = "/oauth/tokens.json",
+        pattern = "/oauth/tokens",
+        resource = "OAuth",
+        resourceType = "token",
+        params = emptyList(),
+        idempotent = false,
+        readonly = false,
+        html = false,
+        emptyOn = emptyList(),
+        pagination = Pagination.NONE,
+        pageParameter = null,
+        retry = RetryPolicy(max = 1, baseDelayMs = 1000L, retryOn = emptyList()),
+        unsigned = true,
+        noRedirect = true,
+    )
+
     /** `POST /topics/{topicId}/comments.json` */
     val CREATE_TOPIC_COMMENT: Route = Route(
         id = "CreateTopicComment",
@@ -2244,6 +2265,27 @@ object Routes {
         retry = RetryPolicy(max = 2, baseDelayMs = 1000L, retryOn = listOf(429, 503)),
     )
 
+    /** `DELETE /oauth/tokens.json` */
+    val REVOKE_TOKEN: Route = Route(
+        id = "RevokeToken",
+        service = "OAuth",
+        method = Method.DELETE,
+        path = "/oauth/tokens.json",
+        pattern = "/oauth/tokens",
+        resource = "OAuth",
+        resourceType = "token",
+        params = emptyList(),
+        idempotent = true,
+        readonly = false,
+        html = false,
+        emptyOn = emptyList(),
+        pagination = Pagination.NONE,
+        pageParameter = null,
+        retry = RetryPolicy(max = 3, baseDelayMs = 1000L, retryOn = listOf(429, 503)),
+        unsigned = true,
+        noRedirect = true,
+    )
+
     /** `POST /postings/bubble_up.json` */
     val SCHEDULE_POSTINGS_BUBBLE_UP: Route = Route(
         id = "SchedulePostingsBubbleUp",
@@ -2800,6 +2842,7 @@ object Routes {
         CREATE_REPLY,
         CREATE_STICKY,
         CREATE_TIME_TRACK,
+        CREATE_TOKEN,
         CREATE_TOPIC_COMMENT,
         CREATE_WORKFLOW_STAGING,
         DELETE_BOX_DESIGNATION,
@@ -2891,6 +2934,7 @@ object Routes {
         RESTORE_TOPIC,
         RESUME_HABIT,
         REVEAL_CONTACT,
+        REVOKE_TOKEN,
         SCHEDULE_POSTINGS_BUBBLE_UP,
         START_TIME_TRACK,
         STOP_HABIT,
