@@ -312,7 +312,9 @@ the behaviour:
 `swift/Sources/HeyGenerator` is the Swift twin of `kotlin/generator`, reading the model through
 a small order-preserving JSON reader (`JSON.swift`) and `swift/names.toml`, which carries the
 same tables as Kotlin's but for `[hand_written_services]`: Swift adds conveniences as
-extensions, so no generated class has to be opened for them. `make swift-check-drift` fails
+extensions, so no generated class has to be opened for them. It adds `[service_names]`, for a
+service whose PascalCase name the derivation would get wrong: `oauth` is `OAuthService`, and
+the hooks hear `OAuth`. `make swift-check-drift` fails
 on a stale tree, and `GeneratorTests` runs the same check inside `swift test`.
 
 Conveniences live in `swift/Sources/Hey/Services/<Service>+Conveniences.swift` as extensions
