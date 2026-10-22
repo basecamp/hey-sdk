@@ -98,3 +98,28 @@ public struct BearerAuth: AuthStrategy {
         return "Bearer \(token)"
     }
 }
+
+/// The strategy for a client that holds no credentials: one made to trade a code or a refresh
+/// token for tokens, or to revoke one, before it has a token to sign with or after it has given
+/// one up. It sends the routes HEY takes unsigned (``Route/unsigned``), which never ask a strategy
+/// for anything; any other operation fails with ``HeyError/auth(message:detail:)`` before
+/// anything is sent, and there is nothing to refresh.
+///
+/// ```swift
+/// let client = try HeyClient(auth: NoCredentials())
+/// let token = try await client.oauth.createToken(body: CreateTokenRequestContent(
+///     grantType: "authorization_code", clientId: clientId, installId: installId,
+///     code: SensitiveString(code), redirectUri: redirectURI, codeVerifier: SensitiveString(verifier)))
+/// ```
+///
+/// A client is never made without credentials by accident: the other initializers still refuse a
+/// blank token. This is the deliberate way to make one.
+public struct NoCredentials: AuthStrategy {
+    public init() {}
+
+    public func authenticate(_ request: inout HTTPRequest) async throws {
+        throw HeyError.auth(
+            message: "This client has no credentials: it sends only the operations HEY takes unsigned",
+            detail: ErrorDetail(hint: "Make the client with an access token, a TokenProvider or an AuthStrategy to send this"))
+    }
+}
