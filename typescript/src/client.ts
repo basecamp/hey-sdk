@@ -390,11 +390,10 @@ class HttpTransport implements Transport {
         response.status < 400 &&
         !(response.status === 304 && cached)
       ) {
-        try {
-          await response.body?.cancel();
-        } catch {
-          // The redirect remains the answer if releasing its unread body also fails.
-        }
+        // The unread body is released without waiting on it: a fetch that tees or clones its
+        // responses can hold a cancel pending past anything the request's timeout bounds, and
+        // the redirect is the answer whether releasing it succeeds or fails.
+        response.body?.cancel().catch(() => {});
         throw responseError(response, undefined);
       }
       let text: string;
