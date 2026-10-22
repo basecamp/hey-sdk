@@ -163,9 +163,10 @@ func isLocalhost(rawURL string) bool {
 	return false
 }
 
-// RequireSecureEndpoint validates that an endpoint URL is secure.
+// RequireSecureEndpoint validates that an endpoint URL is secure: HTTPS, or plain HTTP on
+// localhost. Localhost lets no other scheme through.
 func RequireSecureEndpoint(rawURL string) error {
-	if isLocalhost(rawURL) {
+	if u, err := url.Parse(rawURL); err == nil && strings.EqualFold(u.Scheme, "http") && isLocalhost(rawURL) {
 		return nil
 	}
 	return requireHTTPS(rawURL)
