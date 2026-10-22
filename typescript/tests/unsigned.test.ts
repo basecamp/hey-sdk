@@ -281,3 +281,56 @@ describe("NoCredentials", () => {
     },
   );
 });
+describe("token endpoint refusals", () => {
+  const refused = (): never => {
+    throw new Error("expected a refusal");
+  };
+  const refuse = (status: number, body: unknown) => {
+    const m = mock([json(body, status)]);
+    return new HeyClient({ token: NoCredentials, fetch: m.fetch })
+      .createToken({ body: grant })
+      .then(refused, (e: unknown) => e as HeyError);
+  };
+  it("carries HEY's sentence in the message, the code and status unchanged", async () => {
+    const error = await refuse(400, {
+      error: "invalid_request",
+      error_description: "install_id doesn't identify this install. Upgrade your client.",
+    });
+    expect(error).toBeInstanceOf(HeyError);
+    expect(error.message).toContain(
+      "install_id doesn't identify this install. Upgrade your client.",
+    );
+    expect(error).toMatchObject({ code: "usage", httpStatus: 400, retryable: false });
+  });
+  it("tells a dead refresh token from a misconfigured client", async () => {
+    const dead = await refuse(401, {
+      error: "invalid_grant",
+      error_description: "Invalid refresh token.",
+    });
+    const misconfigured = await refuse(401, {
+      error: "invalid_client",
+      error_description: "OAuth client is not authorized to revoke this token.",
+    });
+    for (const error of [dead, misconfigured])
+      expect(error).toMatchObject({ code: "auth_required", httpStatus: 401 });
+    expect(dead.oauthError).toBe("invalid_grant");
+    expect(misconfigured.oauthError).toBe("invalid_client");
+    expect(dead.message).toContain("Invalid refresh token.");
+    expect(misconfigured.message).toContain(
+      "OAuth client is not authorized to revoke this token.",
+    );
+  });
+  it("keeps the code of a refusal that gives no description", async () => {
+    const error = await refuse(401, { error: "invalid_grant" });
+    expect(error.oauthError).toBe("invalid_grant");
+    expect(error.message).toBe("invalid_grant");
+  });
+  it("names no OAuth code for an operation whose refusals are not RFC 6749's", async () => {
+    const m = mock([json({ error: "invalid_grant" }, 401)]);
+    const error = await new HeyClient({ token: "secret", fetch: m.fetch })
+      .listBoxes()
+      .then(refused, (e: unknown) => e as HeyError);
+    expect(error).toMatchObject({ code: "auth_required", message: "invalid_grant" });
+    expect(error.oauthError).toBeUndefined();
+  });
+});

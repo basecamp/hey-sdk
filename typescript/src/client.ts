@@ -100,6 +100,8 @@ type Metadata = {
    * secrets a 307 would take wherever it points.
    */
   noRedirect?: true;
+  /** The operation refuses in RFC 6749's `{"error", "error_description"}` shape. */
+  oauthErrors?: true;
   responseMediaType?: "text/html";
 };
 type RawInput = {
@@ -132,7 +134,11 @@ function waitForCredentials<T>(
     );
   });
 }
-function responseErrorFromText(response: Response, text: string): HeyError {
+function responseErrorFromText(
+  response: Response,
+  text: string,
+  oauth = false,
+): HeyError {
   let body: unknown;
   if (text) {
     try {
@@ -141,7 +147,7 @@ function responseErrorFromText(response: Response, text: string): HeyError {
       // The HTTP status classifies an error with a non-JSON body.
     }
   }
-  return responseError(response, body);
+  return responseError(response, body, oauth);
 }
 function retryDelayMs(
   meta: Metadata,
@@ -435,7 +441,7 @@ class HttpTransport implements Transport {
               !Number.isFinite(seconds) ||
               seconds > Math.floor(2_147_483_647 / 1000)
             )
-              throw responseErrorFromText(response, text);
+              throw responseErrorFromText(response, text, meta.oauthErrors);
             ms = Math.max(ms, seconds * 1000);
           } else {
             const parsed = Date.parse(value) - Date.now();
@@ -445,7 +451,7 @@ class HttpTransport implements Transport {
         }
         // Never retry earlier than Retry-After, nor overflow the platform timer.
         if (ms > 2_147_483_647)
-          throw responseErrorFromText(response, text);
+          throw responseErrorFromText(response, text, meta.oauthErrors);
         // The monotonic wait keeps configured and server delays as minimums.
         await waitForRetry(ms, signal);
         continue;
@@ -484,7 +490,8 @@ class HttpTransport implements Transport {
             );
         }
       }
-      if (status < 200 || status >= 300) throw responseError(response, data);
+      if (status < 200 || status >= 300)
+        throw responseError(response, data, meta.oauthErrors);
       if (cacheable && status === 200) {
         if (
           responseHeaders.has("ETag") &&

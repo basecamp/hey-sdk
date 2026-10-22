@@ -161,3 +161,9 @@ it("lets the verb stand in for idempotency when the behavior model says neither"
   expect(operationMetadata.CreateToken.safe).toBe(false);
   expect(operationMetadata.UpdateMessage.safe).toBe(false);
 });
+it("marks the operations whose refusals are RFC 6749's", () => {
+  for (const [id, m] of Object.entries(operationMetadata))
+    expect((m as { oauthErrors?: true }).oauthErrors, id).toBe(
+      ["CreateToken", "RevokeToken"].includes(id) ? true : undefined,
+    );
+});

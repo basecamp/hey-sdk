@@ -3157,6 +3157,21 @@ export interface components {
         NotFoundErrorResponseContent: {
             message: string;
         };
+        /**
+         * @description A refusal from the token endpoint (RFC 6749 §5.2): invalid_request, invalid_grant,
+         *     unsupported_grant_type and the like. `error` is the code a client acts on;
+         *     `error_description` is HEY's sentence for a person ("install_id doesn't identify this install.
+         *     Upgrade your client.").
+         */
+        OAuthBadRequestErrorResponseContent: {
+            error: string;
+            error_description?: string;
+        };
+        /** @description unauthorized_client, or two_factor_authentication_required. */
+        OAuthForbiddenErrorResponseContent: {
+            error: string;
+            error_description?: string;
+        };
         /** @description The tokens a grant answers. */
         OAuthToken: {
             access_token: string;
@@ -3169,6 +3184,20 @@ export interface components {
             expires_in?: number | bigint;
             /** @description The token to refresh with: a new one for a code, the one sent for a refresh. */
             refresh_token?: string;
+        };
+        /** @description rate_limit_exceeded: too many failed grants within the hour. */
+        OAuthTooManyRequestsErrorResponseContent: {
+            error: string;
+            error_description?: string;
+        };
+        /**
+         * @description invalid_client, or invalid_grant for a dead refresh token: HEY answers that one 401 rather
+         *     than RFC 6749's 400, since shipped apps sign out on a refresh 401. The code tells the two
+         *     apart.
+         */
+        OAuthUnauthorizedErrorResponseContent: {
+            error: string;
+            error_description?: string;
         };
         /** @description Organizer — calendar event organizer */
         Organizer: {
@@ -3517,9 +3546,6 @@ export interface components {
             notes?: string;
         };
         ToggleCalendarResponseContent: components["schemas"]["CalendarSelection"];
-        TooManyRequestsErrorResponseContent: {
-            message: string;
-        };
         /** @description Topic detail */
         Topic: {
             /** Format: int64 */
@@ -9105,40 +9131,40 @@ export interface operations {
                     "application/json": components["schemas"]["OAuthToken"];
                 };
             };
-            /** @description BadRequestError 400 response */
+            /** @description OAuthBadRequestError 400 response */
             400: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["BadRequestErrorResponseContent"];
+                    "application/json": components["schemas"]["OAuthBadRequestErrorResponseContent"];
                 };
             };
-            /** @description UnauthorizedError 401 response */
+            /** @description OAuthUnauthorizedError 401 response */
             401: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["UnauthorizedErrorResponseContent"];
+                    "application/json": components["schemas"]["OAuthUnauthorizedErrorResponseContent"];
                 };
             };
-            /** @description ForbiddenError 403 response */
+            /** @description OAuthForbiddenError 403 response */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ForbiddenErrorResponseContent"];
+                    "application/json": components["schemas"]["OAuthForbiddenErrorResponseContent"];
                 };
             };
-            /** @description TooManyRequestsError 429 response */
+            /** @description OAuthTooManyRequestsError 429 response */
             429: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["TooManyRequestsErrorResponseContent"];
+                    "application/json": components["schemas"]["OAuthTooManyRequestsErrorResponseContent"];
                 };
             };
             /** @description InternalServerError 500 response */
@@ -9181,31 +9207,31 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description BadRequestError 400 response */
+            /** @description OAuthBadRequestError 400 response */
             400: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["BadRequestErrorResponseContent"];
+                    "application/json": components["schemas"]["OAuthBadRequestErrorResponseContent"];
                 };
             };
-            /** @description UnauthorizedError 401 response */
+            /** @description OAuthUnauthorizedError 401 response */
             401: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["UnauthorizedErrorResponseContent"];
+                    "application/json": components["schemas"]["OAuthUnauthorizedErrorResponseContent"];
                 };
             };
-            /** @description TooManyRequestsError 429 response */
+            /** @description OAuthTooManyRequestsError 429 response */
             429: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["TooManyRequestsErrorResponseContent"];
+                    "application/json": components["schemas"]["OAuthTooManyRequestsErrorResponseContent"];
                 };
             };
             /** @description InternalServerError 500 response */

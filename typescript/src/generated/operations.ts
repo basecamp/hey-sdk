@@ -2441,6 +2441,7 @@ export const operationMetadata = {
     },
     "unsigned": true,
     "noRedirect": true,
+    "oauthErrors": true,
     "actingSender": false,
     "actingUser": false
   },
@@ -2458,6 +2459,7 @@ export const operationMetadata = {
     },
     "unsigned": true,
     "noRedirect": true,
+    "oauthErrors": true,
     "actingSender": false,
     "actingUser": false
   },

@@ -119,7 +119,9 @@ and `revokeToken` revokes one, each with a JSON body at `/oauth/tokens.json`. Bo
 unsigned, with no Authorization and the provider never asked for a token, carry no
 account filter, and take a 401 as the answer rather than a reason to refresh. A 3xx is
 their answer too, unread. A client built for them alone passes `token: NoCredentials`;
-any other operation on it fails `auth_required` before anything is sent.
+any other operation on it fails `auth_required` before anything is sent. A refusal's
+message carries HEY's `error_description`, and its RFC 6749 code is `HeyError.oauthError`:
+on a 401, `invalid_grant` is a dead refresh token, `invalid_client` a misconfigured client.
 
 ```ts
 import { HeyClient, NoCredentials } from '@37signals/hey';
