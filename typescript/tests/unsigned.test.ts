@@ -102,6 +102,54 @@ describe("unsigned operations", () => {
       "Bearer new",
     ]);
   });
+  it(
+    "lets a refresh trade its refresh token on the very client waiting on it",
+    async () => {
+      // The refresh runs while the 401'd request waits on it; an unsigned request that also
+      // waited on the refresh would never be sent, and the refresh would never finish.
+      let token = "old";
+      const requests: Request[] = [];
+      const fetch: typeof globalThis.fetch = async (input, init) => {
+        const request = new Request(input, init);
+        requests.push(request);
+        if (new URL(request.url).pathname === "/oauth/tokens.json")
+          return json({ ...tokens, access_token: "new" });
+        return request.headers.get("Authorization") === "Bearer new"
+          ? json([])
+          : json({}, 401);
+      };
+      const client: HeyClient = new HeyClient({
+        token: {
+          getToken: () => token,
+          refresh: async () => {
+            const { data } = await client.createToken({
+              body: {
+                grant_type: "refresh_token",
+                client_id: "client",
+                install_id: "install",
+                refresh_token: "refresh",
+              },
+            });
+            token = data!.access_token;
+          },
+        },
+        fetch,
+      });
+      const result = await client.listBoxes();
+      expect(result.status).toBe(200);
+      expect(
+        requests.map((r) => [
+          new URL(r.url).pathname,
+          r.headers.get("Authorization"),
+        ]),
+      ).toEqual([
+        ["/boxes.json", "Bearer old"],
+        ["/oauth/tokens.json", null],
+        ["/boxes.json", "Bearer new"],
+      ]);
+    },
+    2000,
+  );
   it("does not double the path's .json when the caller asks for JSON", async () => {
     const m = mock([json(tokens)]);
     await new HeyClient({ token: "secret", fetch: m.fetch }).createToken(

@@ -15,7 +15,7 @@
 
 # The type a service's handle is, and the service the hooks hear, where the PascalCase of its
 # name would fold an acronym every SDK keeps whole.
-[service_types]
+[service_names]
 oauth = "OAuth"
 
 # Operations that belong to a different service than their tag says. Every SDK files an

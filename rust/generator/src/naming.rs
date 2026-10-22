@@ -14,7 +14,7 @@ pub(crate) struct Naming {
     #[serde(default)]
     type_names: BTreeMap<String, String>,
     #[serde(default)]
-    service_types: BTreeMap<String, String>,
+    service_names: BTreeMap<String, String>,
 }
 
 const KEYWORDS: &[&str] = &[
@@ -64,8 +64,8 @@ impl Naming {
     /// The type a service's handle is, which is also the service the hooks hear: the
     /// `PascalCase` of its name, unless that would fold an acronym the SDKs keep whole —
     /// `oauth` is `OAuth`, not `Oauth`.
-    pub(crate) fn service_type(&self, service: &str) -> String {
-        self.service_types
+    pub(crate) fn service_name(&self, service: &str) -> String {
+        self.service_names
             .get(service)
             .cloned()
             .unwrap_or_else(|| struct_name(service))
