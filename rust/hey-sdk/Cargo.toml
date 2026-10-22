@@ -78,6 +78,10 @@ required-features = ["reqwest"]
 name = "oauth_pkce"
 required-features = ["reqwest"]
 
+[[example]]
+name = "oauth_tokens"
+required-features = ["reqwest"]
+
 [dev-dependencies]
 # One test configures the shipped client through reqwest's own builder. Default features
 # are off so this resolves to the same build as the dependency above rather than a second
