@@ -2,9 +2,9 @@ package com.basecamp.hey.generator
 
 /**
  * The naming overrides read from `kotlin/generator/names.toml`: which service an
- * operation files under, what a method is called when the derivation gets it wrong, what a
- * schema is called when its Smithy name collides with Kotlin's, and the noun each service's
- * operations act on.
+ * operation files under, what a service is called where its PascalCase name would read
+ * wrong, what a method is called when the derivation gets it wrong, what a schema is called
+ * when its Smithy name collides with Kotlin's, and the noun each service's operations act on.
  */
 class Naming(
     private val services: Map<String, String> = emptyMap(),
@@ -14,7 +14,17 @@ class Naming(
     private val resourceTypes: Map<String, String> = emptyMap(),
     private val operationResourceTypes: Map<String, String> = emptyMap(),
     private val handWrittenServices: Map<String, String> = emptyMap(),
+    private val serviceNames: Map<String, String> = emptyMap(),
 ) {
+    /**
+     * A service's name in PascalCase, as its class, its route handle and its cache key take it:
+     * `time_tracks` is `TimeTracks`, and `oauth` is `OAuth` because `[service_names]` says so.
+     */
+    fun pascalFor(service: String): String = serviceNames[service] ?: service.toPascalCase()
+
+    /** The class a service becomes: `time_tracks` is `TimeTracksService`, `oauth` is `OAuthService`. */
+    fun classFor(service: String): String = pascalFor(service) + "Service"
+
     /** The hand-written subclass the client's accessor constructs for a service, when there is one. */
     fun handWrittenServiceFor(service: String): String? = handWrittenServices[service]
 
@@ -95,6 +105,7 @@ class Naming(
                 resourceTypes = tables["resource_types"].orEmpty(),
                 operationResourceTypes = tables["operation_resource_types"].orEmpty(),
                 handWrittenServices = tables["hand_written_services"].orEmpty(),
+                serviceNames = tables["service_names"].orEmpty(),
             )
         }
 
@@ -108,9 +119,6 @@ class Naming(
 }
 
 class GeneratorException(message: String) : RuntimeException(message)
-
-/** The class a service becomes: `time_tracks` is `TimeTracksService`. */
-fun serviceClassName(service: String): String = service.toPascalCase() + "Service"
 
 /** The property a service is reached through on the client: `time_tracks` is `timeTracks`. */
 fun serviceAccessorName(service: String): String = service.toCamelCase()

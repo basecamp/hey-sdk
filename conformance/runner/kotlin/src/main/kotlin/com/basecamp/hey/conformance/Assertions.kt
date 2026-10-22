@@ -49,6 +49,7 @@ private fun check(run: Run, assertion: Assertion) {
         "requestForm" -> checkRequestForm(run, assertion, Which.FIRST)
         "lastRequestForm" -> checkRequestForm(run, assertion, Which.LAST)
         "headerPresent" -> checkHeaderPresent(run, assertion)
+        "headerAbsent" -> checkHeaderAbsent(run, assertion)
         "lastRequestHeader" -> checkLastRequestHeader(run, assertion)
         "responseMeta" -> checkResponseMeta(run, assertion)
         "urlOrigin" -> checkUrlOrigin(run, assertion)
@@ -230,6 +231,14 @@ private fun checkHeaderPresent(run: Run, assertion: Assertion) {
     val name = assertion.path
     if (run.recorded.headers.isEmpty()) fail("Expected request with header \"$name\", but no requests were recorded")
     if (run.recorded.header(0, name).isNullOrEmpty()) fail("Expected header \"$name\" to be present, but it was not")
+}
+
+/** Absent from every request recorded, not only the first: a credential on a resend or a hop has gone out all the same. */
+private fun checkHeaderAbsent(run: Run, assertion: Assertion) {
+    val name = assertion.path
+    for (index in run.recorded.headers.indices) {
+        if (run.recorded.header(index, name) != null) fail("Expected header \"$name\" to be absent, but request ${index + 1} carried it")
+    }
 }
 
 private fun checkLastRequestHeader(run: Run, assertion: Assertion) {

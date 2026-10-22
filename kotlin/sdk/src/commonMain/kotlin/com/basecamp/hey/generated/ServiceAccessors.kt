@@ -89,6 +89,10 @@ val HeyClient.journal: com.basecamp.hey.services.JournalService
 val HeyClient.messages: com.basecamp.hey.services.MessagesService
     get() = service("Messages") { com.basecamp.hey.services.MessagesService(this) }
 
+/** OAuth operations. */
+val HeyClient.oauth: OAuthService
+    get() = service("OAuth") { OAuthService(this) }
+
 /** Postings operations. */
 val HeyClient.postings: com.basecamp.hey.services.PostingsService
     get() = service("Postings") { com.basecamp.hey.services.PostingsService(this) }

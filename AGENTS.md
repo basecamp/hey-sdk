@@ -219,9 +219,11 @@ operation-specific comes from the model, and the retry loop reads each route's p
 Rust one does.
 
 `names.toml` is the Kotlin twin of `rust/generator/names.toml`: `[services]` (tag to
-service), `[operation_services]` (an operation filed under another service, following Go's
-placement), `[operation_methods]` (a method name the derivation gets wrong), `[type_names]`
-(a schema renamed away from a Kotlin collision; none today), `[resource_types]` and
+service), `[service_names]` (a service's PascalCase name where the case conversion reads
+wrong: `oauth` is `OAuth`, so `OAuthService` and the hooks' `OAuth`), `[operation_services]`
+(an operation filed under another service, following Go's placement), `[operation_methods]`
+(a method name the derivation gets wrong), `[type_names]` (a schema renamed away from a Kotlin
+collision; none today), `[resource_types]` and
 `[operation_resource_types]` (the noun the hooks report), and `[hand_written_services]` (the
 subclass the client's accessor constructs, which makes the generated class `open`). Method
 names are camelCase of the Rust ones: `ListBoxes` is `client.boxes.list()`,
