@@ -359,6 +359,105 @@ fn a_failure_body_and_its_message_are_both_capped() {
     assert_eq!(Some("Title can't be blank"), brief.hint());
 }
 
+/// The token endpoint refuses with RFC 6749's `{"error", "error_description"}`: the code is
+/// for the client, the description is HEY's sentence for a person, and the error reads as
+/// that sentence. The status's own category, retryability and status stay as they were.
+#[test]
+fn an_oauth_refusal_reads_as_its_description() {
+    let refused = respond(
+        400,
+        &Method::POST,
+        &[],
+        br#"{"error":"invalid_request","error_description":"install_id doesn't identify this install. Upgrade your client."}"#,
+    );
+    assert!(
+        refused
+            .to_string()
+            .contains("install_id doesn't identify this install. Upgrade your client."),
+        "{refused}"
+    );
+    assert_eq!(ErrorCode::Api, refused.code());
+    assert_eq!(Some(400), refused.http_status());
+    assert!(!refused.is_retryable());
+
+    let dead = respond(
+        401,
+        &Method::POST,
+        &[],
+        br#"{"error":"invalid_grant","error_description":"Invalid refresh token."}"#,
+    );
+    assert!(
+        dead.to_string().contains("Invalid refresh token."),
+        "{dead}"
+    );
+    assert_eq!(ErrorCode::Auth, dead.code());
+    assert_eq!(Some(401), dead.http_status());
+}
+
+/// A 429's hint says when to try again; a description beside it is said too, and the
+/// refusal stays the retryable rate limit it was.
+#[test]
+fn an_oauth_rate_limit_keeps_its_retry_advice_and_says_why() {
+    let limited = respond(
+        429,
+        &Method::POST,
+        &[("retry-after", "30")],
+        br#"{"error":"rate_limit_exceeded","error_description":"Too many failed attempts."}"#,
+    );
+
+    let text = limited.to_string();
+    assert!(text.contains("Too many failed attempts."), "{text}");
+    assert!(text.contains("Try again in 30 seconds"), "{text}");
+    assert_eq!(ErrorCode::RateLimit, limited.code());
+    assert!(limited.is_retryable());
+}
+
+/// The OAuth code is in the body the error keeps, read as the model's own refusal type, so
+/// a dead refresh token and a misconfigured client — both 401s — can be told apart.
+#[test]
+fn the_oauth_code_is_read_from_the_body_the_error_keeps() {
+    use hey_sdk::models::OAuthUnauthorizedErrorResponseContent;
+
+    let code = |body: &[u8]| {
+        respond(401, &Method::POST, &[], body)
+            .body_json::<OAuthUnauthorizedErrorResponseContent>()
+            .map(|refusal| refusal.error)
+    };
+
+    assert_eq!(
+        Some("invalid_grant".to_string()),
+        code(br#"{"error":"invalid_grant","error_description":"Invalid refresh token."}"#)
+    );
+    assert_eq!(
+        Some("invalid_client".to_string()),
+        code(br#"{"error":"invalid_client","error_description":"OAuth client is not authorized to revoke this token."}"#)
+    );
+}
+
+/// HEY's other errors carry no description, and read as they always have: an `error` alone
+/// is the hint, as is a `message`; an empty description is no description.
+#[test]
+fn a_refusal_without_a_description_reads_as_before() {
+    assert_eq!(
+        "authentication required: invalid_grant",
+        respond(401, &Method::POST, &[], br#"{"error":"invalid_grant"}"#).to_string()
+    );
+    assert_eq!(
+        "authentication required: invalid_grant",
+        respond(
+            401,
+            &Method::POST,
+            &[],
+            br#"{"error":"invalid_grant","error_description":""}"#
+        )
+        .to_string()
+    );
+    assert_eq!(
+        "API error: 400 Bad Request: Nope",
+        respond(400, &Method::GET, &[], br#"{"message":"Nope"}"#).to_string()
+    );
+}
+
 fn respond(status: u16, method: &Method, headers: &[(&str, &str)], body: &[u8]) -> Error {
     let mut map = HeaderMap::new();
     for (name, value) in headers {
