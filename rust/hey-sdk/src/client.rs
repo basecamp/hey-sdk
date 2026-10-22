@@ -424,9 +424,12 @@ impl ClientBuilder {
     /// with no pages to read.
     pub fn build(self) -> Result<Client, Error> {
         let base_url = parse_base_url(&self.config.base_url)?;
-        let auth = self
-            .auth
-            .ok_or_else(|| Error::usage("a token provider or auth strategy is required"))?;
+        let auth = self.auth.ok_or_else(|| {
+            Error::usage_with_hint(
+                "a token provider or auth strategy is required",
+                "a client for the operations HEY takes unsigned is built with NoCredentials",
+            )
+        })?;
         if self.timeout.is_zero() {
             return Err(Error::usage("timeout must be greater than zero"));
         }
@@ -918,8 +921,13 @@ impl Client {
 
         loop {
             // Signed and counted under the read half of the refresh lock, so no refresh
-            // lands between the two: the counts say exactly which credentials went out.
-            let (request, signed) = {
+            // lands between the two: the counts say exactly which credentials went out. An
+            // unsigned request carries no credentials for a refresh to change, and does not
+            // wait its turn: a refresh that trades its token through this same client sends
+            // one from inside the write half.
+            let (request, signed) = if unsigned(operation) {
+                self.prepare(operation, url, &mut cached).await?
+            } else {
                 let _no_refresh = self.shared.refreshing.read().await;
                 self.prepare(operation, url, &mut cached).await?
             };
@@ -1153,7 +1161,10 @@ impl Client {
         if !operation.query.is_empty() {
             url.query_pairs_mut().extend_pairs(&operation.query);
         }
+        // An unsigned request goes out as no identity at all, so there is no account of its
+        // to filter to.
         if let Some(account_id) = self.account_id
+            && !unsigned(operation)
             && is_same_origin(&url, &self.shared.base_url)
         {
             let others: Vec<(String, String)> = url
@@ -1192,7 +1203,16 @@ impl Client {
             headers.insert(CONTENT_TYPE, header_value(&body.content_type)?);
             *request.body_mut() = body.bytes.clone();
         }
-        let signed = self.sign(&mut request).await?;
+        // A route HEY takes unsigned goes out as built, whatever the client holds: the
+        // strategy is not asked, so it neither signs it nor refuses it.
+        let signed = if unsigned(operation) {
+            Signed {
+                under: self.shared.generation(),
+                bearer: None,
+            }
+        } else {
+            self.sign(&mut request).await?
+        };
 
         let key = match self.cacheable(operation) {
             None => None,
@@ -1298,8 +1318,9 @@ impl Client {
 
     /// Sends one request and follows the redirects it is answered with, up to
     /// [`MAX_REDIRECTS`] hops, unless the operation is one that takes the redirect for its
-    /// answer. Hands back the answer with the URL it came from, whether a redirect was
-    /// followed on the way, and whether the hop it came from carried the credentials.
+    /// answer or its route follows none. Hands back the answer with the URL it came from,
+    /// whether a redirect was followed on the way, and whether the hop it came from carried
+    /// the credentials — which an unsigned request never does.
     ///
     /// Credentials stay on the origin they were meant for: a hop to another origin goes out
     /// without the `Authorization`, the way a browser would send it, which is how a blob
@@ -1313,7 +1334,7 @@ impl Client {
         mut request: Request<Bytes>,
     ) -> Result<Received, Error> {
         let mut hops = 0;
-        let mut authenticated = true;
+        let mut authenticated = !unsigned(operation);
         loop {
             let outgoing = (
                 request.method().clone(),
@@ -1321,7 +1342,7 @@ impl Client {
                 request.body().clone(),
             );
             let response = self.shared.http.send(request).await?;
-            let next = if operation.capture_redirects {
+            let next = if operation.capture_redirects || !follows_redirects(operation) {
                 None
             } else {
                 redirect_target(&url, &response)
@@ -1428,6 +1449,17 @@ impl Client {
             return self
                 .answer_not_modified(operation, cached, &headers, final_url)
                 .await;
+        }
+
+        // A route that follows no redirect takes the 3xx for its answer, an error with its
+        // status, and reads nothing it carries: the body is no answer to the request.
+        if refused_redirect(operation, status) {
+            return Err(Error::from_response(
+                status,
+                &operation.method,
+                &headers,
+                &[],
+            ));
         }
 
         let bound = self.buffer_bound(operation);
@@ -1871,6 +1903,24 @@ fn is_parsed(accept: &str) -> bool {
 /// it cannot read is no body rather than an error ([`Route::lenient_success`]).
 fn lenient_success(operation: &Operation) -> bool {
     operation.route.is_some_and(|route| route.lenient_success)
+}
+
+/// Whether the operation's route is one HEY takes without the caller's credentials
+/// ([`Route::unsigned`]): it is sent as built, and its 401 is the answer.
+fn unsigned(operation: &Operation) -> bool {
+    operation.route.is_some_and(|route| route.unsigned)
+}
+
+/// Whether the client follows the redirects the operation is answered with. A route that
+/// follows none ([`Route::no_redirect`]) takes the 3xx for its answer.
+fn follows_redirects(operation: &Operation) -> bool {
+    !operation.route.is_some_and(|route| route.no_redirect)
+}
+
+/// Whether the answer is a redirect the operation's route does not follow, which is an
+/// error. A 304 is the cache's business, not a redirect.
+fn refused_redirect(operation: &Operation, status: StatusCode) -> bool {
+    !follows_redirects(operation) && status.is_redirection() && status != StatusCode::NOT_MODIFIED
 }
 
 /// Whether the operation is a write to a path the model does not cover: one with no route,

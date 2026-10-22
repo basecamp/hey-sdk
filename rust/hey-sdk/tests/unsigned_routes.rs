@@ -262,7 +262,7 @@ async fn an_unsigned_route_goes_out_without_the_clients_token() {
     assert_eq!(provider.asked.load(Ordering::SeqCst), 0);
 }
 
-/// A strategy that puts a DPoP proof beside the token is not asked either, so neither
+/// A strategy that puts a `DPoP` proof beside the token is not asked either, so neither
 /// header goes out.
 #[tokio::test]
 async fn an_unsigned_route_carries_no_proof_from_the_clients_strategy() {

@@ -64,7 +64,7 @@ pub mod url;
 /// both.
 pub mod version;
 
-pub use auth::{AuthStrategy, BearerAuth, StaticTokenProvider, TokenProvider};
+pub use auth::{AuthStrategy, BearerAuth, NoCredentials, StaticTokenProvider, TokenProvider};
 pub use client::{Client, ClientBuilder, Response};
 pub use config::Config;
 pub use error::{Error, ErrorCode, FieldError};
