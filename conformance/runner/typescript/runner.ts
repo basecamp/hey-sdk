@@ -250,6 +250,13 @@ async function run(tc: Fixture) {
         assert.ok(error instanceof HeyError, String(error));
         assert.equal(error.code, a.expected);
         break;
+      case "errorMessageContains":
+        assert.ok(error instanceof Error, String(error));
+        assert.ok(
+          error.message.includes(a.expected),
+          `error message ${JSON.stringify(error.message)} lacks ${JSON.stringify(a.expected)}`,
+        );
+        break;
       case "errorField":
         assert.ok(error);
         assert.ok(

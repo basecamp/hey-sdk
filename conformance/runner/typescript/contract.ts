@@ -31,6 +31,7 @@ const shapes: Record<string, { required: Record<string, Check>; optional?: Recor
   delayBetweenRequests: { required: {}, optional: { min: nonnegative, max: nonnegative } },
   noError: { required: {} },
   errorCode: { required: { expected: nonempty } },
+  errorMessageContains: { required: { expected: nonempty } },
   errorField: { required: { path: nonempty, expected: json } },
   statusCode: { required: { expected: integer } },
   requestPath: { required: { expected: nonempty } },

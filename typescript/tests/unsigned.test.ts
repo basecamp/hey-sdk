@@ -282,11 +282,14 @@ describe("NoCredentials", () => {
   );
 });
 describe("token endpoint refusals", () => {
+  const refused = (): never => {
+    throw new Error("expected a refusal");
+  };
   const refuse = (status: number, body: unknown) => {
     const m = mock([json(body, status)]);
     return new HeyClient({ token: NoCredentials, fetch: m.fetch })
       .createToken({ body: grant })
-      .catch((e: unknown) => e as HeyError);
+      .then(refused, (e: unknown) => e as HeyError);
   };
   it("carries HEY's sentence in the message, the code and status unchanged", async () => {
     const error = await refuse(400, {
@@ -326,7 +329,7 @@ describe("token endpoint refusals", () => {
     const m = mock([json({ error: "invalid_grant" }, 401)]);
     const error = await new HeyClient({ token: "secret", fetch: m.fetch })
       .listBoxes()
-      .catch((e: unknown) => e as HeyError);
+      .then(refused, (e: unknown) => e as HeyError);
     expect(error).toMatchObject({ code: "auth_required", message: "invalid_grant" });
     expect(error.oauthError).toBeUndefined();
   });

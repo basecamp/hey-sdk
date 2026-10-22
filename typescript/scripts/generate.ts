@@ -104,6 +104,17 @@ export function generateOperations(spec: Spec, behavior: Behavior) {
         lenientSuccess: op["x-hey-lenient-success"] ? true : undefined,
         unsigned: op["x-hey-unsigned"] ? true : undefined,
         noRedirect: op["x-hey-no-redirect"] ? true : undefined,
+        // A refusal modelled with RFC 6749's error_description beside its error is an OAuth
+        // endpoint's: its error is a code the caller acts on, not a sentence.
+        oauthErrors: Object.entries(op.responses ?? {}).some(
+          ([status, response]) =>
+            !/^2\d\d$/.test(status) &&
+            Object.values(response.content ?? {}).some(
+              (media) => !!schema(media.schema).properties?.error_description,
+            ),
+        )
+          ? true
+          : undefined,
         responseMediaType: responseMedia.includes("text/html")
           ? "text/html"
           : undefined,
