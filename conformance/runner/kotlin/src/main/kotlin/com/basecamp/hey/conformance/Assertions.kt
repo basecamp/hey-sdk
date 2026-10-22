@@ -38,6 +38,7 @@ private fun check(run: Run, assertion: Assertion) {
         "delayBetweenRequests" -> checkDelayBetweenRequests(run, assertion)
         "noError" -> checkNoError(run)
         "errorCode" -> checkErrorCode(run, assertion)
+        "errorMessageContains" -> checkErrorMessageContains(run, assertion)
         "errorField" -> checkErrorField(run, assertion)
         "statusCode" -> checkStatusCode(run, assertion)
         "requestPath" -> checkRequestPath(run, assertion, Which.FIRST)
@@ -92,6 +93,14 @@ private fun checkErrorCode(run: Run, assertion: Assertion) {
     val error = run.outcome.exceptionOrNull() ?: fail("Expected error code \"$expected\", but got no error")
     val code = (error as? HeyException)?.code ?: fail("Expected error code \"$expected\", got a non-SDK failure: $error")
     if (code != expected) fail("Expected error code \"$expected\", got \"$code\"")
+}
+
+/** The caller's message, which is where HEY's sentence for a person has to reach. */
+private fun checkErrorMessageContains(run: Run, assertion: Assertion) {
+    val expected = expectedString(assertion, "errorMessageContains")
+    val error = run.outcome.exceptionOrNull() ?: fail("Expected an error message containing \"$expected\", but got no error")
+    val message = error.message.orEmpty()
+    if (!message.contains(expected)) fail("Expected the error message to contain \"$expected\", got \"$message\"")
 }
 
 private fun checkErrorField(run: Run, assertion: Assertion) {

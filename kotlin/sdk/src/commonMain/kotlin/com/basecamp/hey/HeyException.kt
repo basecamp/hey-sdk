@@ -34,7 +34,12 @@ sealed class HeyException(
     message: String,
     /** Error category code matching the Go and Rust SDKs. */
     val code: String,
-    /** What to do about it, when there is a word to say: HEY's own message, or when to try again. */
+    /**
+     * What to do about it, when there is a word to say: HEY's own message, or when to try again.
+     * For a refusal from HEY's token endpoint it is the OAuth `error` code — `invalid_grant` for a
+     * dead refresh token, `invalid_client` for a client HEY does not take — and the
+     * `error_description` beside it is in the message.
+     */
     val hint: String? = null,
     /** HTTP status code that caused the error, if applicable. */
     val httpStatus: Int? = null,
@@ -230,25 +235,33 @@ sealed class HeyException(
             // A 422's hint is its field errors joined, so the two never disagree.
             val said = if (status == 422) reasons(body).takeIf { it.isNotEmpty() }?.let { truncateMessage(it.joinToString("; ")) } else serverMessage(body)
             val message = said ?: refusal?.message
-            return mapped(status, method, headers, message, requestId, stored).also { it.responseTooLarge = refusal != null }
+            val description = jsonObject(body)?.let { stringMember(it, "error_description") }?.let(::truncateMessage)
+            return mapped(status, method, headers, message, description, requestId, stored).also { it.responseTooLarge = refusal != null }
         }
 
-        private fun mapped(status: Int, method: Method, headers: Headers, message: String?, requestId: String?, stored: ByteArray?): HeyException {
+        /**
+         * The error a status maps to. HEY's token endpoint refuses with RFC 6749's `{"error":
+         * "invalid_grant", "error_description": "Invalid refresh token."}`: the code becomes the
+         * hint, as any body's `error` does, and the description — HEY's sentence for a person —
+         * joins the message, after what the status says, so a caller showing the message shows it.
+         */
+        private fun mapped(status: Int, method: Method, headers: Headers, message: String?, description: String?, requestId: String?, stored: ByteArray?): HeyException {
+            fun said(default: String) = if (description == null) default else "$default: $description"
             return when (status) {
-                401 -> Auth(hint = message, requestId = requestId, body = stored)
+                401 -> Auth(said("authentication required"), hint = message, requestId = requestId, body = stored)
                 403 -> if (method == Method.GET) {
-                    Forbidden(hint = message, requestId = requestId, body = stored)
+                    Forbidden(said("access denied"), hint = message, requestId = requestId, body = stored)
                 } else {
-                    Forbidden("Access denied: insufficient scope", hint = message ?: "Re-authenticate with full scope", requestId = requestId, body = stored)
+                    Forbidden(said("Access denied: insufficient scope"), hint = message ?: "Re-authenticate with full scope", requestId = requestId, body = stored)
                 }
-                404 -> NotFound(hint = message, requestId = requestId, body = stored)
-                409 -> Conflict(hint = message, requestId = requestId, body = stored)
-                422 -> Validation(hint = message, requestId = requestId, body = stored)
+                404 -> NotFound(said("resource not found"), hint = message, requestId = requestId, body = stored)
+                409 -> Conflict(said("conflict"), hint = message, requestId = requestId, body = stored)
+                422 -> Validation(said("validation error"), hint = message, requestId = requestId, body = stored)
                 429 -> {
                     val retryAfter = retryAfterSeconds(headers["Retry-After"])
-                    RateLimit(retryAfter, hint = message ?: retryHint(retryAfter), requestId = requestId, body = stored)
+                    RateLimit(retryAfter, said("rate limited - try again later"), hint = message ?: retryHint(retryAfter), requestId = requestId, body = stored)
                 }
-                else -> Api("API error: $status", httpStatus = status, hint = message, retryable = status in 500..599, requestId = requestId, body = stored)
+                else -> Api(said("API error: $status"), httpStatus = status, hint = message, retryable = status in 500..599, requestId = requestId, body = stored)
             }
         }
 
