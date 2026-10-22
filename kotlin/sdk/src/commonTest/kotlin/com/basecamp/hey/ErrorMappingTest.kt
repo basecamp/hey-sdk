@@ -48,6 +48,28 @@ class ErrorMappingTest {
         assertEquals(7, map(503).exitCode)
     }
 
+    // RFC 6749's refusal: whatever the status, the description reaches the message beside what
+    // the status says, the code stays the hint, and the error's code, status and retryability
+    // are the status's own. A body with no description keeps the message it always had.
+    @Test
+    fun anErrorDescriptionReachesTheMessageWhateverTheStatus() {
+        val body = """{"error":"some_code","error_description":"HEY's sentence."}"""
+        for (status in listOf(400, 401, 403, 404, 409, 422, 429, 500, 503)) {
+            val plain = map(status, """{"error":"some_code"}""", Method.POST)
+            val described = map(status, body, Method.POST)
+            assertEquals(plain::class, described::class, "a $status maps to the same error")
+            assertEquals("${plain.message}: HEY's sentence.", described.message, "a $status's message")
+            assertEquals(plain.code, described.code)
+            assertEquals(plain.httpStatus, described.httpStatus)
+            assertEquals(plain.retryable, described.retryable)
+            assertEquals("some_code", described.hint)
+        }
+        assertEquals("authentication required", map(401, """{"error":"invalid_grant"}""").message)
+        assertEquals("authentication required", map(401, """{"error":"invalid_grant","error_description":""}""").message, "an empty description says nothing")
+        assertEquals("authentication required", map(401, """{"error":"invalid_grant","error_description":7}""").message, "and one that is not a string is not one")
+        assertEquals("API error: 400", map(400, """{"message":"Bad"}""").message)
+    }
+
     @Test
     fun theRequestIdAndTheBodyAreKept() {
         val error = map(404, """{"error":"Not found"}""", headers = arrayOf("X-Request-Id" to "req-123"))

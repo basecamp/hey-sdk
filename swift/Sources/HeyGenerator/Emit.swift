@@ -11,7 +11,7 @@ func render(_ model: Model) -> [(String, String)] {
         files.append(("Models/\(schema.name).swift", renderSchema(schema)))
     }
     for service in model.services {
-        files.append(("Services/\(serviceClassName(service.name)).swift", renderService(service)))
+        files.append(("Services/\(service.className).swift", renderService(service)))
     }
     return files
 }
@@ -139,8 +139,8 @@ func renderRoutes(_ model: Model) -> String {
     var out = header
     out += """
     /// Every route the model describes, one per operation, with the behaviour the Smithy model
-    /// attaches to it: idempotency, the statuses that mean "nothing there", how it pages, and the
-    /// retry policy.
+    /// attaches to it: idempotency, the statuses that mean "nothing there", how it pages, the
+    /// retry policy, and whether it goes unsigned or follows no redirect.
     public enum Routes {
 
     """
@@ -149,7 +149,7 @@ func renderRoutes(_ model: Model) -> String {
         out += "    /// `\(operation.httpMethod) \(operation.path)`\n"
         out += "    public static let \(routeConstant(operation.id)) = Route(\n"
         out += "        id: \(literal(operation.id)),\n"
-        out += "        service: \(literal(pascalCase(operation.service))),\n"
+        out += "        service: \(literal(operation.serviceTypeName)),\n"
         out += "        method: .\(operation.httpMethod.lowercased()),\n"
         out += "        path: \(literal(operation.path)),\n"
         out += "        pattern: \(literal(operation.path.hasSuffix(".json") ? String(operation.path.dropLast(5)) : operation.path)),\n"
@@ -171,7 +171,10 @@ func renderRoutes(_ model: Model) -> String {
         out += "        pagination: .\(operation.pagination == .none ? "unpaged" : operation.pagination.rawValue),\n"
         out += "        pageParameter: \(operation.pageParameter.map(literal) ?? "nil"),\n"
         out += "        retry: RetryPolicy(max: \(operation.retry.max), baseDelayMs: \(operation.retry.baseDelayMs), retryOn: \(intList(operation.retry.on)))"
-        out += operation.lenientSuccess ? ",\n        lenientSuccess: true\n" : "\n"
+        // The flags default to false, so a route writes only the ones it carries.
+        let flags = [("lenientSuccess", operation.lenientSuccess), ("unsigned", operation.unsigned), ("noRedirect", operation.noRedirect)]
+            .filter(\.1).map { "        \($0.0): true" }
+        out += (flags.isEmpty ? "" : ",\n" + flags.joined(separator: ",\n")) + "\n"
         out += "    )\n\n"
     }
     out += "    /// Every route, in operation id order.\n"
@@ -199,8 +202,8 @@ func renderService(_ service: Service) -> String {
     for operation in service.operations {
         out += renderOptions(operation)
     }
-    out += "/// Service for \(pascalCase(service.name)) operations.\n"
-    out += "public final class \(serviceClassName(service.name)): BaseService, @unchecked Sendable {\n"
+    out += "/// Service for \(service.typeName) operations.\n"
+    out += "public final class \(service.className): BaseService, @unchecked Sendable {\n"
     for (index, operation) in service.operations.enumerated() {
         if index > 0 { out += "\n" }
         out += renderMethod(operation)
@@ -340,8 +343,8 @@ func renderAccessors(_ model: Model) -> String {
     out += "extension HeyClient {\n"
     for (index, service) in model.services.enumerated() {
         if index > 0 { out += "\n" }
-        out += "    /// \(pascalCase(service.name)) operations.\n"
-        out += "    public var \(serviceAccessorName(service.name)): \(serviceClassName(service.name)) { \(serviceClassName(service.name))(client: self) }\n"
+        out += "    /// \(service.typeName) operations.\n"
+        out += "    public var \(serviceAccessorName(service.name)): \(service.className) { \(service.className)(client: self) }\n"
     }
     out += "}\n"
     return out

@@ -4,7 +4,7 @@ use crate::emit::{HEADER, doc_comment};
 use crate::model::{
     Model, Operation, Pagination, ParamKind, ParamRole, PathParam, Response, Service,
 };
-use crate::naming::{constant_name, field_ident, struct_name};
+use crate::naming::{constant_name, field_ident};
 
 pub(crate) fn render_mod(model: &Model) -> String {
     let mut out = String::from(HEADER);
@@ -14,7 +14,7 @@ pub(crate) fn render_mod(model: &Model) -> String {
     out.push_str("\nuse crate::client::Client;\n\n");
     out.push_str("impl Client {\n");
     for service in &model.services {
-        let name = struct_name(&service.name);
+        let name = &service.type_name;
         writeln!(
             out,
             "    pub fn {}(&self) -> {}::{name}<'_> {{",
@@ -29,7 +29,7 @@ pub(crate) fn render_mod(model: &Model) -> String {
 }
 
 pub(crate) fn render_service(service: &Service) -> String {
-    let name = struct_name(&service.name);
+    let name = &service.type_name;
     let mut out = String::from(HEADER);
     out.push_str("use crate::client::Client;\n");
     out.push_str("use crate::error::Error;\n");

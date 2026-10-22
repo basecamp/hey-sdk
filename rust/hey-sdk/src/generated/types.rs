@@ -967,6 +967,41 @@ pub type CreateStickyResponseContent = Sticky;
 
 pub type CreateTimeTrackResponseContent = Recording;
 
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+pub struct CreateTokenRequestContent {
+    /// "authorization_code" or "refresh_token".
+    #[serde(
+        default,
+        deserialize_with = "crate::types::null_as_default::deserialize"
+    )]
+    pub grant_type: String,
+    /// The OAuth client's id.
+    #[serde(
+        default,
+        deserialize_with = "crate::types::null_as_default::deserialize"
+    )]
+    pub client_id: String,
+    /// Identifies this installation to HEY as a device: the value the authorization URL
+    /// carried, for a code.
+    #[serde(
+        default,
+        deserialize_with = "crate::types::null_as_default::deserialize"
+    )]
+    pub install_id: String,
+    /// The authorization code the redirect carried (authorization_code).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub code: Option<SensitiveString>,
+    /// The redirect URI the authorization request named (authorization_code).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub redirect_uri: Option<String>,
+    /// The PKCE verifier whose challenge the authorization request sent (authorization_code).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub code_verifier: Option<SensitiveString>,
+    /// The refresh token to trade (refresh_token).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub refresh_token: Option<SensitiveString>,
+}
+
 /// Wire format: {comment: {content: "<div>…</div>"}}
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct CreateTopicCommentRequestContent {
@@ -1774,6 +1809,86 @@ pub struct NotFoundErrorResponseContent {
     pub message: String,
 }
 
+/// A refusal from the token endpoint (RFC 6749 §5.2): invalid_request, invalid_grant,
+/// unsupported_grant_type and the like. `error` is the code a client acts on;
+/// `error_description` is HEY's sentence for a person ("install_id doesn't identify this install.
+/// Upgrade your client.").
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[non_exhaustive]
+pub struct OAuthBadRequestErrorResponseContent {
+    #[serde(
+        default,
+        deserialize_with = "crate::types::null_as_default::deserialize"
+    )]
+    pub error: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub error_description: Option<String>,
+}
+
+/// unauthorized_client, or two_factor_authentication_required.
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[non_exhaustive]
+pub struct OAuthForbiddenErrorResponseContent {
+    #[serde(
+        default,
+        deserialize_with = "crate::types::null_as_default::deserialize"
+    )]
+    pub error: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub error_description: Option<String>,
+}
+
+/// The tokens a grant answers.
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[non_exhaustive]
+pub struct OAuthToken {
+    #[serde(
+        default,
+        deserialize_with = "crate::types::null_as_default::deserialize"
+    )]
+    pub access_token: SensitiveString,
+    /// "bearer".
+    #[serde(
+        default,
+        deserialize_with = "crate::types::null_as_default::deserialize"
+    )]
+    pub token_type: String,
+    /// Seconds the access token lasts from the moment HEY answered.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub expires_in: Option<i64>,
+    /// The token to refresh with: a new one for a code, the one sent for a refresh.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub refresh_token: Option<SensitiveString>,
+}
+
+/// rate_limit_exceeded: too many failed grants within the hour.
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[non_exhaustive]
+pub struct OAuthTooManyRequestsErrorResponseContent {
+    #[serde(
+        default,
+        deserialize_with = "crate::types::null_as_default::deserialize"
+    )]
+    pub error: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub error_description: Option<String>,
+}
+
+/// invalid_client, or invalid_grant for a dead refresh token: HEY answers that one 401 rather
+/// than RFC 6749's 400, since shipped apps sign out on a refresh 401. The code tells the two
+/// apart.
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[non_exhaustive]
+pub struct OAuthUnauthorizedErrorResponseContent {
+    #[serde(
+        default,
+        deserialize_with = "crate::types::null_as_default::deserialize"
+    )]
+    pub error: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub error_description: Option<String>,
+}
+
 /// Organizer — calendar event organizer
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 #[non_exhaustive]
@@ -2118,6 +2233,22 @@ pub struct ReplyMessagePayload {
 }
 
 pub type RevealContactResponseContent = Contact;
+
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+pub struct RevokeTokenRequestContent {
+    /// The OAuth client's id: the client the token was handed to.
+    #[serde(
+        default,
+        deserialize_with = "crate::types::null_as_default::deserialize"
+    )]
+    pub client_id: String,
+    /// The access or refresh token to revoke.
+    #[serde(
+        default,
+        deserialize_with = "crate::types::null_as_default::deserialize"
+    )]
+    pub token: SensitiveString,
+}
 
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct SchedulePostingsBubbleUpRequestContent {

@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 use bytes::Bytes;
 
-use crate::error::Error;
+use crate::error::{Error, ErrorCode};
 use crate::http::header::AUTHORIZATION;
 use crate::http::{HeaderValue, Request};
 use crate::types::SensitiveString;
@@ -109,5 +109,48 @@ impl<P: TokenProvider> AuthStrategy for BearerAuth<P> {
 
     async fn refresh(&self) -> bool {
         self.provider.refresh().await
+    }
+}
+
+/// No credentials at all, for a client that only sends the operations HEY takes unsigned:
+/// trading an authorization code or a refresh token for tokens, and revoking one, through
+/// [`crate::Client::oauth`]. Those go out without asking the strategy; anything else is
+/// refused as [`ErrorCode::Auth`] before a byte of it is sent.
+///
+/// A builder given no credentials of any kind is still refused, so a forgotten token is
+/// caught when the client is built; this is how a caller says the omission is deliberate.
+///
+/// ```no_run
+/// use hey_sdk::{Client, Config, NoCredentials};
+/// use hey_sdk::models::CreateTokenRequestContent;
+///
+/// # async fn run() -> Result<(), hey_sdk::Error> {
+/// let client = Client::builder(Config::default()).auth_strategy(NoCredentials).build()?;
+/// let token = client
+///     .oauth()
+///     .create_token(&CreateTokenRequestContent {
+///         grant_type: "refresh_token".to_string(),
+///         client_id: "my-client".to_string(),
+///         install_id: "my-install".to_string(),
+///         refresh_token: Some("the-refresh-token".into()),
+///         ..CreateTokenRequestContent::default()
+///     })
+///     .await?;
+/// println!("expires in {:?} seconds", token.expires_in);
+/// # Ok(())
+/// # }
+/// ```
+#[derive(Debug, Clone, Copy, Default)]
+pub struct NoCredentials;
+
+#[async_trait]
+impl AuthStrategy for NoCredentials {
+    async fn authenticate(&self, _request: &mut Request<Bytes>) -> Result<(), Error> {
+        // Nothing was sent, so there is no status to report: this is the client's own
+        // refusal, not HEY's.
+        Err(Error::new(
+            ErrorCode::Auth,
+            "This client has no credentials: it sends only the operations HEY takes unsigned",
+        ))
     }
 }

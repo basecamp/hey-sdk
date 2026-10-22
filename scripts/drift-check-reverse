@@ -108,8 +108,9 @@ json_capable_filter='
   select(.path | test("/new$|/edit$") | not) |
   # Exclude account management & billing
   select(.path | test("^/account/|^/accounts/") | not) |
-  # Exclude auth flows
-  select(.path | test("^/session|^/sign_|^/password|^/2fa|^/two_factor|^/oauth") | not) |
+  # Exclude auth flows. The OAuth token endpoint is modelled (CreateToken, RevokeToken); the
+  # authorization pages and the web-session handoff belong to a browser.
+  select(.path | test("^/session|^/sign_|^/password|^/2fa|^/two_factor|^/oauth/authorizations|^/oauth/web_sessions") | not) |
   # Exclude admin, internal, development, demo
   select(.path | test("^/admin|^/internal/|^/development/|^/demo|^/underground") | not) |
   # Exclude Queenbee (admin app), storefront, world (HEY World public routes)

@@ -21,8 +21,10 @@ import io.ktor.util.AttributeKey
  *
  * The client asks for the token under the same lock it refreshes under, so a request is
  * signed with credentials a refresh cannot change halfway: [accessToken] and [refresh] are
- * called one at a time, and neither may use the client itself, which would wait on that
- * lock forever. A refresh runs in the client's own scope: the request that earned it being
+ * called one at a time, and neither may send a signed request through the client itself,
+ * which would wait on that lock forever. An unsigned one waits on nothing, so a [refresh] may
+ * trade its refresh token through the client it refreshes: `client.oauth.createToken(..)`.
+ * A refresh runs in the client's own scope: the request that earned it being
  * cancelled does not cancel it, and every stale request waits on the same one.
  */
 interface TokenProvider {
@@ -64,7 +66,8 @@ class StaticTokenProvider(token: String) : TokenProvider {
  * [BearerAuth], which uses a [TokenProvider] to set the Authorization header with a Bearer
  * token. Custom strategies can implement alternative auth schemes such as cookie-based auth.
  * [authenticate] and [refresh] are called one at a time, under the client's refresh lock, and
- * neither may send a request through the client itself.
+ * neither may send a signed request through the client itself; an unsigned one, the token
+ * endpoint's, waits on nothing, as [TokenProvider.refresh] says.
  */
 interface AuthStrategy {
     /** Apply authentication to the given request builder. Called before every HTTP request. */
@@ -72,6 +75,27 @@ interface AuthStrategy {
 
     /** Asked once when a request is answered with 401; see [TokenProvider.refresh]. */
     suspend fun refresh(): Boolean = false
+}
+
+/**
+ * The strategy of a client that holds no credentials, for the operations HEY takes unsigned:
+ * exchanging an authorization code for tokens, refreshing them, revoking one —
+ * `client.oauth.createToken(..)` and `client.oauth.revokeToken(..)`. Any other operation fails
+ * with [HeyException.Auth] (`auth_required`) before anything is sent. A client with no
+ * credentials configured at all is still refused when it is built, so a forgotten token is
+ * caught there; this is how a client says it means to have none.
+ *
+ * ```kotlin
+ * val client = HeyClient { auth(NoCredentials) }
+ * val token = client.oauth.createToken(CreateTokenRequestContent(..))
+ * ```
+ */
+object NoCredentials : AuthStrategy {
+    override suspend fun authenticate(request: HttpRequestBuilder) {
+        throw HeyException.Auth("This client has no credentials: it sends only the operations HEY takes unsigned")
+    }
+
+    override fun toString(): String = "NoCredentials"
 }
 
 /** Bearer token authentication strategy (default). Sets `Authorization: Bearer {token}` from a [TokenProvider]. */

@@ -41,6 +41,16 @@ pub struct Route {
     /// object decodes to rather than an error: a caller told such a write failed would do
     /// it again. A status outside 2xx is an error as usual.
     pub lenient_success: bool,
+    /// HEY takes the route without the caller's credentials — the OAuth token endpoint,
+    /// which judges the code or token in the body — so it goes out with no `Authorization`,
+    /// whatever the client holds, and the client's [`crate::AuthStrategy`] is not asked. A
+    /// 401 is the answer, never a reason to refresh and send it again, and the client's
+    /// account scope does not apply.
+    pub unsigned: bool,
+    /// The route follows no redirect: a 3xx is the answer, an error carrying its status, and
+    /// nothing goes to the `Location`. Its body carries secrets a 307 or 308 would carry
+    /// wherever it points.
+    pub no_redirect: bool,
     /// How the route pages, when it does.
     pub pagination: Pagination,
     /// The retry policy the model attaches to the route.

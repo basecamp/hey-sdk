@@ -76,13 +76,20 @@ indirect enum FieldType: Equatable {
 
 struct Service {
     let name: String
+    /// The service in `PascalCase`, as its class and the hooks name it: `TimeTracks`, `OAuth`.
+    let typeName: String
     let operations: [Operation]
+
+    /// The class the service becomes: `TimeTracksService`.
+    var className: String { typeName + "Service" }
 }
 
 struct Operation {
     let id: String
     /// The service in `snake_case`: `boxes`, `time_tracks`.
     let service: String
+    /// The service in `PascalCase`: `Boxes`, `TimeTracks`, `OAuth`.
+    let serviceTypeName: String
     let methodName: String
     let description: String?
     let httpMethod: String
@@ -99,6 +106,10 @@ struct Operation {
     let emptyOn: [Int]
     /// A 2xx whose body cannot be read or does not decode is an empty result (`x-hey-lenient-success`).
     let lenientSuccess: Bool
+    /// Sent without the client's credentials, and a 401 is the answer (`x-hey-unsigned`).
+    let unsigned: Bool
+    /// A 3xx is the answer, never followed (`x-hey-no-redirect`).
+    let noRedirect: Bool
     let pagination: Pagination
     let pageParameter: String?
     let retry: Retry
@@ -258,6 +269,7 @@ private func buildServices(_ openapi: JSON, _ behavior: JSON, _ naming: Naming) 
             services[service, default: []].append(Operation(
                 id: id,
                 service: service,
+                serviceTypeName: naming.serviceTypeName(service),
                 methodName: try naming.method(for: id, service: service),
                 description: operation["description"]?.string,
                 httpMethod: httpMethod.uppercased(),
@@ -272,6 +284,8 @@ private func buildServices(_ openapi: JSON, _ behavior: JSON, _ naming: Naming) 
                 readonly: readonly,
                 emptyOn: statusCodes(operation["x-hey-empty-on"]?["statusCodes"]),
                 lenientSuccess: operation["x-hey-lenient-success"] != nil,
+                unsigned: operation["x-hey-unsigned"] != nil,
+                noRedirect: operation["x-hey-no-redirect"] != nil,
                 pagination: try pagination(semantics),
                 pageParameter: semantics["pagination"]?["pageParameter"]?.string,
                 retry: retry(semantics)
@@ -283,9 +297,9 @@ private func buildServices(_ openapi: JSON, _ behavior: JSON, _ naming: Naming) 
         let sorted = operations.sorted { ($0.methodName, $0.id) < ($1.methodName, $1.id) }
         for (a, b) in zip(sorted, sorted.dropFirst()) where a.methodName == b.methodName {
             throw GeneratorError(
-                "\(a.id) and \(b.id) both become \(serviceClassName(name)).\(a.methodName); add an [operation_methods] override to names.toml")
+                "\(a.id) and \(b.id) both become \(naming.serviceTypeName(name))Service.\(a.methodName); add an [operation_methods] override to names.toml")
         }
-        return Service(name: name, operations: sorted)
+        return Service(name: name, typeName: naming.serviceTypeName(name), operations: sorted)
     }
 }
 

@@ -15,6 +15,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.delay
 import kotlinx.io.IOException
+import kotlinx.serialization.json.Json
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.test.Test
 import kotlin.time.Duration
@@ -34,18 +35,21 @@ class RevocationTest {
         }
     }
 
-    // The token goes in a form body, never the query, where logs would keep it; and the request
+    // The token goes in a JSON body, never the query, where logs would keep it; and the request
     // carries none of the client's credentials, since the token they would carry may be the one
-    // being revoked.
+    // being revoked. It is the model's RevokeToken, so it goes where and as the model says.
     @Test
-    fun aRevocationSendsTheClientAndTheTokenInAFormWithNoCredentials() = runTest {
+    fun aRevocationSendsTheClientAndTheTokenInAJsonBodyWithNoCredentials() = runTest {
         val hey = mockHey(ok("{}"))
         hey.client { accessToken(Credentials()) }.revokeToken("the-app", "refresh-to-revoke")
         val request = hey.requests.single()
         assertEquals("DELETE", request.method)
-        assertEquals("/oauth/tokens", request.path)
+        assertEquals("/oauth/tokens.json", request.path)
         assertEquals("", request.url.encodedQuery)
-        assertEquals(listOf("client_id" to "the-app", "token" to "refresh-to-revoke"), formPairs(request.body))
+        assertEquals(
+            Json.parseToJsonElement("""{"client_id":"the-app","token":"refresh-to-revoke"}"""),
+            Json.parseToJsonElement(request.body),
+        )
         assertNull(request.header(HttpHeaders.Authorization))
     }
 
@@ -74,7 +78,7 @@ class RevocationTest {
     fun anAccountScopedClientRevokesWithNoAccountFilter() = runTest {
         val hey = mockHey(ok(IDENTITY), ok("{}"))
         hey.client().forAccount(42).revokeToken("the-app", "refresh-to-revoke")
-        assertEquals("/oauth/tokens", hey.requests[1].path)
+        assertEquals("/oauth/tokens.json", hey.requests[1].path)
         assertNull(hey.requests[1].query("filtered_account_id"))
     }
 

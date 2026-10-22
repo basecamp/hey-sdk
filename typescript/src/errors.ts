@@ -38,6 +38,13 @@ export class HeyError extends Error {
      * Empty for any other error.
      */
     readonly fieldErrors: readonly FieldError[] = [],
+    /**
+     * The RFC 6749 error code an OAuth token endpoint refused with (`invalid_grant`,
+     * `invalid_client`, ...), on an operation whose refusals take that shape. It is what a
+     * caller acts on: a 401 `invalid_grant` is a dead refresh token, a 401 `invalid_client`
+     * a misconfigured client. Absent for any other error.
+     */
+    readonly oauthError?: string,
   ) {
     super(message, options);
   }
@@ -53,7 +60,10 @@ function fieldError(entry: unknown): FieldError | undefined {
   const field = text(e.field) ? e.field : text(e.attribute) ? e.attribute : undefined;
   return field === undefined ? { message: e.message } : { field, message: e.message };
 }
-/** The reasons a failure body gives: the `errors` list, or its single `error` or `message`. */
+/**
+ * The reasons a failure body gives: the `errors` list, or RFC 6749's `error` with its
+ * `error_description`, or its single `error` or `message`.
+ */
 function reasonsIn(body: unknown): FieldError[] {
   if (!body || typeof body !== "object") return [];
   const b = body as Record<string, unknown>;
@@ -61,12 +71,30 @@ function reasonsIn(body: unknown): FieldError[] {
     const listed = b.errors.flatMap((entry) => fieldError(entry) ?? []);
     if (listed.length > 0) return listed;
   }
+  // The description is the sentence for a person ("install_id doesn't identify this
+  // install. Upgrade your client."); the code alone would leave them nothing to act on.
+  if (text(b.error_description))
+    return [
+      {
+        message: text(b.error)
+          ? `${b.error}: ${b.error_description}`
+          : b.error_description,
+      },
+    ];
   const single = [b.error, b.message].find(text);
   return single === undefined ? [] : [{ message: single }];
 }
 const reasonText = (reason: FieldError) =>
   reason.field === undefined ? reason.message : `${reason.field}: ${reason.message}`;
-export function responseError(response: Response, body: unknown): HeyError {
+/**
+ * `oauth` says the operation refuses in RFC 6749's shape, so the body's `error` is an OAuth
+ * code worth keeping apart from the message; elsewhere HEY's `{"error"}` is only a sentence.
+ */
+export function responseError(
+  response: Response,
+  body: unknown,
+  oauth = false,
+): HeyError {
   const status = response.status;
   const codes: Record<number, ErrorCode> = {
     400: "usage",
@@ -93,5 +121,8 @@ export function responseError(response: Response, body: unknown): HeyError {
         : "",
     undefined,
     status === 422 ? reasons : [],
+    oauth && body && typeof body === "object"
+      ? [(body as Record<string, unknown>).error].find(text)
+      : undefined,
   );
 }

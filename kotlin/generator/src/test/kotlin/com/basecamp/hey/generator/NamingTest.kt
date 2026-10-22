@@ -41,8 +41,15 @@ class NamingTest {
             boxes = "box" # a comment
             [operation_resource_types]
             CreateBoxGroup = "box_group"
+            [service_names]
+            oauth = "OAuth"
             """.trimIndent(),
         )
+        assertEquals("oauth", naming.serviceFor("CreateToken", "OAuth"))
+        assertEquals("OAuth", naming.pascalFor("oauth"))
+        assertEquals("OAuthService", naming.classFor("oauth"))
+        assertEquals("TimeTracks", naming.pascalFor("time_tracks"), "a service with no entry is its name in PascalCase")
+        assertEquals("TimeTracksService", naming.classFor("time_tracks"))
         assertEquals("bulk_replies", naming.serviceFor("NewBulkReply", "Bulk Reply"))
         assertEquals("clearances", naming.serviceFor("GetClearances", "Contacts"))
         assertEquals("calendar_periods", naming.serviceFor("ListCalendarDays", "Calendar Periods"))
@@ -62,7 +69,7 @@ class NamingTest {
         assertEquals("refineFrom", fieldIdent("refine[from]"))
         assertEquals("LIST_BOXES", constantName("ListBoxes"))
         assertEquals("GET_BOX_POSTING_CHANGES", constantName("GetBoxPostingChanges"))
-        assertEquals("TimeTracksService", serviceClassName("time_tracks"))
+        assertEquals("TimeTracksService", naming.classFor("time_tracks"))
         assertEquals("timeTracks", serviceAccessorName("time_tracks"))
         assertEquals("isCalendarEvent", variantProperty("Calendar::Event"))
         assertEquals("isBundle", variantProperty("bundle"))

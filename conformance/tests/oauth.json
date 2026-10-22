@@ -1,0 +1,191 @@
+[
+  {
+    "name": "A code is traded for tokens without the client's credentials",
+    "description": "HEY's token endpoint judges the grant in the body, not the caller: CreateToken goes unsigned, with no Authorization header and no DPoP proof, whatever the client holds. HEY reads the body as JSON.",
+    "operation": "CreateToken",
+    "method": "POST",
+    "path": "/oauth/tokens.json",
+    "requestBody": {
+      "grant_type": "authorization_code",
+      "client_id": "conformance-client",
+      "install_id": "conformance-install",
+      "code": "conformance-code",
+      "redirect_uri": "heyapp://oauth/callback",
+      "code_verifier": "conformance-verifier"
+    },
+    "mockResponses": [
+      {
+        "status": 200,
+        "body": {
+          "access_token": "conformance-access",
+          "expires_in": 1209600,
+          "token_type": "bearer",
+          "refresh_token": "conformance-refresh"
+        }
+      }
+    ],
+    "assertions": [
+      { "type": "noError" },
+      { "type": "requestCount", "expected": 1 },
+      { "type": "requestMethod", "expected": "POST" },
+      { "type": "requestPath", "expected": "/oauth/tokens.json" },
+      { "type": "headerAbsent", "path": "Authorization" },
+      { "type": "headerAbsent", "path": "DPoP" },
+      {
+        "type": "requestBody",
+        "expected": {
+          "grant_type": "authorization_code",
+          "client_id": "conformance-client",
+          "install_id": "conformance-install",
+          "redirect_uri": "heyapp://oauth/callback",
+          "code": "conformance-code",
+          "code_verifier": "conformance-verifier"
+        }
+      },
+      { "type": "responseBody", "path": "token_type", "expected": "bearer" },
+      { "type": "responseBody", "path": "expires_in", "expected": 1209600 }
+    ],
+    "tags": ["oauth", "auth"]
+  },
+  {
+    "name": "A refused refresh is the answer, never a reason to refresh",
+    "description": "A 401 from the token endpoint judges the refresh token in the body, not credentials the client could renew: with refreshable credentials configured, the client still sends once and refreshes nothing.",
+    "operation": "CreateToken",
+    "method": "POST",
+    "path": "/oauth/tokens.json",
+    "configOverrides": { "refreshableCredentials": true },
+    "requestBody": {
+      "grant_type": "refresh_token",
+      "client_id": "conformance-client",
+      "install_id": "conformance-install",
+      "refresh_token": "conformance-dead-refresh"
+    },
+    "mockResponses": [
+      { "status": 401, "body": { "error": "invalid_grant", "error_description": "Invalid refresh token." } },
+      { "status": 200, "body": { "access_token": "never", "token_type": "bearer" } }
+    ],
+    "assertions": [
+      { "type": "errorCode", "expected": "auth_required" },
+      { "type": "statusCode", "expected": 401 },
+      { "type": "requestCount", "expected": 1 },
+      { "type": "refreshCount", "expected": 0 },
+      { "type": "headerAbsent", "path": "Authorization" },
+      {
+        "type": "requestBody",
+        "expected": { "grant_type": "refresh_token", "refresh_token": "conformance-dead-refresh" }
+      },
+      { "type": "errorMessageContains", "expected": "Invalid refresh token." }
+    ],
+    "tags": ["oauth", "auth"]
+  },
+  {
+    "name": "A grant follows no redirect",
+    "description": "A 307 would carry the code and its verifier to the Location. The token endpoint never redirects, so the 3xx is the answer, an error with its status, and nothing goes anywhere else.",
+    "operation": "CreateToken",
+    "method": "POST",
+    "path": "/oauth/tokens.json",
+    "requestBody": {
+      "grant_type": "authorization_code",
+      "client_id": "conformance-client",
+      "install_id": "conformance-install",
+      "code": "conformance-code",
+      "redirect_uri": "heyapp://oauth/callback",
+      "code_verifier": "conformance-verifier"
+    },
+    "mockResponses": [
+      { "status": 307, "headers": { "Location": "/elsewhere/oauth/tokens.json" } },
+      { "status": 200, "body": { "access_token": "elsewhere", "token_type": "bearer" } }
+    ],
+    "assertions": [
+      { "type": "statusCode", "expected": 307 },
+      { "type": "requestCount", "expected": 1 }
+    ],
+    "tags": ["oauth", "redirect"]
+  },
+  {
+    "name": "A token is revoked without the client's credentials",
+    "description": "RevokeToken is what a sign-out sends. It goes unsigned, since the credentials it would carry may be the very ones it revokes, and the token goes in a JSON body, never the query, where logs would keep it. HEY answers {}.",
+    "operation": "RevokeToken",
+    "method": "DELETE",
+    "path": "/oauth/tokens.json",
+    "requestBody": { "client_id": "conformance-client", "token": "conformance-access" },
+    "mockResponses": [{ "status": 200, "body": {} }],
+    "assertions": [
+      { "type": "noError" },
+      { "type": "requestCount", "expected": 1 },
+      { "type": "requestMethod", "expected": "DELETE" },
+      { "type": "requestPath", "expected": "/oauth/tokens.json" },
+      { "type": "requestQuery", "expected": { "token": null, "client_id": null } },
+      { "type": "headerAbsent", "path": "Authorization" },
+      { "type": "headerAbsent", "path": "DPoP" },
+      { "type": "requestBody", "expected": { "client_id": "conformance-client", "token": "conformance-access" } }
+    ],
+    "tags": ["oauth", "auth"]
+  },
+  {
+    "name": "A revocation refused is the answer, never a reason to refresh",
+    "description": "HEY refuses to revoke a token another client was handed with a 401 invalid_client. That judges the client and token in the body, so with refreshable credentials configured the client sends once and refreshes nothing.",
+    "operation": "RevokeToken",
+    "method": "DELETE",
+    "path": "/oauth/tokens.json",
+    "configOverrides": { "refreshableCredentials": true },
+    "requestBody": { "client_id": "conformance-client", "token": "another-clients-token" },
+    "mockResponses": [
+      { "status": 401, "body": { "error": "invalid_client", "error_description": "OAuth client is not authorized to revoke this token." } },
+      { "status": 200, "body": {} }
+    ],
+    "assertions": [
+      { "type": "errorCode", "expected": "auth_required" },
+      { "type": "statusCode", "expected": 401 },
+      { "type": "requestCount", "expected": 1 },
+      { "type": "refreshCount", "expected": 0 },
+      { "type": "errorMessageContains", "expected": "OAuth client is not authorized to revoke this token." }
+    ],
+    "tags": ["oauth", "auth"]
+  },
+  {
+    "name": "A revocation follows no redirect",
+    "description": "A 302 would send the client to the Location with the token in hand. The token endpoint never redirects, so the 3xx is the answer, an error with its status.",
+    "operation": "RevokeToken",
+    "method": "DELETE",
+    "path": "/oauth/tokens.json",
+    "requestBody": { "client_id": "conformance-client", "token": "conformance-access" },
+    "mockResponses": [
+      { "status": 302, "headers": { "Location": "/elsewhere/oauth/tokens.json" } },
+      { "status": 200, "body": {} }
+    ],
+    "assertions": [
+      { "type": "statusCode", "expected": 302 },
+      { "type": "requestCount", "expected": 1 }
+    ],
+    "tags": ["oauth", "redirect"]
+  },
+  {
+    "name": "A refused grant says why",
+    "description": "HEY refuses a grant with RFC 6749's {\"error\": ..., \"error_description\": ...}. The description is HEY's sentence for a person, and the caller's error carries it: a 400 that only says 400 leaves an app nothing to show.",
+    "operation": "CreateToken",
+    "method": "POST",
+    "path": "/oauth/tokens.json",
+    "requestBody": {
+      "grant_type": "authorization_code",
+      "client_id": "conformance-client",
+      "install_id": "00000000-0000-0000-0000-000000000000",
+      "code": "conformance-code",
+      "redirect_uri": "heyapp://oauth/callback",
+      "code_verifier": "conformance-verifier"
+    },
+    "mockResponses": [
+      {
+        "status": 400,
+        "body": { "error": "invalid_request", "error_description": "install_id doesn't identify this install. Upgrade your client." }
+      },
+      { "status": 200, "body": { "access_token": "never", "token_type": "bearer" } }
+    ],
+    "assertions": [
+      { "type": "statusCode", "expected": 400 },
+      { "type": "requestCount", "expected": 1 },
+      { "type": "errorMessageContains", "expected": "install_id doesn't identify this install. Upgrade your client." }
+    ],
+    "tags": ["oauth", "errors"]
+  }
+]

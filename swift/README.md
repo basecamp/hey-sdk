@@ -44,6 +44,24 @@ struct StoredTokens: TokenProvider {
 let client = try HeyClient(tokenProvider: StoredTokens(store: store))
 ```
 
+HEY's token endpoint is `client.oauth`: `createToken(body:)` trades an authorization code, or a
+refresh token, for an `OAuthToken`, and `revokeToken(body:)` ends the session behind a token, as
+a sign-out does. Both go out with none of the client's credentials, whatever it holds, since the
+body is what HEY judges and the credentials may be the very ones being traded or revoked: a 401
+from either is the answer, never a reason to refresh, and a redirect is an error carrying its
+status, never followed, since the body would go with it. An app with no token yet makes a client
+for them alone with `NoCredentials`; any other operation on that client fails `auth_required`
+before anything is sent.
+
+```swift
+let signIn = try HeyClient(auth: NoCredentials())
+let token = try await signIn.oauth.createToken(body: CreateTokenRequestContent(
+    grantType: "authorization_code", clientId: clientId, installId: installId,
+    code: SensitiveString(code), redirectUri: redirectURI, codeVerifier: SensitiveString(verifier)
+))
+let client = try HeyClient(accessToken: token.accessToken.expose())
+```
+
 ## Use it
 
 ```swift
@@ -86,7 +104,7 @@ let ongoing = try await client.timeTracks.getOngoing()  // nil when nothing is r
 One handle per resource, all properties of the client: `attachments`, `boxes`, `bulkReplies`,
 `calendarEvents`, `calendarPeriods`, `calendarTodos`, `calendars`, `clearances`, `clips`,
 `collections`, `contacts`, `designations`, `entries`, `extenzions`, `folders`, `habits`,
-`identity`, `journal`, `messages`, `postings`, `publications`, `search`, `snippets`,
+`identity`, `journal`, `messages`, `oauth`, `postings`, `publications`, `search`, `snippets`,
 `stickies`, `timeTracks`, `topics`, `workflows`; and `world`, for HEY World, which the model
 has no route for.
 
@@ -113,7 +131,7 @@ Every model is a `Codable`, `Sendable`, `Equatable` struct. Its required members
 non-optional, so a body that leaves one out fails to decode as a non-retryable `api_error`
 rather than reading as a fabricated zero; its optional members are optionals, so an absent
 member stays distinct from a present-but-empty one. Strings the model marks sensitive — email
-addresses — are `SensitiveString`s that print as `[REDACTED]` and give up their value with
+addresses, tokens — are `SensitiveString`s that print as `[REDACTED]` and give up their value with
 `expose()`. Two models are renamed away from names Swift already has: HEY's `Calendar` is
 `HeyCalendar` and its `Collection` is `HeyCollection`, so importing `Hey` shadows neither
 Foundation's calendar nor the standard library's protocol.

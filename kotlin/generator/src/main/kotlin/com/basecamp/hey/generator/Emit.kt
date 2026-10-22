@@ -11,7 +11,7 @@ fun render(model: Model): Map<String, String> {
         files["models/${schema.name}.kt"] = renderSchema(schema)
     }
     for (service in model.services) {
-        files["services/${serviceClassName(service.name)}.kt"] = renderService(service, model)
+        files["services/${model.naming.classFor(service.name)}.kt"] = renderService(service, model)
     }
     return files
 }
@@ -137,7 +137,7 @@ fun renderRoutes(model: Model): String = buildString {
         appendLine("    /** `${operation.httpMethod} ${operation.path}` */")
         appendLine("    val ${constantName(operation.id)}: Route = Route(")
         appendLine("        id = ${literal(operation.id)},")
-        appendLine("        service = ${literal(operation.service.toPascalCase())},")
+        appendLine("        service = ${literal(model.naming.pascalFor(operation.service))},")
         appendLine("        method = Method.${operation.httpMethod},")
         appendLine("        path = ${literal(operation.path)},")
         appendLine("        pattern = ${literal(operation.path.removeSuffix(".json"))},")
@@ -160,6 +160,8 @@ fun renderRoutes(model: Model): String = buildString {
         appendLine("        pageParameter = ${operation.pageParameter?.let(::literal) ?: "null"},")
         appendLine("        retry = RetryPolicy(max = ${operation.retry.max}, baseDelayMs = ${operation.retry.baseDelayMs}L, retryOn = ${intList(operation.retry.on)}),")
         if (operation.lenientSuccess) appendLine("        lenientSuccess = true,")
+        if (operation.unsigned) appendLine("        unsigned = true,")
+        if (operation.noRedirect) appendLine("        noRedirect = true,")
         appendLine("    )")
         appendLine()
     }
@@ -179,7 +181,7 @@ private fun intList(values: List<Int>): String =
 // Services
 
 fun renderService(service: Service, model: Model): String = buildString {
-    val className = serviceClassName(service.name)
+    val className = model.naming.classFor(service.name)
     append(HEADER)
     appendLine("package com.basecamp.hey.generated.services")
     appendLine()
@@ -200,7 +202,7 @@ fun renderService(service: Service, model: Model): String = buildString {
     }
 
     appendLine("/**")
-    appendLine(" * Service for ${service.name.toPascalCase()} operations.")
+    appendLine(" * Service for ${model.naming.pascalFor(service.name)} operations.")
     appendLine(" *")
     appendLine(" * @generated from OpenAPI spec — do not edit directly")
     appendLine(" */")
@@ -354,10 +356,10 @@ fun renderAccessors(model: Model): String = buildString {
     for (service in model.services) {
         // Hand-written subclasses are constructed and declared by their fully-qualified name
         // so their convenience methods are visible on the accessor without caller imports.
-        val className = model.naming.handWrittenServiceFor(service.name) ?: serviceClassName(service.name)
-        appendLine("/** ${service.name.toPascalCase()} operations. */")
+        val className = model.naming.handWrittenServiceFor(service.name) ?: model.naming.classFor(service.name)
+        appendLine("/** ${model.naming.pascalFor(service.name)} operations. */")
         appendLine("val HeyClient.${serviceAccessorName(service.name)}: $className")
-        appendLine("    get() = service(${literal(service.name.toPascalCase())}) { $className(this) }")
+        appendLine("    get() = service(${literal(model.naming.pascalFor(service.name))}) { $className(this) }")
         appendLine()
     }
     setLength(length - 1)

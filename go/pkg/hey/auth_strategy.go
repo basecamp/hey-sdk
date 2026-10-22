@@ -49,3 +49,21 @@ func (b *BearerAuth) Authenticate(ctx context.Context, req *http.Request) error 
 	req.Header.Set("Authorization", bearerCredential(token))
 	return nil
 }
+
+// NoCredentials is the AuthStrategy of a client that holds no credentials, for the
+// operations HEY takes unsigned: trading an authorization code or a refresh token for tokens,
+// and revoking a token (OAuthService). Those go out without consulting any strategy, so they
+// work; any other operation fails to sign with an auth_required error before anything is
+// sent. A client given neither a token provider nor a strategy is refused when it is built,
+// so a forgotten token is caught early; this is the deliberate way to build one without.
+//
+//	client := hey.NewClient(cfg, nil, hey.WithAuthStrategy(hey.NoCredentials{}))
+type NoCredentials struct{}
+
+// Authenticate refuses to sign: this client has nothing to sign with.
+func (NoCredentials) Authenticate(context.Context, *http.Request) error {
+	return &Error{
+		Code:    CodeAuth,
+		Message: "This client has no credentials: it sends only the operations HEY takes unsigned",
+	}
+}

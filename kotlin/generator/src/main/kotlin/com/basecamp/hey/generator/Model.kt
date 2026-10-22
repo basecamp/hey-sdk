@@ -102,6 +102,10 @@ class Operation(
     val emptyOn: List<Int>,
     /** A 2xx whose body cannot be read or does not decode is an empty result (`x-hey-lenient-success`). */
     val lenientSuccess: Boolean,
+    /** Sent with none of the client's credentials, its 401 the answer rather than a reason to refresh (`x-hey-unsigned`). */
+    val unsigned: Boolean,
+    /** Follows no redirect: a 3xx is the answer, an error with its status (`x-hey-no-redirect`). */
+    val noRedirect: Boolean,
     val pagination: Pagination,
     val pageParameter: String?,
     val retry: Retry,
@@ -248,6 +252,8 @@ private fun buildServices(openapi: JsonObject, behavior: JsonObject, naming: Nam
                     ?: throw GeneratorException("$id has no readonly in behavior-model.json"),
                 emptyOn = statusCodes(operationObject.obj("x-hey-empty-on")?.get("statusCodes")),
                 lenientSuccess = "x-hey-lenient-success" in operationObject,
+                unsigned = "x-hey-unsigned" in operationObject,
+                noRedirect = "x-hey-no-redirect" in operationObject,
                 pagination = pagination(semantics),
                 pageParameter = semantics.obj("pagination")?.string("pageParameter"),
                 retry = retry(semantics),
@@ -260,7 +266,7 @@ private fun buildServices(openapi: JsonObject, behavior: JsonObject, naming: Nam
         sorted.zipWithNext().forEach { (a, b) ->
             if (a.methodName == b.methodName) {
                 throw GeneratorException(
-                    "${a.id} and ${b.id} both become ${serviceClassName(name)}.${a.methodName}; add an [operation_methods] override to names.toml",
+                    "${a.id} and ${b.id} both become ${naming.classFor(name)}.${a.methodName}; add an [operation_methods] override to names.toml",
                 )
             }
         }

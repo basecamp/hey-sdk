@@ -276,3 +276,23 @@ boolean heyUntrustedContent
 @trait(selector: "operation")
 @specificationExtension(as: "x-hey-lenient-success")
 structure heyLenientSuccess {}
+
+/// Marks an operation HEY takes without the caller's credentials: no Authorization header and
+/// no DPoP proof goes with it, whatever the client holds, and a 401 is the answer, never a
+/// reason to refresh credentials and send it again. The OAuth token endpoint is one: the code,
+/// refresh token or token being revoked in the body is what it judges, and the credentials a
+/// client would sign with may be the very ones being exchanged or revoked.
+/// Emits x-hey-unsigned extension to OpenAPI for SDK code generators.
+@trait(selector: "operation")
+@specificationExtension(as: "x-hey-unsigned")
+structure heyUnsigned {}
+
+/// Marks an operation that follows no redirect: a 3xx is the answer, an error carrying its
+/// status, and nothing goes to the Location. The body of such an operation carries secrets — an
+/// authorization code and its verifier, a refresh token, a token to revoke — that a 307 or 308
+/// would carry wherever it points, and an endpoint that never redirects has nothing to send
+/// there. The 3xx's own body is not read.
+/// Emits x-hey-no-redirect extension to OpenAPI for SDK code generators.
+@trait(selector: "operation")
+@specificationExtension(as: "x-hey-no-redirect")
+structure heyNoRedirect {}

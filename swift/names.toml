@@ -14,6 +14,12 @@
 "Calendar Journal" = "journal"
 "Calendar Time Tracks" = "time_tracks"
 
+# Services whose PascalCase name the derivation would get wrong: `oauth` would be `Oauth`. The
+# name is the service's class, with a `Service` suffix, and what the hooks call the service; the
+# accessor on the client stays the camelCase of the service (`client.oauth`).
+[service_names]
+oauth = "OAuth"
+
 # Operations that belong to a different service than their tag says. Every SDK files an
 # operation under the same service, so these follow Go's own placement.
 [operation_services]
@@ -73,6 +79,7 @@ habits = "habit"
 identity = "identity"
 journal = "journal_entry"
 messages = "message"
+oauth = "token"
 postings = "posting"
 publications = "publication"
 search = "search"

@@ -333,6 +333,19 @@
       },
       "untrusted_content": false
     },
+    "CreateToken": {
+      "destructive": false,
+      "idempotent": false,
+      "open_world": false,
+      "readonly": false,
+      "retry": {
+        "backoff": "exponential",
+        "base_delay_ms": 1000,
+        "max": 1,
+        "retry_on": []
+      },
+      "untrusted_content": false
+    },
     "CreateTopicComment": {
       "destructive": false,
       "idempotent": false,
@@ -1861,6 +1874,22 @@
         ]
       },
       "untrusted_content": true
+    },
+    "RevokeToken": {
+      "destructive": true,
+      "idempotent": false,
+      "open_world": false,
+      "readonly": false,
+      "retry": {
+        "backoff": "exponential",
+        "base_delay_ms": 1000,
+        "max": 3,
+        "retry_on": [
+          429,
+          503
+        ]
+      },
+      "untrusted_content": false
     },
     "SchedulePostingsBubbleUp": {
       "destructive": false,

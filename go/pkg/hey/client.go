@@ -98,6 +98,7 @@ type Client struct {
 	workflows       *WorkflowsService
 	publications    *PublicationsService
 	world           *WorldService
+	oauth           *OAuthService
 }
 
 // Response wraps an API response.
@@ -256,6 +257,12 @@ func NewClient(cfg *Config, tokenProvider TokenProvider, opts ...ClientOption) *
 	}
 
 	if c.authStrategy == nil {
+		// Nothing to sign with is a forgotten token, caught here rather than at the first
+		// send; a client meant to hold no credentials says so with NoCredentials.
+		if c.tokenProvider == nil {
+			panic("hey: a client needs a token provider or an auth strategy; " +
+				"WithAuthStrategy(NoCredentials{}) builds one that sends only the operations HEY takes unsigned")
+		}
 		c.authStrategy = &BearerAuth{TokenProvider: c.tokenProvider}
 	}
 
@@ -328,6 +335,12 @@ func NewClient(cfg *Config, tokenProvider TokenProvider, opts ...ClientOption) *
 // the hop only after this has run.
 func redirectPolicy(next func(req *http.Request, via []*http.Request) error) func(req *http.Request, via []*http.Request) error {
 	return func(req *http.Request, via []*http.Request) error {
+		// An operation that follows no redirect takes the 3xx for its answer, whatever the
+		// caller's policy would decide: its body carries secrets a 307 or 308 would carry
+		// to the Location.
+		if operationMetadataOf(req).NoRedirect {
+			return http.ErrUseLastResponse
+		}
 		if next != nil {
 			if err := next(req, via); err != nil {
 				return err
@@ -494,7 +507,13 @@ func (c *Client) initGeneratedClient() {
 			if req.URL.RawPath != "" {
 				req.URL.RawPath = withJSONExtension(req.URL.RawPath)
 			}
-			if err := c.prepareAPIRequest(ctx, req); err != nil {
+			// An operation HEY takes unsigned goes out with no credentials and outside any
+			// account scope, whatever the client holds. Neither the strategy nor the
+			// provider is asked, so a client that has none can send it, and nothing they
+			// would set — a token being exchanged or revoked among them — goes with it.
+			if operationMetadataOf(req).Unsigned {
+				req.Header.Set("User-Agent", c.userAgent)
+			} else if err := c.prepareAPIRequest(ctx, req); err != nil {
 				return err
 			}
 			if req.Header.Get("Content-Type") == "" {
@@ -520,7 +539,7 @@ func (c *Client) initGeneratedClient() {
 		// the account-scoped transport will send it, and the failure as the SDK's error.
 		retryHook := func(ctx context.Context, retry generated.Retry) {
 			url := retry.Request.URL.String()
-			if scoped, err := c.accountScopedURL(url); err == nil {
+			if scoped, err := c.accountScopedURL(url); err == nil && !operationMetadataOf(retry.Request).Unsigned {
 				url = scoped
 			}
 			info := RequestInfo{Method: retry.Request.Method, URL: url, Attempt: retry.Attempt - 1}
@@ -547,6 +566,15 @@ func (c *Client) initGeneratedClient() {
 		}
 		c.gen = gen
 	})
+}
+
+// operationMetadataOf is what the model says of the generated operation req was sent for,
+// which the generated client names on every attempt's context, and nothing for any other
+// request: a hand-written path, a blob's hop to storage. A redirect's hop is built on the
+// first request's context, so it names the same operation.
+func operationMetadataOf(req *http.Request) generated.OperationMetadata {
+	meta, _ := generated.GetOperationMetadata(generated.OperationFromContext(req.Context()))
+	return meta
 }
 
 // retryCause is the failure a generated resend answers, as the hand-written path reports
@@ -1649,6 +1677,16 @@ func (c *Client) World() *WorldService {
 		c.world = NewWorldService(c)
 	}
 	return c.world
+}
+
+// OAuth returns the OAuthService, for HEY's own token endpoint.
+func (c *Client) OAuth() *OAuthService {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.oauth == nil {
+		c.oauth = NewOAuthService(c)
+	}
+	return c.oauth
 }
 
 // resolveActingSenderID answers the acting sender an operation goes out as: the

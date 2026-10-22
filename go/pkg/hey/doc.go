@@ -25,6 +25,15 @@
 //	authMgr := hey.NewAuthManager(cfg, http.DefaultClient)
 //	client := hey.NewClient(cfg, authMgr)
 //
+// HEY's own token endpoint is [Client.OAuth]: trading an authorization code or a refresh
+// token for tokens, and revoking a token. Those go out unsigned, so a client built to hold
+// no credentials at all can send them, and nothing else:
+//
+//	client := hey.NewClient(cfg, nil, hey.WithAuthStrategy(hey.NoCredentials{}))
+//	token, err := client.OAuth().CreateToken(ctx, generated.CreateTokenRequestContent{
+//	    GrantType: "refresh_token", ClientId: clientID, InstallId: installID, RefreshToken: refresh,
+//	})
+//
 // # Services
 //
 // The SDK provides typed services for each HEY resource:
@@ -43,6 +52,7 @@
 //   - [Client.Folders], [Client.Collections], [Client.Stickies], [Client.Clips], [Client.Snippets], [Client.Workflows] - Filing mail, and text kept to reuse
 //   - [Client.Publications] - Public links for threads
 //   - [Client.Designations], [Client.Extenzions], [Client.World] - Where mail lands, extra addresses, and HEY World
+//   - [Client.OAuth] - HEY's token endpoint: tokens for a code or a refresh token, and revocation
 //
 // # Linked Accounts and Separate Identities
 //

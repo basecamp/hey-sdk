@@ -109,12 +109,22 @@ public struct Route: Sendable, Equatable {
     /// to rather than an error: a caller told such a write failed would do it again. A status
     /// outside 2xx is an error as usual.
     public var lenientSuccess: Bool
+    /// The route goes out with none of the client's credentials — no `Authorization`, nothing the
+    /// auth strategy would add, which is not asked — and without its account scope, and a 401 is
+    /// the answer rather than a reason to refresh: what HEY judges is in the body, as at the token
+    /// endpoint, where the credentials a client would sign with may be the very ones being
+    /// exchanged or revoked. A client made with ``NoCredentials`` sends these routes and no others.
+    public var unsigned: Bool
+    /// The route follows no redirect: a 3xx is an error carrying its status, its body unread,
+    /// nothing sent to the `Location` and nothing retried. Its body carries secrets a 307 or 308
+    /// would carry wherever it pointed.
+    public var noRedirect: Bool
 
     public init(
         id: String, service: String, method: HTTPMethod, path: String, pattern: String, resource: String,
         resourceType: String, params: [RouteParam], idempotent: Bool, readonly: Bool, html: Bool,
         emptyOn: [Int], pagination: Pagination, pageParameter: String?, retry: RetryPolicy,
-        lenientSuccess: Bool = false
+        lenientSuccess: Bool = false, unsigned: Bool = false, noRedirect: Bool = false
     ) {
         self.id = id
         self.service = service
@@ -132,6 +142,8 @@ public struct Route: Sendable, Equatable {
         self.pageParameter = pageParameter
         self.retry = retry
         self.lenientSuccess = lenientSuccess
+        self.unsigned = unsigned
+        self.noRedirect = noRedirect
     }
 
     /// Substitutes the path parameters, in order, percent-encoding each value.

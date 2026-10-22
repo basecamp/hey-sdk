@@ -58,6 +58,9 @@ extension HeyClient {
     /// Messages operations.
     public var messages: MessagesService { MessagesService(client: self) }
 
+    /// OAuth operations.
+    public var oauth: OAuthService { OAuthService(client: self) }
+
     /// Postings operations.
     public var postings: PostingsService { PostingsService(client: self) }
 

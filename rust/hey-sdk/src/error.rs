@@ -371,22 +371,33 @@ impl Error {
                 }
             }
         };
-        let error = match headers
+        let mut error = match headers
             .get("x-request-id")
             .and_then(|value| value.to_str().ok())
         {
             Some(request_id) => error.with_request_id(request_id),
             None => error,
         };
-        // A 422's hint is its field errors joined, so the two never disagree.
+        // A 422's hint is its field errors joined, so the two never disagree, unless the body
+        // says why in an OAuth description, which is read first: HEY's 422s carry none.
         let said = if status == StatusCode::UNPROCESSABLE_ENTITY {
             reasons_text(body)
         } else {
             server_message(body)
         };
-        let mut error = match (error.hint.is_none(), said) {
-            (true, Some(message)) => error.with_hint(message),
-            _ => error,
+        let mut error = match (oauth_refusal(body), error.hint.is_none(), said) {
+            // The token endpoint says why in a sentence for a person, and that is what the
+            // error reads as, ahead of any advice the status brings — a 429's wait, a 403's
+            // re-authentication. Its code stays in the body, for a client to act on.
+            (Some(refusal), _, _) => {
+                let hint = match error.hint.take() {
+                    Some(advice) => format!("{refusal}; {advice}"),
+                    None => refusal,
+                };
+                error.with_hint(hint)
+            }
+            (None, true, Some(message)) => error.with_hint(message),
+            (None, _, _) => error,
         };
         if !body.is_empty() {
             let kept = body.len().min(MAX_ERROR_BODY_BYTES);
@@ -655,6 +666,22 @@ fn seconds_until(
     let whole = left.num_seconds();
     let started = left > chrono::Duration::seconds(whole);
     u64::try_from(if started { whole + 1 } else { whole }).ok()
+}
+
+/// What a refusal in RFC 6749's shape (§5.2), as HEY's token endpoint sends it, says: its
+/// `error_description`, with the `error` code after it when there is one. A body with no
+/// description, or an empty one, is not read this way, and reads as HEY's other refusals do.
+fn oauth_refusal(body: &[u8]) -> Option<String> {
+    let value: serde_json::Value = serde_json::from_slice(body).ok()?;
+    let description = value
+        .get("error_description")?
+        .as_str()
+        .filter(|description| !description.trim().is_empty())?;
+    let said = match value.get("error").and_then(serde_json::Value::as_str) {
+        Some(code) if !code.trim().is_empty() => format!("{description} ({code})"),
+        _ => description.to_string(),
+    };
+    Some(truncate(&said, MAX_ERROR_MESSAGE_BYTES))
 }
 
 /// The message a JSON failure body carries: `message`, then `error`, then the `errors` list
