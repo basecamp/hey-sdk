@@ -2657,7 +2657,9 @@ func (c *Client) RetryPolicy(operationId string) RetryPolicy {
 // doWithRetry executes a request with retry logic for idempotent operations, and sends
 // it once more after a 401 the AuthRefresher was able to answer. That resend draws on
 // whatever retry budget the operation has left rather than starting a fresh one, and is
-// always granted at least the one attempt.
+// always granted at least the one attempt. An unsigned operation's 401 judges what its
+// body carries, not credentials the AuthRefresher could renew, so it is the answer and
+// the AuthRefresher is not asked.
 func (c *Client) doWithRetry(ctx context.Context, buildRequest func() (*http.Request, error), isIdempotent bool, operationId string, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	policy := c.RetryPolicy(operationId)
 	maxAttempts := 1
@@ -2665,7 +2667,8 @@ func (c *Client) doWithRetry(ctx context.Context, buildRequest func() (*http.Req
 		maxAttempts = policy.MaxAttempts
 	}
 	resp, req, err := c.doAttempts(ctx, buildRequest, 1, maxAttempts, policy, operationId, reqEditors...)
-	if err != nil || resp.StatusCode != http.StatusUnauthorized || c.AuthRefresher == nil || !c.AuthRefresher(req.Context()) {
+	if err != nil || resp.StatusCode != http.StatusUnauthorized || c.AuthRefresher == nil ||
+		operationMetadata[operationId].Unsigned || !c.AuthRefresher(req.Context()) {
 		return resp, err
 	}
 	_ = resp.Body.Close()
@@ -31098,6 +31101,12 @@ func ParseGetNavigationResponse(rsp *http.Response) (*GetNavigationResponse, err
 
 // ParseRevokeTokenResponse parses an HTTP response from a RevokeTokenWithResponse call
 func ParseRevokeTokenResponse(rsp *http.Response) (*RevokeTokenResponse, error) {
+	// A redirect is this operation's answer, not a document: its status stands alone.
+	if rsp.StatusCode/100 == 3 {
+		_ = rsp.Body.Close()
+		rsp.Body = http.NoBody
+		return &RevokeTokenResponse{HTTPResponse: rsp}, nil
+	}
 	bodyBytes, err := io.ReadAll(rsp.Body)
 	received := rsp.Body
 	defer func() { _ = received.Close() }()
@@ -31166,6 +31175,12 @@ func ParseRevokeTokenResponse(rsp *http.Response) (*RevokeTokenResponse, error) 
 
 // ParseCreateTokenResponse parses an HTTP response from a CreateTokenWithResponse call
 func ParseCreateTokenResponse(rsp *http.Response) (*CreateTokenResponse, error) {
+	// A redirect is this operation's answer, not a document: its status stands alone.
+	if rsp.StatusCode/100 == 3 {
+		_ = rsp.Body.Close()
+		rsp.Body = http.NoBody
+		return &CreateTokenResponse{HTTPResponse: rsp}, nil
+	}
 	bodyBytes, err := io.ReadAll(rsp.Body)
 	received := rsp.Body
 	defer func() { _ = received.Close() }()

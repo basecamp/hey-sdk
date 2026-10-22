@@ -364,7 +364,7 @@ func TestNewClientRefusesAClientWithNothingToSignWith(t *testing.T) {
 
 // Account scope is the presentation context of an authenticated identity: an unsigned
 // request carries no identity, so a client scoped to one account sends the token
-// operations unscoped.
+// operations unscoped, and the hooks hear them, a resend included, as they went out.
 func TestAccountScopedClientSendsOAuthOperationsUnscoped(t *testing.T) {
 	var mu sync.Mutex
 	var queries []string
@@ -376,21 +376,36 @@ func TestAccountScopedClientSendsOAuthOperationsUnscoped(t *testing.T) {
 		}
 		mu.Lock()
 		queries = append(queries, r.URL.RawQuery)
+		first := len(queries) == 1
 		mu.Unlock()
+		// The revocation is sent first and refused once with a status its policy resends.
+		if first {
+			w.WriteHeader(http.StatusServiceUnavailable)
+			return
+		}
 		_, _ = io.WriteString(w, grantedToken)
 	}))
 	t.Cleanup(server.Close)
-	root := NewClient(&Config{BaseURL: server.URL}, &StaticTokenProvider{Token: "held"}, WithMaxRetries(0))
+	hooks := &accountScopeRecordingHooks{}
+	root := NewClient(&Config{BaseURL: server.URL}, &StaticTokenProvider{Token: "held"}, WithMaxRetries(1), WithHooks(hooks))
 	scoped := mustForAccount(t, root, 11)
 
-	for operation, send := range tokenOperations(scoped) {
-		if err := send(); err != nil {
+	for _, operation := range []string{"RevokeToken", "CreateToken"} {
+		if err := tokenOperations(scoped)[operation](); err != nil {
 			t.Fatalf("%s: %v", operation, err)
 		}
 	}
 	mu.Lock()
 	defer mu.Unlock()
-	if len(queries) != 2 || queries[0] != "" || queries[1] != "" {
-		t.Errorf("token requests went out with queries %q, want none", queries)
+	if len(queries) != 3 || queries[0] != "" || queries[1] != "" || queries[2] != "" {
+		t.Errorf("token requests went out with queries %q, want three with none", queries)
+	}
+	for _, heard := range append(hooks.requestURLs(), hooks.retryURL()) {
+		if strings.Contains(heard, "/oauth/") && strings.Contains(heard, filteredAccountIDParameter) {
+			t.Errorf("the hooks heard %s, which did not go out", heard)
+		}
+	}
+	if hooks.retryURL() == "" {
+		t.Error("the hooks heard no resend")
 	}
 }

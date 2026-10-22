@@ -162,6 +162,7 @@ func TestNoRedirectOperationsLeaveA3xxBodyUnread(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
+			defer func() { _ = resp.Body.Close() }()
 			if resp.StatusCode != http.StatusTemporaryRedirect {
 				t.Errorf("status = %d, want 307", resp.StatusCode)
 			}

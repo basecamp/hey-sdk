@@ -239,7 +239,9 @@ func (c *{{ $clientTypeName }}) RetryPolicy(operationId string) RetryPolicy {
 // doWithRetry executes a request with retry logic for idempotent operations, and sends
 // it once more after a 401 the AuthRefresher was able to answer. That resend draws on
 // whatever retry budget the operation has left rather than starting a fresh one, and is
-// always granted at least the one attempt.
+// always granted at least the one attempt. An unsigned operation's 401 judges what its
+// body carries, not credentials the AuthRefresher could renew, so it is the answer and
+// the AuthRefresher is not asked.
 func (c *{{ $clientTypeName }}) doWithRetry(ctx context.Context, buildRequest func() (*http.Request, error), isIdempotent bool, operationId string, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	policy := c.RetryPolicy(operationId)
 	maxAttempts := 1
@@ -247,7 +249,8 @@ func (c *{{ $clientTypeName }}) doWithRetry(ctx context.Context, buildRequest fu
 		maxAttempts = policy.MaxAttempts
 	}
 	resp, req, err := c.doAttempts(ctx, buildRequest, 1, maxAttempts, policy, operationId, reqEditors...)
-	if err != nil || resp.StatusCode != http.StatusUnauthorized || c.AuthRefresher == nil || !c.AuthRefresher(req.Context()) {
+	if err != nil || resp.StatusCode != http.StatusUnauthorized || c.AuthRefresher == nil ||
+		operationMetadata[operationId].Unsigned || !c.AuthRefresher(req.Context()) {
 		return resp, err
 	}
 	_ = resp.Body.Close()

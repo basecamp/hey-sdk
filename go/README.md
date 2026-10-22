@@ -26,6 +26,26 @@ client := hey.NewClient(cfg, &hey.StaticTokenProvider{Token: os.Getenv("HEY_TOKE
 boxes, err := client.Boxes().List(context.Background())
 ```
 
+HEY's token endpoint is `client.OAuth()`: `CreateToken` trades an authorization code or a
+refresh token for tokens, and `RevokeToken` revokes one. Both go out unsigned — no
+Authorization header, whatever the client holds — and a 401 is their answer, never a reason
+to refresh; neither follows a redirect, so a 3xx is an error carrying its status and the
+body's secrets go nowhere else. A client account-scoped with `ForAccount` sends them
+unscoped. `NewClient` refuses a client given neither a token provider nor a strategy; one
+meant to hold no credentials says so with `NoCredentials`, and refuses every other operation
+with `auth_required` before sending it:
+
+```go
+client := hey.NewClient(cfg, nil, hey.WithAuthStrategy(hey.NoCredentials{}))
+token, err := client.OAuth().CreateToken(ctx, generated.CreateTokenRequestContent{
+	GrantType: "authorization_code", ClientId: clientID, InstallId: installID,
+	Code: code, RedirectUri: redirectURI, CodeVerifier: verifier,
+})
+```
+
+The `oauth` package's `Exchanger` remains the client for an authorization server the caller
+discovered.
+
 The [existing service tests](pkg/hey/services_test.go) are hermetic usage examples.
 From the repository root, run `make go-check conformance-go`; the complete shipped
 SDK gate is `make check` (requires TypeScript dependencies installed with `make ts-install`).
