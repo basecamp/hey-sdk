@@ -233,6 +233,10 @@
     {
       "name": "A revocation follows no redirect",
       "operation": "RevokeToken"
+    },
+    {
+      "name": "A refused grant says why",
+      "operation": "CreateToken"
     }
   ],
   "pagination.json": [
