@@ -209,22 +209,31 @@ func TestDiscoverAsksBeforeTheIssuersPath(t *testing.T) {
 	}
 }
 
-// An escaped slash in the issuer's path stays escaped, as it is one segment.
+// An escaped slash in the issuer's path stays escaped, as it is part of a segment, and only a
+// literal trailing slash is dropped.
 func TestDiscoverKeepsTheIssuersPathEscaped(t *testing.T) {
-	var requested string
-	var server *httptest.Server
-	server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		requested = r.URL.EscapedPath()
-		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(metadataOf(server.URL + "/a%2Fb"))
-	}))
-	defer server.Close()
+	for path, want := range map[string]string{
+		"/a%2Fb":    "/.well-known/oauth-authorization-server/a%2Fb",
+		"/a%2Fb%2F": "/.well-known/oauth-authorization-server/a%2Fb%2F",
+		"/a%2Fb/":   "/.well-known/oauth-authorization-server/a%2Fb",
+	} {
+		t.Run(path, func(t *testing.T) {
+			var requested string
+			var server *httptest.Server
+			server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				requested = r.URL.EscapedPath()
+				w.Header().Set("Content-Type", "application/json")
+				_ = json.NewEncoder(w).Encode(metadataOf(server.URL + path))
+			}))
+			defer server.Close()
 
-	if _, err := NewDiscoverer(nil).Discover(context.Background(), server.URL+"/a%2Fb"); err != nil {
-		t.Fatal(err)
-	}
-	if requested != "/.well-known/oauth-authorization-server/a%2Fb" {
-		t.Errorf("asked for %q", requested)
+			if _, err := NewDiscoverer(nil).Discover(context.Background(), server.URL+path); err != nil {
+				t.Fatal(err)
+			}
+			if requested != want {
+				t.Errorf("asked for %q, want %q", requested, want)
+			}
+		})
 	}
 }
 
