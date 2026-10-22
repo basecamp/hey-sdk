@@ -1265,6 +1265,21 @@ type NotFoundErrorResponseContent struct {
 	Message string `json:"message"`
 }
 
+// OAuthBadRequestErrorResponseContent A refusal from the token endpoint (RFC 6749 §5.2): invalid_request, invalid_grant,
+// unsupported_grant_type and the like. `error` is the code a client acts on;
+// `error_description` is HEY's sentence for a person ("install_id doesn't identify this install.
+// Upgrade your client.").
+type OAuthBadRequestErrorResponseContent struct {
+	Error            string `json:"error"`
+	ErrorDescription string `json:"error_description,omitempty"`
+}
+
+// OAuthForbiddenErrorResponseContent unauthorized_client, or two_factor_authentication_required.
+type OAuthForbiddenErrorResponseContent struct {
+	Error            string `json:"error"`
+	ErrorDescription string `json:"error_description,omitempty"`
+}
+
 // OAuthToken The tokens a grant answers.
 type OAuthToken struct {
 	AccessToken string `json:"access_token"`
@@ -1277,6 +1292,20 @@ type OAuthToken struct {
 
 	// TokenType "bearer".
 	TokenType string `json:"token_type"`
+}
+
+// OAuthTooManyRequestsErrorResponseContent rate_limit_exceeded: too many failed grants within the hour.
+type OAuthTooManyRequestsErrorResponseContent struct {
+	Error            string `json:"error"`
+	ErrorDescription string `json:"error_description,omitempty"`
+}
+
+// OAuthUnauthorizedErrorResponseContent invalid_client, or invalid_grant for a dead refresh token: HEY answers that one 401 rather
+// than RFC 6749's 400, since shipped apps sign out on a refresh 401. The code tells the two
+// apart.
+type OAuthUnauthorizedErrorResponseContent struct {
+	Error            string `json:"error"`
+	ErrorDescription string `json:"error_description,omitempty"`
 }
 
 // Organizer Organizer — calendar event organizer
@@ -1619,11 +1648,6 @@ type TimeTrackRequestContent struct {
 
 // ToggleCalendarResponseContent CalendarSelection — the calendars a toggle left switched on
 type ToggleCalendarResponseContent = CalendarSelection
-
-// TooManyRequestsErrorResponseContent defines model for TooManyRequestsErrorResponseContent.
-type TooManyRequestsErrorResponseContent struct {
-	Message string `json:"message"`
-}
 
 // Topic Topic detail
 type Topic struct {
@@ -19548,11 +19572,11 @@ type RevokeTokenResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
 	// JSON400 the response for an HTTP 400 `application/json` response
-	JSON400 *BadRequestErrorResponseContent
+	JSON400 *OAuthBadRequestErrorResponseContent
 	// JSON401 the response for an HTTP 401 `application/json` response
-	JSON401 *UnauthorizedErrorResponseContent
+	JSON401 *OAuthUnauthorizedErrorResponseContent
 	// JSON429 the response for an HTTP 429 `application/json` response
-	JSON429 *TooManyRequestsErrorResponseContent
+	JSON429 *OAuthTooManyRequestsErrorResponseContent
 	// JSON500 the response for an HTTP 500 `application/json` response
 	JSON500 *InternalServerErrorResponseContent
 	// JSON503 the response for an HTTP 503 `application/json` response
@@ -19560,17 +19584,17 @@ type RevokeTokenResponse struct {
 }
 
 // GetJSON400 returns the response for an HTTP 400 `application/json` response
-func (r RevokeTokenResponse) GetJSON400() *BadRequestErrorResponseContent {
+func (r RevokeTokenResponse) GetJSON400() *OAuthBadRequestErrorResponseContent {
 	return r.JSON400
 }
 
 // GetJSON401 returns the response for an HTTP 401 `application/json` response
-func (r RevokeTokenResponse) GetJSON401() *UnauthorizedErrorResponseContent {
+func (r RevokeTokenResponse) GetJSON401() *OAuthUnauthorizedErrorResponseContent {
 	return r.JSON401
 }
 
 // GetJSON429 returns the response for an HTTP 429 `application/json` response
-func (r RevokeTokenResponse) GetJSON429() *TooManyRequestsErrorResponseContent {
+func (r RevokeTokenResponse) GetJSON429() *OAuthTooManyRequestsErrorResponseContent {
 	return r.JSON429
 }
 
@@ -19619,13 +19643,13 @@ type CreateTokenResponse struct {
 	// JSON200 the response for an HTTP 200 `application/json` response
 	JSON200 *OAuthToken
 	// JSON400 the response for an HTTP 400 `application/json` response
-	JSON400 *BadRequestErrorResponseContent
+	JSON400 *OAuthBadRequestErrorResponseContent
 	// JSON401 the response for an HTTP 401 `application/json` response
-	JSON401 *UnauthorizedErrorResponseContent
+	JSON401 *OAuthUnauthorizedErrorResponseContent
 	// JSON403 the response for an HTTP 403 `application/json` response
-	JSON403 *ForbiddenErrorResponseContent
+	JSON403 *OAuthForbiddenErrorResponseContent
 	// JSON429 the response for an HTTP 429 `application/json` response
-	JSON429 *TooManyRequestsErrorResponseContent
+	JSON429 *OAuthTooManyRequestsErrorResponseContent
 	// JSON500 the response for an HTTP 500 `application/json` response
 	JSON500 *InternalServerErrorResponseContent
 	// JSON503 the response for an HTTP 503 `application/json` response
@@ -19638,22 +19662,22 @@ func (r CreateTokenResponse) GetJSON200() *OAuthToken {
 }
 
 // GetJSON400 returns the response for an HTTP 400 `application/json` response
-func (r CreateTokenResponse) GetJSON400() *BadRequestErrorResponseContent {
+func (r CreateTokenResponse) GetJSON400() *OAuthBadRequestErrorResponseContent {
 	return r.JSON400
 }
 
 // GetJSON401 returns the response for an HTTP 401 `application/json` response
-func (r CreateTokenResponse) GetJSON401() *UnauthorizedErrorResponseContent {
+func (r CreateTokenResponse) GetJSON401() *OAuthUnauthorizedErrorResponseContent {
 	return r.JSON401
 }
 
 // GetJSON403 returns the response for an HTTP 403 `application/json` response
-func (r CreateTokenResponse) GetJSON403() *ForbiddenErrorResponseContent {
+func (r CreateTokenResponse) GetJSON403() *OAuthForbiddenErrorResponseContent {
 	return r.JSON403
 }
 
 // GetJSON429 returns the response for an HTTP 429 `application/json` response
-func (r CreateTokenResponse) GetJSON429() *TooManyRequestsErrorResponseContent {
+func (r CreateTokenResponse) GetJSON429() *OAuthTooManyRequestsErrorResponseContent {
 	return r.JSON429
 }
 
@@ -31129,21 +31153,21 @@ func ParseRevokeTokenResponse(rsp *http.Response) (*RevokeTokenResponse, error) 
 			break // No content-type
 
 		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
-			var dest BadRequestErrorResponseContent
+			var dest OAuthBadRequestErrorResponseContent
 			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 				return nil, err
 			}
 			response.JSON400 = &dest
 
 		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
-			var dest UnauthorizedErrorResponseContent
+			var dest OAuthUnauthorizedErrorResponseContent
 			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 				return nil, err
 			}
 			response.JSON401 = &dest
 
 		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 429:
-			var dest TooManyRequestsErrorResponseContent
+			var dest OAuthTooManyRequestsErrorResponseContent
 			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 				return nil, err
 			}
@@ -31207,28 +31231,28 @@ func ParseCreateTokenResponse(rsp *http.Response) (*CreateTokenResponse, error) 
 			response.JSON200 = &dest
 
 		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
-			var dest BadRequestErrorResponseContent
+			var dest OAuthBadRequestErrorResponseContent
 			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 				return nil, err
 			}
 			response.JSON400 = &dest
 
 		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
-			var dest UnauthorizedErrorResponseContent
+			var dest OAuthUnauthorizedErrorResponseContent
 			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 				return nil, err
 			}
 			response.JSON401 = &dest
 
 		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
-			var dest ForbiddenErrorResponseContent
+			var dest OAuthForbiddenErrorResponseContent
 			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 				return nil, err
 			}
 			response.JSON403 = &dest
 
 		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 429:
-			var dest TooManyRequestsErrorResponseContent
+			var dest OAuthTooManyRequestsErrorResponseContent
 			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 				return nil, err
 			}
