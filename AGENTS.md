@@ -216,12 +216,15 @@ does not show up in them.
 that reads `openapi.json`, `behavior-model.json` and `kotlin/generator/names.toml` and
 writes `models/<Schema>.kt` (one `@Serializable` data class or typealias per schema),
 `Routes.kt` (one `Route` per operation, with idempotency, empty-on statuses, lenient success,
-pagination style and the retry policy), `services/<Service>Service.kt` (one class per service, one suspend
+`unsigned` and `noRedirect`, pagination style and the retry policy), `services/<Service>Service.kt` (one class per service, one suspend
 method per operation) and `ServiceAccessors.kt`. The hand-written core in
 `kotlin/sdk/src/commonMain/kotlin/com/basecamp/hey` (client, retries, cache, auth,
 pagination, account scope) knows nothing about individual operations; everything
 operation-specific comes from the model, and the retry loop reads each route's policy as the
-Rust one does.
+Rust one does. An `unsigned` route goes with no credentials, no account scope and no refresh
+on its 401, and a `noRedirect` one takes a 3xx as its answer, so `auth(NoCredentials)` builds
+a client for the token endpoint (`client.oauth`) that refuses every signed operation with
+`auth_required` before sending it.
 
 `names.toml` is the Kotlin twin of `rust/generator/names.toml`: `[services]` (tag to
 service), `[service_names]` (a service's PascalCase name where the case conversion reads

@@ -61,7 +61,7 @@ class Operation internal constructor(
     /** Whether the client's credentials stay off it: the route's say ([Route.unsigned]), or a hand-written request's `unsigned()`. */
     internal var unsigned: Boolean = route?.unsigned == true
 
-    /** Whether a 3xx is followed: the route's say ([Route.noRedirect]), or a hand-written request's [noRedirects]. */
+    /** Whether a 3xx is followed: false where the route says so ([Route.noRedirect]). */
     internal var followsRedirects: Boolean = route?.noRedirect != true
 
     /**
@@ -188,15 +188,6 @@ class Operation internal constructor(
      */
     internal fun unsigned(): Operation {
         unsigned = true
-        return this
-    }
-
-    /**
-     * Takes any 3xx as a failure, with no hop: for a request whose body is itself a credential,
-     * which a redirect that kept the body would hand to wherever the `Location` points.
-     */
-    internal fun noRedirects(): Operation {
-        followsRedirects = false
         return this
     }
 
