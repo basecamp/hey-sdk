@@ -165,6 +165,57 @@ final class OAuthTests: XCTestCase {
         XCTAssertEqual(auth.refreshes, 0, "the refresh is never asked for")
     }
 
+    // MARK: - Refusals
+
+    func testARefusalsDescriptionReachesTheCallersMessage() async throws {
+        let hey = mockHey(status(400, #"{"error":"invalid_request","error_description":"install_id doesn't identify this install. Upgrade your client."}"#))
+        let error = await assertThrows(HeyError.codeAPI, try await hey.client().oauth.createToken(body: codeGrant))
+
+        XCTAssertTrue(error?.message.contains("install_id doesn't identify this install. Upgrade your client.") ?? false, "\(String(describing: error))")
+        XCTAssertEqual(error?.httpStatus, 400)
+        XCTAssertEqual(error?.isRetryable, false)
+        XCTAssertEqual(error?.hint, "invalid_request", "the OAuth code is the hint, where a JSON body's error has always gone")
+    }
+
+    func testADeadRefreshTokenAndAMisconfiguredClientCanBeToldApart() async throws {
+        let hey = mockHey(
+            status(401, #"{"error":"invalid_grant","error_description":"Invalid refresh token."}"#),
+            status(401, #"{"error":"invalid_client","error_description":"OAuth client is not authorized to revoke this token."}"#))
+        let client = try hey.client()
+        let grant = await assertThrows(HeyError.codeAuth, try await client.oauth.createToken(body: refreshGrant))
+        let revoke = await assertThrows(HeyError.codeAuth, try await client.oauth.revokeToken(body: revocation))
+
+        XCTAssertEqual(grant?.hint, "invalid_grant")
+        XCTAssertEqual(revoke?.hint, "invalid_client")
+        XCTAssertTrue(grant?.message.contains("Invalid refresh token.") ?? false, "\(String(describing: grant))")
+        XCTAssertTrue(revoke?.message.contains("OAuth client is not authorized to revoke this token.") ?? false, "\(String(describing: revoke))")
+        XCTAssertEqual(grant?.httpStatus, 401)
+    }
+
+    func testARateLimitedGrantKeepsItsCodeAndRetryability() async throws {
+        let hey = mockHey(status(429, #"{"error":"slow_down","error_description":"Too many failed attempts."}"#, [("Retry-After", "30")]))
+        let error = await assertThrows(HeyError.codeRateLimit, try await hey.client().oauth.createToken(body: codeGrant))
+
+        XCTAssertTrue(error?.message.contains("Too many failed attempts.") ?? false, "\(String(describing: error))")
+        XCTAssertEqual(error?.isRetryable, true)
+        XCTAssertEqual(error?.hint, "slow_down")
+    }
+
+    func testABodyWithoutADescriptionKeepsTheMessageItHad() async throws {
+        let hey = mockHey(
+            status(401, #"{"error":"invalid_grant"}"#), status(400, #"{"error":"invalid_request","error_description":"  "}"#),
+            status(400, #"{"message":"Bad things"}"#))
+        let client = try hey.client()
+        let bare = await assertThrows(HeyError.codeAuth, try await client.oauth.createToken(body: codeGrant))
+        let blank = await assertThrows(HeyError.codeAPI, try await client.oauth.createToken(body: codeGrant))
+        let other = await assertThrows(HeyError.codeAPI, try await client.oauth.createToken(body: codeGrant))
+
+        XCTAssertEqual(bare?.message, "authentication required")
+        XCTAssertEqual(blank?.message, "API error: 400")
+        XCTAssertEqual(other?.message, "API error: 400")
+        XCTAssertEqual(other?.hint, "Bad things")
+    }
+
     // MARK: - No redirect
 
     func testARedirectFromTheTokenEndpointIsAnErrorWithItsStatusAndGoesNowhere() async throws {

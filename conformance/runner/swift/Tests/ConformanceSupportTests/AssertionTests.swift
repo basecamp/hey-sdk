@@ -145,6 +145,16 @@ final class AssertionTests: XCTestCase {
         XCTAssertTrue(failure(run(recorded, Assertion(type: "headerAbsent"))).contains("names no header"))
     }
 
+    func testAnErrorMessageHasToContainTheExpectedText() {
+        let recorded = Recorded()
+        let expected = Assertion(type: "errorMessageContains", expected: .string("Invalid refresh token."))
+        let refused = HeyError.auth(message: "authentication required: Invalid refresh token.", detail: ErrorDetail())
+        XCTAssertNoThrow(try checkAll(run(recorded, expected, outcome: .failure(refused))))
+        let bare = HeyError.auth(message: "authentication required", detail: ErrorDetail(hint: "Invalid refresh token."))
+        XCTAssertTrue(failure(run(recorded, expected, outcome: .failure(bare))).contains("authentication required"), "the hint is not the message")
+        XCTAssertTrue(failure(run(recorded, expected, outcome: .success(.unit))).contains("got no error"))
+    }
+
     func testAnUnknownAssertionTypeFails() {
         XCTAssertTrue(failure(run(Recorded(), Assertion(type: "somethingNew"))).contains("Unknown assertion type"))
     }
