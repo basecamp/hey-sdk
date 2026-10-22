@@ -13,6 +13,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/basecamp/hey-sdk/go/pkg/generated"
 )
@@ -407,5 +408,118 @@ func TestAccountScopedClientSendsOAuthOperationsUnscoped(t *testing.T) {
 	}
 	if hooks.retryURL() == "" {
 		t.Error("the hooks heard no resend")
+	}
+}
+
+// selfRefreshingTokens renews its access token by trading its refresh token on the very
+// client it signs for, as an app's own provider does.
+type selfRefreshingTokens struct {
+	client    *Client
+	mu        sync.Mutex
+	token     string
+	refreshes atomic.Int32
+}
+
+func (p *selfRefreshingTokens) AccessToken(context.Context) (string, error) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return p.token, nil
+}
+
+func (p *selfRefreshingTokens) Refresh(ctx context.Context) error {
+	p.refreshes.Add(1)
+	token, err := p.client.OAuth().CreateToken(ctx, generated.CreateTokenRequestContent{
+		GrantType: "refresh_token", ClientId: "client-1", InstallId: "install-1", RefreshToken: "refresh-1",
+	})
+	if err != nil {
+		return err
+	}
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.token = token.AccessToken
+	return nil
+}
+
+// A refresh that trades its refresh token on the same client sends CreateToken while it
+// holds the refresh: the token request takes no part in that coordination, so it goes out
+// rather than waiting on the refresh it is part of, and the operation whose 401 asked for
+// the refresh is resent with the new token.
+func TestRefreshThatCallsTheTokenEndpointOnTheSameClient(t *testing.T) {
+	var mu sync.Mutex
+	var seen []string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		seen = append(seen, r.URL.Path+" "+r.Header.Get("Authorization"))
+		mu.Unlock()
+		w.Header().Set("Content-Type", "application/json")
+		switch {
+		case r.URL.Path == "/oauth/tokens.json":
+			_, _ = io.WriteString(w, `{"access_token":"renewed","token_type":"bearer","refresh_token":"refresh-1"}`)
+		case r.Header.Get("Authorization") != "Bearer renewed":
+			w.WriteHeader(http.StatusUnauthorized)
+		default:
+			_, _ = io.WriteString(w, `{"id":1}`)
+		}
+	}))
+	t.Cleanup(server.Close)
+	provider := &selfRefreshingTokens{token: "stale"}
+	client := NewClient(&Config{BaseURL: server.URL}, provider, WithMaxRetries(0))
+	provider.client = client
+
+	done := make(chan error, 1)
+	go func() {
+		_, err := client.Identity().GetIdentity(context.Background())
+		done <- err
+	}()
+	select {
+	case err := <-done:
+		if err != nil {
+			t.Fatalf("GetIdentity: %v", err)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("GetIdentity did not finish: the refresh's token request waited on the refresh")
+	}
+	if got := provider.refreshes.Load(); got != 1 {
+		t.Errorf("refreshed %d times, want 1", got)
+	}
+	mu.Lock()
+	defer mu.Unlock()
+	want := []string{"/identity.json Bearer stale", "/oauth/tokens.json ", "/identity.json Bearer renewed"}
+	if !reflect.DeepEqual(seen, want) {
+		t.Errorf("requests = %q, want %q", seen, want)
+	}
+}
+
+// operationRecorder keeps every operation the hooks hear start.
+type operationRecorder struct {
+	NoopHooks
+	mu         sync.Mutex
+	operations []OperationInfo
+}
+
+func (h *operationRecorder) OnOperationStart(ctx context.Context, op OperationInfo) context.Context {
+	h.mu.Lock()
+	h.operations = append(h.operations, op)
+	h.mu.Unlock()
+	return ctx
+}
+
+// The hooks hear the token operations under the names every SDK reports them by.
+func TestOAuthOperationsReportTheirNamesToTheHooks(t *testing.T) {
+	server, _ := tokenEndpoint(t, tokenAnswer{status: 200, body: grantedToken})
+	hooks := &operationRecorder{}
+	client := NewClient(&Config{BaseURL: server.URL}, nil, WithAuthStrategy(NoCredentials{}), WithHooks(hooks))
+
+	for _, operation := range []string{"CreateToken", "RevokeToken"} {
+		if err := tokenOperations(client)[operation](); err != nil {
+			t.Fatalf("%s: %v", operation, err)
+		}
+	}
+	want := []OperationInfo{
+		{Service: "OAuth", Operation: "CreateToken", ResourceType: "token", IsMutation: true},
+		{Service: "OAuth", Operation: "RevokeToken", ResourceType: "token", IsMutation: true},
+	}
+	if !reflect.DeepEqual(hooks.operations, want) {
+		t.Errorf("the hooks heard %+v, want %+v", hooks.operations, want)
 	}
 }
