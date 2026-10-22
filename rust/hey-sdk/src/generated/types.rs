@@ -1809,6 +1809,35 @@ pub struct NotFoundErrorResponseContent {
     pub message: String,
 }
 
+/// A refusal from the token endpoint (RFC 6749 §5.2): invalid_request, invalid_grant,
+/// unsupported_grant_type and the like. `error` is the code a client acts on;
+/// `error_description` is HEY's sentence for a person ("install_id doesn't identify this install.
+/// Upgrade your client.").
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[non_exhaustive]
+pub struct OAuthBadRequestErrorResponseContent {
+    #[serde(
+        default,
+        deserialize_with = "crate::types::null_as_default::deserialize"
+    )]
+    pub error: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub error_description: Option<String>,
+}
+
+/// unauthorized_client, or two_factor_authentication_required.
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[non_exhaustive]
+pub struct OAuthForbiddenErrorResponseContent {
+    #[serde(
+        default,
+        deserialize_with = "crate::types::null_as_default::deserialize"
+    )]
+    pub error: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub error_description: Option<String>,
+}
+
 /// The tokens a grant answers.
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 #[non_exhaustive]
@@ -1830,6 +1859,34 @@ pub struct OAuthToken {
     /// The token to refresh with: a new one for a code, the one sent for a refresh.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub refresh_token: Option<SensitiveString>,
+}
+
+/// rate_limit_exceeded: too many failed grants within the hour.
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[non_exhaustive]
+pub struct OAuthTooManyRequestsErrorResponseContent {
+    #[serde(
+        default,
+        deserialize_with = "crate::types::null_as_default::deserialize"
+    )]
+    pub error: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub error_description: Option<String>,
+}
+
+/// invalid_client, or invalid_grant for a dead refresh token: HEY answers that one 401 rather
+/// than RFC 6749's 400, since shipped apps sign out on a refresh 401. The code tells the two
+/// apart.
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[non_exhaustive]
+pub struct OAuthUnauthorizedErrorResponseContent {
+    #[serde(
+        default,
+        deserialize_with = "crate::types::null_as_default::deserialize"
+    )]
+    pub error: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub error_description: Option<String>,
 }
 
 /// Organizer — calendar event organizer
@@ -2404,16 +2461,6 @@ pub struct TimeTrackRequestContent {
 }
 
 pub type ToggleCalendarResponseContent = CalendarSelection;
-
-#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
-#[non_exhaustive]
-pub struct TooManyRequestsErrorResponseContent {
-    #[serde(
-        default,
-        deserialize_with = "crate::types::null_as_default::deserialize"
-    )]
-    pub message: String,
-}
 
 /// Topic detail
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]

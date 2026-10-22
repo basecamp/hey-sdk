@@ -34,6 +34,7 @@ fn check(run: &Run, assertion: &Assertion) -> Result<(), String> {
         "delayBetweenRequests" => check_delay_between_requests(run, assertion),
         "noError" => check_no_error(run),
         "errorCode" => check_error_code(run, assertion),
+        "errorMessageContains" => check_error_message_contains(run, assertion),
         "errorField" => check_error_field(run, assertion),
         "statusCode" => check_status_code(run, assertion),
         "requestPath" => check_request_path(run, assertion, First),
@@ -113,6 +114,22 @@ fn empty_statuses(operation: &str) -> &'static [u16] {
         .find(|route| route.id == operation)
         .map(|route| route.empty_on)
         .unwrap_or_default()
+}
+
+/// The operation failed, and its error reads with the expected words in it: the message as
+/// a caller prints it, hint and all.
+fn check_error_message_contains(run: &Run, assertion: &Assertion) -> Result<(), String> {
+    let expected = expected_string(assertion, "errorMessageContains")?;
+    match run.outcome {
+        Ok(_) => Err(format!(
+            "Expected an error whose message contains {expected:?}, but the operation succeeded"
+        )),
+        Err(error) if error.to_string().contains(expected) => Ok(()),
+        Err(error) => Err(format!(
+            "Expected the error message to contain {expected:?}, got {:?}",
+            error.to_string()
+        )),
+    }
 }
 
 fn check_error_code(run: &Run, assertion: &Assertion) -> Result<(), String> {

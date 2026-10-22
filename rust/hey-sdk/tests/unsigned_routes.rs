@@ -601,3 +601,60 @@ fn a_builder_with_no_credentials_at_all_is_refused() {
 
     assert_eq!(error.code(), ErrorCode::Usage);
 }
+
+/// A dead refresh token and a client HEY will not serve are both a 401 from the token
+/// endpoint; the caller tells them apart by the code in the body the error keeps, and reads
+/// HEY's sentence in the error itself.
+#[tokio::test]
+async fn a_dead_refresh_token_and_a_refused_client_are_told_apart() {
+    use hey_sdk::models::OAuthUnauthorizedErrorResponseContent;
+
+    let server = MockServer::start().await;
+    Mock::given(method("POST"))
+        .and(path("/oauth/tokens.json"))
+        .respond_with(ResponseTemplate::new(401).set_body_json(
+            json!({ "error": "invalid_grant", "error_description": "Invalid refresh token." }),
+        ))
+        .mount(&server)
+        .await;
+    Mock::given(method("DELETE"))
+        .and(path("/oauth/tokens.json"))
+        .respond_with(ResponseTemplate::new(401).set_body_json(json!({
+            "error": "invalid_client",
+            "error_description": "OAuth client is not authorized to revoke this token.",
+        })))
+        .mount(&server)
+        .await;
+    let client = client(&server);
+
+    let dead = client
+        .oauth()
+        .create_token(&refresh_grant())
+        .await
+        .unwrap_err();
+    let refused = client
+        .oauth()
+        .revoke_token(&revocation())
+        .await
+        .unwrap_err();
+
+    let code = |error: &Error| {
+        error
+            .body_json::<OAuthUnauthorizedErrorResponseContent>()
+            .map(|refusal| refusal.error)
+    };
+    assert_eq!(code(&dead).as_deref(), Some("invalid_grant"));
+    assert_eq!(code(&refused).as_deref(), Some("invalid_client"));
+    assert_eq!(dead.code(), ErrorCode::Auth);
+    assert_eq!(refused.code(), ErrorCode::Auth);
+    assert!(
+        dead.to_string().contains("Invalid refresh token."),
+        "{dead}"
+    );
+    assert!(
+        refused
+            .to_string()
+            .contains("OAuth client is not authorized to revoke this token."),
+        "{refused}"
+    );
+}

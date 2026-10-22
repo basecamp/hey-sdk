@@ -1180,11 +1180,12 @@ impl Client {
         Ok(url)
     }
 
-    /// Builds the request for one attempt, signs it, and looks the response cache up the
-    /// first time it is asked for a key. `cached` carries the entry — or the empty stand-in
-    /// that says "cacheable, nothing stored" — from one attempt to the next. Called under
-    /// the read half of [`Shared::refreshing`], so the counts the signing reads are those
-    /// of the credentials it put on.
+    /// Builds the request for one attempt, signs it unless its route is unsigned, and looks
+    /// the response cache up the first time it is asked for a key. `cached` carries the
+    /// entry — or the empty stand-in that says "cacheable, nothing stored" — from one attempt
+    /// to the next. A request it signs is prepared under the read half of
+    /// [`Shared::refreshing`], so the counts the signing reads are those of the credentials
+    /// it put on; an unsigned one carries no credentials and is prepared without it.
     async fn prepare(
         &self,
         operation: &Operation,

@@ -52,8 +52,8 @@ openapi.json + behavior-model.json -> rust/generator -> rust/hey-sdk/src/generat
 
 `rust/generator` is a small Rust binary that reads `openapi.json` and `behavior-model.json`
 and writes `types.rs` (every schema), `routes.rs` (one `Route` static per operation, with
-idempotency, empty-on statuses, lenient success, pagination style and the retry policy) and
-`services/*.rs` (one struct per service, one async method per operation). A route's
+idempotency, empty-on statuses, lenient success, `unsigned`, `no_redirect`, pagination style
+and the retry policy) and `services/*.rs` (one struct per service, one async method per operation). A route's
 `idempotent` — what lets the retry loop resend it — is the spec's explicit
 `x-hey-idempotent.natural` when there is one, otherwise the behavior model's own `readonly`
 or `idempotent` (which is how a PATCH earns a resend), and only when the model says neither
@@ -65,7 +65,11 @@ retry loop reads each route's policy — `max` is Smithy's `maxAttempts`, the se
 and the client's own settings only lower the count and, but for `max_delay`, lengthen the
 waits (`max_delay` caps the policy's wait like any other, which is how a test suite winds the
 backoff down), so changing a policy in the model and regenerating is what changes what goes
-over the wire.
+over the wire. An `unsigned` route (`x-hey-unsigned`) goes out without asking the auth
+strategy, takes its 401 as the answer and skips the account scope, and a `no_redirect` route
+(`x-hey-no-redirect`) takes a 3xx as an error, body unread; a client built with the
+`NoCredentials` strategy sends only unsigned routes, refusing the rest as `auth_required`
+before they go out.
 
 Services are named from tags and methods from operation ids with the service's noun
 removed (`ListBoxes` -> `boxes().list()`). The generator fails when two operations
