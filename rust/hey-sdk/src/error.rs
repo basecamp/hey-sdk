@@ -668,8 +668,6 @@ fn seconds_until(
     u64::try_from(if started { whole + 1 } else { whole }).ok()
 }
 
-/// The message a JSON failure body carries: `message`, then `error`, then the `errors` list
-/// joined, as the Kotlin and Swift SDKs read it.
 /// What a refusal in RFC 6749's shape (§5.2), as HEY's token endpoint sends it, says: its
 /// `error_description`, with the `error` code after it when there is one. A body with no
 /// description, or an empty one, is not read this way, and reads as HEY's other refusals do.
@@ -686,6 +684,8 @@ fn oauth_refusal(body: &[u8]) -> Option<String> {
     Some(truncate(&said, MAX_ERROR_MESSAGE_BYTES))
 }
 
+/// The message a JSON failure body carries: `message`, then `error`, then the `errors` list
+/// joined, as the Kotlin and Swift SDKs read it.
 fn server_message(body: &[u8]) -> Option<String> {
     let value: serde_json::Value = serde_json::from_slice(body).ok()?;
     let single = ["message", "error"]
