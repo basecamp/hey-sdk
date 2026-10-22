@@ -46,14 +46,13 @@ func (d *Discoverer) Discover(ctx context.Context, baseURL string) (*Config, err
 		return nil, fmt.Errorf("OAuth issuer validation failed: %w", err)
 	}
 	// The well-known path goes between the host and the issuer's own path (RFC 8414 §3.1),
-	// which keeps its escapes.
-	const wellKnown = "/.well-known/oauth-authorization-server"
-	discoveryURL := url.URL{
-		Scheme:  issuer.Scheme,
-		Host:    issuer.Host,
-		Path:    wellKnown + strings.TrimSuffix(issuer.Path, "/"),
-		RawPath: wellKnown + strings.TrimSuffix(issuer.EscapedPath(), "/"),
+	// which keeps its escapes: only a literal trailing slash is dropped, not an escaped one.
+	escaped := "/.well-known/oauth-authorization-server" + strings.TrimSuffix(issuer.EscapedPath(), "/")
+	path, err := url.PathUnescape(escaped)
+	if err != nil {
+		return nil, fmt.Errorf("OAuth issuer must be an absolute URL without a query, fragment or credentials")
 	}
+	discoveryURL := url.URL{Scheme: issuer.Scheme, Host: issuer.Host, Path: path, RawPath: escaped}
 
 	req, err := http.NewRequestWithContext(ctx, "GET", discoveryURL.String(), nil)
 	if err != nil {
