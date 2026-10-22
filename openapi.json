@@ -7813,31 +7813,31 @@
             "description": "RevokeToken 200 response"
           },
           "400": {
-            "description": "BadRequestError 400 response",
+            "description": "OAuthBadRequestError 400 response",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BadRequestErrorResponseContent"
+                  "$ref": "#/components/schemas/OAuthBadRequestErrorResponseContent"
                 }
               }
             }
           },
           "401": {
-            "description": "UnauthorizedError 401 response",
+            "description": "OAuthUnauthorizedError 401 response",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/UnauthorizedErrorResponseContent"
+                  "$ref": "#/components/schemas/OAuthUnauthorizedErrorResponseContent"
                 }
               }
             }
           },
           "429": {
-            "description": "TooManyRequestsError 429 response",
+            "description": "OAuthTooManyRequestsError 429 response",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/TooManyRequestsErrorResponseContent"
+                  "$ref": "#/components/schemas/OAuthTooManyRequestsErrorResponseContent"
                 }
               }
             }
@@ -7906,41 +7906,41 @@
             }
           },
           "400": {
-            "description": "BadRequestError 400 response",
+            "description": "OAuthBadRequestError 400 response",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BadRequestErrorResponseContent"
+                  "$ref": "#/components/schemas/OAuthBadRequestErrorResponseContent"
                 }
               }
             }
           },
           "401": {
-            "description": "UnauthorizedError 401 response",
+            "description": "OAuthUnauthorizedError 401 response",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/UnauthorizedErrorResponseContent"
+                  "$ref": "#/components/schemas/OAuthUnauthorizedErrorResponseContent"
                 }
               }
             }
           },
           "403": {
-            "description": "ForbiddenError 403 response",
+            "description": "OAuthForbiddenError 403 response",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ForbiddenErrorResponseContent"
+                  "$ref": "#/components/schemas/OAuthForbiddenErrorResponseContent"
                 }
               }
             }
           },
           "429": {
-            "description": "TooManyRequestsError 429 response",
+            "description": "OAuthTooManyRequestsError 429 response",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/TooManyRequestsErrorResponseContent"
+                  "$ref": "#/components/schemas/OAuthTooManyRequestsErrorResponseContent"
                 }
               }
             }
@@ -14387,6 +14387,36 @@
           "message"
         ]
       },
+      "OAuthBadRequestErrorResponseContent": {
+        "type": "object",
+        "description": "A refusal from the token endpoint (RFC 6749 §5.2): invalid_request, invalid_grant,\nunsupported_grant_type and the like. `error` is the code a client acts on;\n`error_description` is HEY's sentence for a person (\"install_id doesn't identify this install.\nUpgrade your client.\").",
+        "properties": {
+          "error": {
+            "type": "string"
+          },
+          "error_description": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "error"
+        ]
+      },
+      "OAuthForbiddenErrorResponseContent": {
+        "type": "object",
+        "description": "unauthorized_client, or two_factor_authentication_required.",
+        "properties": {
+          "error": {
+            "type": "string"
+          },
+          "error_description": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "error"
+        ]
+      },
       "OAuthToken": {
         "type": "object",
         "description": "The tokens a grant answers.",
@@ -14417,6 +14447,36 @@
         "required": [
           "access_token",
           "token_type"
+        ]
+      },
+      "OAuthTooManyRequestsErrorResponseContent": {
+        "type": "object",
+        "description": "rate_limit_exceeded: too many failed grants within the hour.",
+        "properties": {
+          "error": {
+            "type": "string"
+          },
+          "error_description": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "error"
+        ]
+      },
+      "OAuthUnauthorizedErrorResponseContent": {
+        "type": "object",
+        "description": "invalid_client, or invalid_grant for a dead refresh token: HEY answers that one 401 rather\nthan RFC 6749's 400, since shipped apps sign out on a refresh 401. The code tells the two\napart.",
+        "properties": {
+          "error": {
+            "type": "string"
+          },
+          "error_description": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "error"
         ]
       },
       "Organizer": {
@@ -15377,17 +15437,6 @@
       },
       "ToggleCalendarResponseContent": {
         "$ref": "#/components/schemas/CalendarSelection"
-      },
-      "TooManyRequestsErrorResponseContent": {
-        "type": "object",
-        "properties": {
-          "message": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "message"
-        ]
       },
       "Topic": {
         "type": "object",

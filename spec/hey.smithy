@@ -5279,7 +5279,7 @@ structure TopicPublication {
 operation CreateToken {
     input: CreateTokenInput
     output: CreateTokenOutput
-    errors: [BadRequestError, UnauthorizedError, ForbiddenError, TooManyRequestsError, InternalServerError, ServiceUnavailableError]
+    errors: [OAuthBadRequestError, OAuthUnauthorizedError, OAuthForbiddenError, OAuthTooManyRequestsError, InternalServerError, ServiceUnavailableError]
 }
 
 structure CreateTokenInput {
@@ -5359,7 +5359,7 @@ structure OAuthToken {
 operation RevokeToken {
     input: RevokeTokenInput
     output: RevokeTokenOutput
-    errors: [BadRequestError, UnauthorizedError, TooManyRequestsError, InternalServerError, ServiceUnavailableError]
+    errors: [OAuthBadRequestError, OAuthUnauthorizedError, OAuthTooManyRequestsError, InternalServerError, ServiceUnavailableError]
 }
 
 structure RevokeTokenInput {
@@ -5381,3 +5381,49 @@ structure RevokeTokenRequestContent {
 
 /// HEY answers {}.
 structure RevokeTokenOutput {}
+
+/// A refusal from the token endpoint (RFC 6749 §5.2): invalid_request, invalid_grant,
+/// unsupported_grant_type and the like. `error` is the code a client acts on;
+/// `error_description` is HEY's sentence for a person ("install_id doesn't identify this install.
+/// Upgrade your client.").
+@error("client")
+@httpError(400)
+structure OAuthBadRequestError {
+    @required
+    error: String
+
+    error_description: String
+}
+
+/// invalid_client, or invalid_grant for a dead refresh token: HEY answers that one 401 rather
+/// than RFC 6749's 400, since shipped apps sign out on a refresh 401. The code tells the two
+/// apart.
+@error("client")
+@httpError(401)
+structure OAuthUnauthorizedError {
+    @required
+    error: String
+
+    error_description: String
+}
+
+/// unauthorized_client, or two_factor_authentication_required.
+@error("client")
+@httpError(403)
+structure OAuthForbiddenError {
+    @required
+    error: String
+
+    error_description: String
+}
+
+/// rate_limit_exceeded: too many failed grants within the hour.
+@error("client")
+@httpError(429)
+@retryable(throttling: true)
+structure OAuthTooManyRequestsError {
+    @required
+    error: String
+
+    error_description: String
+}

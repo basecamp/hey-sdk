@@ -37,7 +37,9 @@
           "grant_type": "authorization_code",
           "client_id": "conformance-client",
           "install_id": "conformance-install",
-          "redirect_uri": "heyapp://oauth/callback"
+          "redirect_uri": "heyapp://oauth/callback",
+          "code": "conformance-code",
+          "code_verifier": "conformance-verifier"
         }
       },
       { "type": "responseBody", "path": "token_type", "expected": "bearer" },
@@ -67,7 +69,12 @@
       { "type": "statusCode", "expected": 401 },
       { "type": "requestCount", "expected": 1 },
       { "type": "refreshCount", "expected": 0 },
-      { "type": "headerAbsent", "path": "Authorization" }
+      { "type": "headerAbsent", "path": "Authorization" },
+      {
+        "type": "requestBody",
+        "expected": { "grant_type": "refresh_token", "refresh_token": "conformance-dead-refresh" }
+      },
+      { "type": "errorMessageContains", "expected": "Invalid refresh token." }
     ],
     "tags": ["oauth", "auth"]
   },
@@ -131,7 +138,8 @@
       { "type": "errorCode", "expected": "auth_required" },
       { "type": "statusCode", "expected": 401 },
       { "type": "requestCount", "expected": 1 },
-      { "type": "refreshCount", "expected": 0 }
+      { "type": "refreshCount", "expected": 0 },
+      { "type": "errorMessageContains", "expected": "OAuth client is not authorized to revoke this token." }
     ],
     "tags": ["oauth", "auth"]
   },
@@ -151,5 +159,33 @@
       { "type": "requestCount", "expected": 1 }
     ],
     "tags": ["oauth", "redirect"]
+  },
+  {
+    "name": "A refused grant says why",
+    "description": "HEY refuses a grant with RFC 6749's {\"error\": ..., \"error_description\": ...}. The description is HEY's sentence for a person, and the caller's error carries it: a 400 that only says 400 leaves an app nothing to show.",
+    "operation": "CreateToken",
+    "method": "POST",
+    "path": "/oauth/tokens.json",
+    "requestBody": {
+      "grant_type": "authorization_code",
+      "client_id": "conformance-client",
+      "install_id": "00000000-0000-0000-0000-000000000000",
+      "code": "conformance-code",
+      "redirect_uri": "heyapp://oauth/callback",
+      "code_verifier": "conformance-verifier"
+    },
+    "mockResponses": [
+      {
+        "status": 400,
+        "body": { "error": "invalid_request", "error_description": "install_id doesn't identify this install. Upgrade your client." }
+      },
+      { "status": 200, "body": { "access_token": "never", "token_type": "bearer" } }
+    ],
+    "assertions": [
+      { "type": "statusCode", "expected": 400 },
+      { "type": "requestCount", "expected": 1 },
+      { "type": "errorMessageContains", "expected": "install_id doesn't identify this install. Upgrade your client." }
+    ],
+    "tags": ["oauth", "errors"]
   }
 ]
