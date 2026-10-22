@@ -587,6 +587,35 @@ func TestOAuthUnauthorizedCodesCanBeToldApart(t *testing.T) {
 	}
 }
 
+// error_description is optional in RFC 6749 and in the model. Every refusal the token endpoint
+// answers is RFC 6749's, so its code is kept even without a description, while the message
+// stays the status's: a dead refresh token is still told from a misconfigured client.
+func TestOAuthRefusalsKeepTheirCodeWithoutADescription(t *testing.T) {
+	for _, refusal := range []struct {
+		status          int
+		oauthCode, text string
+	}{
+		{401, "invalid_grant", "authentication required"},
+		{401, "invalid_client", "authentication required"},
+		{400, "invalid_request", "API error: 400 Bad Request"},
+	} {
+		for _, operation := range []string{"CreateToken", "RevokeToken"} {
+			t.Run(fmt.Sprintf("%d %s/%s", refusal.status, refusal.oauthCode, operation), func(t *testing.T) {
+				server, _ := tokenEndpoint(t, tokenAnswer{status: refusal.status, body: `{"error":"` + refusal.oauthCode + `"}`})
+				client := NewClient(&Config{BaseURL: server.URL}, nil, WithAuthStrategy(NoCredentials{}), WithMaxRetries(0))
+
+				var apiErr *Error
+				if err := tokenOperations(client)[operation](); !errors.As(err, &apiErr) {
+					t.Fatalf("%s = %v, want an *Error", operation, err)
+				}
+				if apiErr.OAuthCode != refusal.oauthCode || apiErr.Message != refusal.text {
+					t.Errorf("OAuthCode %q, message %q; want %q, %q", apiErr.OAuthCode, apiErr.Message, refusal.oauthCode, refusal.text)
+				}
+			})
+		}
+	}
+}
+
 // HEY's other refusals carry no error_description, and their errors read as they always
 // have: no message from the body, no OAuth code.
 func TestRefusalsWithoutADescriptionKeepTheirMessages(t *testing.T) {
