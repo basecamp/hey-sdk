@@ -25,6 +25,28 @@ final class ConsultedAuth: AuthStrategy, @unchecked Sendable {
     }
 }
 
+/// A transport in front of the mock that records the bound the client asked each answer's body to
+/// be read to, nil being "not read at all".
+final class BodyLimitProbe: Transport, @unchecked Sendable {
+    private let inner: MockHey
+    private let lock = NSLock()
+    private var asked: [Int?] = []
+
+    init(_ inner: MockHey) {
+        self.inner = inner
+    }
+
+    var limits: [Int?] { lock.withLock { asked } }
+
+    func send(_ request: HTTPRequest, bodyLimit: @escaping @Sendable (Int, HTTPHeaders) -> Int?) async throws -> HTTPResponse {
+        try await inner.send(request) { [self] status, headers in
+            let limit = bodyLimit(status, headers)
+            lock.withLock { asked.append(limit) }
+            return limit
+        }
+    }
+}
+
 final class OAuthTests: XCTestCase {
     private let codeGrant = CreateTokenRequestContent(
         grantType: "authorization_code", clientId: "client", installId: "install",
@@ -126,10 +148,19 @@ final class OAuthTests: XCTestCase {
             let error = await assertThrowsHeyError(try await hey.client().oauth.createToken(body: codeGrant))
             XCTAssertEqual(error?.httpStatus, code)
             XCTAssertEqual(error?.isRetryable, false, "\(code)")
-            XCTAssertNil(error?.body, "the \(code)'s body is not read")
-            XCTAssertFalse(error.map { "\($0.message) \($0.hint ?? "")" }?.contains("read from the redirect") ?? true)
+            XCTAssertTrue(error?.message.contains("follows no redirect") ?? false, "\(String(describing: error))")
             XCTAssertEqual(hey.requests.map(\.path), ["/oauth/tokens.json"], "nothing goes to the Location after a \(code)")
         }
+    }
+
+    func testARedirectsBodyIsNotReadOnARouteThatFollowsNone() async throws {
+        let probe = BodyLimitProbe(mockHey(status(307, #"{"error":"x"}"#, [("Location", "/elsewhere/oauth/tokens.json")])))
+        await assertThrowsHeyError(try await HeyClient(accessToken: "t", transport: probe).oauth.createToken(body: codeGrant))
+        XCTAssertEqual(probe.limits, [nil], "the transport is told not to read it")
+
+        let refused = BodyLimitProbe(mockHey(status(400, #"{"error":"invalid_request"}"#)))
+        await assertThrowsHeyError(try await HeyClient(accessToken: "t", transport: refused).oauth.createToken(body: codeGrant))
+        XCTAssertNotNil(refused.limits.first ?? nil, "while a refusal's body is read for its message")
     }
 
     func testARevocationFollowsNoRedirectToAnotherOriginEither() async throws {
