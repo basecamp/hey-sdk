@@ -807,6 +807,15 @@
       "params": {}
     },
     {
+      "pattern": "/oauth/tokens",
+      "resource": "OAuth",
+      "operations": {
+        "DELETE": "RevokeToken",
+        "POST": "CreateToken"
+      },
+      "params": {}
+    },
+    {
       "pattern": "/paper_trail",
       "resource": "Boxes",
       "operations": {
