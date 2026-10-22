@@ -52,8 +52,39 @@ val client = HeyClient {
 }
 ```
 
+### Tokens
+
+HEY's token endpoint is the `oauth` service: `createToken` trades an authorization code, or a
+refresh token, for tokens, and `revokeToken` ends the session behind one. Both go with none of
+the client's own credentials — no `Authorization`, no DPoP proof, and the provider or strategy is
+not asked — take a 401 as the answer rather than a reason to refresh, and take a redirect as a
+failure carrying its status rather than following it, since the code, verifier or token rides in
+the body. The model marks them so (`Route.unsigned`, `Route.noRedirect`), and any route it marks
+is sent the same way.
+
+An app that holds no token yet builds its client with `NoCredentials`, which sends those
+operations and refuses any other with `auth_required` before anything goes out. A client with
+nothing configured is still refused when it is built, so a forgotten token is caught there.
+
+```kotlin
+import com.basecamp.hey.NoCredentials
+import com.basecamp.hey.SensitiveString
+import com.basecamp.hey.generated.models.CreateTokenRequestContent
+import com.basecamp.hey.generated.oauth
+
+val signIn = HeyClient { auth(NoCredentials) }
+val token = signIn.oauth.createToken(CreateTokenRequestContent(
+    grantType = "authorization_code",
+    clientId = clientId,
+    installId = installId,
+    code = SensitiveString(code),
+    redirectUri = redirectUri,
+    codeVerifier = SensitiveString(verifier),
+))
+```
+
 Signing out ends the session HEY holds behind a token with `revokeToken`, an extension on the
-client:
+client that sends the generated `RevokeToken` for the two strings it is handed:
 
 ```kotlin
 import com.basecamp.hey.revokeToken
@@ -61,9 +92,7 @@ import com.basecamp.hey.revokeToken
 client.revokeToken(clientId, refreshToken)
 ```
 
-It sends `DELETE /oauth/tokens` with the token in a form body and none of the client's own
-credentials, and takes a redirect as a failure rather than following it, since the token rides
-in the body. HEY answers a token it no longer knows as revoked.
+HEY answers a token it no longer knows as revoked.
 
 ## Use it
 
@@ -111,7 +140,7 @@ One handle per resource, all extension properties of the client in
 `com.basecamp.hey.generated`: `attachments`, `boxes`,
 `bulkReplies`, `calendarEvents`, `calendarPeriods`, `calendarTodos`, `calendars`,
 `clearances`, `clips`, `collections`, `contacts`, `designations`, `entries`, `extenzions`,
-`folders`, `habits`, `identity`, `journal`, `messages`, `postings`, `publications`,
+`folders`, `habits`, `identity`, `journal`, `messages`, `oauth`, `postings`, `publications`,
 `search`, `snippets`, `stickies`, `timeTracks`, `topics`, `workflows`; and `world`, in
 `com.basecamp.hey.services`, for HEY World, which the model has no route for.
 
