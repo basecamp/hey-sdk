@@ -209,6 +209,32 @@
       "operation": "GetBox"
     }
   ],
+  "oauth.json": [
+    {
+      "name": "A code is traded for tokens without the client's credentials",
+      "operation": "CreateToken"
+    },
+    {
+      "name": "A refused refresh is the answer, never a reason to refresh",
+      "operation": "CreateToken"
+    },
+    {
+      "name": "A grant follows no redirect",
+      "operation": "CreateToken"
+    },
+    {
+      "name": "A token is revoked without the client's credentials",
+      "operation": "RevokeToken"
+    },
+    {
+      "name": "A revocation refused is the answer, never a reason to refresh",
+      "operation": "RevokeToken"
+    },
+    {
+      "name": "A revocation follows no redirect",
+      "operation": "RevokeToken"
+    }
+  ],
   "pagination.json": [
     {
       "name": "List operation returns first page with Link header",

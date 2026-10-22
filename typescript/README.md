@@ -1,7 +1,7 @@
 # @37signals/hey
 
 TypeScript SDK for HEY, generated from the same Smithy/OpenAPI contract as the Go SDK.
-All **136 modeled operations** have typed lower-camel-case methods on `HeyClient`.
+All **139 modeled operations** have typed lower-camel-case methods on `HeyClient`.
 
 ## Install and runtimes
 
@@ -103,9 +103,9 @@ objects without making optional variant fields required.
 
 ## Auth, errors and limits
 
-`token` can be a string or `{ getToken(), refresh?() }`. A definite 401 triggers at most
-one refresh and resend, even for mutations; concurrent refreshes coalesce. Refresh
-failure propagates. Store OAuth credentials outside the SDK. `@37signals/hey/oauth`
+`token` can be a string or `{ getToken(), refresh?() }`; a client given neither is refused
+when built. A definite 401 triggers at most one refresh and resend, even for mutations;
+concurrent refreshes coalesce. Refresh failure propagates. Store OAuth credentials outside the SDK. `@37signals/hey/oauth`
 provides static HEY endpoint metadata, generic discovery, PKCE, authorization URL, code
 exchange and refresh helpers. HEY authorization uses `grant_type=authorization_code`,
 and every authorization, exchange and refresh request carries the same stable
@@ -113,6 +113,23 @@ installation ID. The helpers validate discovered issuers and accept Bearer acces
 Verify the returned OAuth `state` in your callback before exchanging the code; persist the
 installation ID and rotated refresh tokens, and use provider `refresh` to renew them. See the
 [OAuth example](https://github.com/basecamp/hey-sdk/blob/main/typescript/examples/oauth.ts).
+
+HEY's own token endpoint is modeled too: `createToken` trades a code or a refresh token
+and `revokeToken` revokes one, each with a JSON body at `/oauth/tokens.json`. Both go
+unsigned, with no Authorization and the provider never asked for a token, carry no
+account filter, and take a 401 as the answer rather than a reason to refresh. A 3xx is
+their answer too, unread. A client built for them alone passes `token: NoCredentials`;
+any other operation on it fails `auth_required` before anything is sent.
+
+```ts
+import { HeyClient, NoCredentials } from '@37signals/hey';
+
+const auth = new HeyClient({ token: NoCredentials });
+const { data: tokens } = await auth.createToken({ body: {
+  grant_type: 'refresh_token', client_id, install_id, refresh_token,
+} });
+await auth.revokeToken({ body: { client_id, token: tokens!.access_token } });
+```
 
 `HeyError` has `code`, `httpStatus`, `retryable`, `requestId`, `hint` and `cause`, and on a
 422 `fieldErrors`: each reason HEY gave, in order, with the `message` and the `field` when HEY

@@ -127,3 +127,37 @@ for (const [path, item] of Object.entries(spec.paths))
       expect(await request!.text()).toBe(op.requestBody ? "{}" : "");
     });
   }
+it("reads x-hey-unsigned and x-hey-no-redirect into route metadata, not the operation's name", () => {
+  const meta = (output: ReturnType<typeof generateOperations>) =>
+    JSON.parse(
+      output["operations.ts"]
+        .split("export const operationMetadata = ")[1]!
+        .split(" as const;")[0]!,
+    ) as Record<string, { unsigned?: boolean; noRedirect?: boolean; safe: boolean }>;
+  const generated = meta(generateOperations(spec, behavior));
+  for (const id of ["CreateToken", "RevokeToken"]) {
+    expect(generated[id]!.unsigned).toBe(true);
+    expect(generated[id]!.noRedirect).toBe(true);
+  }
+  for (const [id, m] of Object.entries(generated))
+    if (!["CreateToken", "RevokeToken"].includes(id)) {
+      expect(m.unsigned, id).toBeUndefined();
+      expect(m.noRedirect, id).toBeUndefined();
+    }
+  const s = structuredClone(spec);
+  s.paths["/boxes.json"]!.get!["x-hey-unsigned"] = {};
+  s.paths["/boxes.json"]!.get!["x-hey-no-redirect"] = {};
+  delete s.paths["/oauth/tokens.json"]!.post!["x-hey-unsigned"];
+  delete s.paths["/oauth/tokens.json"]!.post!["x-hey-no-redirect"];
+  const moved = meta(generateOperations(s, behavior));
+  expect(moved.ListBoxes).toMatchObject({ unsigned: true, noRedirect: true });
+  expect(moved.CreateToken!.unsigned).toBeUndefined();
+  expect(moved.CreateToken!.noRedirect).toBeUndefined();
+});
+it("lets the verb stand in for idempotency when the behavior model says neither", () => {
+  // RevokeToken is a DELETE the model calls neither readonly nor idempotent; its declared
+  // retry policy resends a 429 or 503 only if the verb stands in, as every other SDK reads it.
+  expect(operationMetadata.RevokeToken.safe).toBe(true);
+  expect(operationMetadata.CreateToken.safe).toBe(false);
+  expect(operationMetadata.UpdateMessage.safe).toBe(false);
+});

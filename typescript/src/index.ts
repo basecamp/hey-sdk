@@ -1,4 +1,4 @@
-export { HeyClient } from "./client.js";
+export { HeyClient, NoCredentials } from "./client.js";
 export type { ClientOptions, TokenProvider } from "./client.js";
 export { HeyError } from "./errors.js";
 export type { ErrorCode, FieldError } from "./errors.js";

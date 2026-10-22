@@ -88,16 +88,22 @@ export function generateOperations(spec: Spec, behavior: Behavior) {
           type: p.schema.type,
         })),
         bodyRequired: !!body?.required,
+        // The explicit override has the last word either way; short of one, the model's own
+        // readonly or idempotent, and the verb when the model says neither, as every other
+        // SDK's generator reads it.
         safe:
           (op["x-hey-idempotent"] as { natural?: boolean } | undefined)
             ?.natural ??
           (behavior.operations[id]!.readonly ||
-            behavior.operations[id]!.idempotent),
+            behavior.operations[id]!.idempotent ||
+            ["get", "head", "put", "delete"].includes(method)),
         retry: op["x-hey-retry"],
         pagination: op["x-hey-pagination"],
         emptyOn: (op["x-hey-empty-on"] as { statusCodes: number[] } | undefined)
           ?.statusCodes,
         lenientSuccess: op["x-hey-lenient-success"] ? true : undefined,
+        unsigned: op["x-hey-unsigned"] ? true : undefined,
+        noRedirect: op["x-hey-no-redirect"] ? true : undefined,
         responseMediaType: responseMedia.includes("text/html")
           ? "text/html"
           : undefined,

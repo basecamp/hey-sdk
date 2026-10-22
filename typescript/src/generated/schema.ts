@@ -1392,6 +1392,36 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/oauth/tokens.json": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * @description Trade an authorization code, or a refresh token, for tokens. `grant_type` names which:
+         *     "authorization_code" sends `code`, `redirect_uri` and `code_verifier` (PKCE), and
+         *     "refresh_token" sends `refresh_token`. Every grant names the client and the install it is
+         *     for. A refresh answers the refresh token it was sent, unchanged, beside the new access
+         *     token. Not sent again after a failure: a code is redeemed once.
+         */
+        post: operations["CreateToken"];
+        /**
+         * @description Revoke an access or a refresh token the client was handed, ending the session behind it:
+         *     what a sign-out asks. HEY answers 200 {} for a token that names nothing, the point of
+         *     revoking it reached, and refuses one another client was handed (invalid_client, 401).
+         *     The token goes in the body, never the query, where logs would keep it, so this DELETE has
+         *     a payload: HEY reads its params from either, and every SDK's client sends one.
+         */
+        delete: operations["RevokeToken"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/paper_trail.json": {
         parameters: {
             query?: never;
@@ -2651,6 +2681,25 @@ export interface components {
         CreateReplyResponseContent: components["schemas"]["SentMessage"];
         CreateStickyResponseContent: components["schemas"]["Sticky"];
         CreateTimeTrackResponseContent: components["schemas"]["Recording"];
+        CreateTokenRequestContent: {
+            /** @description "authorization_code" or "refresh_token". */
+            grant_type: string;
+            /** @description The OAuth client's id. */
+            client_id: string;
+            /**
+             * @description Identifies this installation to HEY as a device: the value the authorization URL
+             *     carried, for a code.
+             */
+            install_id: string;
+            /** @description The authorization code the redirect carried (authorization_code). */
+            code?: string;
+            /** @description The redirect URI the authorization request named (authorization_code). */
+            redirect_uri?: string;
+            /** @description The PKCE verifier whose challenge the authorization request sent (authorization_code). */
+            code_verifier?: string;
+            /** @description The refresh token to trade (refresh_token). */
+            refresh_token?: string;
+        };
         /** @description Wire format: {comment: {content: "<div>…</div>"}} */
         CreateTopicCommentRequestContent: {
             comment: components["schemas"]["TopicCommentPayload"];
@@ -3108,6 +3157,19 @@ export interface components {
         NotFoundErrorResponseContent: {
             message: string;
         };
+        /** @description The tokens a grant answers. */
+        OAuthToken: {
+            access_token: string;
+            /** @description "bearer". */
+            token_type: string;
+            /**
+             * Format: int64
+             * @description Seconds the access token lasts from the moment HEY answered.
+             */
+            expires_in?: number | bigint;
+            /** @description The token to refresh with: a new one for a code, the one sent for a refresh. */
+            refresh_token?: string;
+        };
         /** @description Organizer — calendar event organizer */
         Organizer: {
             email_address?: string;
@@ -3308,6 +3370,12 @@ export interface components {
             content: string;
         };
         RevealContactResponseContent: components["schemas"]["Contact"];
+        RevokeTokenRequestContent: {
+            /** @description The OAuth client's id: the client the token was handed to. */
+            client_id: string;
+            /** @description The access or refresh token to revoke. */
+            token: string;
+        };
         SchedulePostingsBubbleUpRequestContent: {
             posting_ids: (number | bigint)[];
             slot: string;
@@ -3449,6 +3517,9 @@ export interface components {
             notes?: string;
         };
         ToggleCalendarResponseContent: components["schemas"]["CalendarSelection"];
+        TooManyRequestsErrorResponseContent: {
+            message: string;
+        };
         /** @description Topic detail */
         Topic: {
             /** Format: int64 */
@@ -8990,6 +9061,151 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["UnauthorizedErrorResponseContent"];
+                };
+            };
+            /** @description InternalServerError 500 response */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InternalServerErrorResponseContent"];
+                };
+            };
+            /** @description ServiceUnavailableError 503 response */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ServiceUnavailableErrorResponseContent"];
+                };
+            };
+        };
+    };
+    CreateToken: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateTokenRequestContent"];
+            };
+        };
+        responses: {
+            /** @description CreateToken 200 response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OAuthToken"];
+                };
+            };
+            /** @description BadRequestError 400 response */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BadRequestErrorResponseContent"];
+                };
+            };
+            /** @description UnauthorizedError 401 response */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UnauthorizedErrorResponseContent"];
+                };
+            };
+            /** @description ForbiddenError 403 response */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ForbiddenErrorResponseContent"];
+                };
+            };
+            /** @description TooManyRequestsError 429 response */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TooManyRequestsErrorResponseContent"];
+                };
+            };
+            /** @description InternalServerError 500 response */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InternalServerErrorResponseContent"];
+                };
+            };
+            /** @description ServiceUnavailableError 503 response */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ServiceUnavailableErrorResponseContent"];
+                };
+            };
+        };
+    };
+    RevokeToken: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RevokeTokenRequestContent"];
+            };
+        };
+        responses: {
+            /** @description RevokeToken 200 response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description BadRequestError 400 response */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BadRequestErrorResponseContent"];
+                };
+            };
+            /** @description UnauthorizedError 401 response */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UnauthorizedErrorResponseContent"];
+                };
+            };
+            /** @description TooManyRequestsError 429 response */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TooManyRequestsErrorResponseContent"];
                 };
             };
             /** @description InternalServerError 500 response */

@@ -42,6 +42,7 @@ const shapes: Record<string, { required: Record<string, Check>; optional?: Recor
   requestForm: { required: { expected: fields(scalar) } },
   lastRequestForm: { required: { expected: fields(scalar) } },
   headerPresent: { required: { path: nonempty } },
+  headerAbsent: { required: { path: nonempty } },
   lastRequestHeader: { required: { path: nonempty, expected: text } },
   responseMeta: { required: { path: nonempty, expected: scalar } },
   urlOrigin: { required: { expected: value => value === "rejected" } },
