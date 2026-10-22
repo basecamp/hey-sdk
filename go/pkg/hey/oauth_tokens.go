@@ -2,6 +2,8 @@ package hey
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
 	"fmt"
 
 	"github.com/basecamp/hey-sdk/go/pkg/generated"
@@ -42,7 +44,7 @@ func (s *OAuthService) CreateToken(ctx context.Context, body generated.CreateTok
 			return requestErr
 		}
 		if responseErr := CheckResponse(resp.HTTPResponse); responseErr != nil {
-			return responseErr
+			return keepRefusalCode(responseErr, resp.Body)
 		}
 		if resp.JSON200 == nil {
 			return fmt.Errorf("HEY returned an empty token response")
@@ -68,6 +70,24 @@ func (s *OAuthService) RevokeToken(ctx context.Context, body generated.RevokeTok
 		if err != nil {
 			return err
 		}
-		return CheckResponse(resp.HTTPResponse)
+		return keepRefusalCode(CheckResponse(resp.HTTPResponse), resp.Body)
 	})
+}
+
+// keepRefusalCode keeps the code of a token-endpoint refusal on err when CheckResponse left
+// it off for want of a description. Elsewhere HEY's {"error": ...} is a sentence, so
+// CheckResponse takes it for a code only beside an error_description; every refusal this
+// endpoint answers is RFC 6749's, whose error_description is optional, and its "error" is the
+// code that tells a dead refresh token from a misconfigured client.
+func keepRefusalCode(err error, body []byte) error {
+	var apiErr *Error
+	if errors.As(err, &apiErr) && apiErr.OAuthCode == "" {
+		var refusal struct {
+			Error string `json:"error"`
+		}
+		if json.Unmarshal(body, &refusal) == nil {
+			apiErr.OAuthCode = refusal.Error
+		}
+	}
+	return err
 }
