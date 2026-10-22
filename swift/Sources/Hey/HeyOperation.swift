@@ -157,6 +157,11 @@ public struct HeyOperation: Sendable, CustomStringConvertible {
     /// as the token endpoint, whose body is what HEY judges.
     var isUnsigned: Bool { unsignedRequested || route?.unsigned == true }
 
+    /// Whether the hooks hear the URL cut back to its origin: a URL that authenticates itself, which
+    /// ``unsigned()`` is for, carries its signature in the open. A route the model sends unsigned
+    /// is heard whole, since its secrets are in the body and its path holds none.
+    var carriesItsSignature: Bool { unsignedRequested }
+
     /// Whether a redirect is followed. A route the model marks (``Route/noRedirect``) carries a
     /// credential in its body, which a redirect that kept the body would hand to wherever the
     /// `Location` points, so its 3xx is the answer.
