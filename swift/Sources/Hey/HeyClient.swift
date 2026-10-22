@@ -367,11 +367,10 @@ public final class HeyClient: Sendable {
             let prepared = try await prepare(operation, url, cached)
             cached = prepared.cached
             // A URL that authenticates itself carries its signature in the open, so the hooks hear
-            // its origin and nothing more. A route the model sends unsigned is told the same way:
-            // its URL hides nothing, but one rule for what goes out unsigned is simpler than two.
+            // its origin and nothing more.
             let info = RequestInfo(
                 method: operation.method.rawValue,
-                url: operation.isUnsigned ? redactURLs(url.absoluteString) : url.absoluteString,
+                url: operation.carriesItsSignature ? redactURLs(url.absoluteString) : url.absoluteString,
                 attempt: attempt)
             hooks.onRequestStart(info)
             let started = shared.clock()
