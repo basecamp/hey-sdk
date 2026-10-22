@@ -5,8 +5,9 @@
 
 mod support;
 
-use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::{Arc, Mutex, OnceLock};
+use std::time::Duration;
 
 use async_trait::async_trait;
 use bytes::Bytes;
@@ -368,6 +369,79 @@ async fn a_401_on_a_signed_route_is_still_refreshed() {
 
     assert_eq!(received(&server).await.len(), 2);
     assert_eq!(provider.refreshes.load(Ordering::SeqCst), 1);
+}
+
+/// A provider that refreshes by trading its refresh token through the very client it signs
+/// for, as an application holding one client would.
+#[derive(Default)]
+struct SelfRefreshing {
+    client: OnceLock<Client>,
+    token: Mutex<String>,
+    refreshes: AtomicUsize,
+}
+
+#[async_trait]
+impl TokenProvider for SelfRefreshing {
+    async fn access_token(&self) -> Result<String, Error> {
+        Ok(self.token.lock().unwrap().clone())
+    }
+
+    async fn refresh(&self) -> bool {
+        self.refreshes.fetch_add(1, Ordering::SeqCst);
+        let client = self.client.get().unwrap();
+        match client.oauth().create_token(&refresh_grant()).await {
+            Ok(token) => {
+                *self.token.lock().unwrap() = token.access_token.into_inner();
+                true
+            }
+            Err(_) => false,
+        }
+    }
+}
+
+/// The refresh holds the client's refresh turn while it runs, and the grant it sends from
+/// inside goes out unsigned, so it does not wait for a turn of its own: it would never get
+/// one.
+#[tokio::test]
+async fn a_refresh_may_trade_its_token_through_the_client_it_refreshes() {
+    let server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path("/boxes.json"))
+        .respond_with(ResponseTemplate::new(401))
+        .up_to_n_times(1)
+        .mount(&server)
+        .await;
+    Mock::given(method("GET"))
+        .and(path("/boxes.json"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!([])))
+        .mount(&server)
+        .await;
+    Mock::given(method("POST"))
+        .and(path("/oauth/tokens.json"))
+        .respond_with(tokens())
+        .mount(&server)
+        .await;
+    let provider = Arc::new(SelfRefreshing::default());
+    *provider.token.lock().unwrap() = "stale".to_string();
+    let client = builder(&server)
+        .token_provider(provider.clone())
+        .build()
+        .unwrap();
+    provider.client.set(client.clone()).ok().unwrap();
+
+    tokio::time::timeout(Duration::from_secs(5), client.boxes().list())
+        .await
+        .expect("the refresh waited on itself")
+        .unwrap();
+
+    assert_eq!(provider.refreshes.load(Ordering::SeqCst), 1);
+    let requests = received(&server).await;
+    assert_eq!(requests.len(), 3);
+    assert_eq!(requests[1].url.path(), "/oauth/tokens.json");
+    assert_eq!(
+        requests[2].headers.get("authorization").unwrap(),
+        "Bearer new-access"
+    );
 }
 
 /// The flag is what the client reads: a route of the test's own that is not an OAuth
