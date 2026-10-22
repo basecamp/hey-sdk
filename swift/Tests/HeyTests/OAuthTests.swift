@@ -47,6 +47,33 @@ final class BodyLimitProbe: Transport, @unchecked Sendable {
     }
 }
 
+/// A provider whose refresh trades its refresh token at the token endpoint through the very client
+/// it signs for, as an app's refresher built on `client.oauth.createToken` does.
+final class TokenEndpointRefresher: TokenProvider, @unchecked Sendable {
+    private let lock = NSLock()
+    private var token = "old-access"
+    private var heldClient: HeyClient?
+    private var refreshCount = 0
+
+    var client: HeyClient? {
+        get { lock.withLock { heldClient } }
+        set { lock.withLock { heldClient = newValue } }
+    }
+
+    var refreshes: Int { lock.withLock { refreshCount } }
+
+    func accessToken() async throws -> String { lock.withLock { token } }
+
+    func refresh() async throws -> Bool {
+        lock.withLock { refreshCount += 1 }
+        guard let client else { return false }
+        let renewed = try await client.oauth.createToken(body: CreateTokenRequestContent(
+            grantType: "refresh_token", clientId: "client", installId: "install", refreshToken: "the-refresh"))
+        lock.withLock { token = renewed.accessToken.expose() }
+        return true
+    }
+}
+
 final class OAuthTests: XCTestCase {
     private let codeGrant = CreateTokenRequestContent(
         grantType: "authorization_code", clientId: "client", installId: "install",
@@ -200,6 +227,34 @@ final class OAuthTests: XCTestCase {
         XCTAssertEqual(hey.requests.map(\.path), ["/boxes.json", "/boxes.json", "/boxes/all.json"])
         XCTAssertTrue(hey.requests.allSatisfy { $0.header("Authorization") == "Bearer held-token" })
         XCTAssertEqual(auth.refreshes, 1)
+    }
+
+    func testARefreshMayTradeItsTokenThroughTheClientItRefreshes() async throws {
+        let hey = MockHey { _, request in
+            if request.path == "/oauth/tokens.json" { return ok(#"{"access_token":"new-access","token_type":"bearer"}"#) }
+            return request.header("Authorization") == "Bearer new-access" ? ok("[]") : status(401)
+        }
+        let refresher = TokenEndpointRefresher()
+        let client = try hey.client(auth: BearerAuth(tokenProvider: refresher))
+        refresher.client = client
+
+        // The refresh runs under the client's signing lock; a token request that waited on that
+        // lock would wait on itself, so the read is bounded rather than left to hang.
+        let done = expectation(description: "the read completes")
+        let read = Task {
+            defer { done.fulfill() }
+            _ = try await client.boxes.list()
+        }
+        await fulfillment(of: [done], timeout: 5)
+        read.cancel()
+        try await read.value
+
+        XCTAssertEqual(hey.requests.map { "\($0.method) \($0.path) \($0.header("Authorization") ?? "-")" }, [
+            "GET /boxes.json Bearer old-access",
+            "POST /oauth/tokens.json -",
+            "GET /boxes.json Bearer new-access",
+        ])
+        XCTAssertEqual(refresher.refreshes, 1)
     }
 
     func testAnAccountScopedClientSendsTheTokenEndpointUnscoped() async throws {
