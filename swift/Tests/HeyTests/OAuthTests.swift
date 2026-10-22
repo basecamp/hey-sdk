@@ -257,6 +257,18 @@ final class OAuthTests: XCTestCase {
         XCTAssertEqual(refresher.refreshes, 1)
     }
 
+    func testTheHooksHearTheTokenEndpointsWholeURL() async throws {
+        let log = AnnouncementLog()
+        let hey = mockHey(ok(tokenJSON), ok("{}"))
+        let client = try hey.client(hooks: log)
+        _ = try await client.oauth.createToken(body: codeGrant)
+        try await client.oauth.revokeToken(body: revocation)
+
+        // Unlike a storage URL, which carries its signature in the open, the token endpoint's path
+        // holds no secret: its secrets are in the body, which the hooks never hear.
+        XCTAssertEqual(log.requests, ["POST https://app.hey.com/oauth/tokens.json", "DELETE https://app.hey.com/oauth/tokens.json"])
+    }
+
     func testAnAccountScopedClientSendsTheTokenEndpointUnscoped() async throws {
         let hey = mockHey(ok(identityJSON), ok(tokenJSON))
         let work = try await hey.client().forAccount(42)
