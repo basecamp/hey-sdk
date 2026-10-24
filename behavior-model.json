@@ -5,6 +5,7 @@
     "AddPostingsToBoxGroup": {
       "destructive": false,
       "idempotent": false,
+      "no_redirect": false,
       "open_world": false,
       "readonly": false,
       "retry": {
@@ -16,11 +17,13 @@
           503
         ]
       },
+      "unsigned": false,
       "untrusted_content": false
     },
     "AdvancedSearch": {
       "destructive": false,
       "idempotent": false,
+      "no_redirect": false,
       "open_world": false,
       "pagination": {
         "style": "link"
@@ -35,11 +38,13 @@
           503
         ]
       },
+      "unsigned": false,
       "untrusted_content": true
     },
     "BubbleUpPostingsNow": {
       "destructive": false,
       "idempotent": false,
+      "no_redirect": false,
       "open_world": false,
       "readonly": false,
       "retry": {
@@ -51,11 +56,13 @@
           503
         ]
       },
+      "unsigned": false,
       "untrusted_content": false
     },
     "BulkUpdateClearances": {
       "destructive": false,
       "idempotent": true,
+      "no_redirect": false,
       "open_world": false,
       "readonly": false,
       "retry": {
@@ -67,11 +74,13 @@
           503
         ]
       },
+      "unsigned": false,
       "untrusted_content": true
     },
     "BundleContact": {
       "destructive": false,
       "idempotent": false,
+      "no_redirect": false,
       "open_world": false,
       "readonly": false,
       "retry": {
@@ -83,11 +92,13 @@
           503
         ]
       },
+      "unsigned": false,
       "untrusted_content": false
     },
     "CancelPostingsBubbleUp": {
       "destructive": false,
       "idempotent": true,
+      "no_redirect": false,
       "open_world": false,
       "readonly": false,
       "retry": {
@@ -99,11 +110,13 @@
           503
         ]
       },
+      "unsigned": false,
       "untrusted_content": false
     },
     "CompleteCalendarTodo": {
       "destructive": false,
       "idempotent": true,
+      "no_redirect": false,
       "open_world": false,
       "readonly": false,
       "retry": {
@@ -115,11 +128,13 @@
           503
         ]
       },
+      "unsigned": false,
       "untrusted_content": false
     },
     "CompleteHabit": {
       "destructive": false,
       "idempotent": true,
+      "no_redirect": false,
       "open_world": false,
       "readonly": false,
       "retry": {
@@ -131,11 +146,13 @@
           503
         ]
       },
+      "unsigned": false,
       "untrusted_content": false
     },
     "CreateBoxDesignation": {
       "destructive": false,
       "idempotent": false,
+      "no_redirect": false,
       "open_world": false,
       "readonly": false,
       "retry": {
@@ -147,11 +164,13 @@
           503
         ]
       },
+      "unsigned": false,
       "untrusted_content": false
     },
     "CreateBoxGroup": {
       "destructive": false,
       "idempotent": false,
+      "no_redirect": false,
       "open_world": false,
       "readonly": false,
       "retry": {
@@ -163,21 +182,25 @@
           503
         ]
       },
+      "unsigned": false,
       "untrusted_content": false
     },
     "CreateBulkReply": {
       "destructive": false,
       "idempotent": false,
+      "no_redirect": false,
       "open_world": true,
       "readonly": false,
       "retry": {
         "max": 0
       },
+      "unsigned": false,
       "untrusted_content": false
     },
     "CreateCalendarTodo": {
       "destructive": false,
       "idempotent": false,
+      "no_redirect": false,
       "open_world": false,
       "readonly": false,
       "retry": {
@@ -189,11 +212,13 @@
           503
         ]
       },
+      "unsigned": false,
       "untrusted_content": false
     },
     "CreateContact": {
       "destructive": false,
       "idempotent": false,
+      "no_redirect": false,
       "open_world": false,
       "readonly": false,
       "retry": {
@@ -205,21 +230,25 @@
           503
         ]
       },
+      "unsigned": false,
       "untrusted_content": true
     },
     "CreateDirectUpload": {
       "destructive": false,
       "idempotent": false,
+      "no_redirect": false,
       "open_world": false,
       "readonly": false,
       "retry": {
         "max": 0
       },
+      "unsigned": false,
       "untrusted_content": false
     },
     "CreateFolderForPostings": {
       "destructive": false,
       "idempotent": false,
+      "no_redirect": false,
       "open_world": false,
       "readonly": false,
       "retry": {
@@ -231,11 +260,13 @@
           503
         ]
       },
+      "unsigned": false,
       "untrusted_content": false
     },
     "CreateHabit": {
       "destructive": false,
       "idempotent": false,
+      "no_redirect": false,
       "open_world": false,
       "readonly": false,
       "retry": {
@@ -247,6 +278,7 @@
           503
         ]
       },
+      "unsigned": false,
       "untrusted_content": false
     },
     "CreateMessage": {
@@ -262,6 +294,7 @@
         }
       ],
       "idempotent": false,
+      "no_redirect": false,
       "open_world": true,
       "readonly": false,
       "retry": {
@@ -273,6 +306,7 @@
           503
         ]
       },
+      "unsigned": false,
       "untrusted_content": false
     },
     "CreateReply": {
@@ -288,6 +322,7 @@
         }
       ],
       "idempotent": false,
+      "no_redirect": false,
       "open_world": true,
       "readonly": false,
       "retry": {
@@ -299,11 +334,13 @@
           503
         ]
       },
+      "unsigned": false,
       "untrusted_content": false
     },
     "CreateSticky": {
       "destructive": false,
       "idempotent": false,
+      "no_redirect": false,
       "open_world": false,
       "readonly": false,
       "retry": {
@@ -315,11 +352,13 @@
           503
         ]
       },
+      "unsigned": false,
       "untrusted_content": false
     },
     "CreateTimeTrack": {
       "destructive": false,
       "idempotent": false,
+      "no_redirect": false,
       "open_world": false,
       "readonly": false,
       "retry": {
@@ -331,11 +370,13 @@
           503
         ]
       },
+      "unsigned": false,
       "untrusted_content": false
     },
     "CreateToken": {
       "destructive": false,
       "idempotent": false,
+      "no_redirect": true,
       "open_world": false,
       "readonly": false,
       "retry": {
@@ -344,11 +385,13 @@
         "max": 1,
         "retry_on": []
       },
+      "unsigned": true,
       "untrusted_content": false
     },
     "CreateTopicComment": {
       "destructive": false,
       "idempotent": false,
+      "no_redirect": false,
       "open_world": false,
       "readonly": false,
       "retry": {
@@ -360,21 +403,25 @@
           503
         ]
       },
+      "unsigned": false,
       "untrusted_content": true
     },
     "CreateWorkflowStaging": {
       "destructive": false,
       "idempotent": false,
+      "no_redirect": false,
       "open_world": false,
       "readonly": false,
       "retry": {
         "max": 0
       },
+      "unsigned": false,
       "untrusted_content": false
     },
     "DeleteBoxDesignation": {
       "destructive": false,
       "idempotent": true,
+      "no_redirect": false,
       "open_world": false,
       "readonly": false,
       "retry": {
@@ -386,11 +433,13 @@
           503
         ]
       },
+      "unsigned": false,
       "untrusted_content": false
     },
     "DeleteBoxGroup": {
       "destructive": false,
       "idempotent": true,
+      "no_redirect": false,
       "open_world": false,
       "readonly": false,
       "retry": {
@@ -402,11 +451,13 @@
           503
         ]
       },
+      "unsigned": false,
       "untrusted_content": false
     },
     "DeleteCalendarEvent": {
       "destructive": true,
       "idempotent": true,
+      "no_redirect": false,
       "open_world": true,
       "readonly": false,
       "retry": {
@@ -418,11 +469,13 @@
           503
         ]
       },
+      "unsigned": false,
       "untrusted_content": false
     },
     "DeleteCalendarEventOccurrence": {
       "destructive": true,
       "idempotent": true,
+      "no_redirect": false,
       "open_world": true,
       "readonly": false,
       "retry": {
@@ -434,11 +487,13 @@
           503
         ]
       },
+      "unsigned": false,
       "untrusted_content": false
     },
     "DeleteCalendarTodo": {
       "destructive": true,
       "idempotent": true,
+      "no_redirect": false,
       "open_world": false,
       "readonly": false,
       "retry": {
@@ -450,11 +505,13 @@
           503
         ]
       },
+      "unsigned": false,
       "untrusted_content": false
     },
     "DeleteContactAvatar": {
       "destructive": true,
       "idempotent": true,
+      "no_redirect": false,
       "open_world": false,
       "readonly": false,
       "retry": {
@@ -466,11 +523,13 @@
           503
         ]
       },
+      "unsigned": false,
       "untrusted_content": false
     },
     "DeleteContactNote": {
       "destructive": true,
       "idempotent": true,
+      "no_redirect": false,
       "open_world": false,
       "readonly": false,
       "retry": {
@@ -482,11 +541,13 @@
           503
         ]
       },
+      "unsigned": false,
       "untrusted_content": false
     },
     "DeleteDraft": {
       "destructive": false,
       "idempotent": true,
+      "no_redirect": false,
       "open_world": false,
       "readonly": false,
       "retry": {
@@ -498,11 +559,13 @@
           503
         ]
       },
+      "unsigned": false,
       "untrusted_content": false
     },
     "DeleteExtenzion": {
       "destructive": true,
       "idempotent": true,
+      "no_redirect": false,
       "open_world": false,
       "readonly": false,
       "retry": {
@@ -514,11 +577,13 @@
           503
         ]
       },
+      "unsigned": false,
       "untrusted_content": false
     },
     "DeleteHabit": {
       "destructive": true,
       "idempotent": true,
+      "no_redirect": false,
       "open_world": false,
       "readonly": false,
       "retry": {
@@ -530,11 +595,13 @@
           503
         ]
       },
+      "unsigned": false,
       "untrusted_content": false
     },
     "DeleteSticky": {
       "destructive": true,
       "idempotent": true,
+      "no_redirect": false,
       "open_world": false,
       "readonly": false,
       "retry": {
@@ -546,11 +613,13 @@
           503
         ]
       },
+      "unsigned": false,
       "untrusted_content": false
     },
     "DeleteTimeTrack": {
       "destructive": true,
       "idempotent": true,
+      "no_redirect": false,
       "open_world": false,
       "readonly": false,
       "retry": {
@@ -562,11 +631,13 @@
           503
         ]
       },
+      "unsigned": false,
       "untrusted_content": false
     },
     "EmptySpam": {
       "destructive": true,
       "idempotent": true,
+      "no_redirect": false,
       "open_world": false,
       "readonly": false,
       "retry": {
@@ -578,11 +649,13 @@
           503
         ]
       },
+      "unsigned": false,
       "untrusted_content": false
     },
     "EmptyTrash": {
       "destructive": true,
       "idempotent": true,
+      "no_redirect": false,
       "open_world": false,
       "readonly": false,
       "retry": {
@@ -594,11 +667,13 @@
           503
         ]
       },
+      "unsigned": false,
       "untrusted_content": false
     },
     "FilePostings": {
       "destructive": false,
       "idempotent": false,
+      "no_redirect": false,
       "open_world": false,
       "readonly": false,
       "retry": {
@@ -610,11 +685,13 @@
           503
         ]
       },
+      "unsigned": false,
       "untrusted_content": false
     },
     "GetAdvancedSearchFilters": {
       "destructive": false,
       "idempotent": false,
+      "no_redirect": false,
       "open_world": false,
       "readonly": true,
       "retry": {
@@ -626,11 +703,13 @@
           503
         ]
       },
+      "unsigned": false,
       "untrusted_content": false
     },
     "GetAsidebox": {
       "destructive": false,
       "idempotent": false,
+      "no_redirect": false,
       "open_world": false,
       "readonly": true,
       "retry": {
@@ -642,11 +721,13 @@
           503
         ]
       },
+      "unsigned": false,
       "untrusted_content": true
     },
     "GetBox": {
       "destructive": false,
       "idempotent": false,
+      "no_redirect": false,
       "open_world": false,
       "pagination": {
         "style": "link",
@@ -662,11 +743,13 @@
           503
         ]
       },
+      "unsigned": false,
       "untrusted_content": true
     },
     "GetBoxGroup": {
       "destructive": false,
       "idempotent": false,
+      "no_redirect": false,
       "open_world": false,
       "pagination": {
         "style": "link",
@@ -682,11 +765,13 @@
           503
         ]
       },
+      "unsigned": false,
       "untrusted_content": true
     },
     "GetBoxPostingChanges": {
       "destructive": false,
       "idempotent": false,
+      "no_redirect": false,
       "open_world": false,
       "pagination": {
         "pageParameter": "page",
@@ -703,11 +788,13 @@
           503
         ]
       },
+      "unsigned": false,
       "untrusted_content": true
     },
     "GetBubblebox": {
       "destructive": false,
       "idempotent": false,
+      "no_redirect": false,
       "open_world": false,
       "readonly": true,
       "retry": {
@@ -719,11 +806,13 @@
           503
         ]
       },
+      "unsigned": false,
       "untrusted_content": true
     },
     "GetBundleUnseenPostings": {
       "destructive": false,
       "idempotent": false,
+      "no_redirect": false,
       "open_world": false,
       "pagination": {
         "style": "link",
@@ -739,11 +828,13 @@
           503
         ]
       },
+      "unsigned": false,
       "untrusted_content": true
     },
     "GetCalendarDay": {
       "destructive": false,
       "idempotent": false,
+      "no_redirect": false,
       "open_world": false,
       "readonly": true,
       "retry": {
@@ -755,11 +846,13 @@
           503
         ]
       },
+      "unsigned": false,
       "untrusted_content": true
     },
     "GetCalendarRecordings": {
       "destructive": false,
       "idempotent": false,
+      "no_redirect": false,
       "open_world": false,
       "pagination": {
         "style": "window"
@@ -774,11 +867,13 @@
           503
         ]
       },
+      "unsigned": false,
       "untrusted_content": true
     },
     "GetCalendarWeek": {
       "destructive": false,
       "idempotent": false,
+      "no_redirect": false,
       "open_world": false,
       "readonly": true,
       "retry": {
@@ -790,11 +885,13 @@
           503
         ]
       },
+      "unsigned": false,
       "untrusted_content": true
     },
     "GetCalendarYear": {
       "destructive": false,
       "idempotent": false,
+      "no_redirect": false,
       "open_world": false,
       "readonly": true,
       "retry": {
@@ -806,11 +903,13 @@
           503
         ]
       },
+      "unsigned": false,
       "untrusted_content": true
     },
     "GetClearances": {
       "destructive": false,
       "idempotent": false,
+      "no_redirect": false,
       "open_world": false,
       "pagination": {
         "style": "link",
@@ -826,11 +925,13 @@
           503
         ]
       },
+      "unsigned": false,
       "untrusted_content": true
     },
     "GetCollection": {
       "destructive": false,
       "idempotent": false,
+      "no_redirect": false,
       "open_world": false,
       "pagination": {
         "style": "link",
@@ -846,11 +947,13 @@
           503
         ]
       },
+      "unsigned": false,
       "untrusted_content": true
     },
     "GetContact": {
       "destructive": false,
       "idempotent": false,
+      "no_redirect": false,
       "open_world": false,
       "pagination": {
         "style": "link",
@@ -866,11 +969,13 @@
           503
         ]
       },
+      "unsigned": false,
       "untrusted_content": true
     },
     "GetContactNote": {
       "destructive": false,
       "idempotent": false,
+      "no_redirect": false,
       "open_world": false,
       "readonly": true,
       "retry": {
@@ -882,11 +987,13 @@
           503
         ]
       },
+      "unsigned": false,
       "untrusted_content": false
     },
     "GetEverythingTopics": {
       "destructive": false,
       "idempotent": false,
+      "no_redirect": false,
       "open_world": false,
       "pagination": {
         "style": "link",
@@ -902,11 +1009,13 @@
           503
         ]
       },
+      "unsigned": false,
       "untrusted_content": true
     },
     "GetFeedbox": {
       "destructive": false,
       "idempotent": false,
+      "no_redirect": false,
       "open_world": false,
       "readonly": true,
       "retry": {
@@ -918,11 +1027,13 @@
           503
         ]
       },
+      "unsigned": false,
       "untrusted_content": true
     },
     "GetFolder": {
       "destructive": false,
       "idempotent": false,
+      "no_redirect": false,
       "open_world": false,
       "pagination": {
         "style": "link",
@@ -938,11 +1049,13 @@
           503
         ]
       },
+      "unsigned": false,
       "untrusted_content": true
     },
     "GetIdentity": {
       "destructive": false,
       "idempotent": false,
+      "no_redirect": false,
       "open_world": false,
       "readonly": true,
       "retry": {
@@ -954,11 +1067,13 @@
           503
         ]
       },
+      "unsigned": false,
       "untrusted_content": false
     },
     "GetImbox": {
       "destructive": false,
       "idempotent": false,
+      "no_redirect": false,
       "open_world": false,
       "readonly": true,
       "retry": {
@@ -970,11 +1085,13 @@
           503
         ]
       },
+      "unsigned": false,
       "untrusted_content": true
     },
     "GetImboxSeen": {
       "destructive": false,
       "idempotent": false,
+      "no_redirect": false,
       "open_world": false,
       "readonly": true,
       "retry": {
@@ -986,11 +1103,13 @@
           503
         ]
       },
+      "unsigned": false,
       "untrusted_content": true
     },
     "GetJournalEntry": {
       "destructive": false,
       "idempotent": false,
+      "no_redirect": false,
       "open_world": false,
       "readonly": true,
       "retry": {
@@ -1002,11 +1121,13 @@
           503
         ]
       },
+      "unsigned": false,
       "untrusted_content": false
     },
     "GetLaterbox": {
       "destructive": false,
       "idempotent": false,
+      "no_redirect": false,
       "open_world": false,
       "readonly": true,
       "retry": {
@@ -1018,11 +1139,13 @@
           503
         ]
       },
+      "unsigned": false,
       "untrusted_content": true
     },
     "GetMessage": {
       "destructive": false,
       "idempotent": false,
+      "no_redirect": false,
       "open_world": false,
       "readonly": true,
       "retry": {
@@ -1034,11 +1157,13 @@
           503
         ]
       },
+      "unsigned": false,
       "untrusted_content": true
     },
     "GetMessageEdit": {
       "destructive": false,
       "idempotent": false,
+      "no_redirect": false,
       "open_world": false,
       "readonly": true,
       "retry": {
@@ -1050,11 +1175,13 @@
           503
         ]
       },
+      "unsigned": false,
       "untrusted_content": true
     },
     "GetMyClearances": {
       "destructive": false,
       "idempotent": false,
+      "no_redirect": false,
       "open_world": false,
       "pagination": {
         "style": "link",
@@ -1070,11 +1197,13 @@
           503
         ]
       },
+      "unsigned": false,
       "untrusted_content": true
     },
     "GetNavigation": {
       "destructive": false,
       "idempotent": false,
+      "no_redirect": false,
       "open_world": false,
       "readonly": true,
       "retry": {
@@ -1086,6 +1215,7 @@
           503
         ]
       },
+      "unsigned": false,
       "untrusted_content": false
     },
     "GetOngoingTimeTrack": {
@@ -1094,6 +1224,7 @@
         404
       ],
       "idempotent": false,
+      "no_redirect": false,
       "open_world": false,
       "readonly": true,
       "retry": {
@@ -1105,11 +1236,13 @@
           503
         ]
       },
+      "unsigned": false,
       "untrusted_content": false
     },
     "GetSentTopics": {
       "destructive": false,
       "idempotent": false,
+      "no_redirect": false,
       "open_world": false,
       "pagination": {
         "style": "link",
@@ -1125,11 +1258,13 @@
           503
         ]
       },
+      "unsigned": false,
       "untrusted_content": true
     },
     "GetSpamTopics": {
       "destructive": false,
       "idempotent": false,
+      "no_redirect": false,
       "open_world": false,
       "pagination": {
         "style": "link",
@@ -1145,11 +1280,13 @@
           503
         ]
       },
+      "unsigned": false,
       "untrusted_content": true
     },
     "GetTopic": {
       "destructive": false,
       "idempotent": false,
+      "no_redirect": false,
       "open_world": false,
       "readonly": true,
       "retry": {
@@ -1161,11 +1298,13 @@
           503
         ]
       },
+      "unsigned": false,
       "untrusted_content": true
     },
     "GetTopicCommentAudience": {
       "destructive": false,
       "idempotent": false,
+      "no_redirect": false,
       "open_world": false,
       "readonly": true,
       "retry": {
@@ -1177,11 +1316,13 @@
           503
         ]
       },
+      "unsigned": false,
       "untrusted_content": true
     },
     "GetTopicEntries": {
       "destructive": false,
       "idempotent": false,
+      "no_redirect": false,
       "open_world": false,
       "pagination": {
         "style": "link",
@@ -1197,11 +1338,13 @@
           503
         ]
       },
+      "unsigned": false,
       "untrusted_content": true
     },
     "GetTopicPublication": {
       "destructive": false,
       "idempotent": false,
+      "no_redirect": false,
       "open_world": false,
       "readonly": true,
       "retry": {
@@ -1213,11 +1356,13 @@
           503
         ]
       },
+      "unsigned": false,
       "untrusted_content": false
     },
     "GetTrailbox": {
       "destructive": false,
       "idempotent": false,
+      "no_redirect": false,
       "open_world": false,
       "readonly": true,
       "retry": {
@@ -1229,11 +1374,13 @@
           503
         ]
       },
+      "unsigned": false,
       "untrusted_content": true
     },
     "GetTrashTopics": {
       "destructive": false,
       "idempotent": false,
+      "no_redirect": false,
       "open_world": false,
       "pagination": {
         "style": "link",
@@ -1249,11 +1396,13 @@
           503
         ]
       },
+      "unsigned": false,
       "untrusted_content": true
     },
     "GetWorkflow": {
       "destructive": false,
       "idempotent": false,
+      "no_redirect": false,
       "open_world": false,
       "readonly": true,
       "retry": {
@@ -1265,11 +1414,13 @@
           503
         ]
       },
+      "unsigned": false,
       "untrusted_content": false
     },
     "GetWorkflowStage": {
       "destructive": false,
       "idempotent": false,
+      "no_redirect": false,
       "open_world": false,
       "readonly": true,
       "retry": {
@@ -1281,11 +1432,13 @@
           503
         ]
       },
+      "unsigned": false,
       "untrusted_content": true
     },
     "HideContact": {
       "destructive": false,
       "idempotent": true,
+      "no_redirect": false,
       "open_world": false,
       "readonly": false,
       "retry": {
@@ -1297,11 +1450,13 @@
           503
         ]
       },
+      "unsigned": false,
       "untrusted_content": false
     },
     "ListAddressableContacts": {
       "destructive": false,
       "idempotent": false,
+      "no_redirect": false,
       "open_world": false,
       "readonly": true,
       "retry": {
@@ -1313,11 +1468,13 @@
           503
         ]
       },
+      "unsigned": false,
       "untrusted_content": true
     },
     "ListBoxGroups": {
       "destructive": false,
       "idempotent": false,
+      "no_redirect": false,
       "open_world": false,
       "readonly": true,
       "retry": {
@@ -1329,11 +1486,13 @@
           503
         ]
       },
+      "unsigned": false,
       "untrusted_content": false
     },
     "ListBoxes": {
       "destructive": false,
       "idempotent": false,
+      "no_redirect": false,
       "open_world": false,
       "pagination": {
         "style": "link",
@@ -1349,11 +1508,13 @@
           503
         ]
       },
+      "unsigned": false,
       "untrusted_content": false
     },
     "ListCalendarDays": {
       "destructive": false,
       "idempotent": false,
+      "no_redirect": false,
       "open_world": false,
       "readonly": true,
       "retry": {
@@ -1365,11 +1526,13 @@
           503
         ]
       },
+      "unsigned": false,
       "untrusted_content": true
     },
     "ListCalendarWeeks": {
       "destructive": false,
       "idempotent": false,
+      "no_redirect": false,
       "open_world": false,
       "readonly": true,
       "retry": {
@@ -1381,11 +1544,13 @@
           503
         ]
       },
+      "unsigned": false,
       "untrusted_content": true
     },
     "ListCalendars": {
       "destructive": false,
       "idempotent": false,
+      "no_redirect": false,
       "open_world": false,
       "readonly": true,
       "retry": {
@@ -1397,11 +1562,13 @@
           503
         ]
       },
+      "unsigned": false,
       "untrusted_content": true
     },
     "ListClips": {
       "destructive": false,
       "idempotent": false,
+      "no_redirect": false,
       "open_world": false,
       "pagination": {
         "style": "link",
@@ -1417,11 +1584,13 @@
           503
         ]
       },
+      "unsigned": false,
       "untrusted_content": true
     },
     "ListCollections": {
       "destructive": false,
       "idempotent": false,
+      "no_redirect": false,
       "open_world": false,
       "readonly": true,
       "retry": {
@@ -1433,11 +1602,13 @@
           503
         ]
       },
+      "unsigned": false,
       "untrusted_content": false
     },
     "ListContacts": {
       "destructive": false,
       "idempotent": false,
+      "no_redirect": false,
       "open_world": false,
       "pagination": {
         "style": "link",
@@ -1453,11 +1624,13 @@
           503
         ]
       },
+      "unsigned": false,
       "untrusted_content": true
     },
     "ListDrafts": {
       "destructive": false,
       "idempotent": false,
+      "no_redirect": false,
       "open_world": false,
       "pagination": {
         "style": "link",
@@ -1473,11 +1646,13 @@
           503
         ]
       },
+      "unsigned": false,
       "untrusted_content": true
     },
     "ListJournalEntries": {
       "destructive": false,
       "idempotent": false,
+      "no_redirect": false,
       "open_world": false,
       "pagination": {
         "style": "link"
@@ -1492,11 +1667,13 @@
           503
         ]
       },
+      "unsigned": false,
       "untrusted_content": false
     },
     "ListSnippets": {
       "destructive": false,
       "idempotent": false,
+      "no_redirect": false,
       "open_world": false,
       "readonly": true,
       "retry": {
@@ -1508,11 +1685,13 @@
           503
         ]
       },
+      "unsigned": false,
       "untrusted_content": false
     },
     "ListStickies": {
       "destructive": false,
       "idempotent": false,
+      "no_redirect": false,
       "open_world": false,
       "readonly": true,
       "retry": {
@@ -1524,11 +1703,13 @@
           503
         ]
       },
+      "unsigned": false,
       "untrusted_content": false
     },
     "ListTimeTrackCategories": {
       "destructive": false,
       "idempotent": false,
+      "no_redirect": false,
       "open_world": false,
       "readonly": true,
       "retry": {
@@ -1540,11 +1721,13 @@
           503
         ]
       },
+      "unsigned": false,
       "untrusted_content": false
     },
     "ListTimeTracks": {
       "destructive": false,
       "idempotent": false,
+      "no_redirect": false,
       "open_world": false,
       "pagination": {
         "style": "link"
@@ -1559,11 +1742,13 @@
           503
         ]
       },
+      "unsigned": false,
       "untrusted_content": false
     },
     "MarkBoxSeen": {
       "destructive": false,
       "idempotent": false,
+      "no_redirect": false,
       "open_world": false,
       "readonly": false,
       "retry": {
@@ -1575,11 +1760,13 @@
           503
         ]
       },
+      "unsigned": false,
       "untrusted_content": false
     },
     "MarkEntrySpam": {
       "destructive": false,
       "idempotent": true,
+      "no_redirect": false,
       "open_world": false,
       "readonly": false,
       "retry": {
@@ -1591,11 +1778,13 @@
           503
         ]
       },
+      "unsigned": false,
       "untrusted_content": false
     },
     "MarkPostingsSeen": {
       "destructive": false,
       "idempotent": false,
+      "no_redirect": false,
       "open_world": false,
       "readonly": false,
       "retry": {
@@ -1607,11 +1796,13 @@
           503
         ]
       },
+      "unsigned": false,
       "untrusted_content": false
     },
     "MarkPostingsSpam": {
       "destructive": false,
       "idempotent": false,
+      "no_redirect": false,
       "open_world": false,
       "readonly": false,
       "retry": {
@@ -1623,11 +1814,13 @@
           503
         ]
       },
+      "unsigned": false,
       "untrusted_content": false
     },
     "MarkPostingsUnseen": {
       "destructive": false,
       "idempotent": false,
+      "no_redirect": false,
       "open_world": false,
       "readonly": false,
       "retry": {
@@ -1639,11 +1832,13 @@
           503
         ]
       },
+      "unsigned": false,
       "untrusted_content": false
     },
     "MarkTopicHam": {
       "destructive": false,
       "idempotent": true,
+      "no_redirect": false,
       "open_world": false,
       "readonly": false,
       "retry": {
@@ -1655,11 +1850,13 @@
           503
         ]
       },
+      "unsigned": false,
       "untrusted_content": false
     },
     "MovePostings": {
       "destructive": false,
       "idempotent": false,
+      "no_redirect": false,
       "open_world": false,
       "readonly": false,
       "retry": {
@@ -1671,11 +1868,13 @@
           503
         ]
       },
+      "unsigned": false,
       "untrusted_content": false
     },
     "MoveSticky": {
       "destructive": false,
       "idempotent": false,
+      "no_redirect": false,
       "open_world": false,
       "readonly": false,
       "retry": {
@@ -1687,11 +1886,13 @@
           503
         ]
       },
+      "unsigned": false,
       "untrusted_content": false
     },
     "MoveTopic": {
       "destructive": false,
       "idempotent": false,
+      "no_redirect": false,
       "open_world": false,
       "readonly": false,
       "retry": {
@@ -1703,21 +1904,25 @@
           503
         ]
       },
+      "unsigned": false,
       "untrusted_content": false
     },
     "MoveWorkflowStaging": {
       "destructive": false,
       "idempotent": false,
+      "no_redirect": false,
       "open_world": false,
       "readonly": false,
       "retry": {
         "max": 0
       },
+      "unsigned": false,
       "untrusted_content": false
     },
     "MutePostings": {
       "destructive": false,
       "idempotent": false,
+      "no_redirect": false,
       "open_world": false,
       "readonly": false,
       "retry": {
@@ -1729,11 +1934,13 @@
           503
         ]
       },
+      "unsigned": false,
       "untrusted_content": false
     },
     "NewBulkReply": {
       "destructive": false,
       "idempotent": false,
+      "no_redirect": false,
       "open_world": false,
       "readonly": true,
       "retry": {
@@ -1745,11 +1952,13 @@
           503
         ]
       },
+      "unsigned": false,
       "untrusted_content": true
     },
     "NewEntryForward": {
       "destructive": false,
       "idempotent": false,
+      "no_redirect": false,
       "open_world": false,
       "readonly": true,
       "retry": {
@@ -1761,11 +1970,13 @@
           503
         ]
       },
+      "unsigned": false,
       "untrusted_content": true
     },
     "NewEntryReply": {
       "destructive": false,
       "idempotent": false,
+      "no_redirect": false,
       "open_world": false,
       "readonly": true,
       "retry": {
@@ -1777,11 +1988,13 @@
           503
         ]
       },
+      "unsigned": false,
       "untrusted_content": true
     },
     "PuntClearances": {
       "destructive": true,
       "idempotent": false,
+      "no_redirect": false,
       "open_world": false,
       "readonly": false,
       "retry": {
@@ -1793,11 +2006,13 @@
           503
         ]
       },
+      "unsigned": false,
       "untrusted_content": false
     },
     "RemovePostingsFromBoxGroup": {
       "destructive": false,
       "idempotent": true,
+      "no_redirect": false,
       "open_world": false,
       "readonly": false,
       "retry": {
@@ -1809,11 +2024,13 @@
           503
         ]
       },
+      "unsigned": false,
       "untrusted_content": false
     },
     "RenameTopic": {
       "destructive": false,
       "idempotent": true,
+      "no_redirect": false,
       "open_world": false,
       "readonly": false,
       "retry": {
@@ -1825,11 +2042,13 @@
           503
         ]
       },
+      "unsigned": false,
       "untrusted_content": false
     },
     "RestoreTopic": {
       "destructive": false,
       "idempotent": true,
+      "no_redirect": false,
       "open_world": false,
       "readonly": false,
       "retry": {
@@ -1841,11 +2060,13 @@
           503
         ]
       },
+      "unsigned": false,
       "untrusted_content": false
     },
     "ResumeHabit": {
       "destructive": false,
       "idempotent": true,
+      "no_redirect": false,
       "open_world": false,
       "readonly": false,
       "retry": {
@@ -1857,11 +2078,13 @@
           503
         ]
       },
+      "unsigned": false,
       "untrusted_content": false
     },
     "RevealContact": {
       "destructive": false,
       "idempotent": false,
+      "no_redirect": false,
       "open_world": false,
       "readonly": false,
       "retry": {
@@ -1873,11 +2096,13 @@
           503
         ]
       },
+      "unsigned": false,
       "untrusted_content": true
     },
     "RevokeToken": {
       "destructive": true,
       "idempotent": false,
+      "no_redirect": true,
       "open_world": false,
       "readonly": false,
       "retry": {
@@ -1889,11 +2114,13 @@
           503
         ]
       },
+      "unsigned": true,
       "untrusted_content": false
     },
     "SchedulePostingsBubbleUp": {
       "destructive": false,
       "idempotent": false,
+      "no_redirect": false,
       "open_world": false,
       "readonly": false,
       "retry": {
@@ -1905,11 +2132,13 @@
           503
         ]
       },
+      "unsigned": false,
       "untrusted_content": false
     },
     "StartTimeTrack": {
       "destructive": false,
       "idempotent": false,
+      "no_redirect": false,
       "open_world": false,
       "readonly": false,
       "retry": {
@@ -1921,11 +2150,13 @@
           503
         ]
       },
+      "unsigned": false,
       "untrusted_content": false
     },
     "StopHabit": {
       "destructive": false,
       "idempotent": false,
+      "no_redirect": false,
       "open_world": false,
       "readonly": false,
       "retry": {
@@ -1937,11 +2168,13 @@
           503
         ]
       },
+      "unsigned": false,
       "untrusted_content": false
     },
     "ToggleCalendar": {
       "destructive": false,
       "idempotent": false,
+      "no_redirect": false,
       "open_world": false,
       "readonly": false,
       "retry": {
@@ -1953,11 +2186,13 @@
           503
         ]
       },
+      "unsigned": false,
       "untrusted_content": false
     },
     "TrashPostings": {
       "destructive": true,
       "idempotent": false,
+      "no_redirect": false,
       "open_world": false,
       "readonly": false,
       "retry": {
@@ -1969,11 +2204,13 @@
           503
         ]
       },
+      "unsigned": false,
       "untrusted_content": false
     },
     "TrashTopic": {
       "destructive": false,
       "idempotent": true,
+      "no_redirect": false,
       "open_world": false,
       "readonly": false,
       "retry": {
@@ -1985,11 +2222,13 @@
           503
         ]
       },
+      "unsigned": false,
       "untrusted_content": false
     },
     "UnbundleContact": {
       "destructive": false,
       "idempotent": true,
+      "no_redirect": false,
       "open_world": false,
       "readonly": false,
       "retry": {
@@ -2001,11 +2240,13 @@
           503
         ]
       },
+      "unsigned": false,
       "untrusted_content": false
     },
     "UncompleteCalendarTodo": {
       "destructive": false,
       "idempotent": true,
+      "no_redirect": false,
       "open_world": false,
       "readonly": false,
       "retry": {
@@ -2017,11 +2258,13 @@
           503
         ]
       },
+      "unsigned": false,
       "untrusted_content": false
     },
     "UncompleteHabit": {
       "destructive": false,
       "idempotent": true,
+      "no_redirect": false,
       "open_world": false,
       "readonly": false,
       "retry": {
@@ -2033,11 +2276,13 @@
           503
         ]
       },
+      "unsigned": false,
       "untrusted_content": false
     },
     "UnfilePostings": {
       "destructive": false,
       "idempotent": true,
+      "no_redirect": false,
       "open_world": false,
       "readonly": false,
       "retry": {
@@ -2049,11 +2294,13 @@
           503
         ]
       },
+      "unsigned": false,
       "untrusted_content": false
     },
     "UnmutePostings": {
       "destructive": false,
       "idempotent": true,
+      "no_redirect": false,
       "open_world": false,
       "readonly": false,
       "retry": {
@@ -2065,11 +2312,13 @@
           503
         ]
       },
+      "unsigned": false,
       "untrusted_content": false
     },
     "UpdateCalendarTodo": {
       "destructive": false,
       "idempotent": true,
+      "no_redirect": false,
       "open_world": false,
       "readonly": false,
       "retry": {
@@ -2081,11 +2330,13 @@
           503
         ]
       },
+      "unsigned": false,
       "untrusted_content": false
     },
     "UpdateClearance": {
       "destructive": false,
       "idempotent": true,
+      "no_redirect": false,
       "open_world": false,
       "readonly": false,
       "retry": {
@@ -2097,11 +2348,13 @@
           503
         ]
       },
+      "unsigned": false,
       "untrusted_content": true
     },
     "UpdateCollection": {
       "destructive": false,
       "idempotent": true,
+      "no_redirect": false,
       "open_world": false,
       "readonly": false,
       "retry": {
@@ -2113,11 +2366,13 @@
           503
         ]
       },
+      "unsigned": false,
       "untrusted_content": false
     },
     "UpdateContact": {
       "destructive": false,
       "idempotent": true,
+      "no_redirect": false,
       "open_world": false,
       "readonly": false,
       "retry": {
@@ -2129,11 +2384,13 @@
           503
         ]
       },
+      "unsigned": false,
       "untrusted_content": true
     },
     "UpdateContactAvatar": {
       "destructive": false,
       "idempotent": true,
+      "no_redirect": false,
       "open_world": false,
       "readonly": false,
       "retry": {
@@ -2145,11 +2402,13 @@
           503
         ]
       },
+      "unsigned": false,
       "untrusted_content": true
     },
     "UpdateContactClearance": {
       "destructive": false,
       "idempotent": true,
+      "no_redirect": false,
       "open_world": false,
       "readonly": false,
       "retry": {
@@ -2161,11 +2420,13 @@
           503
         ]
       },
+      "unsigned": false,
       "untrusted_content": false
     },
     "UpdateContactNote": {
       "destructive": false,
       "idempotent": true,
+      "no_redirect": false,
       "open_world": false,
       "readonly": false,
       "retry": {
@@ -2177,11 +2438,13 @@
           503
         ]
       },
+      "unsigned": false,
       "untrusted_content": false
     },
     "UpdateFirstWeekDay": {
       "destructive": false,
       "idempotent": true,
+      "no_redirect": false,
       "open_world": false,
       "readonly": false,
       "retry": {
@@ -2193,11 +2456,13 @@
           503
         ]
       },
+      "unsigned": false,
       "untrusted_content": false
     },
     "UpdateHabit": {
       "destructive": false,
       "idempotent": true,
+      "no_redirect": false,
       "open_world": false,
       "readonly": false,
       "retry": {
@@ -2209,11 +2474,13 @@
           503
         ]
       },
+      "unsigned": false,
       "untrusted_content": false
     },
     "UpdateJournalEntry": {
       "destructive": true,
       "idempotent": false,
+      "no_redirect": false,
       "open_world": false,
       "readonly": false,
       "retry": {
@@ -2225,6 +2492,7 @@
           503
         ]
       },
+      "unsigned": false,
       "untrusted_content": false
     },
     "UpdateMessage": {
@@ -2240,6 +2508,7 @@
         }
       ],
       "idempotent": false,
+      "no_redirect": false,
       "open_world": true,
       "readonly": false,
       "retry": {
@@ -2251,11 +2520,13 @@
           503
         ]
       },
+      "unsigned": false,
       "untrusted_content": false
     },
     "UpdateMyClearance": {
       "destructive": false,
       "idempotent": true,
+      "no_redirect": false,
       "open_world": false,
       "readonly": false,
       "retry": {
@@ -2267,11 +2538,13 @@
           503
         ]
       },
+      "unsigned": false,
       "untrusted_content": true
     },
     "UpdateSticky": {
       "destructive": false,
       "idempotent": true,
+      "no_redirect": false,
       "open_world": false,
       "readonly": false,
       "retry": {
@@ -2283,11 +2556,13 @@
           503
         ]
       },
+      "unsigned": false,
       "untrusted_content": false
     },
     "UpdateTimeFormat": {
       "destructive": false,
       "idempotent": true,
+      "no_redirect": false,
       "open_world": false,
       "readonly": false,
       "retry": {
@@ -2299,11 +2574,13 @@
           503
         ]
       },
+      "unsigned": false,
       "untrusted_content": false
     },
     "UpdateTimeTrack": {
       "destructive": false,
       "idempotent": true,
+      "no_redirect": false,
       "open_world": false,
       "readonly": false,
       "retry": {
@@ -2315,6 +2592,7 @@
           503
         ]
       },
+      "unsigned": false,
       "untrusted_content": false
     }
   },

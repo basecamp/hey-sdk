@@ -283,6 +283,7 @@ structure heyLenientSuccess {}
 /// refresh token or token being revoked in the body is what it judges, and the credentials a
 /// client would sign with may be the very ones being exchanged or revoked.
 /// Emits x-hey-unsigned extension to OpenAPI for SDK code generators.
+/// behavior-model.json carries it as `unsigned`.
 @trait(selector: "operation")
 @specificationExtension(as: "x-hey-unsigned")
 structure heyUnsigned {}
@@ -293,6 +294,7 @@ structure heyUnsigned {}
 /// would carry wherever it points, and an endpoint that never redirects has nothing to send
 /// there. The 3xx's own body is not read.
 /// Emits x-hey-no-redirect extension to OpenAPI for SDK code generators.
+/// behavior-model.json carries it as `no_redirect`.
 @trait(selector: "operation")
 @specificationExtension(as: "x-hey-no-redirect")
 structure heyNoRedirect {}
