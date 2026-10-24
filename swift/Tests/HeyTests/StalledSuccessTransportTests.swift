@@ -45,6 +45,13 @@ final class StallingSuccessProtocol: URLProtocol {
     override func stopLoading() {}
 }
 
+// Apple platforms keep the conformance this test has always declared, which newer compilers
+// expect a URLProtocol subclass to restate there. FoundationNetworking marks it unavailable,
+// and from Swift 6.3 restating it warns, which -warnings-as-errors makes fatal.
+#if !canImport(FoundationNetworking)
+extension StallingSuccessProtocol: @unchecked Sendable {}
+#endif
+
 /// The transport the SDK ships, through a session whose answer stalls after a success's headers:
 /// the deadline passing then is the body lost, not a failed request.
 final class StalledSuccessTransportTests: XCTestCase {
