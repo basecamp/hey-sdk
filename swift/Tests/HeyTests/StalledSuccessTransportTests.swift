@@ -9,7 +9,7 @@ import FoundationNetworking
 
 /// Answers every request with a success and the start of a 1000-byte body, then never sends the
 /// rest, as a connection that stalls mid-body does. Counts the requests it sees.
-final class StallingSuccessProtocol: URLProtocol, @unchecked Sendable {
+final class StallingSuccessProtocol: URLProtocol {
     nonisolated(unsafe) static var status = 200
     private static let lock = NSLock()
     nonisolated(unsafe) private static var seen = 0
@@ -44,6 +44,13 @@ final class StallingSuccessProtocol: URLProtocol, @unchecked Sendable {
 
     override func stopLoading() {}
 }
+
+// Apple platforms keep the conformance this test has always declared, which newer compilers
+// expect a URLProtocol subclass to restate there. FoundationNetworking marks it unavailable,
+// and from Swift 6.3 restating it warns, which -warnings-as-errors makes fatal.
+#if !canImport(FoundationNetworking)
+extension StallingSuccessProtocol: @unchecked Sendable {}
+#endif
 
 /// The transport the SDK ships, through a session whose answer stalls after a success's headers:
 /// the deadline passing then is the body lost, not a failed request.
