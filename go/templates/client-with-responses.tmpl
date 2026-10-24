@@ -191,8 +191,19 @@ operation. */ -}}
 {{- /* The extension's value is an empty object, which a template reads as false: test
 for the key instead. */ -}}
 {{$lenient := ne (printf "%v" (index .Spec.Extensions "x-hey-lenient-success")) "<nil>" -}}
+{{$noRedirect := ne (printf "%v" (index .Spec.Extensions "x-hey-no-redirect")) "<nil>" -}}
 // Parse{{genResponseTypeName $opid | ucFirst}} parses an HTTP response from a {{$opid}}WithResponse call
 func Parse{{genResponseTypeName $opid | ucFirst}}(rsp *http.Response) (*{{genResponseTypeName $opid}}, error) {
+    {{- /* HEY: an operation marked x-hey-no-redirect (the heyNoRedirect trait) takes a 3xx for
+    its answer, and the body that came with it is none of the caller's: it is closed unread. */}}
+    {{- if $noRedirect}}
+    // A redirect is this operation's answer, not a document: its status stands alone.
+    if rsp.StatusCode/100 == 3 {
+        _ = rsp.Body.Close()
+        rsp.Body = http.NoBody
+        return &{{genResponseTypeName $opid}}{HTTPResponse: rsp}, nil
+    }
+    {{- end}}
     bodyBytes, err := io.ReadAll(rsp.Body)
     received := rsp.Body
     defer func() { _ = received.Close() }()

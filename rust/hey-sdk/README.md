@@ -28,6 +28,7 @@ HEY_TOKEN=... cargo run --example first_call      # identity and boxes
 HEY_TOKEN=... cargo run --example pagination      # page by page, and to the end
 HEY_TOKEN=... cargo run --example hooks           # every operation, request and resend
 cargo run --example oauth_pkce                    # the whole PKCE login, then a call
+HEY_REFRESH_TOKEN=... HEY_INSTALL_ID=... cargo run --example oauth_tokens   # refresh and sign out, holding no token
 cargo run --example custom_http_client --no-default-features   # a transport of your own, offline
 ```
 
@@ -69,6 +70,32 @@ let token = oauth.exchange(&ExchangeRequest {
 Where the tokens live between runs, and when to refresh them, is the application's business:
 it implements `TokenProvider` over its own store and hands that to `Client::new`. Anything
 that wants the request headers outright implements `AuthStrategy` instead.
+
+HEY's token endpoint is modelled too, as `client.oauth()`: `create_token` trades a code or a
+refresh token for tokens, and `revoke_token` revokes one, which is what a sign-out sends. Both
+go out unsigned — no `Authorization`, whatever the client holds, and a 401 is the answer, never
+a reason to refresh — and follow no redirect: a 3xx is an error carrying its status, so the
+secrets in the body go nowhere else. A client with no token yet is built with `NoCredentials`,
+which sends those two and refuses any other call as `auth_required` before it goes out. A
+builder given no credentials at all is still refused, so a forgotten token is caught early.
+
+```rust
+use hey_sdk::models::{CreateTokenRequestContent, RevokeTokenRequestContent};
+use hey_sdk::{Client, Config, NoCredentials, SensitiveString};
+
+let client = Client::builder(Config::default()).auth_strategy(NoCredentials).build()?;
+let token = client.oauth().create_token(&CreateTokenRequestContent {
+    grant_type: "refresh_token".to_string(),
+    client_id: config.oauth_client_id.clone(),
+    install_id: install_id.to_string(),
+    refresh_token: Some(SensitiveString::new(refresh_token)),
+    ..CreateTokenRequestContent::default()
+}).await?;
+client.oauth().revoke_token(&RevokeTokenRequestContent {
+    client_id: config.oauth_client_id.clone(),
+    token: token.access_token,
+}).await?;
+```
 
 ## Use it
 
@@ -333,8 +360,8 @@ be. A route the model gives no policy is sent once, and so is any operation that
 idempotent, whatever its
 policy says. A path the caller wrote has no policy to bring, so an idempotent one runs on the
 client's settings alone and is resent on 429, 500, 502, 503 and 504; `get_all` and
-`follow_pagination` read every page that way. Any operation is resent once after a 401 that
-the token provider's `refresh` could answer, even with its sends spent — but for a
+`follow_pagination` read every page that way. Any operation HEY signs is resent once after a
+401 that the token provider's `refresh` could answer, even with its sends spent — but for a
 non-idempotent write HEY answered with a redirect, which may already be made (a 302 or 303 can answer a write that went
 through), so a 401 on its hop refreshes and is the caller's — and once for all the
 calls a stale credential earned a 401 on: refreshes go one at a time, and a call signed before

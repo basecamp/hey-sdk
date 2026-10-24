@@ -69,6 +69,15 @@ func authenticate() throws -> [HeyClient] {
     return [client, refreshing]
 }
 
+func signIn(clientId: String, installId: String, code: String, redirectURI: String, verifier: String) async throws -> HeyClient {
+    let signIn = try HeyClient(auth: NoCredentials())
+    let token = try await signIn.oauth.createToken(body: CreateTokenRequestContent(
+        grantType: "authorization_code", clientId: clientId, installId: installId,
+        code: SensitiveString(code), redirectUri: redirectURI, codeVerifier: SensitiveString(verifier)
+    ))
+    return try HeyClient(accessToken: token.accessToken.expose())
+}
+
 func useIt(client: HeyClient, entryId: Int, a: Int, b: Int) async throws {
     let boxes = try await client.boxes.list()
     for box in boxes.value { print("\(box.name) (\(box.kind))") }
@@ -156,7 +165,7 @@ func names(
     _ y: StaticTokenProvider, _ z: any ResponseCache, _ aa: CachedResponse, _ ab: InMemoryCache, _ ac: FormResponse,
     _ ad: SensitiveString, _ ae: JSONValue, _ af: Router, _ ag: RouteMatch, _ ah: URLSessionTransport, _ ai: NoopHooks,
     _ aj: ChainHooks, _ ak: ConsoleHooks, _ al: HeyCalendar, _ am: HeyCollection, _ an: Body, _ ao: ParamRole,
-    _ ap: ParamKind, _ aq: WorldService, _ ar: BaseService
+    _ ap: ParamKind, _ aq: WorldService, _ ar: BaseService, _ at: NoCredentials
 ) {}
 
 print(HeyConfig.version, HeyConfig.apiVersion)

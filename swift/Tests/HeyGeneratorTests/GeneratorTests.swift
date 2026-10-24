@@ -36,6 +36,8 @@ final class NamingTests: XCTestCase {
             boxes = "box" # a comment
             [operation_resource_types]
             CreateBoxGroup = "box_group"
+            [service_names]
+            oauth = "OAuth"
             """)
         XCTAssertEqual(naming.service(for: "NewBulkReply", tag: "Bulk Reply"), "bulk_replies")
         XCTAssertEqual(naming.service(for: "GetClearances", tag: "Contacts"), "clearances")
@@ -46,6 +48,10 @@ final class NamingTests: XCTestCase {
         XCTAssertEqual(try naming.resourceType(for: "ListBoxes", service: "boxes"), "box")
         XCTAssertEqual(try naming.resourceType(for: "CreateBoxGroup", service: "boxes"), "box_group")
         XCTAssertThrowsError(try naming.resourceType(for: "ListTopics", service: "topics"))
+        XCTAssertEqual(naming.service(for: "CreateToken", tag: "OAuth"), "oauth")
+        XCTAssertEqual(naming.serviceTypeName("oauth"), "OAuth", "an acronym the derivation would lose is kept")
+        XCTAssertEqual(naming.serviceTypeName("time_tracks"), "TimeTracks")
+        XCTAssertEqual(serviceAccessorName("oauth"), "oauth")
     }
 
     func testANamesFileThatIsNotTheSubsetIsRefused() {
@@ -62,7 +68,7 @@ final class NamingTests: XCTestCase {
         XCTAssertEqual(declared("refine[from]"), "refineFrom")
         XCTAssertEqual(routeConstant("ListBoxes"), "listBoxes")
         XCTAssertEqual(routeConstant("GetBoxPostingChanges"), "getBoxPostingChanges")
-        XCTAssertEqual(serviceClassName("time_tracks"), "TimeTracksService")
+        XCTAssertEqual(Naming().serviceTypeName("time_tracks"), "TimeTracks")
         XCTAssertEqual(serviceAccessorName("time_tracks"), "timeTracks")
         XCTAssertEqual(variantProperty("Calendar::Event"), "isCalendarEvent")
         XCTAssertEqual(variantProperty("bundle"), "isBundle")
@@ -96,6 +102,9 @@ final class ModelTests: XCTestCase {
         boxes = "box"
         workflows = "workflow"
         senders = "sender"
+        oauth = "token"
+        [service_names]
+        oauth = "OAuth"
         """
 
     private func model(_ paths: String, _ schemas: String, behavior: [String: String] = [:]) throws -> Model {
@@ -187,6 +196,39 @@ final class ModelTests: XCTestCase {
         let stage = try XCTUnwrap(model.services.first { $0.name == "workflows" }?.operations.first)
         XCTAssertEqual(stage.response, .html("StagePage"))
         XCTAssertEqual(stage.pathParams.map(\.role), [.parent, .recording])
+    }
+
+    func testUnsignedAndNoRedirectAreCarriedOntoTheOperationAndItsRoute() throws {
+        // The box fixture with the token endpoint added before its closing brace.
+        let paths = String(boxPaths.dropLast()) + #"""
+            ,"/oauth/tokens.json": {"post": {"operationId":"CreateToken","tags":["OAuth"],"x-hey-unsigned":{},"x-hey-no-redirect":{},"requestBody":{"content":{"application/json":{"schema":{"$ref":"#/components/schemas/Owner"}}}},"responses":{"200":{"content":{"application/json":{"schema":{"$ref":"#/components/schemas/Owner"}}}}}}}}
+            """#
+        let model = try model(paths, boxSchemas)
+        let oauth = try XCTUnwrap(model.services.first { $0.name == "oauth" })
+        XCTAssertEqual(oauth.typeName, "OAuth")
+        let token = try XCTUnwrap(oauth.operations.first)
+        XCTAssertEqual(token.methodName, "createToken")
+        XCTAssertTrue(token.unsigned, "x-hey-unsigned is carried onto the operation")
+        XCTAssertTrue(token.noRedirect, "x-hey-no-redirect is carried onto the operation")
+        for operation in model.services.flatMap(\.operations) where operation.id != "CreateToken" {
+            XCTAssertFalse(operation.unsigned, operation.id)
+            XCTAssertFalse(operation.noRedirect, operation.id)
+        }
+
+        let files = Dictionary(uniqueKeysWithValues: render(model))
+        let routes = try XCTUnwrap(files["Routes.swift"])
+        let createToken = try XCTUnwrap(routes.components(separatedBy: "public static let createToken = Route(").last?
+            .components(separatedBy: "    )\n").first)
+        XCTAssertTrue(createToken.contains("service: \"OAuth\","), createToken)
+        XCTAssertTrue(createToken.contains("unsigned: true,\n"), createToken)
+        XCTAssertTrue(createToken.contains("noRedirect: true\n"), createToken)
+        XCTAssertEqual(routes.components(separatedBy: "unsigned: true").count, 2, "only the route the model marks is unsigned")
+        XCTAssertEqual(routes.components(separatedBy: "noRedirect: true").count, 2, "only the route the model marks follows no redirect")
+        let service = try XCTUnwrap(files["Services/OAuthService.swift"])
+        XCTAssertTrue(service.contains("public final class OAuthService: BaseService, @unchecked Sendable {"), service)
+        XCTAssertTrue(service.contains("public func createToken(body: Owner) async throws -> Owner {"), service)
+        let accessors = try XCTUnwrap(files["ServiceAccessors.swift"])
+        XCTAssertTrue(accessors.contains("public var oauth: OAuthService { OAuthService(client: self) }"), accessors)
     }
 
     func testAnHTMLResponseThatIsNotAStringIsRefused() {
@@ -342,7 +384,7 @@ final class ModelTests: XCTestCase {
             "Scanner", "Selector", "Stream", "Thread", "Timer", "Unit",
             "AuthStrategy", "BaseService", "BearerAuth", "Body", "CachedResponse", "ChainHooks", "ConsoleHooks", "ErrorDetail",
             "FormResponse", "HTTPHeaders", "HTTPRequest", "HTTPResponse", "HeyClient", "HeyConfig", "HeyError", "HeyHooks",
-            "HTTPMethod", "HeyOperation", "InMemoryCache", "Indirect", "JSONValue", "NoopHooks", "OperationInfo", "OperationResult",
+            "HTTPMethod", "HeyOperation", "InMemoryCache", "Indirect", "JSONValue", "NoCredentials", "NoopHooks", "OperationInfo", "OperationResult",
             "Page", "ParamKind", "ParamRole", "Pagination", "RequestInfo", "RequestResult", "Response", "ResponseCache",
             "RetryPolicy", "Route", "RouteMatch", "RouteParam", "Router", "Routes", "SensitiveString", "StaticTokenProvider",
             "TokenProvider", "Transport", "URLSessionTransport",

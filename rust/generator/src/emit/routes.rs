@@ -68,6 +68,8 @@ fn render_route(out: &mut String, operation: &Operation) {
     .unwrap();
     writeln!(out, "    empty_on: &{:?},", operation.empty_on).unwrap();
     writeln!(out, "    lenient_success: {},", operation.lenient_success).unwrap();
+    writeln!(out, "    unsigned: {},", operation.unsigned).unwrap();
+    writeln!(out, "    no_redirect: {},", operation.no_redirect).unwrap();
     let pagination = match operation.pagination {
         Pagination::None => "None",
         Pagination::Link => "Link",

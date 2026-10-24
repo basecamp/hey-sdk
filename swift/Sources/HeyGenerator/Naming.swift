@@ -1,11 +1,13 @@
 import Foundation
 
 /// The naming overrides read from `swift/names.toml`: which service an operation files under,
-/// what a method is called when the derivation gets it wrong, what a schema is called when its
-/// Smithy name collides with Swift's, and the noun each service's operations act on.
+/// what a service's type is called when the derivation loses an acronym, what a method is called
+/// when the derivation gets it wrong, what a schema is called when its Smithy name collides with
+/// Swift's, and the noun each service's operations act on.
 struct Naming {
     var services: [String: String] = [:]
     var operationServices: [String: String] = [:]
+    var serviceNames: [String: String] = [:]
     var operationMethods: [String: String] = [:]
     var typeNames: [String: String] = [:]
     var resourceTypes: [String: String] = [:]
@@ -15,6 +17,11 @@ struct Naming {
     func service(for operationId: String, tag: String) -> String {
         operationServices[operationId] ?? services[tag] ?? snakeCase(tag)
     }
+
+    /// A service in `PascalCase`, as its class (with a `Service` suffix) and the hooks name it:
+    /// `time_tracks` is `TimeTracks`, unless `[service_names]` keeps an acronym the derivation
+    /// would lose (`oauth` is `OAuth`).
+    func serviceTypeName(_ service: String) -> String { serviceNames[service] ?? pascalCase(service) }
 
     /// The method an operation becomes on its service: the operation id's words with the
     /// service's own noun dropped, camelCased. `ListBoxes` on `boxes` is `list`;
@@ -77,6 +84,7 @@ struct Naming {
         return Naming(
             services: tables["services"] ?? [:],
             operationServices: tables["operation_services"] ?? [:],
+            serviceNames: tables["service_names"] ?? [:],
             operationMethods: tables["operation_methods"] ?? [:],
             typeNames: tables["type_names"] ?? [:],
             resourceTypes: tables["resource_types"] ?? [:],
@@ -98,9 +106,6 @@ let swiftKeywords: Set<String> = [
     "switch", "where", "while", "Any", "as", "await", "false", "is", "nil", "self", "Self", "super", "throws",
     "true", "try", "some", "any",
 ]
-
-/// The class a service becomes: `time_tracks` is `TimeTracksService`.
-func serviceClassName(_ service: String) -> String { pascalCase(service) + "Service" }
 
 /// The property a service is reached through on the client: `time_tracks` is `timeTracks`.
 func serviceAccessorName(_ service: String) -> String { lowerCamelCase(service) }

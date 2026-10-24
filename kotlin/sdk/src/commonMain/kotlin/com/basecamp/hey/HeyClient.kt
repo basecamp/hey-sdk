@@ -583,7 +583,7 @@ class HeyClient internal constructor(
             val prepared = prepare(operation, url, cached)
             cached = prepared.cached
             // A URL that authenticates itself carries its signature in the open, so the hooks hear its origin and nothing more.
-            val info = RequestInfo(operation.method.name, if (operation.unsigned) redactUrls(url.toString()) else url.toString(), attempt)
+            val info = RequestInfo(operation.method.name, if (operation.selfAuthenticating) redactUrls(url.toString()) else url.toString(), attempt)
             hooks.safeRequestStart(info)
             val started = shared.timeSource.markNow()
             val sent = try {
@@ -786,8 +786,10 @@ class HeyClient internal constructor(
             }
         }
         for ((name, value) in operation.query) builder.parameters.append(name, value)
-        // An unsigned request goes to a URL that authenticates itself, as built: the account
-        // scope is HEY's parameter, not the storage service's, even when the two share an origin.
+        // An unsigned request goes as built. A URL that authenticates itself is the storage
+        // service's, and the account scope is HEY's parameter, not its, even when the two share
+        // an origin; a route the model sends unsigned — the token endpoint — acts on the
+        // identity's session, which no account scopes.
         return if (operation.unsigned) builder.build() else scoped(builder.build())
     }
 

@@ -5,7 +5,7 @@ server through generated `HeyClient` methods. Install once with `make ts-install
 The private runner manifest delegates to the SDK's single frozen toolchain; it has
 no separate runtime dependencies. `make conformance-mvp` aggregates Go, Rust and TypeScript.
 
-Current coverage is **215 applicable, 5 explicitly not applicable, 220 total**. The exact
+Current coverage is **222 applicable, 5 explicitly not applicable, 227 total**. The exact
 file/name/operation/reason exclusions are in `not-applicable.json`: three cover Go's
 unmodeled `UpdateCalendarEvent` form convenience, one covers the handwritten parsed
 view that Go and Rust layer over the modeled `GetWorkflowStage` HTML blob, and one covers a

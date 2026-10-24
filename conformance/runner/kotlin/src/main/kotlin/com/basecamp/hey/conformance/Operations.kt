@@ -25,6 +25,7 @@ import com.basecamp.hey.generated.models.CreateDirectUploadRequestContent
 import com.basecamp.hey.generated.models.CreateFolderForPostingsRequestContent
 import com.basecamp.hey.generated.models.CreateMessageRequestContent
 import com.basecamp.hey.generated.models.CreateReplyRequestContent
+import com.basecamp.hey.generated.models.CreateTokenRequestContent
 import com.basecamp.hey.generated.models.CreateTopicCommentRequestContent
 import com.basecamp.hey.generated.models.DirectUploadBlob
 import com.basecamp.hey.generated.models.FilePostingsRequestContent
@@ -47,6 +48,7 @@ import com.basecamp.hey.generated.models.TopicCommentPayload
 import com.basecamp.hey.generated.models.TrashPostingsRequestContent
 import com.basecamp.hey.generated.models.UpdateClearanceRequestContent
 import com.basecamp.hey.generated.models.RenameTopicRequestContent
+import com.basecamp.hey.generated.models.RevokeTokenRequestContent
 import com.basecamp.hey.generated.models.TopicNamePayload
 import com.basecamp.hey.generated.models.UpdateCollectionRequestContent
 import com.basecamp.hey.generated.models.UpdateContactClearanceRequestContent
@@ -217,6 +219,24 @@ private suspend fun executeOperation(client: HeyClient, case: TestCase): Outcome
         "GetSpamTopics" -> page(client, client.topics.getSpam(), follow)
         "GetTrashTopics" -> page(client, client.topics.getTrash(), follow)
         "GetEverythingTopics" -> page(client, client.topics.getEverything(), follow)
+
+        "CreateToken" -> asJson(
+            client.oauth.createToken(
+                CreateTokenRequestContent(
+                    grantType = body.string("grant_type"),
+                    clientId = body.string("client_id"),
+                    installId = body.string("install_id"),
+                    code = body.nonEmptyString("code")?.let(::SensitiveString),
+                    redirectUri = body.nonEmptyString("redirect_uri"),
+                    codeVerifier = body.nonEmptyString("code_verifier")?.let(::SensitiveString),
+                    refreshToken = body.nonEmptyString("refresh_token")?.let(::SensitiveString),
+                ),
+            ),
+        )
+        "RevokeToken" -> {
+            client.oauth.revokeToken(RevokeTokenRequestContent(clientId = body.string("client_id"), token = SensitiveString(body.string("token"))))
+            Outcome.Unit
+        }
 
         "GetMessage" -> asJson(client.messages.get(path.int64("messageId")))
         "CreateMessage" -> asJson(client.messages.create(messageBody(body)))

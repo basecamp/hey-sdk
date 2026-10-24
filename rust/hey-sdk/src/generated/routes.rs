@@ -19,6 +19,8 @@ pub static ADD_POSTINGS_TO_BOX_GROUP: Route = Route {
     html: false,
     empty_on: &[],
     lenient_success: false,
+    unsigned: false,
+    no_redirect: false,
     pagination: Pagination::None,
     retry: Retry {
         max: 2,
@@ -41,6 +43,8 @@ pub static ADVANCED_SEARCH: Route = Route {
     html: false,
     empty_on: &[],
     lenient_success: false,
+    unsigned: false,
+    no_redirect: false,
     pagination: Pagination::Link,
     retry: Retry {
         max: 3,
@@ -63,6 +67,8 @@ pub static BUBBLE_UP_POSTINGS_NOW: Route = Route {
     html: false,
     empty_on: &[],
     lenient_success: false,
+    unsigned: false,
+    no_redirect: false,
     pagination: Pagination::None,
     retry: Retry {
         max: 2,
@@ -85,6 +91,8 @@ pub static BULK_UPDATE_CLEARANCES: Route = Route {
     html: false,
     empty_on: &[],
     lenient_success: false,
+    unsigned: false,
+    no_redirect: false,
     pagination: Pagination::None,
     retry: Retry {
         max: 2,
@@ -111,6 +119,8 @@ pub static BUNDLE_CONTACT: Route = Route {
     html: false,
     empty_on: &[],
     lenient_success: false,
+    unsigned: false,
+    no_redirect: false,
     pagination: Pagination::None,
     retry: Retry {
         max: 2,
@@ -133,6 +143,8 @@ pub static CANCEL_POSTINGS_BUBBLE_UP: Route = Route {
     html: false,
     empty_on: &[],
     lenient_success: false,
+    unsigned: false,
+    no_redirect: false,
     pagination: Pagination::None,
     retry: Retry {
         max: 2,
@@ -159,6 +171,8 @@ pub static COMPLETE_CALENDAR_TODO: Route = Route {
     html: false,
     empty_on: &[],
     lenient_success: false,
+    unsigned: false,
+    no_redirect: false,
     pagination: Pagination::None,
     retry: Retry {
         max: 3,
@@ -192,6 +206,8 @@ pub static COMPLETE_HABIT: Route = Route {
     html: false,
     empty_on: &[],
     lenient_success: false,
+    unsigned: false,
+    no_redirect: false,
     pagination: Pagination::None,
     retry: Retry {
         max: 3,
@@ -218,6 +234,8 @@ pub static CREATE_BOX_DESIGNATION: Route = Route {
     html: false,
     empty_on: &[],
     lenient_success: false,
+    unsigned: false,
+    no_redirect: false,
     pagination: Pagination::None,
     retry: Retry {
         max: 2,
@@ -244,6 +262,8 @@ pub static CREATE_BOX_GROUP: Route = Route {
     html: false,
     empty_on: &[],
     lenient_success: false,
+    unsigned: false,
+    no_redirect: false,
     pagination: Pagination::None,
     retry: Retry {
         max: 2,
@@ -266,6 +286,8 @@ pub static CREATE_BULK_REPLY: Route = Route {
     html: false,
     empty_on: &[],
     lenient_success: false,
+    unsigned: false,
+    no_redirect: false,
     pagination: Pagination::None,
     retry: Retry {
         max: 0,
@@ -288,6 +310,8 @@ pub static CREATE_CALENDAR_TODO: Route = Route {
     html: false,
     empty_on: &[],
     lenient_success: false,
+    unsigned: false,
+    no_redirect: false,
     pagination: Pagination::None,
     retry: Retry {
         max: 2,
@@ -310,6 +334,8 @@ pub static CREATE_CONTACT: Route = Route {
     html: false,
     empty_on: &[],
     lenient_success: false,
+    unsigned: false,
+    no_redirect: false,
     pagination: Pagination::None,
     retry: Retry {
         max: 2,
@@ -332,6 +358,8 @@ pub static CREATE_DIRECT_UPLOAD: Route = Route {
     html: false,
     empty_on: &[],
     lenient_success: false,
+    unsigned: false,
+    no_redirect: false,
     pagination: Pagination::None,
     retry: Retry {
         max: 0,
@@ -354,6 +382,8 @@ pub static CREATE_FOLDER_FOR_POSTINGS: Route = Route {
     html: false,
     empty_on: &[],
     lenient_success: false,
+    unsigned: false,
+    no_redirect: false,
     pagination: Pagination::None,
     retry: Retry {
         max: 2,
@@ -376,6 +406,8 @@ pub static CREATE_HABIT: Route = Route {
     html: false,
     empty_on: &[],
     lenient_success: false,
+    unsigned: false,
+    no_redirect: false,
     pagination: Pagination::None,
     retry: Retry {
         max: 2,
@@ -398,6 +430,8 @@ pub static CREATE_MESSAGE: Route = Route {
     html: false,
     empty_on: &[],
     lenient_success: true,
+    unsigned: false,
+    no_redirect: false,
     pagination: Pagination::None,
     retry: Retry {
         max: 2,
@@ -424,6 +458,8 @@ pub static CREATE_REPLY: Route = Route {
     html: false,
     empty_on: &[],
     lenient_success: true,
+    unsigned: false,
+    no_redirect: false,
     pagination: Pagination::None,
     retry: Retry {
         max: 2,
@@ -446,6 +482,8 @@ pub static CREATE_STICKY: Route = Route {
     html: false,
     empty_on: &[],
     lenient_success: false,
+    unsigned: false,
+    no_redirect: false,
     pagination: Pagination::None,
     retry: Retry {
         max: 2,
@@ -468,11 +506,37 @@ pub static CREATE_TIME_TRACK: Route = Route {
     html: false,
     empty_on: &[],
     lenient_success: false,
+    unsigned: false,
+    no_redirect: false,
     pagination: Pagination::None,
     retry: Retry {
         max: 2,
         base_delay_ms: 1000,
         retry_on: &[429, 503],
+    },
+};
+
+pub static CREATE_TOKEN: Route = Route {
+    id: "CreateToken",
+    service: "OAuth",
+    method: Method::POST,
+    path: "/oauth/tokens.json",
+    pattern: "/oauth/tokens",
+    resource: "OAuth",
+    resource_type: "token",
+    params: &[],
+    idempotent: false,
+    readonly: false,
+    html: false,
+    empty_on: &[],
+    lenient_success: false,
+    unsigned: true,
+    no_redirect: true,
+    pagination: Pagination::None,
+    retry: Retry {
+        max: 1,
+        base_delay_ms: 1000,
+        retry_on: &[],
     },
 };
 
@@ -494,6 +558,8 @@ pub static CREATE_TOPIC_COMMENT: Route = Route {
     html: false,
     empty_on: &[],
     lenient_success: false,
+    unsigned: false,
+    no_redirect: false,
     pagination: Pagination::None,
     retry: Retry {
         max: 2,
@@ -527,6 +593,8 @@ pub static CREATE_WORKFLOW_STAGING: Route = Route {
     html: false,
     empty_on: &[],
     lenient_success: false,
+    unsigned: false,
+    no_redirect: false,
     pagination: Pagination::None,
     retry: Retry {
         max: 0,
@@ -560,6 +628,8 @@ pub static DELETE_BOX_DESIGNATION: Route = Route {
     html: false,
     empty_on: &[],
     lenient_success: false,
+    unsigned: false,
+    no_redirect: false,
     pagination: Pagination::None,
     retry: Retry {
         max: 2,
@@ -593,6 +663,8 @@ pub static DELETE_BOX_GROUP: Route = Route {
     html: false,
     empty_on: &[],
     lenient_success: false,
+    unsigned: false,
+    no_redirect: false,
     pagination: Pagination::None,
     retry: Retry {
         max: 2,
@@ -619,6 +691,8 @@ pub static DELETE_CALENDAR_EVENT: Route = Route {
     html: false,
     empty_on: &[],
     lenient_success: false,
+    unsigned: false,
+    no_redirect: false,
     pagination: Pagination::None,
     retry: Retry {
         max: 3,
@@ -652,6 +726,8 @@ pub static DELETE_CALENDAR_EVENT_OCCURRENCE: Route = Route {
     html: false,
     empty_on: &[],
     lenient_success: false,
+    unsigned: false,
+    no_redirect: false,
     pagination: Pagination::None,
     retry: Retry {
         max: 3,
@@ -678,6 +754,8 @@ pub static DELETE_CALENDAR_TODO: Route = Route {
     html: false,
     empty_on: &[],
     lenient_success: false,
+    unsigned: false,
+    no_redirect: false,
     pagination: Pagination::None,
     retry: Retry {
         max: 3,
@@ -704,6 +782,8 @@ pub static DELETE_CONTACT_AVATAR: Route = Route {
     html: false,
     empty_on: &[],
     lenient_success: false,
+    unsigned: false,
+    no_redirect: false,
     pagination: Pagination::None,
     retry: Retry {
         max: 2,
@@ -730,6 +810,8 @@ pub static DELETE_CONTACT_NOTE: Route = Route {
     html: false,
     empty_on: &[],
     lenient_success: false,
+    unsigned: false,
+    no_redirect: false,
     pagination: Pagination::None,
     retry: Retry {
         max: 2,
@@ -756,6 +838,8 @@ pub static DELETE_DRAFT: Route = Route {
     html: false,
     empty_on: &[],
     lenient_success: false,
+    unsigned: false,
+    no_redirect: false,
     pagination: Pagination::None,
     retry: Retry {
         max: 2,
@@ -789,6 +873,8 @@ pub static DELETE_EXTENZION: Route = Route {
     html: false,
     empty_on: &[],
     lenient_success: false,
+    unsigned: false,
+    no_redirect: false,
     pagination: Pagination::None,
     retry: Retry {
         max: 2,
@@ -815,6 +901,8 @@ pub static DELETE_HABIT: Route = Route {
     html: false,
     empty_on: &[],
     lenient_success: false,
+    unsigned: false,
+    no_redirect: false,
     pagination: Pagination::None,
     retry: Retry {
         max: 2,
@@ -841,6 +929,8 @@ pub static DELETE_STICKY: Route = Route {
     html: false,
     empty_on: &[],
     lenient_success: false,
+    unsigned: false,
+    no_redirect: false,
     pagination: Pagination::None,
     retry: Retry {
         max: 2,
@@ -867,6 +957,8 @@ pub static DELETE_TIME_TRACK: Route = Route {
     html: false,
     empty_on: &[],
     lenient_success: false,
+    unsigned: false,
+    no_redirect: false,
     pagination: Pagination::None,
     retry: Retry {
         max: 2,
@@ -889,6 +981,8 @@ pub static EMPTY_SPAM: Route = Route {
     html: false,
     empty_on: &[],
     lenient_success: false,
+    unsigned: false,
+    no_redirect: false,
     pagination: Pagination::None,
     retry: Retry {
         max: 2,
@@ -911,6 +1005,8 @@ pub static EMPTY_TRASH: Route = Route {
     html: false,
     empty_on: &[],
     lenient_success: false,
+    unsigned: false,
+    no_redirect: false,
     pagination: Pagination::None,
     retry: Retry {
         max: 2,
@@ -933,6 +1029,8 @@ pub static FILE_POSTINGS: Route = Route {
     html: false,
     empty_on: &[],
     lenient_success: false,
+    unsigned: false,
+    no_redirect: false,
     pagination: Pagination::None,
     retry: Retry {
         max: 2,
@@ -955,6 +1053,8 @@ pub static GET_ADVANCED_SEARCH_FILTERS: Route = Route {
     html: false,
     empty_on: &[],
     lenient_success: false,
+    unsigned: false,
+    no_redirect: false,
     pagination: Pagination::None,
     retry: Retry {
         max: 3,
@@ -977,6 +1077,8 @@ pub static GET_ASIDEBOX: Route = Route {
     html: false,
     empty_on: &[],
     lenient_success: false,
+    unsigned: false,
+    no_redirect: false,
     pagination: Pagination::None,
     retry: Retry {
         max: 3,
@@ -1003,6 +1105,8 @@ pub static GET_BOX: Route = Route {
     html: false,
     empty_on: &[],
     lenient_success: false,
+    unsigned: false,
+    no_redirect: false,
     pagination: Pagination::Link,
     retry: Retry {
         max: 3,
@@ -1036,6 +1140,8 @@ pub static GET_BOX_GROUP: Route = Route {
     html: false,
     empty_on: &[],
     lenient_success: false,
+    unsigned: false,
+    no_redirect: false,
     pagination: Pagination::Link,
     retry: Retry {
         max: 3,
@@ -1062,6 +1168,8 @@ pub static GET_BOX_POSTING_CHANGES: Route = Route {
     html: false,
     empty_on: &[],
     lenient_success: false,
+    unsigned: false,
+    no_redirect: false,
     pagination: Pagination::Link,
     retry: Retry {
         max: 3,
@@ -1084,6 +1192,8 @@ pub static GET_BUBBLEBOX: Route = Route {
     html: false,
     empty_on: &[],
     lenient_success: false,
+    unsigned: false,
+    no_redirect: false,
     pagination: Pagination::None,
     retry: Retry {
         max: 3,
@@ -1110,6 +1220,8 @@ pub static GET_BUNDLE_UNSEEN_POSTINGS: Route = Route {
     html: false,
     empty_on: &[],
     lenient_success: false,
+    unsigned: false,
+    no_redirect: false,
     pagination: Pagination::Link,
     retry: Retry {
         max: 3,
@@ -1136,6 +1248,8 @@ pub static GET_CALENDAR_DAY: Route = Route {
     html: false,
     empty_on: &[],
     lenient_success: false,
+    unsigned: false,
+    no_redirect: false,
     pagination: Pagination::None,
     retry: Retry {
         max: 3,
@@ -1162,6 +1276,8 @@ pub static GET_CALENDAR_RECORDINGS: Route = Route {
     html: false,
     empty_on: &[],
     lenient_success: false,
+    unsigned: false,
+    no_redirect: false,
     pagination: Pagination::Window,
     retry: Retry {
         max: 3,
@@ -1188,6 +1304,8 @@ pub static GET_CALENDAR_WEEK: Route = Route {
     html: false,
     empty_on: &[],
     lenient_success: false,
+    unsigned: false,
+    no_redirect: false,
     pagination: Pagination::None,
     retry: Retry {
         max: 3,
@@ -1214,6 +1332,8 @@ pub static GET_CALENDAR_YEAR: Route = Route {
     html: false,
     empty_on: &[],
     lenient_success: false,
+    unsigned: false,
+    no_redirect: false,
     pagination: Pagination::None,
     retry: Retry {
         max: 3,
@@ -1236,6 +1356,8 @@ pub static GET_CLEARANCES: Route = Route {
     html: false,
     empty_on: &[],
     lenient_success: false,
+    unsigned: false,
+    no_redirect: false,
     pagination: Pagination::Link,
     retry: Retry {
         max: 3,
@@ -1262,6 +1384,8 @@ pub static GET_COLLECTION: Route = Route {
     html: false,
     empty_on: &[],
     lenient_success: false,
+    unsigned: false,
+    no_redirect: false,
     pagination: Pagination::Link,
     retry: Retry {
         max: 3,
@@ -1288,6 +1412,8 @@ pub static GET_CONTACT: Route = Route {
     html: false,
     empty_on: &[],
     lenient_success: false,
+    unsigned: false,
+    no_redirect: false,
     pagination: Pagination::Link,
     retry: Retry {
         max: 3,
@@ -1314,6 +1440,8 @@ pub static GET_CONTACT_NOTE: Route = Route {
     html: false,
     empty_on: &[],
     lenient_success: false,
+    unsigned: false,
+    no_redirect: false,
     pagination: Pagination::None,
     retry: Retry {
         max: 3,
@@ -1336,6 +1464,8 @@ pub static GET_EVERYTHING_TOPICS: Route = Route {
     html: false,
     empty_on: &[],
     lenient_success: false,
+    unsigned: false,
+    no_redirect: false,
     pagination: Pagination::Link,
     retry: Retry {
         max: 3,
@@ -1358,6 +1488,8 @@ pub static GET_FEEDBOX: Route = Route {
     html: false,
     empty_on: &[],
     lenient_success: false,
+    unsigned: false,
+    no_redirect: false,
     pagination: Pagination::None,
     retry: Retry {
         max: 3,
@@ -1384,6 +1516,8 @@ pub static GET_FOLDER: Route = Route {
     html: false,
     empty_on: &[],
     lenient_success: false,
+    unsigned: false,
+    no_redirect: false,
     pagination: Pagination::Link,
     retry: Retry {
         max: 3,
@@ -1406,6 +1540,8 @@ pub static GET_IDENTITY: Route = Route {
     html: false,
     empty_on: &[],
     lenient_success: false,
+    unsigned: false,
+    no_redirect: false,
     pagination: Pagination::None,
     retry: Retry {
         max: 3,
@@ -1428,6 +1564,8 @@ pub static GET_IMBOX: Route = Route {
     html: false,
     empty_on: &[],
     lenient_success: false,
+    unsigned: false,
+    no_redirect: false,
     pagination: Pagination::None,
     retry: Retry {
         max: 3,
@@ -1450,6 +1588,8 @@ pub static GET_IMBOX_SEEN: Route = Route {
     html: false,
     empty_on: &[],
     lenient_success: false,
+    unsigned: false,
+    no_redirect: false,
     pagination: Pagination::None,
     retry: Retry {
         max: 3,
@@ -1476,6 +1616,8 @@ pub static GET_JOURNAL_ENTRY: Route = Route {
     html: false,
     empty_on: &[],
     lenient_success: false,
+    unsigned: false,
+    no_redirect: false,
     pagination: Pagination::None,
     retry: Retry {
         max: 3,
@@ -1498,6 +1640,8 @@ pub static GET_LATERBOX: Route = Route {
     html: false,
     empty_on: &[],
     lenient_success: false,
+    unsigned: false,
+    no_redirect: false,
     pagination: Pagination::None,
     retry: Retry {
         max: 3,
@@ -1524,6 +1668,8 @@ pub static GET_MESSAGE: Route = Route {
     html: false,
     empty_on: &[],
     lenient_success: false,
+    unsigned: false,
+    no_redirect: false,
     pagination: Pagination::None,
     retry: Retry {
         max: 3,
@@ -1550,6 +1696,8 @@ pub static GET_MESSAGE_EDIT: Route = Route {
     html: false,
     empty_on: &[],
     lenient_success: false,
+    unsigned: false,
+    no_redirect: false,
     pagination: Pagination::None,
     retry: Retry {
         max: 3,
@@ -1572,6 +1720,8 @@ pub static GET_MY_CLEARANCES: Route = Route {
     html: false,
     empty_on: &[],
     lenient_success: false,
+    unsigned: false,
+    no_redirect: false,
     pagination: Pagination::Link,
     retry: Retry {
         max: 3,
@@ -1594,6 +1744,8 @@ pub static GET_NAVIGATION: Route = Route {
     html: false,
     empty_on: &[],
     lenient_success: false,
+    unsigned: false,
+    no_redirect: false,
     pagination: Pagination::None,
     retry: Retry {
         max: 3,
@@ -1616,6 +1768,8 @@ pub static GET_ONGOING_TIME_TRACK: Route = Route {
     html: false,
     empty_on: &[404],
     lenient_success: false,
+    unsigned: false,
+    no_redirect: false,
     pagination: Pagination::None,
     retry: Retry {
         max: 3,
@@ -1638,6 +1792,8 @@ pub static GET_SENT_TOPICS: Route = Route {
     html: false,
     empty_on: &[],
     lenient_success: false,
+    unsigned: false,
+    no_redirect: false,
     pagination: Pagination::Link,
     retry: Retry {
         max: 3,
@@ -1660,6 +1816,8 @@ pub static GET_SPAM_TOPICS: Route = Route {
     html: false,
     empty_on: &[],
     lenient_success: false,
+    unsigned: false,
+    no_redirect: false,
     pagination: Pagination::Link,
     retry: Retry {
         max: 3,
@@ -1686,6 +1844,8 @@ pub static GET_TOPIC: Route = Route {
     html: false,
     empty_on: &[],
     lenient_success: false,
+    unsigned: false,
+    no_redirect: false,
     pagination: Pagination::None,
     retry: Retry {
         max: 3,
@@ -1712,6 +1872,8 @@ pub static GET_TOPIC_COMMENT_AUDIENCE: Route = Route {
     html: false,
     empty_on: &[],
     lenient_success: false,
+    unsigned: false,
+    no_redirect: false,
     pagination: Pagination::None,
     retry: Retry {
         max: 3,
@@ -1738,6 +1900,8 @@ pub static GET_TOPIC_ENTRIES: Route = Route {
     html: false,
     empty_on: &[],
     lenient_success: false,
+    unsigned: false,
+    no_redirect: false,
     pagination: Pagination::Link,
     retry: Retry {
         max: 3,
@@ -1764,6 +1928,8 @@ pub static GET_TOPIC_PUBLICATION: Route = Route {
     html: false,
     empty_on: &[],
     lenient_success: false,
+    unsigned: false,
+    no_redirect: false,
     pagination: Pagination::None,
     retry: Retry {
         max: 3,
@@ -1786,6 +1952,8 @@ pub static GET_TRAILBOX: Route = Route {
     html: false,
     empty_on: &[],
     lenient_success: false,
+    unsigned: false,
+    no_redirect: false,
     pagination: Pagination::None,
     retry: Retry {
         max: 3,
@@ -1808,6 +1976,8 @@ pub static GET_TRASH_TOPICS: Route = Route {
     html: false,
     empty_on: &[],
     lenient_success: false,
+    unsigned: false,
+    no_redirect: false,
     pagination: Pagination::Link,
     retry: Retry {
         max: 3,
@@ -1834,6 +2004,8 @@ pub static GET_WORKFLOW: Route = Route {
     html: false,
     empty_on: &[],
     lenient_success: false,
+    unsigned: false,
+    no_redirect: false,
     pagination: Pagination::None,
     retry: Retry {
         max: 3,
@@ -1867,6 +2039,8 @@ pub static GET_WORKFLOW_STAGE: Route = Route {
     html: true,
     empty_on: &[],
     lenient_success: false,
+    unsigned: false,
+    no_redirect: false,
     pagination: Pagination::None,
     retry: Retry {
         max: 3,
@@ -1893,6 +2067,8 @@ pub static HIDE_CONTACT: Route = Route {
     html: false,
     empty_on: &[],
     lenient_success: false,
+    unsigned: false,
+    no_redirect: false,
     pagination: Pagination::None,
     retry: Retry {
         max: 2,
@@ -1915,6 +2091,8 @@ pub static LIST_ADDRESSABLE_CONTACTS: Route = Route {
     html: false,
     empty_on: &[],
     lenient_success: false,
+    unsigned: false,
+    no_redirect: false,
     pagination: Pagination::None,
     retry: Retry {
         max: 3,
@@ -1941,6 +2119,8 @@ pub static LIST_BOX_GROUPS: Route = Route {
     html: false,
     empty_on: &[],
     lenient_success: false,
+    unsigned: false,
+    no_redirect: false,
     pagination: Pagination::None,
     retry: Retry {
         max: 3,
@@ -1963,6 +2143,8 @@ pub static LIST_BOXES: Route = Route {
     html: false,
     empty_on: &[],
     lenient_success: false,
+    unsigned: false,
+    no_redirect: false,
     pagination: Pagination::Link,
     retry: Retry {
         max: 3,
@@ -1985,6 +2167,8 @@ pub static LIST_CALENDAR_DAYS: Route = Route {
     html: false,
     empty_on: &[],
     lenient_success: false,
+    unsigned: false,
+    no_redirect: false,
     pagination: Pagination::None,
     retry: Retry {
         max: 3,
@@ -2007,6 +2191,8 @@ pub static LIST_CALENDAR_WEEKS: Route = Route {
     html: false,
     empty_on: &[],
     lenient_success: false,
+    unsigned: false,
+    no_redirect: false,
     pagination: Pagination::None,
     retry: Retry {
         max: 3,
@@ -2029,6 +2215,8 @@ pub static LIST_CALENDARS: Route = Route {
     html: false,
     empty_on: &[],
     lenient_success: false,
+    unsigned: false,
+    no_redirect: false,
     pagination: Pagination::None,
     retry: Retry {
         max: 3,
@@ -2051,6 +2239,8 @@ pub static LIST_CLIPS: Route = Route {
     html: false,
     empty_on: &[],
     lenient_success: false,
+    unsigned: false,
+    no_redirect: false,
     pagination: Pagination::Link,
     retry: Retry {
         max: 3,
@@ -2073,6 +2263,8 @@ pub static LIST_COLLECTIONS: Route = Route {
     html: false,
     empty_on: &[],
     lenient_success: false,
+    unsigned: false,
+    no_redirect: false,
     pagination: Pagination::None,
     retry: Retry {
         max: 3,
@@ -2095,6 +2287,8 @@ pub static LIST_CONTACTS: Route = Route {
     html: false,
     empty_on: &[],
     lenient_success: false,
+    unsigned: false,
+    no_redirect: false,
     pagination: Pagination::Link,
     retry: Retry {
         max: 3,
@@ -2117,6 +2311,8 @@ pub static LIST_DRAFTS: Route = Route {
     html: false,
     empty_on: &[],
     lenient_success: false,
+    unsigned: false,
+    no_redirect: false,
     pagination: Pagination::Link,
     retry: Retry {
         max: 3,
@@ -2139,6 +2335,8 @@ pub static LIST_JOURNAL_ENTRIES: Route = Route {
     html: false,
     empty_on: &[],
     lenient_success: false,
+    unsigned: false,
+    no_redirect: false,
     pagination: Pagination::Link,
     retry: Retry {
         max: 3,
@@ -2161,6 +2359,8 @@ pub static LIST_SNIPPETS: Route = Route {
     html: false,
     empty_on: &[],
     lenient_success: false,
+    unsigned: false,
+    no_redirect: false,
     pagination: Pagination::None,
     retry: Retry {
         max: 3,
@@ -2183,6 +2383,8 @@ pub static LIST_STICKIES: Route = Route {
     html: false,
     empty_on: &[],
     lenient_success: false,
+    unsigned: false,
+    no_redirect: false,
     pagination: Pagination::None,
     retry: Retry {
         max: 3,
@@ -2205,6 +2407,8 @@ pub static LIST_TIME_TRACK_CATEGORIES: Route = Route {
     html: false,
     empty_on: &[],
     lenient_success: false,
+    unsigned: false,
+    no_redirect: false,
     pagination: Pagination::None,
     retry: Retry {
         max: 3,
@@ -2227,6 +2431,8 @@ pub static LIST_TIME_TRACKS: Route = Route {
     html: false,
     empty_on: &[],
     lenient_success: false,
+    unsigned: false,
+    no_redirect: false,
     pagination: Pagination::Link,
     retry: Retry {
         max: 3,
@@ -2253,6 +2459,8 @@ pub static MARK_BOX_SEEN: Route = Route {
     html: false,
     empty_on: &[],
     lenient_success: false,
+    unsigned: false,
+    no_redirect: false,
     pagination: Pagination::None,
     retry: Retry {
         max: 2,
@@ -2279,6 +2487,8 @@ pub static MARK_ENTRY_SPAM: Route = Route {
     html: false,
     empty_on: &[],
     lenient_success: false,
+    unsigned: false,
+    no_redirect: false,
     pagination: Pagination::None,
     retry: Retry {
         max: 2,
@@ -2301,6 +2511,8 @@ pub static MARK_POSTINGS_SEEN: Route = Route {
     html: false,
     empty_on: &[],
     lenient_success: false,
+    unsigned: false,
+    no_redirect: false,
     pagination: Pagination::None,
     retry: Retry {
         max: 2,
@@ -2323,6 +2535,8 @@ pub static MARK_POSTINGS_SPAM: Route = Route {
     html: false,
     empty_on: &[],
     lenient_success: false,
+    unsigned: false,
+    no_redirect: false,
     pagination: Pagination::None,
     retry: Retry {
         max: 2,
@@ -2345,6 +2559,8 @@ pub static MARK_POSTINGS_UNSEEN: Route = Route {
     html: false,
     empty_on: &[],
     lenient_success: false,
+    unsigned: false,
+    no_redirect: false,
     pagination: Pagination::None,
     retry: Retry {
         max: 2,
@@ -2371,6 +2587,8 @@ pub static MARK_TOPIC_HAM: Route = Route {
     html: false,
     empty_on: &[],
     lenient_success: false,
+    unsigned: false,
+    no_redirect: false,
     pagination: Pagination::None,
     retry: Retry {
         max: 2,
@@ -2393,6 +2611,8 @@ pub static MOVE_POSTINGS: Route = Route {
     html: false,
     empty_on: &[],
     lenient_success: false,
+    unsigned: false,
+    no_redirect: false,
     pagination: Pagination::None,
     retry: Retry {
         max: 2,
@@ -2415,6 +2635,8 @@ pub static MOVE_STICKY: Route = Route {
     html: false,
     empty_on: &[],
     lenient_success: false,
+    unsigned: false,
+    no_redirect: false,
     pagination: Pagination::None,
     retry: Retry {
         max: 2,
@@ -2441,6 +2663,8 @@ pub static MOVE_TOPIC: Route = Route {
     html: false,
     empty_on: &[],
     lenient_success: false,
+    unsigned: false,
+    no_redirect: false,
     pagination: Pagination::None,
     retry: Retry {
         max: 2,
@@ -2474,6 +2698,8 @@ pub static MOVE_WORKFLOW_STAGING: Route = Route {
     html: false,
     empty_on: &[],
     lenient_success: false,
+    unsigned: false,
+    no_redirect: false,
     pagination: Pagination::None,
     retry: Retry {
         max: 0,
@@ -2496,6 +2722,8 @@ pub static MUTE_POSTINGS: Route = Route {
     html: false,
     empty_on: &[],
     lenient_success: false,
+    unsigned: false,
+    no_redirect: false,
     pagination: Pagination::None,
     retry: Retry {
         max: 2,
@@ -2518,6 +2746,8 @@ pub static NEW_BULK_REPLY: Route = Route {
     html: false,
     empty_on: &[],
     lenient_success: false,
+    unsigned: false,
+    no_redirect: false,
     pagination: Pagination::None,
     retry: Retry {
         max: 3,
@@ -2544,6 +2774,8 @@ pub static NEW_ENTRY_FORWARD: Route = Route {
     html: false,
     empty_on: &[],
     lenient_success: false,
+    unsigned: false,
+    no_redirect: false,
     pagination: Pagination::None,
     retry: Retry {
         max: 3,
@@ -2570,6 +2802,8 @@ pub static NEW_ENTRY_REPLY: Route = Route {
     html: false,
     empty_on: &[],
     lenient_success: false,
+    unsigned: false,
+    no_redirect: false,
     pagination: Pagination::None,
     retry: Retry {
         max: 3,
@@ -2592,6 +2826,8 @@ pub static PUNT_CLEARANCES: Route = Route {
     html: false,
     empty_on: &[],
     lenient_success: false,
+    unsigned: false,
+    no_redirect: false,
     pagination: Pagination::None,
     retry: Retry {
         max: 2,
@@ -2614,6 +2850,8 @@ pub static REMOVE_POSTINGS_FROM_BOX_GROUP: Route = Route {
     html: false,
     empty_on: &[],
     lenient_success: false,
+    unsigned: false,
+    no_redirect: false,
     pagination: Pagination::None,
     retry: Retry {
         max: 2,
@@ -2640,6 +2878,8 @@ pub static RENAME_TOPIC: Route = Route {
     html: false,
     empty_on: &[],
     lenient_success: false,
+    unsigned: false,
+    no_redirect: false,
     pagination: Pagination::None,
     retry: Retry {
         max: 2,
@@ -2666,6 +2906,8 @@ pub static RESTORE_TOPIC: Route = Route {
     html: false,
     empty_on: &[],
     lenient_success: false,
+    unsigned: false,
+    no_redirect: false,
     pagination: Pagination::None,
     retry: Retry {
         max: 2,
@@ -2692,6 +2934,8 @@ pub static RESUME_HABIT: Route = Route {
     html: false,
     empty_on: &[],
     lenient_success: false,
+    unsigned: false,
+    no_redirect: false,
     pagination: Pagination::None,
     retry: Retry {
         max: 2,
@@ -2718,9 +2962,35 @@ pub static REVEAL_CONTACT: Route = Route {
     html: false,
     empty_on: &[],
     lenient_success: false,
+    unsigned: false,
+    no_redirect: false,
     pagination: Pagination::None,
     retry: Retry {
         max: 2,
+        base_delay_ms: 1000,
+        retry_on: &[429, 503],
+    },
+};
+
+pub static REVOKE_TOKEN: Route = Route {
+    id: "RevokeToken",
+    service: "OAuth",
+    method: Method::DELETE,
+    path: "/oauth/tokens.json",
+    pattern: "/oauth/tokens",
+    resource: "OAuth",
+    resource_type: "token",
+    params: &[],
+    idempotent: true,
+    readonly: false,
+    html: false,
+    empty_on: &[],
+    lenient_success: false,
+    unsigned: true,
+    no_redirect: true,
+    pagination: Pagination::None,
+    retry: Retry {
+        max: 3,
         base_delay_ms: 1000,
         retry_on: &[429, 503],
     },
@@ -2740,6 +3010,8 @@ pub static SCHEDULE_POSTINGS_BUBBLE_UP: Route = Route {
     html: false,
     empty_on: &[],
     lenient_success: false,
+    unsigned: false,
+    no_redirect: false,
     pagination: Pagination::None,
     retry: Retry {
         max: 2,
@@ -2762,6 +3034,8 @@ pub static START_TIME_TRACK: Route = Route {
     html: false,
     empty_on: &[],
     lenient_success: false,
+    unsigned: false,
+    no_redirect: false,
     pagination: Pagination::None,
     retry: Retry {
         max: 2,
@@ -2788,6 +3062,8 @@ pub static STOP_HABIT: Route = Route {
     html: false,
     empty_on: &[],
     lenient_success: false,
+    unsigned: false,
+    no_redirect: false,
     pagination: Pagination::None,
     retry: Retry {
         max: 2,
@@ -2814,6 +3090,8 @@ pub static TOGGLE_CALENDAR: Route = Route {
     html: false,
     empty_on: &[],
     lenient_success: false,
+    unsigned: false,
+    no_redirect: false,
     pagination: Pagination::None,
     retry: Retry {
         max: 2,
@@ -2836,6 +3114,8 @@ pub static TRASH_POSTINGS: Route = Route {
     html: false,
     empty_on: &[],
     lenient_success: false,
+    unsigned: false,
+    no_redirect: false,
     pagination: Pagination::None,
     retry: Retry {
         max: 2,
@@ -2862,6 +3142,8 @@ pub static TRASH_TOPIC: Route = Route {
     html: false,
     empty_on: &[],
     lenient_success: false,
+    unsigned: false,
+    no_redirect: false,
     pagination: Pagination::None,
     retry: Retry {
         max: 2,
@@ -2888,6 +3170,8 @@ pub static UNBUNDLE_CONTACT: Route = Route {
     html: false,
     empty_on: &[],
     lenient_success: false,
+    unsigned: false,
+    no_redirect: false,
     pagination: Pagination::None,
     retry: Retry {
         max: 2,
@@ -2914,6 +3198,8 @@ pub static UNCOMPLETE_CALENDAR_TODO: Route = Route {
     html: false,
     empty_on: &[],
     lenient_success: false,
+    unsigned: false,
+    no_redirect: false,
     pagination: Pagination::None,
     retry: Retry {
         max: 3,
@@ -2947,6 +3233,8 @@ pub static UNCOMPLETE_HABIT: Route = Route {
     html: false,
     empty_on: &[],
     lenient_success: false,
+    unsigned: false,
+    no_redirect: false,
     pagination: Pagination::None,
     retry: Retry {
         max: 3,
@@ -2969,6 +3257,8 @@ pub static UNFILE_POSTINGS: Route = Route {
     html: false,
     empty_on: &[],
     lenient_success: false,
+    unsigned: false,
+    no_redirect: false,
     pagination: Pagination::None,
     retry: Retry {
         max: 2,
@@ -2991,6 +3281,8 @@ pub static UNMUTE_POSTINGS: Route = Route {
     html: false,
     empty_on: &[],
     lenient_success: false,
+    unsigned: false,
+    no_redirect: false,
     pagination: Pagination::None,
     retry: Retry {
         max: 2,
@@ -3017,6 +3309,8 @@ pub static UPDATE_CALENDAR_TODO: Route = Route {
     html: false,
     empty_on: &[],
     lenient_success: false,
+    unsigned: false,
+    no_redirect: false,
     pagination: Pagination::None,
     retry: Retry {
         max: 2,
@@ -3043,6 +3337,8 @@ pub static UPDATE_CLEARANCE: Route = Route {
     html: false,
     empty_on: &[],
     lenient_success: false,
+    unsigned: false,
+    no_redirect: false,
     pagination: Pagination::None,
     retry: Retry {
         max: 2,
@@ -3069,6 +3365,8 @@ pub static UPDATE_COLLECTION: Route = Route {
     html: false,
     empty_on: &[],
     lenient_success: false,
+    unsigned: false,
+    no_redirect: false,
     pagination: Pagination::None,
     retry: Retry {
         max: 2,
@@ -3095,6 +3393,8 @@ pub static UPDATE_CONTACT: Route = Route {
     html: false,
     empty_on: &[],
     lenient_success: false,
+    unsigned: false,
+    no_redirect: false,
     pagination: Pagination::None,
     retry: Retry {
         max: 2,
@@ -3121,6 +3421,8 @@ pub static UPDATE_CONTACT_AVATAR: Route = Route {
     html: false,
     empty_on: &[],
     lenient_success: false,
+    unsigned: false,
+    no_redirect: false,
     pagination: Pagination::None,
     retry: Retry {
         max: 2,
@@ -3147,6 +3449,8 @@ pub static UPDATE_CONTACT_CLEARANCE: Route = Route {
     html: false,
     empty_on: &[],
     lenient_success: false,
+    unsigned: false,
+    no_redirect: false,
     pagination: Pagination::None,
     retry: Retry {
         max: 2,
@@ -3173,6 +3477,8 @@ pub static UPDATE_CONTACT_NOTE: Route = Route {
     html: false,
     empty_on: &[],
     lenient_success: false,
+    unsigned: false,
+    no_redirect: false,
     pagination: Pagination::None,
     retry: Retry {
         max: 2,
@@ -3195,6 +3501,8 @@ pub static UPDATE_FIRST_WEEK_DAY: Route = Route {
     html: false,
     empty_on: &[],
     lenient_success: false,
+    unsigned: false,
+    no_redirect: false,
     pagination: Pagination::None,
     retry: Retry {
         max: 3,
@@ -3221,6 +3529,8 @@ pub static UPDATE_HABIT: Route = Route {
     html: false,
     empty_on: &[],
     lenient_success: false,
+    unsigned: false,
+    no_redirect: false,
     pagination: Pagination::None,
     retry: Retry {
         max: 2,
@@ -3247,6 +3557,8 @@ pub static UPDATE_JOURNAL_ENTRY: Route = Route {
     html: false,
     empty_on: &[],
     lenient_success: false,
+    unsigned: false,
+    no_redirect: false,
     pagination: Pagination::None,
     retry: Retry {
         max: 2,
@@ -3273,6 +3585,8 @@ pub static UPDATE_MESSAGE: Route = Route {
     html: false,
     empty_on: &[],
     lenient_success: true,
+    unsigned: false,
+    no_redirect: false,
     pagination: Pagination::None,
     retry: Retry {
         max: 2,
@@ -3299,6 +3613,8 @@ pub static UPDATE_MY_CLEARANCE: Route = Route {
     html: false,
     empty_on: &[],
     lenient_success: false,
+    unsigned: false,
+    no_redirect: false,
     pagination: Pagination::None,
     retry: Retry {
         max: 2,
@@ -3325,6 +3641,8 @@ pub static UPDATE_STICKY: Route = Route {
     html: false,
     empty_on: &[],
     lenient_success: false,
+    unsigned: false,
+    no_redirect: false,
     pagination: Pagination::None,
     retry: Retry {
         max: 2,
@@ -3347,6 +3665,8 @@ pub static UPDATE_TIME_FORMAT: Route = Route {
     html: false,
     empty_on: &[],
     lenient_success: false,
+    unsigned: false,
+    no_redirect: false,
     pagination: Pagination::None,
     retry: Retry {
         max: 3,
@@ -3373,6 +3693,8 @@ pub static UPDATE_TIME_TRACK: Route = Route {
     html: false,
     empty_on: &[],
     lenient_success: false,
+    unsigned: false,
+    no_redirect: false,
     pagination: Pagination::None,
     retry: Retry {
         max: 3,
@@ -3403,6 +3725,7 @@ pub static ROUTES: &[&Route] = &[
     &CREATE_REPLY,
     &CREATE_STICKY,
     &CREATE_TIME_TRACK,
+    &CREATE_TOKEN,
     &CREATE_TOPIC_COMMENT,
     &CREATE_WORKFLOW_STAGING,
     &DELETE_BOX_DESIGNATION,
@@ -3494,6 +3817,7 @@ pub static ROUTES: &[&Route] = &[
     &RESTORE_TOPIC,
     &RESUME_HABIT,
     &REVEAL_CONTACT,
+    &REVOKE_TOKEN,
     &SCHEDULE_POSTINGS_BUBBLE_UP,
     &START_TIME_TRACK,
     &STOP_HABIT,

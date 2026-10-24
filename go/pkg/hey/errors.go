@@ -67,6 +67,12 @@ type Error struct {
 	Retryable  bool
 	RequestID  string
 	Cause      error
+	// OAuthCode is the code an RFC 6749 refusal names in its body's error member —
+	// invalid_grant, invalid_client, invalid_request — beside the error_description that
+	// becomes Message. HEY's token endpoint (OAuthService) refuses this way, and the code is
+	// what a client acts on: a 401 invalid_grant is a dead refresh token, a 401
+	// invalid_client a misconfigured client. It is empty for any other error.
+	OAuthCode string
 
 	// fieldErrors is what FieldErrors answers. A pointer keeps Error comparable, as it
 	// was before the reasons were kept.

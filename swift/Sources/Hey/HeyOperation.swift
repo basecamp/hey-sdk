@@ -50,7 +50,8 @@ public struct HeyOperation: Sendable, CustomStringConvertible {
     var skipsCache = false
     var capturesRedirects = false
     var isQuiet = false
-    var isUnsigned = false
+    /// Set by ``unsigned()``; a route the model marks unsigned goes unsigned without it.
+    private var unsignedRequested = false
 
     init(id: String, info: OperationInfo, route: Route?, method: HTTPMethod, path: String, url: URL?) {
         self.id = id
@@ -148,8 +149,23 @@ public struct HeyOperation: Sendable, CustomStringConvertible {
     /// exactly as named, and the hooks hear the URL cut back to its origin, since such a URL
     /// carries its signature in the open.
     mutating func unsigned() {
-        isUnsigned = true
+        unsignedRequested = true
     }
+
+    /// Whether the request goes out without the client's credentials or account scope, a 401 the
+    /// answer: one ``unsigned()`` asked for, or a route the model marks (``Route/unsigned``), such
+    /// as the token endpoint, whose body is what HEY judges.
+    var isUnsigned: Bool { unsignedRequested || route?.unsigned == true }
+
+    /// Whether the hooks hear the URL cut back to its origin: a URL that authenticates itself, which
+    /// ``unsigned()`` is for, carries its signature in the open. A route the model sends unsigned
+    /// is heard whole, since its secrets are in the body and its path holds none.
+    var carriesItsSignature: Bool { unsignedRequested }
+
+    /// Whether a redirect is followed. A route the model marks (``Route/noRedirect``) carries a
+    /// credential in its body, which a redirect that kept the body would hand to wherever the
+    /// `Location` points, so its 3xx is the answer.
+    var followsRedirects: Bool { route?.noRedirect != true }
 
     /// What an error or a log calls the operation.
     var label: String { info.service == "Raw" ? method.rawValue : info.operation }

@@ -34,6 +34,8 @@ const fn route(retry: Retry) -> Route {
         html: false,
         empty_on: &[],
         lenient_success: false,
+        unsigned: false,
+        no_redirect: false,
         pagination: Pagination::None,
         retry,
     }

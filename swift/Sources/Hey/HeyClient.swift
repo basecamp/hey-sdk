@@ -64,7 +64,8 @@ public final class HeyClient: Sendable {
         try self.init(auth: BearerAuth(tokenProvider: tokenProvider), config: config, hooks: hooks, transport: transport, cache: cache)
     }
 
-    /// A client that authenticates however `auth` does.
+    /// A client that authenticates however `auth` does. ``NoCredentials`` makes one that holds no
+    /// credentials at all, for the operations HEY takes unsigned.
     ///
     /// The transport the SDK ships is used unless one is handed over; there is no way to hand
     /// over a configured `URLSession` that follows redirects itself, since that would run ahead of
@@ -369,7 +370,7 @@ public final class HeyClient: Sendable {
             // its origin and nothing more.
             let info = RequestInfo(
                 method: operation.method.rawValue,
-                url: operation.isUnsigned ? redactURLs(url.absoluteString) : url.absoluteString,
+                url: operation.carriesItsSignature ? redactURLs(url.absoluteString) : url.absoluteString,
                 attempt: attempt)
             hooks.onRequestStart(info)
             let started = shared.clock()
@@ -679,11 +680,11 @@ public final class HeyClient: Sendable {
     // MARK: - Transmitting
 
     /// Sends one request and follows the redirects it is answered with, up to ten hops, unless the
-    /// operation is one that takes the redirect for its answer. Credentials stay on the origin they
-    /// were meant for: a hop to another origin goes out without the headers the auth strategy set,
-    /// whatever it called them, and without the usual suspects. A hop that stays on HEY keeps the
-    /// client's account scope, unless the request went out unsigned: that URL is the storage
-    /// service's, wherever it lives, and its hops go as named.
+    /// operation is one that takes the redirect for its answer or follows none. Credentials stay on
+    /// the origin they were meant for: a hop to another origin goes out without the headers the
+    /// auth strategy set, whatever it called them, and without the usual suspects. A hop that stays
+    /// on HEY keeps the client's account scope, unless the request went out unsigned: that URL is
+    /// the storage service's, wherever it lives, and its hops go as named.
     ///
     /// The transport reads each body only as far as its bound, so a body is refused while it is
     /// still arriving rather than after all of it has been held.
@@ -695,6 +696,9 @@ public final class HeyClient: Sendable {
         var hops = 0
         var authenticated = !operation.isUnsigned
         let captures = operation.capturesRedirects
+        // A route whose body is itself a credential takes no hop: any 3xx is its answer.
+        let refusesRedirects = !operation.followsRedirects
+        let follows = !captures && !refusesRedirects
         let emptyOn = operation.emptyOn
         let bound = isParsed(operation.accept) ? shared.config.effectiveMaxResponseBodyBytes : HeyConfig.maxResponseBodyBytes
 
@@ -702,19 +706,22 @@ public final class HeyClient: Sendable {
             let from = url
             let response = try await shared.transport.send(request) { status, headers in
                 // A redirect about to be followed, a 304, a status the operation takes for "nothing
-                // there", and the redirect a form takes for its answer carry nothing the SDK reads,
-                // so their bodies are not read at all — and so cannot be refused for their size.
-                if !captures, redirectStatuses.contains(status), let location = headers["Location"],
+                // there", the redirect a form takes for its answer, and the redirect a route that
+                // follows none is refused by carry nothing the SDK reads, so their bodies are not read
+                // at all — and so cannot be refused for their size.
+                if follows, redirectStatuses.contains(status), let location = headers["Location"],
                    resolveReference(from, location) != nil
                 {
                     return nil
                 }
-                if status == 304 || emptyOn.contains(status) || (captures && formAnswerStatuses.contains(status)) {
+                if status == 304 || emptyOn.contains(status) || (captures && formAnswerStatuses.contains(status))
+                    || (refusesRedirects && (300...399).contains(status))
+                {
                     return nil
                 }
                 return bound
             }
-            if !captures, redirectStatuses.contains(response.status), let location = response.headers["Location"],
+            if follows, redirectStatuses.contains(response.status), let location = response.headers["Location"],
                let target = resolveReference(url, location)
             {
                 guard hops < maxRedirects else {
@@ -862,6 +869,11 @@ public final class HeyClient: Sendable {
         }
         if operation.emptyOn.contains(status) || (operation.capturesRedirects && formAnswerStatuses.contains(status)) {
             return Response(status: status, headers: headers, body: body, url: received.url, fromCache: false, empty: true)
+        }
+        if !operation.followsRedirects, (300...399).contains(status) {
+            throw HeyError.api(
+                message: "\(operation.label) answered \(status) and follows no redirect: its body would go wherever the Location points",
+                httpStatus: status, retryable: false, detail: ErrorDetail(requestId: headers["X-Request-Id"]))
         }
         if operation.capturesRedirects, redirectStatuses.contains(status) {
             throw HeyError.api(

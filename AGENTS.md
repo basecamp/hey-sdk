@@ -52,8 +52,8 @@ openapi.json + behavior-model.json -> rust/generator -> rust/hey-sdk/src/generat
 
 `rust/generator` is a small Rust binary that reads `openapi.json` and `behavior-model.json`
 and writes `types.rs` (every schema), `routes.rs` (one `Route` static per operation, with
-idempotency, empty-on statuses, lenient success, pagination style and the retry policy) and
-`services/*.rs` (one struct per service, one async method per operation). A route's
+idempotency, empty-on statuses, lenient success, `unsigned`, `no_redirect`, pagination style
+and the retry policy) and `services/*.rs` (one struct per service, one async method per operation). A route's
 `idempotent` — what lets the retry loop resend it — is the spec's explicit
 `x-hey-idempotent.natural` when there is one, otherwise the behavior model's own `readonly`
 or `idempotent` (which is how a PATCH earns a resend), and only when the model says neither
@@ -65,7 +65,11 @@ retry loop reads each route's policy — `max` is Smithy's `maxAttempts`, the se
 and the client's own settings only lower the count and, but for `max_delay`, lengthen the
 waits (`max_delay` caps the policy's wait like any other, which is how a test suite winds the
 backoff down), so changing a policy in the model and regenerating is what changes what goes
-over the wire.
+over the wire. An `unsigned` route (`x-hey-unsigned`) goes out without asking the auth
+strategy, takes its 401 as the answer and skips the account scope, and a `no_redirect` route
+(`x-hey-no-redirect`) takes a 3xx as an error, body unread; a client built with the
+`NoCredentials` strategy sends only unsigned routes, refusing the rest as `auth_required`
+before they go out.
 
 Services are named from tags and methods from operation ids with the service's noun
 removed (`ListBoxes` -> `boxes().list()`). The generator fails when two operations
@@ -81,6 +85,11 @@ with something Rust already has — `Box` is emitted as `Mailbox`. The rename re
 place the generator writes the type (the struct, the aliases built from it, the service
 signatures) and nowhere else: a type name never goes on the wire, so Go and the fixtures
 are untouched.
+
+A `[service_names]` table, keyed by the service's module name, names the handle's type and
+the service the hooks hear where the PascalCase of the module would fold an acronym every SDK
+keeps whole: the `OAuth` tag is filed under `oauth` by `[services]` (so `client.oauth()`, not
+`o_auth()`), and `[service_names]` makes its type `OAuth` rather than `Oauth`.
 
 An operation whose 2xx body is `text/html` rather than JSON — a workflow stage — becomes a
 method that asks for the page as HEY serves it (no `.json` suffix, `Accept: text/html`) and
@@ -211,17 +220,22 @@ does not show up in them.
 that reads `openapi.json`, `behavior-model.json` and `kotlin/generator/names.toml` and
 writes `models/<Schema>.kt` (one `@Serializable` data class or typealias per schema),
 `Routes.kt` (one `Route` per operation, with idempotency, empty-on statuses, lenient success,
-pagination style and the retry policy), `services/<Service>Service.kt` (one class per service, one suspend
+`unsigned` and `noRedirect`, pagination style and the retry policy), `services/<Service>Service.kt` (one class per service, one suspend
 method per operation) and `ServiceAccessors.kt`. The hand-written core in
 `kotlin/sdk/src/commonMain/kotlin/com/basecamp/hey` (client, retries, cache, auth,
 pagination, account scope) knows nothing about individual operations; everything
 operation-specific comes from the model, and the retry loop reads each route's policy as the
-Rust one does.
+Rust one does. An `unsigned` route goes with no credentials, no account scope and no refresh
+on its 401, and a `noRedirect` one takes a 3xx as its answer, so `auth(NoCredentials)` builds
+a client for the token endpoint (`client.oauth`) that refuses every signed operation with
+`auth_required` before sending it.
 
 `names.toml` is the Kotlin twin of `rust/generator/names.toml`: `[services]` (tag to
-service), `[operation_services]` (an operation filed under another service, following Go's
-placement), `[operation_methods]` (a method name the derivation gets wrong), `[type_names]`
-(a schema renamed away from a Kotlin collision; none today), `[resource_types]` and
+service), `[service_names]` (a service's PascalCase name where the case conversion reads
+wrong: `oauth` is `OAuth`, so `OAuthService` and the hooks' `OAuth`), `[operation_services]`
+(an operation filed under another service, following Go's placement), `[operation_methods]`
+(a method name the derivation gets wrong), `[type_names]` (a schema renamed away from a Kotlin
+collision; none today), `[resource_types]` and
 `[operation_resource_types]` (the noun the hooks report), and `[hand_written_services]` (the
 subclass the client's accessor constructs, which makes the generated class `open`). Method
 names are camelCase of the Rust ones: `ListBoxes` is `client.boxes.list()`,
@@ -281,7 +295,10 @@ the `HeyError` enum with string `code`s and `exitCode`; hooks are the `HeyHooks`
 default methods, `ChainHooks` and `ConsoleHooks`; the network is a `Transport` protocol, with
 `URLSessionTransport` the one the package ships; generated services extend `BaseService` and
 are reached as properties of the client (`client.boxes`); a paginated read answers a `Page`
-walked with `nextPage`/`eachPage`/`pages(from:)`.
+walked with `nextPage`/`eachPage`/`pages(from:)`. A route the model marks `unsigned` goes out
+with no credentials, a 401 its answer, and one marked `noRedirect` takes a 3xx as an error
+with its status; `try HeyClient(auth: NoCredentials())` is a client for the unsigned routes
+alone, refusing any signed operation `auth_required` before it is sent.
 
 The package builds and tests on Linux as well as Apple platforms, so the library uses
 Foundation's portable surface only: `FoundationNetworking` is imported where it exists, the
@@ -312,7 +329,9 @@ the behaviour:
 `swift/Sources/HeyGenerator` is the Swift twin of `kotlin/generator`, reading the model through
 a small order-preserving JSON reader (`JSON.swift`) and `swift/names.toml`, which carries the
 same tables as Kotlin's but for `[hand_written_services]`: Swift adds conveniences as
-extensions, so no generated class has to be opened for them. `make swift-check-drift` fails
+extensions, so no generated class has to be opened for them. It adds `[service_names]`, for a
+service whose PascalCase name the derivation would get wrong: `oauth` is `OAuthService`, and
+the hooks hear `OAuth`. `make swift-check-drift` fails
 on a stale tree, and `GeneratorTests` runs the same check inside `swift test`.
 
 Conveniences live in `swift/Sources/Hey/Services/<Service>+Conveniences.swift` as extensions

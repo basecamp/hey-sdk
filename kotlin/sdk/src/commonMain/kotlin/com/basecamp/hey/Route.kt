@@ -92,6 +92,21 @@ data class Route(
      * status outside 2xx is an error as usual.
      */
     val lenientSuccess: Boolean = false,
+    /**
+     * The route goes with none of the client's credentials: no `Authorization`, no DPoP proof,
+     * and the auth strategy is not asked to sign it, so a client built with [NoCredentials] can
+     * send it. A 401 is the answer, never a reason to refresh: HEY's token endpoint judges the
+     * grant or the token in the body, and the credentials the client would sign with may be the
+     * very ones being exchanged or revoked. Nor does it carry the client's account scope.
+     */
+    val unsigned: Boolean = false,
+    /**
+     * The route follows no redirect: a 3xx is the answer, an error carrying its status, with its
+     * body unread, nothing sent to the `Location` and no resend. Its body is a secret — a code
+     * and its verifier, a refresh token, a token to revoke — that a 307 would carry wherever it
+     * points.
+     */
+    val noRedirect: Boolean = false,
 ) {
     /**
      * Substitutes the path parameters, in order, percent-encoding each value.

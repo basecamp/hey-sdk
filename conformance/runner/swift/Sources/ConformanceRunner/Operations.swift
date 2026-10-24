@@ -464,9 +464,25 @@ private func executeOperation(_ client: HeyClient, _ testCase: TestCase) async t
         try await client.habits.resume(habitId: path.int("habitId"))
         return .unit
 
+    case "CreateToken": return try asJSON(try await client.oauth.createToken(body: grantBody(body)))
+    case "RevokeToken":
+        try await client.oauth.revokeToken(
+            body: RevokeTokenRequestContent(clientId: body.string("client_id"), token: SensitiveString(body.string("token"))))
+        return .unit
+
     default:
         throw unknown(testCase.operation)
     }
+}
+
+/// A token grant as the case writes it: the secrets as the SDK holds them, and a member the case
+/// leaves out left off the wire.
+private func grantBody(_ body: FixtureJSON) -> CreateTokenRequestContent {
+    let secret = { (key: String) -> SensitiveString? in body.nonEmptyString(key).map { SensitiveString($0) } }
+    return CreateTokenRequestContent(
+        grantType: body.string("grant_type"), clientId: body.string("client_id"), installId: body.string("install_id"),
+        code: secret("code"), redirectUri: body.nonEmptyString("redirect_uri"), codeVerifier: secret("code_verifier"),
+        refreshToken: secret("refresh_token"))
 }
 
 /// A HEY-layer operation, the hand-written conveniences the generated methods sit under.

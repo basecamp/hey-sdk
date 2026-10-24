@@ -231,7 +231,18 @@ public enum HeyError: Error, Sendable, LocalizedError, CustomStringConvertible {
     /// in the body when it sent one as JSON — an HTML error page is never echoed — and the body
     /// itself is kept on the error for a caller that needs more of it than a hint. A body the
     /// client refused to hold leaves the error the status maps to, told why its body is missing.
+    ///
+    /// The token endpoint refuses with RFC 6749's `{"error", "error_description"}`: the `error`
+    /// is a code an app acts on (`invalid_grant` is a dead refresh token, `invalid_client` a
+    /// misconfigured client), and goes in the hint as any body's `error` does; the description is
+    /// HEY's sentence for a person, and goes on the end of the message.
     static func fromResponse(status: Int, method: HTTPMethod, headers: HTTPHeaders, body: Data, refusal: HeyError? = nil) -> HeyError {
+        let mapped = mapResponse(status: status, method: method, headers: headers, body: body, refusal: refusal)
+        guard let description = errorDescription(body) else { return mapped }
+        return mapped.withMessage("\(mapped.message): \(description)")
+    }
+
+    private static func mapResponse(status: Int, method: HTTPMethod, headers: HTTPHeaders, body: Data, refusal: HeyError?) -> HeyError {
         let kept = body.count > maxErrorBodyBytes ? body.prefix(maxErrorBodyBytes) : body
         // A 422's hint is its field errors joined, so the two never disagree.
         let said = status == 422 ? Self.reasonsText(body) : Self.serverMessage(body)
@@ -305,6 +316,27 @@ public enum HeyError: Error, Sendable, LocalizedError, CustomStringConvertible {
 
     private static func singleMessage(_ object: [String: Any]) -> String? {
         nonBlank(object["error"]) ?? nonBlank(object["message"])
+    }
+
+    /// A JSON body's RFC 6749 `error_description`, when it has a non-blank one.
+    static func errorDescription(_ body: Data) -> String? {
+        jsonObject(body).flatMap { nonBlank($0["error_description"]) }.map(truncate)
+    }
+
+    /// The same error with another message, everything else as it was.
+    private func withMessage(_ message: String) -> HeyError {
+        switch self {
+        case let .auth(_, detail): return .auth(message: message, detail: detail)
+        case let .forbidden(_, detail): return .forbidden(message: message, detail: detail)
+        case let .notFound(_, detail): return .notFound(message: message, detail: detail)
+        case let .rateLimit(_, retryAfter, detail): return .rateLimit(message: message, retryAfterSeconds: retryAfter, detail: detail)
+        case let .network(_, retryable, detail): return .network(message: message, retryable: retryable, detail: detail)
+        case let .api(_, status, retryable, detail): return .api(message: message, httpStatus: status, retryable: retryable, detail: detail)
+        case let .validation(_, status, detail): return .validation(message: message, httpStatus: status, detail: detail)
+        case let .conflict(_, detail): return .conflict(message: message, detail: detail)
+        case let .usage(_, hint): return .usage(message: message, hint: hint)
+        case .ambiguous: return self
+        }
     }
 
     private static func nonBlank(_ value: Any?) -> String? {

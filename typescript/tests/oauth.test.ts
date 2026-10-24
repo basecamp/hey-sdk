@@ -46,6 +46,10 @@ for (const [name, invoke] of Object.entries(entryPoints)) {
     });
   });
   it(`${name} preserves structured error messages and bounds error bodies`, async () => {
+    // Discovery is not a token endpoint, so its {"error"} is a sentence, never an OAuth code.
+    if (name === "discover")
+      await expect(invoke({ fetch: async () => Response.json({ error: "denied" }, { status: 401 }) }))
+        .rejects.toMatchObject({ oauthError: undefined });
     await expect(invoke({ fetch: async () => Response.json({ error: "denied" }, { status: 401 }) }))
       .rejects.toMatchObject({ code: "auth_required", message: "denied" });
     await expect(invoke({ fetch: async () => new Response("x".repeat(1024 * 1024 + 1), { status: 503 }) }))
@@ -54,6 +58,16 @@ for (const [name, invoke] of Object.entries(entryPoints)) {
 }
 
 for (const [name, invoke] of Object.entries(grants)) {
+  it.each([
+    ["invalid_grant", "Invalid refresh token."],
+    ["invalid_client", "OAuth client is not authorized."],
+  ])(`${name} keeps a 401 %s apart as the OAuth code, its description in the message`, async (error, error_description) => {
+    await expect(invoke({ fetch: async () => Response.json({ error, error_description }, { status: 401 }) }))
+      .rejects.toMatchObject({
+        code: "auth_required", httpStatus: 401, oauthError: error,
+        message: expect.stringContaining(error_description),
+      });
+  });
   it.each([undefined, "", 123, null, false, {}, "Custom", "DPoP"])(`${name} rejects unsupported token_type %j`, async token_type => {
     await expect(invoke({ fetch: async () => Response.json({ access_token: "token", token_type }) }))
       .rejects.toMatchObject({ code: "api_error", message: "OAuth response has unsupported token type" });

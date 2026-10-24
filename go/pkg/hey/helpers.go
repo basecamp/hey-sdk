@@ -3,6 +3,7 @@ package hey
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -16,15 +17,46 @@ import (
 // CheckResponse converts HTTP response errors to SDK errors for non-2xx responses.
 // It is exported for use by conformance testing and consumers using the raw generated client.
 //
-// A 422's error carries the reasons HEY gave (Error.FieldErrors), read from the body; the
-// body is left for the caller to read again.
+// A 422's error carries the reasons HEY gave (Error.FieldErrors), read from the body. Any
+// other error status's body is read for an RFC 6749 refusal, which HEY's token endpoint
+// answers with: its error_description becomes the message and its error the OAuthCode, while
+// the error's code, status and retryability stay the status's. Either way the body is left
+// for the caller to read again.
+//
+// Converting the response is all this does. Of what the model says about an operation, the
+// generated client honours that a 401 on an unsigned one is its answer, and that a
+// no-redirect one follows no redirect when its Doer is an *http.Client; leaving an unsigned
+// operation's credentials off is a request editor's to do, and only the Client's own does.
 func CheckResponse(resp *http.Response) error {
 	if resp != nil && resp.StatusCode == http.StatusUnprocessableEntity {
 		e := validationFromBody(peekErrorBody(resp))
 		e.RequestID = resp.Header.Get("X-Request-Id")
 		return e
 	}
-	return statusError(resp)
+	err := statusError(resp)
+	if e, ok := err.(*Error); ok {
+		describeRefusal(e, peekErrorBody(resp))
+	}
+	return err
+}
+
+// describeRefusal gives e the words of an RFC 6749 refusal in body,
+// {"error": "<code>", "error_description": "<sentence>"}: the description as its message
+// and the code as its OAuthCode. A body without a description to show is no such refusal —
+// HEY's other errors send {"error": ...}, {"errors": [...]} or {"message": ...} — and leaves
+// e as the status made it.
+func describeRefusal(e *Error, body []byte) {
+	var refusal struct {
+		Error       json.RawMessage `json:"error"`
+		Description json.RawMessage `json:"error_description"`
+	}
+	var description string
+	if json.Unmarshal(body, &refusal) != nil || json.Unmarshal(refusal.Description, &description) != nil ||
+		strings.TrimSpace(description) == "" {
+		return
+	}
+	e.Message = truncateString(description, MaxErrorMessageBytes)
+	_ = json.Unmarshal(refusal.Error, &e.OAuthCode)
 }
 
 // statusError is the error CheckResponse builds from the status and headers alone, without

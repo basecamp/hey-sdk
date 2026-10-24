@@ -34,6 +34,7 @@ fn check(run: &Run, assertion: &Assertion) -> Result<(), String> {
         "delayBetweenRequests" => check_delay_between_requests(run, assertion),
         "noError" => check_no_error(run),
         "errorCode" => check_error_code(run, assertion),
+        "errorMessageContains" => check_error_message_contains(run, assertion),
         "errorField" => check_error_field(run, assertion),
         "statusCode" => check_status_code(run, assertion),
         "requestPath" => check_request_path(run, assertion, First),
@@ -45,6 +46,7 @@ fn check(run: &Run, assertion: &Assertion) -> Result<(), String> {
         "requestForm" => check_request_form(run, assertion, First),
         "lastRequestForm" => check_request_form(run, assertion, Last),
         "headerPresent" => check_header_present(run, assertion),
+        "headerAbsent" => check_header_absent(run, assertion),
         "lastRequestHeader" => check_last_request_header(run, assertion),
         "responseMeta" => check_response_meta(run, assertion),
         "urlOrigin" => check_url_origin(run, assertion),
@@ -112,6 +114,22 @@ fn empty_statuses(operation: &str) -> &'static [u16] {
         .find(|route| route.id == operation)
         .map(|route| route.empty_on)
         .unwrap_or_default()
+}
+
+/// The operation failed, and its error reads with the expected words in it: the message as
+/// a caller prints it, hint and all.
+fn check_error_message_contains(run: &Run, assertion: &Assertion) -> Result<(), String> {
+    let expected = expected_string(assertion, "errorMessageContains")?;
+    match run.outcome {
+        Ok(_) => Err(format!(
+            "Expected an error whose message contains {expected:?}, but the operation succeeded"
+        )),
+        Err(error) if error.to_string().contains(expected) => Ok(()),
+        Err(error) => Err(format!(
+            "Expected the error message to contain {expected:?}, got {:?}",
+            error.to_string()
+        )),
+    }
 }
 
 fn check_error_code(run: &Run, assertion: &Assertion) -> Result<(), String> {
@@ -414,6 +432,25 @@ fn check_header_present(run: &Run, assertion: &Assertion) -> Result<(), String> 
         ))
     } else {
         Ok(())
+    }
+}
+
+/// No request the server recorded carried the header, by any spelling of its name: a header
+/// map's lookup ignores case. With nothing recorded there is nothing to check, and the case's
+/// own `requestCount` says whether that is right.
+fn check_header_absent(run: &Run, assertion: &Assertion) -> Result<(), String> {
+    let name = &assertion.path;
+    match run
+        .recorded
+        .headers
+        .iter()
+        .position(|headers| headers.contains_key(name.as_str()))
+    {
+        None => Ok(()),
+        Some(index) => Err(format!(
+            "Expected no request to carry header {name:?}, but request {} did",
+            index + 1
+        )),
     }
 }
 

@@ -21,6 +21,7 @@ pub mod habits;
 pub mod identity;
 pub mod journal;
 pub mod messages;
+pub mod oauth;
 pub mod postings;
 pub mod publications;
 pub mod search;
@@ -107,6 +108,10 @@ impl Client {
 
     pub fn messages(&self) -> messages::Messages<'_> {
         messages::Messages::new(self)
+    }
+
+    pub fn oauth(&self) -> oauth::OAuth<'_> {
+        oauth::OAuth::new(self)
     }
 
     pub fn postings(&self) -> postings::Postings<'_> {

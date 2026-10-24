@@ -1392,6 +1392,36 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/oauth/tokens.json": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * @description Trade an authorization code, or a refresh token, for tokens. `grant_type` names which:
+         *     "authorization_code" sends `code`, `redirect_uri` and `code_verifier` (PKCE), and
+         *     "refresh_token" sends `refresh_token`. Every grant names the client and the install it is
+         *     for. A refresh answers the refresh token it was sent, unchanged, beside the new access
+         *     token. Not sent again after a failure: a code is redeemed once.
+         */
+        post: operations["CreateToken"];
+        /**
+         * @description Revoke an access or a refresh token the client was handed, ending the session behind it:
+         *     what a sign-out asks. HEY answers 200 {} for a token that names nothing, the point of
+         *     revoking it reached, and refuses one another client was handed (invalid_client, 401).
+         *     The token goes in the body, never the query, where logs would keep it, so this DELETE has
+         *     a payload: HEY reads its params from either, and every SDK's client sends one.
+         */
+        delete: operations["RevokeToken"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/paper_trail.json": {
         parameters: {
             query?: never;
@@ -2651,6 +2681,25 @@ export interface components {
         CreateReplyResponseContent: components["schemas"]["SentMessage"];
         CreateStickyResponseContent: components["schemas"]["Sticky"];
         CreateTimeTrackResponseContent: components["schemas"]["Recording"];
+        CreateTokenRequestContent: {
+            /** @description "authorization_code" or "refresh_token". */
+            grant_type: string;
+            /** @description The OAuth client's id. */
+            client_id: string;
+            /**
+             * @description Identifies this installation to HEY as a device: the value the authorization URL
+             *     carried, for a code.
+             */
+            install_id: string;
+            /** @description The authorization code the redirect carried (authorization_code). */
+            code?: string;
+            /** @description The redirect URI the authorization request named (authorization_code). */
+            redirect_uri?: string;
+            /** @description The PKCE verifier whose challenge the authorization request sent (authorization_code). */
+            code_verifier?: string;
+            /** @description The refresh token to trade (refresh_token). */
+            refresh_token?: string;
+        };
         /** @description Wire format: {comment: {content: "<div>…</div>"}} */
         CreateTopicCommentRequestContent: {
             comment: components["schemas"]["TopicCommentPayload"];
@@ -3108,6 +3157,48 @@ export interface components {
         NotFoundErrorResponseContent: {
             message: string;
         };
+        /**
+         * @description A refusal from the token endpoint (RFC 6749 §5.2): invalid_request, invalid_grant,
+         *     unsupported_grant_type and the like. `error` is the code a client acts on;
+         *     `error_description` is HEY's sentence for a person ("install_id doesn't identify this install.
+         *     Upgrade your client.").
+         */
+        OAuthBadRequestErrorResponseContent: {
+            error: string;
+            error_description?: string;
+        };
+        /** @description unauthorized_client, or two_factor_authentication_required. */
+        OAuthForbiddenErrorResponseContent: {
+            error: string;
+            error_description?: string;
+        };
+        /** @description The tokens a grant answers. */
+        OAuthToken: {
+            access_token: string;
+            /** @description "bearer". */
+            token_type: string;
+            /**
+             * Format: int64
+             * @description Seconds the access token lasts from the moment HEY answered.
+             */
+            expires_in?: number | bigint;
+            /** @description The token to refresh with: a new one for a code, the one sent for a refresh. */
+            refresh_token?: string;
+        };
+        /** @description rate_limit_exceeded: too many failed grants within the hour. */
+        OAuthTooManyRequestsErrorResponseContent: {
+            error: string;
+            error_description?: string;
+        };
+        /**
+         * @description invalid_client, or invalid_grant for a dead refresh token: HEY answers that one 401 rather
+         *     than RFC 6749's 400, since shipped apps sign out on a refresh 401. The code tells the two
+         *     apart.
+         */
+        OAuthUnauthorizedErrorResponseContent: {
+            error: string;
+            error_description?: string;
+        };
         /** @description Organizer — calendar event organizer */
         Organizer: {
             email_address?: string;
@@ -3308,6 +3399,12 @@ export interface components {
             content: string;
         };
         RevealContactResponseContent: components["schemas"]["Contact"];
+        RevokeTokenRequestContent: {
+            /** @description The OAuth client's id: the client the token was handed to. */
+            client_id: string;
+            /** @description The access or refresh token to revoke. */
+            token: string;
+        };
         SchedulePostingsBubbleUpRequestContent: {
             posting_ids: (number | bigint)[];
             slot: string;
@@ -8990,6 +9087,151 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["UnauthorizedErrorResponseContent"];
+                };
+            };
+            /** @description InternalServerError 500 response */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InternalServerErrorResponseContent"];
+                };
+            };
+            /** @description ServiceUnavailableError 503 response */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ServiceUnavailableErrorResponseContent"];
+                };
+            };
+        };
+    };
+    CreateToken: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateTokenRequestContent"];
+            };
+        };
+        responses: {
+            /** @description CreateToken 200 response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OAuthToken"];
+                };
+            };
+            /** @description OAuthBadRequestError 400 response */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OAuthBadRequestErrorResponseContent"];
+                };
+            };
+            /** @description OAuthUnauthorizedError 401 response */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OAuthUnauthorizedErrorResponseContent"];
+                };
+            };
+            /** @description OAuthForbiddenError 403 response */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OAuthForbiddenErrorResponseContent"];
+                };
+            };
+            /** @description OAuthTooManyRequestsError 429 response */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OAuthTooManyRequestsErrorResponseContent"];
+                };
+            };
+            /** @description InternalServerError 500 response */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InternalServerErrorResponseContent"];
+                };
+            };
+            /** @description ServiceUnavailableError 503 response */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ServiceUnavailableErrorResponseContent"];
+                };
+            };
+        };
+    };
+    RevokeToken: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RevokeTokenRequestContent"];
+            };
+        };
+        responses: {
+            /** @description RevokeToken 200 response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description OAuthBadRequestError 400 response */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OAuthBadRequestErrorResponseContent"];
+                };
+            };
+            /** @description OAuthUnauthorizedError 401 response */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OAuthUnauthorizedErrorResponseContent"];
+                };
+            };
+            /** @description OAuthTooManyRequestsError 429 response */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OAuthTooManyRequestsErrorResponseContent"];
                 };
             };
             /** @description InternalServerError 500 response */

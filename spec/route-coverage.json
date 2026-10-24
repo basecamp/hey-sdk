@@ -101,6 +101,11 @@
   },
   {
     "method": "POST",
+    "operationId": "CreateToken",
+    "path": "/oauth/tokens.json"
+  },
+  {
+    "method": "POST",
     "operationId": "CreateTopicComment",
     "path": "/topics/{topicId}/comments.json"
   },
@@ -553,6 +558,11 @@
     "method": "POST",
     "operationId": "RevealContact",
     "path": "/contacts/{contactId}/reveal.json"
+  },
+  {
+    "method": "DELETE",
+    "operationId": "RevokeToken",
+    "path": "/oauth/tokens.json"
   },
   {
     "method": "POST",

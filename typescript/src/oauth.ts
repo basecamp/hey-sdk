@@ -98,10 +98,15 @@ export function authorizationURL(
   }
   return url;
 }
+/**
+ * `oauth` says the endpoint is a token endpoint, which refuses in RFC 6749's shape, so the
+ * body's `error` is the OAuth code a caller acts on; discovery's is not.
+ */
 async function request(
   url: URL,
   init: RequestInit,
   options: OAuthOptions,
+  oauth = false,
 ): Promise<OAuthResponse> {
   const signal = AbortSignal.any([
     AbortSignal.timeout(30_000),
@@ -134,7 +139,7 @@ async function request(
         { cause },
       );
   }
-  if (!response.ok) throw responseError(response, body);
+  if (!response.ok) throw responseError(response, body, oauth);
   return {
     body,
     status: response.status,
@@ -211,6 +216,7 @@ async function tokenRequest(
       body,
     },
     options,
+    true,
   );
   const token = response.body as OAuthToken;
   if (

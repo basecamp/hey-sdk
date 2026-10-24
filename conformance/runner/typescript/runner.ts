@@ -250,6 +250,13 @@ async function run(tc: Fixture) {
         assert.ok(error instanceof HeyError, String(error));
         assert.equal(error.code, a.expected);
         break;
+      case "errorMessageContains":
+        assert.ok(error instanceof Error, String(error));
+        assert.ok(
+          error.message.includes(a.expected),
+          `error message ${JSON.stringify(error.message)} lacks ${JSON.stringify(a.expected)}`,
+        );
+        break;
       case "errorField":
         assert.ok(error);
         assert.ok(
@@ -291,6 +298,15 @@ async function run(tc: Fixture) {
       }
       case "headerPresent":
         assert.ok(first?.headers[a.path.toLowerCase()]);
+        break;
+      case "headerAbsent":
+        // Node lower-cases the header names it records, so the lookup is case-insensitive.
+        for (const [index, request] of requests.entries())
+          assert.equal(
+            request.headers[a.path.toLowerCase()],
+            undefined,
+            `request ${index + 1} carried ${a.path}`,
+          );
         break;
       case "lastRequestHeader":
         assert.equal(last?.headers[a.path.toLowerCase()] ?? "", a.expected);

@@ -205,7 +205,10 @@ type accountScopedTransport struct {
 func (t *accountScopedTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	request := req.Clone(req.Context())
 	request.Header = req.Header.Clone()
-	applyAccountScope(t.baseURL, t.accountID, request.URL)
+	// An unsigned request carries no identity, so it has no account to present.
+	if !operationMetadataOf(req).Unsigned {
+		applyAccountScope(t.baseURL, t.accountID, request.URL)
+	}
 	removeAccountFilterCookie(request)
 	return t.inner.RoundTrip(request)
 }

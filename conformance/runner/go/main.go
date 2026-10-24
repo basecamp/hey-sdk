@@ -252,7 +252,11 @@ func runTest(tc TestCase) TestResult {
 	// A hand-written page carries its pagination state beside the value, read off the
 	// headers the SDK answered with — the cached ones, when a 304 confirmed the page.
 	var heyPage *pageMeta
-	if layer, _ := tc.ConfigOverrides["clientLayer"].(string); layer == "hey" {
+	// An operation HEY takes unsigned runs through the HEY client too: whether it goes out
+	// signed is that client's to decide, and the generated one signs with whatever editors
+	// it is handed, as this runner's own does.
+	layer, _ := tc.ConfigOverrides["clientLayer"].(string)
+	if meta, _ := generated.GetOperationMetadata(tc.Operation); layer == "hey" || meta.Unsigned {
 		// The HEY client's own retry settings are a ceiling over each operation's policy,
 		// and a case that exercises the ceiling says where it sits (configOverrides
 		// maxRetries, baseDelayMs); any other case runs with no resends.
@@ -595,6 +599,18 @@ func checkAssertion(testName string, a Assertion, s checkState) TestResult {
 			return fail(testName, "Expected error code %q, got %q", expected, s.sdkError.Code)
 		}
 
+	case "errorMessageContains":
+		expected, ok := a.Expected.(string)
+		if !ok {
+			return fail(testName, "errorMessageContains: expected a string value, got %T", a.Expected)
+		}
+		if s.sdkError == nil {
+			return fail(testName, "Expected an error whose message contains %q, but got no error", expected)
+		}
+		if got := s.sdkError.Error(); !strings.Contains(got, expected) {
+			return fail(testName, "Expected the error message to contain %q, got %q", expected, got)
+		}
+
 	case "errorField":
 		if s.sdkError == nil {
 			return fail(testName, "Expected error field %q, but got no error", a.Path)
@@ -782,6 +798,15 @@ func checkAssertion(testName string, a Assertion, s checkState) TestResult {
 		}
 		if s.requestHeaders[0].Get(headerName) == "" {
 			return fail(testName, "Expected header %q to be present, but it was not", headerName)
+		}
+
+	case "headerAbsent":
+		// No request may carry the header, under any spelling of its name: net/http
+		// canonicalizes the names it records, and Values reads them the same way.
+		for i, header := range s.requestHeaders {
+			if values := header.Values(a.Path); len(values) > 0 {
+				return fail(testName, "Expected header %q to be absent, but request %d carried %q", a.Path, i+1, values)
+			}
 		}
 
 	case "lastRequestHeader":
@@ -1756,6 +1781,21 @@ func executeHEYOperation(client *hey.Client, ctx context.Context, tc TestCase) (
 	case "SendDraft":
 		entryID := getInt64Param(tc.PathParams, "entryId")
 		return client.Messages().SendDraft(ctx, entryID, draftContentParam(tc.RequestBody))
+	case "CreateToken":
+		return client.OAuth().CreateToken(ctx, generated.CreateTokenRequestContent{
+			GrantType:    getStringParam(tc.RequestBody, "grant_type"),
+			ClientId:     getStringParam(tc.RequestBody, "client_id"),
+			InstallId:    getStringParam(tc.RequestBody, "install_id"),
+			Code:         getStringParam(tc.RequestBody, "code"),
+			RedirectUri:  getStringParam(tc.RequestBody, "redirect_uri"),
+			CodeVerifier: getStringParam(tc.RequestBody, "code_verifier"),
+			RefreshToken: getStringParam(tc.RequestBody, "refresh_token"),
+		})
+	case "RevokeToken":
+		return nil, client.OAuth().RevokeToken(ctx, generated.RevokeTokenRequestContent{
+			ClientId: getStringParam(tc.RequestBody, "client_id"),
+			Token:    getStringParam(tc.RequestBody, "token"),
+		})
 	default:
 		return nil, fmt.Errorf("HEY client conformance does not support operation: %s", tc.Operation)
 	}
