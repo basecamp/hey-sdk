@@ -386,6 +386,13 @@ purpose to prove those validators still fire. Decide from haystack's controller,
 verb or the name: `HideContact` is a DELETE and reversible, `TrashPostings` is a POST and
 can be irreversible, `DeleteCalendarEvent` emails cancellations.
 
+The model also carries `unsigned` and `no_redirect`, from `@heyUnsigned` and `@heyNoRedirect`,
+`false` unless the operation declares the trait. Neither is an effect, and neither trait is
+mandatory: they tell a consumer that reads only the model which operations go without the
+caller's credentials and take a 3xx as their answer, today the token endpoint's `CreateToken`
+and `RevokeToken`. The SDK generators read the same traits from `openapi.json`'s
+`x-hey-unsigned` and `x-hey-no-redirect`.
+
 ## Adding an operation
 
 1. Edit `spec/hey.smithy`, declaring the operation's effect and provenance traits (above)

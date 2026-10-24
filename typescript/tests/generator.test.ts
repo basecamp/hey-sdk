@@ -161,6 +161,20 @@ it("lets the verb stand in for idempotency when the behavior model says neither"
   expect(operationMetadata.CreateToken.safe).toBe(false);
   expect(operationMetadata.UpdateMessage.safe).toBe(false);
 });
+it("carries each operation's unsigned and no-redirect flags into the behavior model", () => {
+  // A consumer that reads only behavior-model.json (the MCP toolkit, an agent's policy layer)
+  // learns there which operations go without credentials and refuse a redirect.
+  for (const item of Object.values(spec.paths))
+    for (const o of Object.values(item) as Record<string, unknown>[]) {
+      const id = o.operationId as string | undefined;
+      if (!id) continue;
+      const b = behavior.operations[id] as { unsigned?: boolean; no_redirect?: boolean };
+      expect(b.unsigned, id).toBe(o["x-hey-unsigned"] !== undefined);
+      expect(b.no_redirect, id).toBe(o["x-hey-no-redirect"] !== undefined);
+    }
+  expect(behavior.operations.CreateToken).toMatchObject({ unsigned: true, no_redirect: true });
+  expect(behavior.operations.RevokeToken).toMatchObject({ unsigned: true, no_redirect: true });
+});
 it("marks the operations whose refusals are RFC 6749's", () => {
   for (const [id, m] of Object.entries(operationMetadata))
     expect((m as { oauthErrors?: true }).oauthErrors, id).toBe(

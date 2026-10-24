@@ -77,6 +77,12 @@ def condition:
           open_world: write_effect("heyOpenWorld"),
           untrusted_content: declared(.key | split("#")[1]; "heyUntrustedContent")
         } +
+        # Credentials and redirects: an operation HEY takes unsigned, and one that follows
+        # no redirect (spec/hey-traits.smithy)
+        {
+          unsigned: (.value.traits["hey.traits#heyUnsigned"] != null),
+          no_redirect: (.value.traits["hey.traits#heyNoRedirect"] != null)
+        } +
         (if .value.traits["hey.traits#heyDraftWhen"] != null then
           { draft_when: (.value.traits["hey.traits#heyDraftWhen"] | map(condition)) }
         else {} end) +
