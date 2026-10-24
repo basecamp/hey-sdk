@@ -9,7 +9,7 @@ import FoundationNetworking
 
 /// Answers every request with a success and the start of a 1000-byte body, then never sends the
 /// rest, as a connection that stalls mid-body does. Counts the requests it sees.
-final class StallingSuccessProtocol: URLProtocol, @unchecked Sendable {
+final class StallingSuccessProtocol: URLProtocol {
     nonisolated(unsafe) static var status = 200
     private static let lock = NSLock()
     nonisolated(unsafe) private static var seen = 0
