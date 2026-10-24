@@ -50,6 +50,38 @@ impl ServerMetadata {
             scopes_supported: None,
         }
     }
+
+    /// Holds discovered metadata to RFC 8414 §3.3: it names the issuer it was asked for, or
+    /// it is not used, which keeps one server from answering for another. Endpoints may sit
+    /// on other hosts, but every one must be HTTPS.
+    fn validate(&self, issuer: &str) -> Result<(), Error> {
+        let endpoints = [
+            Some(&self.issuer),
+            Some(&self.authorization_endpoint),
+            Some(&self.token_endpoint),
+            self.registration_endpoint.as_ref(),
+        ];
+        for endpoint in endpoints.into_iter().flatten() {
+            let url = Url::parse(endpoint).map_err(|_| {
+                Error::api(200, "Invalid OAuth discovery response")
+                    .with_hint(format!("{endpoint} is not an absolute URL"))
+            })?;
+            if has_credentials(&url) || url.fragment().is_some() {
+                return Err(Error::api(200, "Invalid OAuth discovery response")
+                    .with_hint("an endpoint carries credentials or a fragment"));
+            }
+            require_secure_endpoint(&url).map_err(|_| {
+                Error::api(200, "Invalid OAuth discovery response")
+                    .with_hint(format!("{endpoint} must use HTTPS"))
+            })?;
+        }
+        if self.issuer == issuer {
+            Ok(())
+        } else {
+            Err(Error::api(200, "OAuth discovery issuer does not match")
+                .with_hint(format!("asked {issuer}, answered {}", self.issuer)))
+        }
+    }
 }
 
 /// A token response. `expires_in` is a lifetime that starts decaying the moment the server
@@ -200,16 +232,32 @@ impl OAuthClient {
         }
     }
 
-    /// What the server under `base_url` publishes at its well-known endpoint. HEY publishes
-    /// nothing there; [`ServerMetadata::for_hey`] is its answer.
+    /// What the issuer at `base_url` publishes at its well-known endpoint (RFC 8414). HEY
+    /// publishes nothing there; [`ServerMetadata::for_hey`] is its answer.
+    ///
+    /// The metadata names the endpoints a code, its verifier, the client secret and refresh
+    /// tokens go to, so it is trusted only from where it was asked: the issuer must be HTTPS,
+    /// with no query, fragment or credentials, and is refused before anything is sent; a
+    /// redirect is an error, as the [`HttpClient`] follows none; and the metadata is used only
+    /// when it names that same issuer and HTTPS endpoints.
     pub async fn discover(&self, base_url: &str) -> Result<ServerMetadata, Error> {
-        let url = format!(
-            "{}/.well-known/oauth-authorization-server",
-            base_url.trim_end_matches('/')
-        );
+        let issuer = Url::parse(base_url)?;
+        // Before the scheme, whose error names the URL, which may carry a password.
+        if issuer.query().is_some() || issuer.fragment().is_some() || has_credentials(&issuer) {
+            return Err(Error::usage(
+                "OAuth issuer must have no query, fragment or credentials",
+            ));
+        }
+        require_secure_endpoint(&issuer)?;
+        // The well-known path goes between the host and the issuer's own path (RFC 8414 §3.1).
+        let mut url = issuer.clone();
+        url.set_path(&format!(
+            "/.well-known/oauth-authorization-server{}",
+            issuer.path().trim_end_matches('/')
+        ));
         let request = Request::builder()
             .method(Method::GET)
-            .uri(url)
+            .uri(url.as_str())
             .header(ACCEPT, "application/json")
             .body(Bytes::new())
             .map_err(Error::from_std)?;
@@ -218,7 +266,9 @@ impl OAuthClient {
         let status = response.status();
         if status == StatusCode::OK {
             let body = read_capped(response, MAX_TOKEN_RESPONSE_BYTES).await?;
-            Ok(serde_json::from_slice(&body)?)
+            let metadata: ServerMetadata = serde_json::from_slice(&body)?;
+            metadata.validate(base_url)?;
+            Ok(metadata)
         } else {
             let body = read_truncated(response, MAX_DISCOVERY_ERROR_BYTES).await;
             Err(Error::api(
@@ -276,6 +326,10 @@ impl OAuthClient {
             Err(token_error(status, &body))
         }
     }
+}
+
+fn has_credentials(url: &Url) -> bool {
+    !url.username().is_empty() || url.password().is_some()
 }
 
 fn require(value: &str, message: &str) -> Result<(), Error> {
@@ -500,7 +554,7 @@ mod tests {
             .and(path("/.well-known/oauth-authorization-server"))
             .and(header("accept", "application/json"))
             .respond_with(ResponseTemplate::new(200).set_body_json(json!({
-                "issuer": "https://auth.example.com",
+                "issuer": server.uri(),
                 "authorization_endpoint": "https://auth.example.com/authorize",
                 "token_endpoint": "https://auth.example.com/token",
                 "scopes_supported": [ "read", "write" ]
@@ -519,6 +573,141 @@ mod tests {
             metadata.scopes_supported
         );
         assert_eq!(None, metadata.registration_endpoint);
+    }
+
+    #[cfg(feature = "reqwest")]
+    async fn serve_metadata(server: &MockServer, metadata: serde_json::Value) {
+        Mock::given(method("GET"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(metadata))
+            .mount(server)
+            .await;
+    }
+
+    // Over plain HTTP anyone on the network could answer with endpoints of their own, so an
+    // issuer must be HTTPS, as a token endpoint already must, and is refused before anything
+    // is sent.
+    #[cfg(feature = "reqwest")]
+    #[tokio::test]
+    async fn discover_refuses_an_insecure_issuer_before_sending() {
+        for issuer in [
+            "http://evil.example",
+            "https://app.hey.com?tenant=1",
+            "https://app.hey.com#fragment",
+            "https://app.hey.com?",
+            "https://app.hey.com#",
+            "https://user:secret@app.hey.com",
+            "app.hey.com",
+        ] {
+            let error = OAuthClient::default().discover(issuer).await.unwrap_err();
+
+            // A request sent would end as a network or API error, never a usage one.
+            assert_eq!(
+                crate::error::ErrorCode::Usage,
+                error.code(),
+                "{issuer}: {error:?}"
+            );
+        }
+    }
+
+    // An error is logged, so a password in the issuer stays out of it.
+    #[cfg(feature = "reqwest")]
+    #[tokio::test]
+    async fn discover_keeps_an_issuers_credentials_out_of_its_error() {
+        for issuer in [
+            "https://user:secret@app.hey.com",
+            "http://user:secret@evil.example",
+        ] {
+            let error = OAuthClient::default().discover(issuer).await.unwrap_err();
+
+            assert!(!format!("{error}").contains("secret"), "{error}");
+            assert!(!format!("{error:?}").contains("secret"), "{error:?}");
+        }
+    }
+
+    // RFC 8414 §3.3: metadata naming another issuer is not used.
+    #[cfg(feature = "reqwest")]
+    #[tokio::test]
+    async fn discover_refuses_metadata_of_another_issuer() {
+        let server = MockServer::start().await;
+        serve_metadata(&server, json!(metadata("https://issuer.example"))).await;
+
+        let error = OAuthClient::default()
+            .discover(&server.uri())
+            .await
+            .unwrap_err();
+
+        assert_eq!("OAuth discovery issuer does not match", error.message());
+    }
+
+    #[cfg(feature = "reqwest")]
+    #[tokio::test]
+    async fn discover_refuses_endpoints_that_are_not_https() {
+        for (field, value) in [
+            ("token_endpoint", "http://evil.example/token"),
+            ("authorization_endpoint", "http://evil.example/authorize"),
+            ("registration_endpoint", "http://evil.example/register"),
+            ("token_endpoint", ""),
+            ("token_endpoint", "https://user:secret@token.example/oauth"),
+            ("token_endpoint", "https://token.example/oauth#fragment"),
+        ] {
+            let server = MockServer::start().await;
+            let mut answer = json!(metadata(&server.uri()));
+            answer[field] = json!(value);
+            serve_metadata(&server, answer).await;
+
+            let error = OAuthClient::default()
+                .discover(&server.uri())
+                .await
+                .unwrap_err();
+
+            assert_eq!(
+                "Invalid OAuth discovery response",
+                error.message(),
+                "{field}: {value:?}"
+            );
+        }
+    }
+
+    // A redirect would take the endpoints from whatever answered it; the client follows none,
+    // so the 3xx is the answer, and an error.
+    #[cfg(feature = "reqwest")]
+    #[tokio::test]
+    async fn discover_follows_no_redirect() {
+        let issuer = MockServer::start().await;
+        let other = MockServer::start().await;
+        serve_metadata(&other, json!(metadata(&issuer.uri()))).await;
+        Mock::given(method("GET"))
+            .respond_with(ResponseTemplate::new(302).insert_header(
+                "location",
+                format!("{}/.well-known/oauth-authorization-server", other.uri()),
+            ))
+            .mount(&issuer)
+            .await;
+
+        let error = OAuthClient::default()
+            .discover(&issuer.uri())
+            .await
+            .unwrap_err();
+
+        assert_eq!(Some(302), error.http_status());
+        assert!(other.received_requests().await.unwrap().is_empty());
+    }
+
+    // RFC 8414 §3.1: the well-known path goes between the host and the issuer's own path.
+    #[cfg(feature = "reqwest")]
+    #[tokio::test]
+    async fn discover_asks_before_the_issuers_path() {
+        let server = MockServer::start().await;
+        let issuer = format!("{}/tenant", server.uri());
+        Mock::given(method("GET"))
+            .and(path("/.well-known/oauth-authorization-server/tenant"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(json!(metadata(&issuer))))
+            .mount(&server)
+            .await;
+
+        let metadata = OAuthClient::default().discover(&issuer).await.unwrap();
+
+        assert_eq!(issuer, metadata.issuer);
     }
 
     #[cfg(feature = "reqwest")]
