@@ -3,6 +3,39 @@
 Breaking changes to the SDKs' public surface, by release, with what to change. Wire behavior
 is not versioned here; the conformance fixtures under `conformance/tests/` hold that.
 
+## Go, TypeScript and Rust: the first release after 0.33.1
+
+### A client with no credentials is refused when it is built
+
+HEY's OAuth token endpoint is now a generated operation (`CreateToken`, `RevokeToken`) that goes
+out unsigned. A client made only to call it holds no credentials and says so with
+`NoCredentials`. A client given nothing at all is a forgotten token, so it is now refused when
+it is built rather than failing at its first send:
+
+- **Go.** `hey.NewClient` panics when given neither a token provider nor an auth strategy. Such a
+  client already crashed on a nil pointer at its first send. Build a credential-less client with
+  `hey.WithAuthStrategy(hey.NoCredentials{})`.
+- **TypeScript.** `new HeyClient(...)` throws a `usage` `HeyError` when `token` is neither a string nor a
+  `TokenProvider`. Before, it failed with a `TypeError` at the first send. Pass
+  `token: NoCredentials`.
+
+On a `NoCredentials` client, every signed operation fails `auth_required` before anything is
+sent.
+
+### Rust: `Route` gains `unsigned` and `no_redirect`
+
+A `Route` written literally for `Client::operation` adds both fields:
+
+```rust
+// before
+Route { id, service, method, /* … */ lenient_success: false, pagination, retry }
+
+// after
+Route { id, service, method, /* … */ lenient_success: false, unsigned: false, no_redirect: false, pagination, retry }
+```
+
+`false` for both keeps the route as it was: signed, and following redirects as before.
+
 ## Rust: the first release after 0.32.1
 
 ### `CachedResponse` keeps the headers that came with the body

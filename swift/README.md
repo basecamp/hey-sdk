@@ -7,7 +7,7 @@ strict Swift 6 concurrency.
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/basecamp/hey-sdk", from: "0.33.1"),
+    .package(url: "https://github.com/basecamp/hey-sdk", from: "0.34.0"),
 ]
 ```
 
@@ -262,7 +262,7 @@ from this repository's `vX.Y.Z` tags and reads the `Package.swift` at its root, 
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/basecamp/hey-sdk", from: "0.33.1"),
+    .package(url: "https://github.com/basecamp/hey-sdk", from: "0.34.0"),
 ],
 targets: [
     .target(name: "YourApp", dependencies: [.product(name: "Hey", package: "hey-sdk")]),
