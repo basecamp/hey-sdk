@@ -1,6 +1,7 @@
 package com.basecamp.hey
 
 import com.basecamp.hey.generated.workflows
+import com.basecamp.hey.services.WorkflowStageTopic
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -29,6 +30,39 @@ class WorkflowsServiceTest {
         assertEquals(listOf(5512L, 5513L), client.workflows.stages(8801).map { it.id })
         assertEquals("/workflows/8801.json", hey.requests[0].path)
         assertEquals(emptyList(), client.workflows.stages(8801), "a workflow without stages has none rather than a missing list")
+    }
+
+    @Test
+    fun aStageAndItsThreadsAreReadAsJson() = runTest {
+        val hey = mockHey(
+            ok(
+                """{"id":5512,"name":"Applied","workflow_id":8801,"topics":[""" +
+                    """{"id":4471829,"name":"Application","status":"active","staging_id":91,"emails_count":3,"notes_count":1},""" +
+                    """{"id":4471830,"staging_id":92}]}""",
+            ),
+        )
+        val log = OperationLog()
+        val stage = hey.client { hooks = log }.workflows.stage(8801, 5512)
+        assertEquals(5512L, stage.id)
+        assertEquals("Applied", stage.name)
+        assertEquals(
+            listOf(
+                WorkflowStageTopic(stagingId = 91, topicId = 4471829, subject = "Application", entryCount = 3),
+                WorkflowStageTopic(stagingId = 92, topicId = 4471830, subject = "", entryCount = 0),
+            ),
+            stage.topics,
+            "the email count alone, and a sparse thread as defaults, in the order HEY lists them",
+        )
+        val request = hey.requests.single()
+        assertEquals("/workflows/8801/stages/5512.json", request.path)
+        assertEquals("application/json", request.header("Accept"))
+        assertEquals(listOf("Workflows.GetWorkflowStage:workflow_stage:false:5512"), log.started)
+    }
+
+    @Test
+    fun aStageHeyDoesNotHaveIsNotFound() = runTest {
+        val hey = mockHey(status(404, """{"error":"Not Found"}"""))
+        assertFailsWith<HeyException.NotFound> { hey.client().workflows.stage(8801, 5512) }
     }
 
     @Test

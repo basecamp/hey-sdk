@@ -1,87 +1,57 @@
 package com.basecamp.hey.services
 
 import com.basecamp.hey.HeyClient
-import com.basecamp.hey.HeyException
 import com.basecamp.hey.Method
 import com.basecamp.hey.OperationInfo
 import com.basecamp.hey.generated.Routes
 import com.basecamp.hey.generated.models.WorkflowStage
-import com.basecamp.hey.internal.HtmlNode
-import com.basecamp.hey.internal.parseHtml
+import com.basecamp.hey.generated.models.WorkflowStageDetail
 import com.basecamp.hey.writeInfo
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import com.basecamp.hey.generated.services.WorkflowsService as GeneratedWorkflowsService
 
-/** One thread on a workflow stage, as the stage page renders its card. */
+/** One thread on a workflow stage. */
 @Serializable
 data class WorkflowStageTopic(
-    /** The staging record that puts the thread on this stage, which is what `WorkflowsService.moveStaging` moves. */
+    /** The staging record that puts the thread on this stage. */
     @SerialName("staging_id") val stagingId: Long,
-    /** The thread the card is for. */
+    /** The thread. */
     @SerialName("topic_id") val topicId: Long,
-    /** The card's title; empty when the card renders none. */
+    /** The thread's subject; empty when HEY names none. */
     val subject: String,
-    /** How many emails the card says the thread holds; zero when the card does not say. */
+    /** How many emails the thread holds (HEY counts its notes separately); zero when HEY does not say. */
     @SerialName("entry_count") val entryCount: Long,
 )
 
-/**
- * A workflow stage as HEY renders it — the stage page is the only place a stage's threads
- * are listed — with the cards it shows.
- */
+/** A workflow stage and the threads on it. */
 @Serializable
 data class WorkflowStageView(
-    /** The stage, as the caller asked for it. */
+    /** The stage. */
     val id: Long,
-    /** The stage's name as the page shows it; empty when the page names none. */
+    /** The stage's name; empty when HEY names none. */
     val name: String,
-    /** The cards on the stage, in the order the page shows them. */
+    /** The threads on the stage, in the order the stage shows them. */
     val topics: List<WorkflowStageTopic>,
 ) {
     companion object {
         /**
-         * Reads the stage out of the page HEY serves for it, the way Go and Rust do: the
-         * element whose id names the stage, the first `h2` at or under it for the name, and
-         * every outermost element under it whose id is `topic_<id>` for a card. A card is
-         * skipped when its thread or staging id will not parse as a positive number, or when
-         * its detail line does not start with a count. Text meant for screen readers is left
-         * out of names and subjects.
+         * The stage as the generated [GeneratedWorkflowsService.getStage] answers it, reduced to
+         * the threads' ids, subjects and email counts. A negative count, which HEY does not
+         * send, reads as zero.
          */
-        fun parse(html: String, stageId: Long): WorkflowStageView {
-            val document = parseHtml(html)
-            val stage = document.descendants().firstOrNull { it.attribute("id") == "container_workflow_stage_$stageId" }
-                ?: throw HeyException.NotFound("workflow stage not found: $stageId")
-            val name = stage.firstAtOrUnder { it.tag == "h2" }?.visibleText().orEmpty()
-            // Outermost cards only, in document order, found without recursion: the page's
-            // nesting is the server's to decide.
-            val topics = mutableListOf<WorkflowStageTopic>()
-            val pending = ArrayDeque<HtmlNode.Element>()
-            stage.children.asReversed().filterIsInstance<HtmlNode.Element>().forEach(pending::addLast)
-            while (pending.isNotEmpty()) {
-                val element = pending.removeLast()
-                if (element.attribute("id")?.startsWith("topic_") == true) {
-                    topic(element)?.let { topics += it }
-                } else {
-                    element.children.asReversed().filterIsInstance<HtmlNode.Element>().forEach(pending::addLast)
-                }
-            }
-            return WorkflowStageView(stageId, name, topics)
-        }
-
-        private fun topic(card: HtmlNode.Element): WorkflowStageTopic? {
-            val topicId = positive(card.attribute("id")?.removePrefix("topic_")) ?: return null
-            val stagingId = positive(card.attribute("data-identifier")) ?: return null
-            val subject = card.firstAtOrUnder { it.tag == "h3" }?.visibleText().orEmpty()
-            val detail = card.firstAtOrUnder { it.tag == "p" && it.attribute("class")?.contains("card__detail") == true }
-            val entryCount = when (detail) {
-                null -> 0L
-                else -> detail.visibleText().split(' ').firstOrNull()?.toLongOrNull()?.takeIf { it >= 0 } ?: return null
-            }
-            return WorkflowStageTopic(stagingId = stagingId, topicId = topicId, subject = subject, entryCount = entryCount)
-        }
-
-        private fun positive(value: String?): Long? = value?.toLongOrNull()?.takeIf { it > 0 }
+        fun from(stage: WorkflowStageDetail): WorkflowStageView = WorkflowStageView(
+            id = stage.id,
+            name = stage.name.orEmpty(),
+            topics = stage.topics.orEmpty().map { topic ->
+                WorkflowStageTopic(
+                    stagingId = topic.stagingId,
+                    topicId = topic.id,
+                    subject = topic.name.orEmpty(),
+                    entryCount = (topic.emailsCount ?: 0).coerceAtLeast(0).toLong(),
+                )
+            },
+        )
     }
 }
 
@@ -97,10 +67,9 @@ data class WorkflowSummary(
 )
 
 /**
- * Workflows service with the stage page reader and the form-backed writes on top of the
- * generated surface (`get`, `getStage`, `createStaging`, `moveStaging`). A workflow has no
- * JSON surface beyond the page that reads one and the autocomplete endpoint that enumerates
- * them, so every write is a browser form post.
+ * Workflows service with the stage view and the form-backed writes on top of the generated
+ * surface (`get`, `getStage`, `createStaging`, `moveStaging`). Workflows, their stages and the
+ * threads on a stage are read as JSON; every write is a browser form post.
  */
 class WorkflowsService(client: HeyClient) : GeneratedWorkflowsService(client) {
     /**
@@ -119,16 +88,8 @@ class WorkflowsService(client: HeyClient) : GeneratedWorkflowsService(client) {
     /** A workflow's stages, in position order. */
     suspend fun stages(workflowId: Long): List<WorkflowStage> = get(workflowId).stages.orEmpty()
 
-    /**
-     * Reads a stage's page and the cards on it. The generated [getStage] answers the page
-     * itself; this sends the same route and parses inside the operation, so a page without
-     * the stage ends the operation the hooks hear with the error the caller gets.
-     */
-    suspend fun stage(workflowId: Long, stageId: Long): WorkflowStageView {
-        val operation = client.operation(Routes.GET_WORKFLOW_STAGE, listOf(workflowId, stageId))
-        operation.resourceId(stageId)
-        return client.execute(operation) { WorkflowStageView.parse(it.text(), stageId) }
-    }
+    /** One stage and the threads on it: what the generated [getStage] answers, as a [WorkflowStageView]. */
+    suspend fun stage(workflowId: Long, stageId: Long): WorkflowStageView = WorkflowStageView.from(getStage(workflowId, stageId))
 
     /** Adds a workflow. No account — null or a zero id — leaves HEY to pick your first. */
     suspend fun create(name: String, accountId: Long? = null) {

@@ -2,4 +2,4 @@
 
 package com.basecamp.hey.generated.models
 
-typealias GetWorkflowStageOutputPayload = String
+typealias GetWorkflowStageResponseContent = WorkflowStageDetail

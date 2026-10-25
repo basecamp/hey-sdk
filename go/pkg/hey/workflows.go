@@ -4,20 +4,16 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
-
-	"golang.org/x/net/html"
 
 	"github.com/basecamp/hey-sdk/go/pkg/generated"
 )
 
 // WorkflowsService handles workflows — kanban-style boards of threads.
 //
-// Workflows have no JSON surface beyond the autocomplete endpoint that enumerates them, so
-// writes are form posts and stage names are read off the workflow page.
+// Workflows, their stages and the threads on a stage are read as JSON; writes are form posts.
 type WorkflowsService struct {
 	client *Client
 }
@@ -34,7 +30,7 @@ type Workflow struct {
 	AccountName string
 }
 
-// WorkflowStageTopic is a thread card in a workflow stage.
+// WorkflowStageTopic is a thread on a workflow stage.
 // StagingID identifies the workflow membership; TopicID identifies the email thread.
 type WorkflowStageTopic struct {
 	StagingID  int64  `json:"staging_id"`
@@ -43,7 +39,7 @@ type WorkflowStageTopic struct {
 	EntryCount int    `json:"entry_count"`
 }
 
-// WorkflowStageView is the stage page HEY renders, including its thread cards.
+// WorkflowStageView is a workflow stage and the threads on it.
 type WorkflowStageView struct {
 	ID     int64                `json:"id"`
 	Name   string               `json:"name"`
@@ -119,130 +115,38 @@ func (s *WorkflowsService) Stages(ctx context.Context, workflowID int64) ([]gene
 	return workflow.Stages, nil
 }
 
-// GetStage reads the threads in one workflow stage. HEY serves this resource as HTML.
+// GetStage reads the threads in one workflow stage, in the order the stage shows them.
+// EntryCount is the thread's email count; HEY counts its notes separately.
 func (s *WorkflowsService) GetStage(ctx context.Context, workflowID, stageID int64) (result *WorkflowStageView, err error) {
 	op := OperationInfo{Service: "Workflows", Operation: "GetWorkflowStage", ResourceType: "workflow_stage", IsMutation: false, ResourceID: stageID}
 	err = s.client.instrument(ctx, op, func(ctx context.Context) error {
-		resp, rerr := s.client.genClient().GetWorkflowStageWithResponse(ctx, workflowID, stageID, func(_ context.Context, req *http.Request) error {
-			req.URL.Path = strings.TrimSuffix(req.URL.Path, ".json")
-			if req.URL.RawPath != "" {
-				req.URL.RawPath = strings.TrimSuffix(req.URL.RawPath, ".json")
-			}
-			req.Header.Del("Content-Type")
-			req.Header.Set("Accept", "text/html")
-			return nil
-		})
+		resp, rerr := s.client.genClient().GetWorkflowStageWithResponse(ctx, workflowID, stageID)
 		if rerr != nil {
 			return rerr
 		}
 		if cerr := CheckResponse(resp.HTTPResponse); cerr != nil {
 			return cerr
 		}
-		result, err = parseWorkflowStageHTML(resp.Body, stageID)
-		return err
+		if resp.JSON200 == nil {
+			return ErrAPI(resp.StatusCode(), fmt.Sprintf("HEY answered HTTP %d without workflow stage %d", resp.StatusCode(), stageID))
+		}
+		result = workflowStageView(resp.JSON200)
+		return nil
 	})
 	return result, err
 }
 
-func parseWorkflowStageHTML(source []byte, wantStageID int64) (*WorkflowStageView, error) {
-	doc, err := html.Parse(strings.NewReader(string(source)))
-	if err != nil {
-		return nil, fmt.Errorf("parse workflow stage: %w", err)
+func workflowStageView(stage *generated.WorkflowStageDetail) *WorkflowStageView {
+	view := &WorkflowStageView{ID: stage.Id, Name: stage.Name}
+	for _, topic := range stage.Topics {
+		view.Topics = append(view.Topics, WorkflowStageTopic{
+			StagingID:  topic.StagingId,
+			TopicID:    topic.Id,
+			Subject:    topic.Name,
+			EntryCount: int(topic.EmailsCount),
+		})
 	}
-	stage := findNode(doc, func(n *html.Node) bool {
-		return n.Type == html.ElementNode && attr(n, "id") == fmt.Sprintf("container_workflow_stage_%d", wantStageID)
-	})
-	if stage == nil {
-		return nil, fmt.Errorf("workflow stage %d not found", wantStageID)
-	}
-	result := &WorkflowStageView{ID: wantStageID}
-	if heading := findNode(stage, func(n *html.Node) bool { return n.Type == html.ElementNode && n.Data == "h2" }); heading != nil {
-		result.Name = visibleNodeText(heading)
-	}
-	var walk func(*html.Node)
-	walk = func(n *html.Node) {
-		if n.Type == html.ElementNode && strings.HasPrefix(attr(n, "id"), "topic_") {
-			topicID, topicErr := strconv.ParseInt(strings.TrimPrefix(attr(n, "id"), "topic_"), 10, 64)
-			if topicErr != nil || topicID <= 0 {
-				return
-			}
-			stagingID, stagingErr := strconv.ParseInt(attr(n, "data-identifier"), 10, 64)
-			if stagingErr != nil || stagingID <= 0 {
-				return
-			}
-			topic := WorkflowStageTopic{StagingID: stagingID, TopicID: topicID}
-			if title := findNode(n, func(x *html.Node) bool { return x.Type == html.ElementNode && x.Data == "h3" }); title != nil {
-				topic.Subject = visibleNodeText(title)
-			}
-			if detail := findNode(n, func(x *html.Node) bool {
-				return x.Type == html.ElementNode && x.Data == "p" && strings.Contains(attr(x, "class"), "card__detail")
-			}); detail != nil {
-				fields := strings.Fields(visibleNodeText(detail))
-				if len(fields) == 0 {
-					return
-				}
-				entryCount, countErr := strconv.Atoi(fields[0])
-				if countErr != nil || entryCount < 0 {
-					return
-				}
-				topic.EntryCount = entryCount
-			}
-			result.Topics = append(result.Topics, topic)
-			return
-		}
-		for child := n.FirstChild; child != nil; child = child.NextSibling {
-			walk(child)
-		}
-	}
-	walk(stage)
-	return result, nil
-}
-
-func findNode(node *html.Node, match func(*html.Node) bool) *html.Node {
-	if match(node) {
-		return node
-	}
-	for child := node.FirstChild; child != nil; child = child.NextSibling {
-		if found := findNode(child, match); found != nil {
-			return found
-		}
-	}
-	return nil
-}
-func attr(node *html.Node, name string) string {
-	for _, value := range node.Attr {
-		if value.Key == name {
-			return value.Val
-		}
-	}
-	return ""
-}
-func visibleNodeText(node *html.Node) string {
-	var b strings.Builder
-	var walk func(*html.Node)
-	walk = func(n *html.Node) {
-		if n.Type == html.ElementNode && isVisuallyHidden(n) {
-			return
-		}
-		if n.Type == html.TextNode {
-			b.WriteString(n.Data)
-		}
-		for c := n.FirstChild; c != nil; c = c.NextSibling {
-			walk(c)
-		}
-	}
-	walk(node)
-	return strings.Join(strings.Fields(b.String()), " ")
-}
-
-func isVisuallyHidden(node *html.Node) bool {
-	for _, class := range strings.Fields(attr(node, "class")) {
-		switch class {
-		case "sr-only", "screen-reader-only", "u-for-screen-reader", "visually-hidden":
-			return true
-		}
-	}
-	return false
+	return view
 }
 
 // Create adds a workflow. accountID of zero leaves the server to pick your first account.
@@ -394,6 +298,3 @@ func (s *WorkflowsService) UnstageTopic(ctx context.Context, topicID, workflowID
 		return err
 	})
 }
-
-// workflowStageIDRe pulls the stage id out of the heading id a workflow page stamps, e.g.
-// name_workflow_stage_5512.

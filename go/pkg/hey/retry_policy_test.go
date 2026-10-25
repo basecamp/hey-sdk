@@ -66,9 +66,9 @@ func TestOperationPolicyDecidesWhichStatusesAreResent(t *testing.T) {
 	}
 }
 
-// The workflow stage read is served as HTML, and its policy holds all the same: three
-// sends, whatever the client allows beyond them.
-func TestOperationPolicyHoldsOnTheHTMLRoute(t *testing.T) {
+// A hand-written read over a generated route keeps the route's policy: three sends for the
+// workflow stage, whatever the client allows beyond them.
+func TestOperationPolicyHoldsUnderAHandWrittenRead(t *testing.T) {
 	server, requests := policyTestServer(t, `[]`, 503, 503, 503, 503)
 	root := NewClient(&Config{BaseURL: server.URL}, &StaticTokenProvider{Token: "token"},
 		WithMaxRetries(5), WithBaseDelay(time.Millisecond))

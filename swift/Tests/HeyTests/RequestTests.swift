@@ -30,13 +30,26 @@ final class RequestTests: XCTestCase {
     }
 
     func testAnHTMLRouteIsAskedForAsWritten() async throws {
-        let html = #"<section id="container_workflow_stage_5"><h2>Applied</h2></section>"#
+        // No modelled route answers HTML today; one the model marks so is asked for as written.
+        let html = #"<section id="page_5"><h2>Applied</h2></section>"#
         let hey = mockHey(ok(html, [("Content-Type", "text/html")]))
-        let page = try await hey.client().workflows.getStage(workflowId: 8801, stageId: 5)
+        let client = try hey.client()
+        var route = Routes.getWorkflowStage
+        route.html = true
+        let page = try await client.sendText(client.operation(route, [8801, 5]))
         let request = try XCTUnwrap(hey.requests.first)
         XCTAssertEqual(request.path, "/workflows/8801/stages/5")
         XCTAssertEqual(request.header("Accept"), "text/html")
         XCTAssertEqual(page, html)
+    }
+
+    func testAWorkflowStageIsAskedForAsJSON() async throws {
+        let hey = mockHey(ok(#"{"id":5,"name":"Applied","topics":[{"id":9,"staging_id":91}]}"#))
+        let stage = try await hey.client().workflows.getStage(workflowId: 8801, stageId: 5)
+        let request = try XCTUnwrap(hey.requests.first)
+        XCTAssertEqual(request.path, "/workflows/8801/stages/5.json")
+        XCTAssertEqual(request.header("Accept"), "application/json")
+        XCTAssertEqual(stage.topics?.first?.stagingId, 91)
     }
 
     func testQueryParametersGoOutWhenTheyAreSet() async throws {

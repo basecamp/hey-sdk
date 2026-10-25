@@ -489,8 +489,51 @@ structure WorkflowStage {
     name: String
 }
 
-@mediaType("text/html")
-blob WorkflowStageHTML
+/// A workflow stage and the threads on it, as GetWorkflowStage answers it.
+structure WorkflowStageDetail {
+    @required
+    id: Long
+    name: String
+    created_at: DateTime
+    updated_at: DateTime
+    workflow_id: Long
+    app_url: String
+    /// The threads on the stage, in the order the stage shows them. Not paginated.
+    topics: WorkflowStageTopicList
+}
+
+/// A thread on a workflow stage: the topic as GetTopic answers it (without its entries),
+/// with the staging that puts it on the stage and the counts its card shows.
+structure StagedTopic {
+    @required
+    id: Long
+
+    name: String
+    created_at: DateTime
+    updated_at: DateTime
+    active_at: DateTime
+    status: String
+    account_id: Long
+    app_url: String
+    creator: Contact
+    contacts: ContactList
+    extenzions: ExtenzionList
+    collections: CollectionList
+    is_forged_sender: Boolean
+    latest_entry: Entry
+
+    /// The staging record that puts the thread on this stage.
+    @required
+    staging_id: Long
+    /// The thread's active emails.
+    emails_count: Integer
+    /// The thread's active notes.
+    notes_count: Integer
+}
+
+list WorkflowStageTopicList {
+    member: StagedTopic
+}
 
 list WorkflowStageList {
     member: WorkflowStage
@@ -5127,7 +5170,7 @@ operation GetWorkflow {
     errors: [UnauthorizedError, NotFoundError, InternalServerError, ServiceUnavailableError]
 }
 
-/// A workflow stage and its cards, served as HTML by HEY.
+/// A workflow stage and the threads on it, in the order the stage shows them.
 @readonly
 @http(method: "GET", uri: "/workflows/{workflowId}/stages/{stageId}")
 @tags(["Workflows"])
@@ -5149,9 +5192,8 @@ structure GetWorkflowStageInput {
 }
 
 structure GetWorkflowStageOutput {
-    @httpPayload
     @required
-    body: WorkflowStageHTML
+    stage: WorkflowStageDetail
 }
 
 structure GetWorkflowInput {

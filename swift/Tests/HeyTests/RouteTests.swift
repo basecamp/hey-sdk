@@ -8,7 +8,7 @@ final class RouteTests: XCTestCase {
         XCTAssertEqual(Routes.all.count, 139)
         XCTAssertEqual(Set(Routes.all.map(\.id)).count, Routes.all.count)
         XCTAssertTrue(Routes.all.allSatisfy { $0.retry.max >= 0 })
-        XCTAssertTrue(Routes.getWorkflowStage.html)
+        XCTAssertFalse(Routes.getWorkflowStage.html, "HEY answers the stage as JSON")
         XCTAssertEqual(Routes.getOngoingTimeTrack.emptyOn, [404])
         XCTAssertEqual(Routes.listBoxes.pagination, .link)
         XCTAssertFalse(Routes.updateMessage.idempotent)

@@ -20,7 +20,7 @@ suite.
 | lenient success (ADR-005) | the generated `Parse*Response` template leaves the payload nil; the delivery wrappers read the body themselves | `Route::lenient_success` → `send` answers what `{}` decodes to |
 | pagination style | by hand per `*Page` method | `Route::pagination` → generated methods answer `Page<T>`; `next_page`/`each_page` keep the route's policy |
 | retry policy | model policy under the client ceiling (#164) | model policy under the client ceiling (#154) |
-| HTML representation | by hand (`GetStage` strips `.json`, asks `text/html`) | `Route::html` → `Operation` asks as written |
+| HTML representation | `GetHTML` by hand; no modelled operation answers HTML | `Route::html` → `Operation` asks as written; no modelled route sets it |
 
 ## Go method → Rust
 
@@ -87,7 +87,7 @@ Unqualified Rust names are conveniences; `gen` marks a generated method.
 | TimeTracks.CreateCategory / UpdateCategory / DeleteCategory / Export | forms, CSV | same names | |
 | Workflows.List | autocomplete GET | `list` → `Vec<WorkflowSummary>` | |
 | Workflows.Get / Stages | GetWorkflow | gen `get` / `stages` | |
-| Workflows.GetStage → WorkflowStageView | GetWorkflowStage (HTML) | `stage` → `WorkflowStageView`; gen `get_stage` → the page | added with this file, same parser rules as Go; a page without the stage is `NotFound` in Rust and a plain error in Go |
+| Workflows.GetStage → WorkflowStageView | GetWorkflowStage | `stage` → `WorkflowStageView`; gen `get_stage` → `WorkflowStageDetail` | the same reduction: `topic_id` ← `id`, `subject` ← `name`, `entry_count` ← `emails_count`; a stage HEY does not have is a 404 in both |
 | Workflows.Create / Update / Delete / CreateStage / UpdateStage / DeleteStage / UnstageTopic | forms | same names | |
 | Workflows.StageTopic / MoveTopic | CreateWorkflowStaging + MoveWorkflowStaging (form) | `stage_topic` / `move_topic_to_stage` | the read-back is `quiet()` in Rust; hooks hear one operation in both |
 | World.Publish / Update / Delete / ExportSubscribers / ImportSubscribers | forms, CSV, multipart | `publish` / `update_post` / `delete_post` / `export_subscribers` / `import_subscribers` | |

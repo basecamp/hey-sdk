@@ -1535,7 +1535,7 @@ public enum Routes {
         ],
         idempotent: true,
         readonly: true,
-        html: true,
+        html: false,
         emptyOn: [],
         pagination: .unpaged,
         pageParameter: nil,

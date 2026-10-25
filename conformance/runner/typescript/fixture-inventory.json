@@ -695,7 +695,7 @@
       "operation": "GetWorkflow"
     },
     {
-      "name": "GetWorkflowStage uses the HTML workflow stage path and reads the stage out of it",
+      "name": "GetWorkflowStage reads a stage and its threads as JSON",
       "operation": "GetWorkflowStage"
     },
     {

@@ -45,12 +45,24 @@ class RequestTest {
 
     @Test
     fun anHtmlRouteIsAskedForAsWritten() = runTest {
-        val hey = mockHey(ok("<section id=\"container_workflow_stage_5\"><h2>Applied</h2></section>", mapOf("Content-Type" to "text/html")))
-        val page = hey.client().workflows.getStage(8801, 5)
+        // No modelled route answers HTML today; one the model marks so is asked for as written.
+        val hey = mockHey(ok("<section id=\"page_5\"><h2>Applied</h2></section>", mapOf("Content-Type" to "text/html")))
+        val client = hey.client()
+        val page = client.sendText(client.operation(Routes.GET_WORKFLOW_STAGE.copy(html = true), listOf(8801, 5)))
         val request = hey.requests.single()
         assertEquals("/workflows/8801/stages/5", request.path)
         assertEquals("text/html", request.header("Accept"))
-        assertEquals("<section id=\"container_workflow_stage_5\"><h2>Applied</h2></section>", page)
+        assertEquals("<section id=\"page_5\"><h2>Applied</h2></section>", page)
+    }
+
+    @Test
+    fun aWorkflowStageIsAskedForAsJson() = runTest {
+        val hey = mockHey(ok("""{"id":5,"name":"Applied","topics":[{"id":9,"staging_id":91}]}"""))
+        val stage = hey.client().workflows.getStage(8801, 5)
+        val request = hey.requests.single()
+        assertEquals("/workflows/8801/stages/5.json", request.path)
+        assertEquals("application/json", request.header("Accept"))
+        assertEquals(91L, stage.topics.orEmpty().single().stagingId)
     }
 
     @Test

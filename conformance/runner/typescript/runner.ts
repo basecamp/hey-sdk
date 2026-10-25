@@ -373,11 +373,8 @@ for (const file of files) {
     if (exclusion) {
       assert.equal(tc.operation, exclusion.operation);
       if (tc.operation === "GetWorkflowStage") {
-        assert.equal(
-          (operationMetadata.GetWorkflowStage as { responseMediaType?: string })
-            .responseMediaType,
-          "text/html",
-        );
+        // The case asserts the hand-written view the other SDKs reduce the stage to.
+        assert.equal(tc.configOverrides?.clientLayer, "hey");
       } else if (tc.tags?.includes("redirect")) {
         // The client sends with redirect: "manual" and follows no hop, so a case about what
         // happens on one is outside what it does.

@@ -953,8 +953,8 @@ type GetTrashTopicsResponseContent = TopicListResponse
 // GetWorkflowResponseContent Workflow — email workflow/label
 type GetWorkflowResponseContent = Workflow
 
-// GetWorkflowStageOutputPayload defines model for GetWorkflowStageOutputPayload.
-type GetWorkflowStageOutputPayload = string
+// GetWorkflowStageResponseContent A workflow stage and the threads on it, as GetWorkflowStage answers it.
+type GetWorkflowStageResponseContent = WorkflowStageDetail
 
 // HabitPayload defines model for HabitPayload.
 type HabitPayload struct {
@@ -1594,6 +1594,44 @@ type Snippet struct {
 	UpdatedAt time.Time `json:"updated_at,omitempty,omitzero"`
 }
 
+// StagedTopic A thread on a workflow stage: the topic as GetTopic answers it (without its entries),
+// with the staging that puts it on the stage and the counts its card shows.
+type StagedTopic struct {
+	AccountId int64 `json:"account_id,omitempty"`
+
+	// ActiveAt ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)
+	ActiveAt    time.Time    `json:"active_at,omitempty,omitzero"`
+	AppUrl      string       `json:"app_url,omitempty"`
+	Collections []Collection `json:"collections,omitempty"`
+	Contacts    []Contact    `json:"contacts,omitempty"`
+
+	// CreatedAt ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)
+	CreatedAt time.Time `json:"created_at,omitempty,omitzero"`
+
+	// Creator Contact — the identity of someone in HEY
+	Creator Contact `json:"creator,omitempty"`
+
+	// EmailsCount The thread's active emails.
+	EmailsCount    int32       `json:"emails_count,omitempty"`
+	Extenzions     []Extenzion `json:"extenzions,omitempty"`
+	Id             int64       `json:"id"`
+	IsForgedSender bool        `json:"is_forged_sender,omitempty"`
+
+	// LatestEntry Entry — a message entry within a topic
+	LatestEntry Entry  `json:"latest_entry,omitempty"`
+	Name        string `json:"name,omitempty"`
+
+	// NotesCount The thread's active notes.
+	NotesCount int32 `json:"notes_count,omitempty"`
+
+	// StagingId The staging record that puts the thread on this stage.
+	StagingId int64  `json:"staging_id"`
+	Status    string `json:"status,omitempty"`
+
+	// UpdatedAt ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)
+	UpdatedAt time.Time `json:"updated_at,omitempty,omitzero"`
+}
+
 // StartTimeTrackResponseContent Recording — polymorphic by `type`, with direct and namespaced calendar wire values
 type StartTimeTrackResponseContent = Recording
 
@@ -1907,6 +1945,23 @@ type Workflow struct {
 type WorkflowStage struct {
 	Id   int64  `json:"id"`
 	Name string `json:"name,omitempty"`
+}
+
+// WorkflowStageDetail A workflow stage and the threads on it, as GetWorkflowStage answers it.
+type WorkflowStageDetail struct {
+	AppUrl string `json:"app_url,omitempty"`
+
+	// CreatedAt ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)
+	CreatedAt time.Time `json:"created_at,omitempty,omitzero"`
+	Id        int64     `json:"id"`
+	Name      string    `json:"name,omitempty"`
+
+	// Topics The threads on the stage, in the order the stage shows them. Not paginated.
+	Topics []StagedTopic `json:"topics,omitempty"`
+
+	// UpdatedAt ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)
+	UpdatedAt  time.Time `json:"updated_at,omitempty,omitzero"`
+	WorkflowId int64     `json:"workflow_id,omitempty"`
 }
 
 // WorkflowStagingPayload defines model for WorkflowStagingPayload.
@@ -13469,7 +13524,7 @@ type ClientWithResponsesInterface interface {
 
 	// GetWorkflowStageWithResponse performs a GET /workflows/{workflowId}/stages/{stageId} (the `GetWorkflowStage` operationId) request.
 	//
-	// A workflow stage and its cards, served as HTML by HEY.
+	// A workflow stage and the threads on it, in the order the stage shows them.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	GetWorkflowStageWithResponse(ctx context.Context, workflowId int64, stageId int64, reqEditors ...RequestEditorFn) (*GetWorkflowStageResponse, error)
@@ -22629,6 +22684,8 @@ func (r GetWorkflowResponse) ContentType() string {
 type GetWorkflowStageResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *GetWorkflowStageResponseContent
 	// JSON401 the response for an HTTP 401 `application/json` response
 	JSON401 *UnauthorizedErrorResponseContent
 	// JSON404 the response for an HTTP 404 `application/json` response
@@ -22637,6 +22694,11 @@ type GetWorkflowStageResponse struct {
 	JSON500 *InternalServerErrorResponseContent
 	// JSON503 the response for an HTTP 503 `application/json` response
 	JSON503 *ServiceUnavailableErrorResponseContent
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r GetWorkflowStageResponse) GetJSON200() *GetWorkflowStageResponseContent {
+	return r.JSON200
 }
 
 // GetJSON401 returns the response for an HTTP 401 `application/json` response
@@ -25305,7 +25367,7 @@ func (c *ClientWithResponses) GetWorkflowWithResponse(ctx context.Context, workf
 
 // GetWorkflowStageWithResponse performs a GET /workflows/{workflowId}/stages/{stageId} (the `GetWorkflowStage` operationId) request.
 //
-// A workflow stage and its cards, served as HTML by HEY.
+// A workflow stage and the threads on it, in the order the stage shows them.
 //
 // Returns a wrapper object for the known response body format(s).
 func (c *ClientWithResponses) GetWorkflowStageWithResponse(ctx context.Context, workflowId int64, stageId int64, reqEditors ...RequestEditorFn) (*GetWorkflowStageResponse, error) {
@@ -34106,6 +34168,13 @@ func ParseGetWorkflowStageResponse(rsp *http.Response) (*GetWorkflowStageRespons
 	// An undecodable body fails only a 2xx; an error status answers on its own, body or not.
 	if _, err := func() (*GetWorkflowStageResponse, error) {
 		switch {
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+			var dest GetWorkflowStageResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON200 = &dest
+
 		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
 			var dest UnauthorizedErrorResponseContent
 			if err := json.Unmarshal(bodyBytes, &dest); err != nil {

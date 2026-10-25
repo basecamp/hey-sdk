@@ -2129,7 +2129,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** @description A workflow stage and its cards, served as HTML by HEY. */
+        /** @description A workflow stage and the threads on it, in the order the stage shows them. */
         get: operations["GetWorkflowStage"];
         put?: never;
         post?: never;
@@ -2926,7 +2926,7 @@ export interface components {
         GetTrailboxResponseContent: components["schemas"]["BoxShowResponse"];
         GetTrashTopicsResponseContent: components["schemas"]["TopicListResponse"];
         GetWorkflowResponseContent: components["schemas"]["Workflow"];
-        GetWorkflowStageOutputPayload: string;
+        GetWorkflowStageResponseContent: components["schemas"]["WorkflowStageDetail"];
         HabitPayload: {
             name?: string;
             icon?: string;
@@ -3494,6 +3494,55 @@ export interface components {
              */
             updated_at?: string;
         };
+        /**
+         * @description A thread on a workflow stage: the topic as GetTopic answers it (without its entries),
+         *     with the staging that puts it on the stage and the counts its card shows.
+         */
+        StagedTopic: {
+            /** Format: int64 */
+            id: number | bigint;
+            name?: string;
+            /**
+             * Format: date-time
+             * @description ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)
+             */
+            created_at?: string;
+            /**
+             * Format: date-time
+             * @description ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)
+             */
+            updated_at?: string;
+            /**
+             * Format: date-time
+             * @description ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)
+             */
+            active_at?: string;
+            status?: string;
+            /** Format: int64 */
+            account_id?: number | bigint;
+            app_url?: string;
+            creator?: components["schemas"]["Contact"];
+            contacts?: components["schemas"]["Contact"][];
+            extenzions?: components["schemas"]["Extenzion"][];
+            collections?: components["schemas"]["Collection"][];
+            is_forged_sender?: boolean;
+            latest_entry?: components["schemas"]["Entry"];
+            /**
+             * Format: int64
+             * @description The staging record that puts the thread on this stage.
+             */
+            staging_id: number | bigint;
+            /**
+             * Format: int32
+             * @description The thread's active emails.
+             */
+            emails_count?: number;
+            /**
+             * Format: int32
+             * @description The thread's active notes.
+             */
+            notes_count?: number;
+        };
         StartTimeTrackResponseContent: components["schemas"]["Recording"];
         /** @description Sticky — a note on the stickies board */
         Sticky: {
@@ -3757,6 +3806,27 @@ export interface components {
             /** Format: int64 */
             id: number | bigint;
             name?: string;
+        };
+        /** @description A workflow stage and the threads on it, as GetWorkflowStage answers it. */
+        WorkflowStageDetail: {
+            /** Format: int64 */
+            id: number | bigint;
+            name?: string;
+            /**
+             * Format: date-time
+             * @description ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)
+             */
+            created_at?: string;
+            /**
+             * Format: date-time
+             * @description ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)
+             */
+            updated_at?: string;
+            /** Format: int64 */
+            workflow_id?: number | bigint;
+            app_url?: string;
+            /** @description The threads on the stage, in the order the stage shows them. Not paginated. */
+            topics?: components["schemas"]["StagedTopic"][];
         };
         WorkflowStagingPayload: {
             /** Format: int64 */
@@ -11841,7 +11911,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "text/html": components["schemas"]["GetWorkflowStageOutputPayload"];
+                    "application/json": components["schemas"]["GetWorkflowStageResponseContent"];
                 };
             };
             /** @description UnauthorizedError 401 response */
