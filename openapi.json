@@ -7863,6 +7863,7 @@
             }
           }
         },
+        "security": [],
         "tags": [
           "OAuth"
         ],
@@ -7966,6 +7967,7 @@
             }
           }
         },
+        "security": [],
         "tags": [
           "OAuth"
         ],
@@ -15983,6 +15985,18 @@
           "workflow_stage_id"
         ]
       }
+    },
+    "securitySchemes": {
+      "smithy.api.httpBearerAuth": {
+        "type": "http",
+        "description": "HTTP Bearer authentication",
+        "scheme": "Bearer"
+      }
     }
-  }
+  },
+  "security": [
+    {
+      "smithy.api.httpBearerAuth": []
+    }
+  ]
 }

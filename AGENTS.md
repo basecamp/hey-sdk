@@ -393,6 +393,13 @@ caller's credentials and take a 3xx as their answer, today the token endpoint's 
 and `RevokeToken`. The SDK generators read the same traits from `openapi.json`'s
 `x-hey-unsigned` and `x-hey-no-redirect`.
 
+Generic OpenAPI tooling reads none of those. It learns which operations take the bearer token
+from the standard fields that `@httpBearerAuth` on the service writes: a security scheme and a
+top-level `security` every operation inherits. So an `@heyUnsigned` operation also declares
+`@auth([])`, which writes `security: []` on it, and the TypeScript generator tests fail when
+the two disagree on any operation. The SDKs still decide signing from `x-hey-unsigned`; no
+generator reads `security`.
+
 ## Adding an operation
 
 1. Edit `spec/hey.smithy`, declaring the operation's effect and provenance traits (above)
