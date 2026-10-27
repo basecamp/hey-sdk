@@ -400,6 +400,19 @@ top-level `security` every operation inherits. So an `@heyUnsigned` operation al
 the two disagree on any operation. The SDKs still decide signing from `x-hey-unsigned`; no
 generator reads `security`.
 
+The account filter is declared the same way. `@heyAccountScope(query: "filtered_account_id")` on
+the service writes the top-level `x-hey-account-scope`, and `scripts/expand-account-scope`, run
+after `smithy build` by `smithy-build`, `smithy-check` and the Smithy workflow, adds that
+parameter to every operation whose effective `security` is not empty: optional, `int64`, in
+the query, marked `"x-hey-account-scope": true`. It fails the build when an operation's security
+disagrees with `x-hey-unsigned`, or when an operation or its path already declares the
+parameter or uses a `$ref` it cannot see through. Every SDK generator drops a marked parameter
+(Go's input through `merge-behavior-model`, TypeScript's before both `schema.ts` and
+`operations.ts`), since the transports already send the filter for a client scoped to an
+account, so the generated SDKs are unchanged by it. An unmarked parameter of the same name
+would become an ordinary argument. `make account-scope-test` puts the expansion and the Go
+input through a small document and broken copies of it.
+
 ## Adding an operation
 
 1. Edit `spec/hey.smithy`, declaring the operation's effect and provenance traits (above)
@@ -438,7 +451,7 @@ generator reads `security`.
 11. `make check`
 
 `make check` resolves to `check-mvp`: `smithy-check`, `behavior-model-check`, `behavior-traits-test`,
-`drift-check-mvp`, `url-routes-check`, `go-check`, `go-check-drift`, `rs-check`,
+`account-scope-test`, `drift-check-mvp`, `url-routes-check`, `go-check`, `go-check-drift`, `rs-check`,
 `rs-check-drift`, `ts-check`, `kt-check`, `kt-check-drift`, `swift-check`,
 `swift-check-drift`, `sync-api-version-check` and `conformance-mvp` (Go, Rust, TypeScript,
 Kotlin and Swift). `drift-check-mvp` is coverage freshness + forward (every modelled

@@ -298,6 +298,8 @@ private fun queryParams(operation: JsonObject): List<QueryParam> =
 private fun parametersIn(operation: JsonObject, location: String): List<JsonObject> =
     (operation["parameters"] as? JsonArray).orEmpty()
         .map { it.jsonObject }
+        // The transport sends the account filter; an argument would be a second way to.
+        .filter { "x-hey-account-scope" !in it }
         .filter { it.string("in") == location }
 
 private fun paramKind(parameter: JsonObject): ParamKind {

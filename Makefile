@@ -24,6 +24,7 @@ smithy-build: smithy-mapper
 	cd spec && smithy build
 	cp spec/build/smithy/openapi/openapi/HEY.openapi.json openapi.json
 	./scripts/enhance-openapi-go-types.sh
+	./scripts/expand-account-scope
 	@$(MAKE) behavior-model
 
 smithy-check: smithy-validate smithy-mapper
@@ -31,6 +32,7 @@ smithy-check: smithy-validate smithy-mapper
 	@cd spec && smithy build
 	@cp spec/build/smithy/openapi/openapi/HEY.openapi.json /tmp/hey-openapi-check.json
 	@./scripts/enhance-openapi-go-types.sh /tmp/hey-openapi-check.json > /dev/null 2>&1
+	@./scripts/expand-account-scope /tmp/hey-openapi-check.json
 	@diff -q openapi.json /tmp/hey-openapi-check.json > /dev/null 2>&1 || \
 		{ echo "ERROR: openapi.json is out of date. Run 'make smithy-build'"; exit 1; }
 	@rm -f /tmp/hey-openapi-check.json

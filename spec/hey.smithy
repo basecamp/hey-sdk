@@ -61,6 +61,7 @@ use hey.traits#heyUntrustedContent
 use hey.traits#heyLenientSuccess
 use hey.traits#heyUnsigned
 use hey.traits#heyNoRedirect
+use hey.traits#heyAccountScope
 
 /// ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)
 @timestampFormat("date-time")
@@ -69,6 +70,7 @@ timestamp DateTime
 /// HEY API
 @restJson1
 @httpBearerAuth
+@heyAccountScope(query: "filtered_account_id")
 service HEY {
     version: "2026-10-05"
     operations: [

@@ -326,8 +326,9 @@ private func queryParams(_ operation: JSON) throws -> [QueryParam] {
     }
 }
 
+/// The transport sends the account filter; an argument would be a second way to.
 private func parameters(_ operation: JSON, in location: String) -> [JSON] {
-    (operation["parameters"]?.array ?? []).filter { $0["in"]?.string == location }
+    (operation["parameters"]?.array ?? []).filter { $0["x-hey-account-scope"] == nil && $0["in"]?.string == location }
 }
 
 private func paramKind(_ parameter: JSON) throws -> ParamKind {

@@ -186,10 +186,24 @@ export function generateOperations(spec: Spec, behavior: Behavior) {
   };
 }
 
+// The transport sends the account filter expand-account-scope declares, so the marked
+// parameter is neither an input type in schema.ts nor an accepted key in operations.ts.
+function withoutAccountScope(spec: Spec): Spec {
+  const copy = structuredClone(spec);
+  for (const item of Object.values(copy.paths))
+    for (const op of Object.values(item)) {
+      if (!op.parameters) continue;
+      op.parameters = op.parameters.filter((p) => !("x-hey-account-scope" in p));
+      if (op.parameters.length === 0) delete op.parameters;
+    }
+  return copy;
+}
+
 export async function render(
-  spec: Spec,
+  original: Spec,
   behavior: Behavior,
 ): Promise<Record<string, string>> {
+  const spec = withoutAccountScope(original);
   const ast = await openapiTS(spec as unknown as OpenAPI3, {
     transform(s) {
       if (s.type === "integer" && s.format === "int64") {

@@ -519,6 +519,8 @@ fn parameters_in<'a>(operation: &'a Value, location: &'a str) -> impl Iterator<I
         .as_array()
         .into_iter()
         .flatten()
+        // The transport sends the account filter; an argument would be a second way to.
+        .filter(|parameter| parameter.get("x-hey-account-scope").is_none())
         .filter(move |parameter| parameter["in"].as_str() == Some(location))
 }
 

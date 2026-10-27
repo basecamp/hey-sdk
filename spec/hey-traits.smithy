@@ -298,3 +298,15 @@ structure heyUnsigned {}
 @trait(selector: "operation")
 @specificationExtension(as: "x-hey-no-redirect")
 structure heyNoRedirect {}
+
+/// Names the query parameter that filters a signed request to one of the identity's accounts,
+/// which the SDK transports send for a client scoped to an account.
+/// Emits x-hey-account-scope extension to OpenAPI. scripts/expand-account-scope then declares
+/// the parameter on every operation that takes the bearer token, marked x-hey-account-scope,
+/// for generic OpenAPI clients; the SDK generators leave the marked parameter to the transport.
+@trait(selector: "service")
+@specificationExtension(as: "x-hey-account-scope")
+structure heyAccountScope {
+    @required
+    query: String
+}
