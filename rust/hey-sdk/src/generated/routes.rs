@@ -2036,7 +2036,7 @@ pub static GET_WORKFLOW_STAGE: Route = Route {
     ],
     idempotent: true,
     readonly: true,
-    html: true,
+    html: false,
     empty_on: &[],
     lenient_success: false,
     unsigned: false,

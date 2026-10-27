@@ -235,7 +235,9 @@ final class CacheTests: XCTestCase {
         var uncached = client.request(.get, "/thing")
         uncached.noCache()
         try await client.execute(uncached)
-        _ = try await client.workflows.getStage(workflowId: 1, stageId: 2)
+        var page = Routes.getWorkflowStage
+        page.html = true
+        _ = try await client.sendText(client.operation(page, [1, 2]))
         XCTAssertEqual(store.count, 0)
     }
 }

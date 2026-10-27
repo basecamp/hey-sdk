@@ -13,8 +13,7 @@ class RouteTest {
         assertEquals(139, Routes.ALL.size)
         assertEquals(Routes.ALL.size, Routes.ALL.map { it.id }.toSet().size)
         assertTrue(Routes.ALL.all { it.retry.max >= 0 })
-        val stage = Routes.GET_WORKFLOW_STAGE
-        assertTrue(stage.html)
+        assertEquals(false, Routes.GET_WORKFLOW_STAGE.html, "HEY answers the stage as JSON")
         assertEquals(listOf(404), Routes.GET_ONGOING_TIME_TRACK.emptyOn)
         assertEquals(Pagination.LINK, Routes.LIST_BOXES.pagination)
         assertEquals(false, Routes.UPDATE_MESSAGE.idempotent)

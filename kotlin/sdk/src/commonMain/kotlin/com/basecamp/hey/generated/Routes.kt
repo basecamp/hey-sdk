@@ -1547,7 +1547,7 @@ object Routes {
         ),
         idempotent = true,
         readonly = true,
-        html = true,
+        html = false,
         emptyOn = emptyList(),
         pagination = Pagination.NONE,
         pageParameter = null,

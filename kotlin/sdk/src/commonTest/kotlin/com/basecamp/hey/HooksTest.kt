@@ -169,7 +169,7 @@ class HooksTest {
         val hey = mockHey(
             ok("""{"id":"not a number"}"""),
             ok("""{"summary":"no id or type"}"""),
-            ok("<section id=\"container_workflow_stage_1\"></section>", mapOf("Content-Type" to "text/html")),
+            ok("""{"name":"a stage with no id"}"""),
         )
         val log = mutableListOf<String>()
         val client = hey.client { hooks = Recording(log, "a") }
@@ -183,8 +183,8 @@ class HooksTest {
         assertEquals(1, log.count { it.startsWith("a:end:") })
 
         log.clear()
-        assertFailsWith<HeyException.NotFound> { client.workflows.stage(8801, 5) }
-        assertEquals(listOf("a:start:Workflows.GetWorkflowStage:workflow_stage:false:5", "a:request:GET:1", "a:response:200:null", "a:end:GetWorkflowStage:not_found"), log)
+        assertFailsWith<HeyException.Api> { client.workflows.stage(8801, 5) }
+        assertEquals(listOf("a:start:Workflows.GetWorkflowStage:workflow_stage:false:5", "a:request:GET:1", "a:response:200:null", "a:end:GetWorkflowStage:api_error"), log)
     }
 
     @Test

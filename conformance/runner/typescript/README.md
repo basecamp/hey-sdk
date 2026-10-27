@@ -7,10 +7,10 @@ no separate runtime dependencies. `make conformance-mvp` aggregates Go, Rust and
 
 Current coverage is **222 applicable, 5 explicitly not applicable, 227 total**. The exact
 file/name/operation/reason exclusions are in `not-applicable.json`: three cover Go's
-unmodeled `UpdateCalendarEvent` form convenience, one covers the handwritten parsed
-view that Go and Rust layer over the modeled `GetWorkflowStage` HTML blob, and one covers a
+unmodeled `UpdateCalendarEvent` form convenience, one covers the handwritten view that
+Go, Rust, Kotlin and Swift reduce the modeled `GetWorkflowStage` JSON to, and one covers a
 write's redirect hop refused 401, since the TypeScript client follows no redirect. The TypeScript
-operation returns that blob as a typed string and has direct transport regression coverage.
+operation returns the stage as HEY answers it, typed by the model.
 New unknown operations/assertions/config keys, missing or duplicate fixtures, and
 stale/duplicate exclusions fail. No API token is needed or read from the environment.
 

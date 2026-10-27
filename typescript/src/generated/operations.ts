@@ -3530,7 +3530,6 @@ export const operationMetadata = {
         503
       ]
     },
-    "responseMediaType": "text/html",
     "actingSender": false,
     "actingUser": false
   }
@@ -4379,7 +4378,7 @@ export class GeneratedOperations {
     return this.transport.execute("GetWorkflow", input, options);
   }
 
-  /** A workflow stage and its cards, served as HTML by HEY. */
+  /** A workflow stage and the threads on it, in the order the stage shows them. */
   getWorkflowStage(input: OperationInput<"GetWorkflowStage">, options?: RequestOptions): Promise<OperationResponse<"GetWorkflowStage">> {
     return this.transport.execute("GetWorkflowStage", input, options);
   }

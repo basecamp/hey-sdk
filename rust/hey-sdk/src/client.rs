@@ -2202,25 +2202,57 @@ mod tests {
         assert_eq!(body, r#"{"name":"renamed"}"#);
     }
 
+    /// A page of the test's own that HEY serves as HTML: no route in the model is one today,
+    /// and the client still knows how to ask for one.
+    static HTML_PAGE: Route = Route {
+        id: "GetThingPage",
+        service: "Things",
+        method: Method::GET,
+        path: "/things/{thingId}/pages/{pageId}",
+        pattern: "/things/{thingId}/pages/{pageId}",
+        resource: "Things",
+        resource_type: "thing_page",
+        params: &[
+            crate::route::RouteParam {
+                name: "thingId",
+                role: crate::route::ParamRole::Parent,
+                kind: crate::route::ParamKind::Int64,
+            },
+            crate::route::RouteParam {
+                name: "pageId",
+                role: crate::route::ParamRole::Recording,
+                kind: crate::route::ParamKind::Int64,
+            },
+        ],
+        idempotent: true,
+        readonly: true,
+        html: true,
+        empty_on: &[],
+        lenient_success: false,
+        unsigned: false,
+        no_redirect: false,
+        pagination: crate::route::Pagination::None,
+        retry: crate::route::Retry {
+            max: 1,
+            base_delay_ms: 1000,
+            retry_on: &[],
+        },
+    };
+
     #[tokio::test]
     async fn an_html_read_asks_for_the_page_as_hey_serves_it() {
-        let http = Canned::new(|_| {
-            answer(
-                200,
-                r#"<section id="container_workflow_stage_5512"></section>"#,
-            )
-        });
+        let http = Canned::new(|_| answer(200, r#"<section id="page_5512"></section>"#));
         let client = client_over(http.clone());
 
-        let page = client.workflows().get_stage(8801, 5512).await.unwrap();
+        let page = client
+            .send_text(client.operation(&HTML_PAGE, &[&8801_i64, &5512_i64]))
+            .await
+            .unwrap();
 
-        assert_eq!(
-            page,
-            r#"<section id="container_workflow_stage_5512"></section>"#
-        );
+        assert_eq!(page, r#"<section id="page_5512"></section>"#);
         let sent = http.sent();
         assert_eq!(sent.len(), 1);
-        assert_eq!(sent[0].1, "https://hey.test/workflows/8801/stages/5512");
+        assert_eq!(sent[0].1, "https://hey.test/things/8801/pages/5512");
         assert_eq!(sent[0].2[ACCEPT], "text/html");
         assert_eq!(sent[0].2[AUTHORIZATION], "Bearer secret");
     }

@@ -4032,14 +4032,16 @@ func TestWorkflowsService_Stages(t *testing.T) {
 
 func TestWorkflowsService_GetStage(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodGet || r.URL.Path != "/workflows/8801/stages/5512" {
+		if r.Method != http.MethodGet || r.URL.Path != "/workflows/8801/stages/5512.json" {
 			t.Fatalf("unexpected request %s %s", r.Method, r.URL.Path)
 		}
-		if got := r.Header.Get("Accept"); got != "text/html" {
-			t.Fatalf("expected Accept text/html, got %q", got)
+		if got := r.Header.Get("Accept"); got != "application/json" {
+			t.Fatalf("expected Accept application/json, got %q", got)
 		}
-		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		_, _ = w.Write([]byte(`<section id="container_workflow_stage_5512"><h2>Applied<span class="u-for-screen-reader"> stage</span></h2><div class="workflow__card" id="topic_4471829" data-identifier="91"><h3>Application<span class="u-for-screen-reader">Thread: Application</span></h3><p class="card__detail"><span class="u-for-screen-reader">,</span>3 emails</p></div><div class="workflow__card" id="topic_4471830" data-identifier="92"></div><div id="topic_not-a-number" data-identifier="93"></div><div id="topic_4471831" data-identifier="not-a-number"></div></section>`))
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		_, _ = w.Write([]byte(`{"id":5512,"name":"Applied","workflow_id":8801,"app_url":"https://app.hey.com/workflows/8801","topics":[` +
+			`{"id":4471829,"name":"Application","status":"active","staging_id":91,"emails_count":3,"notes_count":1},` +
+			`{"id":4471830,"staging_id":92}]}`))
 	}))
 	t.Cleanup(server.Close)
 	client := NewClient(&Config{BaseURL: server.URL}, &StaticTokenProvider{Token: "test-token"}, WithMaxRetries(0))
@@ -4055,6 +4057,19 @@ func TestWorkflowsService_GetStage(t *testing.T) {
 	}
 	if topic := stage.Topics[1]; topic.TopicID != 4471830 || topic.StagingID != 92 || topic.Subject != "" || topic.EntryCount != 0 {
 		t.Errorf("unexpected sparse topic: %+v", topic)
+	}
+}
+
+func TestWorkflowsService_GetStageRefusesAnAnswerThatIsNotJSON(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		_, _ = w.Write([]byte(`<section id="container_workflow_stage_5512"></section>`))
+	}))
+	t.Cleanup(server.Close)
+	client := NewClient(&Config{BaseURL: server.URL}, &StaticTokenProvider{Token: "test-token"}, WithMaxRetries(0))
+	stage, err := client.Workflows().GetStage(context.Background(), 8801, 5512)
+	if err == nil || stage != nil {
+		t.Fatalf("expected an error and no stage, got %+v, %v", stage, err)
 	}
 }
 

@@ -5,6 +5,7 @@ package com.basecamp.hey.generated.services
 import com.basecamp.hey.HeyClient
 import com.basecamp.hey.generated.Routes
 import com.basecamp.hey.generated.models.GetWorkflowResponseContent
+import com.basecamp.hey.generated.models.GetWorkflowStageResponseContent
 import com.basecamp.hey.generated.models.MoveWorkflowStagingRequestContent
 import com.basecamp.hey.json
 import com.basecamp.hey.services.BaseService
@@ -37,14 +38,14 @@ open class WorkflowsService(client: HeyClient) : BaseService(client) {
     }
 
     /**
-     * A workflow stage and its cards, served as HTML by HEY.
+     * A workflow stage and the threads on it, in the order the stage shows them.
      * @param workflowId The workflow ID
      * @param stageId The stage ID
      */
-    suspend fun getStage(workflowId: Long, stageId: Long): String {
+    suspend fun getStage(workflowId: Long, stageId: Long): GetWorkflowStageResponseContent {
         val operation = client.operation(Routes.GET_WORKFLOW_STAGE, listOf(workflowId, stageId))
         operation.resourceId(stageId)
-        return client.sendText(operation)
+        return client.send(operation)
     }
 
     /**

@@ -140,17 +140,41 @@ final class WorkflowsServiceTests: XCTestCase {
         XCTAssertEqual(log.started, ["Workflows.DeleteWorkflowStaging:workflow_staging:true:4471829"])
     }
 
-    func testAStagePageWithoutTheStageEndsTheOperationWithThatError() async throws {
-        let hey = mockHey(ok(#"<section id="container_workflow_stage_1"></section>"#, [("Content-Type", "text/html")]))
+    func testAStageAndItsThreadsAreReadAsJSON() async throws {
+        let hey = mockHey(ok(
+            #"{"id":5512,"name":"Applied","workflow_id":8801,"topics":["#
+                + #"{"id":4471829,"name":"Application","status":"active","staging_id":91,"emails_count":3,"notes_count":1},"#
+                + #"{"id":4471830,"staging_id":92}]}"#))
+        let log = OperationLog()
+        let stage = try await hey.client(hooks: log).workflows.stage(workflowId: 8801, stageId: 5512)
+        XCTAssertEqual(stage.id, 5512)
+        XCTAssertEqual(stage.name, "Applied")
+        XCTAssertEqual(stage.topics, [
+            WorkflowStageTopic(stagingId: 91, topicId: 4471829, subject: "Application", entryCount: 3),
+            WorkflowStageTopic(stagingId: 92, topicId: 4471830, subject: "", entryCount: 0),
+        ], "the email count alone, and a sparse thread as defaults, in the order HEY lists them")
+        let request = try XCTUnwrap(hey.requests.first)
+        XCTAssertEqual(request.path, "/workflows/8801/stages/5512.json")
+        XCTAssertEqual(request.header("Accept"), "application/json")
+        XCTAssertEqual(log.started, ["Workflows.GetWorkflowStage:workflow_stage:false:5512"])
+    }
+
+    func testAStageAnswerThatWillNotReadEndsTheOperationWithThatError() async throws {
+        let hey = mockHey(ok(#"{"name":"a stage with no id"}"#))
         let transcript = Transcript()
         let client = try hey.client(hooks: transcript)
-        await assertThrows(HeyError.codeNotFound, try await client.workflows.stage(workflowId: 8801, stageId: 5))
+        await assertThrows(HeyError.codeAPI, try await client.workflows.stage(workflowId: 8801, stageId: 5))
         XCTAssertEqual(transcript.log, [
             "start:Workflows.GetWorkflowStage:workflow_stage:false:5",
             "request:GET:1",
             "response:200:nil",
-            "end:GetWorkflowStage:not_found",
+            "end:GetWorkflowStage:api_error",
         ])
+    }
+
+    func testAStageHEYDoesNotHaveIsNotFound() async throws {
+        let hey = mockHey(status(404, #"{"error":"Not Found"}"#))
+        await assertThrows(HeyError.codeNotFound, try await hey.client().workflows.stage(workflowId: 8801, stageId: 5512))
     }
 
     func testAStagingOfTwoRequestsEndsOnceBothAreInWithTheErrorTheCallerGets() async throws {

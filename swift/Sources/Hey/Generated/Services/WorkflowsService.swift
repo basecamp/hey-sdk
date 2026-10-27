@@ -23,15 +23,15 @@ public final class WorkflowsService: BaseService, @unchecked Sendable {
         return try await client.send(operation)
     }
 
-    /// A workflow stage and its cards, served as HTML by HEY.
+    /// A workflow stage and the threads on it, in the order the stage shows them.
     ///
     /// - Parameters:
     ///   - workflowId: The workflow ID
     ///   - stageId: The stage ID
-    public func getStage(workflowId: Int, stageId: Int) async throws -> String {
+    public func getStage(workflowId: Int, stageId: Int) async throws -> GetWorkflowStageResponseContent {
         var operation = try client.operation(Routes.getWorkflowStage, [workflowId, stageId])
         operation.resourceId(stageId)
-        return try await client.sendText(operation)
+        return try await client.send(operation)
     }
 
     /// Move a staged topic to a workflow stage.

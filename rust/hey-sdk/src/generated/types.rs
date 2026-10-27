@@ -1400,7 +1400,7 @@ pub type GetTrashTopicsResponseContent = TopicListResponse;
 
 pub type GetWorkflowResponseContent = Workflow;
 
-pub type GetWorkflowStageOutputPayload = String;
+pub type GetWorkflowStageResponseContent = WorkflowStageDetail;
 
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct HabitPayload {
@@ -2383,6 +2383,59 @@ pub struct Snippet {
     pub updated_at: Option<DateTime>,
 }
 
+/// A thread on a workflow stage: the topic as GetTopic answers it (without its entries),
+/// with the staging that puts it on the stage and the counts its card shows.
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[non_exhaustive]
+pub struct StagedTopic {
+    #[serde(
+        default,
+        deserialize_with = "crate::types::null_as_default::deserialize"
+    )]
+    pub id: i64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
+    /// ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub created_at: Option<DateTime>,
+    /// ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub updated_at: Option<DateTime>,
+    /// ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub active_at: Option<DateTime>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub status: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub account_id: Option<i64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub app_url: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub creator: Option<Contact>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub contacts: Option<Vec<Contact>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub extenzions: Option<Vec<Extenzion>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub collections: Option<Vec<Collection>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub is_forged_sender: Option<bool>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub latest_entry: Option<Entry>,
+    /// The staging record that puts the thread on this stage.
+    #[serde(
+        default,
+        deserialize_with = "crate::types::null_as_default::deserialize"
+    )]
+    pub staging_id: i64,
+    /// The thread's active emails.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub emails_count: Option<i32>,
+    /// The thread's active notes.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub notes_count: Option<i32>,
+}
+
 pub type StartTimeTrackResponseContent = Recording;
 
 /// Sticky — a note on the stickies board
@@ -2805,6 +2858,32 @@ pub struct WorkflowStage {
     pub id: i64,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
+}
+
+/// A workflow stage and the threads on it, as GetWorkflowStage answers it.
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[non_exhaustive]
+pub struct WorkflowStageDetail {
+    #[serde(
+        default,
+        deserialize_with = "crate::types::null_as_default::deserialize"
+    )]
+    pub id: i64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
+    /// ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub created_at: Option<DateTime>,
+    /// ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub updated_at: Option<DateTime>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub workflow_id: Option<i64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub app_url: Option<String>,
+    /// The threads on the stage, in the order the stage shows them. Not paginated.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub topics: Option<Vec<StagedTopic>>,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]

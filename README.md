@@ -503,10 +503,10 @@ in unnoticed.
 
 A handful of services (`Clips`, `Snippets`, `Workflows`, `Publications`, `World`,
 `Extenzions`, `CalendarEvents`, and parts of `Contacts` and `Search`) still talk to HEY the
-way the web UI does — form posts, and for a few reads, the HTML page — because those
-endpoints have no JSON yet. Go covers them through `PostForm` and its neighbours, Rust
-through `Client::form`/`Client::send_form`, and Kotlin and Swift through
-`client.form`/`client.sendForm`, each with the same hand-written services. They are
+way the web UI does — form posts — because those endpoints have no JSON yet. Go covers
+them through `PostForm` and its neighbours, Rust through `Client::form`/`Client::send_form`,
+and Kotlin and Swift through `client.form`/`client.sendForm`, each with the same
+hand-written services. They are
 marked as such in the code and are being replaced as HEY grows JSON for them.
 
 ## Develop

@@ -3,6 +3,42 @@
 Breaking changes to the SDKs' public surface, by release, with what to change. Wire behavior
 is not versioned here; the conformance fixtures under `conformance/tests/` hold that.
 
+## Rust, TypeScript, Kotlin and Swift: the first release after 0.34.0
+
+### A workflow stage is read as JSON
+
+HEY now answers `GET /workflows/{workflowId}/stages/{stageId}.json`, so `GetWorkflowStage` is
+a JSON operation and the SDKs no longer read the stage's web page. The model's
+`WorkflowStageDetail` is the stage, and each of its `topics` a `StagedTopic`: the topic as
+`GetTopic` answers it, with `staging_id`, `emails_count` and `notes_count`.
+
+The hand-written stage read keeps its signature and its answer everywhere:
+`Workflows::stage` (Rust), `client.workflows.stage` (Kotlin, Swift) and Go's
+`WorkflowsService.GetStage` still answer a `WorkflowStageView` of `WorkflowStageTopic`s,
+`entry_count` still the thread's email count. What changes:
+
+- The generated `get_stage` / `getStage` / `getWorkflowStage` answers the stage rather than
+  the page: `WorkflowStageDetail` in Rust (`GetWorkflowStageResponseContent`), Kotlin and
+  Swift, and the stage object as `data` in TypeScript, where it was a `string`.
+  `GetWorkflowStageOutputPayload` is gone.
+- `WorkflowStageView::parse(html, stage_id)` (Rust), `WorkflowStageView.parse(html, stageId)`
+  (Kotlin) and `WorkflowStageView.parse(_:stageId:)` (Swift) are gone, with the HTML parsers
+  behind them. Convert what `get_stage` answers instead:
+
+```rust
+// before
+let view = WorkflowStageView::parse(&page, stage_id)?;
+
+// after
+let view = WorkflowStageView::from(client.workflows().get_stage(workflow_id, stage_id).await?);
+```
+
+  Kotlin's is `WorkflowStageView.from(stage)`, Swift's `WorkflowStageView(stage)`.
+- A stage HEY does not have is its 404, `not_found` as before (it was also what a page
+  without the stage read as).
+- The Rust crate no longer depends on `scraper` or `ego-tree`, nor Go's module directly on
+  `golang.org/x/net`.
+
 ## Go, TypeScript and Rust: the first release after 0.33.1
 
 ### A client with no credentials is refused when it is built

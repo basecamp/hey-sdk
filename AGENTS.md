@@ -91,10 +91,11 @@ the service the hooks hear where the PascalCase of the module would fold an acro
 keeps whole: the `OAuth` tag is filed under `oauth` by `[services]` (so `client.oauth()`, not
 `o_auth()`), and `[service_names]` makes its type `OAuth` rather than `Oauth`.
 
-An operation whose 2xx body is `text/html` rather than JSON — a workflow stage — becomes a
-method that asks for the page as HEY serves it (no `.json` suffix, `Accept: text/html`) and
-answers the body as a `String`. Reading anything out of that page is a hand-written
-convenience's job, as `go/pkg/hey` does for the same route.
+An operation whose 2xx body is `text/html` rather than JSON becomes a method that asks for
+the page as HEY serves it (no `.json` suffix, `Accept: text/html`) and answers the body as a
+`String`. Reading anything out of that page is a hand-written convenience's job. No modelled
+operation answers HTML today (the workflow stage did until HEY served it as JSON); the
+generator fixtures and the core tests, on a route of their own, keep the path working.
 
 A 2xx in any other representation — an image, a CSV, two representations on one status, a
 schema that is not a `$ref` — fails generation naming the operation. A method the crate
@@ -276,8 +277,7 @@ The naming convention is Rust's: a hand-written method keeps its plain name wher
 free, and takes the name the model gives the operation it sends where the generated method
 already holds it -- `markPostingsSeen(ids)` alongside the generated `markSeen(body)`. A
 form-backed write goes through `HeyClient.form`/`sendForm` with `writeInfo` saying what it
-means; a page HEY serves as HTML is read by `WorkflowStageView.parse`, with the rules Go and
-Rust read it by.
+means.
 
 ### Swift
 

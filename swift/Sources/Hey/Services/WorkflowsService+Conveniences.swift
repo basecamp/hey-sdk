@@ -1,15 +1,15 @@
 import Foundation
 
-/// One thread on a workflow stage, as the stage page renders its card.
+/// One thread on a workflow stage.
 public struct WorkflowStageTopic: Codable, Sendable, Equatable {
-    /// The staging record that puts the thread on this stage, which is what
-    /// ``WorkflowsService/moveStaging(topicId:workflowId:body:)`` moves.
+    /// The staging record that puts the thread on this stage.
     public var stagingId: Int
-    /// The thread the card is for.
+    /// The thread.
     public var topicId: Int
-    /// The card's title; empty when the card renders none.
+    /// The thread's subject; empty when HEY names none.
     public var subject: String
-    /// How many emails the card says the thread holds; zero when the card does not say.
+    /// How many emails the thread holds (HEY counts its notes separately); zero when HEY does
+    /// not say.
     public var entryCount: Int
 
     public init(stagingId: Int, topicId: Int, subject: String, entryCount: Int) {
@@ -27,14 +27,13 @@ public struct WorkflowStageTopic: Codable, Sendable, Equatable {
     }
 }
 
-/// A workflow stage as HEY renders it — the stage page is the only place a stage's threads are
-/// listed — with the cards it shows.
+/// A workflow stage and the threads on it.
 public struct WorkflowStageView: Codable, Sendable, Equatable {
-    /// The stage, as the caller asked for it.
+    /// The stage.
     public var id: Int
-    /// The stage's name as the page shows it; empty when the page names none.
+    /// The stage's name; empty when HEY names none.
     public var name: String
-    /// The cards on the stage, in the order the page shows them.
+    /// The threads on the stage, in the order the stage shows them.
     public var topics: [WorkflowStageTopic]
 
     public init(id: Int, name: String, topics: [WorkflowStageTopic]) {
@@ -43,52 +42,18 @@ public struct WorkflowStageView: Codable, Sendable, Equatable {
         self.topics = topics
     }
 
-    /// Reads the stage out of the page HEY serves for it, the way Go and Rust do: the element
-    /// whose id names the stage, the first `h2` at or under it for the name, and every outermost
-    /// element under it whose id is `topic_<id>` for a card. A card is skipped when its thread or
-    /// staging id will not parse as a positive number, or when its detail line does not start
-    /// with a count. Text meant for screen readers is left out of names and subjects.
-    ///
-    /// - Throws: ``HeyError/notFound(message:detail:)`` when the page has no such stage.
-    public static func parse(_ html: String, stageId: Int) throws -> WorkflowStageView {
-        let document = parseHtml(html)
-        let stageElementId = "container_workflow_stage_\(stageId)"
-        guard let stage = document.root.descendants().first(where: { $0.attribute("id") == stageElementId }) else {
-            throw HeyError.notFound(message: "workflow stage not found: \(stageId)", detail: ErrorDetail())
-        }
-        let name = stage.firstAtOrUnder { $0.tag == "h2" }?.visibleText() ?? ""
-        // Outermost cards only, in document order, found without recursion: the page's nesting
-        // is the server's to decide.
-        var topics: [WorkflowStageTopic] = []
-        var pending: [HtmlElement] = stage.childElements.reversed()
-        while let element = pending.popLast() {
-            if element.attribute("id")?.hasPrefix("topic_") == true {
-                if let card = topic(element) { topics.append(card) }
-            } else {
-                pending.append(contentsOf: element.childElements.reversed())
-            }
-        }
-        return WorkflowStageView(id: stageId, name: name, topics: topics)
-    }
-
-    private static func topic(_ card: HtmlElement) -> WorkflowStageTopic? {
-        guard let topicId = positive(card.attribute("id").map { String($0.dropFirst("topic_".count)) }),
-              let stagingId = positive(card.attribute("data-identifier"))
-        else { return nil }
-        let subject = card.firstAtOrUnder { $0.tag == "h3" }?.visibleText() ?? ""
-        let detail = card.firstAtOrUnder { $0.tag == "p" && $0.attribute("class")?.contains("card__detail") == true }
-        var entryCount = 0
-        if let detail {
-            let first = detail.visibleText().split(separator: " ", omittingEmptySubsequences: false).first.map(String.init)
-            guard let count = first.flatMap({ Int($0) }), count >= 0 else { return nil }
-            entryCount = count
-        }
-        return WorkflowStageTopic(stagingId: stagingId, topicId: topicId, subject: subject, entryCount: entryCount)
-    }
-
-    private static func positive(_ value: String?) -> Int? {
-        guard let parsed = value.flatMap({ Int($0) }), parsed > 0 else { return nil }
-        return parsed
+    /// The stage as the generated ``WorkflowsService/getStage(workflowId:stageId:)`` answers
+    /// it, reduced to the threads' ids, subjects and email counts. A negative count, which HEY
+    /// does not send, reads as zero.
+    public init(_ stage: WorkflowStageDetail) {
+        self.init(
+            id: stage.id,
+            name: stage.name ?? "",
+            topics: (stage.topics ?? []).map { topic in
+                WorkflowStageTopic(
+                    stagingId: topic.stagingId, topicId: topic.id, subject: topic.name ?? "",
+                    entryCount: max(0, Int(topic.emailsCount ?? 0)))
+            })
     }
 }
 
@@ -114,10 +79,9 @@ public struct WorkflowSummary: Codable, Sendable, Equatable {
     }
 }
 
-/// The stage page reader and the form-backed writes on top of the generated surface (`get`,
-/// `getStage`, `createStaging`, `moveStaging`). A workflow has no JSON surface beyond the page
-/// that reads one and the autocomplete endpoint that enumerates them, so every write is a
-/// browser form post.
+/// The stage view and the form-backed writes on top of the generated surface (`get`,
+/// `getStage`, `createStaging`, `moveStaging`). Workflows, their stages and the threads on a
+/// stage are read as JSON; every write is a browser form post.
 extension WorkflowsService {
     /// The workflows on an account. The autocomplete endpoint answers bare
     /// `[id, name, account name]` rows under its bare path, and answers 304 to a conditional
@@ -136,14 +100,10 @@ extension WorkflowsService {
         try await get(workflowId: workflowId).stages ?? []
     }
 
-    /// Reads a stage's page and the cards on it. The generated
-    /// ``getStage(workflowId:stageId:)`` answers the page itself; this sends the same route and
-    /// parses inside the operation, so a page without the stage ends the operation the hooks hear
-    /// with the error the caller gets.
+    /// One stage and the threads on it: what the generated ``getStage(workflowId:stageId:)``
+    /// answers, as a ``WorkflowStageView``.
     public func stage(workflowId: Int, stageId: Int) async throws -> WorkflowStageView {
-        var operation = try client.operation(Routes.getWorkflowStage, [workflowId, stageId])
-        operation.resourceId(stageId)
-        return try await client.execute(operation) { try WorkflowStageView.parse($0.text(), stageId: stageId) }
+        WorkflowStageView(try await getStage(workflowId: workflowId, stageId: stageId))
     }
 
     /// Adds a workflow. No account — nil or a zero id — leaves HEY to pick your first.

@@ -2,6 +2,7 @@ import { describe, it, expect, expectTypeOf, vi } from "vitest";
 import { HeyClient, HeyError } from "../src/index.js";
 import { nextLink, parseJSON, stringifyJSON } from "../src/security.js";
 import { VERSION, API_VERSION } from "../src/version.js";
+import { operationMetadata } from "../src/generated/operations.js";
 function deferred<T>() {
   let resolve!: (value: T) => void;
   const promise = new Promise<T>((r) => {
@@ -229,24 +230,58 @@ describe("HEY transport", () => {
     ).rejects.toMatchObject({ code, httpStatus: status });
     expect(m.requests).toHaveLength(1);
   });
-  it("requests and returns modeled HTML without inventing a JSON representation", async () => {
-    const html = '<section id="container_workflow_stage_5512">Applied</section>';
-    const m = mock([
-      new Response(html, {
-        headers: { "Content-Type": "text/html; charset=utf-8" },
-      }),
-    ]);
+  it("reads a workflow stage and its threads as JSON", async () => {
+    const stage = {
+      id: 5512,
+      name: "Applied",
+      workflow_id: 8801,
+      topics: [
+        { id: 4471829, name: "Application", staging_id: 91, emails_count: 3, notes_count: 1 },
+        { id: 4471830, staging_id: 92 },
+      ],
+    };
+    const m = mock([json(stage)]);
     const result = await new HeyClient({ token: "secret", fetch: m.fetch })
       .getWorkflowStage(
         { path: { workflowId: 8801, stageId: 5512 } },
         { format: "json" },
       );
     expect(new URL(m.requests[0]!.url).pathname).toBe(
+      "/workflows/8801/stages/5512.json",
+    );
+    expect(m.requests[0]!.headers.get("Accept")).toBe("application/json");
+    expect(result.data).toEqual(stage);
+    expect(result.data?.topics?.[0]?.staging_id).toBe(91);
+  });
+  // No modelled operation answers HTML today; the client still knows how to ask for one when
+  // the model marks it so, which these tests check by marking one for their duration.
+  async function asHTML<T>(run: () => Promise<T>): Promise<T> {
+    const meta = operationMetadata.GetWorkflowStage as { responseMediaType?: string };
+    meta.responseMediaType = "text/html";
+    try {
+      return await run();
+    } finally {
+      delete meta.responseMediaType;
+    }
+  }
+  it("requests and returns modeled HTML without inventing a JSON representation", async () => {
+    const html = '<section id="page_5512">Applied</section>';
+    const m = mock([
+      new Response(html, {
+        headers: { "Content-Type": "text/html; charset=utf-8" },
+      }),
+    ]);
+    const result = await asHTML(() =>
+      new HeyClient({ token: "secret", fetch: m.fetch }).getWorkflowStage(
+        { path: { workflowId: 8801, stageId: 5512 } },
+        { format: "json" },
+      ),
+    );
+    expect(new URL(m.requests[0]!.url).pathname).toBe(
       "/workflows/8801/stages/5512",
     );
     expect(m.requests[0]!.headers.get("Accept")).toBe("text/html");
-    expectTypeOf(result.data).toEqualTypeOf<string | undefined>();
-    expect(result.data).toBe(html);
+    expect(result.data as unknown).toBe(html);
   });
   it("decodes JSON errors from modeled HTML operations", async () => {
     const m = mock([
@@ -255,9 +290,11 @@ describe("HEY transport", () => {
       }),
     ]);
     await expect(
-      new HeyClient({ token: "secret", fetch: m.fetch }).getWorkflowStage({
-        path: { workflowId: 8801, stageId: 5512 },
-      }),
+      asHTML(() =>
+        new HeyClient({ token: "secret", fetch: m.fetch }).getWorkflowStage({
+          path: { workflowId: 8801, stageId: 5512 },
+        }),
+      ),
     ).rejects.toMatchObject({
       code: "validation",
       message: "Stage is unavailable",

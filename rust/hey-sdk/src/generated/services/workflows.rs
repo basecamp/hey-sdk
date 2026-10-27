@@ -39,17 +39,17 @@ impl<'a> Workflows<'a> {
         self.client.send(operation).await
     }
 
-    /// A workflow stage and its cards, served as HTML by HEY.
+    /// A workflow stage and the threads on it, in the order the stage shows them.
     pub async fn get_stage(
         &self,
         workflow_id: i64,
         stage_id: i64,
-    ) -> Result<GetWorkflowStageOutputPayload, Error> {
+    ) -> Result<GetWorkflowStageResponseContent, Error> {
         let mut operation = self
             .client
             .operation(&routes::GET_WORKFLOW_STAGE, &[&workflow_id, &stage_id]);
         operation.resource_id(stage_id);
-        self.client.send_text(operation).await
+        self.client.send(operation).await
     }
 
     /// Move a staged topic to a workflow stage.
