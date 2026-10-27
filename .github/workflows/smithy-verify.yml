@@ -58,3 +58,7 @@ jobs:
       - name: Verify behavior-trait tripwires fire
         working-directory: .
         run: make behavior-traits-test
+
+      - name: Verify the account-scope expansion
+        working-directory: .
+        run: make account-scope-test

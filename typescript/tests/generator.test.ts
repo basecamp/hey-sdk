@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { it, expect } from "vitest";
 import {
   generateOperations,
+  render,
   type Spec,
   type Behavior,
 } from "../scripts/generate.js";
@@ -89,6 +90,115 @@ it("preserves polymorphic optional fields while narrowing discriminators", () =>
     false,
   );
 });
+it("declares the account filter on every signed operation and none on an unsigned one", () => {
+  // Generic OpenAPI clients learn their inputs from standard parameters only. The SDK
+  // transports already send filtered_account_id, so this is the one place it is declared.
+  const s = spec as unknown as {
+    "x-hey-account-scope"?: { query?: string };
+    security?: unknown;
+    paths: Record<string, Record<string, Record<string, any>>>;
+  };
+  expect(s["x-hey-account-scope"]).toEqual({ query: "filtered_account_id" });
+  const filter = {
+    name: "filtered_account_id",
+    in: "query",
+    description:
+      "Optional account filter, an id from GetIdentity's accounts[].id. Reads that filter by account narrow to that account. Omit it to leave the filter unset, and what an unfiltered request returns depends on the operation. Some operations ignore it. To choose a sending address, use an operation's explicit sender-selection fields rather than relying on this filter. GetIdentity also lists accounts the filter does not accept, and an id HEY does not recognize or cannot use for this identity can leave the filter unset instead of returning an error.",
+    required: false,
+    schema: { type: "integer", format: "int64" },
+    "x-hey-account-scope": true,
+  };
+  const seen = { signed: 0, unsigned: 0 };
+  for (const [path, item] of Object.entries(s.paths)) {
+    expect(item.parameters, path).toBeUndefined();
+    for (const o of Object.values(item)) {
+      const id = o.operationId as string | undefined;
+      if (!id) continue;
+      const unsigned = o["x-hey-unsigned"] !== undefined;
+      const effective = "security" in o ? o.security : s.security;
+      expect((effective as unknown[]).length === 0, id).toBe(unsigned);
+      const named = ((o.parameters ?? []) as { name: string }[]).filter(
+        (p) => p.name === "filtered_account_id",
+      );
+      expect(named, id).toEqual(unsigned ? [] : [filter]);
+      seen[unsigned ? "unsigned" : "signed"]++;
+    }
+  }
+  expect(seen.signed).toBeGreaterThan(0);
+  expect(seen.unsigned).toBeGreaterThan(0);
+});
+it("leaves the marked account filter out of schema.ts and operations.ts, but not an unmarked one", async () => {
+  const filter = (marked: boolean) => ({
+    name: "filtered_account_id",
+    in: "query",
+    schema: { type: "integer", format: "int64" },
+    ...(marked ? { "x-hey-account-scope": true } : {}),
+  });
+  const response = { "200": { description: "ok" } };
+  const fixture = {
+    openapi: "3.1.0",
+    info: { title: "fixture", version: "1" },
+    paths: {
+      "/boxes.json": {
+        get: {
+          operationId: "ListBoxes",
+          parameters: [
+            { name: "page", in: "query", schema: { type: "string" } },
+            filter(true),
+          ],
+          responses: response,
+        },
+      },
+      "/identity.json": {
+        get: { operationId: "GetIdentity", parameters: [filter(true)], responses: response },
+      },
+      "/legacy.json": {
+        get: { operationId: "ListLegacy", parameters: [filter(false)], responses: response },
+      },
+    },
+    components: { schemas: {} },
+  } as unknown as Spec;
+  const before = structuredClone(fixture);
+  const files = await render(fixture, {
+    operations: {
+      ListBoxes: { readonly: true, idempotent: false },
+      GetIdentity: { readonly: true, idempotent: false },
+      ListLegacy: { readonly: true, idempotent: false },
+    },
+  });
+  expect(fixture).toEqual(before);
+  const operation = (source: string, id: string) =>
+    source.slice(source.indexOf(`${id}: {`)).split(/\n {4}\w+: \{/)[0]!;
+  const schema = files["schema.ts"]!;
+  expect(operation(schema, "ListBoxes")).toContain("page?: string");
+  expect(operation(schema, "ListBoxes")).not.toContain("filtered_account_id");
+  expect(operation(schema, "GetIdentity")).not.toContain("filtered_account_id");
+  expect(operation(schema, "ListLegacy")).toContain("filtered_account_id?:");
+  const metadata = JSON.parse(
+    files["operations.ts"]!
+      .split("export const operationMetadata = ")[1]!
+      .split(" as const;")[0]!,
+  ) as Record<string, { parameters: { name: string }[] }>;
+  expect(metadata.ListBoxes!.parameters.map((p) => p.name)).toEqual(["page"]);
+  expect(metadata.GetIdentity!.parameters).toEqual([]);
+  expect(metadata.ListLegacy!.parameters.map((p) => p.name)).toEqual([
+    "filtered_account_id",
+  ]);
+});
+it("refuses the account filter as an operation input, leaving it to the client's account scope", async () => {
+  let sent = false;
+  const c = new HeyClient({
+    token: "test",
+    fetch: async () => {
+      sent = true;
+      return new Response(null, { status: 204 });
+    },
+  });
+  await expect(
+    c.listBoxes({ query: { filtered_account_id: 17 } } as never),
+  ).rejects.toMatchObject({ name: "HeyError", code: "usage" });
+  expect(sent).toBe(false);
+});
 // Independent OpenAPI-driven request coverage. Every generated method must reach the
 // real transport with the modeled method/path/query/body; new operations join automatically.
 for (const [path, item] of Object.entries(spec.paths))
@@ -106,6 +216,7 @@ for (const [path, item] of Object.entries(spec.paths))
       const input: Record<string, any> = { path: {}, query: {} };
       let expectedPath = path;
       for (const p of op.parameters ?? []) {
+        if ("x-hey-account-scope" in p) continue;
         const value =
           p.schema.type === "integer"
             ? 17
