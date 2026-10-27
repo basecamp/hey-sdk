@@ -186,14 +186,10 @@ export function generateOperations(spec: Spec, behavior: Behavior) {
   };
 }
 
-export async function generate(check = false) {
-  const root = new URL("../../", import.meta.url);
-  const spec = JSON.parse(
-    await readFile(new URL("openapi.json", root), "utf8"),
-  ) as Spec;
-  const behavior = JSON.parse(
-    await readFile(new URL("behavior-model.json", root), "utf8"),
-  ) as Behavior;
+export async function render(
+  spec: Spec,
+  behavior: Behavior,
+): Promise<Record<string, string>> {
   const ast = await openapiTS(spec as unknown as OpenAPI3, {
     transform(s) {
       if (s.type === "integer" && s.format === "int64") {
@@ -209,10 +205,21 @@ export async function generate(check = false) {
       }
     },
   });
-  const output = {
+  return {
     "schema.ts": banner + astToString(ast),
     ...generateOperations(spec, behavior),
   };
+}
+
+export async function generate(check = false) {
+  const root = new URL("../../", import.meta.url);
+  const spec = JSON.parse(
+    await readFile(new URL("openapi.json", root), "utf8"),
+  ) as Spec;
+  const behavior = JSON.parse(
+    await readFile(new URL("behavior-model.json", root), "utf8"),
+  ) as Behavior;
+  const output = await render(spec, behavior);
   const directory = new URL("../src/generated/", import.meta.url);
   await mkdir(directory, { recursive: true });
   for (const [name, content] of Object.entries(output)) {
