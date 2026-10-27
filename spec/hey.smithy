@@ -30,7 +30,9 @@ $version: "2"
 namespace hey
 
 use smithy.api#documentation
+use smithy.api#auth
 use smithy.api#http
+use smithy.api#httpBearerAuth
 use smithy.api#httpLabel
 use smithy.api#httpQuery
 use smithy.api#httpPayload
@@ -66,6 +68,7 @@ timestamp DateTime
 
 /// HEY API
 @restJson1
+@httpBearerAuth
 service HEY {
     version: "2026-10-05"
     operations: [
@@ -5276,6 +5279,7 @@ structure TopicPublication {
 @heyUntrustedContent(false)
 @heyUnsigned
 @heyNoRedirect
+@auth([])
 operation CreateToken {
     input: CreateTokenInput
     output: CreateTokenOutput
@@ -5356,6 +5360,7 @@ structure OAuthToken {
 @heyUntrustedContent(false)
 @heyUnsigned
 @heyNoRedirect
+@auth([])
 operation RevokeToken {
     input: RevokeTokenInput
     output: RevokeTokenOutput

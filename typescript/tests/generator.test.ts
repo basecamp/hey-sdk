@@ -175,6 +175,27 @@ it("carries each operation's unsigned and no-redirect flags into the behavior mo
   expect(behavior.operations.CreateToken).toMatchObject({ unsigned: true, no_redirect: true });
   expect(behavior.operations.RevokeToken).toMatchObject({ unsigned: true, no_redirect: true });
 });
+it("declares bearer auth on every signed operation and none on an unsigned one", () => {
+  // Generic OpenAPI tooling reads credentials from the standard security fields, not from
+  // x-hey-unsigned, so the two must say the same thing about every operation.
+  const s = spec as unknown as {
+    security?: unknown;
+    components: { securitySchemes?: Record<string, { type?: string; scheme?: string }> };
+  };
+  const schemes = s.components.securitySchemes ?? {};
+  expect(Object.values(schemes).map((x) => [x.type, x.scheme?.toLowerCase()])).toEqual([
+    ["http", "bearer"],
+  ]);
+  const bearer = [{ [Object.keys(schemes)[0]!]: [] }];
+  expect(s.security).toEqual(bearer);
+  for (const item of Object.values(spec.paths))
+    for (const o of Object.values(item) as Record<string, unknown>[]) {
+      const id = o.operationId as string | undefined;
+      if (!id) continue;
+      const effective = "security" in o ? o.security : s.security;
+      expect(effective, id).toEqual(o["x-hey-unsigned"] !== undefined ? [] : bearer);
+    }
+});
 it("marks the operations whose refusals are RFC 6749's", () => {
   for (const [id, m] of Object.entries(operationMetadata))
     expect((m as { oauthErrors?: true }).oauthErrors, id).toBe(
