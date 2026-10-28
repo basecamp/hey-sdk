@@ -638,3 +638,49 @@ fn a_service_type_keeps_an_acronym_the_accessor_folds() {
     assert!(route(routes, "CREATE_TOKEN").contains("    service: \"OAuth\",\n"));
     assert!(route(routes, "CREATE_TOKEN").contains("    resource_type: \"token\",\n"));
 }
+
+#[test]
+fn the_marked_account_filter_is_left_to_the_transport_but_an_unmarked_one_is_not() {
+    let filter = |marked: bool| {
+        let mut parameter = json!({ "name": "filtered_account_id", "in": "query", "schema": { "type": "integer", "format": "int64" } });
+        if marked {
+            parameter["x-hey-account-scope"] = json!(true);
+        }
+        parameter
+    };
+    let mut boxes = read("ListBoxes", "Boxes", &[], &json_body("Box"));
+    boxes["get"]["parameters"] =
+        json!([{ "name": "page", "in": "query", "schema": { "type": "string" } }, filter(true)]);
+    let mut stages = read("ListStages", "Stages", &[], &json_body("Box"));
+    stages["get"]["parameters"] = json!([filter(false)]);
+    let paths = json!({ "/boxes.json": boxes, "/stages.json": stages });
+
+    let model = build(paths.clone(), box_schema(), &["ListBoxes", "ListStages"]).unwrap();
+    let query = |id: &str| -> Vec<String> {
+        let operation = model
+            .services
+            .iter()
+            .flat_map(|s| &s.operations)
+            .find(|o| o.id == id)
+            .unwrap();
+        operation
+            .query_params
+            .iter()
+            .map(|p| p.wire_name.clone())
+            .collect()
+    };
+    assert_eq!(
+        query("ListBoxes"),
+        ["page"],
+        "an unmarked query parameter stays, the marked one goes"
+    );
+    assert_eq!(
+        query("ListStages"),
+        ["filtered_account_id"],
+        "the marker decides, not the name"
+    );
+
+    let files = generate(paths, box_schema(), &["ListBoxes", "ListStages"]);
+    assert!(!file(&files, "services/boxes.rs").contains("filtered_account_id"));
+    assert!(file(&files, "services/stages.rs").contains("filtered_account_id"));
+}

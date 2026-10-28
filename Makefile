@@ -24,6 +24,7 @@ smithy-build: smithy-mapper
 	cd spec && smithy build
 	cp spec/build/smithy/openapi/openapi/HEY.openapi.json openapi.json
 	./scripts/enhance-openapi-go-types.sh
+	./scripts/expand-account-scope
 	@$(MAKE) behavior-model
 
 smithy-check: smithy-validate smithy-mapper
@@ -31,6 +32,7 @@ smithy-check: smithy-validate smithy-mapper
 	@cd spec && smithy build
 	@cp spec/build/smithy/openapi/openapi/HEY.openapi.json /tmp/hey-openapi-check.json
 	@./scripts/enhance-openapi-go-types.sh /tmp/hey-openapi-check.json > /dev/null 2>&1
+	@./scripts/expand-account-scope /tmp/hey-openapi-check.json
 	@diff -q openapi.json /tmp/hey-openapi-check.json > /dev/null 2>&1 || \
 		{ echo "ERROR: openapi.json is out of date. Run 'make smithy-build'"; exit 1; }
 	@rm -f /tmp/hey-openapi-check.json
@@ -42,7 +44,7 @@ smithy-clean:
 # Behavior model
 #------------------------------------------------------------------------------
 
-.PHONY: behavior-model behavior-model-check behavior-traits-test
+.PHONY: behavior-model behavior-model-check behavior-traits-test account-scope-test
 
 behavior-model:
 	@echo "==> Generating behavior model..."
@@ -57,6 +59,12 @@ behavior-model-check:
 behavior-traits-test:
 	@echo "==> Testing behavior-trait tripwires..."
 	@./scripts/test-behavior-traits
+
+# Expand a small document and broken copies of it: proves the account filter is declared
+# on signed operations alone, and that the Go generator's input leaves it out.
+account-scope-test:
+	@echo "==> Testing the account-scope expansion..."
+	@./scripts/test-account-scope
 
 #------------------------------------------------------------------------------
 # URL routes
@@ -434,14 +442,14 @@ audit-check:
 #------------------------------------------------------------------------------
 
 # Supported gate: Smithy + shipped Go, Rust, TypeScript, Kotlin and Swift SDKs
-check-mvp: smithy-check behavior-model-check behavior-traits-test drift-check-mvp \
+check-mvp: smithy-check behavior-model-check behavior-traits-test account-scope-test drift-check-mvp \
            url-routes-check go-check go-check-drift rs-check rs-check-drift \
            ts-check kt-check kt-check-drift swift-check swift-check-drift \
            sync-api-version-check provenance-check conformance-mvp
 	@echo "==> MVP gate passed"
 
 # Phase 3: Full surface, all languages
-check-full: smithy-check behavior-model-check behavior-traits-test drift-check-full \
+check-full: smithy-check behavior-model-check behavior-traits-test account-scope-test drift-check-full \
             sync-api-version-check provenance-check \
             go-check-drift rs-check-drift kt-check-drift swift-check-drift \
             go-check rs-check ts-check rb-check swift-check kt-check \

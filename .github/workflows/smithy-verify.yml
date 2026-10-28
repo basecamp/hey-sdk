@@ -43,6 +43,7 @@ jobs:
         run: |
           cp spec/build/smithy/openapi/openapi/HEY.openapi.json openapi.generated.json
           ./scripts/enhance-openapi-go-types.sh openapi.generated.json > /dev/null
+          ./scripts/expand-account-scope openapi.generated.json
           if ! diff -q openapi.json openapi.generated.json > /dev/null 2>&1; then
             echo "::error::openapi.json is out of date. Run 'make smithy-build' and commit."
             diff openapi.json openapi.generated.json || true
@@ -58,3 +59,7 @@ jobs:
       - name: Verify behavior-trait tripwires fire
         working-directory: .
         run: make behavior-traits-test
+
+      - name: Verify the account-scope expansion
+        working-directory: .
+        run: make account-scope-test

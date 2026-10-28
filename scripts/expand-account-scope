@@ -1,0 +1,66 @@
+#!/usr/bin/env bash
+# expand-account-scope — Declare the account filter on every signed operation
+#
+# The service's @heyAccountScope trait (top-level x-hey-account-scope) names the query
+# parameter that filters a signed request to one of the identity's accounts. Generic
+# OpenAPI clients learn their inputs from standard parameters alone, so this writes an
+# optional int64 query parameter of that name onto every operation that takes the bearer
+# token, marked "x-hey-account-scope": true. The SDK generators drop the marked parameter:
+# their transports already send it, and a generated argument would be a second way to.
+#
+# Signed means the effective security (the operation's, else the service's) is not empty.
+# The SDKs read x-hey-unsigned instead, so an operation where the two disagree fails the
+# build. So does any declaration of the parameter already there, on an operation or its
+# path, and any $ref this cannot see through, since either could send the filter twice.
+#
+# Usage: expand-account-scope [OPENAPI]
+set -euo pipefail
+
+OPENAPI_FILE="${1:-openapi.json}"
+
+DESCRIPTION="Optional account filter, an id from GetIdentity's accounts[].id. Reads that filter by account narrow to that account. Omit it to leave the filter unset, and what an unfiltered request returns depends on the operation. Some operations ignore it. To choose a sending address, use an operation's explicit sender-selection fields rather than relying on this filter. GetIdentity also lists accounts the filter does not accept, and an id HEY does not recognize or cannot use for this identity can leave the filter unset instead of returning an error."
+
+if ! command -v jq &> /dev/null; then
+    echo "ERROR: jq is required but not installed." >&2
+    exit 1
+fi
+
+jq --arg description "$DESCRIPTION" '
+  def refuse_declarations($where; $name):
+    if any(.[]; has("$ref")) then error("\($where): a $ref parameter is not supported")
+    elif any(.[]; .name == $name) then error("\($where) already declares \($name)")
+    else . end;
+
+  (.["x-hey-account-scope"].query
+    | if type == "string" and length > 0 then .
+      else error("x-hey-account-scope.query must name the account filter; is @heyAccountScope on the service?") end
+  ) as $name
+  | (.security // []) as $default
+  | {
+      name: $name,
+      in: "query",
+      description: $description,
+      required: false,
+      schema: {type: "integer", format: "int64"},
+      "x-hey-account-scope": true
+    } as $filter
+  | .paths |= with_entries(
+      .key as $path
+      | if .value | has("$ref") then error("\($path): a $ref path item is not supported") else . end
+      | (.value.parameters // [] | refuse_declarations($path; $name)) as $_
+      | .value |= with_entries(
+          if .key | IN("get", "put", "post", "delete", "options", "head", "patch", "trace") then
+            (.value.operationId // "\(.key) \($path)") as $id
+            | (.value.parameters // [] | refuse_declarations($id; $name)) as $_
+            | ((.value.security // $default) | length == 0) as $unsigned
+            | if $unsigned != (.value | has("x-hey-unsigned")) then
+                error("\($id): its security is \(.value.security // $default | tojson) but x-hey-unsigned is \(if $unsigned then "absent" else "present" end)")
+              elif .value.operationId == null then error("\($id) has no operationId")
+              elif $unsigned then .
+              else .value.parameters = ((.value.parameters // []) + [$filter])
+              end
+          else . end
+        )
+    )
+' "$OPENAPI_FILE" > "${OPENAPI_FILE}.tmp" || { rm -f "${OPENAPI_FILE}.tmp"; exit 1; }
+mv "${OPENAPI_FILE}.tmp" "$OPENAPI_FILE"

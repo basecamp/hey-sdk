@@ -198,6 +198,31 @@ final class ModelTests: XCTestCase {
         XCTAssertEqual(stage.pathParams.map(\.role), [.parent, .recording])
     }
 
+    func testTheMarkedAccountFilterIsLeftToTheTransportButAnUnmarkedOneIsNot() throws {
+        func filter(_ marked: Bool) -> String {
+            #"{"name":"filtered_account_id","in":"query","schema":{"type":"integer","format":"int64"}"# + (marked ? #","x-hey-account-scope":true}"# : "}")
+        }
+        let response = ##""responses":{"200":{"content":{"application/json":{"schema":{"$ref":"#/components/schemas/ListBoxesResponseContent"}}}}}"##
+        let paths = """
+            {
+            "/boxes.json": {"get": {"operationId":"ListBoxes","tags":["Boxes"],"parameters":[{"name":"page","in":"query","schema":{"type":"string"}},\(filter(true))],\(response)}},
+            "/workflows.json": {"get": {"operationId":"ListWorkflows","tags":["Workflows"],"parameters":[\(filter(false))],\(response)}}
+            }
+            """
+        let model = try model(paths, boxSchemas)
+        func query(_ id: String) -> [String]? {
+            model.services.flatMap(\.operations).first { $0.id == id }?.queryParams.map(\.wireName)
+        }
+        XCTAssertEqual(query("ListBoxes"), ["page"], "an unmarked query parameter stays, the marked one goes")
+        XCTAssertEqual(query("ListWorkflows"), ["filtered_account_id"], "the marker decides, not the name")
+
+        let files = Dictionary(uniqueKeysWithValues: render(model))
+        let boxes = try XCTUnwrap(files["Services/BoxesService.swift"])
+        XCTAssertFalse(boxes.contains("filtered_account_id"), boxes)
+        let workflows = try XCTUnwrap(files["Services/WorkflowsService.swift"])
+        XCTAssertTrue(workflows.contains("filtered_account_id"), workflows)
+    }
+
     func testUnsignedAndNoRedirectAreCarriedOntoTheOperationAndItsRoute() throws {
         // The box fixture with the token endpoint added before its closing brace.
         let paths = String(boxPaths.dropLast()) + #"""

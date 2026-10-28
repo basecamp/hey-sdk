@@ -36,6 +36,17 @@
               "format": "int64"
             },
             "required": true
+          },
+          {
+            "name": "filtered_account_id",
+            "in": "query",
+            "description": "Optional account filter, an id from GetIdentity's accounts[].id. Reads that filter by account narrow to that account. Omit it to leave the filter unset, and what an unfiltered request returns depends on the operation. Some operations ignore it. To choose a sending address, use an operation's explicit sender-selection fields rather than relying on this filter. GetIdentity also lists accounts the filter does not accept, and an id HEY does not recognize or cannot use for this identity can leave the filter unset instead of returning an error.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "x-hey-account-scope": true
           }
         ],
         "responses": {
@@ -222,6 +233,17 @@
               "type": "string",
               "x-go-type-skip-optional-pointer": false
             }
+          },
+          {
+            "name": "filtered_account_id",
+            "in": "query",
+            "description": "Optional account filter, an id from GetIdentity's accounts[].id. Reads that filter by account narrow to that account. Omit it to leave the filter unset, and what an unfiltered request returns depends on the operation. Some operations ignore it. To choose a sending address, use an operation's explicit sender-selection fields rather than relying on this filter. GetIdentity also lists accounts the filter does not accept, and an id HEY does not recognize or cannot use for this identity can leave the filter unset instead of returning an error.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "x-hey-account-scope": true
           }
         ],
         "responses": {
@@ -342,7 +364,20 @@
             503
           ]
         },
-        "x-hey-untrusted-content": false
+        "x-hey-untrusted-content": false,
+        "parameters": [
+          {
+            "name": "filtered_account_id",
+            "in": "query",
+            "description": "Optional account filter, an id from GetIdentity's accounts[].id. Reads that filter by account narrow to that account. Omit it to leave the filter unset, and what an unfiltered request returns depends on the operation. Some operations ignore it. To choose a sending address, use an operation's explicit sender-selection fields rather than relying on this filter. GetIdentity also lists accounts the filter does not accept, and an id HEY does not recognize or cannot use for this identity can leave the filter unset instead of returning an error.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "x-hey-account-scope": true
+          }
+        ]
       }
     },
     "/autocompletable/contacts/addressable.json": {
@@ -359,6 +394,17 @@
               "description": "true includes the identity's own addresses, as the web composer asks.\nAnything else leaves them out, except an address of its own the\nidentity recently wrote to, which the recent contacts still carry.",
               "x-go-type-skip-optional-pointer": false
             }
+          },
+          {
+            "name": "filtered_account_id",
+            "in": "query",
+            "description": "Optional account filter, an id from GetIdentity's accounts[].id. Reads that filter by account narrow to that account. Omit it to leave the filter unset, and what an unfiltered request returns depends on the operation. Some operations ignore it. To choose a sending address, use an operation's explicit sender-selection fields rather than relying on this filter. GetIdentity also lists accounts the filter does not accept, and an id HEY does not recognize or cannot use for this identity can leave the filter unset instead of returning an error.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "x-hey-account-scope": true
           }
         ],
         "responses": {
@@ -480,7 +526,20 @@
             503
           ]
         },
-        "x-hey-untrusted-content": false
+        "x-hey-untrusted-content": false,
+        "parameters": [
+          {
+            "name": "filtered_account_id",
+            "in": "query",
+            "description": "Optional account filter, an id from GetIdentity's accounts[].id. Reads that filter by account narrow to that account. Omit it to leave the filter unset, and what an unfiltered request returns depends on the operation. Some operations ignore it. To choose a sending address, use an operation's explicit sender-selection fields rather than relying on this filter. GetIdentity also lists accounts the filter does not accept, and an id HEY does not recognize or cannot use for this identity can leave the filter unset instead of returning an error.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "x-hey-account-scope": true
+          }
+        ]
       }
     },
     "/boxes/{boxId}": {
@@ -504,6 +563,17 @@
               "type": "string",
               "x-go-type-skip-optional-pointer": false
             }
+          },
+          {
+            "name": "filtered_account_id",
+            "in": "query",
+            "description": "Optional account filter, an id from GetIdentity's accounts[].id. Reads that filter by account narrow to that account. Omit it to leave the filter unset, and what an unfiltered request returns depends on the operation. Some operations ignore it. To choose a sending address, use an operation's explicit sender-selection fields rather than relying on this filter. GetIdentity also lists accounts the filter does not accept, and an id HEY does not recognize or cannot use for this identity can leave the filter unset instead of returning an error.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "x-hey-account-scope": true
           }
         ],
         "responses": {
@@ -600,6 +670,17 @@
               "format": "int64"
             },
             "required": true
+          },
+          {
+            "name": "filtered_account_id",
+            "in": "query",
+            "description": "Optional account filter, an id from GetIdentity's accounts[].id. Reads that filter by account narrow to that account. Omit it to leave the filter unset, and what an unfiltered request returns depends on the operation. Some operations ignore it. To choose a sending address, use an operation's explicit sender-selection fields rather than relying on this filter. GetIdentity also lists accounts the filter does not accept, and an id HEY does not recognize or cannot use for this identity can leave the filter unset instead of returning an error.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "x-hey-account-scope": true
           }
         ],
         "responses": {
@@ -696,6 +777,17 @@
               "format": "int64"
             },
             "required": true
+          },
+          {
+            "name": "filtered_account_id",
+            "in": "query",
+            "description": "Optional account filter, an id from GetIdentity's accounts[].id. Reads that filter by account narrow to that account. Omit it to leave the filter unset, and what an unfiltered request returns depends on the operation. Some operations ignore it. To choose a sending address, use an operation's explicit sender-selection fields rather than relying on this filter. GetIdentity also lists accounts the filter does not accept, and an id HEY does not recognize or cannot use for this identity can leave the filter unset instead of returning an error.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "x-hey-account-scope": true
           }
         ],
         "responses": {
@@ -773,6 +865,17 @@
               "format": "int64"
             },
             "required": true
+          },
+          {
+            "name": "filtered_account_id",
+            "in": "query",
+            "description": "Optional account filter, an id from GetIdentity's accounts[].id. Reads that filter by account narrow to that account. Omit it to leave the filter unset, and what an unfiltered request returns depends on the operation. Some operations ignore it. To choose a sending address, use an operation's explicit sender-selection fields rather than relying on this filter. GetIdentity also lists accounts the filter does not accept, and an id HEY does not recognize or cannot use for this identity can leave the filter unset instead of returning an error.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "x-hey-account-scope": true
           }
         ],
         "responses": {
@@ -863,6 +966,17 @@
               "format": "int64"
             },
             "required": true
+          },
+          {
+            "name": "filtered_account_id",
+            "in": "query",
+            "description": "Optional account filter, an id from GetIdentity's accounts[].id. Reads that filter by account narrow to that account. Omit it to leave the filter unset, and what an unfiltered request returns depends on the operation. Some operations ignore it. To choose a sending address, use an operation's explicit sender-selection fields rather than relying on this filter. GetIdentity also lists accounts the filter does not accept, and an id HEY does not recognize or cannot use for this identity can leave the filter unset instead of returning an error.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "x-hey-account-scope": true
           }
         ],
         "responses": {
@@ -956,6 +1070,17 @@
               "format": "int64"
             },
             "required": true
+          },
+          {
+            "name": "filtered_account_id",
+            "in": "query",
+            "description": "Optional account filter, an id from GetIdentity's accounts[].id. Reads that filter by account narrow to that account. Omit it to leave the filter unset, and what an unfiltered request returns depends on the operation. Some operations ignore it. To choose a sending address, use an operation's explicit sender-selection fields rather than relying on this filter. GetIdentity also lists accounts the filter does not accept, and an id HEY does not recognize or cannot use for this identity can leave the filter unset instead of returning an error.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "x-hey-account-scope": true
           }
         ],
         "responses": {
@@ -1048,6 +1173,17 @@
               "type": "string",
               "x-go-type-skip-optional-pointer": false
             }
+          },
+          {
+            "name": "filtered_account_id",
+            "in": "query",
+            "description": "Optional account filter, an id from GetIdentity's accounts[].id. Reads that filter by account narrow to that account. Omit it to leave the filter unset, and what an unfiltered request returns depends on the operation. Some operations ignore it. To choose a sending address, use an operation's explicit sender-selection fields rather than relying on this filter. GetIdentity also lists accounts the filter does not accept, and an id HEY does not recognize or cannot use for this identity can leave the filter unset instead of returning an error.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "x-hey-account-scope": true
           }
         ],
         "responses": {
@@ -1134,6 +1270,17 @@
               "format": "int64"
             },
             "required": true
+          },
+          {
+            "name": "filtered_account_id",
+            "in": "query",
+            "description": "Optional account filter, an id from GetIdentity's accounts[].id. Reads that filter by account narrow to that account. Omit it to leave the filter unset, and what an unfiltered request returns depends on the operation. Some operations ignore it. To choose a sending address, use an operation's explicit sender-selection fields rather than relying on this filter. GetIdentity also lists accounts the filter does not accept, and an id HEY does not recognize or cannot use for this identity can leave the filter unset instead of returning an error.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "x-hey-account-scope": true
           }
         ],
         "responses": {
@@ -1243,6 +1390,17 @@
               "type": "string",
               "x-go-type-skip-optional-pointer": false
             }
+          },
+          {
+            "name": "filtered_account_id",
+            "in": "query",
+            "description": "Optional account filter, an id from GetIdentity's accounts[].id. Reads that filter by account narrow to that account. Omit it to leave the filter unset, and what an unfiltered request returns depends on the operation. Some operations ignore it. To choose a sending address, use an operation's explicit sender-selection fields rather than relying on this filter. GetIdentity also lists accounts the filter does not accept, and an id HEY does not recognize or cannot use for this identity can leave the filter unset instead of returning an error.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "x-hey-account-scope": true
           }
         ],
         "responses": {
@@ -1339,6 +1497,17 @@
               "type": "string",
               "x-go-type-skip-optional-pointer": false
             }
+          },
+          {
+            "name": "filtered_account_id",
+            "in": "query",
+            "description": "Optional account filter, an id from GetIdentity's accounts[].id. Reads that filter by account narrow to that account. Omit it to leave the filter unset, and what an unfiltered request returns depends on the operation. Some operations ignore it. To choose a sending address, use an operation's explicit sender-selection fields rather than relying on this filter. GetIdentity also lists accounts the filter does not accept, and an id HEY does not recognize or cannot use for this identity can leave the filter unset instead of returning an error.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "x-hey-account-scope": true
           }
         ],
         "responses": {
@@ -1469,7 +1638,20 @@
         ],
         "x-hey-destructive": false,
         "x-hey-open-world": true,
-        "x-hey-untrusted-content": false
+        "x-hey-untrusted-content": false,
+        "parameters": [
+          {
+            "name": "filtered_account_id",
+            "in": "query",
+            "description": "Optional account filter, an id from GetIdentity's accounts[].id. Reads that filter by account narrow to that account. Omit it to leave the filter unset, and what an unfiltered request returns depends on the operation. Some operations ignore it. To choose a sending address, use an operation's explicit sender-selection fields rather than relying on this filter. GetIdentity also lists accounts the filter does not accept, and an id HEY does not recognize or cannot use for this identity can leave the filter unset instead of returning an error.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "x-hey-account-scope": true
+          }
+        ]
       }
     },
     "/bulk_replies/new.json": {
@@ -1486,6 +1668,17 @@
               "description": "The postings to reply to, comma separated."
             },
             "required": true
+          },
+          {
+            "name": "filtered_account_id",
+            "in": "query",
+            "description": "Optional account filter, an id from GetIdentity's accounts[].id. Reads that filter by account narrow to that account. Omit it to leave the filter unset, and what an unfiltered request returns depends on the operation. Some operations ignore it. To choose a sending address, use an operation's explicit sender-selection fields rather than relying on this filter. GetIdentity also lists accounts the filter does not accept, and an id HEY does not recognize or cannot use for this identity can leave the filter unset instead of returning an error.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "x-hey-account-scope": true
           }
         ],
         "responses": {
@@ -1569,6 +1762,17 @@
               "description": "Date (YYYY-MM-DD) to start from. Defaults to today.",
               "x-go-type-skip-optional-pointer": false
             }
+          },
+          {
+            "name": "filtered_account_id",
+            "in": "query",
+            "description": "Optional account filter, an id from GetIdentity's accounts[].id. Reads that filter by account narrow to that account. Omit it to leave the filter unset, and what an unfiltered request returns depends on the operation. Some operations ignore it. To choose a sending address, use an operation's explicit sender-selection fields rather than relying on this filter. GetIdentity also lists accounts the filter does not accept, and an id HEY does not recognize or cannot use for this identity can leave the filter unset instead of returning an error.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "x-hey-account-scope": true
           }
         ],
         "responses": {
@@ -1640,6 +1844,17 @@
               "type": "string"
             },
             "required": true
+          },
+          {
+            "name": "filtered_account_id",
+            "in": "query",
+            "description": "Optional account filter, an id from GetIdentity's accounts[].id. Reads that filter by account narrow to that account. Omit it to leave the filter unset, and what an unfiltered request returns depends on the operation. Some operations ignore it. To choose a sending address, use an operation's explicit sender-selection fields rather than relying on this filter. GetIdentity also lists accounts the filter does not accept, and an id HEY does not recognize or cannot use for this identity can leave the filter unset instead of returning an error.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "x-hey-account-scope": true
           }
         ],
         "responses": {
@@ -1730,6 +1945,17 @@
               "format": "int64"
             },
             "required": true
+          },
+          {
+            "name": "filtered_account_id",
+            "in": "query",
+            "description": "Optional account filter, an id from GetIdentity's accounts[].id. Reads that filter by account narrow to that account. Omit it to leave the filter unset, and what an unfiltered request returns depends on the operation. Some operations ignore it. To choose a sending address, use an operation's explicit sender-selection fields rather than relying on this filter. GetIdentity also lists accounts the filter does not accept, and an id HEY does not recognize or cannot use for this identity can leave the filter unset instead of returning an error.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "x-hey-account-scope": true
           }
         ],
         "responses": {
@@ -1820,6 +2046,17 @@
               "format": "int64"
             },
             "required": true
+          },
+          {
+            "name": "filtered_account_id",
+            "in": "query",
+            "description": "Optional account filter, an id from GetIdentity's accounts[].id. Reads that filter by account narrow to that account. Omit it to leave the filter unset, and what an unfiltered request returns depends on the operation. Some operations ignore it. To choose a sending address, use an operation's explicit sender-selection fields rather than relying on this filter. GetIdentity also lists accounts the filter does not accept, and an id HEY does not recognize or cannot use for this identity can leave the filter unset instead of returning an error.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "x-hey-account-scope": true
           }
         ],
         "responses": {
@@ -1906,6 +2143,17 @@
               "type": "string"
             },
             "required": true
+          },
+          {
+            "name": "filtered_account_id",
+            "in": "query",
+            "description": "Optional account filter, an id from GetIdentity's accounts[].id. Reads that filter by account narrow to that account. Omit it to leave the filter unset, and what an unfiltered request returns depends on the operation. Some operations ignore it. To choose a sending address, use an operation's explicit sender-selection fields rather than relying on this filter. GetIdentity also lists accounts the filter does not accept, and an id HEY does not recognize or cannot use for this identity can leave the filter unset instead of returning an error.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "x-hey-account-scope": true
           }
         ],
         "responses": {
@@ -1995,6 +2243,17 @@
               "type": "string"
             },
             "required": true
+          },
+          {
+            "name": "filtered_account_id",
+            "in": "query",
+            "description": "Optional account filter, an id from GetIdentity's accounts[].id. Reads that filter by account narrow to that account. Omit it to leave the filter unset, and what an unfiltered request returns depends on the operation. Some operations ignore it. To choose a sending address, use an operation's explicit sender-selection fields rather than relying on this filter. GetIdentity also lists accounts the filter does not accept, and an id HEY does not recognize or cannot use for this identity can leave the filter unset instead of returning an error.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "x-hey-account-scope": true
           }
         ],
         "responses": {
@@ -2089,6 +2348,17 @@
               "format": "int64"
             },
             "required": true
+          },
+          {
+            "name": "filtered_account_id",
+            "in": "query",
+            "description": "Optional account filter, an id from GetIdentity's accounts[].id. Reads that filter by account narrow to that account. Omit it to leave the filter unset, and what an unfiltered request returns depends on the operation. Some operations ignore it. To choose a sending address, use an operation's explicit sender-selection fields rather than relying on this filter. GetIdentity also lists accounts the filter does not accept, and an id HEY does not recognize or cannot use for this identity can leave the filter unset instead of returning an error.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "x-hey-account-scope": true
           }
         ],
         "responses": {
@@ -2186,6 +2456,17 @@
               "description": "Remove this day and every one after it. Off, only this day is removed.",
               "x-go-type-skip-optional-pointer": false
             }
+          },
+          {
+            "name": "filtered_account_id",
+            "in": "query",
+            "description": "Optional account filter, an id from GetIdentity's accounts[].id. Reads that filter by account narrow to that account. Omit it to leave the filter unset, and what an unfiltered request returns depends on the operation. Some operations ignore it. To choose a sending address, use an operation's explicit sender-selection fields rather than relying on this filter. GetIdentity also lists accounts the filter does not accept, and an id HEY does not recognize or cannot use for this identity can leave the filter unset instead of returning an error.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "x-hey-account-scope": true
           }
         ],
         "responses": {
@@ -2330,7 +2611,20 @@
             503
           ]
         },
-        "x-hey-untrusted-content": false
+        "x-hey-untrusted-content": false,
+        "parameters": [
+          {
+            "name": "filtered_account_id",
+            "in": "query",
+            "description": "Optional account filter, an id from GetIdentity's accounts[].id. Reads that filter by account narrow to that account. Omit it to leave the filter unset, and what an unfiltered request returns depends on the operation. Some operations ignore it. To choose a sending address, use an operation's explicit sender-selection fields rather than relying on this filter. GetIdentity also lists accounts the filter does not accept, and an id HEY does not recognize or cannot use for this identity can leave the filter unset instead of returning an error.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "x-hey-account-scope": true
+          }
+        ]
       }
     },
     "/calendar/habits/{habitId}": {
@@ -2346,6 +2640,17 @@
               "format": "int64"
             },
             "required": true
+          },
+          {
+            "name": "filtered_account_id",
+            "in": "query",
+            "description": "Optional account filter, an id from GetIdentity's accounts[].id. Reads that filter by account narrow to that account. Omit it to leave the filter unset, and what an unfiltered request returns depends on the operation. Some operations ignore it. To choose a sending address, use an operation's explicit sender-selection fields rather than relying on this filter. GetIdentity also lists accounts the filter does not accept, and an id HEY does not recognize or cannot use for this identity can leave the filter unset instead of returning an error.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "x-hey-account-scope": true
           }
         ],
         "responses": {
@@ -2431,6 +2736,17 @@
               "format": "int64"
             },
             "required": true
+          },
+          {
+            "name": "filtered_account_id",
+            "in": "query",
+            "description": "Optional account filter, an id from GetIdentity's accounts[].id. Reads that filter by account narrow to that account. Omit it to leave the filter unset, and what an unfiltered request returns depends on the operation. Some operations ignore it. To choose a sending address, use an operation's explicit sender-selection fields rather than relying on this filter. GetIdentity also lists accounts the filter does not accept, and an id HEY does not recognize or cannot use for this identity can leave the filter unset instead of returning an error.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "x-hey-account-scope": true
           }
         ],
         "responses": {
@@ -2525,6 +2841,17 @@
               "format": "int64"
             },
             "required": true
+          },
+          {
+            "name": "filtered_account_id",
+            "in": "query",
+            "description": "Optional account filter, an id from GetIdentity's accounts[].id. Reads that filter by account narrow to that account. Omit it to leave the filter unset, and what an unfiltered request returns depends on the operation. Some operations ignore it. To choose a sending address, use an operation's explicit sender-selection fields rather than relying on this filter. GetIdentity also lists accounts the filter does not accept, and an id HEY does not recognize or cannot use for this identity can leave the filter unset instead of returning an error.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "x-hey-account-scope": true
           }
         ],
         "responses": {
@@ -2600,6 +2927,17 @@
               "format": "int64"
             },
             "required": true
+          },
+          {
+            "name": "filtered_account_id",
+            "in": "query",
+            "description": "Optional account filter, an id from GetIdentity's accounts[].id. Reads that filter by account narrow to that account. Omit it to leave the filter unset, and what an unfiltered request returns depends on the operation. Some operations ignore it. To choose a sending address, use an operation's explicit sender-selection fields rather than relying on this filter. GetIdentity also lists accounts the filter does not accept, and an id HEY does not recognize or cannot use for this identity can leave the filter unset instead of returning an error.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "x-hey-account-scope": true
           }
         ],
         "responses": {
@@ -2744,7 +3082,20 @@
             503
           ]
         },
-        "x-hey-untrusted-content": false
+        "x-hey-untrusted-content": false,
+        "parameters": [
+          {
+            "name": "filtered_account_id",
+            "in": "query",
+            "description": "Optional account filter, an id from GetIdentity's accounts[].id. Reads that filter by account narrow to that account. Omit it to leave the filter unset, and what an unfiltered request returns depends on the operation. Some operations ignore it. To choose a sending address, use an operation's explicit sender-selection fields rather than relying on this filter. GetIdentity also lists accounts the filter does not accept, and an id HEY does not recognize or cannot use for this identity can leave the filter unset instead of returning an error.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "x-hey-account-scope": true
+          }
+        ]
       }
     },
     "/calendar/journal_entries": {
@@ -2767,6 +3118,17 @@
               "type": "string",
               "x-go-type-skip-optional-pointer": false
             }
+          },
+          {
+            "name": "filtered_account_id",
+            "in": "query",
+            "description": "Optional account filter, an id from GetIdentity's accounts[].id. Reads that filter by account narrow to that account. Omit it to leave the filter unset, and what an unfiltered request returns depends on the operation. Some operations ignore it. To choose a sending address, use an operation's explicit sender-selection fields rather than relying on this filter. GetIdentity also lists accounts the filter does not accept, and an id HEY does not recognize or cannot use for this identity can leave the filter unset instead of returning an error.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "x-hey-account-scope": true
           }
         ],
         "responses": {
@@ -2892,7 +3254,20 @@
             503
           ]
         },
-        "x-hey-untrusted-content": false
+        "x-hey-untrusted-content": false,
+        "parameters": [
+          {
+            "name": "filtered_account_id",
+            "in": "query",
+            "description": "Optional account filter, an id from GetIdentity's accounts[].id. Reads that filter by account narrow to that account. Omit it to leave the filter unset, and what an unfiltered request returns depends on the operation. Some operations ignore it. To choose a sending address, use an operation's explicit sender-selection fields rather than relying on this filter. GetIdentity also lists accounts the filter does not accept, and an id HEY does not recognize or cannot use for this identity can leave the filter unset instead of returning an error.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "x-hey-account-scope": true
+          }
+        ]
       },
       "post": {
         "description": "Start a new time track. Takes no body: haystack's\nCalendar::OngoingTimeTracksController#create ignores request parameters and\nstarts a track with defaults; use UpdateTimeTrack to set notes and category_title,\nwhich also stops the track.",
@@ -2973,7 +3348,20 @@
             503
           ]
         },
-        "x-hey-untrusted-content": false
+        "x-hey-untrusted-content": false,
+        "parameters": [
+          {
+            "name": "filtered_account_id",
+            "in": "query",
+            "description": "Optional account filter, an id from GetIdentity's accounts[].id. Reads that filter by account narrow to that account. Omit it to leave the filter unset, and what an unfiltered request returns depends on the operation. Some operations ignore it. To choose a sending address, use an operation's explicit sender-selection fields rather than relying on this filter. GetIdentity also lists accounts the filter does not accept, and an id HEY does not recognize or cannot use for this identity can leave the filter unset instead of returning an error.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "x-hey-account-scope": true
+          }
+        ]
       }
     },
     "/calendar/time_tracks.json": {
@@ -2997,6 +3385,17 @@
               "format": "int64",
               "x-go-type-skip-optional-pointer": false
             }
+          },
+          {
+            "name": "filtered_account_id",
+            "in": "query",
+            "description": "Optional account filter, an id from GetIdentity's accounts[].id. Reads that filter by account narrow to that account. Omit it to leave the filter unset, and what an unfiltered request returns depends on the operation. Some operations ignore it. To choose a sending address, use an operation's explicit sender-selection fields rather than relying on this filter. GetIdentity also lists accounts the filter does not accept, and an id HEY does not recognize or cannot use for this identity can leave the filter unset instead of returning an error.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "x-hey-account-scope": true
           }
         ],
         "responses": {
@@ -3157,7 +3556,20 @@
             503
           ]
         },
-        "x-hey-untrusted-content": false
+        "x-hey-untrusted-content": false,
+        "parameters": [
+          {
+            "name": "filtered_account_id",
+            "in": "query",
+            "description": "Optional account filter, an id from GetIdentity's accounts[].id. Reads that filter by account narrow to that account. Omit it to leave the filter unset, and what an unfiltered request returns depends on the operation. Some operations ignore it. To choose a sending address, use an operation's explicit sender-selection fields rather than relying on this filter. GetIdentity also lists accounts the filter does not accept, and an id HEY does not recognize or cannot use for this identity can leave the filter unset instead of returning an error.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "x-hey-account-scope": true
+          }
+        ]
       }
     },
     "/calendar/time_tracks/categories.json": {
@@ -3218,7 +3630,20 @@
             503
           ]
         },
-        "x-hey-untrusted-content": false
+        "x-hey-untrusted-content": false,
+        "parameters": [
+          {
+            "name": "filtered_account_id",
+            "in": "query",
+            "description": "Optional account filter, an id from GetIdentity's accounts[].id. Reads that filter by account narrow to that account. Omit it to leave the filter unset, and what an unfiltered request returns depends on the operation. Some operations ignore it. To choose a sending address, use an operation's explicit sender-selection fields rather than relying on this filter. GetIdentity also lists accounts the filter does not accept, and an id HEY does not recognize or cannot use for this identity can leave the filter unset instead of returning an error.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "x-hey-account-scope": true
+          }
+        ]
       }
     },
     "/calendar/time_tracks/{timeTrackId}": {
@@ -3234,6 +3659,17 @@
               "format": "int64"
             },
             "required": true
+          },
+          {
+            "name": "filtered_account_id",
+            "in": "query",
+            "description": "Optional account filter, an id from GetIdentity's accounts[].id. Reads that filter by account narrow to that account. Omit it to leave the filter unset, and what an unfiltered request returns depends on the operation. Some operations ignore it. To choose a sending address, use an operation's explicit sender-selection fields rather than relying on this filter. GetIdentity also lists accounts the filter does not accept, and an id HEY does not recognize or cannot use for this identity can leave the filter unset instead of returning an error.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "x-hey-account-scope": true
           }
         ],
         "responses": {
@@ -3319,6 +3755,17 @@
               "format": "int64"
             },
             "required": true
+          },
+          {
+            "name": "filtered_account_id",
+            "in": "query",
+            "description": "Optional account filter, an id from GetIdentity's accounts[].id. Reads that filter by account narrow to that account. Omit it to leave the filter unset, and what an unfiltered request returns depends on the operation. Some operations ignore it. To choose a sending address, use an operation's explicit sender-selection fields rather than relying on this filter. GetIdentity also lists accounts the filter does not accept, and an id HEY does not recognize or cannot use for this identity can leave the filter unset instead of returning an error.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "x-hey-account-scope": true
           }
         ],
         "responses": {
@@ -3490,7 +3937,20 @@
             503
           ]
         },
-        "x-hey-untrusted-content": false
+        "x-hey-untrusted-content": false,
+        "parameters": [
+          {
+            "name": "filtered_account_id",
+            "in": "query",
+            "description": "Optional account filter, an id from GetIdentity's accounts[].id. Reads that filter by account narrow to that account. Omit it to leave the filter unset, and what an unfiltered request returns depends on the operation. Some operations ignore it. To choose a sending address, use an operation's explicit sender-selection fields rather than relying on this filter. GetIdentity also lists accounts the filter does not accept, and an id HEY does not recognize or cannot use for this identity can leave the filter unset instead of returning an error.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "x-hey-account-scope": true
+          }
+        ]
       }
     },
     "/calendar/todos/{todoId}": {
@@ -3506,6 +3966,17 @@
               "format": "int64"
             },
             "required": true
+          },
+          {
+            "name": "filtered_account_id",
+            "in": "query",
+            "description": "Optional account filter, an id from GetIdentity's accounts[].id. Reads that filter by account narrow to that account. Omit it to leave the filter unset, and what an unfiltered request returns depends on the operation. Some operations ignore it. To choose a sending address, use an operation's explicit sender-selection fields rather than relying on this filter. GetIdentity also lists accounts the filter does not accept, and an id HEY does not recognize or cannot use for this identity can leave the filter unset instead of returning an error.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "x-hey-account-scope": true
           }
         ],
         "responses": {
@@ -3591,6 +4062,17 @@
               "format": "int64"
             },
             "required": true
+          },
+          {
+            "name": "filtered_account_id",
+            "in": "query",
+            "description": "Optional account filter, an id from GetIdentity's accounts[].id. Reads that filter by account narrow to that account. Omit it to leave the filter unset, and what an unfiltered request returns depends on the operation. Some operations ignore it. To choose a sending address, use an operation's explicit sender-selection fields rather than relying on this filter. GetIdentity also lists accounts the filter does not accept, and an id HEY does not recognize or cannot use for this identity can leave the filter unset instead of returning an error.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "x-hey-account-scope": true
           }
         ],
         "responses": {
@@ -3685,6 +4167,17 @@
               "format": "int64"
             },
             "required": true
+          },
+          {
+            "name": "filtered_account_id",
+            "in": "query",
+            "description": "Optional account filter, an id from GetIdentity's accounts[].id. Reads that filter by account narrow to that account. Omit it to leave the filter unset, and what an unfiltered request returns depends on the operation. Some operations ignore it. To choose a sending address, use an operation's explicit sender-selection fields rather than relying on this filter. GetIdentity also lists accounts the filter does not accept, and an id HEY does not recognize or cannot use for this identity can leave the filter unset instead of returning an error.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "x-hey-account-scope": true
           }
         ],
         "responses": {
@@ -3767,6 +4260,17 @@
               "format": "int64"
             },
             "required": true
+          },
+          {
+            "name": "filtered_account_id",
+            "in": "query",
+            "description": "Optional account filter, an id from GetIdentity's accounts[].id. Reads that filter by account narrow to that account. Omit it to leave the filter unset, and what an unfiltered request returns depends on the operation. Some operations ignore it. To choose a sending address, use an operation's explicit sender-selection fields rather than relying on this filter. GetIdentity also lists accounts the filter does not accept, and an id HEY does not recognize or cannot use for this identity can leave the filter unset instead of returning an error.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "x-hey-account-scope": true
           }
         ],
         "responses": {
@@ -3865,6 +4369,17 @@
               "description": "Date (YYYY-MM-DD) to center the nine weeks on. Defaults to today.",
               "x-go-type-skip-optional-pointer": false
             }
+          },
+          {
+            "name": "filtered_account_id",
+            "in": "query",
+            "description": "Optional account filter, an id from GetIdentity's accounts[].id. Reads that filter by account narrow to that account. Omit it to leave the filter unset, and what an unfiltered request returns depends on the operation. Some operations ignore it. To choose a sending address, use an operation's explicit sender-selection fields rather than relying on this filter. GetIdentity also lists accounts the filter does not accept, and an id HEY does not recognize or cannot use for this identity can leave the filter unset instead of returning an error.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "x-hey-account-scope": true
           }
         ],
         "responses": {
@@ -3938,6 +4453,17 @@
               "description": "Any date in the week (YYYY-MM-DD)"
             },
             "required": true
+          },
+          {
+            "name": "filtered_account_id",
+            "in": "query",
+            "description": "Optional account filter, an id from GetIdentity's accounts[].id. Reads that filter by account narrow to that account. Omit it to leave the filter unset, and what an unfiltered request returns depends on the operation. Some operations ignore it. To choose a sending address, use an operation's explicit sender-selection fields rather than relying on this filter. GetIdentity also lists accounts the filter does not accept, and an id HEY does not recognize or cannot use for this identity can leave the filter unset instead of returning an error.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "x-hey-account-scope": true
           }
         ],
         "responses": {
@@ -4021,6 +4547,17 @@
               "description": "Any date in the year (YYYY-MM-DD)"
             },
             "required": true
+          },
+          {
+            "name": "filtered_account_id",
+            "in": "query",
+            "description": "Optional account filter, an id from GetIdentity's accounts[].id. Reads that filter by account narrow to that account. Omit it to leave the filter unset, and what an unfiltered request returns depends on the operation. Some operations ignore it. To choose a sending address, use an operation's explicit sender-selection fields rather than relying on this filter. GetIdentity also lists accounts the filter does not accept, and an id HEY does not recognize or cannot use for this identity can leave the filter unset instead of returning an error.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "x-hey-account-scope": true
           }
         ],
         "responses": {
@@ -4148,7 +4685,20 @@
             503
           ]
         },
-        "x-hey-untrusted-content": true
+        "x-hey-untrusted-content": true,
+        "parameters": [
+          {
+            "name": "filtered_account_id",
+            "in": "query",
+            "description": "Optional account filter, an id from GetIdentity's accounts[].id. Reads that filter by account narrow to that account. Omit it to leave the filter unset, and what an unfiltered request returns depends on the operation. Some operations ignore it. To choose a sending address, use an operation's explicit sender-selection fields rather than relying on this filter. GetIdentity also lists accounts the filter does not accept, and an id HEY does not recognize or cannot use for this identity can leave the filter unset instead of returning an error.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "x-hey-account-scope": true
+          }
+        ]
       }
     },
     "/calendars/{calendarId}/recordings": {
@@ -4188,6 +4738,17 @@
               "type": "string",
               "x-go-type-skip-optional-pointer": false
             }
+          },
+          {
+            "name": "filtered_account_id",
+            "in": "query",
+            "description": "Optional account filter, an id from GetIdentity's accounts[].id. Reads that filter by account narrow to that account. Omit it to leave the filter unset, and what an unfiltered request returns depends on the operation. Some operations ignore it. To choose a sending address, use an operation's explicit sender-selection fields rather than relying on this filter. GetIdentity also lists accounts the filter does not accept, and an id HEY does not recognize or cannot use for this identity can leave the filter unset instead of returning an error.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "x-hey-account-scope": true
           }
         ],
         "responses": {
@@ -4273,6 +4834,17 @@
               "format": "int64"
             },
             "required": true
+          },
+          {
+            "name": "filtered_account_id",
+            "in": "query",
+            "description": "Optional account filter, an id from GetIdentity's accounts[].id. Reads that filter by account narrow to that account. Omit it to leave the filter unset, and what an unfiltered request returns depends on the operation. Some operations ignore it. To choose a sending address, use an operation's explicit sender-selection fields rather than relying on this filter. GetIdentity also lists accounts the filter does not accept, and an id HEY does not recognize or cannot use for this identity can leave the filter unset instead of returning an error.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "x-hey-account-scope": true
           }
         ],
         "responses": {
@@ -4364,6 +4936,17 @@
               "type": "string",
               "x-go-type-skip-optional-pointer": false
             }
+          },
+          {
+            "name": "filtered_account_id",
+            "in": "query",
+            "description": "Optional account filter, an id from GetIdentity's accounts[].id. Reads that filter by account narrow to that account. Omit it to leave the filter unset, and what an unfiltered request returns depends on the operation. Some operations ignore it. To choose a sending address, use an operation's explicit sender-selection fields rather than relying on this filter. GetIdentity also lists accounts the filter does not accept, and an id HEY does not recognize or cannot use for this identity can leave the filter unset instead of returning an error.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "x-hey-account-scope": true
           }
         ],
         "responses": {
@@ -4507,7 +5090,20 @@
             503
           ]
         },
-        "x-hey-untrusted-content": true
+        "x-hey-untrusted-content": true,
+        "parameters": [
+          {
+            "name": "filtered_account_id",
+            "in": "query",
+            "description": "Optional account filter, an id from GetIdentity's accounts[].id. Reads that filter by account narrow to that account. Omit it to leave the filter unset, and what an unfiltered request returns depends on the operation. Some operations ignore it. To choose a sending address, use an operation's explicit sender-selection fields rather than relying on this filter. GetIdentity also lists accounts the filter does not accept, and an id HEY does not recognize or cannot use for this identity can leave the filter unset instead of returning an error.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "x-hey-account-scope": true
+          }
+        ]
       }
     },
     "/clearances/punt.json": {
@@ -4563,7 +5159,20 @@
             503
           ]
         },
-        "x-hey-untrusted-content": false
+        "x-hey-untrusted-content": false,
+        "parameters": [
+          {
+            "name": "filtered_account_id",
+            "in": "query",
+            "description": "Optional account filter, an id from GetIdentity's accounts[].id. Reads that filter by account narrow to that account. Omit it to leave the filter unset, and what an unfiltered request returns depends on the operation. Some operations ignore it. To choose a sending address, use an operation's explicit sender-selection fields rather than relying on this filter. GetIdentity also lists accounts the filter does not accept, and an id HEY does not recognize or cannot use for this identity can leave the filter unset instead of returning an error.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "x-hey-account-scope": true
+          }
+        ]
       }
     },
     "/clearances/{clearanceId}": {
@@ -4589,6 +5198,17 @@
               "format": "int64"
             },
             "required": true
+          },
+          {
+            "name": "filtered_account_id",
+            "in": "query",
+            "description": "Optional account filter, an id from GetIdentity's accounts[].id. Reads that filter by account narrow to that account. Omit it to leave the filter unset, and what an unfiltered request returns depends on the operation. Some operations ignore it. To choose a sending address, use an operation's explicit sender-selection fields rather than relying on this filter. GetIdentity also lists accounts the filter does not accept, and an id HEY does not recognize or cannot use for this identity can leave the filter unset instead of returning an error.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "x-hey-account-scope": true
           }
         ],
         "responses": {
@@ -4682,6 +5302,17 @@
               "type": "string",
               "x-go-type-skip-optional-pointer": false
             }
+          },
+          {
+            "name": "filtered_account_id",
+            "in": "query",
+            "description": "Optional account filter, an id from GetIdentity's accounts[].id. Reads that filter by account narrow to that account. Omit it to leave the filter unset, and what an unfiltered request returns depends on the operation. Some operations ignore it. To choose a sending address, use an operation's explicit sender-selection fields rather than relying on this filter. GetIdentity also lists accounts the filter does not accept, and an id HEY does not recognize or cannot use for this identity can leave the filter unset instead of returning an error.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "x-hey-account-scope": true
           }
         ],
         "responses": {
@@ -4803,7 +5434,20 @@
             503
           ]
         },
-        "x-hey-untrusted-content": false
+        "x-hey-untrusted-content": false,
+        "parameters": [
+          {
+            "name": "filtered_account_id",
+            "in": "query",
+            "description": "Optional account filter, an id from GetIdentity's accounts[].id. Reads that filter by account narrow to that account. Omit it to leave the filter unset, and what an unfiltered request returns depends on the operation. Some operations ignore it. To choose a sending address, use an operation's explicit sender-selection fields rather than relying on this filter. GetIdentity also lists accounts the filter does not accept, and an id HEY does not recognize or cannot use for this identity can leave the filter unset instead of returning an error.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "x-hey-account-scope": true
+          }
+        ]
       }
     },
     "/collections/{collectionId}": {
@@ -4827,6 +5471,17 @@
               "type": "string",
               "x-go-type-skip-optional-pointer": false
             }
+          },
+          {
+            "name": "filtered_account_id",
+            "in": "query",
+            "description": "Optional account filter, an id from GetIdentity's accounts[].id. Reads that filter by account narrow to that account. Omit it to leave the filter unset, and what an unfiltered request returns depends on the operation. Some operations ignore it. To choose a sending address, use an operation's explicit sender-selection fields rather than relying on this filter. GetIdentity also lists accounts the filter does not accept, and an id HEY does not recognize or cannot use for this identity can leave the filter unset instead of returning an error.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "x-hey-account-scope": true
           }
         ],
         "responses": {
@@ -4921,6 +5576,17 @@
               "format": "int64"
             },
             "required": true
+          },
+          {
+            "name": "filtered_account_id",
+            "in": "query",
+            "description": "Optional account filter, an id from GetIdentity's accounts[].id. Reads that filter by account narrow to that account. Omit it to leave the filter unset, and what an unfiltered request returns depends on the operation. Some operations ignore it. To choose a sending address, use an operation's explicit sender-selection fields rather than relying on this filter. GetIdentity also lists accounts the filter does not accept, and an id HEY does not recognize or cannot use for this identity can leave the filter unset instead of returning an error.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "x-hey-account-scope": true
           }
         ],
         "responses": {
@@ -5015,6 +5681,17 @@
               "type": "string",
               "x-go-type-skip-optional-pointer": false
             }
+          },
+          {
+            "name": "filtered_account_id",
+            "in": "query",
+            "description": "Optional account filter, an id from GetIdentity's accounts[].id. Reads that filter by account narrow to that account. Omit it to leave the filter unset, and what an unfiltered request returns depends on the operation. Some operations ignore it. To choose a sending address, use an operation's explicit sender-selection fields rather than relying on this filter. GetIdentity also lists accounts the filter does not accept, and an id HEY does not recognize or cannot use for this identity can leave the filter unset instead of returning an error.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "x-hey-account-scope": true
           }
         ],
         "responses": {
@@ -5166,7 +5843,20 @@
             503
           ]
         },
-        "x-hey-untrusted-content": true
+        "x-hey-untrusted-content": true,
+        "parameters": [
+          {
+            "name": "filtered_account_id",
+            "in": "query",
+            "description": "Optional account filter, an id from GetIdentity's accounts[].id. Reads that filter by account narrow to that account. Omit it to leave the filter unset, and what an unfiltered request returns depends on the operation. Some operations ignore it. To choose a sending address, use an operation's explicit sender-selection fields rather than relying on this filter. GetIdentity also lists accounts the filter does not accept, and an id HEY does not recognize or cannot use for this identity can leave the filter unset instead of returning an error.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "x-hey-account-scope": true
+          }
+        ]
       }
     },
     "/contacts/{contactId}": {
@@ -5182,6 +5872,17 @@
               "format": "int64"
             },
             "required": true
+          },
+          {
+            "name": "filtered_account_id",
+            "in": "query",
+            "description": "Optional account filter, an id from GetIdentity's accounts[].id. Reads that filter by account narrow to that account. Omit it to leave the filter unset, and what an unfiltered request returns depends on the operation. Some operations ignore it. To choose a sending address, use an operation's explicit sender-selection fields rather than relying on this filter. GetIdentity also lists accounts the filter does not accept, and an id HEY does not recognize or cannot use for this identity can leave the filter unset instead of returning an error.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "x-hey-account-scope": true
           }
         ],
         "responses": {
@@ -5265,6 +5966,17 @@
               "type": "string",
               "x-go-type-skip-optional-pointer": false
             }
+          },
+          {
+            "name": "filtered_account_id",
+            "in": "query",
+            "description": "Optional account filter, an id from GetIdentity's accounts[].id. Reads that filter by account narrow to that account. Omit it to leave the filter unset, and what an unfiltered request returns depends on the operation. Some operations ignore it. To choose a sending address, use an operation's explicit sender-selection fields rather than relying on this filter. GetIdentity also lists accounts the filter does not accept, and an id HEY does not recognize or cannot use for this identity can leave the filter unset instead of returning an error.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "x-hey-account-scope": true
           }
         ],
         "responses": {
@@ -5359,6 +6071,17 @@
               "format": "int64"
             },
             "required": true
+          },
+          {
+            "name": "filtered_account_id",
+            "in": "query",
+            "description": "Optional account filter, an id from GetIdentity's accounts[].id. Reads that filter by account narrow to that account. Omit it to leave the filter unset, and what an unfiltered request returns depends on the operation. Some operations ignore it. To choose a sending address, use an operation's explicit sender-selection fields rather than relying on this filter. GetIdentity also lists accounts the filter does not accept, and an id HEY does not recognize or cannot use for this identity can leave the filter unset instead of returning an error.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "x-hey-account-scope": true
           }
         ],
         "responses": {
@@ -5463,6 +6186,17 @@
               "format": "int64"
             },
             "required": true
+          },
+          {
+            "name": "filtered_account_id",
+            "in": "query",
+            "description": "Optional account filter, an id from GetIdentity's accounts[].id. Reads that filter by account narrow to that account. Omit it to leave the filter unset, and what an unfiltered request returns depends on the operation. Some operations ignore it. To choose a sending address, use an operation's explicit sender-selection fields rather than relying on this filter. GetIdentity also lists accounts the filter does not accept, and an id HEY does not recognize or cannot use for this identity can leave the filter unset instead of returning an error.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "x-hey-account-scope": true
           }
         ],
         "responses": {
@@ -5538,6 +6272,17 @@
               "format": "int64"
             },
             "required": true
+          },
+          {
+            "name": "filtered_account_id",
+            "in": "query",
+            "description": "Optional account filter, an id from GetIdentity's accounts[].id. Reads that filter by account narrow to that account. Omit it to leave the filter unset, and what an unfiltered request returns depends on the operation. Some operations ignore it. To choose a sending address, use an operation's explicit sender-selection fields rather than relying on this filter. GetIdentity also lists accounts the filter does not accept, and an id HEY does not recognize or cannot use for this identity can leave the filter unset instead of returning an error.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "x-hey-account-scope": true
           }
         ],
         "responses": {
@@ -5635,6 +6380,17 @@
               "format": "int64"
             },
             "required": true
+          },
+          {
+            "name": "filtered_account_id",
+            "in": "query",
+            "description": "Optional account filter, an id from GetIdentity's accounts[].id. Reads that filter by account narrow to that account. Omit it to leave the filter unset, and what an unfiltered request returns depends on the operation. Some operations ignore it. To choose a sending address, use an operation's explicit sender-selection fields rather than relying on this filter. GetIdentity also lists accounts the filter does not accept, and an id HEY does not recognize or cannot use for this identity can leave the filter unset instead of returning an error.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "x-hey-account-scope": true
           }
         ],
         "responses": {
@@ -5722,6 +6478,17 @@
               "format": "int64"
             },
             "required": true
+          },
+          {
+            "name": "filtered_account_id",
+            "in": "query",
+            "description": "Optional account filter, an id from GetIdentity's accounts[].id. Reads that filter by account narrow to that account. Omit it to leave the filter unset, and what an unfiltered request returns depends on the operation. Some operations ignore it. To choose a sending address, use an operation's explicit sender-selection fields rather than relying on this filter. GetIdentity also lists accounts the filter does not accept, and an id HEY does not recognize or cannot use for this identity can leave the filter unset instead of returning an error.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "x-hey-account-scope": true
           }
         ],
         "responses": {
@@ -5797,6 +6564,17 @@
               "format": "int64"
             },
             "required": true
+          },
+          {
+            "name": "filtered_account_id",
+            "in": "query",
+            "description": "Optional account filter, an id from GetIdentity's accounts[].id. Reads that filter by account narrow to that account. Omit it to leave the filter unset, and what an unfiltered request returns depends on the operation. Some operations ignore it. To choose a sending address, use an operation's explicit sender-selection fields rather than relying on this filter. GetIdentity also lists accounts the filter does not accept, and an id HEY does not recognize or cannot use for this identity can leave the filter unset instead of returning an error.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "x-hey-account-scope": true
           }
         ],
         "responses": {
@@ -5887,6 +6665,17 @@
               "format": "int64"
             },
             "required": true
+          },
+          {
+            "name": "filtered_account_id",
+            "in": "query",
+            "description": "Optional account filter, an id from GetIdentity's accounts[].id. Reads that filter by account narrow to that account. Omit it to leave the filter unset, and what an unfiltered request returns depends on the operation. Some operations ignore it. To choose a sending address, use an operation's explicit sender-selection fields rather than relying on this filter. GetIdentity also lists accounts the filter does not accept, and an id HEY does not recognize or cannot use for this identity can leave the filter unset instead of returning an error.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "x-hey-account-scope": true
           }
         ],
         "responses": {
@@ -5981,6 +6770,17 @@
               "format": "int64"
             },
             "required": true
+          },
+          {
+            "name": "filtered_account_id",
+            "in": "query",
+            "description": "Optional account filter, an id from GetIdentity's accounts[].id. Reads that filter by account narrow to that account. Omit it to leave the filter unset, and what an unfiltered request returns depends on the operation. Some operations ignore it. To choose a sending address, use an operation's explicit sender-selection fields rather than relying on this filter. GetIdentity also lists accounts the filter does not accept, and an id HEY does not recognize or cannot use for this identity can leave the filter unset instead of returning an error.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "x-hey-account-scope": true
           }
         ],
         "responses": {
@@ -6065,6 +6865,17 @@
               "format": "int64"
             },
             "required": true
+          },
+          {
+            "name": "filtered_account_id",
+            "in": "query",
+            "description": "Optional account filter, an id from GetIdentity's accounts[].id. Reads that filter by account narrow to that account. Omit it to leave the filter unset, and what an unfiltered request returns depends on the operation. Some operations ignore it. To choose a sending address, use an operation's explicit sender-selection fields rather than relying on this filter. GetIdentity also lists accounts the filter does not accept, and an id HEY does not recognize or cannot use for this identity can leave the filter unset instead of returning an error.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "x-hey-account-scope": true
           }
         ],
         "responses": {
@@ -6150,6 +6961,17 @@
               "format": "int64"
             },
             "required": true
+          },
+          {
+            "name": "filtered_account_id",
+            "in": "query",
+            "description": "Optional account filter, an id from GetIdentity's accounts[].id. Reads that filter by account narrow to that account. Omit it to leave the filter unset, and what an unfiltered request returns depends on the operation. Some operations ignore it. To choose a sending address, use an operation's explicit sender-selection fields rather than relying on this filter. GetIdentity also lists accounts the filter does not accept, and an id HEY does not recognize or cannot use for this identity can leave the filter unset instead of returning an error.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "x-hey-account-scope": true
           }
         ],
         "responses": {
@@ -6243,6 +7065,17 @@
               "type": "string",
               "x-go-type-skip-optional-pointer": false
             }
+          },
+          {
+            "name": "filtered_account_id",
+            "in": "query",
+            "description": "Optional account filter, an id from GetIdentity's accounts[].id. Reads that filter by account narrow to that account. Omit it to leave the filter unset, and what an unfiltered request returns depends on the operation. Some operations ignore it. To choose a sending address, use an operation's explicit sender-selection fields rather than relying on this filter. GetIdentity also lists accounts the filter does not accept, and an id HEY does not recognize or cannot use for this identity can leave the filter unset instead of returning an error.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "x-hey-account-scope": true
           }
         ],
         "responses": {
@@ -6319,6 +7152,17 @@
               "format": "int64"
             },
             "required": true
+          },
+          {
+            "name": "filtered_account_id",
+            "in": "query",
+            "description": "Optional account filter, an id from GetIdentity's accounts[].id. Reads that filter by account narrow to that account. Omit it to leave the filter unset, and what an unfiltered request returns depends on the operation. Some operations ignore it. To choose a sending address, use an operation's explicit sender-selection fields rather than relying on this filter. GetIdentity also lists accounts the filter does not accept, and an id HEY does not recognize or cannot use for this identity can leave the filter unset instead of returning an error.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "x-hey-account-scope": true
           }
         ],
         "responses": {
@@ -6396,6 +7240,17 @@
               "format": "int64"
             },
             "required": true
+          },
+          {
+            "name": "filtered_account_id",
+            "in": "query",
+            "description": "Optional account filter, an id from GetIdentity's accounts[].id. Reads that filter by account narrow to that account. Omit it to leave the filter unset, and what an unfiltered request returns depends on the operation. Some operations ignore it. To choose a sending address, use an operation's explicit sender-selection fields rather than relying on this filter. GetIdentity also lists accounts the filter does not accept, and an id HEY does not recognize or cannot use for this identity can leave the filter unset instead of returning an error.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "x-hey-account-scope": true
           }
         ],
         "responses": {
@@ -6488,6 +7343,17 @@
               "format": "int64"
             },
             "required": true
+          },
+          {
+            "name": "filtered_account_id",
+            "in": "query",
+            "description": "Optional account filter, an id from GetIdentity's accounts[].id. Reads that filter by account narrow to that account. Omit it to leave the filter unset, and what an unfiltered request returns depends on the operation. Some operations ignore it. To choose a sending address, use an operation's explicit sender-selection fields rather than relying on this filter. GetIdentity also lists accounts the filter does not accept, and an id HEY does not recognize or cannot use for this identity can leave the filter unset instead of returning an error.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "x-hey-account-scope": true
           }
         ],
         "responses": {
@@ -6593,6 +7459,17 @@
               "format": "int64"
             },
             "required": true
+          },
+          {
+            "name": "filtered_account_id",
+            "in": "query",
+            "description": "Optional account filter, an id from GetIdentity's accounts[].id. Reads that filter by account narrow to that account. Omit it to leave the filter unset, and what an unfiltered request returns depends on the operation. Some operations ignore it. To choose a sending address, use an operation's explicit sender-selection fields rather than relying on this filter. GetIdentity also lists accounts the filter does not accept, and an id HEY does not recognize or cannot use for this identity can leave the filter unset instead of returning an error.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "x-hey-account-scope": true
           }
         ],
         "responses": {
@@ -6675,6 +7552,17 @@
               "format": "int64"
             },
             "required": true
+          },
+          {
+            "name": "filtered_account_id",
+            "in": "query",
+            "description": "Optional account filter, an id from GetIdentity's accounts[].id. Reads that filter by account narrow to that account. Omit it to leave the filter unset, and what an unfiltered request returns depends on the operation. Some operations ignore it. To choose a sending address, use an operation's explicit sender-selection fields rather than relying on this filter. GetIdentity also lists accounts the filter does not accept, and an id HEY does not recognize or cannot use for this identity can leave the filter unset instead of returning an error.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "x-hey-account-scope": true
           }
         ],
         "responses": {
@@ -6751,6 +7639,17 @@
               "type": "string",
               "x-go-type-skip-optional-pointer": false
             }
+          },
+          {
+            "name": "filtered_account_id",
+            "in": "query",
+            "description": "Optional account filter, an id from GetIdentity's accounts[].id. Reads that filter by account narrow to that account. Omit it to leave the filter unset, and what an unfiltered request returns depends on the operation. Some operations ignore it. To choose a sending address, use an operation's explicit sender-selection fields rather than relying on this filter. GetIdentity also lists accounts the filter does not accept, and an id HEY does not recognize or cannot use for this identity can leave the filter unset instead of returning an error.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "x-hey-account-scope": true
           }
         ],
         "responses": {
@@ -6831,6 +7730,17 @@
               "type": "string",
               "x-go-type-skip-optional-pointer": false
             }
+          },
+          {
+            "name": "filtered_account_id",
+            "in": "query",
+            "description": "Optional account filter, an id from GetIdentity's accounts[].id. Reads that filter by account narrow to that account. Omit it to leave the filter unset, and what an unfiltered request returns depends on the operation. Some operations ignore it. To choose a sending address, use an operation's explicit sender-selection fields rather than relying on this filter. GetIdentity also lists accounts the filter does not accept, and an id HEY does not recognize or cannot use for this identity can leave the filter unset instead of returning an error.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "x-hey-account-scope": true
           }
         ],
         "responses": {
@@ -6962,7 +7872,20 @@
             503
           ]
         },
-        "x-hey-untrusted-content": false
+        "x-hey-untrusted-content": false,
+        "parameters": [
+          {
+            "name": "filtered_account_id",
+            "in": "query",
+            "description": "Optional account filter, an id from GetIdentity's accounts[].id. Reads that filter by account narrow to that account. Omit it to leave the filter unset, and what an unfiltered request returns depends on the operation. Some operations ignore it. To choose a sending address, use an operation's explicit sender-selection fields rather than relying on this filter. GetIdentity also lists accounts the filter does not accept, and an id HEY does not recognize or cannot use for this identity can leave the filter unset instead of returning an error.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "x-hey-account-scope": true
+          }
+        ]
       }
     },
     "/identity/time_format": {
@@ -7035,7 +7958,20 @@
             503
           ]
         },
-        "x-hey-untrusted-content": false
+        "x-hey-untrusted-content": false,
+        "parameters": [
+          {
+            "name": "filtered_account_id",
+            "in": "query",
+            "description": "Optional account filter, an id from GetIdentity's accounts[].id. Reads that filter by account narrow to that account. Omit it to leave the filter unset, and what an unfiltered request returns depends on the operation. Some operations ignore it. To choose a sending address, use an operation's explicit sender-selection fields rather than relying on this filter. GetIdentity also lists accounts the filter does not accept, and an id HEY does not recognize or cannot use for this identity can leave the filter unset instead of returning an error.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "x-hey-account-scope": true
+          }
+        ]
       }
     },
     "/imbox.json": {
@@ -7050,6 +7986,17 @@
               "type": "string",
               "x-go-type-skip-optional-pointer": false
             }
+          },
+          {
+            "name": "filtered_account_id",
+            "in": "query",
+            "description": "Optional account filter, an id from GetIdentity's accounts[].id. Reads that filter by account narrow to that account. Omit it to leave the filter unset, and what an unfiltered request returns depends on the operation. Some operations ignore it. To choose a sending address, use an operation's explicit sender-selection fields rather than relying on this filter. GetIdentity also lists accounts the filter does not accept, and an id HEY does not recognize or cannot use for this identity can leave the filter unset instead of returning an error.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "x-hey-account-scope": true
           }
         ],
         "responses": {
@@ -7121,6 +8068,17 @@
               "type": "string",
               "x-go-type-skip-optional-pointer": false
             }
+          },
+          {
+            "name": "filtered_account_id",
+            "in": "query",
+            "description": "Optional account filter, an id from GetIdentity's accounts[].id. Reads that filter by account narrow to that account. Omit it to leave the filter unset, and what an unfiltered request returns depends on the operation. Some operations ignore it. To choose a sending address, use an operation's explicit sender-selection fields rather than relying on this filter. GetIdentity also lists accounts the filter does not accept, and an id HEY does not recognize or cannot use for this identity can leave the filter unset instead of returning an error.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "x-hey-account-scope": true
           }
         ],
         "responses": {
@@ -7271,7 +8229,20 @@
             503
           ]
         },
-        "x-hey-untrusted-content": false
+        "x-hey-untrusted-content": false,
+        "parameters": [
+          {
+            "name": "filtered_account_id",
+            "in": "query",
+            "description": "Optional account filter, an id from GetIdentity's accounts[].id. Reads that filter by account narrow to that account. Omit it to leave the filter unset, and what an unfiltered request returns depends on the operation. Some operations ignore it. To choose a sending address, use an operation's explicit sender-selection fields rather than relying on this filter. GetIdentity also lists accounts the filter does not accept, and an id HEY does not recognize or cannot use for this identity can leave the filter unset instead of returning an error.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "x-hey-account-scope": true
+          }
+        ]
       }
     },
     "/messages/{messageId}": {
@@ -7287,6 +8258,17 @@
               "format": "int64"
             },
             "required": true
+          },
+          {
+            "name": "filtered_account_id",
+            "in": "query",
+            "description": "Optional account filter, an id from GetIdentity's accounts[].id. Reads that filter by account narrow to that account. Omit it to leave the filter unset, and what an unfiltered request returns depends on the operation. Some operations ignore it. To choose a sending address, use an operation's explicit sender-selection fields rather than relying on this filter. GetIdentity also lists accounts the filter does not accept, and an id HEY does not recognize or cannot use for this identity can leave the filter unset instead of returning an error.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "x-hey-account-scope": true
           }
         ],
         "responses": {
@@ -7377,6 +8359,17 @@
               "format": "int64"
             },
             "required": true
+          },
+          {
+            "name": "filtered_account_id",
+            "in": "query",
+            "description": "Optional account filter, an id from GetIdentity's accounts[].id. Reads that filter by account narrow to that account. Omit it to leave the filter unset, and what an unfiltered request returns depends on the operation. Some operations ignore it. To choose a sending address, use an operation's explicit sender-selection fields rather than relying on this filter. GetIdentity also lists accounts the filter does not accept, and an id HEY does not recognize or cannot use for this identity can leave the filter unset instead of returning an error.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "x-hey-account-scope": true
           }
         ],
         "responses": {
@@ -7485,6 +8478,17 @@
               "format": "int64"
             },
             "required": true
+          },
+          {
+            "name": "filtered_account_id",
+            "in": "query",
+            "description": "Optional account filter, an id from GetIdentity's accounts[].id. Reads that filter by account narrow to that account. Omit it to leave the filter unset, and what an unfiltered request returns depends on the operation. Some operations ignore it. To choose a sending address, use an operation's explicit sender-selection fields rather than relying on this filter. GetIdentity also lists accounts the filter does not accept, and an id HEY does not recognize or cannot use for this identity can leave the filter unset instead of returning an error.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "x-hey-account-scope": true
           }
         ],
         "responses": {
@@ -7566,6 +8570,17 @@
               "type": "string",
               "x-go-type-skip-optional-pointer": false
             }
+          },
+          {
+            "name": "filtered_account_id",
+            "in": "query",
+            "description": "Optional account filter, an id from GetIdentity's accounts[].id. Reads that filter by account narrow to that account. Omit it to leave the filter unset, and what an unfiltered request returns depends on the operation. Some operations ignore it. To choose a sending address, use an operation's explicit sender-selection fields rather than relying on this filter. GetIdentity also lists accounts the filter does not accept, and an id HEY does not recognize or cannot use for this identity can leave the filter unset instead of returning an error.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "x-hey-account-scope": true
           }
         ],
         "responses": {
@@ -7652,6 +8667,17 @@
               "format": "int64"
             },
             "required": true
+          },
+          {
+            "name": "filtered_account_id",
+            "in": "query",
+            "description": "Optional account filter, an id from GetIdentity's accounts[].id. Reads that filter by account narrow to that account. Omit it to leave the filter unset, and what an unfiltered request returns depends on the operation. Some operations ignore it. To choose a sending address, use an operation's explicit sender-selection fields rather than relying on this filter. GetIdentity also lists accounts the filter does not accept, and an id HEY does not recognize or cannot use for this identity can leave the filter unset instead of returning an error.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "x-hey-account-scope": true
           }
         ],
         "responses": {
@@ -7791,7 +8817,20 @@
             503
           ]
         },
-        "x-hey-untrusted-content": false
+        "x-hey-untrusted-content": false,
+        "parameters": [
+          {
+            "name": "filtered_account_id",
+            "in": "query",
+            "description": "Optional account filter, an id from GetIdentity's accounts[].id. Reads that filter by account narrow to that account. Omit it to leave the filter unset, and what an unfiltered request returns depends on the operation. Some operations ignore it. To choose a sending address, use an operation's explicit sender-selection fields rather than relying on this filter. GetIdentity also lists accounts the filter does not accept, and an id HEY does not recognize or cannot use for this identity can leave the filter unset instead of returning an error.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "x-hey-account-scope": true
+          }
+        ]
       }
     },
     "/oauth/tokens.json": {
@@ -7996,6 +9035,17 @@
               "type": "string",
               "x-go-type-skip-optional-pointer": false
             }
+          },
+          {
+            "name": "filtered_account_id",
+            "in": "query",
+            "description": "Optional account filter, an id from GetIdentity's accounts[].id. Reads that filter by account narrow to that account. Omit it to leave the filter unset, and what an unfiltered request returns depends on the operation. Some operations ignore it. To choose a sending address, use an operation's explicit sender-selection fields rather than relying on this filter. GetIdentity also lists accounts the filter does not accept, and an id HEY does not recognize or cannot use for this identity can leave the filter unset instead of returning an error.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "x-hey-account-scope": true
           }
         ],
         "responses": {
@@ -8069,6 +9119,17 @@
               "description": "Posting ids as a comma-joined string, for verbs that carry no body"
             },
             "required": true
+          },
+          {
+            "name": "filtered_account_id",
+            "in": "query",
+            "description": "Optional account filter, an id from GetIdentity's accounts[].id. Reads that filter by account narrow to that account. Omit it to leave the filter unset, and what an unfiltered request returns depends on the operation. Some operations ignore it. To choose a sending address, use an operation's explicit sender-selection fields rather than relying on this filter. GetIdentity also lists accounts the filter does not accept, and an id HEY does not recognize or cannot use for this identity can leave the filter unset instead of returning an error.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "x-hey-account-scope": true
           }
         ],
         "responses": {
@@ -8194,7 +9255,20 @@
             503
           ]
         },
-        "x-hey-untrusted-content": false
+        "x-hey-untrusted-content": false,
+        "parameters": [
+          {
+            "name": "filtered_account_id",
+            "in": "query",
+            "description": "Optional account filter, an id from GetIdentity's accounts[].id. Reads that filter by account narrow to that account. Omit it to leave the filter unset, and what an unfiltered request returns depends on the operation. Some operations ignore it. To choose a sending address, use an operation's explicit sender-selection fields rather than relying on this filter. GetIdentity also lists accounts the filter does not accept, and an id HEY does not recognize or cannot use for this identity can leave the filter unset instead of returning an error.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "x-hey-account-scope": true
+          }
+        ]
       }
     },
     "/postings/bubble_up.json": {
@@ -8211,6 +9285,17 @@
               "description": "Posting ids as a comma-joined string, for verbs that carry no body"
             },
             "required": true
+          },
+          {
+            "name": "filtered_account_id",
+            "in": "query",
+            "description": "Optional account filter, an id from GetIdentity's accounts[].id. Reads that filter by account narrow to that account. Omit it to leave the filter unset, and what an unfiltered request returns depends on the operation. Some operations ignore it. To choose a sending address, use an operation's explicit sender-selection fields rather than relying on this filter. GetIdentity also lists accounts the filter does not accept, and an id HEY does not recognize or cannot use for this identity can leave the filter unset instead of returning an error.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "x-hey-account-scope": true
           }
         ],
         "responses": {
@@ -8346,7 +9431,20 @@
             503
           ]
         },
-        "x-hey-untrusted-content": false
+        "x-hey-untrusted-content": false,
+        "parameters": [
+          {
+            "name": "filtered_account_id",
+            "in": "query",
+            "description": "Optional account filter, an id from GetIdentity's accounts[].id. Reads that filter by account narrow to that account. Omit it to leave the filter unset, and what an unfiltered request returns depends on the operation. Some operations ignore it. To choose a sending address, use an operation's explicit sender-selection fields rather than relying on this filter. GetIdentity also lists accounts the filter does not accept, and an id HEY does not recognize or cannot use for this identity can leave the filter unset instead of returning an error.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "x-hey-account-scope": true
+          }
+        ]
       }
     },
     "/postings/bulk_bubble_up_now.json": {
@@ -8422,7 +9520,20 @@
             503
           ]
         },
-        "x-hey-untrusted-content": false
+        "x-hey-untrusted-content": false,
+        "parameters": [
+          {
+            "name": "filtered_account_id",
+            "in": "query",
+            "description": "Optional account filter, an id from GetIdentity's accounts[].id. Reads that filter by account narrow to that account. Omit it to leave the filter unset, and what an unfiltered request returns depends on the operation. Some operations ignore it. To choose a sending address, use an operation's explicit sender-selection fields rather than relying on this filter. GetIdentity also lists accounts the filter does not accept, and an id HEY does not recognize or cannot use for this identity can leave the filter unset instead of returning an error.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "x-hey-account-scope": true
+          }
+        ]
       }
     },
     "/postings/filings.json": {
@@ -8448,6 +9559,17 @@
               "format": "int64",
               "x-go-type-skip-optional-pointer": false
             }
+          },
+          {
+            "name": "filtered_account_id",
+            "in": "query",
+            "description": "Optional account filter, an id from GetIdentity's accounts[].id. Reads that filter by account narrow to that account. Omit it to leave the filter unset, and what an unfiltered request returns depends on the operation. Some operations ignore it. To choose a sending address, use an operation's explicit sender-selection fields rather than relying on this filter. GetIdentity also lists accounts the filter does not accept, and an id HEY does not recognize or cannot use for this identity can leave the filter unset instead of returning an error.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "x-hey-account-scope": true
           }
         ],
         "responses": {
@@ -8583,7 +9705,20 @@
             503
           ]
         },
-        "x-hey-untrusted-content": false
+        "x-hey-untrusted-content": false,
+        "parameters": [
+          {
+            "name": "filtered_account_id",
+            "in": "query",
+            "description": "Optional account filter, an id from GetIdentity's accounts[].id. Reads that filter by account narrow to that account. Omit it to leave the filter unset, and what an unfiltered request returns depends on the operation. Some operations ignore it. To choose a sending address, use an operation's explicit sender-selection fields rather than relying on this filter. GetIdentity also lists accounts the filter does not accept, and an id HEY does not recognize or cannot use for this identity can leave the filter unset instead of returning an error.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "x-hey-account-scope": true
+          }
+        ]
       }
     },
     "/postings/folders.json": {
@@ -8669,7 +9804,20 @@
             503
           ]
         },
-        "x-hey-untrusted-content": false
+        "x-hey-untrusted-content": false,
+        "parameters": [
+          {
+            "name": "filtered_account_id",
+            "in": "query",
+            "description": "Optional account filter, an id from GetIdentity's accounts[].id. Reads that filter by account narrow to that account. Omit it to leave the filter unset, and what an unfiltered request returns depends on the operation. Some operations ignore it. To choose a sending address, use an operation's explicit sender-selection fields rather than relying on this filter. GetIdentity also lists accounts the filter does not accept, and an id HEY does not recognize or cannot use for this identity can leave the filter unset instead of returning an error.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "x-hey-account-scope": true
+          }
+        ]
       }
     },
     "/postings/moves.json": {
@@ -8745,7 +9893,20 @@
             503
           ]
         },
-        "x-hey-untrusted-content": false
+        "x-hey-untrusted-content": false,
+        "parameters": [
+          {
+            "name": "filtered_account_id",
+            "in": "query",
+            "description": "Optional account filter, an id from GetIdentity's accounts[].id. Reads that filter by account narrow to that account. Omit it to leave the filter unset, and what an unfiltered request returns depends on the operation. Some operations ignore it. To choose a sending address, use an operation's explicit sender-selection fields rather than relying on this filter. GetIdentity also lists accounts the filter does not accept, and an id HEY does not recognize or cannot use for this identity can leave the filter unset instead of returning an error.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "x-hey-account-scope": true
+          }
+        ]
       }
     },
     "/postings/mutings.json": {
@@ -8762,6 +9923,17 @@
               "description": "Comma-separated posting IDs, e.g. \"123,456\""
             },
             "required": true
+          },
+          {
+            "name": "filtered_account_id",
+            "in": "query",
+            "description": "Optional account filter, an id from GetIdentity's accounts[].id. Reads that filter by account narrow to that account. Omit it to leave the filter unset, and what an unfiltered request returns depends on the operation. Some operations ignore it. To choose a sending address, use an operation's explicit sender-selection fields rather than relying on this filter. GetIdentity also lists accounts the filter does not accept, and an id HEY does not recognize or cannot use for this identity can leave the filter unset instead of returning an error.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "x-hey-account-scope": true
           }
         ],
         "responses": {
@@ -8897,7 +10069,20 @@
             503
           ]
         },
-        "x-hey-untrusted-content": false
+        "x-hey-untrusted-content": false,
+        "parameters": [
+          {
+            "name": "filtered_account_id",
+            "in": "query",
+            "description": "Optional account filter, an id from GetIdentity's accounts[].id. Reads that filter by account narrow to that account. Omit it to leave the filter unset, and what an unfiltered request returns depends on the operation. Some operations ignore it. To choose a sending address, use an operation's explicit sender-selection fields rather than relying on this filter. GetIdentity also lists accounts the filter does not accept, and an id HEY does not recognize or cannot use for this identity can leave the filter unset instead of returning an error.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "x-hey-account-scope": true
+          }
+        ]
       }
     },
     "/postings/seen.json": {
@@ -8963,7 +10148,20 @@
             503
           ]
         },
-        "x-hey-untrusted-content": false
+        "x-hey-untrusted-content": false,
+        "parameters": [
+          {
+            "name": "filtered_account_id",
+            "in": "query",
+            "description": "Optional account filter, an id from GetIdentity's accounts[].id. Reads that filter by account narrow to that account. Omit it to leave the filter unset, and what an unfiltered request returns depends on the operation. Some operations ignore it. To choose a sending address, use an operation's explicit sender-selection fields rather than relying on this filter. GetIdentity also lists accounts the filter does not accept, and an id HEY does not recognize or cannot use for this identity can leave the filter unset instead of returning an error.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "x-hey-account-scope": true
+          }
+        ]
       }
     },
     "/postings/spam.json": {
@@ -9039,7 +10237,20 @@
             503
           ]
         },
-        "x-hey-untrusted-content": false
+        "x-hey-untrusted-content": false,
+        "parameters": [
+          {
+            "name": "filtered_account_id",
+            "in": "query",
+            "description": "Optional account filter, an id from GetIdentity's accounts[].id. Reads that filter by account narrow to that account. Omit it to leave the filter unset, and what an unfiltered request returns depends on the operation. Some operations ignore it. To choose a sending address, use an operation's explicit sender-selection fields rather than relying on this filter. GetIdentity also lists accounts the filter does not accept, and an id HEY does not recognize or cannot use for this identity can leave the filter unset instead of returning an error.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "x-hey-account-scope": true
+          }
+        ]
       }
     },
     "/postings/trash.json": {
@@ -9115,7 +10326,20 @@
             503
           ]
         },
-        "x-hey-untrusted-content": false
+        "x-hey-untrusted-content": false,
+        "parameters": [
+          {
+            "name": "filtered_account_id",
+            "in": "query",
+            "description": "Optional account filter, an id from GetIdentity's accounts[].id. Reads that filter by account narrow to that account. Omit it to leave the filter unset, and what an unfiltered request returns depends on the operation. Some operations ignore it. To choose a sending address, use an operation's explicit sender-selection fields rather than relying on this filter. GetIdentity also lists accounts the filter does not accept, and an id HEY does not recognize or cannot use for this identity can leave the filter unset instead of returning an error.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "x-hey-account-scope": true
+          }
+        ]
       }
     },
     "/postings/unseen.json": {
@@ -9181,7 +10405,20 @@
             503
           ]
         },
-        "x-hey-untrusted-content": false
+        "x-hey-untrusted-content": false,
+        "parameters": [
+          {
+            "name": "filtered_account_id",
+            "in": "query",
+            "description": "Optional account filter, an id from GetIdentity's accounts[].id. Reads that filter by account narrow to that account. Omit it to leave the filter unset, and what an unfiltered request returns depends on the operation. Some operations ignore it. To choose a sending address, use an operation's explicit sender-selection fields rather than relying on this filter. GetIdentity also lists accounts the filter does not accept, and an id HEY does not recognize or cannot use for this identity can leave the filter unset instead of returning an error.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "x-hey-account-scope": true
+          }
+        ]
       }
     },
     "/postings/{postingId}/bundles/unseen.json": {
@@ -9205,6 +10442,17 @@
               "type": "string",
               "x-go-type-skip-optional-pointer": false
             }
+          },
+          {
+            "name": "filtered_account_id",
+            "in": "query",
+            "description": "Optional account filter, an id from GetIdentity's accounts[].id. Reads that filter by account narrow to that account. Omit it to leave the filter unset, and what an unfiltered request returns depends on the operation. Some operations ignore it. To choose a sending address, use an operation's explicit sender-selection fields rather than relying on this filter. GetIdentity also lists accounts the filter does not accept, and an id HEY does not recognize or cannot use for this identity can leave the filter unset instead of returning an error.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "x-hey-account-scope": true
           }
         ],
         "responses": {
@@ -9349,7 +10597,20 @@
         ],
         "x-hey-destructive": false,
         "x-hey-open-world": false,
-        "x-hey-untrusted-content": false
+        "x-hey-untrusted-content": false,
+        "parameters": [
+          {
+            "name": "filtered_account_id",
+            "in": "query",
+            "description": "Optional account filter, an id from GetIdentity's accounts[].id. Reads that filter by account narrow to that account. Omit it to leave the filter unset, and what an unfiltered request returns depends on the operation. Some operations ignore it. To choose a sending address, use an operation's explicit sender-selection fields rather than relying on this filter. GetIdentity also lists accounts the filter does not accept, and an id HEY does not recognize or cannot use for this identity can leave the filter unset instead of returning an error.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "x-hey-account-scope": true
+          }
+        ]
       }
     },
     "/reply_later.json": {
@@ -9364,6 +10625,17 @@
               "type": "string",
               "x-go-type-skip-optional-pointer": false
             }
+          },
+          {
+            "name": "filtered_account_id",
+            "in": "query",
+            "description": "Optional account filter, an id from GetIdentity's accounts[].id. Reads that filter by account narrow to that account. Omit it to leave the filter unset, and what an unfiltered request returns depends on the operation. Some operations ignore it. To choose a sending address, use an operation's explicit sender-selection fields rather than relying on this filter. GetIdentity also lists accounts the filter does not accept, and an id HEY does not recognize or cannot use for this identity can leave the filter unset instead of returning an error.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "x-hey-account-scope": true
           }
         ],
         "responses": {
@@ -9435,6 +10707,17 @@
               "type": "string",
               "x-go-type-skip-optional-pointer": false
             }
+          },
+          {
+            "name": "filtered_account_id",
+            "in": "query",
+            "description": "Optional account filter, an id from GetIdentity's accounts[].id. Reads that filter by account narrow to that account. Omit it to leave the filter unset, and what an unfiltered request returns depends on the operation. Some operations ignore it. To choose a sending address, use an operation's explicit sender-selection fields rather than relying on this filter. GetIdentity also lists accounts the filter does not accept, and an id HEY does not recognize or cannot use for this identity can leave the filter unset instead of returning an error.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "x-hey-account-scope": true
           }
         ],
         "responses": {
@@ -9552,7 +10835,20 @@
             503
           ]
         },
-        "x-hey-untrusted-content": false
+        "x-hey-untrusted-content": false,
+        "parameters": [
+          {
+            "name": "filtered_account_id",
+            "in": "query",
+            "description": "Optional account filter, an id from GetIdentity's accounts[].id. Reads that filter by account narrow to that account. Omit it to leave the filter unset, and what an unfiltered request returns depends on the operation. Some operations ignore it. To choose a sending address, use an operation's explicit sender-selection fields rather than relying on this filter. GetIdentity also lists accounts the filter does not accept, and an id HEY does not recognize or cannot use for this identity can leave the filter unset instead of returning an error.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "x-hey-account-scope": true
+          }
+        ]
       }
     },
     "/stickies.json": {
@@ -9570,6 +10866,17 @@
               "format": "int32",
               "x-go-type-skip-optional-pointer": false
             }
+          },
+          {
+            "name": "filtered_account_id",
+            "in": "query",
+            "description": "Optional account filter, an id from GetIdentity's accounts[].id. Reads that filter by account narrow to that account. Omit it to leave the filter unset, and what an unfiltered request returns depends on the operation. Some operations ignore it. To choose a sending address, use an operation's explicit sender-selection fields rather than relying on this filter. GetIdentity also lists accounts the filter does not accept, and an id HEY does not recognize or cannot use for this identity can leave the filter unset instead of returning an error.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "x-hey-account-scope": true
           }
         ],
         "responses": {
@@ -9707,7 +11014,20 @@
             503
           ]
         },
-        "x-hey-untrusted-content": false
+        "x-hey-untrusted-content": false,
+        "parameters": [
+          {
+            "name": "filtered_account_id",
+            "in": "query",
+            "description": "Optional account filter, an id from GetIdentity's accounts[].id. Reads that filter by account narrow to that account. Omit it to leave the filter unset, and what an unfiltered request returns depends on the operation. Some operations ignore it. To choose a sending address, use an operation's explicit sender-selection fields rather than relying on this filter. GetIdentity also lists accounts the filter does not accept, and an id HEY does not recognize or cannot use for this identity can leave the filter unset instead of returning an error.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "x-hey-account-scope": true
+          }
+        ]
       }
     },
     "/stickies/moves.json": {
@@ -9783,7 +11103,20 @@
             503
           ]
         },
-        "x-hey-untrusted-content": false
+        "x-hey-untrusted-content": false,
+        "parameters": [
+          {
+            "name": "filtered_account_id",
+            "in": "query",
+            "description": "Optional account filter, an id from GetIdentity's accounts[].id. Reads that filter by account narrow to that account. Omit it to leave the filter unset, and what an unfiltered request returns depends on the operation. Some operations ignore it. To choose a sending address, use an operation's explicit sender-selection fields rather than relying on this filter. GetIdentity also lists accounts the filter does not accept, and an id HEY does not recognize or cannot use for this identity can leave the filter unset instead of returning an error.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "x-hey-account-scope": true
+          }
+        ]
       }
     },
     "/stickies/{stickyId}": {
@@ -9799,6 +11132,17 @@
               "format": "int64"
             },
             "required": true
+          },
+          {
+            "name": "filtered_account_id",
+            "in": "query",
+            "description": "Optional account filter, an id from GetIdentity's accounts[].id. Reads that filter by account narrow to that account. Omit it to leave the filter unset, and what an unfiltered request returns depends on the operation. Some operations ignore it. To choose a sending address, use an operation's explicit sender-selection fields rather than relying on this filter. GetIdentity also lists accounts the filter does not accept, and an id HEY does not recognize or cannot use for this identity can leave the filter unset instead of returning an error.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "x-hey-account-scope": true
           }
         ],
         "responses": {
@@ -9884,6 +11228,17 @@
               "format": "int64"
             },
             "required": true
+          },
+          {
+            "name": "filtered_account_id",
+            "in": "query",
+            "description": "Optional account filter, an id from GetIdentity's accounts[].id. Reads that filter by account narrow to that account. Omit it to leave the filter unset, and what an unfiltered request returns depends on the operation. Some operations ignore it. To choose a sending address, use an operation's explicit sender-selection fields rather than relying on this filter. GetIdentity also lists accounts the filter does not accept, and an id HEY does not recognize or cannot use for this identity can leave the filter unset instead of returning an error.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "x-hey-account-scope": true
           }
         ],
         "responses": {
@@ -9977,6 +11332,17 @@
               "type": "string",
               "x-go-type-skip-optional-pointer": false
             }
+          },
+          {
+            "name": "filtered_account_id",
+            "in": "query",
+            "description": "Optional account filter, an id from GetIdentity's accounts[].id. Reads that filter by account narrow to that account. Omit it to leave the filter unset, and what an unfiltered request returns depends on the operation. Some operations ignore it. To choose a sending address, use an operation's explicit sender-selection fields rather than relying on this filter. GetIdentity also lists accounts the filter does not accept, and an id HEY does not recognize or cannot use for this identity can leave the filter unset instead of returning an error.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "x-hey-account-scope": true
           }
         ],
         "responses": {
@@ -10052,6 +11418,17 @@
               "type": "string",
               "x-go-type-skip-optional-pointer": false
             }
+          },
+          {
+            "name": "filtered_account_id",
+            "in": "query",
+            "description": "Optional account filter, an id from GetIdentity's accounts[].id. Reads that filter by account narrow to that account. Omit it to leave the filter unset, and what an unfiltered request returns depends on the operation. Some operations ignore it. To choose a sending address, use an operation's explicit sender-selection fields rather than relying on this filter. GetIdentity also lists accounts the filter does not accept, and an id HEY does not recognize or cannot use for this identity can leave the filter unset instead of returning an error.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "x-hey-account-scope": true
           }
         ],
         "responses": {
@@ -10127,6 +11504,17 @@
               "type": "string",
               "x-go-type-skip-optional-pointer": false
             }
+          },
+          {
+            "name": "filtered_account_id",
+            "in": "query",
+            "description": "Optional account filter, an id from GetIdentity's accounts[].id. Reads that filter by account narrow to that account. Omit it to leave the filter unset, and what an unfiltered request returns depends on the operation. Some operations ignore it. To choose a sending address, use an operation's explicit sender-selection fields rather than relying on this filter. GetIdentity also lists accounts the filter does not accept, and an id HEY does not recognize or cannot use for this identity can leave the filter unset instead of returning an error.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "x-hey-account-scope": true
           }
         ],
         "responses": {
@@ -10243,7 +11631,20 @@
             503
           ]
         },
-        "x-hey-untrusted-content": false
+        "x-hey-untrusted-content": false,
+        "parameters": [
+          {
+            "name": "filtered_account_id",
+            "in": "query",
+            "description": "Optional account filter, an id from GetIdentity's accounts[].id. Reads that filter by account narrow to that account. Omit it to leave the filter unset, and what an unfiltered request returns depends on the operation. Some operations ignore it. To choose a sending address, use an operation's explicit sender-selection fields rather than relying on this filter. GetIdentity also lists accounts the filter does not accept, and an id HEY does not recognize or cannot use for this identity can leave the filter unset instead of returning an error.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "x-hey-account-scope": true
+          }
+        ]
       }
     },
     "/topics/trash.json": {
@@ -10258,6 +11659,17 @@
               "type": "string",
               "x-go-type-skip-optional-pointer": false
             }
+          },
+          {
+            "name": "filtered_account_id",
+            "in": "query",
+            "description": "Optional account filter, an id from GetIdentity's accounts[].id. Reads that filter by account narrow to that account. Omit it to leave the filter unset, and what an unfiltered request returns depends on the operation. Some operations ignore it. To choose a sending address, use an operation's explicit sender-selection fields rather than relying on this filter. GetIdentity also lists accounts the filter does not accept, and an id HEY does not recognize or cannot use for this identity can leave the filter unset instead of returning an error.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "x-hey-account-scope": true
           }
         ],
         "responses": {
@@ -10374,7 +11786,20 @@
             503
           ]
         },
-        "x-hey-untrusted-content": false
+        "x-hey-untrusted-content": false,
+        "parameters": [
+          {
+            "name": "filtered_account_id",
+            "in": "query",
+            "description": "Optional account filter, an id from GetIdentity's accounts[].id. Reads that filter by account narrow to that account. Omit it to leave the filter unset, and what an unfiltered request returns depends on the operation. Some operations ignore it. To choose a sending address, use an operation's explicit sender-selection fields rather than relying on this filter. GetIdentity also lists accounts the filter does not accept, and an id HEY does not recognize or cannot use for this identity can leave the filter unset instead of returning an error.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "x-hey-account-scope": true
+          }
+        ]
       }
     },
     "/topics/{topicId}": {
@@ -10390,6 +11815,17 @@
               "format": "int64"
             },
             "required": true
+          },
+          {
+            "name": "filtered_account_id",
+            "in": "query",
+            "description": "Optional account filter, an id from GetIdentity's accounts[].id. Reads that filter by account narrow to that account. Omit it to leave the filter unset, and what an unfiltered request returns depends on the operation. Some operations ignore it. To choose a sending address, use an operation's explicit sender-selection fields rather than relying on this filter. GetIdentity also lists accounts the filter does not accept, and an id HEY does not recognize or cannot use for this identity can leave the filter unset instead of returning an error.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "x-hey-account-scope": true
           }
         ],
         "responses": {
@@ -10480,6 +11916,17 @@
               "format": "int64"
             },
             "required": true
+          },
+          {
+            "name": "filtered_account_id",
+            "in": "query",
+            "description": "Optional account filter, an id from GetIdentity's accounts[].id. Reads that filter by account narrow to that account. Omit it to leave the filter unset, and what an unfiltered request returns depends on the operation. Some operations ignore it. To choose a sending address, use an operation's explicit sender-selection fields rather than relying on this filter. GetIdentity also lists accounts the filter does not accept, and an id HEY does not recognize or cannot use for this identity can leave the filter unset instead of returning an error.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "x-hey-account-scope": true
           }
         ],
         "responses": {
@@ -10577,6 +12024,17 @@
               "format": "int64"
             },
             "required": true
+          },
+          {
+            "name": "filtered_account_id",
+            "in": "query",
+            "description": "Optional account filter, an id from GetIdentity's accounts[].id. Reads that filter by account narrow to that account. Omit it to leave the filter unset, and what an unfiltered request returns depends on the operation. Some operations ignore it. To choose a sending address, use an operation's explicit sender-selection fields rather than relying on this filter. GetIdentity also lists accounts the filter does not accept, and an id HEY does not recognize or cannot use for this identity can leave the filter unset instead of returning an error.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "x-hey-account-scope": true
           }
         ],
         "responses": {
@@ -10671,6 +12129,17 @@
               "format": "int64"
             },
             "required": true
+          },
+          {
+            "name": "filtered_account_id",
+            "in": "query",
+            "description": "Optional account filter, an id from GetIdentity's accounts[].id. Reads that filter by account narrow to that account. Omit it to leave the filter unset, and what an unfiltered request returns depends on the operation. Some operations ignore it. To choose a sending address, use an operation's explicit sender-selection fields rather than relying on this filter. GetIdentity also lists accounts the filter does not accept, and an id HEY does not recognize or cannot use for this identity can leave the filter unset instead of returning an error.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "x-hey-account-scope": true
           }
         ],
         "responses": {
@@ -10761,6 +12230,17 @@
               "type": "string",
               "x-go-type-skip-optional-pointer": false
             }
+          },
+          {
+            "name": "filtered_account_id",
+            "in": "query",
+            "description": "Optional account filter, an id from GetIdentity's accounts[].id. Reads that filter by account narrow to that account. Omit it to leave the filter unset, and what an unfiltered request returns depends on the operation. Some operations ignore it. To choose a sending address, use an operation's explicit sender-selection fields rather than relying on this filter. GetIdentity also lists accounts the filter does not accept, and an id HEY does not recognize or cannot use for this identity can leave the filter unset instead of returning an error.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "x-hey-account-scope": true
           }
         ],
         "responses": {
@@ -10857,6 +12337,17 @@
               "format": "int64"
             },
             "required": true
+          },
+          {
+            "name": "filtered_account_id",
+            "in": "query",
+            "description": "Optional account filter, an id from GetIdentity's accounts[].id. Reads that filter by account narrow to that account. Omit it to leave the filter unset, and what an unfiltered request returns depends on the operation. Some operations ignore it. To choose a sending address, use an operation's explicit sender-selection fields rather than relying on this filter. GetIdentity also lists accounts the filter does not accept, and an id HEY does not recognize or cannot use for this identity can leave the filter unset instead of returning an error.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "x-hey-account-scope": true
           }
         ],
         "responses": {
@@ -10934,6 +12425,17 @@
               "format": "int64"
             },
             "required": true
+          },
+          {
+            "name": "filtered_account_id",
+            "in": "query",
+            "description": "Optional account filter, an id from GetIdentity's accounts[].id. Reads that filter by account narrow to that account. Omit it to leave the filter unset, and what an unfiltered request returns depends on the operation. Some operations ignore it. To choose a sending address, use an operation's explicit sender-selection fields rather than relying on this filter. GetIdentity also lists accounts the filter does not accept, and an id HEY does not recognize or cannot use for this identity can leave the filter unset instead of returning an error.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "x-hey-account-scope": true
           }
         ],
         "responses": {
@@ -11026,6 +12528,17 @@
               "format": "int64"
             },
             "required": true
+          },
+          {
+            "name": "filtered_account_id",
+            "in": "query",
+            "description": "Optional account filter, an id from GetIdentity's accounts[].id. Reads that filter by account narrow to that account. Omit it to leave the filter unset, and what an unfiltered request returns depends on the operation. Some operations ignore it. To choose a sending address, use an operation's explicit sender-selection fields rather than relying on this filter. GetIdentity also lists accounts the filter does not accept, and an id HEY does not recognize or cannot use for this identity can leave the filter unset instead of returning an error.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "x-hey-account-scope": true
           }
         ],
         "responses": {
@@ -11103,6 +12616,17 @@
               "format": "int64"
             },
             "required": true
+          },
+          {
+            "name": "filtered_account_id",
+            "in": "query",
+            "description": "Optional account filter, an id from GetIdentity's accounts[].id. Reads that filter by account narrow to that account. Omit it to leave the filter unset, and what an unfiltered request returns depends on the operation. Some operations ignore it. To choose a sending address, use an operation's explicit sender-selection fields rather than relying on this filter. GetIdentity also lists accounts the filter does not accept, and an id HEY does not recognize or cannot use for this identity can leave the filter unset instead of returning an error.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "x-hey-account-scope": true
           }
         ],
         "responses": {
@@ -11188,6 +12712,17 @@
               "type": "string",
               "x-go-type-skip-optional-pointer": false
             }
+          },
+          {
+            "name": "filtered_account_id",
+            "in": "query",
+            "description": "Optional account filter, an id from GetIdentity's accounts[].id. Reads that filter by account narrow to that account. Omit it to leave the filter unset, and what an unfiltered request returns depends on the operation. Some operations ignore it. To choose a sending address, use an operation's explicit sender-selection fields rather than relying on this filter. GetIdentity also lists accounts the filter does not accept, and an id HEY does not recognize or cannot use for this identity can leave the filter unset instead of returning an error.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "x-hey-account-scope": true
           }
         ],
         "responses": {
@@ -11284,6 +12819,17 @@
               "format": "int64"
             },
             "required": true
+          },
+          {
+            "name": "filtered_account_id",
+            "in": "query",
+            "description": "Optional account filter, an id from GetIdentity's accounts[].id. Reads that filter by account narrow to that account. Omit it to leave the filter unset, and what an unfiltered request returns depends on the operation. Some operations ignore it. To choose a sending address, use an operation's explicit sender-selection fields rather than relying on this filter. GetIdentity also lists accounts the filter does not accept, and an id HEY does not recognize or cannot use for this identity can leave the filter unset instead of returning an error.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "x-hey-account-scope": true
           }
         ],
         "responses": {
@@ -11379,6 +12925,17 @@
               "format": "int64"
             },
             "required": true
+          },
+          {
+            "name": "filtered_account_id",
+            "in": "query",
+            "description": "Optional account filter, an id from GetIdentity's accounts[].id. Reads that filter by account narrow to that account. Omit it to leave the filter unset, and what an unfiltered request returns depends on the operation. Some operations ignore it. To choose a sending address, use an operation's explicit sender-selection fields rather than relying on this filter. GetIdentity also lists accounts the filter does not accept, and an id HEY does not recognize or cannot use for this identity can leave the filter unset instead of returning an error.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "x-hey-account-scope": true
           }
         ],
         "responses": {
@@ -11467,6 +13024,17 @@
               "format": "int64"
             },
             "required": true
+          },
+          {
+            "name": "filtered_account_id",
+            "in": "query",
+            "description": "Optional account filter, an id from GetIdentity's accounts[].id. Reads that filter by account narrow to that account. Omit it to leave the filter unset, and what an unfiltered request returns depends on the operation. Some operations ignore it. To choose a sending address, use an operation's explicit sender-selection fields rather than relying on this filter. GetIdentity also lists accounts the filter does not accept, and an id HEY does not recognize or cannot use for this identity can leave the filter unset instead of returning an error.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "x-hey-account-scope": true
           }
         ],
         "responses": {
@@ -11558,6 +13126,17 @@
               "format": "int64"
             },
             "required": true
+          },
+          {
+            "name": "filtered_account_id",
+            "in": "query",
+            "description": "Optional account filter, an id from GetIdentity's accounts[].id. Reads that filter by account narrow to that account. Omit it to leave the filter unset, and what an unfiltered request returns depends on the operation. Some operations ignore it. To choose a sending address, use an operation's explicit sender-selection fields rather than relying on this filter. GetIdentity also lists accounts the filter does not accept, and an id HEY does not recognize or cannot use for this identity can leave the filter unset instead of returning an error.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "x-hey-account-scope": true
           }
         ],
         "responses": {
@@ -16146,5 +17725,8 @@
     {
       "smithy.api.httpBearerAuth": []
     }
-  ]
+  ],
+  "x-hey-account-scope": {
+    "query": "filtered_account_id"
+  }
 }

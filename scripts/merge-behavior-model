@@ -15,6 +15,9 @@
 #      @idempotent, which is how a PATCH earns a resend.
 #   3. The verb stands in when the model says neither: GET, HEAD, PUT and DELETE.
 #
+# The account filter expand-account-scope declares (x-hey-account-scope) is left out, as
+# every generator leaves it out: the Go transport already sends it.
+#
 # An operation with no behavior-model.json entry fails the build, as it does in the
 # TypeScript generator.
 #
@@ -52,6 +55,10 @@ jq --slurpfile model "$MODEL_FILE" '
                   or ($method | IN("get", "head", "put", "delete"))
                 end
               )
+            | if .value.parameters then
+                .value.parameters |= map(select(has("x-hey-account-scope") | not))
+                | if .value.parameters == [] then del(.value.parameters) else . end
+              else . end
           else . end
       )
     )

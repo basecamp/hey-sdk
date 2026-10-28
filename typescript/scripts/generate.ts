@@ -186,14 +186,24 @@ export function generateOperations(spec: Spec, behavior: Behavior) {
   };
 }
 
-export async function generate(check = false) {
-  const root = new URL("../../", import.meta.url);
-  const spec = JSON.parse(
-    await readFile(new URL("openapi.json", root), "utf8"),
-  ) as Spec;
-  const behavior = JSON.parse(
-    await readFile(new URL("behavior-model.json", root), "utf8"),
-  ) as Behavior;
+// The transport sends the account filter expand-account-scope declares, so the marked
+// parameter is neither an input type in schema.ts nor an accepted key in operations.ts.
+function withoutAccountScope(spec: Spec): Spec {
+  const copy = structuredClone(spec);
+  for (const item of Object.values(copy.paths))
+    for (const op of Object.values(item)) {
+      if (!op.parameters) continue;
+      op.parameters = op.parameters.filter((p) => !("x-hey-account-scope" in p));
+      if (op.parameters.length === 0) delete op.parameters;
+    }
+  return copy;
+}
+
+export async function render(
+  original: Spec,
+  behavior: Behavior,
+): Promise<Record<string, string>> {
+  const spec = withoutAccountScope(original);
   const ast = await openapiTS(spec as unknown as OpenAPI3, {
     transform(s) {
       if (s.type === "integer" && s.format === "int64") {
@@ -209,10 +219,21 @@ export async function generate(check = false) {
       }
     },
   });
-  const output = {
+  return {
     "schema.ts": banner + astToString(ast),
     ...generateOperations(spec, behavior),
   };
+}
+
+export async function generate(check = false) {
+  const root = new URL("../../", import.meta.url);
+  const spec = JSON.parse(
+    await readFile(new URL("openapi.json", root), "utf8"),
+  ) as Spec;
+  const behavior = JSON.parse(
+    await readFile(new URL("behavior-model.json", root), "utf8"),
+  ) as Behavior;
+  const output = await render(spec, behavior);
   const directory = new URL("../src/generated/", import.meta.url);
   await mkdir(directory, { recursive: true });
   for (const [name, content] of Object.entries(output)) {

@@ -257,6 +257,25 @@ class ModelTest {
     }
 
     @Test
+    fun theMarkedAccountFilterIsLeftToTheTransportButAnUnmarkedOneIsNot() {
+        fun filter(marked: Boolean) =
+            """{"name":"filtered_account_id","in":"query","schema":{"type":"integer","format":"int64"}${if (marked) ""","x-hey-account-scope":true""" else ""}}"""
+        val response = """"responses":{"200":{"content":{"application/json":{"schema":{"${'$'}ref":"#/components/schemas/ListBoxesResponseContent"}}}}}"""
+        val paths = """{
+            "/boxes.json": {"get": {"operationId":"ListBoxes","tags":["Boxes"],"parameters":[{"name":"page","in":"query","schema":{"type":"string"}},${filter(true)}],$response}},
+            "/workflows.json": {"get": {"operationId":"ListWorkflows","tags":["Workflows"],"parameters":[${filter(false)}],$response}}
+        }"""
+        val model = model(paths, boxSchemas)
+        fun query(id: String) = model.services.flatMap { it.operations }.first { it.id == id }.queryParams.map { it.wireName }
+        assertEquals(listOf("page"), query("ListBoxes"), "an unmarked query parameter stays, the marked one goes")
+        assertEquals(listOf("filtered_account_id"), query("ListWorkflows"), "the marker decides, not the name")
+
+        val files = render(model)
+        assertFalse("filtered_account_id" in files.getValue("services/BoxesService.kt"))
+        assertContains(files.getValue("services/WorkflowsService.kt"), "filtered_account_id")
+    }
+
+    @Test
     fun aServiceNameTheCaseConversionGetsWrongIsSettledInNames() {
         val openapi = Json.parseToJsonElement(
             """{"openapi":"3.1.0","info":{"version":"2026-01-01"},"paths":{
