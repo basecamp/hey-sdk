@@ -136,7 +136,7 @@ func checkResponseEmptyOn(resp *http.Response, emptyOnCodes []int) error {
 type ListMeta struct {
 	// TotalCount is the total number of items available (from X-Total-Count header).
 	// Zero if the header was not present or could not be parsed.
-	TotalCount int
+	TotalCount int `json:"total_count"`
 }
 
 // instrument runs a service call inside the gating and hook lifecycle every operation shares,
@@ -168,4 +168,27 @@ func joinIDs(ids []int64) string {
 		parts = append(parts, strconv.FormatInt(id, 10))
 	}
 	return strings.Join(parts, ",")
+}
+
+// mapSlice converts each element of in with f. A nil in stays nil — HEY sent no list — and
+// any other in, empty included, comes back non-nil, so a `[]` HEY sent marshals back as `[]`
+// rather than null.
+func mapSlice[G, T any](in []G, f func(G) T) []T {
+	if in == nil {
+		return nil
+	}
+	out := make([]T, len(in))
+	for i, item := range in {
+		out[i] = f(item)
+	}
+	return out
+}
+
+// appendKept appends src to dst the way append does, except that an empty but non-nil src
+// leaves dst non-nil: pages that each sent `[]` gather into `[]`, not nil.
+func appendKept[T any](dst, src []T) []T {
+	if dst == nil && src != nil {
+		dst = make([]T, 0, len(src))
+	}
+	return append(dst, src...)
 }

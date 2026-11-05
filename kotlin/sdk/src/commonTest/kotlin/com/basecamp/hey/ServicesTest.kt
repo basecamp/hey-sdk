@@ -2,6 +2,7 @@ package com.basecamp.hey
 
 import com.basecamp.hey.services.BoxKind
 import com.basecamp.hey.services.CalendarChangesCursor
+import com.basecamp.hey.services.CalendarList
 import com.basecamp.hey.services.CreateCalendarEventParams
 import com.basecamp.hey.services.HabitParams
 import com.basecamp.hey.services.TodoChanges
@@ -684,6 +685,16 @@ private fun formFields(body: String): Map<String, String> = body.split('&').asso
         assertEquals(emptyList(), client.calendars.toggleSelection(3))
         assertEquals("POST", hey.requests[1].method)
         assertEquals("/calendars/3/toggle.json", hey.requests[1].path)
+    }
+
+    @Test
+    fun aCalendarIndexWithEmptyListsReencodesThemAsEmptyLists() = runTest {
+        val hey = mockHey(ok("""{"calendars":[],"selected_calendar_ids":[]}"""))
+        val list = hey.client().calendars.listWithChanges()
+        // A caller's own Json leaves defaults out; the lists HEY sent as [] must survive it.
+        val encoded = Json.encodeToString(CalendarList.serializer(), list)
+        assertTrue(encoded.contains("\"calendars\":[]"), encoded)
+        assertTrue(encoded.contains("\"selected_calendar_ids\":[]"), encoded)
     }
 
     @Test

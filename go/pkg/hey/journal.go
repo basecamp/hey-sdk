@@ -23,8 +23,8 @@ func NewJournalService(client *Client) *JournalService {
 // JournalPage contains one page of journal entries and the cursor for the page after it.
 // NextPage is empty on the last page.
 type JournalPage struct {
-	Entries  []generated.Recording
-	NextPage string
+	Entries  []generated.Recording `json:"entries"`
+	NextPage string                `json:"next_page"`
 }
 
 // ListPage returns journal entries newest first, optionally filtered by a search query.

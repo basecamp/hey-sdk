@@ -74,8 +74,8 @@ func (s *ContactsService) get(ctx context.Context, contactID int64) (*generated.
 // ContactPage is one page of a contact and the threads they are on: the cursor for the
 // page below is empty on the last page.
 type ContactPage struct {
-	Contact  *generated.ContactDetail
-	NextPage string
+	Contact  *generated.ContactDetail `json:"contact"`
+	NextPage string                   `json:"next_page"`
 }
 
 // ThreadsPage reads a contact with one page of the threads they are on — what HEY heads
@@ -112,9 +112,9 @@ func (s *ContactsService) ThreadsPage(ctx context.Context, contactID int64, curs
 
 // AddressableRecipient is one suggestion from HEY's recipient autocomplete list.
 type AddressableRecipient struct {
-	Value  string // one address, or a comma-separated list for a group / "Everyone at …"
-	Label  string // the name to show
-	Detail string // e.g. "@example.com" or "Contact group with 3 people"; empty for a person
+	Value  string `json:"value"`  // one address, or a comma-separated list for a group / "Everyone at …"
+	Label  string `json:"label"`  // the name to show
+	Detail string `json:"detail"` // e.g. "@example.com" or "Contact group with 3 people"; empty for a person
 }
 
 // Addressable returns the recipients HEY suggests in a composer's To, Cc and Bcc fields,

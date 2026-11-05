@@ -18,6 +18,19 @@
 # The account filter expand-account-scope declares (x-hey-account-scope) is left out, as
 # every generator leaves it out: the Go transport already sends it.
 #
+# Every optional array property of a response-side schema is marked x-omitempty: false
+# and x-omitzero: true, so oapi-codegen tags its slice `json:"name,omitzero"` rather than
+# `json:"name,omitempty"`. omitempty drops a non-nil empty slice, so a `[]` HEY sent
+# vanished from anything that re-marshaled the response; omitzero (Go 1.24+) drops only a
+# nil slice, so an absent key stays absent and a sent `[]` stays `[]`. The generator's
+# prefer-skip-optional-pointer-with-omitzero option can't do this: it adds omitzero
+# beside omitempty, and omitempty still drops the empty slice.
+#
+# A schema reachable from any request body (the Rust generator's request side) keeps
+# omitempty: there an empty slice is the caller's own value, and callers build recipient
+# and alias lists that are empty-but-non-nil and rely on the key being left out. No schema
+# is on both sides today; one that became so would keep omitempty.
+#
 # An operation with no behavior-model.json entry fails the build, as it does in the
 # TypeScript generator.
 #
@@ -39,6 +52,16 @@ if ! command -v jq &> /dev/null; then
 fi
 
 jq --slurpfile model "$MODEL_FILE" '
+  def schema_refs: [.. | objects | select(has("$ref")) | .["$ref"] | sub("^#/components/schemas/"; "")];
+  def closure($schemas):
+    {seen: [], todo: .}
+    | until(.todo == [];
+        .todo[0] as $name
+        | .todo |= .[1:]
+        | if (.seen | index([$name])) then . else
+            .seen += [$name] | .todo += ($schemas[$name] | schema_refs)
+          end)
+    | .seen;
   $model[0].operations as $operations
   | .paths |= with_entries(
       .value |= with_entries(
@@ -62,4 +85,21 @@ jq --slurpfile model "$MODEL_FILE" '
           else . end
       )
     )
+  | (.components.schemas // {}) as $schemas
+  | ([.paths[][] | objects | .requestBody // empty | schema_refs[]] | unique
+      | closure($schemas)) as $request_side
+  | if .components.schemas == null then . else .components.schemas |= with_entries(
+      if .key | IN($request_side[]) then . else
+        .value |= walk(
+          if type == "object" and (.properties | type) == "object" then
+            (.required // []) as $required
+            | .properties |= with_entries(
+                if .value.type == "array" and (.key | IN($required[]) | not) then
+                  .value["x-omitempty"] = false | .value["x-omitzero"] = true
+                else . end
+              )
+          else . end
+        )
+      end
+    ) end
 ' "$OPENAPI_FILE" > "$OUTPUT_FILE"

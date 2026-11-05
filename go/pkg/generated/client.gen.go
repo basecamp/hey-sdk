@@ -47,22 +47,22 @@ type AddPostingsToBoxGroupRequestContent struct {
 
 // Addressed Addressed recipients
 type Addressed struct {
-	Blindcopied []Contact `json:"blindcopied,omitempty"`
-	Copied      []Contact `json:"copied,omitempty"`
-	Directly    []Contact `json:"directly,omitempty"`
+	Blindcopied []Contact `json:"blindcopied,omitzero"`
+	Copied      []Contact `json:"copied,omitzero"`
+	Directly    []Contact `json:"directly,omitzero"`
 }
 
 // AddressedSender AddressedSender — sender context
 type AddressedSender struct {
-	Directly []Contact `json:"directly,omitempty"`
+	Directly []Contact `json:"directly,omitzero"`
 }
 
 // AdvancedSearchFilters AdvancedSearchFilters — the options the advanced search refine form offers
 type AdvancedSearchFilters struct {
-	RefineAttachments []SearchFilterItem `json:"refine_attachments,omitempty"`
-	RefineDates       []SearchFilterItem `json:"refine_dates,omitempty"`
-	RefineIn          []SearchFilterItem `json:"refine_in,omitempty"`
-	RefineLabels      []SearchFilterItem `json:"refine_labels,omitempty"`
+	RefineAttachments []SearchFilterItem `json:"refine_attachments,omitzero"`
+	RefineDates       []SearchFilterItem `json:"refine_dates,omitzero"`
+	RefineIn          []SearchFilterItem `json:"refine_in,omitzero"`
+	RefineLabels      []SearchFilterItem `json:"refine_labels,omitzero"`
 }
 
 // AdvancedSearchResponseContent defines model for AdvancedSearchResponseContent.
@@ -102,7 +102,7 @@ type Box struct {
 	Name              string           `json:"name"`
 	PostingChangesUrl string           `json:"posting_changes_url,omitempty"`
 	SignedStreamName  string           `json:"signed_stream_name,omitempty"`
-	UpdatesChannels   []UpdatesChannel `json:"updates_channels,omitempty"`
+	UpdatesChannels   []UpdatesChannel `json:"updates_channels,omitzero"`
 	Url               string           `json:"url,omitempty"`
 }
 
@@ -115,12 +115,12 @@ type BoxGroup struct {
 type BoxGroupWithPostings struct {
 	BoxId    int64     `json:"box_id,omitempty"`
 	Id       int64     `json:"id"`
-	Postings []Posting `json:"postings,omitempty"`
+	Postings []Posting `json:"postings,omitzero"`
 }
 
 // BoxGroupsResponse BoxGroupsResponse — the wrapper the groups index answers with
 type BoxGroupsResponse struct {
-	BoxGroups []BoxGroup `json:"box_groups,omitempty"`
+	BoxGroups []BoxGroup `json:"box_groups,omitzero"`
 }
 
 // BoxShowResponse BoxShowResponse — box detail with postings.
@@ -134,9 +134,9 @@ type BoxShowResponse struct {
 	NextHistoryUrl         string           `json:"next_history_url,omitempty"`
 	NextIncrementalSyncUrl string           `json:"next_incremental_sync_url,omitempty"`
 	PostingChangesUrl      string           `json:"posting_changes_url,omitempty"`
-	Postings               []Posting        `json:"postings,omitempty"`
+	Postings               []Posting        `json:"postings,omitzero"`
 	SignedStreamName       string           `json:"signed_stream_name,omitempty"`
-	UpdatesChannels        []UpdatesChannel `json:"updates_channels,omitempty"`
+	UpdatesChannels        []UpdatesChannel `json:"updates_channels,omitzero"`
 	Url                    string           `json:"url,omitempty"`
 }
 
@@ -224,12 +224,12 @@ type CalendarDayListPayload struct {
 // CalendarListPayload CalendarListPayload
 type CalendarListPayload struct {
 	CalendarChangesUrl string                            `json:"calendar_changes_url,omitempty"`
-	Calendars          []CalendarWithRecordingChangesUrl `json:"calendars,omitempty"`
+	Calendars          []CalendarWithRecordingChangesUrl `json:"calendars,omitzero"`
 
 	// SelectedCalendarIds The calendars every period read is drawn from. ToggleCalendar changes this and
 	// answers the new one, so a client reads it here once — to open on what is already
 	// on — and takes it from the toggle after that.
-	SelectedCalendarIds []int64 `json:"selected_calendar_ids,omitempty"`
+	SelectedCalendarIds []int64 `json:"selected_calendar_ids,omitzero"`
 }
 
 // CalendarPeriod CalendarPeriod — a day or a week: its bounds and everything in it, grouped by type.
@@ -337,7 +337,7 @@ type Clearance struct {
 
 // ClearanceListResponse ClearanceListResponse — wire format: {clearances: [...]}
 type ClearanceListResponse struct {
-	Clearances []Clearance `json:"clearances,omitempty"`
+	Clearances []Clearance `json:"clearances,omitzero"`
 }
 
 // ClearanceSummary ClearanceSummary — the Screener's pending count, and the queue itself when asked for
@@ -345,7 +345,7 @@ type ClearanceListResponse struct {
 // clearances is only present when the read passes include_clearances. Without it HEY
 // answers the count alone, which is what its own apps sync.
 type ClearanceSummary struct {
-	Clearances             []Clearance `json:"clearances,omitempty"`
+	Clearances             []Clearance `json:"clearances,omitzero"`
 	PendingClearancesCount int32       `json:"pending_clearances_count,omitempty"`
 	SignedStreamName       string      `json:"signed_stream_name,omitempty"`
 }
@@ -400,7 +400,7 @@ type CollectionWithPostings struct {
 	CreatedAt time.Time `json:"created_at,omitempty,omitzero"`
 	Id        int64     `json:"id"`
 	Name      string    `json:"name,omitempty"`
-	Postings  []Posting `json:"postings,omitempty"`
+	Postings  []Posting `json:"postings,omitzero"`
 
 	// UpdatedAt ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)
 	UpdatedAt time.Time `json:"updated_at,omitempty,omitzero"`
@@ -416,14 +416,14 @@ type CompleteHabitResponseContent = Recording
 // already ongoing. Time tracks answer {"error": "..."}; contact writes answer the
 // {"errors": [...]} list every other error path uses.
 type ConflictErrorResponseContent struct {
-	ConflictingContactIds []int64 `json:"conflicting_contact_ids,omitempty"`
+	ConflictingContactIds []int64 `json:"conflicting_contact_ids,omitzero"`
 
 	// ContactId Contact writes only: the contact that was written -- a create that clashes
 	// still creates the contact -- and the contacts already holding the email
 	// addresses that were sent, so a client can offer the merge the web offers.
 	ContactId int64    `json:"contact_id,omitempty"`
 	Error     string   `json:"error,omitempty"`
-	Errors    []string `json:"errors,omitempty"`
+	Errors    []string `json:"errors,omitzero"`
 }
 
 // Contact Contact — the identity of someone in HEY
@@ -455,7 +455,7 @@ type ContactAvatarRequestContent struct {
 // ContactDetail ContactDetail — extended contact with additional show fields
 type ContactDetail struct {
 	AccountId             int64     `json:"account_id,omitempty"`
-	Aliases               []Contact `json:"aliases,omitempty"`
+	Aliases               []Contact `json:"aliases,omitzero"`
 	AvatarBackgroundColor string    `json:"avatar_background_color,omitempty"`
 	AvatarUrl             string    `json:"avatar_url,omitempty"`
 
@@ -479,7 +479,7 @@ type ContactDetail struct {
 	NameTag      string `json:"name_tag,omitempty"`
 
 	// Postings One page of the threads this contact is on, newest first
-	Postings []Posting `json:"postings,omitempty"`
+	Postings []Posting `json:"postings,omitzero"`
 
 	// UpdatedAt ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)
 	UpdatedAt time.Time `json:"updated_at,omitempty,omitzero"`
@@ -683,7 +683,7 @@ type Domain struct {
 // DraftMessage DraftMessage — a draft entry
 type DraftMessage struct {
 	AccountId         int64     `json:"account_id,omitempty"`
-	AddressedContacts []Contact `json:"addressed_contacts,omitempty"`
+	AddressedContacts []Contact `json:"addressed_contacts,omitzero"`
 	AppUrl            string    `json:"app_url,omitempty"`
 
 	// Creator Contact — the identity of someone in HEY
@@ -735,7 +735,7 @@ type Entry struct {
 
 	// VisibleTo Who sees the note besides its author. Present on the note CreateTopicComment
 	// answers; see TopicCommentAudience.
-	VisibleTo []Contact `json:"visible_to,omitempty"`
+	VisibleTo []Contact `json:"visible_to,omitzero"`
 }
 
 // Extenzion Extenzion — external account extension
@@ -797,7 +797,7 @@ type FolderWithPostings struct {
 	CreatedAt time.Time `json:"created_at,omitempty,omitzero"`
 	Id        int64     `json:"id"`
 	Name      string    `json:"name,omitempty"`
-	Postings  []Posting `json:"postings,omitempty"`
+	Postings  []Posting `json:"postings,omitzero"`
 
 	// UpdatedAt ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)
 	UpdatedAt time.Time `json:"updated_at,omitempty,omitzero"`
@@ -821,9 +821,9 @@ type GetBoxGroupResponseContent = BoxGroupWithPostings
 
 // GetBoxPostingChangesResponseContent defines model for GetBoxPostingChangesResponseContent.
 type GetBoxPostingChangesResponseContent struct {
-	Added   []Posting        `json:"added,omitempty"`
-	Deleted []DeletedPosting `json:"deleted,omitempty"`
-	Updated []Posting        `json:"updated,omitempty"`
+	Added   []Posting        `json:"added,omitzero"`
+	Deleted []DeletedPosting `json:"deleted,omitzero"`
+	Updated []Posting        `json:"updated,omitzero"`
 }
 
 // GetBoxResponseContent BoxShowResponse — box detail with postings.
@@ -973,8 +973,8 @@ type HabitRequestContent struct {
 
 // Identity defines model for Identity.
 type Identity struct {
-	Accounts     []Account `json:"accounts,omitempty"`
-	AllUsers     []User    `json:"all_users,omitempty"`
+	Accounts     []Account `json:"accounts,omitzero"`
+	AllUsers     []User    `json:"all_users,omitzero"`
 	AutoTimeZone bool      `json:"auto_time_zone,omitempty"`
 	AvatarUrl    string    `json:"avatar_url,omitempty"`
 	FirstWeekDay int32     `json:"first_week_day,omitempty"`
@@ -984,7 +984,7 @@ type Identity struct {
 
 	// PrimaryContact Contact — the identity of someone in HEY
 	PrimaryContact Contact  `json:"primary_contact,omitempty"`
-	Senders        []Sender `json:"senders,omitempty"`
+	Senders        []Sender `json:"senders,omitzero"`
 	TimeFormat     string   `json:"time_format,omitempty"`
 	TimeZone       string   `json:"time_zone,omitempty"`
 	TimeZoneName   string   `json:"time_zone_name,omitempty"`
@@ -1079,7 +1079,7 @@ type Message struct {
 	Posting MessagePostingContext `json:"posting,omitempty"`
 
 	// ReceivedVia The account addresses HEY recorded this inbound message arriving through.
-	ReceivedVia []MessageReceivedVia `json:"received_via,omitempty"`
+	ReceivedVia []MessageReceivedVia `json:"received_via,omitzero"`
 
 	// ScheduledDeliveryAt ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)
 	ScheduledDeliveryAt time.Time `json:"scheduled_delivery_at,omitempty,omitzero"`
@@ -1240,15 +1240,15 @@ type NavigationItem struct {
 
 	// Icon NavigationIcon
 	Icon      NavigationIcon   `json:"icon,omitempty"`
-	MenuItems []NavigationItem `json:"menu_items,omitempty"`
+	MenuItems []NavigationItem `json:"menu_items,omitzero"`
 	Platform  string           `json:"platform,omitempty"`
 	Title     string           `json:"title,omitempty"`
 }
 
 // NavigationResponse NavigationResponse
 type NavigationResponse struct {
-	Hotkeys []NavigationItem `json:"hotkeys,omitempty"`
-	Items   []NavigationItem `json:"items,omitempty"`
+	Hotkeys []NavigationItem `json:"hotkeys,omitzero"`
+	Items   []NavigationItem `json:"items,omitzero"`
 }
 
 // NewBulkReplyResponseContent The reply as HEY would send it: the prefilled content and the entries it goes to.
@@ -1320,7 +1320,7 @@ type Posting struct {
 
 	// ActiveAt ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)
 	ActiveAt              time.Time `json:"active_at,omitempty,omitzero"`
-	AddressedContacts     []Contact `json:"addressed_contacts,omitempty"`
+	AddressedContacts     []Contact `json:"addressed_contacts,omitzero"`
 	AlternativeSenderName string    `json:"alternative_sender_name,omitempty"`
 	AppBundleUrl          string    `json:"app_bundle_url,omitempty"`
 	AppUrl                string    `json:"app_url,omitempty"`
@@ -1333,8 +1333,8 @@ type Posting struct {
 	BubbleUpWaitingOn bool             `json:"bubble_up_waiting_on,omitempty"`
 	BubbledUp         bool             `json:"bubbled_up,omitempty"`
 	Bundled           bool             `json:"bundled,omitempty"`
-	Collections       []Collection     `json:"collections,omitempty"`
-	Contacts          []Contact        `json:"contacts,omitempty"`
+	Collections       []Collection     `json:"collections,omitzero"`
+	Contacts          []Contact        `json:"contacts,omitzero"`
 
 	// CreatedAt ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)
 	CreatedAt time.Time `json:"created_at,omitempty,omitzero"`
@@ -1342,8 +1342,8 @@ type Posting struct {
 	// Creator Contact — the identity of someone in HEY
 	Creator                 Contact     `json:"creator,omitempty"`
 	EntryKind               string      `json:"entry_kind,omitempty"`
-	Extenzions              []Extenzion `json:"extenzions,omitempty"`
-	Folders                 []Folder    `json:"folders,omitempty"`
+	Extenzions              []Extenzion `json:"extenzions,omitzero"`
+	Folders                 []Folder    `json:"folders,omitzero"`
 	Id                      int64       `json:"id"`
 	IncludesAttachments     bool        `json:"includes_attachments,omitempty"`
 	IncludesCalendarInvites bool        `json:"includes_calendar_invites,omitempty"`
@@ -1365,7 +1365,7 @@ type Posting struct {
 	// UpdatedAt ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)
 	UpdatedAt         time.Time  `json:"updated_at,omitempty,omitzero"`
 	VisibleEntryCount int32      `json:"visible_entry_count,omitempty"`
-	Workflows         []Workflow `json:"workflows,omitempty"`
+	Workflows         []Workflow `json:"workflows,omitzero"`
 }
 
 // PostingNote Note — a posting note
@@ -1381,7 +1381,7 @@ type Recording struct {
 	// AttachedEntry AttachedEntry — entry reference on a calendar event
 	AttachedEntry      AttachedEntry `json:"attached_entry,omitempty"`
 	AttendanceStatus   string        `json:"attendance_status,omitempty"`
-	Attendances        []Attendance  `json:"attendances,omitempty"`
+	Attendances        []Attendance  `json:"attendances,omitzero"`
 	AttendancesSummary string        `json:"attendances_summary,omitempty"`
 
 	// Calendar Calendar
@@ -1401,7 +1401,7 @@ type Recording struct {
 
 	// CreatedAt ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)
 	CreatedAt   time.Time `json:"created_at,omitempty,omitzero"`
-	Days        []int32   `json:"days,omitempty"`
+	Days        []int32   `json:"days,omitzero"`
 	Description string    `json:"description,omitempty"`
 	EditUrl     string    `json:"edit_url,omitempty"`
 
@@ -1434,7 +1434,7 @@ type Recording struct {
 	// RecurrenceSchedule RecurrenceSchedule
 	RecurrenceSchedule RecurrenceSchedule `json:"recurrence_schedule,omitempty"`
 	Recurring          bool               `json:"recurring,omitempty"`
-	Reminders          []Reminder         `json:"reminders,omitempty"`
+	Reminders          []Reminder         `json:"reminders,omitzero"`
 	RemindersLabel     string             `json:"reminders_label,omitempty"`
 
 	// StartsAt ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)
@@ -1522,7 +1522,7 @@ type SearchFilterItem struct {
 
 // SearchMatch One matching topic: the topic, your posting of it (if any), and the entries that matched.
 type SearchMatch struct {
-	Entries   []Entry `json:"entries,omitempty"`
+	Entries   []Entry `json:"entries,omitzero"`
 	PostingId int64   `json:"posting_id,omitempty"`
 
 	// Topic Topic detail
@@ -1602,8 +1602,8 @@ type StagedTopic struct {
 	// ActiveAt ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)
 	ActiveAt    time.Time    `json:"active_at,omitempty,omitzero"`
 	AppUrl      string       `json:"app_url,omitempty"`
-	Collections []Collection `json:"collections,omitempty"`
-	Contacts    []Contact    `json:"contacts,omitempty"`
+	Collections []Collection `json:"collections,omitzero"`
+	Contacts    []Contact    `json:"contacts,omitzero"`
 
 	// CreatedAt ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)
 	CreatedAt time.Time `json:"created_at,omitempty,omitzero"`
@@ -1613,7 +1613,7 @@ type StagedTopic struct {
 
 	// EmailsCount The thread's active emails.
 	EmailsCount    int32       `json:"emails_count,omitempty"`
-	Extenzions     []Extenzion `json:"extenzions,omitempty"`
+	Extenzions     []Extenzion `json:"extenzions,omitzero"`
 	Id             int64       `json:"id"`
 	IsForgedSender bool        `json:"is_forged_sender,omitempty"`
 
@@ -1694,8 +1694,8 @@ type Topic struct {
 	// ActiveAt ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)
 	ActiveAt    time.Time    `json:"active_at,omitempty,omitzero"`
 	AppUrl      string       `json:"app_url,omitempty"`
-	Collections []Collection `json:"collections,omitempty"`
-	Contacts    []Contact    `json:"contacts,omitempty"`
+	Collections []Collection `json:"collections,omitzero"`
+	Contacts    []Contact    `json:"contacts,omitzero"`
 
 	// CreatedAt ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)
 	CreatedAt time.Time `json:"created_at,omitempty,omitzero"`
@@ -1705,8 +1705,8 @@ type Topic struct {
 
 	// Entries The topic's first page of entries (summaries, no bodies). Present on GetTopic; use
 	// GetTopicEntries for the rest and GetMessage for a body.
-	Entries        []Entry     `json:"entries,omitempty"`
-	Extenzions     []Extenzion `json:"extenzions,omitempty"`
+	Entries        []Entry     `json:"entries,omitzero"`
+	Extenzions     []Extenzion `json:"extenzions,omitzero"`
 	Id             int64       `json:"id"`
 	IsForgedSender bool        `json:"is_forged_sender,omitempty"`
 
@@ -1726,7 +1726,7 @@ type TopicCommentAudience struct {
 
 	// VisibleTo The other users with access to the thread, who see the note. Empty when the
 	// note is a private note for its author alone. Never includes the author.
-	VisibleTo []Contact `json:"visible_to,omitempty"`
+	VisibleTo []Contact `json:"visible_to,omitzero"`
 }
 
 // TopicCommentPayload defines model for TopicCommentPayload.
@@ -1738,7 +1738,7 @@ type TopicCommentPayload struct {
 type TopicListResponse struct {
 	Description string  `json:"description,omitempty"`
 	Title       string  `json:"title,omitempty"`
-	Topics      []Topic `json:"topics,omitempty"`
+	Topics      []Topic `json:"topics,omitzero"`
 }
 
 // TopicNamePayload defines model for TopicNamePayload.
@@ -1757,8 +1757,8 @@ type TopicPublication struct {
 // TrackedTime The tracked-time index: a page of completed tracks, and every category they can be
 // filed under.
 type TrackedTime struct {
-	Categories []TimeTrackCategory `json:"categories,omitempty"`
-	TimeTracks []Recording         `json:"time_tracks,omitempty"`
+	Categories []TimeTrackCategory `json:"categories,omitzero"`
+	TimeTracks []Recording         `json:"time_tracks,omitzero"`
 }
 
 // TrashPostingsRequestContent defines model for TrashPostingsRequestContent.
@@ -1784,7 +1784,7 @@ type UncompleteHabitResponseContent = Recording
 // UnprocessableEntityErrorResponseContent The server rejected what was sent. HEY answers {"errors": ["..."]} — the messages
 // the model itself produced — so a client can show them as they are.
 type UnprocessableEntityErrorResponseContent struct {
-	Errors  []string `json:"errors,omitempty"`
+	Errors  []string `json:"errors,omitzero"`
 	Message string   `json:"message,omitempty"`
 }
 
@@ -1921,7 +1921,7 @@ type User struct {
 
 	// Contact Contact — the identity of someone in HEY
 	Contact          Contact           `json:"contact,omitempty"`
-	ExternalAccounts []ExternalAccount `json:"external_accounts,omitempty"`
+	ExternalAccounts []ExternalAccount `json:"external_accounts,omitzero"`
 	Id               int64             `json:"id"`
 }
 
@@ -1935,7 +1935,7 @@ type Workflow struct {
 	Name      string    `json:"name,omitempty"`
 
 	// Stages The workflow's stages in position order. Present on GetWorkflow.
-	Stages []WorkflowStage `json:"stages,omitempty"`
+	Stages []WorkflowStage `json:"stages,omitzero"`
 
 	// UpdatedAt ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)
 	UpdatedAt time.Time `json:"updated_at,omitempty,omitzero"`
@@ -1957,7 +1957,7 @@ type WorkflowStageDetail struct {
 	Name      string    `json:"name,omitempty"`
 
 	// Topics The threads on the stage, in the order the stage shows them. Not paginated.
-	Topics []StagedTopic `json:"topics,omitempty"`
+	Topics []StagedTopic `json:"topics,omitzero"`
 
 	// UpdatedAt ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)
 	UpdatedAt  time.Time `json:"updated_at,omitempty,omitzero"`

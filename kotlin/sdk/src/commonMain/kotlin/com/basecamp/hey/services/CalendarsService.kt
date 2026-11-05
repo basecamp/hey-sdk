@@ -9,6 +9,7 @@ import com.basecamp.hey.generated.models.Calendar
 import com.basecamp.hey.generated.models.Recording
 import com.basecamp.hey.isSameOrigin
 import io.ktor.http.Url
+import kotlinx.serialization.EncodeDefault
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import com.basecamp.hey.generated.services.CalendarsService as GeneratedCalendarsService
@@ -35,15 +36,18 @@ data class ListedCalendar(
 /**
  * The full calendars index: every calendar with its changes URL and signed stream name,
  * the calendar-level changes feed's own URL, and the calendars the reader has switched on.
+ *
+ * The lists are [EncodeDefault] so an empty one re-encodes as `[]` under any `Json`, one
+ * with `encodeDefaults = false` included, rather than vanishing because it equals its default.
  */
 @Serializable
 data class CalendarList(
     /** Every calendar the identity sees, each with what a live follower needs. */
-    val calendars: List<ListedCalendar> = emptyList(),
+    @EncodeDefault val calendars: List<ListedCalendar> = emptyList(),
     /** Where the calendar-level changes feed starts. */
     @SerialName("calendar_changes_url") val calendarChangesUrl: String? = null,
     /** The calendars the reader has switched on, which every period read is scoped to. */
-    @SerialName("selected_calendar_ids") val selectedCalendarIds: List<Long> = emptyList(),
+    @EncodeDefault @SerialName("selected_calendar_ids") val selectedCalendarIds: List<Long> = emptyList(),
 )
 
 /**

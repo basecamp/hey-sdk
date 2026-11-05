@@ -182,7 +182,7 @@ func (c *Client) GetAllWithLimit(ctx context.Context, path string, limit int) ([
 		if err := json.Unmarshal(resp.Data, &items); err != nil {
 			return nil, fmt.Errorf("failed to parse response: %w", err)
 		}
-		allResults = append(allResults, items...)
+		allResults = appendKept(allResults, items)
 
 		if limit > 0 && len(allResults) >= limit {
 			allResults = allResults[:limit]

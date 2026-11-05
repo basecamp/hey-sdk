@@ -27,9 +27,9 @@ func NewTimeTracksService(client *Client) *TimeTracksService {
 // because the index serves it for the filter — so a caller offering the filter never
 // needs Categories() as well.
 type TimeTrackPage struct {
-	TimeTracks []generated.Recording
-	Categories []generated.TimeTrackCategory
-	NextPage   string
+	TimeTracks []generated.Recording         `json:"time_tracks"`
+	Categories []generated.TimeTrackCategory `json:"categories"`
+	NextPage   string                        `json:"next_page"`
 }
 
 // List returns a page of tracked time: completed tracks only, newest-ended first, with

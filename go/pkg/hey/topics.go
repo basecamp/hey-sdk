@@ -109,8 +109,8 @@ func (s *TopicsService) GetEntries(ctx context.Context, topicID int64, params *g
 // it. NextPage is empty on the last page, which is how a caller walking a thread is told
 // it has read all of it.
 type TopicEntryPage struct {
-	Entries  []generated.Entry
-	NextPage string
+	Entries  []generated.Entry `json:"entries"`
+	NextPage string            `json:"next_page"`
 }
 
 // GetEntriesPage answers the same entries as GetEntries along with the cursor for the page
@@ -223,10 +223,10 @@ func (s *TopicsService) CreateComment(ctx context.Context, topicID int64, conten
 
 // SentPage is one page of sent topics and the opaque cursor for the next page.
 type SentPage struct {
-	Title       string
-	Description string
-	Topics      []generated.Topic
-	NextPage    string
+	Title       string            `json:"title"`
+	Description string            `json:"description"`
+	Topics      []generated.Topic `json:"topics"`
+	NextPage    string            `json:"next_page"`
 }
 
 // GetSent returns sent topics.
