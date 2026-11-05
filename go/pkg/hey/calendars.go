@@ -119,8 +119,8 @@ func (s *CalendarsService) ListWithChanges(ctx context.Context) (result *Calenda
 // CalendarRecordingsPage is one page of a calendar's recordings and the cursor for the
 // page after it. NextPage is empty on the last page.
 type CalendarRecordingsPage struct {
-	Recordings *generated.CalendarRecordingsResponse
-	NextPage   string
+	Recordings *generated.CalendarRecordingsResponse `json:"recordings"`
+	NextPage   string                                `json:"next_page"`
 }
 
 // GetRecordings returns one requested page of recordings for a specific calendar.

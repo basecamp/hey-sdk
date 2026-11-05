@@ -25,9 +25,9 @@ func NewWorkflowsService(client *Client) *WorkflowsService {
 
 // Workflow is a board of threads.
 type Workflow struct {
-	ID          int64
-	Name        string
-	AccountName string
+	ID          int64  `json:"id"`
+	Name        string `json:"name"`
+	AccountName string `json:"account_name"`
 }
 
 // WorkflowStageTopic is a thread on a workflow stage.
@@ -67,6 +67,9 @@ func (s *WorkflowsService) List(ctx context.Context, accountID int64) (result []
 			return fmt.Errorf("failed to decode the workflow list: %w", derr)
 		}
 
+		if rows != nil {
+			result = make([]Workflow, 0, len(rows))
+		}
 		for _, row := range rows {
 			if len(row) < 2 {
 				continue
@@ -137,16 +140,18 @@ func (s *WorkflowsService) GetStage(ctx context.Context, workflowID, stageID int
 }
 
 func workflowStageView(stage *generated.WorkflowStageDetail) *WorkflowStageView {
-	view := &WorkflowStageView{ID: stage.Id, Name: stage.Name}
-	for _, topic := range stage.Topics {
-		view.Topics = append(view.Topics, WorkflowStageTopic{
-			StagingID:  topic.StagingId,
-			TopicID:    topic.Id,
-			Subject:    topic.Name,
-			EntryCount: int(topic.EmailsCount),
-		})
+	return &WorkflowStageView{
+		ID:   stage.Id,
+		Name: stage.Name,
+		Topics: mapSlice(stage.Topics, func(topic generated.StagedTopic) WorkflowStageTopic {
+			return WorkflowStageTopic{
+				StagingID:  topic.StagingId,
+				TopicID:    topic.Id,
+				Subject:    topic.Name,
+				EntryCount: int(topic.EmailsCount),
+			}
+		}),
 	}
-	return view
 }
 
 // Create adds a workflow. accountID of zero leaves the server to pick your first account.

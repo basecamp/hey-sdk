@@ -46,9 +46,9 @@ func (s *BoxesService) List(ctx context.Context) (result *generated.ListBoxesRes
 
 // BoxPage contains one page of a box and its pagination state.
 type BoxPage struct {
-	Box        *generated.BoxShowResponse
-	NextPage   string
-	TotalCount int
+	Box        *generated.BoxShowResponse `json:"box"`
+	NextPage   string                     `json:"next_page"`
+	TotalCount int                        `json:"total_count"`
 }
 
 // Get returns a specific mailbox by ID.
@@ -296,9 +296,9 @@ func (s *BoxesService) ListGroups(ctx context.Context, boxID int64) (result *gen
 // BoxGroupPage is one page of a Set Aside group's postings with the cursor to the next page
 // and the group's total posting count.
 type BoxGroupPage struct {
-	Group      *generated.BoxGroupWithPostings
-	NextPage   string
-	TotalCount int
+	Group      *generated.BoxGroupWithPostings `json:"group"`
+	NextPage   string                          `json:"next_page"`
+	TotalCount int                             `json:"total_count"`
 }
 
 // GetGroup returns a Set Aside group with the requested page of its postings.

@@ -306,9 +306,9 @@ func (s *PostingsService) scheduleBubbleUp(ctx context.Context, slot, date strin
 // contact, the member postings newest first, and the cursor for the page below —
 // empty on the last page.
 type BundlePage struct {
-	Contact  generated.Contact
-	Postings []generated.Posting
-	NextPage string
+	Contact  generated.Contact   `json:"contact"`
+	Postings []generated.Posting `json:"postings"`
+	NextPage string              `json:"next_page"`
 }
 
 // BundleUnseenPage reads one page of the unseen postings a bundle posting groups
@@ -350,10 +350,10 @@ func (s *PostingsService) BundleUnseenPage(ctx context.Context, postingID int64,
 // caller speaks. A box's PostingChangesUrl carries the pair to begin with — read it with
 // PostingChangesCursorFrom rather than picking the query apart.
 type PostingChangesCursor struct {
-	Since   string
-	Version string
-	Page    string
-	PerPage string
+	Since   string `json:"since"`
+	Version string `json:"version"`
+	Page    string `json:"page"`
+	PerPage string `json:"per_page"`
 }
 
 // PostingChangesCursorFrom reads a cursor out of a changes URL the server issued, either
@@ -381,12 +381,12 @@ func PostingChangesCursorFrom(changesURL string) (PostingChangesCursor, error) {
 // when the cursor is too far behind for an increment to carry the difference, and the box
 // has to be read in full instead.
 type PostingChanges struct {
-	Added            []generated.Posting
-	Updated          []generated.Posting
-	Deleted          []generated.DeletedPosting
-	NextPage         *PostingChangesCursor
-	NextCursor       *PostingChangesCursor
-	FullSyncRequired bool
+	Added            []generated.Posting        `json:"added"`
+	Updated          []generated.Posting        `json:"updated"`
+	Deleted          []generated.DeletedPosting `json:"deleted"`
+	NextPage         *PostingChangesCursor      `json:"next_page"`
+	NextCursor       *PostingChangesCursor      `json:"next_cursor"`
+	FullSyncRequired bool                       `json:"full_sync_required"`
 }
 
 // AllChanges reads a box's posting changes feed from a cursor to its end.
@@ -402,9 +402,9 @@ func (s *PostingsService) AllChanges(ctx context.Context, boxID int64, cursor Po
 			return changes, nil
 		}
 
-		all.Added = append(all.Added, changes.Added...)
-		all.Updated = append(all.Updated, changes.Updated...)
-		all.Deleted = append(all.Deleted, changes.Deleted...)
+		all.Added = appendKept(all.Added, changes.Added)
+		all.Updated = appendKept(all.Updated, changes.Updated)
+		all.Deleted = appendKept(all.Deleted, changes.Deleted)
 		all.NextCursor = changes.NextCursor
 
 		if changes.NextPage == nil {

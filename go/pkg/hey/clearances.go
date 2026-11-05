@@ -61,9 +61,9 @@ func (s *ClearancesService) Summary(ctx context.Context) (summary *generated.Cle
 // ClearancePage contains one page of clearances and the cursor for the page after it.
 // PendingCount is what the Screener holds in total and is only answered by PendingPage.
 type ClearancePage struct {
-	Clearances   []generated.Clearance
-	PendingCount int
-	NextPage     string
+	Clearances   []generated.Clearance `json:"clearances"`
+	PendingCount int                   `json:"pending_count"`
+	NextPage     string                `json:"next_page"`
 }
 
 // Pending answers the senders waiting to be screened, a page at a time.

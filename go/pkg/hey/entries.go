@@ -123,8 +123,8 @@ func (s *EntriesService) MarkSpam(ctx context.Context, entryID int64) error {
 // number is answered with the first page forever — so NextPage is the only way to walk
 // it; empty means the last page.
 type DraftPage struct {
-	Drafts   []generated.DraftMessage
-	NextPage string
+	Drafts   []generated.DraftMessage `json:"drafts"`
+	NextPage string                   `json:"next_page"`
 }
 
 // ListDraftsPage answers the same drafts as ListDrafts along with the cursor for the

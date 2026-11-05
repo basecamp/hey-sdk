@@ -21,10 +21,10 @@ import (
 // at all. The server issues the pair in those URLs to begin with — read them with
 // CalendarChangesCursorFrom rather than picking the query apart.
 type CalendarChangesCursor struct {
-	Since   string
-	Version string
-	Page    string
-	PerPage string
+	Since   string `json:"since"`
+	Version string `json:"version"`
+	Page    string `json:"page"`
+	PerPage string `json:"per_page"`
 }
 
 // CalendarChangesCursorFrom reads a cursor out of a changes URL the server issued: a
@@ -78,11 +78,11 @@ type DeletedCalendar struct {
 // in which case the cursor that produced this page still stands. Unlike the recording
 // feed, this feed never falls too far behind, so there is no FullSyncRequired here.
 type CalendarChanges struct {
-	Added      []ListedCalendar
-	Updated    []generated.Calendar
-	Deleted    []DeletedCalendar
-	NextPage   *CalendarChangesCursor
-	NextCursor *CalendarChangesCursor
+	Added      []ListedCalendar       `json:"added"`
+	Updated    []generated.Calendar   `json:"updated"`
+	Deleted    []DeletedCalendar      `json:"deleted"`
+	NextPage   *CalendarChangesCursor `json:"next_page"`
+	NextCursor *CalendarChangesCursor `json:"next_cursor"`
 }
 
 // AllCalendarChanges reads the calendar changes feed from a cursor to its end.
@@ -95,9 +95,9 @@ func (s *CalendarsService) AllCalendarChanges(ctx context.Context, cursor Calend
 			return nil, err
 		}
 
-		all.Added = append(all.Added, changes.Added...)
-		all.Updated = append(all.Updated, changes.Updated...)
-		all.Deleted = append(all.Deleted, changes.Deleted...)
+		all.Added = appendKept(all.Added, changes.Added)
+		all.Updated = appendKept(all.Updated, changes.Updated)
+		all.Deleted = appendKept(all.Deleted, changes.Deleted)
 		all.NextCursor = changes.NextCursor
 
 		if changes.NextPage == nil {
@@ -185,12 +185,12 @@ type DeletedRecording struct {
 // when the cursor is too far behind for an increment to carry the difference — or speaks
 // a version the feed no longer does — and the calendar has to be read in full instead.
 type RecordingChanges struct {
-	Added            map[string][]generated.Recording
-	Updated          map[string][]generated.Recording
-	Deleted          []DeletedRecording
-	NextPage         *CalendarChangesCursor
-	NextCursor       *CalendarChangesCursor
-	FullSyncRequired bool
+	Added            map[string][]generated.Recording `json:"added"`
+	Updated          map[string][]generated.Recording `json:"updated"`
+	Deleted          []DeletedRecording               `json:"deleted"`
+	NextPage         *CalendarChangesCursor           `json:"next_page"`
+	NextCursor       *CalendarChangesCursor           `json:"next_cursor"`
+	FullSyncRequired bool                             `json:"full_sync_required"`
 }
 
 // AllRecordingChanges reads a calendar's recording changes feed from a cursor to its end.
@@ -208,7 +208,7 @@ func (s *CalendarsService) AllRecordingChanges(ctx context.Context, calendarID i
 
 		all.Added = mergeRecordingBuckets(all.Added, changes.Added)
 		all.Updated = mergeRecordingBuckets(all.Updated, changes.Updated)
-		all.Deleted = append(all.Deleted, changes.Deleted...)
+		all.Deleted = appendKept(all.Deleted, changes.Deleted)
 		all.NextCursor = changes.NextCursor
 
 		if changes.NextPage == nil {
@@ -285,14 +285,14 @@ func (s *CalendarsService) RecordingChanges(ctx context.Context, calendarID int6
 }
 
 func mergeRecordingBuckets(into, from map[string][]generated.Recording) map[string][]generated.Recording {
-	if len(from) == 0 {
+	if from == nil {
 		return into
 	}
 	if into == nil {
 		into = map[string][]generated.Recording{}
 	}
 	for key, recordings := range from {
-		into[key] = append(into[key], recordings...)
+		into[key] = appendKept(into[key], recordings)
 	}
 	return into
 }
@@ -302,7 +302,10 @@ func mergeRecordingBuckets(into, from map[string][]generated.Recording) map[stri
 // deletion arrives once per key; the ID dedupe removes the repeats, and each record's own
 // Type says what it was.
 func flattenDeletedRecordings(buckets map[string][]DeletedRecording) []DeletedRecording {
-	var deleted []DeletedRecording
+	if buckets == nil {
+		return nil
+	}
+	deleted := []DeletedRecording{}
 	seen := map[int64]bool{}
 	for _, key := range slices.Sorted(maps.Keys(buckets)) {
 		for _, record := range buckets[key] {

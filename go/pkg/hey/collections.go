@@ -38,9 +38,9 @@ type UpdateCollectionParams struct {
 
 // CollectionPage contains one page of a collection and its pagination state.
 type CollectionPage struct {
-	Collection *generated.CollectionWithPostings
-	NextPage   string
-	TotalCount int
+	Collection *generated.CollectionWithPostings `json:"collection"`
+	NextPage   string                            `json:"next_page"`
+	TotalCount int                               `json:"total_count"`
 }
 
 // List returns your collections.

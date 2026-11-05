@@ -19,9 +19,9 @@ func NewFoldersService(client *Client) *FoldersService {
 
 // FolderPage contains one page of a folder and its pagination state.
 type FolderPage struct {
-	Folder     *generated.FolderWithPostings
-	NextPage   string
-	TotalCount int
+	Folder     *generated.FolderWithPostings `json:"folder"`
+	NextPage   string                        `json:"next_page"`
+	TotalCount int                           `json:"total_count"`
 }
 
 // Get returns a folder and the postings filed in its requested page.

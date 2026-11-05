@@ -31,9 +31,9 @@ func NewExtenzionsService(client *Client) *ExtenzionsService {
 //
 // The id is the extenzion's contact id — the same id the write endpoints take.
 type Extenzion struct {
-	ID     int64
-	Name   string
-	AppURL string
+	ID     int64  `json:"id"`
+	Name   string `json:"name"`
+	AppURL string `json:"app_url"`
 }
 
 // CreateExtenzionParams contains the parameters for creating an extenzion.

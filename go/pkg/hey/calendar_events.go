@@ -553,9 +553,9 @@ const occurrenceDateLayout = "2006-01-02"
 // Update and Delete — which take an id — cannot touch one.
 type EventOccurrence struct {
 	// EventID is the repeating event the occurrence belongs to, HEY's parent_id.
-	EventID int64
+	EventID int64 `json:"event_id"`
 	// Date is the day the occurrence falls on. Only the calendar date is read.
-	Date time.Time
+	Date time.Time `json:"date"`
 }
 
 // ParseOccurrenceID reads the occurrence_id HEY serves for a virtual occurrence.

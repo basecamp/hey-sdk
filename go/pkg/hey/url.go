@@ -15,16 +15,16 @@ var routeTableJSON []byte
 // Match holds the components extracted from a HEY API URL.
 type Match struct {
 	// Operation is the matched API operation name (e.g., "GetBox", "CreateMessage").
-	Operation string
+	Operation string `json:"operation"`
 
 	// Operations lists all API operations for the matched pattern, keyed by HTTP method.
-	Operations map[string]string
+	Operations map[string]string `json:"operations"`
 
 	// Resource is the API resource group (e.g., "Boxes", "Messages").
-	Resource string
+	Resource string `json:"resource"`
 
 	// Params contains all named path parameters extracted from the URL.
-	Params map[string]string
+	Params map[string]string `json:"params"`
 
 	resourceID string // last path parameter value (deterministic)
 }

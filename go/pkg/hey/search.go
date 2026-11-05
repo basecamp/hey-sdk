@@ -54,8 +54,8 @@ type SearchParams struct {
 // there is none. Search numbers its pages rather than cursoring them, so the next page is
 // followed by passing that number back as SearchParams.Page.
 type SearchResults struct {
-	Result   *generated.AdvancedSearchResult
-	NextPage int
+	Result   *generated.AdvancedSearchResult `json:"result"`
+	NextPage int                             `json:"next_page"`
 }
 
 // Search runs an advanced search and returns the matching threads, grouped by topic as
