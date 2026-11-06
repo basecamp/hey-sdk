@@ -45,7 +45,7 @@ impl<'a> Clearances<'a> {
         self.client.send(operation).await
     }
 
-    /// Get the Screener — the pending count, and the senders waiting when asked for them
+    /// Get The Screener — the pending count, and the senders waiting when asked for them
     pub async fn get(
         &self,
         params: &GetClearancesParams,
@@ -66,13 +66,13 @@ impl<'a> Clearances<'a> {
         self.client.send_page(operation).await
     }
 
-    /// Clear the Screener — every pending sender is punted and reexamined on their next email
+    /// Clear The Screener — every pending sender is punted and reexamined on their next email
     pub async fn punt(&self) -> Result<(), Error> {
         let operation = self.client.operation(&routes::PUNT_CLEARANCES, &[]);
         self.client.send_unit(operation).await
     }
 
-    /// Screen a sender in or out of the Screener
+    /// Screen a sender in or out of The Screener
     ///
     /// designation_box_id files everything they send into that box instead of the Imbox.
     /// spam marks what is already waiting as spam and trains the filter on it.

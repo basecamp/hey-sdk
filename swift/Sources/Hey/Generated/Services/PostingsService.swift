@@ -53,7 +53,7 @@ public final class PostingsService: BaseService, @unchecked Sendable {
         return try await client.sendVoid(operation)
     }
 
-    /// Cancel a scheduled bubble up for a selection of postings
+    /// Pop a selection of postings out of Bubble Up
     ///
     /// - Parameters:
     ///   - postingIds: The `posting_ids` query parameter
@@ -189,10 +189,10 @@ public final class PostingsService: BaseService, @unchecked Sendable {
         return try await client.sendVoid(operation)
     }
 
-    /// Schedule a selection of postings to bubble up.
+    /// Schedule a selection of postings to Bubble Up.
     ///
     /// HEY's scheduler takes a `slot` — today, tomorrow, weekend, next_week, surprise_me
-    /// or custom — and a custom slot also carries the `date` (YYYY-MM-DD) to bubble up on,
+    /// or custom — and a custom slot also carries the `date` (YYYY-MM-DD) to Bubble Up on,
     /// at HEY's morning hour. The today slot lands at HEY's evening hour of the current
     /// day instead, and both hours are UTC over JSON. An unknown slot, or a custom slot
     /// without a date, is a server error rather than a validation response, so callers

@@ -140,7 +140,7 @@ public final class BoxesService: BaseService, @unchecked Sendable {
         return try await client.send(operation)
     }
 
-    /// Get the Feed
+    /// Get The Feed
     ///
     /// - Parameters:
     ///   - options: Optional query parameters

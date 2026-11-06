@@ -12,7 +12,7 @@ import kotlinx.serialization.Serializable
 data class CalendarTodoChanges(
     val title: String? = null,
     /**
-     * Date string (YYYY-MM-DD). The day the todo is filed on.
+     * Date string (YYYY-MM-DD). The day the to-do is filed on.
      */
     @SerialName("starts_at")
     val startsAt: String? = null,

@@ -20,7 +20,7 @@ import com.basecamp.hey.services.BaseService
  */
 open class CalendarTodosService(client: HeyClient) : BaseService(client) {
     /**
-     * Complete a calendar todo
+     * Complete a calendar to-do
      * @param todoId The todo ID
      */
     suspend fun complete(todoId: Long): CompleteCalendarTodoResponseContent {
@@ -30,7 +30,7 @@ open class CalendarTodosService(client: HeyClient) : BaseService(client) {
     }
 
     /**
-     * Create a calendar todo
+     * Create a calendar to-do
      * @param body Request body
      */
     suspend fun create(body: CreateCalendarTodoRequestContent): CreateCalendarTodoResponseContent {
@@ -40,7 +40,7 @@ open class CalendarTodosService(client: HeyClient) : BaseService(client) {
     }
 
     /**
-     * Delete a calendar todo
+     * Delete a calendar to-do
      * @param todoId The todo ID
      */
     suspend fun delete(todoId: Long): Unit {
@@ -50,7 +50,7 @@ open class CalendarTodosService(client: HeyClient) : BaseService(client) {
     }
 
     /**
-     * Uncomplete a calendar todo
+     * Uncomplete a calendar to-do
      * @param todoId The todo ID
      */
     suspend fun uncomplete(todoId: Long): UncompleteCalendarTodoResponseContent {
@@ -60,7 +60,7 @@ open class CalendarTodosService(client: HeyClient) : BaseService(client) {
     }
 
     /**
-     * Edit a calendar todo. todoId is the recording's id, and every field of the payload
+     * Edit a calendar to-do. todoId is the recording's id, and every field of the payload
      * is optional: haystack's `wrap_parameters` accepts title, focused and starts_at, and
      * changes only what is sent.
      * @param todoId The todo ID

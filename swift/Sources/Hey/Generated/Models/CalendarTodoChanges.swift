@@ -3,7 +3,7 @@
 /// Nothing here is required: a rename sends a title and leaves the day alone.
 public struct CalendarTodoChanges: Codable, Sendable, Equatable {
     public var title: String?
-    /// Date string (YYYY-MM-DD). The day the todo is filed on.
+    /// Date string (YYYY-MM-DD). The day the to-do is filed on.
     public var startsAt: String?
     public var focused: Bool?
 

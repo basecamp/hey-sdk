@@ -61,7 +61,7 @@ impl<'a> Postings<'a> {
         self.client.send_unit(operation).await
     }
 
-    /// Cancel a scheduled bubble up for a selection of postings
+    /// Pop a selection of postings out of Bubble Up
     pub async fn cancel_bubble_up(&self, posting_ids: &str) -> Result<(), Error> {
         let mut operation = self
             .client
@@ -183,10 +183,10 @@ impl<'a> Postings<'a> {
         self.client.send_unit(operation).await
     }
 
-    /// Schedule a selection of postings to bubble up.
+    /// Schedule a selection of postings to Bubble Up.
     ///
     /// HEY's scheduler takes a `slot` — today, tomorrow, weekend, next_week, surprise_me
-    /// or custom — and a custom slot also carries the `date` (YYYY-MM-DD) to bubble up on,
+    /// or custom — and a custom slot also carries the `date` (YYYY-MM-DD) to Bubble Up on,
     /// at HEY's morning hour. The today slot lands at HEY's evening hour of the current
     /// day instead, and both hours are UTC over JSON. An unknown slot, or a custom slot
     /// without a date, is a server error rather than a validation response, so callers

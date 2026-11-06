@@ -130,7 +130,7 @@ open class BoxesService(client: HeyClient) : BaseService(client) {
     }
 
     /**
-     * Get the Feed
+     * Get The Feed
      * @param options Optional query parameters
      */
     suspend fun getFeedbox(options: GetFeedboxOptions? = null): GetFeedboxResponseContent {

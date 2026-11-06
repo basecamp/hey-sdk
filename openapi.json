@@ -3859,7 +3859,7 @@
     },
     "/calendar/todos.json": {
       "post": {
-        "description": "Create a calendar todo",
+        "description": "Create a calendar to-do",
         "operationId": "CreateCalendarTodo",
         "requestBody": {
           "content": {
@@ -3955,7 +3955,7 @@
     },
     "/calendar/todos/{todoId}": {
       "delete": {
-        "description": "Delete a calendar todo",
+        "description": "Delete a calendar to-do",
         "operationId": "DeleteCalendarTodo",
         "parameters": [
           {
@@ -4041,7 +4041,7 @@
         "x-hey-untrusted-content": false
       },
       "patch": {
-        "description": "Edit a calendar todo. todoId is the recording's id, and every field of the payload\nis optional: haystack's `wrap_parameters` accepts title, focused and starts_at, and\nchanges only what is sent.",
+        "description": "Edit a calendar to-do. todoId is the recording's id, and every field of the payload\nis optional: haystack's `wrap_parameters` accepts title, focused and starts_at, and\nchanges only what is sent.",
         "operationId": "UpdateCalendarTodo",
         "requestBody": {
           "content": {
@@ -4156,7 +4156,7 @@
     },
     "/calendar/todos/{todoId}/completions": {
       "delete": {
-        "description": "Uncomplete a calendar todo",
+        "description": "Uncomplete a calendar to-do",
         "operationId": "UncompleteCalendarTodo",
         "parameters": [
           {
@@ -4249,7 +4249,7 @@
         "x-hey-untrusted-content": false
       },
       "post": {
-        "description": "Complete a calendar todo",
+        "description": "Complete a calendar to-do",
         "operationId": "CompleteCalendarTodo",
         "parameters": [
           {
@@ -4918,7 +4918,7 @@
     },
     "/clearances.json": {
       "get": {
-        "description": "Get the Screener — the pending count, and the senders waiting when asked for them",
+        "description": "Get The Screener — the pending count, and the senders waiting when asked for them",
         "operationId": "GetClearances",
         "parameters": [
           {
@@ -5108,7 +5108,7 @@
     },
     "/clearances/punt.json": {
       "post": {
-        "description": "Clear the Screener — every pending sender is punted and reexamined on their next email",
+        "description": "Clear The Screener — every pending sender is punted and reexamined on their next email",
         "operationId": "PuntClearances",
         "responses": {
           "200": {
@@ -5177,7 +5177,7 @@
     },
     "/clearances/{clearanceId}": {
       "patch": {
-        "description": "Screen a sender in or out of the Screener\n\ndesignation_box_id files everything they send into that box instead of the Imbox.\nspam marks what is already waiting as spam and trains the filter on it.",
+        "description": "Screen a sender in or out of The Screener\n\ndesignation_box_id files everything they send into that box instead of the Imbox.\nspam marks what is already waiting as spam and trains the filter on it.",
         "operationId": "UpdateClearance",
         "requestBody": {
           "content": {
@@ -7629,7 +7629,7 @@
     },
     "/feedbox.json": {
       "get": {
-        "description": "Get the Feed",
+        "description": "Get The Feed",
         "operationId": "GetFeedbox",
         "parameters": [
           {
@@ -9273,7 +9273,7 @@
     },
     "/postings/bubble_up.json": {
       "delete": {
-        "description": "Cancel a scheduled bubble up for a selection of postings",
+        "description": "Pop a selection of postings out of Bubble Up",
         "operationId": "CancelPostingsBubbleUp",
         "parameters": [
           {
@@ -9360,7 +9360,7 @@
         "x-hey-untrusted-content": false
       },
       "post": {
-        "description": "Schedule a selection of postings to bubble up.\n\nHEY's scheduler takes a `slot` — today, tomorrow, weekend, next_week, surprise_me\nor custom — and a custom slot also carries the `date` (YYYY-MM-DD) to bubble up on,\nat HEY's morning hour. The today slot lands at HEY's evening hour of the current\nday instead, and both hours are UTC over JSON. An unknown slot, or a custom slot\nwithout a date, is a server error rather than a validation response, so callers\ncheck both first. Responds 201 Created.",
+        "description": "Schedule a selection of postings to Bubble Up.\n\nHEY's scheduler takes a `slot` — today, tomorrow, weekend, next_week, surprise_me\nor custom — and a custom slot also carries the `date` (YYYY-MM-DD) to Bubble Up on,\nat HEY's morning hour. The today slot lands at HEY's evening hour of the current\nday instead, and both hours are UTC over JSON. An unknown slot, or a custom slot\nwithout a date, is a server error rather than a validation response, so callers\ncheck both first. Responds 201 Created.",
         "operationId": "SchedulePostingsBubbleUp",
         "requestBody": {
           "content": {
@@ -13871,7 +13871,7 @@
           },
           "starts_at": {
             "type": "string",
-            "description": "Date string (YYYY-MM-DD). The day the todo is filed on.",
+            "description": "Date string (YYYY-MM-DD). The day the to-do is filed on.",
             "x-go-type": "time.Time",
             "x-go-type-import": {
               "path": "time"
@@ -14009,7 +14009,7 @@
       },
       "Clearance": {
         "type": "object",
-        "description": "Clearance — screening status for a contact\n\npetitioner and most_recent_entry are only filled in by the Screener reads. The\ncontact reads answer a clearance with nothing but its id and status.",
+        "description": "Clearance — screening status for a contact\n\npetitioner and most_recent_entry are only filled in by The Screener's reads. The\ncontact reads answer a clearance with nothing but its id and status.",
         "properties": {
           "id": {
             "type": "integer",
@@ -14063,7 +14063,7 @@
       },
       "ClearanceSummary": {
         "type": "object",
-        "description": "ClearanceSummary — the Screener's pending count, and the queue itself when asked for\n\nclearances is only present when the read passes include_clearances. Without it HEY\nanswers the count alone, which is what its own apps sync.",
+        "description": "ClearanceSummary — The Screener's pending count, and the queue itself when asked for\n\nclearances is only present when the read passes include_clearances. Without it HEY\nanswers the count alone, which is what its own apps sync.",
         "properties": {
           "pending_clearances_count": {
             "type": "integer",
