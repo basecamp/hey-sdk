@@ -261,7 +261,7 @@ type CalendarSelection struct {
 type CalendarTodoChanges struct {
 	Focused *bool `json:"focused,omitempty"`
 
-	// StartsAt Date string (YYYY-MM-DD). The day the todo is filed on.
+	// StartsAt Date string (YYYY-MM-DD). The day the to-do is filed on.
 	StartsAt *time.Time `json:"starts_at,omitempty,omitzero"`
 	Title    string     `json:"title,omitempty"`
 }
@@ -317,7 +317,7 @@ type CalendarYearDay struct {
 
 // Clearance Clearance — screening status for a contact
 //
-// petitioner and most_recent_entry are only filled in by the Screener reads. The
+// petitioner and most_recent_entry are only filled in by The Screener's reads. The
 // contact reads answer a clearance with nothing but its id and status.
 type Clearance struct {
 	// CreatedAt ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)
@@ -340,7 +340,7 @@ type ClearanceListResponse struct {
 	Clearances []Clearance `json:"clearances,omitzero"`
 }
 
-// ClearanceSummary ClearanceSummary — the Screener's pending count, and the queue itself when asked for
+// ClearanceSummary ClearanceSummary — The Screener's pending count, and the queue itself when asked for
 //
 // clearances is only present when the read passes include_clearances. Without it HEY
 // answers the count alone, which is what its own apps sync.
@@ -461,7 +461,7 @@ type ContactDetail struct {
 
 	// Clearance Clearance — screening status for a contact
 	//
-	// petitioner and most_recent_entry are only filled in by the Screener reads. The
+	// petitioner and most_recent_entry are only filled in by The Screener's reads. The
 	// contact reads answer a clearance with nothing but its id and status.
 	Clearance       Clearance `json:"clearance,omitempty"`
 	ContactableType string    `json:"contactable_type,omitempty"`
@@ -861,7 +861,7 @@ type GetCalendarWeekResponseContent = CalendarPeriod
 // expanded occurrences is not something a client asks for by opening a year.
 type GetCalendarYearResponseContent = CalendarYear
 
-// GetClearancesResponseContent ClearanceSummary — the Screener's pending count, and the queue itself when asked for
+// GetClearancesResponseContent ClearanceSummary — The Screener's pending count, and the queue itself when asked for
 //
 // clearances is only present when the read passes include_clearances. Without it HEY
 // answers the count alone, which is what its own apps sync.
@@ -1807,7 +1807,7 @@ type UpdateClearanceRequestContent struct {
 
 // UpdateClearanceResponseContent Clearance — screening status for a contact
 //
-// petitioner and most_recent_entry are only filled in by the Screener reads. The
+// petitioner and most_recent_entry are only filled in by The Screener's reads. The
 // contact reads answer a clearance with nothing but its id and status.
 type UpdateClearanceResponseContent = Clearance
 
@@ -1861,7 +1861,7 @@ type UpdateMyClearanceRequestContent struct {
 
 // UpdateMyClearanceResponseContent Clearance — screening status for a contact
 //
-// petitioner and most_recent_entry are only filled in by the Screener reads. The
+// petitioner and most_recent_entry are only filled in by The Screener's reads. The
 // contact reads answer a clearance with nothing but its id and status.
 type UpdateMyClearanceResponseContent = Clearance
 
@@ -12424,7 +12424,7 @@ type ClientWithResponsesInterface interface {
 	// CreateCalendarTodoWithBodyWithResponse performs a POST /calendar/todos.json (the `CreateCalendarTodo` operationId) request,
 	// with any type of body and a specified content type.
 	//
-	// Create a calendar todo.
+	// Create a calendar to-do.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	CreateCalendarTodoWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateCalendarTodoResponse, error)
@@ -12432,12 +12432,12 @@ type ClientWithResponsesInterface interface {
 	// CreateCalendarTodoWithResponse performs a POST /calendar/todos.json (the `CreateCalendarTodo` operationId) request.
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
-	// Create a calendar todo.
+	// Create a calendar to-do.
 	CreateCalendarTodoWithResponse(ctx context.Context, body CreateCalendarTodoJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateCalendarTodoResponse, error)
 
 	// DeleteCalendarTodoWithResponse performs a DELETE /calendar/todos/{todoId} (the `DeleteCalendarTodo` operationId) request.
 	//
-	// Delete a calendar todo.
+	// Delete a calendar to-do.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	DeleteCalendarTodoWithResponse(ctx context.Context, todoId int64, reqEditors ...RequestEditorFn) (*DeleteCalendarTodoResponse, error)
@@ -12445,7 +12445,7 @@ type ClientWithResponsesInterface interface {
 	// UpdateCalendarTodoWithBodyWithResponse performs a PATCH /calendar/todos/{todoId} (the `UpdateCalendarTodo` operationId) request,
 	// with any type of body and a specified content type.
 	//
-	// Edit a calendar todo. todoId is the recording's id, and every field of the payload
+	// Edit a calendar to-do. todoId is the recording's id, and every field of the payload
 	// is optional: haystack's `wrap_parameters` accepts title, focused and starts_at, and
 	// changes only what is sent.
 	//
@@ -12455,21 +12455,21 @@ type ClientWithResponsesInterface interface {
 	// UpdateCalendarTodoWithResponse performs a PATCH /calendar/todos/{todoId} (the `UpdateCalendarTodo` operationId) request.
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
-	// Edit a calendar todo. todoId is the recording's id, and every field of the payload
+	// Edit a calendar to-do. todoId is the recording's id, and every field of the payload
 	// is optional: haystack's `wrap_parameters` accepts title, focused and starts_at, and
 	// changes only what is sent.
 	UpdateCalendarTodoWithResponse(ctx context.Context, todoId int64, body UpdateCalendarTodoJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateCalendarTodoResponse, error)
 
 	// UncompleteCalendarTodoWithResponse performs a DELETE /calendar/todos/{todoId}/completions (the `UncompleteCalendarTodo` operationId) request.
 	//
-	// Uncomplete a calendar todo.
+	// Uncomplete a calendar to-do.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	UncompleteCalendarTodoWithResponse(ctx context.Context, todoId int64, reqEditors ...RequestEditorFn) (*UncompleteCalendarTodoResponse, error)
 
 	// CompleteCalendarTodoWithResponse performs a POST /calendar/todos/{todoId}/completions (the `CompleteCalendarTodo` operationId) request.
 	//
-	// Complete a calendar todo.
+	// Complete a calendar to-do.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	CompleteCalendarTodoWithResponse(ctx context.Context, todoId int64, reqEditors ...RequestEditorFn) (*CompleteCalendarTodoResponse, error)
@@ -12520,7 +12520,7 @@ type ClientWithResponsesInterface interface {
 
 	// GetClearancesWithResponse performs a GET /clearances.json (the `GetClearances` operationId) request.
 	//
-	// Get the Screener — the pending count, and the senders waiting when asked for them
+	// Get The Screener — the pending count, and the senders waiting when asked for them
 	//
 	// Returns a wrapper object for the known response body format(s).
 	GetClearancesWithResponse(ctx context.Context, params *GetClearancesParams, reqEditors ...RequestEditorFn) (*GetClearancesResponse, error)
@@ -12541,7 +12541,7 @@ type ClientWithResponsesInterface interface {
 
 	// PuntClearancesWithResponse performs a POST /clearances/punt.json (the `PuntClearances` operationId) request.
 	//
-	// Clear the Screener — every pending sender is punted and reexamined on their next email.
+	// Clear The Screener — every pending sender is punted and reexamined on their next email.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	PuntClearancesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*PuntClearancesResponse, error)
@@ -12549,7 +12549,7 @@ type ClientWithResponsesInterface interface {
 	// UpdateClearanceWithBodyWithResponse performs a PATCH /clearances/{clearanceId} (the `UpdateClearance` operationId) request,
 	// with any type of body and a specified content type.
 	//
-	// Screen a sender in or out of the Screener
+	// Screen a sender in or out of The Screener
 	//
 	// designation_box_id files everything they send into that box instead of the Imbox.
 	// spam marks what is already waiting as spam and trains the filter on it.
@@ -12560,7 +12560,7 @@ type ClientWithResponsesInterface interface {
 	// UpdateClearanceWithResponse performs a PATCH /clearances/{clearanceId} (the `UpdateClearance` operationId) request.
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
-	// Screen a sender in or out of the Screener
+	// Screen a sender in or out of The Screener
 	//
 	// designation_box_id files everything they send into that box instead of the Imbox.
 	// spam marks what is already waiting as spam and trains the filter on it.
@@ -12805,7 +12805,7 @@ type ClientWithResponsesInterface interface {
 
 	// GetFeedboxWithResponse performs a GET /feedbox.json (the `GetFeedbox` operationId) request.
 	//
-	// Get the Feed.
+	// Get The Feed.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	GetFeedboxWithResponse(ctx context.Context, params *GetFeedboxParams, reqEditors ...RequestEditorFn) (*GetFeedboxResponse, error)
@@ -13039,7 +13039,7 @@ type ClientWithResponsesInterface interface {
 
 	// CancelPostingsBubbleUpWithResponse performs a DELETE /postings/bubble_up.json (the `CancelPostingsBubbleUp` operationId) request.
 	//
-	// Cancel a scheduled bubble up for a selection of postings.
+	// Pop a selection of postings out of Bubble Up.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	CancelPostingsBubbleUpWithResponse(ctx context.Context, params *CancelPostingsBubbleUpParams, reqEditors ...RequestEditorFn) (*CancelPostingsBubbleUpResponse, error)
@@ -13047,10 +13047,10 @@ type ClientWithResponsesInterface interface {
 	// SchedulePostingsBubbleUpWithBodyWithResponse performs a POST /postings/bubble_up.json (the `SchedulePostingsBubbleUp` operationId) request,
 	// with any type of body and a specified content type.
 	//
-	// Schedule a selection of postings to bubble up.
+	// Schedule a selection of postings to Bubble Up.
 	//
 	// HEY's scheduler takes a `slot` — today, tomorrow, weekend, next_week, surprise_me
-	// or custom — and a custom slot also carries the `date` (YYYY-MM-DD) to bubble up on,
+	// or custom — and a custom slot also carries the `date` (YYYY-MM-DD) to Bubble Up on,
 	// at HEY's morning hour. The today slot lands at HEY's evening hour of the current
 	// day instead, and both hours are UTC over JSON. An unknown slot, or a custom slot
 	// without a date, is a server error rather than a validation response, so callers
@@ -13062,10 +13062,10 @@ type ClientWithResponsesInterface interface {
 	// SchedulePostingsBubbleUpWithResponse performs a POST /postings/bubble_up.json (the `SchedulePostingsBubbleUp` operationId) request.
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
-	// Schedule a selection of postings to bubble up.
+	// Schedule a selection of postings to Bubble Up.
 	//
 	// HEY's scheduler takes a `slot` — today, tomorrow, weekend, next_week, surprise_me
-	// or custom — and a custom slot also carries the `date` (YYYY-MM-DD) to bubble up on,
+	// or custom — and a custom slot also carries the `date` (YYYY-MM-DD) to Bubble Up on,
 	// at HEY's morning hour. The today slot lands at HEY's evening hour of the current
 	// day instead, and both hours are UTC over JSON. An unknown slot, or a custom slot
 	// without a date, is a server error rather than a validation response, so callers
@@ -23457,7 +23457,7 @@ func (c *ClientWithResponses) UpdateTimeTrackWithResponse(ctx context.Context, t
 // CreateCalendarTodoWithBodyWithResponse performs a POST /calendar/todos.json (the `CreateCalendarTodo` operationId) request,
 // with any type of body and a specified content type.
 //
-// Create a calendar todo.
+// Create a calendar to-do.
 //
 // Returns a wrapper object for the known response body format(s).
 func (c *ClientWithResponses) CreateCalendarTodoWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateCalendarTodoResponse, error) {
@@ -23471,7 +23471,7 @@ func (c *ClientWithResponses) CreateCalendarTodoWithBodyWithResponse(ctx context
 // CreateCalendarTodoWithResponse performs a POST /calendar/todos.json (the `CreateCalendarTodo` operationId) request.
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
-// Create a calendar todo.
+// Create a calendar to-do.
 func (c *ClientWithResponses) CreateCalendarTodoWithResponse(ctx context.Context, body CreateCalendarTodoJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateCalendarTodoResponse, error) {
 	rsp, err := c.CreateCalendarTodo(ctx, body, reqEditors...)
 	if err != nil {
@@ -23482,7 +23482,7 @@ func (c *ClientWithResponses) CreateCalendarTodoWithResponse(ctx context.Context
 
 // DeleteCalendarTodoWithResponse performs a DELETE /calendar/todos/{todoId} (the `DeleteCalendarTodo` operationId) request.
 //
-// Delete a calendar todo.
+// Delete a calendar to-do.
 //
 // Returns a wrapper object for the known response body format(s).
 func (c *ClientWithResponses) DeleteCalendarTodoWithResponse(ctx context.Context, todoId int64, reqEditors ...RequestEditorFn) (*DeleteCalendarTodoResponse, error) {
@@ -23496,7 +23496,7 @@ func (c *ClientWithResponses) DeleteCalendarTodoWithResponse(ctx context.Context
 // UpdateCalendarTodoWithBodyWithResponse performs a PATCH /calendar/todos/{todoId} (the `UpdateCalendarTodo` operationId) request,
 // with any type of body and a specified content type.
 //
-// Edit a calendar todo. todoId is the recording's id, and every field of the payload
+// Edit a calendar to-do. todoId is the recording's id, and every field of the payload
 // is optional: haystack's `wrap_parameters` accepts title, focused and starts_at, and
 // changes only what is sent.
 //
@@ -23512,7 +23512,7 @@ func (c *ClientWithResponses) UpdateCalendarTodoWithBodyWithResponse(ctx context
 // UpdateCalendarTodoWithResponse performs a PATCH /calendar/todos/{todoId} (the `UpdateCalendarTodo` operationId) request.
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
-// Edit a calendar todo. todoId is the recording's id, and every field of the payload
+// Edit a calendar to-do. todoId is the recording's id, and every field of the payload
 // is optional: haystack's `wrap_parameters` accepts title, focused and starts_at, and
 // changes only what is sent.
 func (c *ClientWithResponses) UpdateCalendarTodoWithResponse(ctx context.Context, todoId int64, body UpdateCalendarTodoJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateCalendarTodoResponse, error) {
@@ -23525,7 +23525,7 @@ func (c *ClientWithResponses) UpdateCalendarTodoWithResponse(ctx context.Context
 
 // UncompleteCalendarTodoWithResponse performs a DELETE /calendar/todos/{todoId}/completions (the `UncompleteCalendarTodo` operationId) request.
 //
-// Uncomplete a calendar todo.
+// Uncomplete a calendar to-do.
 //
 // Returns a wrapper object for the known response body format(s).
 func (c *ClientWithResponses) UncompleteCalendarTodoWithResponse(ctx context.Context, todoId int64, reqEditors ...RequestEditorFn) (*UncompleteCalendarTodoResponse, error) {
@@ -23538,7 +23538,7 @@ func (c *ClientWithResponses) UncompleteCalendarTodoWithResponse(ctx context.Con
 
 // CompleteCalendarTodoWithResponse performs a POST /calendar/todos/{todoId}/completions (the `CompleteCalendarTodo` operationId) request.
 //
-// Complete a calendar todo.
+// Complete a calendar to-do.
 //
 // Returns a wrapper object for the known response body format(s).
 func (c *ClientWithResponses) CompleteCalendarTodoWithResponse(ctx context.Context, todoId int64, reqEditors ...RequestEditorFn) (*CompleteCalendarTodoResponse, error) {
@@ -23631,7 +23631,7 @@ func (c *ClientWithResponses) ToggleCalendarWithResponse(ctx context.Context, ca
 
 // GetClearancesWithResponse performs a GET /clearances.json (the `GetClearances` operationId) request.
 //
-// # Get the Screener — the pending count, and the senders waiting when asked for them
+// # Get The Screener — the pending count, and the senders waiting when asked for them
 //
 // Returns a wrapper object for the known response body format(s).
 func (c *ClientWithResponses) GetClearancesWithResponse(ctx context.Context, params *GetClearancesParams, reqEditors ...RequestEditorFn) (*GetClearancesResponse, error) {
@@ -23670,7 +23670,7 @@ func (c *ClientWithResponses) BulkUpdateClearancesWithResponse(ctx context.Conte
 
 // PuntClearancesWithResponse performs a POST /clearances/punt.json (the `PuntClearances` operationId) request.
 //
-// Clear the Screener — every pending sender is punted and reexamined on their next email.
+// Clear The Screener — every pending sender is punted and reexamined on their next email.
 //
 // Returns a wrapper object for the known response body format(s).
 func (c *ClientWithResponses) PuntClearancesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*PuntClearancesResponse, error) {
@@ -23684,7 +23684,7 @@ func (c *ClientWithResponses) PuntClearancesWithResponse(ctx context.Context, re
 // UpdateClearanceWithBodyWithResponse performs a PATCH /clearances/{clearanceId} (the `UpdateClearance` operationId) request,
 // with any type of body and a specified content type.
 //
-// # Screen a sender in or out of the Screener
+// # Screen a sender in or out of The Screener
 //
 // designation_box_id files everything they send into that box instead of the Imbox.
 // spam marks what is already waiting as spam and trains the filter on it.
@@ -23701,7 +23701,7 @@ func (c *ClientWithResponses) UpdateClearanceWithBodyWithResponse(ctx context.Co
 // UpdateClearanceWithResponse performs a PATCH /clearances/{clearanceId} (the `UpdateClearance` operationId) request.
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
-// # Screen a sender in or out of the Screener
+// # Screen a sender in or out of The Screener
 //
 // designation_box_id files everything they send into that box instead of the Imbox.
 // spam marks what is already waiting as spam and trains the filter on it.
@@ -24138,7 +24138,7 @@ func (c *ClientWithResponses) MarkEntrySpamWithResponse(ctx context.Context, ent
 
 // GetFeedboxWithResponse performs a GET /feedbox.json (the `GetFeedbox` operationId) request.
 //
-// Get the Feed.
+// Get The Feed.
 //
 // Returns a wrapper object for the known response body format(s).
 func (c *ClientWithResponses) GetFeedboxWithResponse(ctx context.Context, params *GetFeedboxParams, reqEditors ...RequestEditorFn) (*GetFeedboxResponse, error) {
@@ -24522,7 +24522,7 @@ func (c *ClientWithResponses) AddPostingsToBoxGroupWithResponse(ctx context.Cont
 
 // CancelPostingsBubbleUpWithResponse performs a DELETE /postings/bubble_up.json (the `CancelPostingsBubbleUp` operationId) request.
 //
-// Cancel a scheduled bubble up for a selection of postings.
+// Pop a selection of postings out of Bubble Up.
 //
 // Returns a wrapper object for the known response body format(s).
 func (c *ClientWithResponses) CancelPostingsBubbleUpWithResponse(ctx context.Context, params *CancelPostingsBubbleUpParams, reqEditors ...RequestEditorFn) (*CancelPostingsBubbleUpResponse, error) {
@@ -24536,10 +24536,10 @@ func (c *ClientWithResponses) CancelPostingsBubbleUpWithResponse(ctx context.Con
 // SchedulePostingsBubbleUpWithBodyWithResponse performs a POST /postings/bubble_up.json (the `SchedulePostingsBubbleUp` operationId) request,
 // with any type of body and a specified content type.
 //
-// Schedule a selection of postings to bubble up.
+// Schedule a selection of postings to Bubble Up.
 //
 // HEY's scheduler takes a `slot` — today, tomorrow, weekend, next_week, surprise_me
-// or custom — and a custom slot also carries the `date` (YYYY-MM-DD) to bubble up on,
+// or custom — and a custom slot also carries the `date` (YYYY-MM-DD) to Bubble Up on,
 // at HEY's morning hour. The today slot lands at HEY's evening hour of the current
 // day instead, and both hours are UTC over JSON. An unknown slot, or a custom slot
 // without a date, is a server error rather than a validation response, so callers
@@ -24557,10 +24557,10 @@ func (c *ClientWithResponses) SchedulePostingsBubbleUpWithBodyWithResponse(ctx c
 // SchedulePostingsBubbleUpWithResponse performs a POST /postings/bubble_up.json (the `SchedulePostingsBubbleUp` operationId) request.
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
-// Schedule a selection of postings to bubble up.
+// Schedule a selection of postings to Bubble Up.
 //
 // HEY's scheduler takes a `slot` — today, tomorrow, weekend, next_week, surprise_me
-// or custom — and a custom slot also carries the `date` (YYYY-MM-DD) to bubble up on,
+// or custom — and a custom slot also carries the `date` (YYYY-MM-DD) to Bubble Up on,
 // at HEY's morning hour. The today slot lands at HEY's evening hour of the current
 // day instead, and both hours are UTC over JSON. An unknown slot, or a custom slot
 // without a date, is a server error rather than a validation response, so callers

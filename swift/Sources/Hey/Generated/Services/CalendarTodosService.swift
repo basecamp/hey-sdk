@@ -2,7 +2,7 @@
 
 /// Service for CalendarTodos operations.
 public final class CalendarTodosService: BaseService, @unchecked Sendable {
-    /// Complete a calendar todo
+    /// Complete a calendar to-do
     ///
     /// - Parameters:
     ///   - todoId: The todo ID
@@ -12,7 +12,7 @@ public final class CalendarTodosService: BaseService, @unchecked Sendable {
         return try await client.send(operation)
     }
 
-    /// Create a calendar todo
+    /// Create a calendar to-do
     ///
     /// - Parameters:
     ///   - body: Request body
@@ -22,7 +22,7 @@ public final class CalendarTodosService: BaseService, @unchecked Sendable {
         return try await client.send(operation)
     }
 
-    /// Delete a calendar todo
+    /// Delete a calendar to-do
     ///
     /// - Parameters:
     ///   - todoId: The todo ID
@@ -32,7 +32,7 @@ public final class CalendarTodosService: BaseService, @unchecked Sendable {
         return try await client.sendVoid(operation)
     }
 
-    /// Uncomplete a calendar todo
+    /// Uncomplete a calendar to-do
     ///
     /// - Parameters:
     ///   - todoId: The todo ID
@@ -42,7 +42,7 @@ public final class CalendarTodosService: BaseService, @unchecked Sendable {
         return try await client.send(operation)
     }
 
-    /// Edit a calendar todo. todoId is the recording's id, and every field of the payload
+    /// Edit a calendar to-do. todoId is the recording's id, and every field of the payload
     /// is optional: haystack's `wrap_parameters` accepts title, focused and starts_at, and
     /// changes only what is sent.
     ///

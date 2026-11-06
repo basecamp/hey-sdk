@@ -563,7 +563,7 @@ structure Domain {
 
 /// Clearance — screening status for a contact
 ///
-/// petitioner and most_recent_entry are only filled in by the Screener reads. The
+/// petitioner and most_recent_entry are only filled in by The Screener's reads. The
 /// contact reads answer a clearance with nothing but its id and status.
 structure Clearance {
     @required
@@ -1482,7 +1482,7 @@ structure GetImboxSeenOutput {
     box: BoxShowResponse
 }
 
-/// Get the Feed
+/// Get The Feed
 @readonly
 @http(method: "GET", uri: "/feedbox.json")
 @tags(["Boxes"])
@@ -2893,7 +2893,7 @@ structure GetCalendarYearOutput {
 // CALENDAR TODO OPERATIONS
 // =============================================================================
 
-/// Create a calendar todo
+/// Create a calendar to-do
 @http(method: "POST", uri: "/calendar/todos.json")
 @tags(["Calendar Todos"])
 @heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
@@ -2931,7 +2931,7 @@ structure CreateCalendarTodoOutput {
     recording: Recording
 }
 
-/// Edit a calendar todo. todoId is the recording's id, and every field of the payload
+/// Edit a calendar to-do. todoId is the recording's id, and every field of the payload
 /// is optional: haystack's `wrap_parameters` accepts title, focused and starts_at, and
 /// changes only what is sent.
 @idempotent
@@ -2967,19 +2967,19 @@ structure UpdateCalendarTodoRequestContent {
 structure CalendarTodoChanges {
     title: String
 
-    /// Date string (YYYY-MM-DD). The day the todo is filed on.
+    /// Date string (YYYY-MM-DD). The day the to-do is filed on.
     starts_at: String
 
     focused: Boolean
 }
 
-/// The edited todo as a recording (haystack renders calendar/recordings/_recording).
+/// The edited to-do as a recording (haystack renders calendar/recordings/_recording).
 structure UpdateCalendarTodoOutput {
     @required
     recording: Recording
 }
 
-/// Complete a calendar todo
+/// Complete a calendar to-do
 @http(method: "POST", uri: "/calendar/todos/{todoId}/completions")
 @tags(["Calendar Todos"])
 @heyIdempotent(natural: true)
@@ -3004,7 +3004,7 @@ structure CalendarTodoCompletionOutput {
     recording: Recording
 }
 
-/// Uncomplete a calendar todo
+/// Uncomplete a calendar to-do
 @idempotent
 @http(method: "DELETE", uri: "/calendar/todos/{todoId}/completions")
 @tags(["Calendar Todos"])
@@ -3018,7 +3018,7 @@ operation UncompleteCalendarTodo {
     errors: [UnauthorizedError, NotFoundError, InternalServerError, ServiceUnavailableError]
 }
 
-/// Delete a calendar todo
+/// Delete a calendar to-do
 @idempotent
 @http(method: "DELETE", uri: "/calendar/todos/{todoId}")
 @tags(["Calendar Todos"])
@@ -3623,7 +3623,7 @@ structure FolderWithPostings {
     postings: PostingList
 }
 
-/// ClearanceSummary — the Screener's pending count, and the queue itself when asked for
+/// ClearanceSummary — The Screener's pending count, and the queue itself when asked for
 ///
 /// clearances is only present when the read passes include_clearances. Without it HEY
 /// answers the count alone, which is what its own apps sync.
@@ -3833,7 +3833,7 @@ structure FolderPayload {
     status: String
 }
 
-/// Cancel a scheduled bubble up for a selection of postings
+/// Pop a selection of postings out of Bubble Up
 @idempotent
 @http(method: "DELETE", uri: "/postings/bubble_up.json")
 @tags(["Postings"])
@@ -3858,10 +3858,10 @@ operation BubbleUpPostingsNow {
     errors: [UnauthorizedError, NotFoundError, InternalServerError, ServiceUnavailableError]
 }
 
-/// Schedule a selection of postings to bubble up.
+/// Schedule a selection of postings to Bubble Up.
 ///
 /// HEY's scheduler takes a `slot` — today, tomorrow, weekend, next_week, surprise_me
-/// or custom — and a custom slot also carries the `date` (YYYY-MM-DD) to bubble up on,
+/// or custom — and a custom slot also carries the `date` (YYYY-MM-DD) to Bubble Up on,
 /// at HEY's morning hour. The today slot lands at HEY's evening hour of the current
 /// day instead, and both hours are UTC over JSON. An unknown slot, or a custom slot
 /// without a date, is a server error rather than a validation response, so callers
@@ -4224,7 +4224,7 @@ structure UpdateContactClearanceRequestContent {
     status: String
 }
 
-/// Get the Screener — the pending count, and the senders waiting when asked for them
+/// Get The Screener — the pending count, and the senders waiting when asked for them
 @readonly
 @http(method: "GET", uri: "/clearances.json")
 @tags(["Contacts"])
@@ -4250,7 +4250,7 @@ structure GetClearancesOutput {
     summary: ClearanceSummary
 }
 
-/// Screen a sender in or out of the Screener
+/// Screen a sender in or out of The Screener
 ///
 /// designation_box_id files everything they send into that box instead of the Imbox.
 /// spam marks what is already waiting as spam and trains the filter on it.
@@ -4327,7 +4327,7 @@ structure BulkUpdateClearancesOutput {
     response: ClearanceListResponse
 }
 
-/// Clear the Screener — every pending sender is punted and reexamined on their next email
+/// Clear The Screener — every pending sender is punted and reexamined on their next email
 @http(method: "POST", uri: "/clearances/punt.json")
 @tags(["Contacts"])
 @heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])

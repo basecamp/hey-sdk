@@ -626,7 +626,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** @description Create a calendar todo */
+        /** @description Create a calendar to-do */
         post: operations["CreateCalendarTodo"];
         delete?: never;
         options?: never;
@@ -644,12 +644,12 @@ export interface paths {
         get?: never;
         put?: never;
         post?: never;
-        /** @description Delete a calendar todo */
+        /** @description Delete a calendar to-do */
         delete: operations["DeleteCalendarTodo"];
         options?: never;
         head?: never;
         /**
-         * @description Edit a calendar todo. todoId is the recording's id, and every field of the payload
+         * @description Edit a calendar to-do. todoId is the recording's id, and every field of the payload
          *     is optional: haystack's `wrap_parameters` accepts title, focused and starts_at, and
          *     changes only what is sent.
          */
@@ -665,9 +665,9 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** @description Complete a calendar todo */
+        /** @description Complete a calendar to-do */
         post: operations["CompleteCalendarTodo"];
-        /** @description Uncomplete a calendar todo */
+        /** @description Uncomplete a calendar to-do */
         delete: operations["UncompleteCalendarTodo"];
         options?: never;
         head?: never;
@@ -787,7 +787,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** @description Get the Screener — the pending count, and the senders waiting when asked for them */
+        /** @description Get The Screener — the pending count, and the senders waiting when asked for them */
         get: operations["GetClearances"];
         put?: never;
         post?: never;
@@ -823,7 +823,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** @description Clear the Screener — every pending sender is punted and reexamined on their next email */
+        /** @description Clear The Screener — every pending sender is punted and reexamined on their next email */
         post: operations["PuntClearances"];
         delete?: never;
         options?: never;
@@ -845,7 +845,7 @@ export interface paths {
         options?: never;
         head?: never;
         /**
-         * @description Screen a sender in or out of the Screener
+         * @description Screen a sender in or out of The Screener
          *
          *     designation_box_id files everything they send into that box instead of the Imbox.
          *     spam marks what is already waiting as spam and trains the filter on it.
@@ -1164,7 +1164,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** @description Get the Feed */
+        /** @description Get The Feed */
         get: operations["GetFeedbox"];
         put?: never;
         post?: never;
@@ -1467,17 +1467,17 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * @description Schedule a selection of postings to bubble up.
+         * @description Schedule a selection of postings to Bubble Up.
          *
          *     HEY's scheduler takes a `slot` — today, tomorrow, weekend, next_week, surprise_me
-         *     or custom — and a custom slot also carries the `date` (YYYY-MM-DD) to bubble up on,
+         *     or custom — and a custom slot also carries the `date` (YYYY-MM-DD) to Bubble Up on,
          *     at HEY's morning hour. The today slot lands at HEY's evening hour of the current
          *     day instead, and both hours are UTC over JSON. An unknown slot, or a custom slot
          *     without a date, is a server error rather than a validation response, so callers
          *     check both first. Responds 201 Created.
          */
         post: operations["SchedulePostingsBubbleUp"];
-        /** @description Cancel a scheduled bubble up for a selection of postings */
+        /** @description Pop a selection of postings out of Bubble Up */
         delete: operations["CancelPostingsBubbleUp"];
         options?: never;
         head?: never;
@@ -2369,7 +2369,7 @@ export interface components {
         /** @description Nothing here is required: a rename sends a title and leaves the day alone. */
         CalendarTodoChanges: {
             title?: string;
-            /** @description Date string (YYYY-MM-DD). The day the todo is filed on. */
+            /** @description Date string (YYYY-MM-DD). The day the to-do is filed on. */
             starts_at?: string;
             focused?: boolean;
         };
@@ -2424,7 +2424,7 @@ export interface components {
         /**
          * @description Clearance — screening status for a contact
          *
-         *     petitioner and most_recent_entry are only filled in by the Screener reads. The
+         *     petitioner and most_recent_entry are only filled in by The Screener's reads. The
          *     contact reads answer a clearance with nothing but its id and status.
          */
         Clearance: {
@@ -2449,7 +2449,7 @@ export interface components {
             clearances?: components["schemas"]["Clearance"][];
         };
         /**
-         * @description ClearanceSummary — the Screener's pending count, and the queue itself when asked for
+         * @description ClearanceSummary — The Screener's pending count, and the queue itself when asked for
          *
          *     clearances is only present when the read passes include_clearances. Without it HEY
          *     answers the count alone, which is what its own apps sync.

@@ -467,7 +467,7 @@ pub struct CalendarSelection {
 pub struct CalendarTodoChanges {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub title: Option<String>,
-    /// Date string (YYYY-MM-DD). The day the todo is filed on.
+    /// Date string (YYYY-MM-DD). The day the to-do is filed on.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub starts_at: Option<DateTime>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -555,7 +555,7 @@ pub struct CalendarYearDay {
 
 /// Clearance — screening status for a contact
 ///
-/// petitioner and most_recent_entry are only filled in by the Screener reads. The
+/// petitioner and most_recent_entry are only filled in by The Screener's reads. The
 /// contact reads answer a clearance with nothing but its id and status.
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 #[non_exhaustive]
@@ -587,7 +587,7 @@ pub struct ClearanceListResponse {
     pub clearances: Option<Vec<Clearance>>,
 }
 
-/// ClearanceSummary — the Screener's pending count, and the queue itself when asked for
+/// ClearanceSummary — The Screener's pending count, and the queue itself when asked for
 ///
 /// clearances is only present when the read passes include_clearances. Without it HEY
 /// answers the count alone, which is what its own apps sync.

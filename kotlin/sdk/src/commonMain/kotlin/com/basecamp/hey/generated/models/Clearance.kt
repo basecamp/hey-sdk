@@ -8,7 +8,7 @@ import kotlinx.serialization.Serializable
 /**
  * Clearance — screening status for a contact
  *
- * petitioner and most_recent_entry are only filled in by the Screener reads. The
+ * petitioner and most_recent_entry are only filled in by The Screener's reads. The
  * contact reads answer a clearance with nothing but its id and status.
  */
 @Serializable

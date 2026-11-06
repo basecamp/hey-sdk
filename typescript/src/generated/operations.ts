@@ -3797,29 +3797,29 @@ export class GeneratedOperations {
     return this.transport.execute("UpdateTimeTrack", input, options);
   }
 
-  /** Create a calendar todo */
+  /** Create a calendar to-do */
   createCalendarTodo(input: OperationInput<"CreateCalendarTodo">, options?: RequestOptions): Promise<OperationResponse<"CreateCalendarTodo">> {
     return this.transport.execute("CreateCalendarTodo", input, options);
   }
 
-  /** Delete a calendar todo */
+  /** Delete a calendar to-do */
   deleteCalendarTodo(input: OperationInput<"DeleteCalendarTodo">, options?: RequestOptions): Promise<OperationResponse<"DeleteCalendarTodo">> {
     return this.transport.execute("DeleteCalendarTodo", input, options);
   }
 
-  /** Edit a calendar todo. todoId is the recording's id, and every field of the payload
+  /** Edit a calendar to-do. todoId is the recording's id, and every field of the payload
    * is optional: haystack's `wrap_parameters` accepts title, focused and starts_at, and
    * changes only what is sent. */
   updateCalendarTodo(input: OperationInput<"UpdateCalendarTodo">, options?: RequestOptions): Promise<OperationResponse<"UpdateCalendarTodo">> {
     return this.transport.execute("UpdateCalendarTodo", input, options);
   }
 
-  /** Uncomplete a calendar todo */
+  /** Uncomplete a calendar to-do */
   uncompleteCalendarTodo(input: OperationInput<"UncompleteCalendarTodo">, options?: RequestOptions): Promise<OperationResponse<"UncompleteCalendarTodo">> {
     return this.transport.execute("UncompleteCalendarTodo", input, options);
   }
 
-  /** Complete a calendar todo */
+  /** Complete a calendar to-do */
   completeCalendarTodo(input: OperationInput<"CompleteCalendarTodo">, options?: RequestOptions): Promise<OperationResponse<"CompleteCalendarTodo">> {
     return this.transport.execute("CompleteCalendarTodo", input, options);
   }
@@ -3856,7 +3856,7 @@ export class GeneratedOperations {
     return this.transport.execute("ToggleCalendar", input, options);
   }
 
-  /** Get the Screener — the pending count, and the senders waiting when asked for them */
+  /** Get The Screener — the pending count, and the senders waiting when asked for them */
   getClearances(input: OperationInput<"GetClearances"> = {}, options?: RequestOptions): Promise<OperationResponse<"GetClearances">> {
     return this.transport.execute("GetClearances", input, options);
   }
@@ -3866,12 +3866,12 @@ export class GeneratedOperations {
     return this.transport.execute("BulkUpdateClearances", input, options);
   }
 
-  /** Clear the Screener — every pending sender is punted and reexamined on their next email */
+  /** Clear The Screener — every pending sender is punted and reexamined on their next email */
   puntClearances(input: OperationInput<"PuntClearances"> = {}, options?: RequestOptions): Promise<OperationResponse<"PuntClearances">> {
     return this.transport.execute("PuntClearances", input, options);
   }
 
-  /** Screen a sender in or out of the Screener
+  /** Screen a sender in or out of The Screener
    *
    * designation_box_id files everything they send into that box instead of the Imbox.
    * spam marks what is already waiting as spam and trains the filter on it. */
@@ -4011,7 +4011,7 @@ export class GeneratedOperations {
     return this.transport.execute("MarkEntrySpam", input, options);
   }
 
-  /** Get the Feed */
+  /** Get The Feed */
   getFeedbox(input: OperationInput<"GetFeedbox"> = {}, options?: RequestOptions): Promise<OperationResponse<"GetFeedbox">> {
     return this.transport.execute("GetFeedbox", input, options);
   }
@@ -4131,15 +4131,15 @@ export class GeneratedOperations {
     return this.transport.execute("AddPostingsToBoxGroup", input, options);
   }
 
-  /** Cancel a scheduled bubble up for a selection of postings */
+  /** Pop a selection of postings out of Bubble Up */
   cancelPostingsBubbleUp(input: OperationInput<"CancelPostingsBubbleUp">, options?: RequestOptions): Promise<OperationResponse<"CancelPostingsBubbleUp">> {
     return this.transport.execute("CancelPostingsBubbleUp", input, options);
   }
 
-  /** Schedule a selection of postings to bubble up.
+  /** Schedule a selection of postings to Bubble Up.
    *
    * HEY's scheduler takes a `slot` — today, tomorrow, weekend, next_week, surprise_me
-   * or custom — and a custom slot also carries the `date` (YYYY-MM-DD) to bubble up on,
+   * or custom — and a custom slot also carries the `date` (YYYY-MM-DD) to Bubble Up on,
    * at HEY's morning hour. The today slot lands at HEY's evening hour of the current
    * day instead, and both hours are UTC over JSON. An unknown slot, or a custom slot
    * without a date, is a server error rather than a validation response, so callers

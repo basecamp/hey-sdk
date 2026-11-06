@@ -6,7 +6,7 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 /**
- * ClearanceSummary — the Screener's pending count, and the queue itself when asked for
+ * ClearanceSummary — The Screener's pending count, and the queue itself when asked for
  *
  * clearances is only present when the read passes include_clearances. Without it HEY
  * answers the count alone, which is what its own apps sync.

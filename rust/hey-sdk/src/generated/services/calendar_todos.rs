@@ -21,7 +21,7 @@ impl<'a> CalendarTodos<'a> {
         self.client
     }
 
-    /// Complete a calendar todo
+    /// Complete a calendar to-do
     pub async fn complete(
         &self,
         todo_id: i64,
@@ -33,7 +33,7 @@ impl<'a> CalendarTodos<'a> {
         self.client.send(operation).await
     }
 
-    /// Create a calendar todo
+    /// Create a calendar to-do
     pub async fn create(
         &self,
         body: &CreateCalendarTodoRequestContent,
@@ -43,7 +43,7 @@ impl<'a> CalendarTodos<'a> {
         self.client.send(operation).await
     }
 
-    /// Delete a calendar todo
+    /// Delete a calendar to-do
     pub async fn delete(&self, todo_id: i64) -> Result<(), Error> {
         let mut operation = self
             .client
@@ -52,7 +52,7 @@ impl<'a> CalendarTodos<'a> {
         self.client.send_unit(operation).await
     }
 
-    /// Uncomplete a calendar todo
+    /// Uncomplete a calendar to-do
     pub async fn uncomplete(
         &self,
         todo_id: i64,
@@ -64,7 +64,7 @@ impl<'a> CalendarTodos<'a> {
         self.client.send(operation).await
     }
 
-    /// Edit a calendar todo. todoId is the recording's id, and every field of the payload
+    /// Edit a calendar to-do. todoId is the recording's id, and every field of the payload
     /// is optional: haystack's `wrap_parameters` accepts title, focused and starts_at, and
     /// changes only what is sent.
     pub async fn update(

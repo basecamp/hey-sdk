@@ -131,7 +131,7 @@ impl<'a> Boxes<'a> {
         self.client.send(operation).await
     }
 
-    /// Get the Feed
+    /// Get The Feed
     pub async fn get_feedbox(
         &self,
         params: &GetFeedboxParams,

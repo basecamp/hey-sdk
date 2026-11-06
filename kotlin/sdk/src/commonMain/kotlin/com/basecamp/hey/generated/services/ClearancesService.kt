@@ -44,7 +44,7 @@ open class ClearancesService(client: HeyClient) : BaseService(client) {
     }
 
     /**
-     * Get the Screener — the pending count, and the senders waiting when asked for them
+     * Get The Screener — the pending count, and the senders waiting when asked for them
      * @param options Optional query parameters
      */
     suspend fun get(options: GetClearancesOptions? = null): Page<GetClearancesResponseContent> {
@@ -65,7 +65,7 @@ open class ClearancesService(client: HeyClient) : BaseService(client) {
     }
 
     /**
-     * Clear the Screener — every pending sender is punted and reexamined on their next email
+     * Clear The Screener — every pending sender is punted and reexamined on their next email
      */
     suspend fun punt(): Unit {
         val operation = client.operation(Routes.PUNT_CLEARANCES, listOf())
@@ -73,7 +73,7 @@ open class ClearancesService(client: HeyClient) : BaseService(client) {
     }
 
     /**
-     * Screen a sender in or out of the Screener
+     * Screen a sender in or out of The Screener
      *
      * designation_box_id files everything they send into that box instead of the Imbox.
      * spam marks what is already waiting as spam and trains the filter on it.
