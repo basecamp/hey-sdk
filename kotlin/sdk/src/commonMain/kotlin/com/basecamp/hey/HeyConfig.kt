@@ -54,7 +54,7 @@ data class HeyConfig(
         const val VERSION = "0.34.0"
 
         /** The HEY API version this SDK targets; `scripts/sync-api-version.sh` moves it with the spec. */
-        const val API_VERSION = "2026-10-05"
+        const val API_VERSION = "2026-11-03"
         const val DEFAULT_BASE_URL = "https://app.hey.com"
 
         /** What the client calls itself: the SDK and the API contract it was built against. */

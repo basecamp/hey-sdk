@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "HEY",
-    "version": "2026-10-05",
+    "version": "2026-11-03",
     "description": "HEY API",
     "contact": {
       "name": "Basecamp",
@@ -8835,7 +8835,7 @@
     },
     "/oauth/tokens.json": {
       "delete": {
-        "description": "Revoke an access or a refresh token the client was handed, ending the session behind it:\nwhat a sign-out asks. HEY answers 200 {} for a token that names nothing, the point of\nrevoking it reached, and refuses one another client was handed (invalid_client, 401).\nThe token goes in the body, never the query, where logs would keep it, so this DELETE has\na payload: HEY reads its params from either, and every SDK's client sends one.",
+        "description": "Revoke an access or a refresh token the client was handed: what a sign-out asks. A token\nfrom an authorization withdraws that authorization, every token minted from it, and a\nsession it started itself; a browser session it was granted from stays signed in. A token\nfrom before authorizations were recorded ends the session behind it. HEY answers 200 {} for a token that names nothing, the point of\nrevoking it reached, and refuses one another client was handed (invalid_client, 401).\nThe token goes in the body, never the query, where logs would keep it, so this DELETE has\na payload: HEY reads its params from either, and every SDK's client sends one.",
         "operationId": "RevokeToken",
         "requestBody": {
           "content": {
@@ -8922,7 +8922,7 @@
         "x-hey-untrusted-content": false
       },
       "post": {
-        "description": "Trade an authorization code, or a refresh token, for tokens. `grant_type` names which:\n\"authorization_code\" sends `code`, `redirect_uri` and `code_verifier` (PKCE), and\n\"refresh_token\" sends `refresh_token`. Every grant names the client and the install it is\nfor. A refresh answers the refresh token it was sent, unchanged, beside the new access\ntoken. Not sent again after a failure: a code is redeemed once.",
+        "description": "Trade an authorization code, or a refresh token, for tokens. `grant_type` names which:\n\"authorization_code\" sends `code`, `redirect_uri` and `code_verifier` (PKCE), and\n\"refresh_token\" sends `refresh_token`. Every grant names the client and the install it is\nfor. A refresh answers a refresh token beside the new access token: the one it was sent,\nunchanged, unless HEY rotates the client's refresh tokens, when it is the next one and the\none sent is spent. Keep whichever comes back: presenting a spent one again, past a short\ngrace, revokes the authorization it came from. Not sent again after a failure: a code is redeemed once.",
         "operationId": "CreateToken",
         "requestBody": {
           "content": {
@@ -14390,7 +14390,8 @@
             "type": "string"
           },
           "edit_app_url": {
-            "type": "string"
+            "type": "string",
+            "description": "Where to edit the contact in HEY, present only when the caller may edit it."
           },
           "clearance": {
             "$ref": "#/components/schemas/Clearance"
@@ -14696,6 +14697,10 @@
             "x-hey-sensitive": {
               "category": "credential"
             }
+          },
+          "device_name": {
+            "type": "string",
+            "description": "The name Connected Apps shows for this install, at most 100 characters\n(authorization_code). Optional and display-only."
           }
         },
         "required": [
@@ -15616,6 +15621,15 @@
               "$ref": "#/components/schemas/MessageReceivedVia"
             },
             "description": "The account addresses HEY recorded this inbound message arriving through."
+          },
+          "topic_id": {
+            "type": "integer",
+            "description": "The thread the message is on. Present on GetMessage.",
+            "format": "int64"
+          },
+          "screened_in": {
+            "type": "boolean",
+            "description": "The thread's screened_in, as GetTopic answers it: false while the thread waits in the\nScreener for the caller, or after they screened its sender out. Present on GetMessage."
           }
         },
         "required": [
@@ -16018,10 +16032,14 @@
           },
           "refresh_token": {
             "type": "string",
-            "description": "The token to refresh with: a new one for a code, the one sent for a refresh.",
+            "description": "The token to refresh with: a new one for a code; for a refresh, the one sent, or the\nnext one when HEY rotates the client's refresh tokens.",
             "x-hey-sensitive": {
               "category": "credential"
             }
+          },
+          "scope": {
+            "type": "string",
+            "description": "The scope the access token holds, space-separated: \"full\" for HEY's own apps, or what\nthe authorization granted (\"read\", \"write\", \"send\")."
           }
         },
         "required": [
@@ -16809,11 +16827,11 @@
           },
           "undo_action": {
             "type": "string",
-            "description": "Where to POST to call the message back, present only while delayed."
+            "description": "Where to POST to call the message back, present only while delayed, and never for a\ntoken narrower than full scope: HEY offers such a token no Undo Send."
           },
           "undo_timeout": {
             "type": "integer",
-            "description": "Seconds the undo notice stays up, present only while delayed.",
+            "description": "Seconds the undo notice stays up, present beside undo_action.",
             "format": "int32"
           }
         }
@@ -17201,6 +17219,10 @@
               "$ref": "#/components/schemas/Entry"
             },
             "description": "The topic's first page of entries (summaries, no bodies). Present on GetTopic; use\nGetTopicEntries for the rest and GetMessage for a body."
+          },
+          "screened_in": {
+            "type": "boolean",
+            "description": "False while the thread waits in the Screener for the caller, or after they screened\nits sender out; true once they screened it in. Tells an unscreened thread from a\nscreened-in one that sits in the trash or spam. Present on GetTopic."
           }
         },
         "required": [

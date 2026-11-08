@@ -69,6 +69,117 @@
     "tags": ["error-mapping", "forbidden", "structured-error"]
   },
   {
+    "name": "403 insufficient_scope on a read says why",
+    "description": "A token narrower than full scope reaches only what its scope covers; HEY refuses the rest with RFC 6750's 403 insufficient_scope, the WWW-Authenticate challenge beside an {\"error\", \"error_description\", \"scope\"} body. The caller's error is forbidden and carries HEY's sentence",
+    "operation": "GetBox",
+    "method": "GET",
+    "path": "/boxes/{boxId}",
+    "pathParams": {
+      "boxId": 12345
+    },
+    "mockResponses": [
+      {
+        "status": 403,
+        "headers": {
+          "Content-Type": "application/json; charset=utf-8",
+          "WWW-Authenticate": "Bearer error=\"insufficient_scope\", error_description=\"The access token's scope does not cover this request.\", scope=\"read\""
+        },
+        "body": {
+          "error": "insufficient_scope",
+          "error_description": "The access token's scope does not cover this request.",
+          "scope": "read"
+        }
+      }
+    ],
+    "assertions": [
+      {
+        "type": "requestCount",
+        "expected": 1
+      },
+      {
+        "type": "errorCode",
+        "expected": "forbidden"
+      },
+      {
+        "type": "errorField",
+        "path": "httpStatus",
+        "expected": 403
+      },
+      {
+        "type": "errorField",
+        "path": "retryable",
+        "expected": false
+      },
+      {
+        "type": "errorMessageContains",
+        "expected": "The access token's scope does not cover this request."
+      }
+    ],
+    "tags": [
+      "error-mapping",
+      "forbidden",
+      "structured-error",
+      "oauth-scope"
+    ]
+  },
+  {
+    "name": "403 insufficient_scope on a write says why",
+    "description": "A read-only token's write is refused the same way, naming write as the scope that would do: forbidden, not resent, with HEY's sentence",
+    "operation": "UpdateClearance",
+    "method": "PATCH",
+    "path": "/clearances/{clearanceId}",
+    "pathParams": {
+      "clearanceId": 91
+    },
+    "requestBody": {
+      "status": "approved"
+    },
+    "mockResponses": [
+      {
+        "status": 403,
+        "headers": {
+          "Content-Type": "application/json; charset=utf-8",
+          "WWW-Authenticate": "Bearer error=\"insufficient_scope\", error_description=\"The access token's scope does not cover this request.\", scope=\"write\""
+        },
+        "body": {
+          "error": "insufficient_scope",
+          "error_description": "The access token's scope does not cover this request.",
+          "scope": "write"
+        }
+      }
+    ],
+    "assertions": [
+      {
+        "type": "requestCount",
+        "expected": 1
+      },
+      {
+        "type": "errorCode",
+        "expected": "forbidden"
+      },
+      {
+        "type": "errorField",
+        "path": "httpStatus",
+        "expected": 403
+      },
+      {
+        "type": "errorField",
+        "path": "retryable",
+        "expected": false
+      },
+      {
+        "type": "errorMessageContains",
+        "expected": "The access token's scope does not cover this request."
+      }
+    ],
+    "tags": [
+      "error-mapping",
+      "forbidden",
+      "structured-error",
+      "oauth-scope"
+    ]
+  },
+  {
     "name": "404 maps to not_found error code",
     "description": "Verifies that 404 Not Found maps to structured error with code 'not_found'",
     "operation": "GetBox",

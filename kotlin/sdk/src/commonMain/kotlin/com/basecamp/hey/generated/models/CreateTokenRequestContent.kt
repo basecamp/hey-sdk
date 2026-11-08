@@ -43,4 +43,10 @@ data class CreateTokenRequestContent(
      */
     @SerialName("refresh_token")
     val refreshToken: SensitiveString? = null,
+    /**
+     * The name Connected Apps shows for this install, at most 100 characters
+     * (authorization_code). Optional and display-only.
+     */
+    @SerialName("device_name")
+    val deviceName: String? = null,
 )

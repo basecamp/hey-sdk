@@ -21,6 +21,11 @@ public struct Message: Codable, Sendable, Equatable {
     public var addressedSender: AddressedSender?
     /// The account addresses HEY recorded this inbound message arriving through.
     public var receivedVia: [MessageReceivedVia]?
+    /// The thread the message is on. Present on GetMessage.
+    public var topicId: Int?
+    /// The thread's screened_in, as GetTopic answers it: false while the thread waits in the
+    /// Screener for the caller, or after they screened its sender out. Present on GetMessage.
+    public var screenedIn: Bool?
 
     public init(
         id: Int,
@@ -37,7 +42,9 @@ public struct Message: Codable, Sendable, Equatable {
         scheduledDeliveryAt: String? = nil,
         posting: MessagePostingContext? = nil,
         addressedSender: AddressedSender? = nil,
-        receivedVia: [MessageReceivedVia]? = nil
+        receivedVia: [MessageReceivedVia]? = nil,
+        topicId: Int? = nil,
+        screenedIn: Bool? = nil
     ) {
         self.id = id
         self.createdAt = createdAt
@@ -54,6 +61,8 @@ public struct Message: Codable, Sendable, Equatable {
         self.posting = posting
         self.addressedSender = addressedSender
         self.receivedVia = receivedVia
+        self.topicId = topicId
+        self.screenedIn = screenedIn
     }
 
     enum CodingKeys: String, CodingKey {
@@ -72,5 +81,7 @@ public struct Message: Codable, Sendable, Equatable {
         case posting
         case addressedSender = "addressed_sender"
         case receivedVia = "received_via"
+        case topicId = "topic_id"
+        case screenedIn = "screened_in"
     }
 }

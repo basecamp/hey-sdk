@@ -23,8 +23,8 @@ use tokio::net::TcpListener;
 async fn main() -> Result<(), Error> {
     let config = Config::default().with_env();
     let oauth = OAuthClient::default();
-    // HEY publishes no well-known document, so its endpoints are known rather than found;
-    // `oauth.discover(..)` is for a server that does publish one.
+    // HEY's endpoints are known rather than found: it publishes its well-known document only at
+    // its canonical origin, and `for_hey` answers for any base URL without a request.
     let metadata = ServerMetadata::for_hey(&config.base_url);
 
     let listener = TcpListener::bind("127.0.0.1:0")

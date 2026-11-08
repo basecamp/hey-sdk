@@ -13,6 +13,14 @@
   },
   {
     "method": "GET",
+    "path": "/.well-known/oauth-authorization-server"
+  },
+  {
+    "method": "GET",
+    "path": "/.well-known/oauth-protected-resource"
+  },
+  {
+    "method": "GET",
     "path": "/2fa"
   },
   {
@@ -442,6 +450,10 @@
   {
     "method": "POST",
     "path": "/accounts/{account_id}/incineration_without_preservation"
+  },
+  {
+    "method": "GET",
+    "path": "/accounts/{account_id}/invoice_settings/edit"
   },
   {
     "method": "GET",
@@ -4465,6 +4477,14 @@
   },
   {
     "method": "GET",
+    "path": "/my/connected_apps"
+  },
+  {
+    "method": "DELETE",
+    "path": "/my/connected_apps/{id}"
+  },
+  {
+    "method": "GET",
     "path": "/my/domains/auto_screenings"
   },
   {
@@ -4632,8 +4652,40 @@
     "path": "/my/users/{user_id}/auto_responder/edit"
   },
   {
+    "method": "POST",
+    "path": "/oauth/authorizations"
+  },
+  {
+    "method": "POST",
+    "path": "/oauth/authorizations/deny"
+  },
+  {
     "method": "GET",
     "path": "/oauth/authorizations/new"
+  },
+  {
+    "method": "POST",
+    "path": "/oauth/clients"
+  },
+  {
+    "method": "POST",
+    "path": "/oauth/device_authorizations"
+  },
+  {
+    "method": "GET",
+    "path": "/oauth/device_verification"
+  },
+  {
+    "method": "POST",
+    "path": "/oauth/device_verification"
+  },
+  {
+    "method": "POST",
+    "path": "/oauth/device_verification/approve"
+  },
+  {
+    "method": "POST",
+    "path": "/oauth/revoke"
   },
   {
     "method": "DELETE",

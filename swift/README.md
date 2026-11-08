@@ -45,8 +45,8 @@ let client = try HeyClient(tokenProvider: StoredTokens(store: store))
 ```
 
 HEY's token endpoint is `client.oauth`: `createToken(body:)` trades an authorization code, or a
-refresh token, for an `OAuthToken`, and `revokeToken(body:)` ends the session behind a token, as
-a sign-out does. Both go out with none of the client's credentials, whatever it holds, since the
+refresh token, for an `OAuthToken`, and `revokeToken(body:)` withdraws the authorization behind a
+token, as a sign-out does. Both go out with none of the client's credentials, whatever it holds, since the
 body is what HEY judges and the credentials may be the very ones being traded or revoked: a 401
 from either is the answer, never a reason to refresh, and a redirect is an error carrying its
 status, never followed, since the body would go with it. An app with no token yet makes a client

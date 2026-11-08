@@ -55,7 +55,7 @@ val client = HeyClient {
 ### Tokens
 
 HEY's token endpoint is the `oauth` service: `createToken` trades an authorization code, or a
-refresh token, for tokens, and `revokeToken` ends the session behind one. Both go with none of
+refresh token, for tokens, and `revokeToken` withdraws the authorization behind one. Both go with none of
 the client's own credentials — no `Authorization`, no DPoP proof, and the provider or strategy is
 not asked — take a 401 as the answer rather than a reason to refresh, and take a redirect as a
 failure carrying its status rather than following it, since the code, verifier or token rides in
@@ -83,7 +83,7 @@ val token = signIn.oauth.createToken(CreateTokenRequestContent(
 ))
 ```
 
-Signing out ends the session HEY holds behind a token with `revokeToken`, an extension on the
+Signing out withdraws the authorization HEY holds behind a token with `revokeToken`, an extension on the
 client that sends the generated `RevokeToken` for the two strings it is handed:
 
 ```kotlin

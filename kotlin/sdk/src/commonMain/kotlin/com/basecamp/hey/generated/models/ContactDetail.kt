@@ -31,6 +31,9 @@ data class ContactDetail(
     val contactableType: String? = null,
     @SerialName("name_tag")
     val nameTag: String? = null,
+    /**
+     * Where to edit the contact in HEY, present only when the caller may edit it.
+     */
     @SerialName("edit_app_url")
     val editAppUrl: String? = null,
     val clearance: Clearance? = null,

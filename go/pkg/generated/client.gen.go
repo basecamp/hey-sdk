@@ -467,7 +467,9 @@ type ContactDetail struct {
 	ContactableType string    `json:"contactable_type,omitempty"`
 
 	// Domain Domain — email domain
-	Domain       Domain `json:"domain,omitempty"`
+	Domain Domain `json:"domain,omitempty"`
+
+	// EditAppUrl Where to edit the contact in HEY, present only when the caller may edit it.
 	EditAppUrl   string `json:"edit_app_url,omitempty"`
 	EmailAddress string `json:"email_address,omitempty"`
 
@@ -616,6 +618,10 @@ type CreateTokenRequestContent struct {
 
 	// CodeVerifier The PKCE verifier whose challenge the authorization request sent (authorization_code).
 	CodeVerifier string `json:"code_verifier,omitempty"`
+
+	// DeviceName The name Connected Apps shows for this install, at most 100 characters
+	// (authorization_code). Optional and display-only.
+	DeviceName string `json:"device_name,omitempty"`
 
 	// GrantType "authorization_code" or "refresh_token".
 	GrantType string `json:"grant_type"`
@@ -1084,10 +1090,17 @@ type Message struct {
 	// ScheduledDeliveryAt ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)
 	ScheduledDeliveryAt time.Time `json:"scheduled_delivery_at,omitempty,omitzero"`
 
+	// ScreenedIn The thread's screened_in, as GetTopic answers it: false while the thread waits in the
+	// Screener for the caller, or after they screened its sender out. Present on GetMessage.
+	ScreenedIn bool `json:"screened_in,omitempty"`
+
 	// Sender Contact — the identity of someone in HEY
 	Sender                Contact `json:"sender,omitempty"`
 	ShowAddressedSelector bool    `json:"show_addressed_selector,omitempty"`
 	Subject               string  `json:"subject,omitempty"`
+
+	// TopicId The thread the message is on. Present on GetMessage.
+	TopicId int64 `json:"topic_id,omitempty"`
 
 	// UpdatedAt ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)
 	UpdatedAt time.Time `json:"updated_at,omitempty,omitzero"`
@@ -1287,8 +1300,13 @@ type OAuthToken struct {
 	// ExpiresIn Seconds the access token lasts from the moment HEY answered.
 	ExpiresIn int64 `json:"expires_in,omitempty"`
 
-	// RefreshToken The token to refresh with: a new one for a code, the one sent for a refresh.
+	// RefreshToken The token to refresh with: a new one for a code; for a refresh, the one sent, or the
+	// next one when HEY rotates the client's refresh tokens.
 	RefreshToken string `json:"refresh_token,omitempty"`
+
+	// Scope The scope the access token holds, space-separated: "full" for HEY's own apps, or what
+	// the authorization granted ("read", "write", "send").
+	Scope string `json:"scope,omitempty"`
 
 	// TokenType "bearer".
 	TokenType string `json:"token_type"`
@@ -1565,10 +1583,11 @@ type SentMessage struct {
 	// than the one replied to.
 	TopicId int64 `json:"topic_id,omitempty"`
 
-	// UndoAction Where to POST to call the message back, present only while delayed.
+	// UndoAction Where to POST to call the message back, present only while delayed, and never for a
+	// token narrower than full scope: HEY offers such a token no Undo Send.
 	UndoAction string `json:"undo_action,omitempty"`
 
-	// UndoTimeout Seconds the undo notice stays up, present only while delayed.
+	// UndoTimeout Seconds the undo notice stays up, present beside undo_action.
 	UndoTimeout int32 `json:"undo_timeout,omitempty"`
 }
 
@@ -1713,7 +1732,12 @@ type Topic struct {
 	// LatestEntry Entry — a message entry within a topic
 	LatestEntry Entry  `json:"latest_entry,omitempty"`
 	Name        string `json:"name,omitempty"`
-	Status      string `json:"status,omitempty"`
+
+	// ScreenedIn False while the thread waits in the Screener for the caller, or after they screened
+	// its sender out; true once they screened it in. Tells an unscreened thread from a
+	// screened-in one that sits in the trash or spam. Present on GetTopic.
+	ScreenedIn bool   `json:"screened_in,omitempty"`
+	Status     string `json:"status,omitempty"`
 
 	// UpdatedAt ISO 8601 date-time timestamp (overrides restJson1 epoch-seconds default)
 	UpdatedAt time.Time `json:"updated_at,omitempty,omitzero"`
@@ -12968,8 +12992,10 @@ type ClientWithResponsesInterface interface {
 	// RevokeTokenWithBodyWithResponse performs a DELETE /oauth/tokens.json (the `RevokeToken` operationId) request,
 	// with any type of body and a specified content type.
 	//
-	// Revoke an access or a refresh token the client was handed, ending the session behind it:
-	// what a sign-out asks. HEY answers 200 {} for a token that names nothing, the point of
+	// Revoke an access or a refresh token the client was handed: what a sign-out asks. A token
+	// from an authorization withdraws that authorization, every token minted from it, and a
+	// session it started itself; a browser session it was granted from stays signed in. A token
+	// from before authorizations were recorded ends the session behind it. HEY answers 200 {} for a token that names nothing, the point of
 	// revoking it reached, and refuses one another client was handed (invalid_client, 401).
 	// The token goes in the body, never the query, where logs would keep it, so this DELETE has
 	// a payload: HEY reads its params from either, and every SDK's client sends one.
@@ -12980,8 +13006,10 @@ type ClientWithResponsesInterface interface {
 	// RevokeTokenWithResponse performs a DELETE /oauth/tokens.json (the `RevokeToken` operationId) request.
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
-	// Revoke an access or a refresh token the client was handed, ending the session behind it:
-	// what a sign-out asks. HEY answers 200 {} for a token that names nothing, the point of
+	// Revoke an access or a refresh token the client was handed: what a sign-out asks. A token
+	// from an authorization withdraws that authorization, every token minted from it, and a
+	// session it started itself; a browser session it was granted from stays signed in. A token
+	// from before authorizations were recorded ends the session behind it. HEY answers 200 {} for a token that names nothing, the point of
 	// revoking it reached, and refuses one another client was handed (invalid_client, 401).
 	// The token goes in the body, never the query, where logs would keep it, so this DELETE has
 	// a payload: HEY reads its params from either, and every SDK's client sends one.
@@ -12993,8 +13021,10 @@ type ClientWithResponsesInterface interface {
 	// Trade an authorization code, or a refresh token, for tokens. `grant_type` names which:
 	// "authorization_code" sends `code`, `redirect_uri` and `code_verifier` (PKCE), and
 	// "refresh_token" sends `refresh_token`. Every grant names the client and the install it is
-	// for. A refresh answers the refresh token it was sent, unchanged, beside the new access
-	// token. Not sent again after a failure: a code is redeemed once.
+	// for. A refresh answers a refresh token beside the new access token: the one it was sent,
+	// unchanged, unless HEY rotates the client's refresh tokens, when it is the next one and the
+	// one sent is spent. Keep whichever comes back: presenting a spent one again, past a short
+	// grace, revokes the authorization it came from. Not sent again after a failure: a code is redeemed once.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	CreateTokenWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateTokenResponse, error)
@@ -13005,8 +13035,10 @@ type ClientWithResponsesInterface interface {
 	// Trade an authorization code, or a refresh token, for tokens. `grant_type` names which:
 	// "authorization_code" sends `code`, `redirect_uri` and `code_verifier` (PKCE), and
 	// "refresh_token" sends `refresh_token`. Every grant names the client and the install it is
-	// for. A refresh answers the refresh token it was sent, unchanged, beside the new access
-	// token. Not sent again after a failure: a code is redeemed once.
+	// for. A refresh answers a refresh token beside the new access token: the one it was sent,
+	// unchanged, unless HEY rotates the client's refresh tokens, when it is the next one and the
+	// one sent is spent. Keep whichever comes back: presenting a spent one again, past a short
+	// grace, revokes the authorization it came from. Not sent again after a failure: a code is redeemed once.
 	CreateTokenWithResponse(ctx context.Context, body CreateTokenJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateTokenResponse, error)
 
 	// GetTrailboxWithResponse performs a GET /paper_trail.json (the `GetTrailbox` operationId) request.
@@ -24403,8 +24435,10 @@ func (c *ClientWithResponses) GetNavigationWithResponse(ctx context.Context, req
 // RevokeTokenWithBodyWithResponse performs a DELETE /oauth/tokens.json (the `RevokeToken` operationId) request,
 // with any type of body and a specified content type.
 //
-// Revoke an access or a refresh token the client was handed, ending the session behind it:
-// what a sign-out asks. HEY answers 200 {} for a token that names nothing, the point of
+// Revoke an access or a refresh token the client was handed: what a sign-out asks. A token
+// from an authorization withdraws that authorization, every token minted from it, and a
+// session it started itself; a browser session it was granted from stays signed in. A token
+// from before authorizations were recorded ends the session behind it. HEY answers 200 {} for a token that names nothing, the point of
 // revoking it reached, and refuses one another client was handed (invalid_client, 401).
 // The token goes in the body, never the query, where logs would keep it, so this DELETE has
 // a payload: HEY reads its params from either, and every SDK's client sends one.
@@ -24421,8 +24455,10 @@ func (c *ClientWithResponses) RevokeTokenWithBodyWithResponse(ctx context.Contex
 // RevokeTokenWithResponse performs a DELETE /oauth/tokens.json (the `RevokeToken` operationId) request.
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
-// Revoke an access or a refresh token the client was handed, ending the session behind it:
-// what a sign-out asks. HEY answers 200 {} for a token that names nothing, the point of
+// Revoke an access or a refresh token the client was handed: what a sign-out asks. A token
+// from an authorization withdraws that authorization, every token minted from it, and a
+// session it started itself; a browser session it was granted from stays signed in. A token
+// from before authorizations were recorded ends the session behind it. HEY answers 200 {} for a token that names nothing, the point of
 // revoking it reached, and refuses one another client was handed (invalid_client, 401).
 // The token goes in the body, never the query, where logs would keep it, so this DELETE has
 // a payload: HEY reads its params from either, and every SDK's client sends one.
@@ -24440,8 +24476,10 @@ func (c *ClientWithResponses) RevokeTokenWithResponse(ctx context.Context, body 
 // Trade an authorization code, or a refresh token, for tokens. `grant_type` names which:
 // "authorization_code" sends `code`, `redirect_uri` and `code_verifier` (PKCE), and
 // "refresh_token" sends `refresh_token`. Every grant names the client and the install it is
-// for. A refresh answers the refresh token it was sent, unchanged, beside the new access
-// token. Not sent again after a failure: a code is redeemed once.
+// for. A refresh answers a refresh token beside the new access token: the one it was sent,
+// unchanged, unless HEY rotates the client's refresh tokens, when it is the next one and the
+// one sent is spent. Keep whichever comes back: presenting a spent one again, past a short
+// grace, revokes the authorization it came from. Not sent again after a failure: a code is redeemed once.
 //
 // Returns a wrapper object for the known response body format(s).
 func (c *ClientWithResponses) CreateTokenWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateTokenResponse, error) {
@@ -24458,8 +24496,10 @@ func (c *ClientWithResponses) CreateTokenWithBodyWithResponse(ctx context.Contex
 // Trade an authorization code, or a refresh token, for tokens. `grant_type` names which:
 // "authorization_code" sends `code`, `redirect_uri` and `code_verifier` (PKCE), and
 // "refresh_token" sends `refresh_token`. Every grant names the client and the install it is
-// for. A refresh answers the refresh token it was sent, unchanged, beside the new access
-// token. Not sent again after a failure: a code is redeemed once.
+// for. A refresh answers a refresh token beside the new access token: the one it was sent,
+// unchanged, unless HEY rotates the client's refresh tokens, when it is the next one and the
+// one sent is spent. Keep whichever comes back: presenting a spent one again, past a short
+// grace, revokes the authorization it came from. Not sent again after a failure: a code is redeemed once.
 func (c *ClientWithResponses) CreateTokenWithResponse(ctx context.Context, body CreateTokenJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateTokenResponse, error) {
 	rsp, err := c.CreateToken(ctx, body, reqEditors...)
 	if err != nil {

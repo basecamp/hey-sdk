@@ -37,9 +37,9 @@ pub struct ServerMetadata {
 }
 
 impl ServerMetadata {
-    /// HEY's endpoints under `base_url`. HEY publishes no well-known document, so
-    /// [`OAuthClient::discover`] has nothing to find there; this is where hey-cli sends
-    /// people and tokens.
+    /// HEY's endpoints under `base_url`. HEY publishes its well-known document only at its
+    /// canonical origin (https://app.hey.com), naming these same endpoints, so this answers
+    /// for any base URL without a request; it is where hey-cli sends people and tokens.
     pub fn for_hey(base_url: &str) -> ServerMetadata {
         let origin = base_url.trim_end_matches('/');
         ServerMetadata {
@@ -233,7 +233,7 @@ impl OAuthClient {
     }
 
     /// What the issuer at `base_url` publishes at its well-known endpoint (RFC 8414). HEY
-    /// publishes nothing there; [`ServerMetadata::for_hey`] is its answer.
+    /// publishes it only at its canonical origin; [`ServerMetadata::for_hey`] answers for any.
     ///
     /// The metadata names the endpoints a code, its verifier, the client secret and refresh
     /// tokens go to, so it is trusted only from where it was asked: the issuer must be HTTPS,

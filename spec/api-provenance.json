@@ -1,6 +1,6 @@
 {
   "source": "haystack",
-  "sha": "a76651b12466d1f51e13117624a9ca40db94f819",
-  "date": "2026-10-05",
+  "sha": "4bc0579b446c01815df7870ce2f22a9a9883f11b",
+  "date": "2026-11-03",
   "notes": "Pinned from haystack master. Update with: make provenance-sync"
 }

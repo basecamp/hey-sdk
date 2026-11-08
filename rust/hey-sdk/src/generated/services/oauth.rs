@@ -24,8 +24,10 @@ impl<'a> OAuth<'a> {
     /// Trade an authorization code, or a refresh token, for tokens. `grant_type` names which:
     /// "authorization_code" sends `code`, `redirect_uri` and `code_verifier` (PKCE), and
     /// "refresh_token" sends `refresh_token`. Every grant names the client and the install it is
-    /// for. A refresh answers the refresh token it was sent, unchanged, beside the new access
-    /// token. Not sent again after a failure: a code is redeemed once.
+    /// for. A refresh answers a refresh token beside the new access token: the one it was sent,
+    /// unchanged, unless HEY rotates the client's refresh tokens, when it is the next one and the
+    /// one sent is spent. Keep whichever comes back: presenting a spent one again, past a short
+    /// grace, revokes the authorization it came from. Not sent again after a failure: a code is redeemed once.
     pub async fn create_token(
         &self,
         body: &CreateTokenRequestContent,
@@ -35,8 +37,10 @@ impl<'a> OAuth<'a> {
         self.client.send(operation).await
     }
 
-    /// Revoke an access or a refresh token the client was handed, ending the session behind it:
-    /// what a sign-out asks. HEY answers 200 {} for a token that names nothing, the point of
+    /// Revoke an access or a refresh token the client was handed: what a sign-out asks. A token
+    /// from an authorization withdraws that authorization, every token minted from it, and a
+    /// session it started itself; a browser session it was granted from stays signed in. A token
+    /// from before authorizations were recorded ends the session behind it. HEY answers 200 {} for a token that names nothing, the point of
     /// revoking it reached, and refuses one another client was handed (invalid_client, 401).
     /// The token goes in the body, never the query, where logs would keep it, so this DELETE has
     /// a payload: HEY reads its params from either, and every SDK's client sends one.

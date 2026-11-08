@@ -16,6 +16,9 @@ public struct CreateTokenRequestContent: Codable, Sendable, Equatable {
     public var codeVerifier: SensitiveString?
     /// The refresh token to trade (refresh_token).
     public var refreshToken: SensitiveString?
+    /// The name Connected Apps shows for this install, at most 100 characters
+    /// (authorization_code). Optional and display-only.
+    public var deviceName: String?
 
     public init(
         grantType: String,
@@ -24,7 +27,8 @@ public struct CreateTokenRequestContent: Codable, Sendable, Equatable {
         code: SensitiveString? = nil,
         redirectUri: String? = nil,
         codeVerifier: SensitiveString? = nil,
-        refreshToken: SensitiveString? = nil
+        refreshToken: SensitiveString? = nil,
+        deviceName: String? = nil
     ) {
         self.grantType = grantType
         self.clientId = clientId
@@ -33,6 +37,7 @@ public struct CreateTokenRequestContent: Codable, Sendable, Equatable {
         self.redirectUri = redirectUri
         self.codeVerifier = codeVerifier
         self.refreshToken = refreshToken
+        self.deviceName = deviceName
     }
 
     enum CodingKeys: String, CodingKey {
@@ -43,5 +48,6 @@ public struct CreateTokenRequestContent: Codable, Sendable, Equatable {
         case redirectUri = "redirect_uri"
         case codeVerifier = "code_verifier"
         case refreshToken = "refresh_token"
+        case deviceName = "device_name"
     }
 }
