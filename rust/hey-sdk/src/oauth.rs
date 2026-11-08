@@ -38,7 +38,7 @@ pub struct ServerMetadata {
 
 impl ServerMetadata {
     /// HEY's endpoints under `base_url`. HEY publishes its well-known document only at its
-    /// canonical origin (https://app.hey.com), naming these same endpoints, so this answers
+    /// canonical origin (<https://app.hey.com>), naming these same endpoints, so this answers
     /// for any base URL without a request; it is where hey-cli sends people and tokens.
     pub fn for_hey(base_url: &str) -> ServerMetadata {
         let origin = base_url.trim_end_matches('/');
