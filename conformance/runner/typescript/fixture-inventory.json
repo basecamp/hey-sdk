@@ -139,6 +139,14 @@
       "operation": "UpdateClearance"
     },
     {
+      "name": "403 insufficient_scope on a read says why",
+      "operation": "GetBox"
+    },
+    {
+      "name": "403 insufficient_scope on a write says why",
+      "operation": "UpdateClearance"
+    },
+    {
       "name": "404 maps to not_found error code",
       "operation": "GetBox"
     },

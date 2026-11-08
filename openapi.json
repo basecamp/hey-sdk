@@ -14697,10 +14697,6 @@
             "x-hey-sensitive": {
               "category": "credential"
             }
-          },
-          "device_name": {
-            "type": "string",
-            "description": "The name Connected Apps shows for this install, at most 100 characters\n(authorization_code). Optional and display-only."
           }
         },
         "required": [

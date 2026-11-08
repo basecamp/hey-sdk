@@ -5380,10 +5380,6 @@ structure CreateTokenRequestContent {
     /// The refresh token to trade (refresh_token).
     @heySensitive(category: "credential")
     refresh_token: String
-
-    /// The name Connected Apps shows for this install, at most 100 characters
-    /// (authorization_code). Optional and display-only.
-    device_name: String
 }
 
 structure CreateTokenOutput {

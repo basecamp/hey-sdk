@@ -1001,10 +1001,6 @@ pub struct CreateTokenRequestContent {
     /// The refresh token to trade (refresh_token).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub refresh_token: Option<SensitiveString>,
-    /// The name Connected Apps shows for this install, at most 100 characters
-    /// (authorization_code). Optional and display-only.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub device_name: Option<String>,
 }
 
 /// Wire format: {comment: {content: "<div>…</div>"}}

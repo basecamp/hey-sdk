@@ -619,10 +619,6 @@ type CreateTokenRequestContent struct {
 	// CodeVerifier The PKCE verifier whose challenge the authorization request sent (authorization_code).
 	CodeVerifier string `json:"code_verifier,omitempty"`
 
-	// DeviceName The name Connected Apps shows for this install, at most 100 characters
-	// (authorization_code). Optional and display-only.
-	DeviceName string `json:"device_name,omitempty"`
-
 	// GrantType "authorization_code" or "refresh_token".
 	GrantType string `json:"grant_type"`
 
