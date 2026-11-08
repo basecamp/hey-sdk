@@ -72,7 +72,7 @@ timestamp DateTime
 @httpBearerAuth
 @heyAccountScope(query: "filtered_account_id")
 service HEY {
-    version: "2026-10-05"
+    version: "2026-11-03"
     operations: [
         // Identity (4 MVP)
         GetIdentity
@@ -839,6 +839,11 @@ structure Topic {
     /// The topic's first page of entries (summaries, no bodies). Present on GetTopic; use
     /// GetTopicEntries for the rest and GetMessage for a body.
     entries: EntryList
+
+    /// False while the thread waits in the Screener for the caller, or after they screened
+    /// its sender out; true once they screened it in. Tells an unscreened thread from a
+    /// screened-in one that sits in the trash or spam. Present on GetTopic.
+    screened_in: Boolean
 }
 
 list TopicList {
@@ -890,6 +895,13 @@ structure Message {
 
     /// The account addresses HEY recorded this inbound message arriving through.
     received_via: MessageReceivedViaList
+
+    /// The thread the message is on. Present on GetMessage.
+    topic_id: Long
+
+    /// The thread's screened_in, as GetTopic answers it: false while the thread waits in the
+    /// Screener for the caller, or after they screened its sender out. Present on GetMessage.
+    screened_in: Boolean
 }
 
 /// DraftMessage — a draft entry
@@ -1887,10 +1899,11 @@ structure SentMessage {
     /// "Message sent", present only while delayed.
     notice: String
 
-    /// Where to POST to call the message back, present only while delayed.
+    /// Where to POST to call the message back, present only while delayed, and never for a
+    /// token narrower than full scope: HEY offers such a token no Undo Send.
     undo_action: String
 
-    /// Seconds the undo notice stays up, present only while delayed.
+    /// Seconds the undo notice stays up, present beside undo_action.
     undo_timeout: Integer
 }
 
@@ -2305,6 +2318,7 @@ structure ContactDetail {
     avatar_background_color: String
     contactable_type: String
     name_tag: String
+    /// Where to edit the contact in HEY, present only when the caller may edit it.
     edit_app_url: String
     clearance: Clearance
     aliases: ContactList
@@ -5313,8 +5327,10 @@ structure TopicPublication {
 /// Trade an authorization code, or a refresh token, for tokens. `grant_type` names which:
 /// "authorization_code" sends `code`, `redirect_uri` and `code_verifier` (PKCE), and
 /// "refresh_token" sends `refresh_token`. Every grant names the client and the install it is
-/// for. A refresh answers the refresh token it was sent, unchanged, beside the new access
-/// token. Not sent again after a failure: a code is redeemed once.
+/// for. A refresh answers a refresh token beside the new access token: the one it was sent,
+/// unchanged, unless HEY rotates the client's refresh tokens, when it is the next one and the
+/// one sent is spent. Keep whichever comes back: presenting a spent one again, past a short
+/// grace, revokes the authorization it came from. Not sent again after a failure: a code is redeemed once.
 @http(method: "POST", uri: "/oauth/tokens.json")
 @tags(["OAuth"])
 @heyRetry(maxAttempts: 1, baseDelayMs: 1000, backoff: "exponential", retryOn: [])
@@ -5385,13 +5401,20 @@ structure OAuthToken {
     /// Seconds the access token lasts from the moment HEY answered.
     expires_in: Long
 
-    /// The token to refresh with: a new one for a code, the one sent for a refresh.
+    /// The token to refresh with: a new one for a code; for a refresh, the one sent, or the
+    /// next one when HEY rotates the client's refresh tokens.
     @heySensitive(category: "credential")
     refresh_token: String
+
+    /// The scope the access token holds, space-separated: "full" for HEY's own apps, or what
+    /// the authorization granted ("read", "write", "send").
+    scope: String
 }
 
-/// Revoke an access or a refresh token the client was handed, ending the session behind it:
-/// what a sign-out asks. HEY answers 200 {} for a token that names nothing, the point of
+/// Revoke an access or a refresh token the client was handed: what a sign-out asks. A token
+/// from an authorization withdraws that authorization, every token minted from it, and a
+/// session it started itself; a browser session it was granted from stays signed in. A token
+/// from before authorizations were recorded ends the session behind it. HEY answers 200 {} for a token that names nothing, the point of
 /// revoking it reached, and refuses one another client was handed (invalid_client, 401).
 /// The token goes in the body, never the query, where logs would keep it, so this DELETE has
 /// a payload: HEY reads its params from either, and every SDK's client sends one.

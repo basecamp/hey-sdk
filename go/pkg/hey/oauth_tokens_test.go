@@ -119,7 +119,7 @@ func tokenOperations(client *Client) map[string]func() error {
 	}
 }
 
-const grantedToken = `{"access_token":"access-1","token_type":"bearer","expires_in":1209600,"refresh_token":"refresh-1"}`
+const grantedToken = `{"access_token":"access-1","token_type":"bearer","expires_in":1209600,"refresh_token":"refresh-1","scope":"full"}`
 
 // HEY judges the token endpoint's body, not the caller, and the credentials a client
 // would sign with may be the very ones being exchanged or revoked: neither operation
@@ -171,7 +171,7 @@ func TestOAuthOperationsSendTheirDocumentedRequests(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateToken: %v", err)
 	}
-	want := generated.OAuthToken{AccessToken: "access-1", TokenType: "bearer", ExpiresIn: 1209600, RefreshToken: "refresh-1"}
+	want := generated.OAuthToken{AccessToken: "access-1", TokenType: "bearer", ExpiresIn: 1209600, RefreshToken: "refresh-1", Scope: "full"}
 	if token == nil || *token != want {
 		t.Errorf("CreateToken = %+v, want %+v", token, want)
 	}

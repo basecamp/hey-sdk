@@ -24,8 +24,14 @@ data class OAuthToken(
     @SerialName("expires_in")
     val expiresIn: Long? = null,
     /**
-     * The token to refresh with: a new one for a code, the one sent for a refresh.
+     * The token to refresh with: a new one for a code; for a refresh, the one sent, or the
+     * next one when HEY rotates the client's refresh tokens.
      */
     @SerialName("refresh_token")
     val refreshToken: SensitiveString? = null,
+    /**
+     * The scope the access token holds, space-separated: "full" for HEY's own apps, or what
+     * the authorization granted ("read", "write", "send").
+     */
+    val scope: String? = null,
 )

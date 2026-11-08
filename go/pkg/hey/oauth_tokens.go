@@ -10,8 +10,8 @@ import (
 )
 
 // OAuthService is HEY's own token endpoint, /oauth/tokens: CreateToken trades an
-// authorization code or a refresh token for tokens, and RevokeToken ends the session behind
-// a token. HEY judges what the body carries, not the caller, so both go out unsigned — no
+// authorization code or a refresh token for tokens, and RevokeToken withdraws the
+// authorization behind a token. HEY judges what the body carries, not the caller, so both go out unsigned — no
 // Authorization header, whatever the client holds — and a 401 is the answer rather than a
 // reason to refresh the client's credentials. Neither follows a redirect, since the body's
 // secrets would go with it: a 3xx is an error carrying its status.
@@ -30,8 +30,9 @@ func NewOAuthService(client *Client) *OAuthService {
 
 // CreateToken trades a grant for tokens. GrantType names the grant: "authorization_code"
 // sends Code, RedirectUri and CodeVerifier, and "refresh_token" sends RefreshToken. A
-// refresh answers the refresh token it was sent beside the new access token. It is sent
-// once: a code is redeemed once, so a failure is never resent.
+// refresh answers a refresh token beside the new access token: the one it was sent, or the
+// next one when HEY rotates the client's refresh tokens, so keep whichever comes back. It is
+// sent once: a code is redeemed once, so a failure is never resent.
 func (s *OAuthService) CreateToken(ctx context.Context, body generated.CreateTokenRequestContent) (result *generated.OAuthToken, err error) {
 	op := OperationInfo{
 		Service: "OAuth", Operation: "CreateToken",

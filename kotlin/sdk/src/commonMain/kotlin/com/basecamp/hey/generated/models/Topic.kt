@@ -45,4 +45,11 @@ data class Topic(
      * GetTopicEntries for the rest and GetMessage for a body.
      */
     val entries: List<Entry>? = null,
+    /**
+     * False while the thread waits in the Screener for the caller, or after they screened
+     * its sender out; true once they screened it in. Tells an unscreened thread from a
+     * screened-in one that sits in the trash or spam. Present on GetTopic.
+     */
+    @SerialName("screened_in")
+    val screenedIn: Boolean? = null,
 )

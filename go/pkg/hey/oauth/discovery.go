@@ -35,7 +35,8 @@ func NewDiscoverer(httpClient *http.Client) *Discoverer {
 // HTTPS, with no query, fragment or credentials, and is refused before anything is sent. The
 // metadata is used only when it names that same issuer and HTTPS endpoints for it.
 //
-// HEY publishes no metadata; its endpoints are /oauth/authorizations/new and /oauth/tokens.
+// HEY publishes its metadata only at its canonical origin (https://app.hey.com), and answers
+// 404 on any other host; the endpoints it names are /oauth/authorizations/new and /oauth/tokens.
 func (d *Discoverer) Discover(ctx context.Context, baseURL string) (*Config, error) {
 	issuer, ok := plainURL(baseURL)
 	if !ok {

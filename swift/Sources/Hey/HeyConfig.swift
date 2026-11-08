@@ -7,7 +7,7 @@ public struct HeyConfig: Sendable, Equatable {
     public static let version = "0.34.0"
 
     /// The HEY API version this SDK targets; `scripts/sync-api-version.sh` moves it with the spec.
-    public static let apiVersion = "2026-10-05"
+    public static let apiVersion = "2026-11-03"
 
     public static let defaultBaseURL = "https://app.hey.com"
 

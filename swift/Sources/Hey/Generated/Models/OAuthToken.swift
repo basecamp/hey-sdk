@@ -7,19 +7,25 @@ public struct OAuthToken: Codable, Sendable, Equatable {
     public var tokenType: String
     /// Seconds the access token lasts from the moment HEY answered.
     public var expiresIn: Int?
-    /// The token to refresh with: a new one for a code, the one sent for a refresh.
+    /// The token to refresh with: a new one for a code; for a refresh, the one sent, or the
+    /// next one when HEY rotates the client's refresh tokens.
     public var refreshToken: SensitiveString?
+    /// The scope the access token holds, space-separated: "full" for HEY's own apps, or what
+    /// the authorization granted ("read", "write", "send").
+    public var scope: String?
 
     public init(
         accessToken: SensitiveString,
         tokenType: String,
         expiresIn: Int? = nil,
-        refreshToken: SensitiveString? = nil
+        refreshToken: SensitiveString? = nil,
+        scope: String? = nil
     ) {
         self.accessToken = accessToken
         self.tokenType = tokenType
         self.expiresIn = expiresIn
         self.refreshToken = refreshToken
+        self.scope = scope
     }
 
     enum CodingKeys: String, CodingKey {
@@ -27,5 +33,6 @@ public struct OAuthToken: Codable, Sendable, Equatable {
         case tokenType = "token_type"
         case expiresIn = "expires_in"
         case refreshToken = "refresh_token"
+        case scope
     }
 }

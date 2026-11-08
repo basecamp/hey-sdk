@@ -4,8 +4,8 @@ import com.basecamp.hey.generated.models.RevokeTokenRequestContent
 import com.basecamp.hey.generated.oauth
 
 /**
- * Ends the session HEY holds behind [token], an access or a refresh token the app [clientId]
- * was handed: the model's `RevokeToken`, `DELETE /oauth/tokens.json`, what a sign-out asks. It is
+ * Withdraws the authorization HEY holds behind [token], an access or a refresh token the app
+ * [clientId] was handed: the model's `RevokeToken`, `DELETE /oauth/tokens.json`, what a sign-out asks. It is
  * `client.oauth.revokeToken(..)` for a caller holding the two strings. The token goes in a JSON
  * body, never the query, where logs would keep it, and the request carries none of the client's
  * own credentials, since the token they would carry may be the one being revoked: a 401 is the

@@ -1405,13 +1405,17 @@ export interface paths {
          * @description Trade an authorization code, or a refresh token, for tokens. `grant_type` names which:
          *     "authorization_code" sends `code`, `redirect_uri` and `code_verifier` (PKCE), and
          *     "refresh_token" sends `refresh_token`. Every grant names the client and the install it is
-         *     for. A refresh answers the refresh token it was sent, unchanged, beside the new access
-         *     token. Not sent again after a failure: a code is redeemed once.
+         *     for. A refresh answers a refresh token beside the new access token: the one it was sent,
+         *     unchanged, unless HEY rotates the client's refresh tokens, when it is the next one and the
+         *     one sent is spent. Keep whichever comes back: presenting a spent one again, past a short
+         *     grace, revokes the authorization it came from. Not sent again after a failure: a code is redeemed once.
          */
         post: operations["CreateToken"];
         /**
-         * @description Revoke an access or a refresh token the client was handed, ending the session behind it:
-         *     what a sign-out asks. HEY answers 200 {} for a token that names nothing, the point of
+         * @description Revoke an access or a refresh token the client was handed: what a sign-out asks. A token
+         *     from an authorization withdraws that authorization, every token minted from it, and a
+         *     session it started itself; a browser session it was granted from stays signed in. A token
+         *     from before authorizations were recorded ends the session behind it. HEY answers 200 {} for a token that names nothing, the point of
          *     revoking it reached, and refuses one another client was handed (invalid_client, 401).
          *     The token goes in the body, never the query, where logs would keep it, so this DELETE has
          *     a payload: HEY reads its params from either, and every SDK's client sends one.
@@ -2587,6 +2591,7 @@ export interface components {
             avatar_background_color?: string;
             contactable_type?: string;
             name_tag?: string;
+            /** @description Where to edit the contact in HEY, present only when the caller may edit it. */
             edit_app_url?: string;
             clearance?: components["schemas"]["Clearance"];
             aliases?: components["schemas"]["Contact"][];
@@ -3017,6 +3022,16 @@ export interface components {
             addressed_sender?: components["schemas"]["AddressedSender"];
             /** @description The account addresses HEY recorded this inbound message arriving through. */
             received_via?: components["schemas"]["MessageReceivedVia"][];
+            /**
+             * Format: int64
+             * @description The thread the message is on. Present on GetMessage.
+             */
+            topic_id?: number | bigint;
+            /**
+             * @description The thread's screened_in, as GetTopic answers it: false while the thread waits in the
+             *     Screener for the caller, or after they screened its sender out. Present on GetMessage.
+             */
+            screened_in?: boolean;
         };
         /**
          * @description Recipients per kind, each a list of email addresses.
@@ -3182,8 +3197,16 @@ export interface components {
              * @description Seconds the access token lasts from the moment HEY answered.
              */
             expires_in?: number | bigint;
-            /** @description The token to refresh with: a new one for a code, the one sent for a refresh. */
+            /**
+             * @description The token to refresh with: a new one for a code; for a refresh, the one sent, or the
+             *     next one when HEY rotates the client's refresh tokens.
+             */
             refresh_token?: string;
+            /**
+             * @description The scope the access token holds, space-separated: "full" for HEY's own apps, or what
+             *     the authorization granted ("read", "write", "send").
+             */
+            scope?: string;
         };
         /** @description rate_limit_exceeded: too many failed grants within the hour. */
         OAuthTooManyRequestsErrorResponseContent: {
@@ -3464,11 +3487,14 @@ export interface components {
             delayed?: boolean;
             /** @description "Message sent", present only while delayed. */
             notice?: string;
-            /** @description Where to POST to call the message back, present only while delayed. */
+            /**
+             * @description Where to POST to call the message back, present only while delayed, and never for a
+             *     token narrower than full scope: HEY offers such a token no Undo Send.
+             */
             undo_action?: string;
             /**
              * Format: int32
-             * @description Seconds the undo notice stays up, present only while delayed.
+             * @description Seconds the undo notice stays up, present beside undo_action.
              */
             undo_timeout?: number;
         };
@@ -3630,6 +3656,12 @@ export interface components {
              *     GetTopicEntries for the rest and GetMessage for a body.
              */
             entries?: components["schemas"]["Entry"][];
+            /**
+             * @description False while the thread waits in the Screener for the caller, or after they screened
+             *     its sender out; true once they screened it in. Tells an unscreened thread from a
+             *     screened-in one that sits in the trash or spam. Present on GetTopic.
+             */
+            screened_in?: boolean;
         };
         /** @description Who a note on a topic reaches. */
         TopicCommentAudience: {

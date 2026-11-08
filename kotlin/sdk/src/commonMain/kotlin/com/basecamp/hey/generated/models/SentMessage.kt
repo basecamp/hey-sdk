@@ -37,12 +37,13 @@ data class SentMessage(
      */
     val notice: String? = null,
     /**
-     * Where to POST to call the message back, present only while delayed.
+     * Where to POST to call the message back, present only while delayed, and never for a
+     * token narrower than full scope: HEY offers such a token no Undo Send.
      */
     @SerialName("undo_action")
     val undoAction: String? = null,
     /**
-     * Seconds the undo notice stays up, present only while delayed.
+     * Seconds the undo notice stays up, present beside undo_action.
      */
     @SerialName("undo_timeout")
     val undoTimeout: Int? = null,

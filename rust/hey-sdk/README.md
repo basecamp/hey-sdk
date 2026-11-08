@@ -51,7 +51,7 @@ call takes one.
 use hey_sdk::oauth::{self, ExchangeRequest, OAuthClient, ServerMetadata};
 
 let oauth = OAuthClient::default();
-let metadata = ServerMetadata::for_hey(&config.base_url);   // HEY publishes no well-known document
+let metadata = ServerMetadata::for_hey(&config.base_url);   // HEY's endpoints, without a request
 let pkce = oauth::generate_pkce();
 let state = oauth::generate_state();
 let url = oauth::authorization_url(&metadata, &config.oauth_client_id, redirect_uri, None, &state, &pkce, install_id)?;

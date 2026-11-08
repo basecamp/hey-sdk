@@ -788,6 +788,7 @@ pub struct ContactDetail {
     pub contactable_type: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub name_tag: Option<String>,
+    /// Where to edit the contact in HEY, present only when the caller may edit it.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub edit_app_url: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -1567,6 +1568,13 @@ pub struct Message {
     /// The account addresses HEY recorded this inbound message arriving through.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub received_via: Option<Vec<MessageReceivedVia>>,
+    /// The thread the message is on. Present on GetMessage.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub topic_id: Option<i64>,
+    /// The thread's screened_in, as GetTopic answers it: false while the thread waits in the
+    /// Screener for the caller, or after they screened its sender out. Present on GetMessage.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub screened_in: Option<bool>,
 }
 
 /// Recipients per kind, each a list of email addresses.
@@ -1856,9 +1864,14 @@ pub struct OAuthToken {
     /// Seconds the access token lasts from the moment HEY answered.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub expires_in: Option<i64>,
-    /// The token to refresh with: a new one for a code, the one sent for a refresh.
+    /// The token to refresh with: a new one for a code; for a refresh, the one sent, or the
+    /// next one when HEY rotates the client's refresh tokens.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub refresh_token: Option<SensitiveString>,
+    /// The scope the access token holds, space-separated: "full" for HEY's own apps, or what
+    /// the authorization granted ("read", "write", "send").
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub scope: Option<String>,
 }
 
 /// rate_limit_exceeded: too many failed grants within the hour.
@@ -2341,10 +2354,11 @@ pub struct SentMessage {
     /// "Message sent", present only while delayed.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub notice: Option<String>,
-    /// Where to POST to call the message back, present only while delayed.
+    /// Where to POST to call the message back, present only while delayed, and never for a
+    /// token narrower than full scope: HEY offers such a token no Undo Send.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub undo_action: Option<String>,
-    /// Seconds the undo notice stays up, present only while delayed.
+    /// Seconds the undo notice stays up, present beside undo_action.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub undo_timeout: Option<i32>,
 }
@@ -2557,6 +2571,11 @@ pub struct Topic {
     /// GetTopicEntries for the rest and GetMessage for a body.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub entries: Option<Vec<Entry>>,
+    /// False while the thread waits in the Screener for the caller, or after they screened
+    /// its sender out; true once they screened it in. Tells an unscreened thread from a
+    /// screened-in one that sits in the trash or spam. Present on GetTopic.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub screened_in: Option<bool>,
 }
 
 /// Who a note on a topic reaches.

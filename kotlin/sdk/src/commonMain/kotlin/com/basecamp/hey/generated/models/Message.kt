@@ -44,4 +44,15 @@ data class Message(
      */
     @SerialName("received_via")
     val receivedVia: List<MessageReceivedVia>? = null,
+    /**
+     * The thread the message is on. Present on GetMessage.
+     */
+    @SerialName("topic_id")
+    val topicId: Long? = null,
+    /**
+     * The thread's screened_in, as GetTopic answers it: false while the thread waits in the
+     * Screener for the caller, or after they screened its sender out. Present on GetMessage.
+     */
+    @SerialName("screened_in")
+    val screenedIn: Boolean? = null,
 )

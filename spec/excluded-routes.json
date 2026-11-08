@@ -3603,5 +3603,30 @@
     "method": "POST",
     "path": "/topics/{topic_id}/messages",
     "reason": "html-only: responds with a redirect even for JSON; thread replies use POST /entries/{entry_id}/replies (CreateReply)"
+  },
+  {
+    "method": "GET",
+    "path": "/my/connected_apps",
+    "reason": "web-ui: Connected Apps lists a person's OAuth authorizations as HTML only, and ForbidsTokenAuthentication refuses an API token (403)"
+  },
+  {
+    "method": "DELETE",
+    "path": "/my/connected_apps/{id}",
+    "reason": "web-ui: revoking an authorization from Connected Apps redirects to the HTML list, and ForbidsTokenAuthentication refuses an API token (403); an app ends its own authorization with RevokeToken"
+  },
+  {
+    "method": "POST",
+    "path": "/oauth/revoke",
+    "reason": "auth: RFC 7009 twin of DELETE /oauth/tokens (RevokeToken), which HEY keeps for existing clients; both run Oauth::Grant::Revocation and answer alike"
+  },
+  {
+    "method": "POST",
+    "path": "/oauth/clients",
+    "reason": "auth: RFC 7591 dynamic client registration for third-party connectors (MCP clients), a bare 404 while switched off; a client of the HEY API is registered already"
+  },
+  {
+    "method": "POST",
+    "path": "/oauth/device_authorizations",
+    "reason": "auth: RFC 8628 device authorization, open only to a client whose row enables device flow; no SDK client uses it yet, so it waits for one, with CreateToken's device_code grant"
   }
 ]

@@ -22,6 +22,10 @@ public struct Topic: Codable, Sendable, Equatable {
     /// The topic's first page of entries (summaries, no bodies). Present on GetTopic; use
     /// GetTopicEntries for the rest and GetMessage for a body.
     public var entries: [Entry]?
+    /// False while the thread waits in the Screener for the caller, or after they screened
+    /// its sender out; true once they screened it in. Tells an unscreened thread from a
+    /// screened-in one that sits in the trash or spam. Present on GetTopic.
+    public var screenedIn: Bool?
 
     public init(
         id: Int,
@@ -38,7 +42,8 @@ public struct Topic: Codable, Sendable, Equatable {
         collections: [HeyCollection]? = nil,
         isForgedSender: Bool? = nil,
         latestEntry: Entry? = nil,
-        entries: [Entry]? = nil
+        entries: [Entry]? = nil,
+        screenedIn: Bool? = nil
     ) {
         self.id = id
         self.name = name
@@ -55,6 +60,7 @@ public struct Topic: Codable, Sendable, Equatable {
         self.isForgedSender = isForgedSender
         self.latestEntry = latestEntry
         self.entries = entries
+        self.screenedIn = screenedIn
     }
 
     enum CodingKeys: String, CodingKey {
@@ -73,5 +79,6 @@ public struct Topic: Codable, Sendable, Equatable {
         case isForgedSender = "is_forged_sender"
         case latestEntry = "latest_entry"
         case entries
+        case screenedIn = "screened_in"
     }
 }

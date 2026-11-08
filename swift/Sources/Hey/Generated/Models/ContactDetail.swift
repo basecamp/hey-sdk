@@ -13,6 +13,7 @@ public struct ContactDetail: Codable, Sendable, Equatable {
     public var avatarBackgroundColor: String?
     public var contactableType: String?
     public var nameTag: String?
+    /// Where to edit the contact in HEY, present only when the caller may edit it.
     public var editAppUrl: String?
     public var clearance: Clearance?
     public var aliases: [Contact]?
