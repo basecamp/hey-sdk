@@ -409,7 +409,7 @@ func TestBoxesService_List_Error(t *testing.T) {
 
 func TestTopicsService_Get(t *testing.T) {
 	client := newServiceTestClient(t, map[string]string{
-		"/topics/%s": `{"id":42,"subject":"Hello"}`,
+		"/topics/%s": `{"id":42,"subject":"Hello","screened_in":true}`,
 	})
 
 	result, err := client.Topics().Get(context.Background(), 42)
@@ -418,6 +418,9 @@ func TestTopicsService_Get(t *testing.T) {
 	}
 	if result == nil {
 		t.Fatal("expected non-nil result")
+	}
+	if !result.ScreenedIn {
+		t.Error("ScreenedIn = false, want the true HEY sent")
 	}
 }
 
@@ -531,7 +534,7 @@ func TestTopicsService_GetEverything(t *testing.T) {
 
 func TestMessagesService_Get(t *testing.T) {
 	client := newServiceTestClient(t, map[string]string{
-		"/messages/%s": `{"id":1,"subject":"Test"}`,
+		"/messages/%s": `{"id":1,"subject":"Test","topic_id":321,"screened_in":true}`,
 	})
 
 	result, err := client.Messages().Get(context.Background(), 1)
@@ -540,6 +543,9 @@ func TestMessagesService_Get(t *testing.T) {
 	}
 	if result == nil {
 		t.Fatal("expected non-nil result")
+	}
+	if result.TopicId != 321 || !result.ScreenedIn {
+		t.Errorf("TopicId, ScreenedIn = %d, %v; want the 321, true HEY sent", result.TopicId, result.ScreenedIn)
 	}
 }
 

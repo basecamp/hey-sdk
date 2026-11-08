@@ -633,7 +633,7 @@
   },
   {
     "name": "GetMessage uses /messages/{messageId} path",
-    "description": "Verifies that GetMessage constructs the URL path /messages/{messageId} and retains the addresses HEY received the message through",
+    "description": "Verifies that GetMessage constructs the URL path /messages/{messageId} and retains the addresses HEY received the message through, its thread, and whether the caller has screened that thread in",
     "operation": "GetMessage",
     "method": "GET",
     "path": "/messages/{messageId}",
@@ -655,7 +655,9 @@
                 "email_address": "david@example.com"
               }
             }
-          ]
+          ],
+          "topic_id": 321,
+          "screened_in": true
         }
       }
     ],
@@ -681,6 +683,16 @@
         "type": "responseBody",
         "path": "received_via.0.contact.email_address",
         "expected": "david@example.com"
+      },
+      {
+        "type": "responseBody",
+        "path": "topic_id",
+        "expected": 321
+      },
+      {
+        "type": "responseBody",
+        "path": "screened_in",
+        "expected": true
       }
     ],
     "tags": [
@@ -833,7 +845,7 @@
   },
   {
     "name": "GetTopic uses /topics/{topicId} path",
-    "description": "Verifies that GetTopic constructs the URL path /topics/{topicId}",
+    "description": "Verifies that GetTopic constructs the URL path /topics/{topicId} and retains whether the caller has screened the thread in",
     "operation": "GetTopic",
     "method": "GET",
     "path": "/topics/{topicId}",
@@ -844,7 +856,8 @@
       {
         "status": 200,
         "body": {
-          "id": 456
+          "id": 456,
+          "screened_in": false
         }
       }
     ],
@@ -855,6 +868,11 @@
       },
       {
         "type": "noError"
+      },
+      {
+        "type": "responseBody",
+        "path": "screened_in",
+        "expected": false
       }
     ],
     "tags": [

@@ -20,7 +20,8 @@
           "access_token": "conformance-access",
           "expires_in": 1209600,
           "token_type": "bearer",
-          "refresh_token": "conformance-refresh"
+          "refresh_token": "conformance-refresh",
+          "scope": "full"
         }
       }
     ],
@@ -43,7 +44,8 @@
         }
       },
       { "type": "responseBody", "path": "token_type", "expected": "bearer" },
-      { "type": "responseBody", "path": "expires_in", "expected": 1209600 }
+      { "type": "responseBody", "path": "expires_in", "expected": 1209600 },
+      { "type": "responseBody", "path": "scope", "expected": "full" }
     ],
     "tags": ["oauth", "auth"]
   },
