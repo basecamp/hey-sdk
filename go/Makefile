@@ -15,18 +15,32 @@ all: check
 # Verify Go toolchain coherence: the `go` binary and GOROOT must be from the
 # same installation. Mismatches (e.g. go1.25 binary with go1.24 GOROOT) cause
 # cryptic compile errors.
+#
+# go.mod's `toolchain` line makes an older local Go switch to the pinned
+# release, downloaded under $(GOMODCACHE)/golang.org/toolchain@*. The switched
+# command sets GOROOT to that download, so PATH go and GOROOT go differ while
+# being coherent. Accept that case only when GOROOT is such a download and its
+# go binary, run without switching, reports the version of the go running now.
+# A stale GOROOT pointing at another download, or anywhere else, still fails.
 .PHONY: toolchain-check
 toolchain-check:
 	@PATH_GO=$$(realpath "$$(which go)"); \
 	ROOT_GO=$$(realpath "$$(go env GOROOT)/bin/go"); \
+	TOOLCHAINS=$$(realpath "$$(go env GOMODCACHE)")/golang.org/toolchain@; \
 	if [ "$$PATH_GO" != "$$ROOT_GO" ]; then \
-		echo "ERROR: Go toolchain mismatch detected."; \
-		echo "  PATH go:  $$PATH_GO ($$(go version))"; \
-		echo "  GOROOT go: $$ROOT_GO"; \
-		echo ""; \
-		echo "Ensure PATH and GOROOT point to the same Go installation."; \
-		echo "If using mise: eval \"\$$(mise hook-env)\""; \
-		exit 1; \
+		case "$$ROOT_GO" in \
+			"$$TOOLCHAINS"*) SWITCHED=1 ;; \
+			*) SWITCHED= ;; \
+		esac; \
+		if [ -z "$$SWITCHED" ] || [ "$$(GOTOOLCHAIN=local "$$ROOT_GO" version)" != "$$(go version)" ]; then \
+			echo "ERROR: Go toolchain mismatch detected."; \
+			echo "  PATH go:  $$PATH_GO ($$(go version))"; \
+			echo "  GOROOT go: $$ROOT_GO"; \
+			echo ""; \
+			echo "Ensure PATH and GOROOT point to the same Go installation."; \
+			echo "If using mise: eval \"\$$(mise hook-env)\""; \
+			exit 1; \
+		fi; \
 	fi
 
 # Generate code from OpenAPI spec
