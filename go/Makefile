@@ -26,8 +26,8 @@ all: check
 toolchain-check:
 	@PATH_GO=$$(realpath "$$(which go)"); \
 	ROOT_GO=$$(realpath "$$(go env GOROOT)/bin/go"); \
-	TOOLCHAINS=$$(realpath "$$(go env GOMODCACHE)")/golang.org/toolchain@; \
 	if [ "$$PATH_GO" != "$$ROOT_GO" ]; then \
+		TOOLCHAINS=$$(realpath "$$(go env GOMODCACHE)" 2>/dev/null)/golang.org/toolchain@; \
 		case "$$ROOT_GO" in \
 			"$$TOOLCHAINS"*) SWITCHED=1 ;; \
 			*) SWITCHED= ;; \
