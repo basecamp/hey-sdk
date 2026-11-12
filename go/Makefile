@@ -17,30 +17,25 @@ all: check
 # cryptic compile errors.
 #
 # go.mod's `toolchain` line makes an older local Go switch to the pinned
-# release, downloaded under $(GOMODCACHE)/golang.org/toolchain@*. The switched
-# command sets GOROOT to that download, so PATH go and GOROOT go differ while
-# being coherent. Accept that case only when GOROOT is such a download and its
-# go binary, run without switching, reports the version of the go running now.
-# A stale GOROOT pointing at another download, or anywhere else, still fails.
+# release: a `go1.26.11` on PATH (golang.org/dl) if there is one, else a
+# download under $(GOMODCACHE)/golang.org/toolchain@*. The switched command
+# sets GOROOT to that release, so PATH go and GOROOT go differ while being
+# coherent. So when the paths differ, accept GOROOT's go if, run without
+# switching, it reports the version of the go running now. A stale GOROOT from
+# another release reports another version and still fails.
 .PHONY: toolchain-check
 toolchain-check:
 	@PATH_GO=$$(realpath "$$(which go)"); \
 	ROOT_GO=$$(realpath "$$(go env GOROOT)/bin/go"); \
-	if [ "$$PATH_GO" != "$$ROOT_GO" ]; then \
-		TOOLCHAINS=$$(realpath "$$(go env GOMODCACHE)" 2>/dev/null)/golang.org/toolchain@; \
-		case "$$ROOT_GO" in \
-			"$$TOOLCHAINS"*) SWITCHED=1 ;; \
-			*) SWITCHED= ;; \
-		esac; \
-		if [ -z "$$SWITCHED" ] || [ "$$(GOTOOLCHAIN=local "$$ROOT_GO" version)" != "$$(go version)" ]; then \
-			echo "ERROR: Go toolchain mismatch detected."; \
-			echo "  PATH go:  $$PATH_GO ($$(go version))"; \
-			echo "  GOROOT go: $$ROOT_GO"; \
-			echo ""; \
-			echo "Ensure PATH and GOROOT point to the same Go installation."; \
-			echo "If using mise: eval \"\$$(mise hook-env)\""; \
-			exit 1; \
-		fi; \
+	if [ "$$PATH_GO" != "$$ROOT_GO" ] && \
+	   [ "$$(GOTOOLCHAIN=local "$$ROOT_GO" version)" != "$$(go version)" ]; then \
+		echo "ERROR: Go toolchain mismatch detected."; \
+		echo "  PATH go:  $$PATH_GO ($$(go version))"; \
+		echo "  GOROOT go: $$ROOT_GO"; \
+		echo ""; \
+		echo "Ensure PATH and GOROOT point to the same Go installation."; \
+		echo "If using mise: eval \"\$$(mise hook-env)\""; \
+		exit 1; \
 	fi
 
 # Generate code from OpenAPI spec
