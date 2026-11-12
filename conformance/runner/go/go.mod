@@ -2,6 +2,8 @@ module github.com/basecamp/hey-sdk/conformance/runner/go
 
 go 1.26.0
 
+toolchain go1.26.11
+
 require github.com/basecamp/hey-sdk/go v0.0.0
 
 require (
