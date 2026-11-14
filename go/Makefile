@@ -15,11 +15,20 @@ all: check
 # Verify Go toolchain coherence: the `go` binary and GOROOT must be from the
 # same installation. Mismatches (e.g. go1.25 binary with go1.24 GOROOT) cause
 # cryptic compile errors.
+#
+# go.mod's `toolchain` line makes an older local Go switch to the pinned
+# release: a `go1.26.11` on PATH (golang.org/dl) if there is one, else a
+# download under $(GOMODCACHE)/golang.org/toolchain@*. The switched command
+# sets GOROOT to that release, so PATH go and GOROOT go differ while being
+# coherent. So when the paths differ, accept GOROOT's go if, run without
+# switching, it reports the version of the go running now. A stale GOROOT from
+# another release reports another version and still fails.
 .PHONY: toolchain-check
 toolchain-check:
 	@PATH_GO=$$(realpath "$$(which go)"); \
 	ROOT_GO=$$(realpath "$$(go env GOROOT)/bin/go"); \
-	if [ "$$PATH_GO" != "$$ROOT_GO" ]; then \
+	if [ "$$PATH_GO" != "$$ROOT_GO" ] && \
+	   [ "$$(GOTOOLCHAIN=local "$$ROOT_GO" version)" != "$$(go version)" ]; then \
 		echo "ERROR: Go toolchain mismatch detected."; \
 		echo "  PATH go:  $$PATH_GO ($$(go version))"; \
 		echo "  GOROOT go: $$ROOT_GO"; \

@@ -2,6 +2,8 @@ module github.com/basecamp/hey-sdk/go
 
 go 1.26.0
 
+toolchain go1.26.11
+
 require (
 	github.com/oapi-codegen/runtime v1.7.0
 	github.com/zalando/go-keyring v0.2.8
