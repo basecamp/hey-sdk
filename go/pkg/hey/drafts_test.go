@@ -6,8 +6,11 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"testing"
 	"time"
+
+	"github.com/basecamp/hey-sdk/go/pkg/generated"
 )
 
 // draftTestRoute is one route a draft test serves: the validation to run on the
@@ -519,5 +522,103 @@ func TestDraftEntryIDFromLocation(t *testing.T) {
 				t.Fatalf("id = %d, err = %v, want %d", id, err, tc.want)
 			}
 		})
+	}
+}
+
+func TestDraftSentAs_SenderElseCreator(t *testing.T) {
+	creator := generated.Contact{Id: 11, EmailAddress: "maria@hey.com"}
+	alternate := generated.Contact{Id: 22, EmailAddress: "support@example.com"}
+
+	if got := DraftSentAs(&generated.MessageEditState{Sender: alternate, Creator: creator}); got.Id != 22 {
+		t.Errorf("a draft with a sender sends as it, got %+v", got)
+	}
+	// HEY names a sender only when it differs from the creator, so a draft sent
+	// from the person's own address carries none.
+	if got := DraftSentAs(&generated.MessageEditState{Creator: creator}); got.Id != 11 {
+		t.Errorf("a draft without a sender sends as its creator, got %+v", got)
+	}
+	if got := DraftSentAs(&generated.MessageEditState{}); got.Id != 0 {
+		t.Errorf("a draft naming neither answers zero, got %+v", got)
+	}
+	if got := DraftSentAs(nil); got.Id != 0 {
+		t.Errorf("nil answers zero, got %+v", got)
+	}
+}
+
+func TestReplySentAs_SenderElseCreator(t *testing.T) {
+	creator := generated.Contact{Id: 11}
+	if got := ReplySentAs(&generated.MessageDraft{Sender: generated.Contact{Id: 22}, Creator: creator}); got.Id != 22 {
+		t.Errorf("the thread's resolved sender wins, got %+v", got)
+	}
+	if got := ReplySentAs(&generated.MessageDraft{Creator: creator}); got.Id != 11 {
+		t.Errorf("without one the reply goes as the creator, got %+v", got)
+	}
+	if got := ReplySentAs(nil); got.Id != 0 {
+		t.Errorf("nil answers zero, got %+v", got)
+	}
+}
+
+func TestDraftContentFromEdit(t *testing.T) {
+	var edit generated.MessageEditState
+	if err := json.Unmarshal([]byte(`{"id":12345,"subject":"Quarterly planning","content":"<div>Agenda</div>",
+		"creator":{"id":11,"email_address":"maria@hey.com"},
+		"addressed":{"directly":[{"id":7,"email_address":"ana@example.com"},{"id":8}],
+			"copied":[{"id":9,"email_address":"lee@example.com"}],
+			"blindcopied":[{"id":10,"email_address":"kim@example.com"}]},
+		"scheduled_delivery_at":"2026-11-20T09:00:00-05:00"}`), &edit); err != nil {
+		t.Fatal(err)
+	}
+
+	got := DraftContentFromEdit(&edit)
+	if got.Subject != "Quarterly planning" || got.Content != "<div>Agenda</div>" {
+		t.Errorf("subject and body = %q, %q", got.Subject, got.Content)
+	}
+	if !reflect.DeepEqual(got.To, []string{"ana@example.com"}) || !reflect.DeepEqual(got.CC, []string{"lee@example.com"}) || !reflect.DeepEqual(got.BCC, []string{"kim@example.com"}) {
+		t.Errorf("recipients = %v %v %v; a contact served without an address is skipped", got.To, got.CC, got.BCC)
+	}
+	// The creator, not zero: zero would move the draft to the account's default sender.
+	if got.ActingSenderID != 11 {
+		t.Errorf("ActingSenderID = %d, want the creator's 11", got.ActingSenderID)
+	}
+	// HEY's API reads a schedule's date and hour in UTC.
+	if got.Schedule == nil || *got.Schedule != (DraftSchedule{Date: "2026-11-20", Hour: 14}) {
+		t.Errorf("schedule = %+v, want 2026-11-20 at 14 UTC", got.Schedule)
+	}
+
+	edit.Sender = generated.Contact{Id: 22}
+	edit.ScheduledDeliveryAt = time.Time{}
+	got = DraftContentFromEdit(&edit)
+	if got.ActingSenderID != 22 || got.Schedule != nil {
+		t.Errorf("ActingSenderID = %d, schedule = %+v; want the sender's 22 and no schedule", got.ActingSenderID, got.Schedule)
+	}
+	if got := DraftContentFromEdit(nil); !reflect.DeepEqual(got, DraftContent{}) {
+		t.Errorf("nil = %+v", got)
+	}
+}
+
+// An edit read back and revised unchanged sends the identity it was saved as, so a
+// draft from the person's own non-default address stays there.
+func TestUpdateDraftFromEditKeepsTheCreatorsIdentity(t *testing.T) {
+	client := newDraftTestClient(t, map[string]draftTestRoute{
+		"/messages/12345/edit.json": {
+			method: "GET",
+			body:   `{"id":12345,"subject":"Hi","creator":{"id":424242,"email_address":"maria@hey.com"}}`,
+		},
+		"/messages/12345.json": {
+			method: "PUT", status: 204, location: "https://app.hey.com/messages/12345",
+			validate: func(t *testing.T, body map[string]any) {
+				if got := body["acting_sender_id"]; got != float64(424242) {
+					t.Errorf("acting_sender_id = %v, want the creator's 424242, not the default sender", got)
+				}
+			},
+		},
+	})
+
+	edit, err := client.Messages().GetEdit(context.Background(), 12345)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := client.Messages().UpdateDraft(context.Background(), 12345, DraftContentFromEdit(edit)); err != nil {
+		t.Fatal(err)
 	}
 }

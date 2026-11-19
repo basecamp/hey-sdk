@@ -48,8 +48,10 @@ func (s *EntriesService) ListDrafts(ctx context.Context, params *generated.ListD
 // ActingSenderID is the identity the reply goes out as. HEY resolves a reply's sender
 // from the thread — on a shared or alternate address (a HEY for Work support address,
 // an extension, a forwarded external account) that is not the account default — and
-// hands it back as NewReply's Sender. Pass that prefill's Sender.Id; zero falls back
-// to the account's default sender, which on such a thread is the wrong identity.
+// hands it back as NewReply's Sender, or names none when the reply goes out as the
+// acting user's own contact, the prefill's Creator. Pass ReplySentAs(prefill).Id, which
+// reads both; zero falls back to the account's default sender, which on such a thread
+// is the wrong identity, and need not be the person's own address either.
 //
 // Subject is the reply's own subject line — HEY does not derive one, so pass the
 // prefilled "Re: …" that NewReply hands back. Empty leaves it off the wire.
@@ -180,8 +182,8 @@ func (s *EntriesService) DeleteDraft(ctx context.Context, entryID int64) error {
 // answers the draft's entry id. Unlike CreateReply it needs no recipients — HEY keeps
 // whatever the draft carries.
 //
-// ActingSenderID works as it does on CreateReply: pass the prefill's Sender.Id from
-// NewReply so the draft is saved under the identity HEY resolved for the thread; zero
+// ActingSenderID works as it does on CreateReply: pass ReplySentAs of NewReply's
+// prefill so the draft is saved under the identity HEY resolved for the thread; zero
 // falls back to the account's default sender.
 //
 // Subject matters here: HEY does not derive one, and a reply draft saved without it
@@ -226,8 +228,9 @@ func (s *EntriesService) CreateReplyDraft(ctx context.Context, entryID, actingSe
 // recipients a reply goes to as HEY computes them — the entry's sender moved onto the
 // To line and the acting user's own addresses, aliases and catch-alls excluded; and in
 // Sender, the identity HEY resolved for the reply from the thread's own to and from
-// addresses, present only when it differs from the acting user. This is the recipient
-// list and acting sender CreateReply should be handed.
+// addresses, present only when it differs from the acting user, whose contact is
+// Creator. This is the recipient list CreateReply should be handed, and ReplySentAs
+// reads its acting sender.
 func (s *EntriesService) NewReply(ctx context.Context, entryID int64) (result *generated.MessageDraft, err error) {
 	op := OperationInfo{
 		Service: "Entries", Operation: "NewEntryReply",

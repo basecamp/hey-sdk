@@ -35,7 +35,7 @@ data class MessageContent(
     val actingSenderId: Long? = null,
 )
 
-/** When a draft goes out, read in the identity's time zone. HEY schedules to the hour. */
+/** When a draft goes out, read in UTC, as HEY's API reads every JSON request's times. HEY schedules to the hour. */
 data class DeliverySchedule(
     /** `YYYY-MM-DD`, "today" or "tomorrow". */
     val date: String,

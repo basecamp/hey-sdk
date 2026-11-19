@@ -9,11 +9,11 @@ public struct MessageEntryPayload: Codable, Sendable, Equatable {
     /// with a scheduled_delivery_at until then. On an update, omitting it clears an
     /// existing scheduled delivery.
     public var scheduledDelivery: String?
-    /// The delivery date: YYYY-MM-DD, "today" or "tomorrow", read in the identity's
-    /// time zone.
+    /// The delivery date: YYYY-MM-DD, "today" or "tomorrow", read in UTC, as HEY's
+    /// API reads every JSON request's times.
     public var scheduledDeliveryAtDate: String?
-    /// The delivery hour, "0" through "23" — a string so that midnight survives
-    /// omitempty. HEY schedules to the hour.
+    /// The delivery hour, "0" through "23", in UTC like the date — a string so that
+    /// midnight survives omitempty. HEY schedules to the hour.
     public var scheduledDeliveryAtHour: String?
 
     public init(

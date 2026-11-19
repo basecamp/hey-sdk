@@ -29,7 +29,8 @@ public struct MessageContent: Sendable, Equatable {
     }
 }
 
-/// When a draft goes out, read in the identity's time zone. HEY schedules to the hour.
+/// When a draft goes out, read in UTC, as HEY's API reads every JSON request's times.
+/// HEY schedules to the hour.
 public struct DeliverySchedule: Sendable, Equatable {
     /// `YYYY-MM-DD`, "today" or "tomorrow".
     public var date: String

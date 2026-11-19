@@ -30,7 +30,8 @@ pub struct MessageContent {
     pub acting_sender_id: Option<i64>,
 }
 
-/// When a draft goes out, read in the identity's time zone. HEY schedules to the hour.
+/// When a draft goes out, read in UTC, as HEY's API reads every JSON request's times.
+/// HEY schedules to the hour.
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct DeliverySchedule {
     /// `YYYY-MM-DD`, "today" or "tomorrow".

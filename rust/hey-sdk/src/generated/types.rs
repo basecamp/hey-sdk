@@ -1670,12 +1670,12 @@ pub struct MessageEntryPayload {
     /// existing scheduled delivery.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub scheduled_delivery: Option<String>,
-    /// The delivery date: YYYY-MM-DD, "today" or "tomorrow", read in the identity's
-    /// time zone.
+    /// The delivery date: YYYY-MM-DD, "today" or "tomorrow", read in UTC, as HEY's
+    /// API reads every JSON request's times.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub scheduled_delivery_at_date: Option<String>,
-    /// The delivery hour, "0" through "23" — a string so that midnight survives
-    /// omitempty. HEY schedules to the hour.
+    /// The delivery hour, "0" through "23", in UTC like the date — a string so that
+    /// midnight survives omitempty. HEY schedules to the hour.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub scheduled_delivery_at_hour: Option<String>,
 }

@@ -1181,12 +1181,12 @@ type MessageEntryPayload struct {
 	// existing scheduled delivery.
 	ScheduledDelivery string `json:"scheduled_delivery,omitempty"`
 
-	// ScheduledDeliveryAtDate The delivery date: YYYY-MM-DD, "today" or "tomorrow", read in the identity's
-	// time zone.
+	// ScheduledDeliveryAtDate The delivery date: YYYY-MM-DD, "today" or "tomorrow", read in UTC, as HEY's
+	// API reads every JSON request's times.
 	ScheduledDeliveryAtDate string `json:"scheduled_delivery_at_date,omitempty"`
 
-	// ScheduledDeliveryAtHour The delivery hour, "0" through "23" — a string so that midnight survives
-	// omitempty. HEY schedules to the hour.
+	// ScheduledDeliveryAtHour The delivery hour, "0" through "23", in UTC like the date — a string so that
+	// midnight survives omitempty. HEY schedules to the hour.
 	ScheduledDeliveryAtHour string `json:"scheduled_delivery_at_hour,omitempty"`
 
 	// Status "drafted" saves the entry as a draft instead of delivering it. Any other value
