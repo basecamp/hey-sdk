@@ -141,9 +141,12 @@ impl From<Date> for civil::Date {
     }
 }
 
+/// `YYYY-MM-DD`, through the same `%Y-%m-%d` that [`FromStr`] reads, so every date prints as
+/// something it reads back. jiff's own `Display` writes a year before 0 with six digits
+/// (`-000001`), which `%Y` does not read.
 impl fmt::Display for Date {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fmt::Display::fmt(&self.0, f)
+        fmt::Display::fmt(&self.0.strftime("%Y-%m-%d"), f)
     }
 }
 

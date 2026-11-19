@@ -49,6 +49,25 @@ fn an_unpadded_date_is_read_and_printed_back_padded() {
     assert_eq!("2026-03-04", Date::parse("2026-3-4").unwrap().to_string());
 }
 
+/// Every date prints as something `Date::parse` and serde read back, the calendar's ends and
+/// the years before 0 included.
+#[test]
+fn every_date_reads_back_what_it_prints() {
+    for (year, month, day) in [
+        (-9999, 1, 1),
+        (-1, 1, 1),
+        (0, 1, 1),
+        (99, 12, 31),
+        (2026, 3, 4),
+        (9999, 12, 31),
+    ] {
+        let date = Date::new(year, month, day).unwrap();
+        assert_eq!(date, Date::parse(&date.to_string()).unwrap(), "{date}");
+        let json = serde_json::to_string(&date).unwrap();
+        assert_eq!(date, serde_json::from_str::<Date>(&json).unwrap(), "{json}");
+    }
+}
+
 #[test]
 fn dates_sort_and_compare_chronologically() {
     let earlier = Date::new(2026, 3, 4).unwrap();
