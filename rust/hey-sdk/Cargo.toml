@@ -39,9 +39,12 @@ tracing = ["dep:tracing"]
 async-trait = "0.1"
 base64 = "0.23"
 bytes = "1"
-chrono = { version = "0.4", default-features = false, features = ["clock", "serde", "std"] }
 futures-util = { version = "0.3", default-features = false, features = ["std"] }
 http = "1"
+# The model's dates and instants. `Date::today` reads this machine's zone, which takes the
+# system zone and a time zone database to name it from: the platform's on Unix and Android,
+# a bundled copy on Windows, where there is none.
+jiff = { version = "1.0.1", default-features = false, features = ["serde", "std", "tz-system", "tzdb-bundle-platform", "tzdb-concatenated", "tzdb-zoneinfo"] }
 # Active Storage checks an upload's integrity with a base64-encoded MD5, so the SDK has to
 # speak MD5 whatever anyone thinks of it as a hash.
 md5 = "0.8"

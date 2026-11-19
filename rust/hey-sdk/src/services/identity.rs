@@ -2,7 +2,7 @@
 
 use std::str::FromStr;
 
-use chrono::Weekday;
+use jiff::civil::Weekday;
 
 use crate::error::Error;
 use crate::generated::types::{
@@ -58,26 +58,26 @@ impl Identity<'_> {
 /// HEY takes the day as its lowercased English name.
 fn day_name(day: Weekday) -> &'static str {
     match day {
-        Weekday::Mon => "monday",
-        Weekday::Tue => "tuesday",
-        Weekday::Wed => "wednesday",
-        Weekday::Thu => "thursday",
-        Weekday::Fri => "friday",
-        Weekday::Sat => "saturday",
-        Weekday::Sun => "sunday",
+        Weekday::Monday => "monday",
+        Weekday::Tuesday => "tuesday",
+        Weekday::Wednesday => "wednesday",
+        Weekday::Thursday => "thursday",
+        Weekday::Friday => "friday",
+        Weekday::Saturday => "saturday",
+        Weekday::Sunday => "sunday",
     }
 }
 
 /// HEY answers the stored day as an index the way it serves the identity: 0 is Sunday.
 fn weekday_at(index: i32) -> Result<Weekday, Error> {
     match index {
-        0 => Ok(Weekday::Sun),
-        1 => Ok(Weekday::Mon),
-        2 => Ok(Weekday::Tue),
-        3 => Ok(Weekday::Wed),
-        4 => Ok(Weekday::Thu),
-        5 => Ok(Weekday::Fri),
-        6 => Ok(Weekday::Sat),
+        0 => Ok(Weekday::Sunday),
+        1 => Ok(Weekday::Monday),
+        2 => Ok(Weekday::Tuesday),
+        3 => Ok(Weekday::Wednesday),
+        4 => Ok(Weekday::Thursday),
+        5 => Ok(Weekday::Friday),
+        6 => Ok(Weekday::Saturday),
         _ => Err(Error::api(
             0,
             format!("first week day {index} is not a day of the week"),

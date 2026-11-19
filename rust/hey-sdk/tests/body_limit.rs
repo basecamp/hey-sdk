@@ -4,7 +4,6 @@ mod support;
 
 use std::time::{Duration, Instant};
 
-use chrono::Utc;
 use hey_sdk::{Client, Config, ErrorCode, StaticTokenProvider};
 use serde_json::json;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
@@ -164,8 +163,8 @@ async fn a_cap_of_zero_asks_for_the_default_rather_than_for_nothing() {
 #[tokio::test]
 async fn a_retry_after_date_is_waited_out_as_the_seconds_it_leaves() {
     let server = MockServer::start().await;
-    let in_two_seconds = (Utc::now() + chrono::Duration::seconds(2))
-        .format("%a, %d %b %Y %H:%M:%S GMT")
+    let in_two_seconds = (jiff::Timestamp::now() + jiff::SignedDuration::from_secs(2))
+        .strftime("%a, %d %b %Y %H:%M:%S GMT")
         .to_string();
     Mock::given(method("GET"))
         .and(path("/items"))

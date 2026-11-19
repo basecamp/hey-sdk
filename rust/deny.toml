@@ -12,13 +12,7 @@ all-features = true
 version = 2
 yanked = "deny"
 # Each entry: the advisory id, why it does not apply, and when to look again.
-ignore = [
-  # chrono is unmaintained (no vulnerability), and no release replaces it. It is in the
-  # crate's public API (`types::DateTime` is `chrono::DateTime<Utc>`, `Date` parses with
-  # chrono), so moving to jiff or time is a breaking 0.MINOR of its own, not a lockfile
-  # bump. Look again when a vulnerability advisory names chrono, or at that release.
-  { id = "RUSTSEC-2026-0543", reason = "unmaintained only; chrono is public API, replacing it is a breaking release of its own" },
-]
+ignore = []
 
 [licenses]
 version = 2

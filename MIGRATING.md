@@ -3,6 +3,51 @@
 Breaking changes to the SDKs' public surface, by release, with what to change. Wire behavior
 is not versioned here; the conformance fixtures under `conformance/tests/` hold that.
 
+## Rust: the first release after 0.35.1
+
+### Dates and times are jiff's, not chrono's
+
+chrono's maintainer has wound it down, and RustSec now lists it as unmaintained
+(RUSTSEC-2026-0543, recommending jiff or time). The crate moves to [jiff](https://docs.rs/jiff/1)
+1.x, whose 1.0 commits to a stable public API, and re-exports it as `hey_sdk::jiff`. The wire
+format does not change: instants still read RFC 3339 with any offset and write it in UTC with
+`Z`, and dates are still `YYYY-MM-DD`.
+
+| Was | Now |
+|---|---|
+| `DateTime` = `chrono::DateTime<Utc>` | `DateTime` = `jiff::Timestamp` |
+| `Date(pub chrono::NaiveDate)`, `From<NaiveDate>` | `Date(pub jiff::civil::Date)`, `From<jiff::civil::Date>` |
+| `<Date as FromStr>::Err` = `chrono::ParseError` | `jiff::Error` |
+| `Date::from_datetime_in<Tz: chrono::TimeZone>(&moment, &zone)` | `Date::from_datetime_in(&moment, &jiff::tz::TimeZone)` |
+| `Date::at_midnight_utc() -> DateTime` | `-> Option<DateTime>`, `None` only for 9999-12-31 |
+| `Date::weekday() -> chrono::Weekday` | `-> jiff::civil::Weekday` |
+| `Identity::set_first_week_day(chrono::Weekday) -> chrono::Weekday` | `jiff::civil::Weekday` both ways |
+| `Token::expires_at: Option<DateTime<Utc>>` | `Option<jiff::Timestamp>` |
+
+- `Utc::now()` is `jiff::Timestamp::now()`; `moment + TimeDelta::seconds(n)` is
+  `moment.checked_add(jiff::SignedDuration::from_secs(n))`; `later - earlier` is a
+  `jiff::SignedDuration`.
+- jiff's weekdays are spelled out: `Weekday::Mon` is `Weekday::Monday`, and so on. jiff's
+  `Weekday` has no `Display` or `FromStr`; match on it, or use `to_sunday_zero_offset()`.
+- A zone for `from_datetime_in` is `jiff::tz::TimeZone::get("America/Chicago")?`,
+  `TimeZone::system()`, or a fixed offset, `TimeZone::fixed(jiff::tz::offset(9))`.
+  `Date::today()` still answers in this machine's zone, and now finds it the way jiff does:
+  `TZ` if set, else the system's setting, read against the platform's time zone database (a
+  copy bundled on Windows).
+- `Date::new`, `Date::parse`, `add_days`, `add_months`, `add_years`, `days_since`, `year`,
+  `month`, `day` and `Display` keep their signatures and answers, and `Date::default()` is
+  still 1970-01-01.
+- A token stored as JSON by an earlier release reads back unchanged: both crates write
+  `expires_at` as RFC 3339 in UTC.
+- Instants differ from chrono's only at the edges: a leap second (`23:59:60`) reads as
+  `23:59:59`, and more than nine fractional digits is refused rather than truncated. jiff also
+  reads a few forms chrono refused, such as a time without seconds and an RFC 9557 zone suffix
+  (`[America/Chicago]`).
+- Code that keeps chrono at its own boundary converts there:
+  `jiff::Timestamp::new(dt.timestamp(), dt.timestamp_subsec_nanos() as i32)?` for an instant,
+  `Date::new(d.year(), d.month(), d.day())` for a date, or the `jiff-chrono-conversions` crate
+  for both directions.
+
 ## Rust, TypeScript, Kotlin and Swift: the first release after 0.34.0
 
 ### A workflow stage is read as JSON

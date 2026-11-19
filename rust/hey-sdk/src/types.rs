@@ -1,25 +1,31 @@
 use std::fmt;
 use std::str::FromStr;
 
-use chrono::{Datelike, NaiveDate, NaiveTime, TimeDelta, TimeZone, Utc, Weekday};
+use jiff::civil::{self, Weekday};
+use jiff::tz::{Offset, TimeZone};
+use jiff::{Span, Timestamp};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 use crate::error::Error;
 
-/// An instant HEY reports, always with its offset.
-pub type DateTime = chrono::DateTime<Utc>;
+/// An instant HEY reports, always with its offset: a [`jiff::Timestamp`], which reads RFC 3339
+/// with any offset and writes it with `Z`.
+pub type DateTime = Timestamp;
 
 /// A calendar date without a time zone, as HEY writes `starts_on` and `ends_on`.
 ///
 /// Two dates compare and sort chronologically, so use `<`, `>` and `==` rather than
 /// looking for `before` and `after`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
-pub struct Date(pub NaiveDate);
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct Date(pub civil::Date);
 
 impl Date {
     /// The date at `year`, `month` and `day`, or `None` when the calendar has no such day.
     pub fn new(year: i32, month: u32, day: u32) -> Option<Date> {
-        NaiveDate::from_ymd_opt(year, month, day).map(Date)
+        let year = i16::try_from(year).ok()?;
+        let month = i8::try_from(month).ok()?;
+        let day = i8::try_from(day).ok()?;
+        civil::Date::new(year, month, day).ok().map(Date)
     }
 
     /// Reads `YYYY-MM-DD`. An empty string is not a date and is rejected as one.
@@ -29,40 +35,41 @@ impl Date {
             .map_err(|error| Error::usage(format!("invalid date {source:?}: {error}")))
     }
 
-    /// Today where this machine is.
+    /// Today where this machine is, in the zone [`TimeZone::system`] finds.
     pub fn today() -> Date {
-        Date(chrono::Local::now().date_naive())
+        Date::from_datetime_in(&Timestamp::now(), &TimeZone::system())
     }
 
     /// Today in UTC.
     pub fn today_utc() -> Date {
-        Date(Utc::now().date_naive())
+        Date::from_datetime(&Timestamp::now())
     }
 
     /// The date an instant falls on in UTC.
     pub fn from_datetime(moment: &DateTime) -> Date {
-        Date(moment.date_naive())
+        Date(Offset::UTC.to_datetime(*moment).date())
     }
 
     /// The date an instant falls on in the given time zone, which is a different day from
-    /// [`Date::from_datetime`] either side of midnight.
-    pub fn from_datetime_in<Tz: TimeZone>(moment: &DateTime, zone: &Tz) -> Date {
-        Date(moment.with_timezone(zone).date_naive())
+    /// [`Date::from_datetime`] either side of midnight. A fixed offset is a zone too:
+    /// `TimeZone::fixed(jiff::tz::offset(9))`.
+    pub fn from_datetime_in(moment: &DateTime, zone: &TimeZone) -> Date {
+        Date(zone.to_datetime(*moment).date())
     }
 
     /// The calendar year.
     pub fn year(&self) -> i32 {
-        self.0.year()
+        i32::from(self.0.year())
     }
 
     /// The month, 1 through 12.
     pub fn month(&self) -> u32 {
-        self.0.month()
+        u32::from(self.0.month().unsigned_abs())
     }
 
     /// The day of the month, from 1.
     pub fn day(&self) -> u32 {
-        self.0.day()
+        u32::from(self.0.day().unsigned_abs())
     }
 
     /// The day of the week.
@@ -72,27 +79,31 @@ impl Date {
 
     /// Midnight UTC on this date.
     ///
-    /// UTC is the only zone this crate turns a date into an instant in: naming another
-    /// would mean a time zone database, and the crate carries none. To land on midnight
-    /// somewhere else, build the instant with a `chrono::TimeZone` of your own —
-    /// `zone.from_local_datetime(&date.0.and_time(NaiveTime::MIN))`.
-    pub fn at_midnight_utc(&self) -> DateTime {
-        self.0.and_time(NaiveTime::MIN).and_utc()
+    /// UTC is the only zone this crate turns a date into an instant in. To land on the start
+    /// of the day somewhere else, ask jiff, which accounts for a zone whose day does not
+    /// begin at midnight: `date.0.to_zoned_datetime(zone)?.start_of_day()?.timestamp()`.
+    ///
+    /// `None` only for the last day of the calendar, 9999-12-31, whose midnight UTC is past
+    /// the latest instant jiff holds.
+    pub fn at_midnight_utc(&self) -> Option<DateTime> {
+        Offset::UTC
+            .to_timestamp(self.0.to_datetime(civil::Time::midnight()))
+            .ok()
     }
 
     /// The date `days` later, or earlier for a negative count; `None` past the calendar's
     /// range.
     pub fn add_days(&self, days: i64) -> Option<Date> {
-        self.0
-            .checked_add_signed(TimeDelta::try_days(days)?)
-            .map(Date)
+        let span = Span::new().try_days(days).ok()?;
+        self.0.checked_add(span).ok().map(Date)
     }
 
     /// Adds months the way Go's `time.AddDate` does: the day of the month is kept and a
     /// month too short to hold it rolls over into the next one, so 31 January plus one
     /// month is 3 March in a common year rather than 28 February.
     pub fn add_months(&self, months: i32) -> Option<Date> {
-        let target = i64::from(self.0.year()) * 12 + i64::from(self.0.month0()) + i64::from(months);
+        let target =
+            i64::from(self.0.year()) * 12 + i64::from(self.0.month() - 1) + i64::from(months);
         let year = i32::try_from(target.div_euclid(12)).ok()?;
         let month = u32::try_from(target.rem_euclid(12)).ok()? + 1;
         Date::new(year, month, 1)?.add_days(i64::from(self.0.day() - 1))
@@ -106,33 +117,43 @@ impl Date {
 
     /// The whole days from `earlier` to this date, negative when this date came first.
     pub fn days_since(&self, earlier: Date) -> i64 {
-        self.0.signed_duration_since(earlier.0).num_days()
+        // Whole days between two civil dates: 24-hour days, as no zone is involved.
+        self.0.duration_since(earlier.0).as_hours() / 24
     }
 }
 
-impl From<NaiveDate> for Date {
-    fn from(date: NaiveDate) -> Date {
+/// 1970-01-01, as it was when the date was chrono's: jiff's own default is year zero.
+impl Default for Date {
+    fn default() -> Date {
+        Date(civil::date(1970, 1, 1))
+    }
+}
+
+impl From<civil::Date> for Date {
+    fn from(date: civil::Date) -> Date {
         Date(date)
     }
 }
 
-impl From<Date> for NaiveDate {
-    fn from(date: Date) -> NaiveDate {
+impl From<Date> for civil::Date {
+    fn from(date: Date) -> civil::Date {
         date.0
     }
 }
 
 impl fmt::Display for Date {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.0.format("%Y-%m-%d"))
+        fmt::Display::fmt(&self.0, f)
     }
 }
 
+/// `YYYY-MM-DD` and nothing else. jiff's own `civil::Date` parser is wider — it takes
+/// `20260304`, and a full datetime whose time it drops — so a date is read with `strptime`.
 impl FromStr for Date {
-    type Err = chrono::ParseError;
+    type Err = jiff::Error;
 
-    fn from_str(source: &str) -> Result<Date, chrono::ParseError> {
-        NaiveDate::parse_from_str(source, "%Y-%m-%d").map(Date)
+    fn from_str(source: &str) -> Result<Date, jiff::Error> {
+        civil::Date::strptime("%Y-%m-%d", source).map(Date)
     }
 }
 

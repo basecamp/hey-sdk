@@ -1,9 +1,14 @@
 //! `Date` and `DateTime` as HEY writes them and as the crate reads them back.
 
-use chrono::{FixedOffset, TimeZone, Utc, Weekday};
 use hey_sdk::types::optional_date;
 use hey_sdk::{Date, DateTime, ErrorCode};
+use jiff::civil::Weekday;
+use jiff::tz::{TimeZone, offset};
 use serde::{Deserialize, Serialize};
+
+fn utc(source: &str) -> DateTime {
+    source.parse().unwrap()
+}
 
 #[test]
 fn a_date_reads_and_prints_as_year_month_day() {
@@ -24,6 +29,8 @@ fn a_date_that_is_not_one_is_refused() {
         "2026-02-30",
         "04/03/2026",
         "2026-03-04T00:00:00Z",
+        "2026-03-04T00:00:00",
+        "20260304",
     ] {
         let error = Date::parse(source).unwrap_err();
         assert_eq!(ErrorCode::Usage, error.code(), "{source}");
@@ -31,6 +38,8 @@ fn a_date_that_is_not_one_is_refused() {
     }
 
     assert_eq!(None, Date::new(2026, 2, 30));
+    assert_eq!(None, Date::new(2026, 3, 300));
+    assert_eq!("1970-01-01", Date::default().to_string());
 }
 
 /// HEY always writes the day and the month zero-padded, and Go's `time.Parse` insists on
@@ -52,20 +61,20 @@ fn dates_sort_and_compare_chronologically() {
 
 #[test]
 fn a_date_comes_from_the_instant_it_falls_on() {
-    let just_before_midnight: DateTime = Utc.with_ymd_and_hms(2026, 3, 4, 23, 30, 0).unwrap();
+    let just_before_midnight: DateTime = utc("2026-03-04T23:30:00Z");
 
     assert_eq!(
         Date::new(2026, 3, 4).unwrap(),
         Date::from_datetime(&just_before_midnight)
     );
 
-    let tokyo = FixedOffset::east_opt(9 * 3600).unwrap();
+    let tokyo = TimeZone::fixed(offset(9));
     assert_eq!(
         Date::new(2026, 3, 5).unwrap(),
         Date::from_datetime_in(&just_before_midnight, &tokyo)
     );
 
-    let honolulu = FixedOffset::west_opt(10 * 3600).unwrap();
+    let honolulu = TimeZone::fixed(offset(-10));
     assert_eq!(
         Date::new(2026, 3, 4).unwrap(),
         Date::from_datetime_in(&just_before_midnight, &honolulu)
@@ -74,15 +83,22 @@ fn a_date_comes_from_the_instant_it_falls_on() {
 
 #[test]
 fn today_is_the_current_date_in_the_zone_that_was_asked_for() {
-    assert_eq!(Date(Utc::now().date_naive()), Date::today_utc());
-    assert_eq!(Date(chrono::Local::now().date_naive()), Date::today());
+    let now = jiff::Timestamp::now();
+    assert_eq!(
+        Date(now.to_zoned_datetime(TimeZone::UTC).date()),
+        Date::today_utc()
+    );
+    assert_eq!(
+        Date(now.to_zoned_datetime(TimeZone::system()).date()),
+        Date::today()
+    );
 }
 
 #[test]
 fn a_date_becomes_the_instant_it_starts_at() {
-    let midnight = Date::new(2026, 3, 4).unwrap().at_midnight_utc();
+    let midnight = Date::new(2026, 3, 4).unwrap().at_midnight_utc().unwrap();
 
-    assert_eq!(Utc.with_ymd_and_hms(2026, 3, 4, 0, 0, 0).unwrap(), midnight);
+    assert_eq!(utc("2026-03-04T00:00:00Z"), midnight);
     assert_eq!(
         Date::new(2026, 3, 4).unwrap(),
         Date::from_datetime(&midnight)
@@ -190,8 +206,8 @@ fn days_since_counts_forwards_and_backwards() {
 
 #[test]
 fn a_date_knows_its_weekday() {
-    assert_eq!(Weekday::Wed, Date::new(2026, 3, 4).unwrap().weekday());
-    assert_eq!(Weekday::Sun, Date::new(2026, 3, 8).unwrap().weekday());
+    assert_eq!(Weekday::Wednesday, Date::new(2026, 3, 4).unwrap().weekday());
+    assert_eq!(Weekday::Sunday, Date::new(2026, 3, 8).unwrap().weekday());
 }
 
 #[test]
@@ -267,14 +283,8 @@ fn a_generated_moment_reads_the_offset_hey_wrote_it_in() {
     )
     .unwrap();
 
-    assert_eq!(
-        Utc.with_ymd_and_hms(2026, 3, 4, 6, 0, 0).unwrap(),
-        period.starts_at
-    );
-    assert_eq!(
-        Utc.with_ymd_and_hms(2026, 3, 5, 6, 0, 0).unwrap(),
-        period.ends_at
-    );
+    assert_eq!(utc("2026-03-04T06:00:00Z"), period.starts_at);
+    assert_eq!(utc("2026-03-05T06:00:00Z"), period.ends_at);
 }
 
 /// A moment has no zero value worth having: the epoch is a wrong answer, not an empty one,

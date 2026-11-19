@@ -7,7 +7,7 @@
 use std::borrow::Cow;
 
 use bytes::Bytes;
-use chrono::Utc;
+use jiff::Timestamp;
 
 use crate::error::Error;
 use crate::generated::routes;
@@ -70,7 +70,7 @@ impl TimeTracks<'_> {
     ) -> Result<(), Error> {
         let body = UpdateTimeTrackRequestContent {
             calendar_time_track: UpdateTimeTrackPayload {
-                ends_at: Some(Utc::now()),
+                ends_at: Some(Timestamp::now()),
                 // An empty title names no category, and goes out as no category at all
                 // rather than as a category called "".
                 category_title: category_title
