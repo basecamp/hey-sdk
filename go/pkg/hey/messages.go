@@ -201,8 +201,9 @@ type DraftContent struct {
 	Schedule *DraftSchedule
 }
 
-// DraftSchedule names a delivery time to the hour, read in the identity's time zone.
-// HEY schedules to the hour; there are no minutes.
+// DraftSchedule names a delivery time to the hour, read in UTC: HEY's API reads
+// every JSON request's times in UTC, whatever zone the identity keeps. HEY schedules
+// to the hour; there are no minutes.
 type DraftSchedule struct {
 	// Date is YYYY-MM-DD, "today" or "tomorrow".
 	Date string

@@ -21,14 +21,14 @@ data class MessageEntryPayload(
     @SerialName("scheduled_delivery")
     val scheduledDelivery: String? = null,
     /**
-     * The delivery date: YYYY-MM-DD, "today" or "tomorrow", read in the identity's
-     * time zone.
+     * The delivery date: YYYY-MM-DD, "today" or "tomorrow", read in UTC, as HEY's
+     * API reads every JSON request's times.
      */
     @SerialName("scheduled_delivery_at_date")
     val scheduledDeliveryAtDate: String? = null,
     /**
-     * The delivery hour, "0" through "23" — a string so that midnight survives
-     * omitempty. HEY schedules to the hour.
+     * The delivery hour, "0" through "23", in UTC like the date — a string so that
+     * midnight survives omitempty. HEY schedules to the hour.
      */
     @SerialName("scheduled_delivery_at_hour")
     val scheduledDeliveryAtHour: String? = null,
