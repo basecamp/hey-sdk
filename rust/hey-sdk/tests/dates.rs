@@ -124,6 +124,19 @@ fn a_date_becomes_the_instant_it_starts_at() {
     );
 }
 
+/// Midnight UTC is outside jiff's instants only at the calendar's ends.
+#[test]
+fn only_the_calendar_ends_have_no_midnight_utc() {
+    for (year, month, day) in [(-9999, 1, 1), (-9999, 1, 2), (9999, 12, 31)] {
+        let date = Date::new(year, month, day).unwrap();
+        assert_eq!(None, date.at_midnight_utc(), "{date}");
+    }
+    for (year, month, day) in [(-9999, 1, 3), (9999, 12, 30)] {
+        let date = Date::new(year, month, day).unwrap();
+        assert!(date.at_midnight_utc().is_some(), "{date}");
+    }
+}
+
 #[test]
 fn adding_days_crosses_months_and_years() {
     let date = Date::new(2026, 3, 4).unwrap();

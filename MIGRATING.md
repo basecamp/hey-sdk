@@ -19,7 +19,7 @@ format does not change: instants still read RFC 3339 with any offset and write i
 | `Date(pub chrono::NaiveDate)`, `From<NaiveDate>` | `Date(pub jiff::civil::Date)`, `From<jiff::civil::Date>` |
 | `<Date as FromStr>::Err` = `chrono::ParseError` | `jiff::Error` |
 | `Date::from_datetime_in<Tz: chrono::TimeZone>(&moment, &zone)` | `Date::from_datetime_in(&moment, &jiff::tz::TimeZone)` |
-| `Date::at_midnight_utc() -> DateTime` | `-> Option<DateTime>`, `None` only for 9999-12-31 |
+| `Date::at_midnight_utc() -> DateTime` | `-> Option<DateTime>`, `None` only for -9999-01-01, -9999-01-02 and 9999-12-31 |
 | `Date::weekday() -> chrono::Weekday` | `-> jiff::civil::Weekday` |
 | `Identity::set_first_week_day(chrono::Weekday) -> chrono::Weekday` | `jiff::civil::Weekday` both ways |
 | `Token::expires_at: Option<DateTime<Utc>>` | `Option<jiff::Timestamp>` |

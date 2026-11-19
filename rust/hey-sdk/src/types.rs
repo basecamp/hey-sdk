@@ -83,8 +83,8 @@ impl Date {
     /// of the day somewhere else, ask jiff, which accounts for a zone whose day does not
     /// begin at midnight: `date.0.to_zoned_datetime(zone)?.start_of_day()?.timestamp()`.
     ///
-    /// `None` only for the last day of the calendar, 9999-12-31, whose midnight UTC is past
-    /// the latest instant jiff holds.
+    /// `None` only at the calendar's ends, whose midnight UTC lies outside the instants jiff
+    /// holds: -9999-01-01, -9999-01-02 and 9999-12-31.
     pub fn at_midnight_utc(&self) -> Option<DateTime> {
         Offset::UTC
             .to_timestamp(self.0.to_datetime(civil::Time::midnight()))
