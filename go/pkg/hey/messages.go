@@ -189,10 +189,11 @@ type DraftContent struct {
 	BCC     []string
 
 	// ActingSenderID is the sender the draft is saved — and ultimately delivered —
-	// as. Zero means the account's default sender. A caller who chose an alternate
-	// identity (the reply prefill's Sender.Id) carries it on every revision: HEY
-	// revises a draft from the whole of what is sent, so leaving it zero on an
-	// update or send hands the draft back to the default identity.
+	// as. Zero means the account's default sender. HEY revises a draft from the
+	// whole of what is sent, so an update or send carries the identity the draft
+	// was saved as, or a zero here hands it to the default identity: build the
+	// revision with DraftContentFromEdit, which reads that identity from the edit
+	// state (DraftSentAs).
 	ActingSenderID int64
 
 	// Schedule delivers the draft at an hour of a day. Nil means no scheduled
@@ -287,7 +288,9 @@ func (s *MessagesService) CreateDraft(ctx context.Context, draft DraftContent) (
 // UpdateDraft revises a draft in place from the whole of draft: the subject, the body
 // and the recipients are replaced with what is sent (empty recipients remove them),
 // and the scheduled delivery is rewritten too — a nil Schedule clears one already set.
-// A trashed draft is silently restored by the revision.
+// A trashed draft is silently restored by the revision. Start draft from
+// DraftContentFromEdit(GetEdit(…)) so what isn't being changed, the sending identity
+// included, is sent back as it was.
 func (s *MessagesService) UpdateDraft(ctx context.Context, entryID int64, draft DraftContent) error {
 	op := OperationInfo{
 		Service: "Messages", Operation: "UpdateMessage",
@@ -317,7 +320,8 @@ func (s *MessagesService) UpdateDraft(ctx context.Context, entryID int64, draft 
 
 // SendDraft delivers a draft through HEY's undo-delay window. The revision and the
 // delivery are one request, so the draft's final state rides along: subject, body and
-// recipients are replaced with what is sent, exactly as UpdateDraft replaces them.
+// recipients are replaced with what is sent, exactly as UpdateDraft replaces them,
+// so draft starts from DraftContentFromEdit as an update's does.
 // Delivery needs somebody to deliver to, so at least one recipient is required.
 //
 // The request is never retried, despite the PUT: it triggers a delivery, and a retry
