@@ -511,6 +511,10 @@
       "operation": "RestoreTopic"
     },
     {
+      "name": "UndoTopicSend uses /topics/{topicId}/undo_send.json path",
+      "operation": "UndoTopicSend"
+    },
+    {
       "name": "MarkTopicHam uses /topics/{topicId}/status/ham.json path",
       "operation": "MarkTopicHam"
     },
@@ -529,6 +533,10 @@
     {
       "name": "MarkEntrySpam uses /entries/{entryId}/status/spam.json path",
       "operation": "MarkEntrySpam"
+    },
+    {
+      "name": "RestoreEntry uses /entries/{entryId}/status/active.json path",
+      "operation": "RestoreEntry"
     },
     {
       "name": "NewEntryForward uses /entries/{entryId}/forwards/new.json path",
@@ -955,6 +963,32 @@
     {
       "name": "Topic rename stops at its two-attempt retry limit",
       "operation": "RenameTopic"
+    }
+  ],
+  "undo-restore.json": [
+    {
+      "name": "Undo Send answers the reply HEY called back and does not follow the redirect",
+      "operation": "UndoSend"
+    },
+    {
+      "name": "Undo Send answers the message HEY called back on a thread of its own",
+      "operation": "UndoSend"
+    },
+    {
+      "name": "Undo Send with nothing left to call back is an error with status 400, asked once",
+      "operation": "UndoSend"
+    },
+    {
+      "name": "Undo Send is not sent again after a 503 under a client allowing retries",
+      "operation": "UndoSend"
+    },
+    {
+      "name": "UndoTopicSend is not sent again by the generated operation",
+      "operation": "UndoTopicSend"
+    },
+    {
+      "name": "RestoreEntry is sent again after a 503 and stops at its two attempts",
+      "operation": "RestoreEntry"
     }
   ]
 }

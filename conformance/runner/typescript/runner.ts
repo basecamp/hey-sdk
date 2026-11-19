@@ -45,7 +45,7 @@ const inventory: Record<string, { name: string; operation: string }[]> =
   );
 assert.equal(
   exclusions.length,
-  5,
+  9,
   "Applicability boundary changed; review required",
 );
 const schemas = spec.components.schemas;
@@ -61,6 +61,7 @@ const aliases: Record<string, OperationName> = {
   UpdateDraft: "UpdateMessage",
   SendDraft: "UpdateMessage",
   CreateReplyDraft: "CreateReply",
+  UndoSend: "UndoTopicSend",
 };
 function resolve(s: any): any {
   return s?.$ref ? schemas[s.$ref.split("/").at(-1)] : s;

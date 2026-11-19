@@ -1506,6 +1506,9 @@ func executeOperation(client *generated.Client, ctx context.Context, tc TestCase
 	case "RestoreTopic":
 		topicId := getInt64Param(tc.PathParams, "topicId")
 		return client.RestoreTopic(ctx, topicId)
+	case "UndoTopicSend":
+		topicId := getInt64Param(tc.PathParams, "topicId")
+		return client.UndoTopicSend(ctx, topicId)
 	case "MarkTopicHam":
 		topicId := getInt64Param(tc.PathParams, "topicId")
 		return client.MarkTopicHam(ctx, topicId)
@@ -1522,6 +1525,9 @@ func executeOperation(client *generated.Client, ctx context.Context, tc TestCase
 	case "MarkEntrySpam":
 		entryId := getInt64Param(tc.PathParams, "entryId")
 		return client.MarkEntrySpam(ctx, entryId)
+	case "RestoreEntry":
+		entryId := getInt64Param(tc.PathParams, "entryId")
+		return client.RestoreEntry(ctx, entryId)
 	case "NewEntryForward":
 		entryId := getInt64Param(tc.PathParams, "entryId")
 		return client.NewEntryForward(ctx, entryId)
@@ -1726,6 +1732,19 @@ func executeHEYOperation(client *hey.Client, ctx context.Context, tc TestCase) (
 	switch tc.Operation {
 	case "RenameTopic":
 		return nil, client.Topics().Rename(ctx, getInt64Param(tc.PathParams, "topicId"), getStringParam(tc.RequestBody, "name"))
+	case "UndoSend":
+		// The entry HEY called back, as the other runners answer it: null when the redirect
+		// named none, which Go's wrapper answers as 0.
+		entryID, err := client.Topics().UndoSend(ctx, getInt64Param(tc.PathParams, "topicId"))
+		if err != nil {
+			return nil, err
+		}
+		if entryID == 0 {
+			return map[string]any{"entry_id": nil}, nil
+		}
+		return map[string]any{"entry_id": entryID}, nil
+	case "RestoreEntry":
+		return nil, client.Entries().Restore(ctx, getInt64Param(tc.PathParams, "entryId"))
 	case "ListBoxes":
 		return client.Boxes().List(ctx)
 	case "GetCollection":

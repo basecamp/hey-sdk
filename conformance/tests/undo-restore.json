@@ -1,0 +1,120 @@
+[
+  {
+    "name": "Undo Send answers the reply HEY called back and does not follow the redirect",
+    "description": "HEY answers an undo with a 303 to the draft, and that Location is the only place it names the entry it called back: the caller's last delayed entry on the topic, which need not be the one meant. The convenience takes the redirect as the answer and reads the entry out of it; following it would read the thread and lose the entry.",
+    "operation": "UndoSend",
+    "method": "POST",
+    "path": "/topics/{topicId}/undo_send.json",
+    "pathParams": { "topicId": 9 },
+    "configOverrides": { "clientLayer": "hey", "maxRetries": 3 },
+    "mockResponses": [
+      { "status": 303, "headers": { "Location": "/topics/9?expanded_draft=77" } },
+      { "status": 200, "body": {} }
+    ],
+    "assertions": [
+      { "type": "requestMethod", "expected": "POST" },
+      { "type": "requestPath", "expected": "/topics/9/undo_send.json" },
+      { "type": "lastRequestHeader", "path": "Accept", "expected": "application/json" },
+      { "type": "requestCount", "expected": 1 },
+      { "type": "noError" },
+      { "type": "responseBody", "path": "entry_id", "expected": 77 }
+    ],
+    "tags": ["topics", "undo-send", "redirect", "sdk-layer"]
+  },
+  {
+    "name": "Undo Send answers the message HEY called back on a thread of its own",
+    "description": "A new message is called back to its own draft, /messages/{entryId}/edit, rather than to a thread with the draft expanded. The entry is read out of either shape, and the redirect is not followed.",
+    "operation": "UndoSend",
+    "method": "POST",
+    "path": "/topics/{topicId}/undo_send.json",
+    "pathParams": { "topicId": 9 },
+    "configOverrides": { "clientLayer": "hey" },
+    "mockResponses": [
+      { "status": 303, "headers": { "Location": "https://app.hey.com/messages/77/edit" } },
+      { "status": 200, "body": {} }
+    ],
+    "assertions": [
+      { "type": "requestCount", "expected": 1 },
+      { "type": "noError" },
+      { "type": "responseBody", "path": "entry_id", "expected": 77 }
+    ],
+    "tags": ["topics", "undo-send", "redirect", "sdk-layer"]
+  },
+  {
+    "name": "Undo Send with nothing left to call back is an error with status 400, asked once",
+    "description": "Once the delay has run out and the message has gone, or when none was held, HEY answers 400 and changes nothing. That is an error the caller tells from an undo by its status, and it is not asked again whatever the client's retry ceiling.",
+    "operation": "UndoSend",
+    "method": "POST",
+    "path": "/topics/{topicId}/undo_send.json",
+    "pathParams": { "topicId": 9 },
+    "configOverrides": { "clientLayer": "hey", "maxRetries": 3 },
+    "mockResponses": [
+      { "status": 400, "headers": { "X-Request-Id": "req-undo-too-late" } },
+      { "status": 303, "headers": { "Location": "/topics/9?expanded_draft=77" } }
+    ],
+    "assertions": [
+      { "type": "requestCount", "expected": 1 },
+      { "type": "statusCode", "expected": 400 },
+      { "type": "errorField", "path": "httpStatus", "expected": 400 },
+      { "type": "errorField", "path": "retryable", "expected": false },
+      { "type": "errorField", "path": "requestId", "expected": "req-undo-too-late" }
+    ],
+    "tags": ["topics", "undo-send", "errors", "sdk-layer"]
+  },
+  {
+    "name": "Undo Send is not sent again after a 503 under a client allowing retries",
+    "description": "A second undo calls back the next delayed entry on the topic, so an undo that may have gone through is never repeated: the operation's policy is one attempt, and a client's retry ceiling cannot raise it.",
+    "operation": "UndoSend",
+    "method": "POST",
+    "path": "/topics/{topicId}/undo_send.json",
+    "pathParams": { "topicId": 9 },
+    "configOverrides": { "clientLayer": "hey", "maxRetries": 3 },
+    "mockResponses": [
+      { "status": 503 },
+      { "status": 303, "headers": { "Location": "/topics/9?expanded_draft=77" } }
+    ],
+    "assertions": [
+      { "type": "requestCount", "expected": 1 },
+      { "type": "statusCode", "expected": 503 }
+    ],
+    "tags": ["topics", "undo-send", "retry", "max-attempts", "sdk-layer"]
+  },
+  {
+    "name": "UndoTopicSend is not sent again by the generated operation",
+    "description": "The one-attempt policy belongs to the operation, so the generated method keeps it as the convenience does.",
+    "operation": "UndoTopicSend",
+    "method": "POST",
+    "path": "/topics/{topicId}/undo_send.json",
+    "pathParams": { "topicId": 9 },
+    "mockResponses": [
+      { "status": 503 },
+      { "status": 204 }
+    ],
+    "assertions": [
+      { "type": "requestCount", "expected": 1 },
+      { "type": "statusCode", "expected": 503 }
+    ],
+    "tags": ["topics", "undo-send", "retry", "max-attempts"]
+  },
+  {
+    "name": "RestoreEntry is sent again after a 503 and stops at its two attempts",
+    "description": "Restoring an entry that is not in the trash leaves it as it is, so the restore is safe to repeat: a 503 is answered with one resend, the operation's two attempts in all, under a client that would allow more.",
+    "operation": "RestoreEntry",
+    "method": "PUT",
+    "path": "/entries/{entryId}/status/active.json",
+    "pathParams": { "entryId": 77 },
+    "configOverrides": { "clientLayer": "hey", "maxRetries": 3 },
+    "mockResponses": [
+      { "status": 503 },
+      { "status": 503 },
+      { "status": 303, "headers": { "Location": "/topics/9" } }
+    ],
+    "assertions": [
+      { "type": "requestMethod", "expected": "PUT" },
+      { "type": "requestPath", "expected": "/entries/77/status/active.json" },
+      { "type": "requestCount", "expected": 2 },
+      { "type": "statusCode", "expected": 503 }
+    ],
+    "tags": ["entries", "retry", "idempotency", "max-attempts"]
+  }
+]

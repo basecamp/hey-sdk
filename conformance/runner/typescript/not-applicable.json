@@ -28,5 +28,29 @@
     "name": "A write answered through a redirect whose hop is refused is refreshed but not sent again",
     "operation": "CreateDraft",
     "reason": "The TypeScript client sends every request with redirect: \"manual\" and follows no hop, so a write's 302 is its answer and there is no hop to be refused."
+  },
+  {
+    "file": "paths.json",
+    "name": "UndoTopicSend uses /topics/{topicId}/undo_send.json path",
+    "operation": "UndoTopicSend",
+    "reason": "HEY answers an undo with a 303 and no body. The TypeScript client sends every request with redirect: \"manual\" and follows no hop, so the 303 arrives as a HeyError whose httpStatus is 303 rather than as a followed read of the thread."
+  },
+  {
+    "file": "paths.json",
+    "name": "RestoreEntry uses /entries/{entryId}/status/active.json path",
+    "operation": "RestoreEntry",
+    "reason": "HEY answers a restore with a 303 and no body. The TypeScript client sends every request with redirect: \"manual\" and follows no hop, so the 303 arrives as a HeyError whose httpStatus is 303 rather than as a followed read of the thread."
+  },
+  {
+    "file": "undo-restore.json",
+    "name": "Undo Send answers the reply HEY called back and does not follow the redirect",
+    "operation": "UndoSend",
+    "reason": "Go, Rust, Kotlin and Swift hand-write a convenience that takes the undo's 303 as its answer and reads the entry out of the Location. The TypeScript surface is generated only: its undoTopicSend surfaces the 303 as a HeyError whose httpStatus is 303, and names no entry."
+  },
+  {
+    "file": "undo-restore.json",
+    "name": "Undo Send answers the message HEY called back on a thread of its own",
+    "operation": "UndoSend",
+    "reason": "Go, Rust, Kotlin and Swift hand-write a convenience that takes the undo's 303 as its answer and reads the entry out of the Location. The TypeScript surface is generated only: its undoTopicSend surfaces the 303 as a HeyError whose httpStatus is 303, and names no entry."
   }
 ]

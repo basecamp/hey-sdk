@@ -141,6 +141,10 @@ the error, not permission to replay a mutation. Only model-declared safe operati
 retry 429/503 with Retry-After/exponential delay. Explicit `natural: false` overrides
 HTTP method inference (notably `UpdateMessage` PUT). Ambiguous network errors are not
 replayed. There are no invented idempotency headers. Redirects are surfaced as errors.
+HEY answers two writes with a redirect when they go through, `undoTopicSend` and
+`restoreEntry`: for those a `HeyError` whose `httpStatus` is 303 is the success, and the
+undo's 400 is nothing left to call back. The error carries no `Location`, so it does not
+say which entry an undo called back.
 
 HTTPS is mandatory except localhost HTTP. Default timeout is 30 seconds per operation,
 including retries; pass `{ signal }` for cancellation. JSON/error bodies are capped at
@@ -174,6 +178,7 @@ npm run smoke             # pack, isolated offline install, ESM + consumer typec
 The generator adapts Basecamp's openapi-typescript/metadata/service pipeline, not its
 account-prefix stripping, service definitions, traits or operation maps. Generated
 files are committed; never edit them directly. Conformance uses real HTTP loopback
-requests and fails closed on unknown fixtures/assertions. Four named convenience-layer
-fixtures are explicitly not applicable; the generated HTML operation remains covered as a
-raw typed response. See the runner manifest for the exact applicability boundary.
+requests and fails closed on unknown fixtures/assertions. Nine named fixtures are
+explicitly not applicable: the conveniences the other SDKs hand-write, and the cases
+where a redirect is followed or taken for an answer. See the runner manifest for the exact
+applicability boundary.

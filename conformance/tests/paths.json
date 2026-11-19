@@ -2158,6 +2158,50 @@
     ]
   },
   {
+    "name": "UndoTopicSend uses /topics/{topicId}/undo_send.json path",
+    "description": "Verifies that UndoTopicSend constructs the URL path /topics/{topicId}/undo_send.json. HEY answers an undo with a 303 to the draft and no body, and a generated operation follows it: the read of the thread is the second request.",
+    "operation": "UndoTopicSend",
+    "method": "POST",
+    "path": "/topics/{topicId}/undo_send.json",
+    "pathParams": {
+      "topicId": 456
+    },
+    "mockResponses": [
+      {
+        "status": 303,
+        "headers": {
+          "Location": "/topics/456?expanded_draft=5512"
+        }
+      },
+      {
+        "status": 200,
+        "body": {}
+      }
+    ],
+    "assertions": [
+      {
+        "type": "requestPath",
+        "expected": "/topics/456/undo_send.json"
+      },
+      {
+        "type": "requestMethod",
+        "expected": "POST"
+      },
+      {
+        "type": "requestCount",
+        "expected": 2
+      },
+      {
+        "type": "noError"
+      }
+    ],
+    "tags": [
+      "path",
+      "topics",
+      "redirect"
+    ]
+  },
+  {
     "name": "MarkTopicHam uses /topics/{topicId}/status/ham.json path",
     "description": "Verifies that MarkTopicHam constructs the URL path /topics/{topicId}/status/ham.json",
     "operation": "MarkTopicHam",
@@ -2307,6 +2351,50 @@
     "tags": [
       "path",
       "entries"
+    ]
+  },
+  {
+    "name": "RestoreEntry uses /entries/{entryId}/status/active.json path",
+    "description": "Verifies that RestoreEntry constructs the URL path /entries/{entryId}/status/active.json. HEY answers a restore with a 303 to the entry's topic and no body, and a generated operation follows it: the read of the thread is the second request.",
+    "operation": "RestoreEntry",
+    "method": "PUT",
+    "path": "/entries/{entryId}/status/active.json",
+    "pathParams": {
+      "entryId": 5512
+    },
+    "mockResponses": [
+      {
+        "status": 303,
+        "headers": {
+          "Location": "/topics/456"
+        }
+      },
+      {
+        "status": 200,
+        "body": {}
+      }
+    ],
+    "assertions": [
+      {
+        "type": "requestPath",
+        "expected": "/entries/5512/status/active.json"
+      },
+      {
+        "type": "requestMethod",
+        "expected": "PUT"
+      },
+      {
+        "type": "requestCount",
+        "expected": 2
+      },
+      {
+        "type": "noError"
+      }
+    ],
+    "tags": [
+      "path",
+      "entries",
+      "redirect"
     ]
   },
   {
