@@ -2,16 +2,19 @@
 
 mod support;
 
+use std::sync::Arc;
+
 use hey_sdk::ErrorCode;
 use hey_sdk::models::{
     CreateTopicCommentRequestContent, RenameTopicRequestContent, TopicCommentPayload,
     TopicNamePayload,
 };
+use hey_sdk::services::undone_entry_id;
 use serde_json::{Value, json};
 use wiremock::matchers::{method, path, query_param, query_param_is_missing};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
-use support::client;
+use support::{Operations, Outcomes, builder, client};
 
 #[tokio::test]
 async fn rename_sends_the_name_including_an_empty_one_and_needs_no_read_back() {
@@ -177,6 +180,166 @@ async fn a_refusal_that_is_not_a_redirect_stays_a_failure() {
 
     assert_eq!(error.code(), ErrorCode::Api);
     assert_eq!(error.http_status(), Some(406));
+}
+
+/// HEY answers an undo with a 303 to the draft. The redirect is the answer: it names the
+/// entry called back, and following it would only read a page.
+#[tokio::test]
+async fn an_undo_answers_the_entry_hey_called_back_without_following_the_redirect() {
+    for location in [
+        "/messages/77/edit",
+        "/topics/9?expanded_draft=77",
+        "https://app.hey.com/messages/77/edit?native_undo=true",
+    ] {
+        let server = MockServer::start().await;
+        Mock::given(method("POST"))
+            .and(path("/topics/9/undo_send.json"))
+            .respond_with(ResponseTemplate::new(303).insert_header("Location", location))
+            .mount(&server)
+            .await;
+        let operations = Arc::new(Operations::default());
+        let client = builder(&server)
+            .hooks(operations.clone())
+            .max_retries(3)
+            .build()
+            .unwrap();
+
+        let entry_id = client.topics().undo_topic_send(9).await.unwrap();
+
+        assert_eq!(entry_id, Some(77), "{location}");
+        let requests = server.received_requests().await.unwrap();
+        assert_eq!(
+            requests.len(),
+            1,
+            "the redirect to {location} is the answer, not followed"
+        );
+        assert_eq!(requests[0].method.as_str(), "POST");
+        assert_eq!(requests[0].url.path(), "/topics/9/undo_send.json");
+        assert_eq!(requests[0].headers["accept"], "application/json");
+        assert_eq!(
+            requests[0].headers["authorization"],
+            format!("Bearer {}", support::TOKEN)
+        );
+        assert!(requests[0].body.is_empty());
+        assert_eq!(operations.started(), ["Topics.UndoTopicSend"]);
+    }
+}
+
+/// A redirect that names no entry is still an undo: HEY acted. The caller learns only that
+/// it can't say which entry it was.
+#[tokio::test]
+async fn an_undo_whose_redirect_names_no_entry_answers_none() {
+    let server = MockServer::start().await;
+    Mock::given(method("POST"))
+        .and(path("/topics/9/undo_send.json"))
+        .respond_with(ResponseTemplate::new(303).insert_header("Location", "/somewhere/else"))
+        .mount(&server)
+        .await;
+
+    let entry_id = client(&server).topics().undo_topic_send(9).await.unwrap();
+
+    assert_eq!(entry_id, None);
+    assert_eq!(server.received_requests().await.unwrap().len(), 1);
+}
+
+/// Once the delay has run out HEY answers 400: too late, told apart from an undo by its
+/// status, and never asked twice. The hooks hear the operation end with that 400.
+#[tokio::test]
+async fn an_undo_with_nothing_left_to_call_back_is_refused_with_heys_400() {
+    let server = MockServer::start().await;
+    Mock::given(method("POST"))
+        .and(path("/topics/9/undo_send.json"))
+        .respond_with(ResponseTemplate::new(400).insert_header("X-Request-Id", "req-undo-400"))
+        .mount(&server)
+        .await;
+    let outcomes = Arc::new(Outcomes::default());
+    let client = builder(&server)
+        .hooks(outcomes.clone())
+        .max_retries(3)
+        .build()
+        .unwrap();
+
+    let error = client.topics().undo_topic_send(9).await.unwrap_err();
+
+    assert_eq!(error.code(), ErrorCode::Api);
+    assert_eq!(error.http_status(), Some(400));
+    assert_eq!(
+        error.message(),
+        "nothing to undo: the message was already sent, or none was held"
+    );
+    assert_eq!(error.request_id(), Some("req-undo-400"));
+    assert!(!error.is_retryable());
+    assert_eq!(server.received_requests().await.unwrap().len(), 1);
+    assert_eq!(outcomes.statuses(), [Some(400)]);
+}
+
+/// A second undo calls back the next delayed entry, so a failure is never sent again,
+/// whatever the client's retry budget.
+#[tokio::test]
+async fn an_undo_is_not_sent_again_after_a_failure() {
+    let server = MockServer::start().await;
+    Mock::given(method("POST"))
+        .and(path("/topics/9/undo_send.json"))
+        .respond_with(ResponseTemplate::new(503))
+        .mount(&server)
+        .await;
+    let client = builder(&server).max_retries(3).build().unwrap();
+
+    let error = client.topics().undo_topic_send(9).await.unwrap_err();
+
+    assert_eq!(error.http_status(), Some(503));
+    assert_eq!(server.received_requests().await.unwrap().len(), 1);
+}
+
+/// Any other refusal is HEY's own, as it reports it.
+#[tokio::test]
+async fn an_undo_on_a_topic_out_of_reach_stays_not_found() {
+    let server = MockServer::start().await;
+    Mock::given(method("POST"))
+        .and(path("/topics/9/undo_send.json"))
+        .respond_with(ResponseTemplate::new(404))
+        .mount(&server)
+        .await;
+
+    let error = client(&server)
+        .topics()
+        .undo_topic_send(9)
+        .await
+        .unwrap_err();
+
+    assert_eq!(error.code(), ErrorCode::NotFound);
+}
+
+#[test]
+fn an_undo_redirect_names_the_entry_called_back() {
+    for location in [
+        "/messages/77/edit",
+        "https://app.hey.com/messages/77/edit",
+        "https://app.hey.com/messages/77/edit?native_undo=true&notice=x",
+        "/topics/9?expanded_draft=77",
+        "https://app.hey.com/topics/9?expanded_draft=77#__entry_77",
+    ] {
+        assert_eq!(undone_entry_id(location), Some(77), "{location}");
+    }
+}
+
+#[test]
+fn any_other_location_names_no_entry() {
+    for location in [
+        "",
+        "/topics/9", // where HEY's pages send a browser with nothing to undo
+        "/topics/9?expanded_draft=",
+        "/topics/9?expanded_draft=abc",
+        "/topics/9?expanded_draft=-4",
+        "/messages/77", // the message, not its draft
+        "/messages/abc/edit",
+        "/messages/0/edit",
+        "/entries/77/edit",
+        "/topics/9/entries?expanded_draft=77",
+        "not a url at all: %",
+    ] {
+        assert_eq!(undone_entry_id(location), None, "{location}");
+    }
 }
 
 #[tokio::test]

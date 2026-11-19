@@ -48,6 +48,7 @@ Unqualified Rust names are conveniences; `gen` marks a generated method.
 | Topics.GetSent / GetSpam / GetTrash / GetEverything | same ids | gen → `Page` | |
 | Topics.Trash(id, confirm) | TrashTopic | `trash_topic` | both turn the removal redirect into a usage error |
 | Topics.Restore / MarkHam / EmptyTrash / EmptySpam | same ids | gen | |
+| Topics.UndoSend(topicID) | UndoTopicSend | `undo_topic_send` → `Option<i64>` | both take HEY's 303 as the answer rather than follow it, and read the entry called back out of its `Location` (`hey.UndoneEntryID`, `services::undone_entry_id`): 0 in Go and `None` in Rust when it names none. A 400 is "nothing to undo" in both; neither resends. gen `undo_send` follows the redirect and answers nothing |
 | Topics.CreateComment(topicID, content) | CreateTopicComment | gen `create_comment` | Go builds the `{comment: {content}}` body; Rust takes it |
 | Topics.GetCommentAudience | GetTopicCommentAudience | gen `get_comment_audience` | |
 | Topics.Move(topicID, boxID) | MoveTopic | `move_to_box(topic_id, box_id)` | added with this file; gen `move_topic` takes the body |
@@ -65,6 +66,7 @@ Unqualified Rust names are conveniences; `gen` marks a generated method.
 | Entries.ListDrafts / ListDraftsPage | ListDrafts | gen `list_drafts` → `Page` | |
 | Entries.CreateReply / CreateReplyDraft | CreateReply | `reply` / `reply_draft` | a reply refuses no recipients in both; a draft may have none |
 | Entries.MarkSpam / DeleteDraft / NewReply / NewForward | same ids | gen | |
+| Entries.Restore | RestoreEntry | gen `restore` | Go takes HEY's 303 as the answer; Rust follows it and reads the thread |
 | Calendars.List / GetRecordings / GetRecordingsPage | ListCalendars / GetCalendarRecordings | gen | |
 | Calendars.Toggle | ToggleCalendar | `toggle_selection` | |
 | Calendars.ListWithChanges | GET `/calendars.json` | `list_with_changes` | |
