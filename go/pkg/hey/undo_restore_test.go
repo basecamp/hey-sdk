@@ -207,3 +207,48 @@ func TestPutFormCapturesTheRedirect(t *testing.T) {
 		t.Errorf("expected one request, got %d", got)
 	}
 }
+
+// Only a 302 or a 303 is HEY saying the write is done. A 301, 307 or 308 asks for it to be
+// sent again somewhere else: the hop is not taken, and it is an error with that status,
+// never an undo or a restore reported as done that reached nowhere.
+func TestRedirectAsAnswerTakesOnlyACompletedWritesRedirect(t *testing.T) {
+	writes := map[string]func(*Client) (int64, error){
+		"undo": func(c *Client) (int64, error) { return c.Topics().UndoSend(context.Background(), 9) },
+		"restore": func(c *Client) (int64, error) {
+			return 0, c.Entries().Restore(context.Background(), 77)
+		},
+	}
+	for name, write := range writes {
+		for _, status := range []int{http.StatusFound, http.StatusSeeOther} {
+			client, requests := redirectingServer(t, func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Location", "/messages/77/edit")
+				w.WriteHeader(status)
+			})
+			if _, err := write(client); err != nil {
+				t.Errorf("%s: expected a %d to be the answer, got %v", name, status, err)
+			}
+			if got := requests.Load(); got != 1 {
+				t.Errorf("%s: expected one request for a %d, got %d", name, status, got)
+			}
+		}
+		for _, status := range []int{http.StatusMovedPermanently, http.StatusTemporaryRedirect, http.StatusPermanentRedirect} {
+			client, requests := redirectingServer(t, func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Location", "/messages/77/edit")
+				w.WriteHeader(status)
+			})
+			entryID, err := write(client)
+			if err == nil {
+				t.Fatalf("%s: expected a %d to be an error, not the write done", name, status)
+			}
+			if apiErr := AsError(err); apiErr.HTTPStatus != status {
+				t.Errorf("%s: expected status %d on the error, got %+v", name, status, apiErr)
+			}
+			if entryID != 0 {
+				t.Errorf("%s: expected no entry from a %d, got %d", name, status, entryID)
+			}
+			if got := requests.Load(); got != 1 {
+				t.Errorf("%s: expected the %d not to be followed or resent, got %d requests", name, status, got)
+			}
+		}
+	}
+}

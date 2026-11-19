@@ -916,9 +916,13 @@ func redirectIsAnswer(ctx context.Context) bool {
 	return v
 }
 
-// redirectAnswer is the Location of a redirect taken as an answer, and whether resp is one.
+// redirectAnswer is the Location of a redirect taken as an answer, and whether resp is one:
+// a 302 or a 303, the redirects HEY answers a completed write with, as the form transport
+// takes them. A 307 or 308 asks for the write to be sent again somewhere else, so it is no
+// answer: the hop is still not taken, and the caller hears the status as an error rather
+// than a write that never arrived reported as done.
 func redirectAnswer(resp *http.Response) (location string, ok bool) {
-	if resp == nil || resp.StatusCode/100 != 3 {
+	if resp == nil || (resp.StatusCode != http.StatusFound && resp.StatusCode != http.StatusSeeOther) {
 		return "", false
 	}
 	return resp.Header.Get("Location"), true
