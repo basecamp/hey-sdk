@@ -110,9 +110,11 @@ open class EntriesService(client: HeyClient) : BaseService(client) {
      * leaves in the trash.
      *
      * HEY answers with a redirect and no body, 303 to the entry's topic. A generated client
-     * follows it and reads the thread; Go's wrapper takes the redirect as the answer. A scoped
-     * token needs write, and send as well when the draft is scheduled to send, since a draft
-     * keeps its schedule in the trash.
+     * follows it and reads the thread; Go's wrapper takes the redirect as the answer.
+     * TypeScript's client follows no redirect: there the 303 arrives as an error whose status
+     * is 303, and that status is the restore having gone through. A scoped token needs write,
+     * and send as well when the draft is scheduled to send, since a draft keeps its schedule
+     * in the trash.
      * @param entryId The entry ID
      */
     suspend fun restore(entryId: Long): Unit {

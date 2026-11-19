@@ -4067,9 +4067,11 @@ export class GeneratedOperations {
    * leaves in the trash.
    *
    * HEY answers with a redirect and no body, 303 to the entry's topic. A generated client
-   * follows it and reads the thread; Go's wrapper takes the redirect as the answer. A scoped
-   * token needs write, and send as well when the draft is scheduled to send, since a draft
-   * keeps its schedule in the trash. */
+   * follows it and reads the thread; Go's wrapper takes the redirect as the answer.
+   * TypeScript's client follows no redirect: there the 303 arrives as an error whose status
+   * is 303, and that status is the restore having gone through. A scoped token needs write,
+   * and send as well when the draft is scheduled to send, since a draft keeps its schedule
+   * in the trash. */
   restoreEntry(input: OperationInput<"RestoreEntry">, options?: RequestOptions): Promise<OperationResponse<"RestoreEntry">> {
     return this.transport.execute("RestoreEntry", input, options);
   }
@@ -4447,9 +4449,10 @@ export class GeneratedOperations {
    * is the only place HEY names the entry it called back. A generated client follows the
    * redirect and reads the draft or its thread, which says the undo went through and not
    * which entry it was; the Go, Rust, Kotlin and Swift conveniences send it without
-   * following and answer the entry. With nothing left to call back (the delay ran out and the
-   * message went, or none was held) HEY answers 400 and changes nothing. A scoped token
-   * needs write.
+   * following and answer the entry. TypeScript's client follows no redirect: there the 303
+   * arrives as an error whose status is 303, and that status is the undo having gone through.
+   * With nothing left to call back (the delay ran out and the message went, or none was held)
+   * HEY answers 400 and changes nothing. A scoped token needs write.
    *
    * Never sent again after a failure: a second undo calls back the next delayed entry. */
   undoTopicSend(input: OperationInput<"UndoTopicSend">, options?: RequestOptions): Promise<OperationResponse<"UndoTopicSend">> {
