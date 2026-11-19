@@ -546,6 +546,11 @@
   },
   {
     "method": "PUT",
+    "operationId": "RestoreEntry",
+    "path": "/entries/{entryId}/status/active.json"
+  },
+  {
+    "method": "PUT",
     "operationId": "RestoreTopic",
     "path": "/topics/{topicId}/status/active.json"
   },
@@ -608,6 +613,11 @@
     "method": "DELETE",
     "operationId": "UncompleteHabit",
     "path": "/calendar/days/{day}/habits/{habitId}/completions"
+  },
+  {
+    "method": "POST",
+    "operationId": "UndoTopicSend",
+    "path": "/topics/{topicId}/undo_send.json"
   },
   {
     "method": "DELETE",

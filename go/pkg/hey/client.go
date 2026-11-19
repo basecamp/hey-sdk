@@ -338,7 +338,7 @@ func redirectPolicy(next func(req *http.Request, via []*http.Request) error) fun
 		// An operation that follows no redirect takes the 3xx for its answer, whatever the
 		// caller's policy would decide: its body carries secrets a 307 or 308 would carry
 		// to the Location.
-		if operationMetadataOf(req).NoRedirect {
+		if operationMetadataOf(req).NoRedirect || redirectIsAnswer(req.Context()) {
 			return http.ErrUseLastResponse
 		}
 		if next != nil {
@@ -747,6 +747,12 @@ func (c *Client) PatchForm(ctx context.Context, path string, values url.Values) 
 	return c.doFormRequest(ctx, "PATCH", path, values)
 }
 
+// PutForm performs a PUT request with a form-encoded body, or none when values is nil.
+// The server is expected to respond with a redirect (302/303).
+func (c *Client) PutForm(ctx context.Context, path string, values url.Values) (*FormResponse, error) {
+	return c.doFormRequest(ctx, "PUT", path, values)
+}
+
 // DeleteForm performs a DELETE request that expects a redirect response.
 func (c *Client) DeleteForm(ctx context.Context, path string) (*FormResponse, error) {
 	return c.doFormRequest(ctx, "DELETE", path, nil)
@@ -893,6 +899,29 @@ func (r *FormResponse) ExtractID() (int64, error) {
 		}
 	}
 	return 0, fmt.Errorf("no numeric ID found in location: %s", r.Location)
+}
+
+type contextKeyRedirectIsAnswer struct{}
+
+// contextWithRedirectAsAnswer marks a send whose answer is the redirect itself: a write HEY
+// acknowledges with a 303 to a page, where the Location says what it did (the entry an
+// undo called back) and the page says nothing more. The hop is not taken, so a read of that
+// page which fails cannot report a write that went through as one that did not.
+func contextWithRedirectAsAnswer(ctx context.Context) context.Context {
+	return context.WithValue(ctx, contextKeyRedirectIsAnswer{}, true)
+}
+
+func redirectIsAnswer(ctx context.Context) bool {
+	v, _ := ctx.Value(contextKeyRedirectIsAnswer{}).(bool)
+	return v
+}
+
+// redirectAnswer is the Location of a redirect taken as an answer, and whether resp is one.
+func redirectAnswer(resp *http.Response) (location string, ok bool) {
+	if resp == nil || resp.StatusCode/100 != 3 {
+		return "", false
+	}
+	return resp.Header.Get("Location"), true
 }
 
 type contextKeyAccept struct{}

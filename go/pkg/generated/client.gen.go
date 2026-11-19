@@ -1579,8 +1579,9 @@ type SentMessage struct {
 	// than the one replied to.
 	TopicId int64 `json:"topic_id,omitempty"`
 
-	// UndoAction Where to POST to call the message back, present only while delayed, and never for a
-	// token narrower than full scope: HEY offers such a token no Undo Send.
+	// UndoAction Where to POST to call the message back (UndoTopicSend), present only while delayed,
+	// and only for a token that can follow it: a scoped token is offered Undo Send when it
+	// holds write, approved since HEY widened write to cover it.
 	UndoAction string `json:"undo_action,omitempty"`
 
 	// UndoTimeout Seconds the undo notice stays up, present beside undo_action.
@@ -2516,6 +2517,7 @@ var operationRetryPolicies = map[string]RetryPolicy{
 	"NewEntryForward":               {MaxAttempts: 3, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
 	"CreateReply":                   {MaxAttempts: 2, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
 	"NewEntryReply":                 {MaxAttempts: 3, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
+	"RestoreEntry":                  {MaxAttempts: 2, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
 	"MarkEntrySpam":                 {MaxAttempts: 2, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
 	"GetFeedbox":                    {MaxAttempts: 3, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
 	"GetFolder":                     {MaxAttempts: 3, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
@@ -2573,6 +2575,7 @@ var operationRetryPolicies = map[string]RetryPolicy{
 	"RestoreTopic":                  {MaxAttempts: 2, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
 	"MarkTopicHam":                  {MaxAttempts: 2, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
 	"TrashTopic":                    {MaxAttempts: 2, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
+	"UndoTopicSend":                 {MaxAttempts: 1, RetryableStatuses: []int{}, BaseDelay: 1000 * time.Millisecond},
 	"GetWorkflow":                   {MaxAttempts: 3, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
 	"GetWorkflowStage":              {MaxAttempts: 3, RetryableStatuses: []int{429, 503}, BaseDelay: 1000 * time.Millisecond},
 }
@@ -3268,6 +3271,9 @@ type ClientInterface interface {
 	// NewEntryReply request
 	NewEntryReply(ctx context.Context, entryId int64, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// RestoreEntry request
+	RestoreEntry(ctx context.Context, entryId int64, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// MarkEntrySpam request
 	MarkEntrySpam(ctx context.Context, entryId int64, reqEditors ...RequestEditorFn) (*http.Response, error)
 
@@ -3489,6 +3495,9 @@ type ClientInterface interface {
 
 	// TrashTopic request
 	TrashTopic(ctx context.Context, topicId int64, params *TrashTopicParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// UndoTopicSend request
+	UndoTopicSend(ctx context.Context, topicId int64, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// MoveWorkflowStagingWithBody request with any body
 	MoveWorkflowStagingWithBody(ctx context.Context, topicId int64, workflowId int64, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -4341,6 +4350,14 @@ func (c *Client) NewEntryReply(ctx context.Context, entryId int64, reqEditors ..
 	}, true, "NewEntryReply", reqEditors...)
 }
 
+// RestoreEntry is marked as idempotent and will be retried on transient failures.
+
+func (c *Client) RestoreEntry(ctx context.Context, entryId int64, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	return c.doWithRetry(ctx, func() (*http.Request, error) {
+		return NewRestoreEntryRequest(c.Server, entryId)
+	}, true, "RestoreEntry", reqEditors...)
+}
+
 // MarkEntrySpam is marked as idempotent and will be retried on transient failures.
 
 func (c *Client) MarkEntrySpam(ctx context.Context, entryId int64, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -5067,6 +5084,14 @@ func (c *Client) TrashTopic(ctx context.Context, topicId int64, params *TrashTop
 	return c.doWithRetry(ctx, func() (*http.Request, error) {
 		return NewTrashTopicRequest(c.Server, topicId, params)
 	}, true, "TrashTopic", reqEditors...)
+}
+
+// UndoTopicSend executes the UndoTopicSend operation.
+
+func (c *Client) UndoTopicSend(ctx context.Context, topicId int64, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	return c.doWithRetry(ctx, func() (*http.Request, error) {
+		return NewUndoTopicSendRequest(c.Server, topicId)
+	}, false, "UndoTopicSend", reqEditors...)
 }
 
 // MoveWorkflowStagingWithBody executes the MoveWorkflowStaging operation.
@@ -8612,6 +8637,40 @@ func NewNewEntryReplyRequest(server string, entryId int64) (*http.Request, error
 	return req, nil
 }
 
+// NewRestoreEntryRequest generates requests for RestoreEntry
+func NewRestoreEntryRequest(server string, entryId int64) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "entryId", runtime.ParamLocationPath, entryId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/entries/%s/status/active.json", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("PUT", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewMarkEntrySpamRequest generates requests for MarkEntrySpam
 func NewMarkEntrySpamRequest(server string, entryId int64) (*http.Request, error) {
 	var err error
@@ -11063,6 +11122,40 @@ func NewTrashTopicRequest(server string, topicId int64, params *TrashTopicParams
 	return req, nil
 }
 
+// NewUndoTopicSendRequest generates requests for UndoTopicSend
+func NewUndoTopicSendRequest(server string, topicId int64) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "topicId", runtime.ParamLocationPath, topicId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/topics/%s/undo_send.json", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewMoveWorkflowStagingRequest calls the generic MoveWorkflowStaging builder with application/json body
 func NewMoveWorkflowStagingRequest(server string, topicId int64, workflowId int64, body MoveWorkflowStagingJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
@@ -11350,6 +11443,7 @@ var operationMetadata = map[string]OperationMetadata{
 	"NewEntryForward":               {Idempotent: true, HasSensitiveParams: false, Unsigned: false, NoRedirect: false},
 	"CreateReply":                   {Idempotent: false, HasSensitiveParams: false, Unsigned: false, NoRedirect: false},
 	"NewEntryReply":                 {Idempotent: true, HasSensitiveParams: false, Unsigned: false, NoRedirect: false},
+	"RestoreEntry":                  {Idempotent: true, HasSensitiveParams: false, Unsigned: false, NoRedirect: false},
 	"MarkEntrySpam":                 {Idempotent: true, HasSensitiveParams: false, Unsigned: false, NoRedirect: false},
 	"GetFeedbox":                    {Idempotent: true, HasSensitiveParams: false, Unsigned: false, NoRedirect: false},
 	"GetFolder":                     {Idempotent: true, HasSensitiveParams: false, Unsigned: false, NoRedirect: false},
@@ -11408,6 +11502,7 @@ var operationMetadata = map[string]OperationMetadata{
 	"RestoreTopic":                  {Idempotent: true, HasSensitiveParams: false, Unsigned: false, NoRedirect: false},
 	"MarkTopicHam":                  {Idempotent: true, HasSensitiveParams: false, Unsigned: false, NoRedirect: false},
 	"TrashTopic":                    {Idempotent: true, HasSensitiveParams: false, Unsigned: false, NoRedirect: false},
+	"UndoTopicSend":                 {Idempotent: false, HasSensitiveParams: false, Unsigned: false, NoRedirect: false},
 	"MoveWorkflowStaging":           {Idempotent: false, HasSensitiveParams: false, Unsigned: false, NoRedirect: false},
 	"CreateWorkflowStaging":         {Idempotent: false, HasSensitiveParams: false, Unsigned: false, NoRedirect: false},
 	"GetWorkflow":                   {Idempotent: true, HasSensitiveParams: false, Unsigned: false, NoRedirect: false},
@@ -12816,6 +12911,29 @@ type ClientWithResponsesInterface interface {
 	// Returns a wrapper object for the known response body format(s).
 	NewEntryReplyWithResponse(ctx context.Context, entryId int64, reqEditors ...RequestEditorFn) (*NewEntryReplyResponse, error)
 
+	// RestoreEntryWithResponse performs a PUT /entries/{entryId}/status/active.json (the `RestoreEntry` operationId) request.
+	//
+	// Restore an entry from the trash (Entries::StatusController#active): a trashed draft
+	// becomes a draft again, and a trashed message that had been sent or received returns to
+	// its thread. An entry that is not in the trash is left as it is, so asking twice is
+	// harmless. HEY first delivers an entry Undo Send still holds, as its other status changes
+	// do, so this is not a way to call a send back (UndoTopicSend is).
+	//
+	// The entry alone is restored, never its topic. A draft that was the only entry of its
+	// topic took the topic to the trash with it (DeleteDraft), and restoring just the entry
+	// leaves a draft on a trashed topic, which HEY empties from the trash with the rest:
+	// restore that one with RestoreTopic, which brings back the topic and the draft together.
+	// This operation is for a draft trashed out of a thread that stayed, which RestoreTopic
+	// leaves in the trash.
+	//
+	// HEY answers with a redirect and no body, 303 to the entry's topic. A generated client
+	// follows it and reads the thread; Go's wrapper takes the redirect as the answer. A scoped
+	// token needs write, and send as well when the draft is scheduled to send, since a draft
+	// keeps its schedule in the trash.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	RestoreEntryWithResponse(ctx context.Context, entryId int64, reqEditors ...RequestEditorFn) (*RestoreEntryResponse, error)
+
 	// MarkEntrySpamWithResponse performs a PUT /entries/{entryId}/status/spam.json (the `MarkEntrySpam` operationId) request.
 	//
 	// Mark an entry as spam. Denies the sender when every thread from them is already spam.
@@ -13521,6 +13639,29 @@ type ClientWithResponsesInterface interface {
 	//
 	// Returns a wrapper object for the known response body format(s).
 	TrashTopicWithResponse(ctx context.Context, topicId int64, params *TrashTopicParams, reqEditors ...RequestEditorFn) (*TrashTopicResponse, error)
+
+	// UndoTopicSendWithResponse performs a POST /topics/{topicId}/undo_send.json (the `UndoTopicSend` operationId) request.
+	//
+	// Call back the last message the caller sent on a topic, while Undo Send still holds it
+	// (Topics::UndoSendsController#create). The message returns to Drafts, unsent. HEY picks
+	// the message: the caller's last delayed entry on the topic, which need not be the one a
+	// caller has in mind when two were sent to one thread within the delay. A reply that broke
+	// out into a thread of its own is called back on that thread, the one SentMessage's
+	// topic_id names, and returns to the thread it answered.
+	//
+	// HEY answers a success with a redirect and no body, 303 to the draft: /messages/{entryId}/edit
+	// for a new message, /topics/{topicId}?expanded_draft={entryId} for a reply. That Location
+	// is the only place HEY names the entry it called back. A generated client follows the
+	// redirect and reads the draft or its thread, which says the undo went through and not
+	// which entry it was; the Go, Rust, Kotlin and Swift conveniences send it without
+	// following and answer the entry. With nothing left to call back (the delay ran out and the
+	// message went, or none was held) HEY answers 400 and changes nothing. A scoped token
+	// needs write.
+	//
+	// Never sent again after a failure: a second undo calls back the next delayed entry.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	UndoTopicSendWithResponse(ctx context.Context, topicId int64, reqEditors ...RequestEditorFn) (*UndoTopicSendResponse, error)
 
 	// MoveWorkflowStagingWithBodyWithResponse performs a PATCH /topics/{topicId}/workflows/{workflowId}/stagings (the `MoveWorkflowStaging` operationId) request,
 	// with any type of body and a specified content type.
@@ -18745,6 +18886,75 @@ func (r NewEntryReplyResponse) ContentType() string {
 	return ""
 }
 
+type RestoreEntryResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *UnauthorizedErrorResponseContent
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *ForbiddenErrorResponseContent
+	// JSON404 the response for an HTTP 404 `application/json` response
+	JSON404 *NotFoundErrorResponseContent
+	// JSON500 the response for an HTTP 500 `application/json` response
+	JSON500 *InternalServerErrorResponseContent
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *ServiceUnavailableErrorResponseContent
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r RestoreEntryResponse) GetJSON401() *UnauthorizedErrorResponseContent {
+	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r RestoreEntryResponse) GetJSON403() *ForbiddenErrorResponseContent {
+	return r.JSON403
+}
+
+// GetJSON404 returns the response for an HTTP 404 `application/json` response
+func (r RestoreEntryResponse) GetJSON404() *NotFoundErrorResponseContent {
+	return r.JSON404
+}
+
+// GetJSON500 returns the response for an HTTP 500 `application/json` response
+func (r RestoreEntryResponse) GetJSON500() *InternalServerErrorResponseContent {
+	return r.JSON500
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r RestoreEntryResponse) GetJSON503() *ServiceUnavailableErrorResponseContent {
+	return r.JSON503
+}
+
+// GetBody returns the raw response body bytes
+func (r RestoreEntryResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r RestoreEntryResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r RestoreEntryResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r RestoreEntryResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type MarkEntrySpamResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -22488,6 +22698,82 @@ func (r TrashTopicResponse) ContentType() string {
 	return ""
 }
 
+type UndoTopicSendResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON400 the response for an HTTP 400 `application/json` response
+	JSON400 *BadRequestErrorResponseContent
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *UnauthorizedErrorResponseContent
+	// JSON403 the response for an HTTP 403 `application/json` response
+	JSON403 *ForbiddenErrorResponseContent
+	// JSON404 the response for an HTTP 404 `application/json` response
+	JSON404 *NotFoundErrorResponseContent
+	// JSON500 the response for an HTTP 500 `application/json` response
+	JSON500 *InternalServerErrorResponseContent
+	// JSON503 the response for an HTTP 503 `application/json` response
+	JSON503 *ServiceUnavailableErrorResponseContent
+}
+
+// GetJSON400 returns the response for an HTTP 400 `application/json` response
+func (r UndoTopicSendResponse) GetJSON400() *BadRequestErrorResponseContent {
+	return r.JSON400
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r UndoTopicSendResponse) GetJSON401() *UnauthorizedErrorResponseContent {
+	return r.JSON401
+}
+
+// GetJSON403 returns the response for an HTTP 403 `application/json` response
+func (r UndoTopicSendResponse) GetJSON403() *ForbiddenErrorResponseContent {
+	return r.JSON403
+}
+
+// GetJSON404 returns the response for an HTTP 404 `application/json` response
+func (r UndoTopicSendResponse) GetJSON404() *NotFoundErrorResponseContent {
+	return r.JSON404
+}
+
+// GetJSON500 returns the response for an HTTP 500 `application/json` response
+func (r UndoTopicSendResponse) GetJSON500() *InternalServerErrorResponseContent {
+	return r.JSON500
+}
+
+// GetJSON503 returns the response for an HTTP 503 `application/json` response
+func (r UndoTopicSendResponse) GetJSON503() *ServiceUnavailableErrorResponseContent {
+	return r.JSON503
+}
+
+// GetBody returns the raw response body bytes
+func (r UndoTopicSendResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r UndoTopicSendResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r UndoTopicSendResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r UndoTopicSendResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type MoveWorkflowStagingResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -24151,6 +24437,35 @@ func (c *ClientWithResponses) NewEntryReplyWithResponse(ctx context.Context, ent
 	return ParseNewEntryReplyResponse(rsp)
 }
 
+// RestoreEntryWithResponse performs a PUT /entries/{entryId}/status/active.json (the `RestoreEntry` operationId) request.
+//
+// Restore an entry from the trash (Entries::StatusController#active): a trashed draft
+// becomes a draft again, and a trashed message that had been sent or received returns to
+// its thread. An entry that is not in the trash is left as it is, so asking twice is
+// harmless. HEY first delivers an entry Undo Send still holds, as its other status changes
+// do, so this is not a way to call a send back (UndoTopicSend is).
+//
+// The entry alone is restored, never its topic. A draft that was the only entry of its
+// topic took the topic to the trash with it (DeleteDraft), and restoring just the entry
+// leaves a draft on a trashed topic, which HEY empties from the trash with the rest:
+// restore that one with RestoreTopic, which brings back the topic and the draft together.
+// This operation is for a draft trashed out of a thread that stayed, which RestoreTopic
+// leaves in the trash.
+//
+// HEY answers with a redirect and no body, 303 to the entry's topic. A generated client
+// follows it and reads the thread; Go's wrapper takes the redirect as the answer. A scoped
+// token needs write, and send as well when the draft is scheduled to send, since a draft
+// keeps its schedule in the trash.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) RestoreEntryWithResponse(ctx context.Context, entryId int64, reqEditors ...RequestEditorFn) (*RestoreEntryResponse, error) {
+	rsp, err := c.RestoreEntry(ctx, entryId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseRestoreEntryResponse(rsp)
+}
+
 // MarkEntrySpamWithResponse performs a PUT /entries/{entryId}/status/spam.json (the `MarkEntrySpam` operationId) request.
 //
 // Mark an entry as spam. Denies the sender when every thread from them is already spam.
@@ -25347,6 +25662,35 @@ func (c *ClientWithResponses) TrashTopicWithResponse(ctx context.Context, topicI
 		return nil, err
 	}
 	return ParseTrashTopicResponse(rsp)
+}
+
+// UndoTopicSendWithResponse performs a POST /topics/{topicId}/undo_send.json (the `UndoTopicSend` operationId) request.
+//
+// Call back the last message the caller sent on a topic, while Undo Send still holds it
+// (Topics::UndoSendsController#create). The message returns to Drafts, unsent. HEY picks
+// the message: the caller's last delayed entry on the topic, which need not be the one a
+// caller has in mind when two were sent to one thread within the delay. A reply that broke
+// out into a thread of its own is called back on that thread, the one SentMessage's
+// topic_id names, and returns to the thread it answered.
+//
+// HEY answers a success with a redirect and no body, 303 to the draft: /messages/{entryId}/edit
+// for a new message, /topics/{topicId}?expanded_draft={entryId} for a reply. That Location
+// is the only place HEY names the entry it called back. A generated client follows the
+// redirect and reads the draft or its thread, which says the undo went through and not
+// which entry it was; the Go, Rust, Kotlin and Swift conveniences send it without
+// following and answer the entry. With nothing left to call back (the delay ran out and the
+// message went, or none was held) HEY answers 400 and changes nothing. A scoped token
+// needs write.
+//
+// Never sent again after a failure: a second undo calls back the next delayed entry.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) UndoTopicSendWithResponse(ctx context.Context, topicId int64, reqEditors ...RequestEditorFn) (*UndoTopicSendResponse, error) {
+	rsp, err := c.UndoTopicSend(ctx, topicId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUndoTopicSendResponse(rsp)
 }
 
 // MoveWorkflowStagingWithBodyWithResponse performs a PATCH /topics/{topicId}/workflows/{workflowId}/stagings (the `MoveWorkflowStaging` operationId) request,
@@ -30360,6 +30704,74 @@ func ParseNewEntryReplyResponse(rsp *http.Response) (*NewEntryReplyResponse, err
 	return response, nil
 }
 
+// ParseRestoreEntryResponse parses an HTTP response from a RestoreEntryWithResponse call
+func ParseRestoreEntryResponse(rsp *http.Response) (*RestoreEntryResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	received := rsp.Body
+	defer func() { _ = received.Close() }()
+	if err == nil && rsp.StatusCode/100 != 2 {
+		rsp.Body = io.NopCloser(bytes.NewReader(bodyBytes))
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	response := &RestoreEntryResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	// An undecodable body fails only a 2xx; an error status answers on its own, body or not.
+	if _, err := func() (*RestoreEntryResponse, error) {
+		switch {
+		case rsp.StatusCode == 200:
+			break // No content-type
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+			var dest UnauthorizedErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON401 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+			var dest ForbiddenErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON403 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+			var dest NotFoundErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON404 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+			var dest InternalServerErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON500 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+			var dest ServiceUnavailableErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON503 = &dest
+
+		}
+
+		return response, nil
+	}(); err != nil && rsp.StatusCode/100 == 2 {
+		return nil, err
+	}
+
+	return response, nil
+}
+
 // ParseMarkEntrySpamResponse parses an HTTP response from a MarkEntrySpamWithResponse call
 func ParseMarkEntrySpamResponse(rsp *http.Response) (*MarkEntrySpamResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -33937,6 +34349,81 @@ func ParseTrashTopicResponse(rsp *http.Response) (*TrashTopicResponse, error) {
 				return nil, err
 			}
 			response.JSON401 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+			var dest NotFoundErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON404 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+			var dest InternalServerErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON500 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+			var dest ServiceUnavailableErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON503 = &dest
+
+		}
+
+		return response, nil
+	}(); err != nil && rsp.StatusCode/100 == 2 {
+		return nil, err
+	}
+
+	return response, nil
+}
+
+// ParseUndoTopicSendResponse parses an HTTP response from a UndoTopicSendWithResponse call
+func ParseUndoTopicSendResponse(rsp *http.Response) (*UndoTopicSendResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	received := rsp.Body
+	defer func() { _ = received.Close() }()
+	if err == nil && rsp.StatusCode/100 != 2 {
+		rsp.Body = io.NopCloser(bytes.NewReader(bodyBytes))
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	response := &UndoTopicSendResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	// An undecodable body fails only a 2xx; an error status answers on its own, body or not.
+	if _, err := func() (*UndoTopicSendResponse, error) {
+		switch {
+		case rsp.StatusCode == 200:
+			break // No content-type
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+			var dest BadRequestErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON400 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+			var dest UnauthorizedErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON401 = &dest
+
+		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+			var dest ForbiddenErrorResponseContent
+			if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+				return nil, err
+			}
+			response.JSON403 = &dest
 
 		case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
 			var dest NotFoundErrorResponseContent

@@ -1140,6 +1140,41 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/entries/{entryId}/status/active.json": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * @description Restore an entry from the trash (Entries::StatusController#active): a trashed draft
+         *     becomes a draft again, and a trashed message that had been sent or received returns to
+         *     its thread. An entry that is not in the trash is left as it is, so asking twice is
+         *     harmless. HEY first delivers an entry Undo Send still holds, as its other status changes
+         *     do, so this is not a way to call a send back (UndoTopicSend is).
+         *
+         *     The entry alone is restored, never its topic. A draft that was the only entry of its
+         *     topic took the topic to the trash with it (DeleteDraft), and restoring just the entry
+         *     leaves a draft on a trashed topic, which HEY empties from the trash with the rest:
+         *     restore that one with RestoreTopic, which brings back the topic and the draft together.
+         *     This operation is for a draft trashed out of a thread that stayed, which RestoreTopic
+         *     leaves in the trash.
+         *
+         *     HEY answers with a redirect and no body, 303 to the entry's topic. A generated client
+         *     follows it and reads the thread; Go's wrapper takes the redirect as the answer. A scoped
+         *     token needs write, and send as well when the draft is scheduled to send, since a draft
+         *     keeps its schedule in the trash.
+         */
+        put: operations["RestoreEntry"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/entries/{entryId}/status/spam.json": {
         parameters: {
             query?: never;
@@ -2085,6 +2120,41 @@ export interface paths {
          */
         put: operations["TrashTopic"];
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/topics/{topicId}/undo_send.json": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * @description Call back the last message the caller sent on a topic, while Undo Send still holds it
+         *     (Topics::UndoSendsController#create). The message returns to Drafts, unsent. HEY picks
+         *     the message: the caller's last delayed entry on the topic, which need not be the one a
+         *     caller has in mind when two were sent to one thread within the delay. A reply that broke
+         *     out into a thread of its own is called back on that thread, the one SentMessage's
+         *     topic_id names, and returns to the thread it answered.
+         *
+         *     HEY answers a success with a redirect and no body, 303 to the draft: /messages/{entryId}/edit
+         *     for a new message, /topics/{topicId}?expanded_draft={entryId} for a reply. That Location
+         *     is the only place HEY names the entry it called back. A generated client follows the
+         *     redirect and reads the draft or its thread, which says the undo went through and not
+         *     which entry it was; the Go, Rust, Kotlin and Swift conveniences send it without
+         *     following and answer the entry. With nothing left to call back (the delay ran out and the
+         *     message went, or none was held) HEY answers 400 and changes nothing. A scoped token
+         *     needs write.
+         *
+         *     Never sent again after a failure: a second undo calls back the next delayed entry.
+         */
+        post: operations["UndoTopicSend"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3488,8 +3558,9 @@ export interface components {
             /** @description "Message sent", present only while delayed. */
             notice?: string;
             /**
-             * @description Where to POST to call the message back, present only while delayed, and never for a
-             *     token narrower than full scope: HEY offers such a token no Undo Send.
+             * @description Where to POST to call the message back (UndoTopicSend), present only while delayed,
+             *     and only for a token that can follow it: a scoped token is offered Undo Send when it
+             *     holds write, approved since HEY widened write to cover it.
              */
             undo_action?: string;
             /**
@@ -8436,6 +8507,71 @@ export interface operations {
             };
         };
     };
+    RestoreEntry: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                entryId: number | bigint;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description RestoreEntry 200 response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description UnauthorizedError 401 response */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UnauthorizedErrorResponseContent"];
+                };
+            };
+            /** @description ForbiddenError 403 response */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ForbiddenErrorResponseContent"];
+                };
+            };
+            /** @description NotFoundError 404 response */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NotFoundErrorResponseContent"];
+                };
+            };
+            /** @description InternalServerError 500 response */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InternalServerErrorResponseContent"];
+                };
+            };
+            /** @description ServiceUnavailableError 503 response */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ServiceUnavailableErrorResponseContent"];
+                };
+            };
+        };
+    };
     MarkEntrySpam: {
         parameters: {
             query?: never;
@@ -11682,6 +11818,80 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["UnauthorizedErrorResponseContent"];
+                };
+            };
+            /** @description NotFoundError 404 response */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NotFoundErrorResponseContent"];
+                };
+            };
+            /** @description InternalServerError 500 response */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InternalServerErrorResponseContent"];
+                };
+            };
+            /** @description ServiceUnavailableError 503 response */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ServiceUnavailableErrorResponseContent"];
+                };
+            };
+        };
+    };
+    UndoTopicSend: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                topicId: number | bigint;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description UndoTopicSend 200 response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description BadRequestError 400 response */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BadRequestErrorResponseContent"];
+                };
+            };
+            /** @description UnauthorizedError 401 response */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UnauthorizedErrorResponseContent"];
+                };
+            };
+            /** @description ForbiddenError 403 response */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ForbiddenErrorResponseContent"];
                 };
             };
             /** @description NotFoundError 404 response */

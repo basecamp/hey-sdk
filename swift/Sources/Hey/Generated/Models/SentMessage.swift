@@ -17,8 +17,9 @@ public struct SentMessage: Codable, Sendable, Equatable {
     public var delayed: Bool?
     /// "Message sent", present only while delayed.
     public var notice: String?
-    /// Where to POST to call the message back, present only while delayed, and never for a
-    /// token narrower than full scope: HEY offers such a token no Undo Send.
+    /// Where to POST to call the message back (UndoTopicSend), present only while delayed,
+    /// and only for a token that can follow it: a scoped token is offered Undo Send when it
+    /// holds write, approved since HEY widened write to cover it.
     public var undoAction: String?
     /// Seconds the undo notice stays up, present beside undo_action.
     public var undoTimeout: Int32?

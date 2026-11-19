@@ -2086,6 +2086,31 @@ export const operationMetadata = {
     "actingSender": false,
     "actingUser": false
   },
+  "RestoreEntry": {
+    "method": "PUT",
+    "path": "/entries/{entryId}/status/active.json",
+    "parameters": [
+      {
+        "name": "entryId",
+        "in": "path",
+        "required": true,
+        "type": "integer"
+      }
+    ],
+    "bodyRequired": false,
+    "safe": true,
+    "retry": {
+      "maxAttempts": 2,
+      "baseDelayMs": 1000,
+      "backoff": "exponential",
+      "retryOn": [
+        429,
+        503
+      ]
+    },
+    "actingSender": false,
+    "actingUser": false
+  },
   "MarkEntrySpam": {
     "method": "PUT",
     "path": "/entries/{entryId}/status/spam.json",
@@ -3433,6 +3458,28 @@ export const operationMetadata = {
     "actingSender": false,
     "actingUser": false
   },
+  "UndoTopicSend": {
+    "method": "POST",
+    "path": "/topics/{topicId}/undo_send.json",
+    "parameters": [
+      {
+        "name": "topicId",
+        "in": "path",
+        "required": true,
+        "type": "integer"
+      }
+    ],
+    "bodyRequired": false,
+    "safe": false,
+    "retry": {
+      "maxAttempts": 1,
+      "baseDelayMs": 1000,
+      "backoff": "exponential",
+      "retryOn": []
+    },
+    "actingSender": false,
+    "actingUser": false
+  },
   "MoveWorkflowStaging": {
     "method": "PATCH",
     "path": "/topics/{topicId}/workflows/{workflowId}/stagings",
@@ -4006,6 +4053,27 @@ export class GeneratedOperations {
     return this.transport.execute("NewEntryReply", input, options);
   }
 
+  /** Restore an entry from the trash (Entries::StatusController#active): a trashed draft
+   * becomes a draft again, and a trashed message that had been sent or received returns to
+   * its thread. An entry that is not in the trash is left as it is, so asking twice is
+   * harmless. HEY first delivers an entry Undo Send still holds, as its other status changes
+   * do, so this is not a way to call a send back (UndoTopicSend is).
+   *
+   * The entry alone is restored, never its topic. A draft that was the only entry of its
+   * topic took the topic to the trash with it (DeleteDraft), and restoring just the entry
+   * leaves a draft on a trashed topic, which HEY empties from the trash with the rest:
+   * restore that one with RestoreTopic, which brings back the topic and the draft together.
+   * This operation is for a draft trashed out of a thread that stayed, which RestoreTopic
+   * leaves in the trash.
+   *
+   * HEY answers with a redirect and no body, 303 to the entry's topic. A generated client
+   * follows it and reads the thread; Go's wrapper takes the redirect as the answer. A scoped
+   * token needs write, and send as well when the draft is scheduled to send, since a draft
+   * keeps its schedule in the trash. */
+  restoreEntry(input: OperationInput<"RestoreEntry">, options?: RequestOptions): Promise<OperationResponse<"RestoreEntry">> {
+    return this.transport.execute("RestoreEntry", input, options);
+  }
+
   /** Mark an entry as spam. Denies the sender when every thread from them is already spam. */
   markEntrySpam(input: OperationInput<"MarkEntrySpam">, options?: RequestOptions): Promise<OperationResponse<"MarkEntrySpam">> {
     return this.transport.execute("MarkEntrySpam", input, options);
@@ -4365,6 +4433,27 @@ export class GeneratedOperations {
    * so always pass it when trashing something that might be shared. */
   trashTopic(input: OperationInput<"TrashTopic">, options?: RequestOptions): Promise<OperationResponse<"TrashTopic">> {
     return this.transport.execute("TrashTopic", input, options);
+  }
+
+  /** Call back the last message the caller sent on a topic, while Undo Send still holds it
+   * (Topics::UndoSendsController#create). The message returns to Drafts, unsent. HEY picks
+   * the message: the caller's last delayed entry on the topic, which need not be the one a
+   * caller has in mind when two were sent to one thread within the delay. A reply that broke
+   * out into a thread of its own is called back on that thread, the one SentMessage's
+   * topic_id names, and returns to the thread it answered.
+   *
+   * HEY answers a success with a redirect and no body, 303 to the draft: /messages/{entryId}/edit
+   * for a new message, /topics/{topicId}?expanded_draft={entryId} for a reply. That Location
+   * is the only place HEY names the entry it called back. A generated client follows the
+   * redirect and reads the draft or its thread, which says the undo went through and not
+   * which entry it was; the Go, Rust, Kotlin and Swift conveniences send it without
+   * following and answer the entry. With nothing left to call back (the delay ran out and the
+   * message went, or none was held) HEY answers 400 and changes nothing. A scoped token
+   * needs write.
+   *
+   * Never sent again after a failure: a second undo calls back the next delayed entry. */
+  undoTopicSend(input: OperationInput<"UndoTopicSend">, options?: RequestOptions): Promise<OperationResponse<"UndoTopicSend">> {
+    return this.transport.execute("UndoTopicSend", input, options);
   }
 
   /** Move a staged topic to a workflow stage. */

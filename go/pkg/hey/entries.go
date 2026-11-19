@@ -120,6 +120,38 @@ func (s *EntriesService) MarkSpam(ctx context.Context, entryID int64) error {
 	})
 }
 
+// Restore brings an entry back from the trash: a trashed draft is a draft again, and a
+// trashed message returns to its thread. An entry that is not in the trash is left as it
+// is. HEY first delivers an entry Undo Send still holds, so this calls no send back;
+// Topics().UndoSend does.
+//
+// Only the entry is restored. A draft that was its topic's only entry took the topic to
+// the trash with it (DeleteDraft); restore that one with Topics().Restore, which brings
+// back the topic and the draft together, since the entry alone would be a draft on a
+// trashed topic, emptied from the trash with the rest. This is for a draft trashed out of
+// a thread that stayed, which Topics().Restore leaves in the trash.
+//
+// HEY answers with a redirect to the entry's topic rather than JSON. The SDK takes the
+// redirect as the answer rather than follow it, so a read of the thread that fails cannot
+// report a restore that went through as one that did not.
+func (s *EntriesService) Restore(ctx context.Context, entryID int64) error {
+	op := OperationInfo{
+		Service: "Entries", Operation: "RestoreEntry",
+		ResourceType: "entry", IsMutation: true, ResourceID: entryID,
+	}
+
+	return s.client.instrument(ctx, op, func(ctx context.Context) error {
+		resp, err := s.client.genClient().RestoreEntryWithResponse(contextWithRedirectAsAnswer(ctx), entryID)
+		if err != nil {
+			return err
+		}
+		if _, redirected := redirectAnswer(resp.HTTPResponse); redirected {
+			return nil
+		}
+		return CheckResponse(resp.HTTPResponse)
+	})
+}
+
 // DraftPage is one page of drafts along with the cursor for the page after it. The
 // index pages by geared_pagination's opaque cursor out of the Link header — a page
 // number is answered with the first page forever — so NextPage is the only way to walk

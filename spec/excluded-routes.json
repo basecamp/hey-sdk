@@ -1546,11 +1546,6 @@
   },
   {
     "method": "PUT",
-    "path": "/entries/{entry_id}/status/active",
-    "reason": "phase-2: entry CRUD"
-  },
-  {
-    "method": "PUT",
     "path": "/entries/{entry_id}/status/trashed",
     "reason": "phase-2: entry CRUD"
   },
@@ -3428,11 +3423,6 @@
     "method": "GET",
     "path": "/topics/{topic_id}/roster",
     "reason": "phase-2: topic roster"
-  },
-  {
-    "method": "POST",
-    "path": "/topics/{topic_id}/undo_send",
-    "reason": "phase-2: topic undo send"
   },
   {
     "method": "POST",

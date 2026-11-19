@@ -2190,6 +2190,27 @@ public enum Routes {
         retry: RetryPolicy(max: 2, baseDelayMs: 1000, retryOn: [429, 503])
     )
 
+    /// `PUT /entries/{entryId}/status/active.json`
+    public static let restoreEntry = Route(
+        id: "RestoreEntry",
+        service: "Entries",
+        method: .put,
+        path: "/entries/{entryId}/status/active.json",
+        pattern: "/entries/{entryId}/status/active",
+        resource: "Entries",
+        resourceType: "entry",
+        params: [
+            RouteParam(name: "entryId", role: .parent, kind: .int64),
+        ],
+        idempotent: true,
+        readonly: false,
+        html: false,
+        emptyOn: [],
+        pagination: .unpaged,
+        pageParameter: nil,
+        retry: RetryPolicy(max: 2, baseDelayMs: 1000, retryOn: [429, 503])
+    )
+
     /// `PUT /topics/{topicId}/status/active.json`
     public static let restoreTopic = Route(
         id: "RestoreTopic",
@@ -2456,6 +2477,27 @@ public enum Routes {
         pagination: .unpaged,
         pageParameter: nil,
         retry: RetryPolicy(max: 3, baseDelayMs: 1000, retryOn: [429, 503])
+    )
+
+    /// `POST /topics/{topicId}/undo_send.json`
+    public static let undoTopicSend = Route(
+        id: "UndoTopicSend",
+        service: "Topics",
+        method: .post,
+        path: "/topics/{topicId}/undo_send.json",
+        pattern: "/topics/{topicId}/undo_send",
+        resource: "Topics",
+        resourceType: "topic",
+        params: [
+            RouteParam(name: "topicId", role: .parent, kind: .int64),
+        ],
+        idempotent: false,
+        readonly: false,
+        html: false,
+        emptyOn: [],
+        pagination: .unpaged,
+        pageParameter: nil,
+        retry: RetryPolicy(max: 1, baseDelayMs: 1000, retryOn: [])
     )
 
     /// `DELETE /postings/filings.json`
@@ -2919,6 +2961,7 @@ public enum Routes {
         puntClearances,
         removePostingsFromBoxGroup,
         renameTopic,
+        restoreEntry,
         restoreTopic,
         resumeHabit,
         revealContact,
@@ -2932,6 +2975,7 @@ public enum Routes {
         unbundleContact,
         uncompleteCalendarTodo,
         uncompleteHabit,
+        undoTopicSend,
         unfilePostings,
         unmutePostings,
         updateCalendarTodo,
