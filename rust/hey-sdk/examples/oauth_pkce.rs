@@ -69,7 +69,7 @@ async fn main() -> Result<(), Error> {
         "Authorized; the access token expires at {}",
         token
             .expires_at
-            .map_or_else(|| "an unknown time".to_string(), |at| at.to_rfc3339())
+            .map_or_else(|| "an unknown time".to_string(), |at| at.to_string())
     );
 
     // The client asks the provider for a token before each request, and asks it to refresh

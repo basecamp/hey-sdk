@@ -75,6 +75,11 @@ pub use pagination::Page;
 pub use types::{Date, DateTime, SensitiveString};
 pub use version::{API_VERSION, VERSION};
 
+/// The date and time crate the model's [`Date`] and [`DateTime`] are built on, at the version
+/// this crate was built against, so `hey_sdk::jiff::tz::TimeZone` names the type
+/// [`Date::from_datetime_in`] takes without guessing a matching version.
+pub use jiff;
+
 /// The request and response types HEY speaks, generated from the model.
 pub mod models {
     pub use crate::generated::types::*;

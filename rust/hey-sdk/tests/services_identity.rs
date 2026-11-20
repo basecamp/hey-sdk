@@ -2,8 +2,8 @@
 
 mod support;
 
-use chrono::Weekday;
 use hey_sdk::services::TimeFormat;
+use jiff::civil::Weekday;
 use serde_json::{Value, json};
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
@@ -23,11 +23,11 @@ async fn the_first_week_day_goes_out_as_a_name_and_comes_back_as_a_day() {
 
     let stored = client(&server)
         .identity()
-        .set_first_week_day(Weekday::Mon)
+        .set_first_week_day(Weekday::Monday)
         .await
         .unwrap();
 
-    assert_eq!(stored, Weekday::Mon);
+    assert_eq!(stored, Weekday::Monday);
     assert_eq!(
         sent_json(&server, 0).await,
         json!({ "identity_preference": { "first_week_day": "monday" } })

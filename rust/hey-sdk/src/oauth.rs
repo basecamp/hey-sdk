@@ -4,7 +4,7 @@ use std::sync::Arc;
 use base64::Engine;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use bytes::{Bytes, BytesMut};
-use chrono::{DateTime, TimeDelta, Utc};
+use jiff::{SignedDuration, Timestamp};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use url::{Url, form_urlencoded};
@@ -114,7 +114,7 @@ pub struct Token {
     pub scope: Option<String>,
     /// The moment the access token is spent, worked out from `expires_in` on arrival.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub expires_at: Option<DateTime<Utc>>,
+    pub expires_at: Option<Timestamp>,
 }
 
 /// A code verifier and the challenge derived from it, for the S256 PKCE flow. The verifier
@@ -408,9 +408,9 @@ async fn read_truncated(response: Response<Body>, limit: usize) -> String {
     String::from_utf8_lossy(&body).into_owned()
 }
 
-fn expires_at(seconds: u64) -> Option<DateTime<Utc>> {
-    let lifetime = TimeDelta::try_seconds(i64::try_from(seconds).ok()?)?;
-    Utc::now().checked_add_signed(lifetime)
+fn expires_at(seconds: u64) -> Option<Timestamp> {
+    let lifetime = SignedDuration::from_secs(i64::try_from(seconds).ok()?);
+    Timestamp::now().checked_add(lifetime).ok()
 }
 
 fn token_error(status: StatusCode, body: &[u8]) -> Error {
@@ -766,7 +766,7 @@ mod tests {
             token.refresh_token.as_ref().map(SensitiveString::expose)
         );
         assert_eq!(Some(3600), token.expires_in);
-        assert!(token.expires_at.unwrap() > Utc::now());
+        assert!(token.expires_at.unwrap() > Timestamp::now());
     }
 
     #[test]
@@ -780,7 +780,9 @@ mod tests {
         assert_eq!(None, answered.expires_at);
 
         let mut token = answered;
-        token.expires_at = Utc::now().checked_add_signed(TimeDelta::seconds(3600));
+        token.expires_at = Timestamp::now()
+            .checked_add(SignedDuration::from_secs(3600))
+            .ok();
 
         let stored = serde_json::to_string(&token).unwrap();
         let restored: Token = serde_json::from_str(&stored).unwrap();

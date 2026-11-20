@@ -5,7 +5,6 @@ mod support;
 
 use std::time::{Duration, Instant};
 
-use chrono::Utc;
 use hey_sdk::http::Method;
 use hey_sdk::models::CreateMessageRequestContent;
 use hey_sdk::routes::{self, Pagination, Retry, Route};
@@ -304,8 +303,8 @@ async fn a_rate_limit_the_policy_names_is_waited_out_as_the_date_asks() {
     )
     .await;
     let client = client(&server);
-    let in_two_seconds = (Utc::now() + chrono::Duration::seconds(2))
-        .format("%a, %d %b %Y %H:%M:%S GMT")
+    let in_two_seconds = (jiff::Timestamp::now() + jiff::SignedDuration::from_secs(2))
+        .strftime("%a, %d %b %Y %H:%M:%S GMT")
         .to_string();
     Mock::given(method("GET"))
         .and(path("/boxes.json"))

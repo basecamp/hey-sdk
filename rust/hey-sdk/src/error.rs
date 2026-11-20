@@ -651,20 +651,17 @@ pub(crate) fn retry_after_seconds(headers: &HeaderMap) -> Option<u64> {
     if let Ok(seconds) = asked.parse::<i64>() {
         u64::try_from(seconds).ok()
     } else {
-        let until = chrono::DateTime::parse_from_rfc2822(asked).ok()?;
-        seconds_until(until.with_timezone(&chrono::Utc), chrono::Utc::now())
+        let until = jiff::fmt::rfc2822::parse(asked).ok()?.timestamp();
+        seconds_until(until, jiff::Timestamp::now())
     }
 }
 
 /// The whole seconds from `now` until `until`, counting a started second as one: the date
 /// names the moment the wait is over, so rounding down would resend before it.
-fn seconds_until(
-    until: chrono::DateTime<chrono::Utc>,
-    now: chrono::DateTime<chrono::Utc>,
-) -> Option<u64> {
-    let left = until.signed_duration_since(now);
-    let whole = left.num_seconds();
-    let started = left > chrono::Duration::seconds(whole);
+fn seconds_until(until: jiff::Timestamp, now: jiff::Timestamp) -> Option<u64> {
+    let left = until.duration_since(now);
+    let whole = left.as_secs();
+    let started = left > jiff::SignedDuration::from_secs(whole);
     u64::try_from(if started { whole + 1 } else { whole }).ok()
 }
 
@@ -786,10 +783,10 @@ pub(crate) fn truncate(message: &str, limit: usize) -> String {
 #[cfg(test)]
 mod tests {
     use super::seconds_until;
-    use chrono::{DateTime, Duration, Utc};
+    use jiff::{SignedDuration, Timestamp};
 
-    fn at(millis: i64) -> DateTime<Utc> {
-        DateTime::from_timestamp_millis(1_700_000_000_000 + millis).unwrap()
+    fn at(millis: i64) -> Timestamp {
+        Timestamp::from_millisecond(1_700_000_000_000 + millis).unwrap()
     }
 
     #[test]
@@ -799,11 +796,11 @@ mod tests {
         assert_eq!(seconds_until(at(2_000), at(1_050)), Some(1));
         assert_eq!(seconds_until(at(2_000), at(1_999)), Some(1));
         assert_eq!(
-            seconds_until(at(2_000), at(0) - Duration::nanoseconds(1)),
+            seconds_until(at(2_000), at(0) - SignedDuration::from_nanos(1)),
             Some(3)
         );
         assert_eq!(
-            seconds_until(at(2_000), at(2_000) - Duration::nanoseconds(1)),
+            seconds_until(at(2_000), at(2_000) - SignedDuration::from_nanos(1)),
             Some(1)
         );
     }
@@ -813,6 +810,9 @@ mod tests {
         assert_eq!(seconds_until(at(0), at(0)), Some(0));
         assert_eq!(seconds_until(at(0), at(500)), Some(0));
         assert_eq!(seconds_until(at(0), at(1_500)), None);
-        assert_eq!(seconds_until(at(0) - Duration::hours(1), at(0)), None);
+        assert_eq!(
+            seconds_until(at(0) - SignedDuration::from_hours(1), at(0)),
+            None
+        );
     }
 }
