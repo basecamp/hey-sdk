@@ -2202,6 +2202,27 @@ object Routes {
         retry = RetryPolicy(max = 2, baseDelayMs = 1000L, retryOn = listOf(429, 503)),
     )
 
+    /** `PUT /entries/{entryId}/status/active.json` */
+    val RESTORE_ENTRY: Route = Route(
+        id = "RestoreEntry",
+        service = "Entries",
+        method = Method.PUT,
+        path = "/entries/{entryId}/status/active.json",
+        pattern = "/entries/{entryId}/status/active",
+        resource = "Entries",
+        resourceType = "entry",
+        params = listOf(
+            RouteParam("entryId", ParamRole.PARENT, ParamKind.INT64),
+        ),
+        idempotent = true,
+        readonly = false,
+        html = false,
+        emptyOn = emptyList(),
+        pagination = Pagination.NONE,
+        pageParameter = null,
+        retry = RetryPolicy(max = 2, baseDelayMs = 1000L, retryOn = listOf(429, 503)),
+    )
+
     /** `PUT /topics/{topicId}/status/active.json` */
     val RESTORE_TOPIC: Route = Route(
         id = "RestoreTopic",
@@ -2468,6 +2489,27 @@ object Routes {
         pagination = Pagination.NONE,
         pageParameter = null,
         retry = RetryPolicy(max = 3, baseDelayMs = 1000L, retryOn = listOf(429, 503)),
+    )
+
+    /** `POST /topics/{topicId}/undo_send.json` */
+    val UNDO_TOPIC_SEND: Route = Route(
+        id = "UndoTopicSend",
+        service = "Topics",
+        method = Method.POST,
+        path = "/topics/{topicId}/undo_send.json",
+        pattern = "/topics/{topicId}/undo_send",
+        resource = "Topics",
+        resourceType = "topic",
+        params = listOf(
+            RouteParam("topicId", ParamRole.PARENT, ParamKind.INT64),
+        ),
+        idempotent = false,
+        readonly = false,
+        html = false,
+        emptyOn = emptyList(),
+        pagination = Pagination.NONE,
+        pageParameter = null,
+        retry = RetryPolicy(max = 1, baseDelayMs = 1000L, retryOn = emptyList()),
     )
 
     /** `DELETE /postings/filings.json` */
@@ -2931,6 +2973,7 @@ object Routes {
         PUNT_CLEARANCES,
         REMOVE_POSTINGS_FROM_BOX_GROUP,
         RENAME_TOPIC,
+        RESTORE_ENTRY,
         RESTORE_TOPIC,
         RESUME_HABIT,
         REVEAL_CONTACT,
@@ -2944,6 +2987,7 @@ object Routes {
         UNBUNDLE_CONTACT,
         UNCOMPLETE_CALENDAR_TODO,
         UNCOMPLETE_HABIT,
+        UNDO_TOPIC_SEND,
         UNFILE_POSTINGS,
         UNMUTE_POSTINGS,
         UPDATE_CALENDAR_TODO,

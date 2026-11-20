@@ -4,6 +4,9 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/url"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/basecamp/hey-sdk/go/pkg/generated"
@@ -420,6 +423,69 @@ func (s *TopicsService) Restore(ctx context.Context, topicID int64) error {
 		}
 		return CheckResponse(resp.HTTPResponse)
 	})
+}
+
+// UndoSend calls back the last message the caller sent on a topic, while Undo Send still
+// holds it, and answers the entry HEY called back: a draft again, unsent.
+//
+// HEY picks the message, the caller's last delayed entry on the topic, so compare the
+// entry answered with the one meant: two messages sent to one thread within the delay are
+// called back last first. A reply that broke out into a thread of its own is called back
+// on that thread, the one the send's TopicId names.
+//
+// HEY answers with a redirect to the draft rather than JSON, the answer its own apps read,
+// and the redirect is the only place it names the entry: the SDK takes it as the answer
+// rather than follow it. The entry is 0 when the redirect names none. Once the delay has
+// run out and the message has gone, or when nothing was held, HEY answers 400: an API
+// error whose HTTPStatus is 400, and nothing was changed. It is never sent twice.
+func (s *TopicsService) UndoSend(ctx context.Context, topicID int64) (entryID int64, err error) {
+	op := OperationInfo{
+		Service: "Topics", Operation: "UndoTopicSend",
+		ResourceType: "topic", IsMutation: true, ResourceID: topicID,
+	}
+
+	err = s.client.instrument(ctx, op, func(ctx context.Context) error {
+		resp, rerr := s.client.genClient().UndoTopicSendWithResponse(contextWithRedirectAsAnswer(ctx), topicID)
+		if rerr != nil {
+			return rerr
+		}
+		if location, redirected := redirectAnswer(resp.HTTPResponse); redirected {
+			entryID, _ = UndoneEntryID(location)
+			return nil
+		}
+		if resp.StatusCode() == http.StatusBadRequest {
+			nothing := ErrAPI(http.StatusBadRequest, "nothing to undo: the message was already sent, or none was held")
+			nothing.RequestID = resp.HTTPResponse.Header.Get("X-Request-Id")
+			return nothing
+		}
+		return CheckResponse(resp.HTTPResponse)
+	})
+	return entryID, err
+}
+
+// UndoneEntryID reads the entry HEY called back out of the redirect an undo send answers
+// with, for a caller holding that Location: /messages/{id}/edit for a message on a thread
+// of its own, /topics/{topicId}?expanded_draft={id} for a reply. Anything else names no
+// entry, and ok is false: the thread alone, which is where HEY's pages send a browser
+// with nothing to undo, is not an undo.
+func UndoneEntryID(location string) (entryID int64, ok bool) {
+	parsed, err := url.Parse(location)
+	if err != nil {
+		return 0, false
+	}
+	parts := strings.Split(strings.Trim(parsed.Path, "/"), "/")
+	var named string
+	switch {
+	case len(parts) == 3 && parts[0] == "messages" && parts[2] == "edit":
+		named = parts[1]
+	case len(parts) == 2 && parts[0] == "topics":
+		named = parsed.Query().Get("expanded_draft")
+	}
+	id, err := strconv.ParseInt(named, 10, 64)
+	if err != nil || id <= 0 {
+		return 0, false
+	}
+	return id, true
 }
 
 // MarkHam rescues a topic from spam. Every other spam topic from the same sender comes with it.

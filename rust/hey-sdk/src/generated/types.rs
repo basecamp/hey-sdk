@@ -2354,8 +2354,9 @@ pub struct SentMessage {
     /// "Message sent", present only while delayed.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub notice: Option<String>,
-    /// Where to POST to call the message back, present only while delayed, and never for a
-    /// token narrower than full scope: HEY offers such a token no Undo Send.
+    /// Where to POST to call the message back (UndoTopicSend), present only while delayed,
+    /// and only for a token that can follow it: a scoped token is offered Undo Send when it
+    /// holds write, approved since HEY widened write to cover it.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub undo_action: Option<String>,
     /// Seconds the undo notice stays up, present beside undo_action.

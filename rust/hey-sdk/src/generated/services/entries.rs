@@ -95,4 +95,29 @@ impl<'a> Entries<'a> {
         operation.resource_id(entry_id);
         self.client.send(operation).await
     }
+
+    /// Restore an entry from the trash (Entries::StatusController#active): a trashed draft
+    /// becomes a draft again, and a trashed message that had been sent or received returns to
+    /// its thread. An entry that is not in the trash is left as it is, so asking twice is
+    /// harmless. HEY first delivers an entry Undo Send still holds, as its other status changes
+    /// do, so this is not a way to call a send back (UndoTopicSend is).
+    ///
+    /// The entry alone is restored, never its topic. A draft that was the only entry of its
+    /// topic took the topic to the trash with it (DeleteDraft), and restoring just the entry
+    /// leaves a draft on a trashed topic, which HEY empties from the trash with the rest:
+    /// restore that one with RestoreTopic, which brings back the topic and the draft together.
+    /// This operation is for a draft trashed out of a thread that stayed, which RestoreTopic
+    /// leaves in the trash.
+    ///
+    /// HEY answers with a redirect and no body, 303 to the entry's topic. A generated client
+    /// follows it and reads the thread; Go's wrapper takes the redirect as the answer.
+    /// TypeScript's client follows no redirect: there the 303 arrives as an error whose status
+    /// is 303, and that status is the restore having gone through. A scoped token needs write,
+    /// and send as well when the draft is scheduled to send, since a draft keeps its schedule
+    /// in the trash.
+    pub async fn restore(&self, entry_id: i64) -> Result<(), Error> {
+        let mut operation = self.client.operation(&routes::RESTORE_ENTRY, &[&entry_id]);
+        operation.resource_id(entry_id);
+        self.client.send_unit(operation).await
+    }
 }

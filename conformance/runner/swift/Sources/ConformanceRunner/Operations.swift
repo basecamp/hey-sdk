@@ -311,6 +311,9 @@ private func executeOperation(_ client: HeyClient, _ testCase: TestCase) async t
     case "RestoreTopic":
         try await client.topics.restore(topicId: path.int("topicId"))
         return .unit
+    case "UndoTopicSend":
+        try await client.topics.undoSend(topicId: path.int("topicId"))
+        return .unit
     case "MarkTopicHam":
         try await client.topics.markHam(topicId: path.int("topicId"))
         return .unit
@@ -326,6 +329,9 @@ private func executeOperation(_ client: HeyClient, _ testCase: TestCase) async t
 
     case "MarkEntrySpam":
         try await client.entries.markSpam(entryId: path.int("entryId"))
+        return .unit
+    case "RestoreEntry":
+        try await client.entries.restore(entryId: path.int("entryId"))
         return .unit
     case "NewEntryForward": return try asJSON(try await client.entries.newForward(entryId: path.int("entryId")))
 
@@ -491,7 +497,9 @@ private func executeHeyOperation(_ client: HeyClient, _ testCase: TestCase) asyn
     let body = testCase.requestBody
     switch testCase.operation {
     // Generated operations, sent through the client a HEY-layer case configures.
-    case "RenameTopic", "GetCollection": return try await executeOperation(client, testCase)
+    case "RenameTopic", "GetCollection", "RestoreEntry": return try await executeOperation(client, testCase)
+    case "UndoSend":
+        return try asJSON(["entry_id": try await client.topics.undoTopicSend(topicId: path.int("topicId"))])
     case "ListBoxes": return try await page(client, try await client.boxes.list(), testCase.followsNextPage)
     case "GetWorkflowStage":
         return try asJSON(try await client.workflows.stage(workflowId: path.int("workflowId"), stageId: path.int("stageId")))

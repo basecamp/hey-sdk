@@ -28,7 +28,8 @@
 //! operation that ends the way the caller sees it, and the request hooks still hear what
 //! HEY answered, as they do in Go. [`postings::Postings::changes`],
 //! [`calendars::Calendars::recording_changes`],
-//! [`time_tracks::TimeTracks::start_tracking`] and the contact writes do this.
+//! [`time_tracks::TimeTracks::start_tracking`], [`topics::Topics::undo_topic_send`] and the
+//! contact writes do this.
 
 pub mod attachments;
 pub mod boxes;
@@ -87,6 +88,7 @@ pub use messages::{DeliverySchedule, DraftContent, MessageContent};
 pub use postings::{BubbleUpSlot, PostingChanges, PostingChangesCursor};
 pub use search::{SearchParams, SearchResults};
 pub use stickies::{MAX_STICKIES_LIMIT, MAX_STICKY_POSITION, StickySize};
+pub use topics::undone_entry_id;
 pub use workflows::{WorkflowStageTopic, WorkflowStageView, WorkflowSummary};
 pub use world::WORLD_ADDRESS;
 

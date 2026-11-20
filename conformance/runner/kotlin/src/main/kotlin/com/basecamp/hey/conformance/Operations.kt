@@ -405,6 +405,10 @@ private suspend fun executeOperation(client: HeyClient, case: TestCase): Outcome
             client.topics.restore(path.int64("topicId"))
             Outcome.Unit
         }
+        "UndoTopicSend" -> {
+            client.topics.undoSend(path.int64("topicId"))
+            Outcome.Unit
+        }
         "MarkTopicHam" -> {
             client.topics.markHam(path.int64("topicId"))
             Outcome.Unit
@@ -424,6 +428,10 @@ private suspend fun executeOperation(client: HeyClient, case: TestCase): Outcome
 
         "MarkEntrySpam" -> {
             client.entries.markSpam(path.int64("entryId"))
+            Outcome.Unit
+        }
+        "RestoreEntry" -> {
+            client.entries.restore(path.int64("entryId"))
             Outcome.Unit
         }
         "NewEntryForward" -> asJson(client.entries.newForward(path.int64("entryId")))
@@ -558,7 +566,8 @@ private suspend fun executeHeyOperation(client: HeyClient, case: TestCase): Outc
     val body = case.requestBody
     return when (case.operation) {
         // Generated operations, sent through the client a HEY-layer case configures.
-        "RenameTopic", "GetCollection" -> executeOperation(client, case)
+        "RenameTopic", "GetCollection", "RestoreEntry" -> executeOperation(client, case)
+        "UndoSend" -> asJson(mapOf("entry_id" to client.topics.undoTopicSend(path.int64("topicId"))))
         "ListBoxes" -> page(client, client.boxes.list(), case.followsNextPage)
         "GetWorkflowStage" -> asJson(client.workflows.stage(path.int64("workflowId"), path.int64("stageId")))
         "UpdateCalendarEvent" -> {

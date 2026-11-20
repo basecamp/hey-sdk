@@ -10,7 +10,7 @@ import kotlin.test.assertTrue
 class RouteTest {
     @Test
     fun everyOperationHasOneRoute() {
-        assertEquals(139, Routes.ALL.size)
+        assertEquals(141, Routes.ALL.size)
         assertEquals(Routes.ALL.size, Routes.ALL.map { it.id }.toSet().size)
         assertTrue(Routes.ALL.all { it.retry.max >= 0 })
         assertEquals(false, Routes.GET_WORKFLOW_STAGE.html, "HEY answers the stage as JSON")

@@ -2888,6 +2888,34 @@ pub static RENAME_TOPIC: Route = Route {
     },
 };
 
+pub static RESTORE_ENTRY: Route = Route {
+    id: "RestoreEntry",
+    service: "Entries",
+    method: Method::PUT,
+    path: "/entries/{entryId}/status/active.json",
+    pattern: "/entries/{entryId}/status/active",
+    resource: "Entries",
+    resource_type: "entry",
+    params: &[RouteParam {
+        name: "entryId",
+        role: ParamRole::Parent,
+        kind: ParamKind::Int64,
+    }],
+    idempotent: true,
+    readonly: false,
+    html: false,
+    empty_on: &[],
+    lenient_success: false,
+    unsigned: false,
+    no_redirect: false,
+    pagination: Pagination::None,
+    retry: Retry {
+        max: 2,
+        base_delay_ms: 1000,
+        retry_on: &[429, 503],
+    },
+};
+
 pub static RESTORE_TOPIC: Route = Route {
     id: "RestoreTopic",
     service: "Topics",
@@ -3240,6 +3268,34 @@ pub static UNCOMPLETE_HABIT: Route = Route {
         max: 3,
         base_delay_ms: 1000,
         retry_on: &[429, 503],
+    },
+};
+
+pub static UNDO_TOPIC_SEND: Route = Route {
+    id: "UndoTopicSend",
+    service: "Topics",
+    method: Method::POST,
+    path: "/topics/{topicId}/undo_send.json",
+    pattern: "/topics/{topicId}/undo_send",
+    resource: "Topics",
+    resource_type: "topic",
+    params: &[RouteParam {
+        name: "topicId",
+        role: ParamRole::Parent,
+        kind: ParamKind::Int64,
+    }],
+    idempotent: false,
+    readonly: false,
+    html: false,
+    empty_on: &[],
+    lenient_success: false,
+    unsigned: false,
+    no_redirect: false,
+    pagination: Pagination::None,
+    retry: Retry {
+        max: 1,
+        base_delay_ms: 1000,
+        retry_on: &[],
     },
 };
 
@@ -3814,6 +3870,7 @@ pub static ROUTES: &[&Route] = &[
     &PUNT_CLEARANCES,
     &REMOVE_POSTINGS_FROM_BOX_GROUP,
     &RENAME_TOPIC,
+    &RESTORE_ENTRY,
     &RESTORE_TOPIC,
     &RESUME_HABIT,
     &REVEAL_CONTACT,
@@ -3827,6 +3884,7 @@ pub static ROUTES: &[&Route] = &[
     &UNBUNDLE_CONTACT,
     &UNCOMPLETE_CALENDAR_TODO,
     &UNCOMPLETE_HABIT,
+    &UNDO_TOPIC_SEND,
     &UNFILE_POSTINGS,
     &UNMUTE_POSTINGS,
     &UPDATE_CALENDAR_TODO,

@@ -677,6 +677,19 @@
       }
     },
     {
+      "pattern": "/entries/{entryId}/status/active",
+      "resource": "Entries",
+      "operations": {
+        "PUT": "RestoreEntry"
+      },
+      "params": {
+        "entryId": {
+          "role": "parent",
+          "type": "int64"
+        }
+      }
+    },
+    {
       "pattern": "/entries/{entryId}/status/spam",
       "resource": "Entries",
       "operations": {
@@ -1149,6 +1162,19 @@
       "resource": "Topics",
       "operations": {
         "PUT": "TrashTopic"
+      },
+      "params": {
+        "topicId": {
+          "role": "parent",
+          "type": "int64"
+        }
+      }
+    },
+    {
+      "pattern": "/topics/{topicId}/undo_send",
+      "resource": "Topics",
+      "operations": {
+        "POST": "UndoTopicSend"
       },
       "params": {
         "topicId": {

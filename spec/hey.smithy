@@ -193,6 +193,7 @@ service HEY {
         // Topics — status and moves
         TrashTopic
         RestoreTopic
+        UndoTopicSend
         MarkTopicHam
         EmptyTrash
         EmptySpam
@@ -200,6 +201,7 @@ service HEY {
 
         // Entries
         MarkEntrySpam
+        RestoreEntry
         NewEntryForward
 
         // Bulk reply
@@ -1899,8 +1901,9 @@ structure SentMessage {
     /// "Message sent", present only while delayed.
     notice: String
 
-    /// Where to POST to call the message back, present only while delayed, and never for a
-    /// token narrower than full scope: HEY offers such a token no Undo Send.
+    /// Where to POST to call the message back (UndoTopicSend), present only while delayed,
+    /// and only for a token that can follow it: a scoped token is offered Undo Send when it
+    /// holds write, approved since HEY widened write to cover it.
     undo_action: String
 
     /// Seconds the undo notice stays up, present beside undo_action.
@@ -3949,6 +3952,35 @@ operation RestoreTopic {
     errors: [UnauthorizedError, NotFoundError, InternalServerError, ServiceUnavailableError]
 }
 
+/// Call back the last message the caller sent on a topic, while Undo Send still holds it
+/// (Topics::UndoSendsController#create). The message returns to Drafts, unsent. HEY picks
+/// the message: the caller's last delayed entry on the topic, which need not be the one a
+/// caller has in mind when two were sent to one thread within the delay. A reply that broke
+/// out into a thread of its own is called back on that thread, the one SentMessage's
+/// topic_id names, and returns to the thread it answered.
+///
+/// HEY answers a success with a redirect and no body, 303 to the draft: /messages/{entryId}/edit
+/// for a new message, /topics/{topicId}?expanded_draft={entryId} for a reply. That Location
+/// is the only place HEY names the entry it called back. A generated client follows the
+/// redirect and reads the draft or its thread, which says the undo went through and not
+/// which entry it was; the Go, Rust, Kotlin and Swift conveniences send it without
+/// following and answer the entry. TypeScript's client follows no redirect: there the 303
+/// arrives as an error whose status is 303, and that status is the undo having gone through.
+/// With nothing left to call back (the delay ran out and the message went, or none was held)
+/// HEY answers 400 and changes nothing. A scoped token needs write.
+///
+/// Never sent again after a failure: a second undo calls back the next delayed entry.
+@http(method: "POST", uri: "/topics/{topicId}/undo_send.json")
+@tags(["Topics"])
+@heyRetry(maxAttempts: 1, baseDelayMs: 1000, backoff: "exponential", retryOn: [])
+@heyDestructive(false)
+@heyOpenWorld(false)
+@heyUntrustedContent(false)
+operation UndoTopicSend {
+    input: TopicStatusInput
+    errors: [BadRequestError, UnauthorizedError, ForbiddenError, NotFoundError, InternalServerError, ServiceUnavailableError]
+}
+
 /// Mark a spam topic as ham. Every other spam topic from the same sender is hammed too.
 @idempotent
 @http(method: "PUT", uri: "/topics/{topicId}/status/ham.json")
@@ -4036,6 +4068,37 @@ structure MoveTopicRequestContent {
 operation MarkEntrySpam {
     input: EntryStatusInput
     errors: [UnauthorizedError, NotFoundError, InternalServerError, ServiceUnavailableError]
+}
+
+/// Restore an entry from the trash (Entries::StatusController#active): a trashed draft
+/// becomes a draft again, and a trashed message that had been sent or received returns to
+/// its thread. An entry that is not in the trash is left as it is, so asking twice is
+/// harmless. HEY first delivers an entry Undo Send still holds, as its other status changes
+/// do, so this is not a way to call a send back (UndoTopicSend is).
+///
+/// The entry alone is restored, never its topic. A draft that was the only entry of its
+/// topic took the topic to the trash with it (DeleteDraft), and restoring just the entry
+/// leaves a draft on a trashed topic, which HEY empties from the trash with the rest:
+/// restore that one with RestoreTopic, which brings back the topic and the draft together.
+/// This operation is for a draft trashed out of a thread that stayed, which RestoreTopic
+/// leaves in the trash.
+///
+/// HEY answers with a redirect and no body, 303 to the entry's topic. A generated client
+/// follows it and reads the thread; Go's wrapper takes the redirect as the answer.
+/// TypeScript's client follows no redirect: there the 303 arrives as an error whose status
+/// is 303, and that status is the restore having gone through. A scoped token needs write,
+/// and send as well when the draft is scheduled to send, since a draft keeps its schedule
+/// in the trash.
+@idempotent
+@http(method: "PUT", uri: "/entries/{entryId}/status/active.json")
+@tags(["Entries"])
+@heyRetry(maxAttempts: 2, baseDelayMs: 1000, backoff: "exponential", retryOn: [429, 503])
+@heyDestructive(false)
+@heyOpenWorld(false)
+@heyUntrustedContent(false)
+operation RestoreEntry {
+    input: EntryStatusInput
+    errors: [UnauthorizedError, ForbiddenError, NotFoundError, InternalServerError, ServiceUnavailableError]
 }
 
 structure EntryStatusInput {

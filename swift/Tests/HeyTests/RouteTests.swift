@@ -5,7 +5,7 @@ import XCTest
 
 final class RouteTests: XCTestCase {
     func testEveryOperationHasOneRoute() {
-        XCTAssertEqual(Routes.all.count, 139)
+        XCTAssertEqual(Routes.all.count, 141)
         XCTAssertEqual(Set(Routes.all.map(\.id)).count, Routes.all.count)
         XCTAssertTrue(Routes.all.allSatisfy { $0.retry.max >= 0 })
         XCTAssertFalse(Routes.getWorkflowStage.html, "HEY answers the stage as JSON")

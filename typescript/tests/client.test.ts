@@ -322,6 +322,65 @@ describe("HEY transport", () => {
       expect(m.requests[0]!.redirect).toBe("manual");
     },
   );
+  it("surfaces the 303 HEY answers an undo or an entry restore with as an error of that status, sent once", async () => {
+    // No redirect is followed, so the answer HEY gives a success is the error here: a caller
+    // reads httpStatus 303 as the undo or the restore having gone through.
+    const undo = mock([
+      new Response(null, {
+        status: 303,
+        headers: { Location: "/topics/9?expanded_draft=77" },
+      }),
+    ]);
+    await expect(
+      new HeyClient({ token: "secret", fetch: undo.fetch, maxRetries: 3 }).undoTopicSend({
+        path: { topicId: 9 },
+      }),
+    ).rejects.toMatchObject({ code: "api_error", httpStatus: 303, retryable: false });
+    expect(undo.requests).toHaveLength(1);
+    expect(undo.requests[0]!.method).toBe("POST");
+    expect(undo.requests[0]!.url).toBe("https://app.hey.com/topics/9/undo_send.json");
+    expect(undo.requests[0]!.headers.get("Accept")).toBe("application/json");
+    const restore = mock([
+      new Response(null, { status: 303, headers: { Location: "/topics/9" } }),
+    ]);
+    await expect(
+      new HeyClient({ token: "secret", fetch: restore.fetch, maxRetries: 3 }).restoreEntry({
+        path: { entryId: 77 },
+      }),
+    ).rejects.toMatchObject({ code: "api_error", httpStatus: 303, retryable: false });
+    expect(restore.requests).toHaveLength(1);
+    expect(restore.requests[0]!.method).toBe("PUT");
+    expect(restore.requests[0]!.url).toBe("https://app.hey.com/entries/77/status/active.json");
+  });
+  it.each([400, 503])(
+    "never sends an undo again after a %s, whatever the client allows",
+    async (status) => {
+      const m = mock([
+        json({}, status),
+        new Response(null, { status: 303, headers: { Location: "/messages/77/edit" } }),
+      ]);
+      await expect(
+        new HeyClient({ token: "secret", fetch: m.fetch, maxRetries: 3 }).undoTopicSend({
+          path: { topicId: 9 },
+        }),
+      ).rejects.toMatchObject({ httpStatus: status });
+      expect(m.requests).toHaveLength(1);
+    },
+  );
+  it("sends an entry restore again after a 503, twice in all", async () => {
+    vi.useFakeTimers();
+    try {
+      const m = mock([json({}, 503), json({}, 503), new Response(null, { status: 204 })]);
+      const request = new HeyClient({ token: "secret", fetch: m.fetch, maxRetries: 3 })
+        .restoreEntry({ path: { entryId: 77 } });
+      const refused = expect(request).rejects.toMatchObject({ httpStatus: 503 });
+      await vi.advanceTimersByTimeAsync(60_000);
+      await refused;
+      expect(m.requests).toHaveLength(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
   it("bounds success and error bodies including decompressed streamed chunks", async () => {
     for (const status of [200, 503]) {
       let cancelled = false;

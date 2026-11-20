@@ -746,6 +746,13 @@ async fn execute_operation(client: &Client, case: &TestCase) -> Result<Outcome, 
                 .await?;
             Ok(Outcome::Unit)
         }
+        "UndoTopicSend" => {
+            client
+                .topics()
+                .undo_send(int64_param(path, "topicId"))
+                .await?;
+            Ok(Outcome::Unit)
+        }
         "MarkTopicHam" => {
             client
                 .topics()
@@ -776,6 +783,13 @@ async fn execute_operation(client: &Client, case: &TestCase) -> Result<Outcome, 
             client
                 .entries()
                 .mark_spam(int64_param(path, "entryId"))
+                .await?;
+            Ok(Outcome::Unit)
+        }
+        "RestoreEntry" => {
+            client
+                .entries()
+                .restore(int64_param(path, "entryId"))
                 .await?;
             Ok(Outcome::Unit)
         }
@@ -1169,7 +1183,13 @@ async fn execute_hey_operation(client: &Client, case: &TestCase) -> Result<Outco
 
     match case.operation.as_str() {
         // Generated operations, sent through the client a HEY-layer case configures.
-        "RenameTopic" | "GetCollection" => execute_operation(client, case).await,
+        "RenameTopic" | "GetCollection" | "RestoreEntry" => execute_operation(client, case).await,
+        "UndoSend" => json(serde_json::json!({
+            "entry_id": client
+                .topics()
+                .undo_topic_send(int64_param(path, "topicId"))
+                .await?,
+        })),
         "ListBoxes" => {
             page(
                 client,

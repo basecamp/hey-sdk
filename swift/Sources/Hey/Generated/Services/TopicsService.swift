@@ -221,4 +221,31 @@ public final class TopicsService: BaseService, @unchecked Sendable {
         operation.queryOptional("confirm_destroy", options?.confirmDestroy)
         return try await client.sendVoid(operation)
     }
+
+    /// Call back the last message the caller sent on a topic, while Undo Send still holds it
+    /// (Topics::UndoSendsController#create). The message returns to Drafts, unsent. HEY picks
+    /// the message: the caller's last delayed entry on the topic, which need not be the one a
+    /// caller has in mind when two were sent to one thread within the delay. A reply that broke
+    /// out into a thread of its own is called back on that thread, the one SentMessage's
+    /// topic_id names, and returns to the thread it answered.
+    ///
+    /// HEY answers a success with a redirect and no body, 303 to the draft: /messages/{entryId}/edit
+    /// for a new message, /topics/{topicId}?expanded_draft={entryId} for a reply. That Location
+    /// is the only place HEY names the entry it called back. A generated client follows the
+    /// redirect and reads the draft or its thread, which says the undo went through and not
+    /// which entry it was; the Go, Rust, Kotlin and Swift conveniences send it without
+    /// following and answer the entry. TypeScript's client follows no redirect: there the 303
+    /// arrives as an error whose status is 303, and that status is the undo having gone through.
+    /// With nothing left to call back (the delay ran out and the message went, or none was held)
+    /// HEY answers 400 and changes nothing. A scoped token needs write.
+    ///
+    /// Never sent again after a failure: a second undo calls back the next delayed entry.
+    ///
+    /// - Parameters:
+    ///   - topicId: The topic ID
+    public func undoSend(topicId: Int) async throws {
+        var operation = try client.operation(Routes.undoTopicSend, [topicId])
+        operation.resourceId(topicId)
+        return try await client.sendVoid(operation)
+    }
 }

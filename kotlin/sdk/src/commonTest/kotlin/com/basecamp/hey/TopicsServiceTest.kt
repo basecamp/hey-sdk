@@ -5,6 +5,7 @@ import com.basecamp.hey.generated.models.TopicNamePayload
 import com.basecamp.hey.generated.models.CreateTopicCommentRequestContent
 import com.basecamp.hey.generated.models.TopicCommentPayload
 import com.basecamp.hey.generated.topics
+import com.basecamp.hey.services.undoneEntryId
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -85,6 +86,87 @@ class TopicsServiceTest {
         assertFailsWith<HeyException.NotFound> { client.topics.trashTopic(9, confirmDestroy = true) }
         val error = assertFailsWith<HeyException.Api> { client.topics.trashTopic(9, confirmDestroy = true) }
         assertEquals(406, error.httpStatus)
+    }
+
+    @Test
+    fun anUndoAnswersTheEntryHeyCalledBackWithoutFollowingTheRedirect() = runTest {
+        for (location in listOf("/messages/77/edit", "/topics/9?expanded_draft=77", "https://app.hey.com/messages/77/edit?native_undo=true")) {
+            val hey = mockHey(status(303, headers = mapOf("Location" to location)), ok())
+            val log = OperationLog()
+            val entryId = hey.client { hooks = log; maxRetries = 3 }.topics.undoTopicSend(9)
+            assertEquals(77L, entryId, location)
+            assertEquals(1, hey.requests.size, "the redirect to $location is the answer, not followed")
+            val request = hey.requests.single()
+            assertEquals("POST", request.method)
+            assertEquals("/topics/9/undo_send.json", request.path)
+            assertEquals("application/json", request.header("Accept"))
+            assertEquals("Bearer test-token", request.header("Authorization"))
+            assertEquals("", request.body)
+            assertEquals(listOf("Topics.UndoTopicSend:topic:true:9"), log.started)
+            assertEquals(listOf("Topics.UndoTopicSend:null"), log.ended)
+        }
+    }
+
+    @Test
+    fun anUndoWhoseRedirectNamesNoEntryAnswersNone() = runTest {
+        val hey = mockHey(status(303, headers = mapOf("Location" to "/somewhere/else")), ok())
+        assertNull(hey.client().topics.undoTopicSend(9), "HEY acted; it only can't be said which entry it was")
+        assertEquals(1, hey.requests.size)
+    }
+
+    @Test
+    fun anUndoWithNothingLeftToCallBackIsRefusedWithHeys400() = runTest {
+        val hey = mockHey(status(400, headers = mapOf("X-Request-Id" to "req-undo-400")), status(303, headers = mapOf("Location" to "/messages/77/edit")))
+        val log = OperationLog()
+        val refused = assertFailsWith<HeyException.Api> { hey.client { hooks = log; maxRetries = 3 }.topics.undoTopicSend(9) }
+        assertEquals(400, refused.httpStatus)
+        assertEquals("nothing to undo: the message was already sent, or none was held", refused.message)
+        assertEquals("req-undo-400", refused.requestId)
+        assertEquals(false, refused.retryable)
+        assertEquals(1, hey.requests.size, "too late is not asked twice")
+        assertEquals(listOf("Topics.UndoTopicSend:api_error"), log.ended, "the hooks hear the refusal the caller gets")
+    }
+
+    @Test
+    fun anUndoIsNotSentAgainAfterAFailure() = runTest {
+        val hey = mockHey(status(503), status(303, headers = mapOf("Location" to "/messages/77/edit")))
+        val refused = assertFailsWith<HeyException> { hey.client { maxRetries = 3 }.topics.undoTopicSend(9) }
+        assertEquals(503, refused.httpStatus)
+        assertEquals(1, hey.requests.size, "a second undo would call back the next delayed entry")
+    }
+
+    @Test
+    fun anUndoOnATopicOutOfReachStaysNotFound() = runTest {
+        val hey = mockHey(status(404))
+        assertFailsWith<HeyException.NotFound> { hey.client().topics.undoTopicSend(9) }
+    }
+
+    @Test
+    fun theEntryCalledBackIsReadOnlyOutOfAnUndoRedirect() {
+        for (location in listOf(
+            "/messages/77/edit",
+            "https://app.hey.com/messages/77/edit",
+            "https://app.hey.com/messages/77/edit?native_undo=true&notice=x",
+            "/topics/9?expanded_draft=77",
+            "https://app.hey.com/topics/9?expanded_draft=77#__entry_77",
+        )) {
+            assertEquals(77L, undoneEntryId(location), location)
+        }
+        for (location in listOf(
+            "",
+            "/topics/9", // where HEY's pages send a browser with nothing to undo
+            "/topics/9?expanded_draft=",
+            "/topics/9?expanded_draft=abc",
+            "/topics/9?expanded_draft=-4",
+            "/messages/77", // the message, not its draft
+            "/messages/abc/edit",
+            "/messages/0/edit",
+            "/entries/77/edit",
+            "/topics/9/entries?expanded_draft=77",
+            "not a url at all: %",
+        )) {
+            assertNull(undoneEntryId(location), location)
+        }
     }
 
     @Test
