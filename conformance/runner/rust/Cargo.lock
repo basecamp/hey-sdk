@@ -394,7 +394,7 @@ dependencies = [
 
 [[package]]
 name = "hey-sdk"
-version = "0.35.1"
+version = "0.36.0"
 dependencies = [
  "async-trait",
  "base64 0.23.1",
