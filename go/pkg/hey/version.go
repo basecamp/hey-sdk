@@ -1,7 +1,7 @@
 package hey
 
 // Version is the current version of the HEY Go SDK.
-const Version = "0.35.1"
+const Version = "0.36.0"
 
 // APIVersion is the HEY API version this SDK targets.
 const APIVersion = "2026-11-03"
