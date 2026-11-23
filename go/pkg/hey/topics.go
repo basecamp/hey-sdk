@@ -287,82 +287,150 @@ func (s *TopicsService) getSent(ctx context.Context, params *generated.GetSentTo
 	return resp.JSON200, nextPage, nil
 }
 
+// TopicListPage is one page of the Spam, Trash or Everything view: its topics, the opaque
+// cursor for the next page (empty on the last page) and the view's total topic count from
+// X-Total-Count (zero when HEY does not send one).
+type TopicListPage struct {
+	Title       string            `json:"title"`
+	Description string            `json:"description"`
+	Topics      []generated.Topic `json:"topics"`
+	NextPage    string            `json:"next_page"`
+	TotalCount  int               `json:"total_count"`
+}
+
 // GetSpam returns spam topics.
-func (s *TopicsService) GetSpam(ctx context.Context, params *generated.GetSpamTopicsParams) (result *generated.TopicListResponse, err error) {
+func (s *TopicsService) GetSpam(ctx context.Context, params *generated.GetSpamTopicsParams) (*generated.TopicListResponse, error) {
+	response, _, err := s.getSpam(ctx, params)
+	return response, err
+}
+
+// GetSpamPage returns one page of spam topics with the next-page cursor from the Link
+// header and the total count. An empty page argument reads the first page.
+func (s *TopicsService) GetSpamPage(ctx context.Context, page string) (*TopicListPage, error) {
+	response, header, err := s.getSpam(ctx, &generated.GetSpamTopicsParams{Page: topicListCursor(page)})
+	if err != nil {
+		return nil, err
+	}
+	return newTopicListPage(response, header), nil
+}
+
+func (s *TopicsService) getSpam(ctx context.Context, params *generated.GetSpamTopicsParams) (result *generated.TopicListResponse, header http.Header, err error) {
 	op := OperationInfo{
 		Service: "Topics", Operation: "GetSpamTopics",
 		ResourceType: "topic", IsMutation: false,
 	}
-	if gater, ok := s.client.hooks.(GatingHooks); ok {
-		if ctx, err = gater.OnOperationGate(ctx, op); err != nil {
-			return
+	err = s.client.instrument(ctx, op, func(ctx context.Context) error {
+		resp, rerr := s.client.genClient().GetSpamTopicsWithResponse(ctx, params)
+		if rerr != nil {
+			return rerr
 		}
-	}
-	start := time.Now()
-	ctx = s.client.hooks.OnOperationStart(ctx, op)
-	defer func() { s.client.hooks.OnOperationEnd(ctx, op, err, time.Since(start)) }()
-
-	s.client.initGeneratedClient()
-	resp, err := s.client.gen.GetSpamTopicsWithResponse(ctx, params)
-	if err != nil {
-		return nil, err
-	}
-	if err = CheckResponse(resp.HTTPResponse); err != nil {
-		return nil, err
-	}
-	return resp.JSON200, nil
+		if cerr := CheckResponse(resp.HTTPResponse); cerr != nil {
+			return cerr
+		}
+		result = resp.JSON200
+		if resp.HTTPResponse != nil {
+			header = resp.HTTPResponse.Header
+		}
+		return nil
+	})
+	return result, header, err
 }
 
 // GetTrash returns trash topics.
-func (s *TopicsService) GetTrash(ctx context.Context, params *generated.GetTrashTopicsParams) (result *generated.TopicListResponse, err error) {
+func (s *TopicsService) GetTrash(ctx context.Context, params *generated.GetTrashTopicsParams) (*generated.TopicListResponse, error) {
+	response, _, err := s.getTrash(ctx, params)
+	return response, err
+}
+
+// GetTrashPage returns one page of trash topics with the next-page cursor from the Link
+// header and the total count. An empty page argument reads the first page.
+func (s *TopicsService) GetTrashPage(ctx context.Context, page string) (*TopicListPage, error) {
+	response, header, err := s.getTrash(ctx, &generated.GetTrashTopicsParams{Page: topicListCursor(page)})
+	if err != nil {
+		return nil, err
+	}
+	return newTopicListPage(response, header), nil
+}
+
+func (s *TopicsService) getTrash(ctx context.Context, params *generated.GetTrashTopicsParams) (result *generated.TopicListResponse, header http.Header, err error) {
 	op := OperationInfo{
 		Service: "Topics", Operation: "GetTrashTopics",
 		ResourceType: "topic", IsMutation: false,
 	}
-	if gater, ok := s.client.hooks.(GatingHooks); ok {
-		if ctx, err = gater.OnOperationGate(ctx, op); err != nil {
-			return
+	err = s.client.instrument(ctx, op, func(ctx context.Context) error {
+		resp, rerr := s.client.genClient().GetTrashTopicsWithResponse(ctx, params)
+		if rerr != nil {
+			return rerr
 		}
-	}
-	start := time.Now()
-	ctx = s.client.hooks.OnOperationStart(ctx, op)
-	defer func() { s.client.hooks.OnOperationEnd(ctx, op, err, time.Since(start)) }()
-
-	s.client.initGeneratedClient()
-	resp, err := s.client.gen.GetTrashTopicsWithResponse(ctx, params)
-	if err != nil {
-		return nil, err
-	}
-	if err = CheckResponse(resp.HTTPResponse); err != nil {
-		return nil, err
-	}
-	return resp.JSON200, nil
+		if cerr := CheckResponse(resp.HTTPResponse); cerr != nil {
+			return cerr
+		}
+		result = resp.JSON200
+		if resp.HTTPResponse != nil {
+			header = resp.HTTPResponse.Header
+		}
+		return nil
+	})
+	return result, header, err
 }
 
 // GetEverything returns all topics.
-func (s *TopicsService) GetEverything(ctx context.Context, params *generated.GetEverythingTopicsParams) (result *generated.TopicListResponse, err error) {
+func (s *TopicsService) GetEverything(ctx context.Context, params *generated.GetEverythingTopicsParams) (*generated.TopicListResponse, error) {
+	response, _, err := s.getEverything(ctx, params)
+	return response, err
+}
+
+// GetEverythingPage returns one page of the Everything view with the next-page cursor
+// from the Link header and the total count. An empty page argument reads the first page.
+func (s *TopicsService) GetEverythingPage(ctx context.Context, page string) (*TopicListPage, error) {
+	response, header, err := s.getEverything(ctx, &generated.GetEverythingTopicsParams{Page: topicListCursor(page)})
+	if err != nil {
+		return nil, err
+	}
+	return newTopicListPage(response, header), nil
+}
+
+func (s *TopicsService) getEverything(ctx context.Context, params *generated.GetEverythingTopicsParams) (result *generated.TopicListResponse, header http.Header, err error) {
 	op := OperationInfo{
 		Service: "Topics", Operation: "GetEverythingTopics",
 		ResourceType: "topic", IsMutation: false,
 	}
-	if gater, ok := s.client.hooks.(GatingHooks); ok {
-		if ctx, err = gater.OnOperationGate(ctx, op); err != nil {
-			return
+	err = s.client.instrument(ctx, op, func(ctx context.Context) error {
+		resp, rerr := s.client.genClient().GetEverythingTopicsWithResponse(ctx, params)
+		if rerr != nil {
+			return rerr
+		}
+		if cerr := CheckResponse(resp.HTTPResponse); cerr != nil {
+			return cerr
+		}
+		result = resp.JSON200
+		if resp.HTTPResponse != nil {
+			header = resp.HTTPResponse.Header
+		}
+		return nil
+	})
+	return result, header, err
+}
+
+func topicListCursor(page string) *string {
+	if page == "" {
+		return nil
+	}
+	return &page
+}
+
+func newTopicListPage(response *generated.TopicListResponse, header http.Header) *TopicListPage {
+	page := &TopicListPage{Topics: []generated.Topic{}}
+	if response != nil {
+		page.Title = response.Title
+		page.Description = response.Description
+		if response.Topics != nil {
+			page.Topics = response.Topics
 		}
 	}
-	start := time.Now()
-	ctx = s.client.hooks.OnOperationStart(ctx, op)
-	defer func() { s.client.hooks.OnOperationEnd(ctx, op, err, time.Since(start)) }()
-
-	s.client.initGeneratedClient()
-	resp, err := s.client.gen.GetEverythingTopicsWithResponse(ctx, params)
-	if err != nil {
-		return nil, err
-	}
-	if err = CheckResponse(resp.HTTPResponse); err != nil {
-		return nil, err
-	}
-	return resp.JSON200, nil
+	page.NextPage = gearedPageFromLink(header.Get("Link"))
+	page.TotalCount, _ = strconv.Atoi(header.Get("X-Total-Count"))
+	return page
 }
 
 // --- Status and moves ---

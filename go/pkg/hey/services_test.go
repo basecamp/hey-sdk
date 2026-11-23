@@ -530,6 +530,92 @@ func TestTopicsService_GetEverything(t *testing.T) {
 	}
 }
 
+func TestTopicsService_TopicListPages(t *testing.T) {
+	views := []struct {
+		name string
+		path string
+		read func(*TopicsService, context.Context, string) (*TopicListPage, error)
+	}{
+		{"Spam", "/topics/spam.json", (*TopicsService).GetSpamPage},
+		{"Trash", "/topics/trash.json", (*TopicsService).GetTrashPage},
+		{"Everything", "/topics/everything.json", (*TopicsService).GetEverythingPage},
+	}
+	for _, view := range views {
+		t.Run(view.name, func(t *testing.T) {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.URL.Path != view.path {
+					t.Errorf("path = %q, want %q", r.URL.Path, view.path)
+				}
+				w.Header().Set("Content-Type", "application/json")
+				w.Header().Set("X-Total-Count", "47")
+				switch page := r.URL.Query().Get("page"); page {
+				case "":
+					w.Header().Set("Link", `<`+view.path+`?page=2%3Aafter-981>; rel="next"`)
+					fmt.Fprintf(w, `{"title":%q,"description":"Quarterly planning threads","topics":[{"id":981,"name":"Quarterly planning"}]}`, view.name)
+				case "2:after-981":
+					fmt.Fprintf(w, `{"title":%q,"topics":[]}`, view.name)
+				default:
+					t.Errorf("page = %q, want the first page or 2:after-981", page)
+				}
+			}))
+			t.Cleanup(server.Close)
+			client := NewClient(&Config{BaseURL: server.URL}, &StaticTokenProvider{Token: "test-token"}, WithMaxRetries(0))
+
+			first, err := view.read(client.Topics(), context.Background(), "")
+			if err != nil {
+				t.Fatalf("first page: %v", err)
+			}
+			if first.Title != view.name || first.Description != "Quarterly planning threads" {
+				t.Errorf("title, description = %q, %q", first.Title, first.Description)
+			}
+			if len(first.Topics) != 1 || first.Topics[0].Id != 981 {
+				t.Errorf("topics = %#v, want topic 981", first.Topics)
+			}
+			if first.NextPage != "2:after-981" {
+				t.Errorf("next page = %q, want 2:after-981", first.NextPage)
+			}
+			if first.TotalCount != 47 {
+				t.Errorf("total count = %d, want 47", first.TotalCount)
+			}
+
+			last, err := view.read(client.Topics(), context.Background(), first.NextPage)
+			if err != nil {
+				t.Fatalf("last page: %v", err)
+			}
+			if last.NextPage != "" {
+				t.Errorf("last page's next page = %q, want none", last.NextPage)
+			}
+			if last.Topics == nil || len(last.Topics) != 0 {
+				t.Errorf("last page's topics = %#v, want an empty list", last.Topics)
+			}
+		})
+	}
+}
+
+func TestTopicsService_TopicListPageErrors(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusUnauthorized)
+		fmt.Fprint(w, `{"error":"unauthorized"}`)
+	}))
+	t.Cleanup(server.Close)
+	client := NewClient(&Config{BaseURL: server.URL}, &StaticTokenProvider{Token: "test-token"}, WithMaxRetries(0))
+
+	for name, read := range map[string]func(context.Context, string) (*TopicListPage, error){
+		"Spam":       client.Topics().GetSpamPage,
+		"Trash":      client.Topics().GetTrashPage,
+		"Everything": client.Topics().GetEverythingPage,
+	} {
+		page, err := read(context.Background(), "")
+		if err == nil {
+			t.Errorf("%s: expected an error, got page %#v", name, page)
+		}
+		if page != nil {
+			t.Errorf("%s: page = %#v, want nil with the error", name, page)
+		}
+	}
+}
+
 // --- Messages ---
 
 func TestMessagesService_Get(t *testing.T) {
